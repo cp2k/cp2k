@@ -2866,8 +2866,8 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"FORCES",&
          description="Controls the output of the helium forces on the solute",&
          print_level=high_print_level,common_iter_levels=1,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
     ! Properties printed at DEBUG print level
     !
@@ -2883,8 +2883,8 @@ CONTAINS
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)        
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
 
     RETURN
   END SUBROUTINE create_helium_section

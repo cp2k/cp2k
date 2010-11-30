@@ -146,20 +146,20 @@ MODULE pint_io
 
       SELECT CASE(outformat)
         CASE (dump_dcd)
-           form="UNFORMATTED"
-           ext=".dcd"
+          form="UNFORMATTED"
+          ext=".dcd"
         CASE (dump_atomic)
-           form="FORMATTED"
-           ext=""
+          form="FORMATTED"
+          ext=""
         CASE (dump_xmol)
-           form="FORMATTED"
-           ext=".xyz"
+          form="FORMATTED"
+          ext=".xyz"
         CASE default
-           CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
       END SELECT
 
       NULLIFY(f_env,cell,subsys)
-        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+      CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
            f_env=f_env,new_error=new_error, failure=failure, handle=handle)
       CALL force_env_get(force_env=f_env%force_env,&
            cell=cell, subsys=subsys, error=new_error)
@@ -168,24 +168,24 @@ MODULE pint_io
 
       ! calculate and copy the requested property
       ! to the particles structure
-        nb=REAL(pint_env%p,dp)
-        idim=0
-        DO iat=1,pint_env%ndim/3
-          DO idir=1,3
-            idim=idim+1
+      nb=REAL(pint_env%p,dp)
+      idim=0
+      DO iat=1,pint_env%ndim/3
+        DO idir=1,3
+          idim=idim+1
           ss=0.0_dp
           vv=0.0_dp
 !          ss2=0.0_dp
-            DO ib=1,pint_env%p
-              ss=ss+pint_env%x(ib,idim)
+          DO ib=1,pint_env%p
+            ss=ss+pint_env%x(ib,idim)
             vv=vv+pint_env%v(ib,idim)
 !            ss2=ss2+pint_env%x(ib,idim)**2
-            END DO
-            particles%els(iat)%r(idir)=ss/nb
+          END DO
+          particles%els(iat)%r(idir)=ss/nb
           particles%els(iat)%v(idir)=vv/nb
 !          particles%els(iat)%v(idir)=SQRT(ss2/nb-(ss/nb)**2)
-          END DO
         END DO
+      END DO
 
       ! set up the output unit number and file name
       ! for the current property
@@ -212,7 +212,7 @@ MODULE pint_io
         CALL cp_print_key_finished_output(unit_nr,logger,&
              print_key, "", local=.FALSE., error=new_error)
 
-    END IF
+      END IF
 
       CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
@@ -277,13 +277,13 @@ MODULE pint_io
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-     CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
 
     ! iterate over the properties that we know how to print
     ! (currently positions and velocities)
     DO id = 1, n_ids
 
-        print_key => section_vals_get_subs_vals(pint_env%input,&
+      print_key => section_vals_get_subs_vals(pint_env%input,&
                    TRIM(sect_path(id)), error=error)
 
       should_output = cp_print_key_should_output(&
@@ -292,49 +292,49 @@ MODULE pint_io
       IF ( .NOT. BTEST(should_output,cp_p_file) ) CONTINUE
 
       ! get units of measure for output (if available)
-        CALL section_vals_val_get(print_key,"UNIT",&
+      CALL section_vals_val_get(print_key,"UNIT",&
            c_val=unit_str,error=error)
-        unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+      unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
       ! get the format for output
-        CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,&
+      CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,&
            error=error)
 
-        SELECT CASE(outformat)
+      SELECT CASE(outformat)
         CASE (dump_dcd)
-           form="UNFORMATTED"
-           ext=".dcd"
+          form="UNFORMATTED"
+          ext=".dcd"
         CASE (dump_atomic)
-           form="FORMATTED"
-           ext=""
+          form="FORMATTED"
+          ext=""
         CASE (dump_xmol)
-           form="FORMATTED"
-           ext=".xyz"
+          form="FORMATTED"
+          ext=".xyz"
         CASE default
-           CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
-        END SELECT
+          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
+      END SELECT
 
       NULLIFY(f_env,cell,subsys)
-        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-             f_env=f_env,new_error=new_error, failure=failure, handle=handle)
-                 CALL force_env_get(force_env=f_env%force_env,&
-                      cell=cell, subsys=subsys, error=new_error)
-                 CALL cp_subsys_get(subsys,particles=particles,&
-                      error=new_error)
+      CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+           f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+      CALL force_env_get(force_env=f_env%force_env,&
+           cell=cell, subsys=subsys, error=new_error)
+      CALL cp_subsys_get(subsys,particles=particles,&
+           error=new_error)
 
       ! iterate over beads
       DO ib = 1, pint_env%p
 
         ! copy the requested property of the current bead
         ! to the particles structure
-                 idim=0
-                 DO iat=1,pint_env%ndim/3
-                    DO idir=1,3
-                       idim=idim+1
-                       particles%els(iat)%r(idir)=pint_env%x(ib,idim)
-                       particles%els(iat)%v(idir)=pint_env%v(ib,idim)
-                    END DO
-                 END DO
+        idim=0
+        DO iat=1,pint_env%ndim/3
+          DO idir=1,3
+            idim=idim+1
+            particles%els(iat)%r(idir)=pint_env%x(ib,idim)
+            particles%els(iat)%v(idir)=pint_env%v(ib,idim)
+          END DO
+        END DO
 
         ! set up the output unit number and file name
         ! for the current property and bead
@@ -350,11 +350,11 @@ MODULE pint_io
         ! actually perform the i/o - on the ionode only
         IF (unit_nr>0) THEN
 
-                IF (outformat == dump_xmol) THEN
+          IF (outformat == dump_xmol) THEN
             WRITE(UNIT=title,FMT="(A,I8,A,F20.10)")&
-                        " i =",pint_env%iter,&
-                       ", E =",pint_env%e_pot_bead(ib)
-                END IF
+                  " i =",pint_env%iter,&
+                  ", E =",pint_env%e_pot_bead(ib)
+          END IF
 
           CALL write_particle_coordinates( &
                particles%els, &
@@ -366,15 +366,15 @@ MODULE pint_io
                unit_conv=unit_conv, &
                error=error)
 
-                 CALL cp_print_key_finished_output(unit_nr,logger,&
+          CALL cp_print_key_finished_output(unit_nr,logger,&
                print_key, "", local=.FALSE., error=new_error)
 
-              END IF
+        END IF
 
-           END DO
+      END DO
 
-        CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
-        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+      CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
+      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
     END DO
 

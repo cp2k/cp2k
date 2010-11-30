@@ -834,7 +834,7 @@ CONTAINS
     CALL timestop(handle2)
 
     IF (PRESENT(pint_env)) THEN
-       ! Update PINT section
+      ! Update PINT section
       CALL update_motion_pint(motion_section, pint_env, error)
     END IF
 
@@ -870,101 +870,101 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-      pint_section => section_vals_get_subs_vals(motion_section,"PINT",error=error)
-      CALL section_vals_val_set(pint_section,"ITERATION",i_val=pint_env%iter,error=error)
+    pint_section => section_vals_get_subs_vals(motion_section,"PINT",error=error)
+    CALL section_vals_val_set(pint_section,"ITERATION",i_val=pint_env%iter,error=error)
 
-      ! allocate memory for COORDs and VELOCITYs if the BEADS section was not
+    ! allocate memory for COORDs and VELOCITYs if the BEADS section was not
+    ! explicitly given in the input (this is actually done only once since
+    ! after section_vals_add_values section becomes explict)
+    NULLIFY(tmpsec)
+    tmpsec => section_vals_get_subs_vals(pint_section,"BEADS", error=error)
+    CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+    IF ( .NOT. explicit ) THEN
+      CALL section_vals_add_values(tmpsec,error)
+    END IF
+
+    ! update bead coordinates in the global input structure
+    NULLIFY(r_vals)
+    ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
+    CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+
+    i=1
+    CALL pint_u2x(pint_env,error=error)
+    DO iatom=1, pint_env%ndim
+      DO ibead=1, pint_env%p
+        r_vals(i)=pint_env%x(ibead,iatom)
+        i = i+1
+      END DO
+    END DO
+    CALL section_vals_val_set(pint_section,"BEADS%COORD%_DEFAULT_KEYWORD_", &
+         r_vals_ptr=r_vals,error=error)
+
+    ! update bead velocities in the global input structure
+    NULLIFY(r_vals)
+    ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
+    CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+    i=1
+    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+    DO iatom=1, pint_env%ndim
+      DO ibead=1, pint_env%p
+        r_vals(i)=pint_env%v(ibead,iatom)
+        i = i+1
+      END DO
+    END DO
+    CALL section_vals_val_set(pint_section,"BEADS%VELOCITY%_DEFAULT_KEYWORD_",&
+         r_vals_ptr=r_vals,error=error)
+
+    IF(pint_env%pimd_thermostat==thermostat_nose) THEN
+
+      ! allocate memory for COORDs and VELOCITYs if the NOSE section was not
       ! explicitly given in the input (this is actually done only once since
       ! after section_vals_add_values section becomes explict)
       NULLIFY(tmpsec)
-      tmpsec => section_vals_get_subs_vals(pint_section,"BEADS", error=error)
+      tmpsec => section_vals_get_subs_vals(pint_section,"NOSE", error=error)
       CALL section_vals_get(tmpsec,explicit=explicit,error=error)
       IF ( .NOT. explicit ) THEN
         CALL section_vals_add_values(tmpsec,error)
       END IF
 
-      ! update bead coordinates in the global input structure
+      ! update thermostat coordinates in the global input structure
       NULLIFY(r_vals)
-      ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-      CPAssert(istat==0, cp_failure_level, routineP, error, failure)
-
-      i=1
-      CALL pint_u2x(pint_env,error=error)
-    DO iatom=1, pint_env%ndim
-        DO ibead=1, pint_env%p
-        r_vals(i)=pint_env%x(ibead,iatom)
-          i = i+1
-        END DO
-      END DO
-      CALL section_vals_val_set(pint_section,"BEADS%COORD%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=r_vals,error=error)
-
-      ! update bead velocities in the global input structure
-      NULLIFY(r_vals)
-      ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
+      ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
       CPAssert(istat==0, cp_failure_level, routineP, error, failure)
       i=1
-      CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-    DO iatom=1, pint_env%ndim
-        DO ibead=1, pint_env%p
-        r_vals(i)=pint_env%v(ibead,iatom)
-          i = i+1
-        END DO
-      END DO
-    CALL section_vals_val_set(pint_section,"BEADS%VELOCITY%_DEFAULT_KEYWORD_",&
-           r_vals_ptr=r_vals,error=error)
-
-      IF(pint_env%pimd_thermostat==thermostat_nose) THEN
-
-        ! allocate memory for COORDs and VELOCITYs if the NOSE section was not
-        ! explicitly given in the input (this is actually done only once since
-        ! after section_vals_add_values section becomes explict)
-        NULLIFY(tmpsec)
-        tmpsec => section_vals_get_subs_vals(pint_section,"NOSE", error=error)
-        CALL section_vals_get(tmpsec,explicit=explicit,error=error)
-        IF ( .NOT. explicit ) THEN
-          CALL section_vals_add_values(tmpsec,error)
-        END IF
-
-        ! update thermostat coordinates in the global input structure
-        NULLIFY(r_vals)
-        ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-        CPAssert(istat==0, cp_failure_level, routineP, error, failure)
-        i=1
       DO iatom=1, pint_env%ndim
-          DO ibead=1, pint_env%p
-            DO inos=1, pint_env%nnos
+        DO ibead=1, pint_env%p
+          DO inos=1, pint_env%nnos
             r_vals(i)=pint_env%tx(inos,ibead,iatom)
-              i = i+1
-            END DO
+            i = i+1
           END DO
         END DO
-        CALL section_vals_val_set(pint_section,"NOSE%COORD%_DEFAULT_KEYWORD_", &
-             r_vals_ptr=r_vals,error=error)
+      END DO
+      CALL section_vals_val_set(pint_section,"NOSE%COORD%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=r_vals,error=error)
 
-        ! update thermostat velocities in the global input structure
-        NULLIFY(r_vals)
-        ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-        CPAssert(istat==0, cp_failure_level, routineP, error, failure)
-        i=1
+      ! update thermostat velocities in the global input structure
+      NULLIFY(r_vals)
+      ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
+      CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+      i=1
       DO iatom=1, pint_env%ndim
-          DO ibead=1, pint_env%p
-            DO inos=1, pint_env%nnos
+        DO ibead=1, pint_env%p
+          DO inos=1, pint_env%nnos
             r_vals(i)=pint_env%tv(inos,ibead,iatom)
-              i = i+1
-            END DO
+            i = i+1
           END DO
         END DO
-        CALL section_vals_val_set(pint_section,"NOSE%VELOCITY%_DEFAULT_KEYWORD_", &
-             r_vals_ptr=r_vals,error=error)
+      END DO
+      CALL section_vals_val_set(pint_section,"NOSE%VELOCITY%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=r_vals,error=error)
 
-      ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
+    ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
 
-        NULLIFY(tmpsec)
-        tmpsec => section_vals_get_subs_vals(pint_section,"GLE",error=error)
-        CALL dump_gle_restart_info(pint_env%gle, pint_env%replicas%para_env, tmpsec, error)
+      NULLIFY(tmpsec)
+      tmpsec => section_vals_get_subs_vals(pint_section,"GLE",error=error)
+      CALL dump_gle_restart_info(pint_env%gle, pint_env%replicas%para_env, tmpsec, error)
 
-      END IF
+    END IF
 
     CALL timestop(handle)
 
