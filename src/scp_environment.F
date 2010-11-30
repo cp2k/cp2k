@@ -168,9 +168,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cbs, rbs
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: app, asp, ass
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
     REAL(KIND=dp), POINTER                   :: ascp_diag( : ), block( :, : )
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tmp
     TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
