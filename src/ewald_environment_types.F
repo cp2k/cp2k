@@ -348,9 +348,9 @@ CONTAINS
        IF (ewald_env%ewald_type==do_ewald_none) THEN
           ewald_env%rcut = 0.0_dp
        ELSE
-          CALL section_vals_val_get(ewald_section,"EWALD_R_CUT",explicit=explicit,error=error)
+          CALL section_vals_val_get(ewald_section,"RCUT",explicit=explicit,error=error)
           IF (explicit) THEN
-             CALL section_vals_val_get(ewald_section,"EWALD_R_CUT",r_val=ewald_env%rcut,error=error)
+             CALL section_vals_val_get(ewald_section,"RCUT",r_val=ewald_env%rcut,error=error)
           ELSE
              ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
           ENDIF

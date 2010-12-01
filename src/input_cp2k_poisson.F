@@ -307,10 +307,11 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="EWALD_R_CUT",&
+    CALL keyword_create(keyword, name="RCUT",&
          description="Explicitly provide the real-space cutoff of the ewald summation (EWALD|PME|SPME). "//&
-                     "If present, overwrites the estimate of EWALD_ACCURACY.",&
-         usage="EWALD_R_CUT 5", n_var=1, type_of_var=real_t, unit_str="angstrom",error=error)
+                     "If present, overwrites the estimate of EWALD_ACCURACY and affects also the "//&
+                     "the construction of the neighbor lists for non-bonded terms (in FIST).",&
+         usage="RCUT 5.0", n_var=1, type_of_var=real_t, unit_str="angstrom",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

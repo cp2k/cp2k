@@ -24,7 +24,7 @@
       &EWALD
         EWALD_TYPE EWALD
         ALPHA  0.8
-        EWALD_R_CUT 3.1787
+        RCUT 3.1787
         GMAX 21 21 21
         &MULTIPOLES T
            MAX_MULTIPOLE_EXPANSION QUADRUPOLE
