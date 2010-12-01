@@ -123,9 +123,9 @@ CONTAINS
     CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",explicit=explicit2,error=error)
     rc = se_control%cutoff_exc
     IF (.NOT.explicit1) THEN
-       rc = MAX(0.25_dp*plane_distance(1,0,0,cell),&
-                0.25_dp*plane_distance(0,1,0,cell),&
-                0.25_dp*plane_distance(0,0,1,cell))
+       rc = MIN(rc,MAX(0.25_dp*plane_distance(1,0,0,cell),&
+                       0.25_dp*plane_distance(0,1,0,cell),&
+                       0.25_dp*plane_distance(0,0,1,cell)))
 
        IF (rc /= se_control%cutoff_exc) THEN
           IF (output_unit>0) THEN
