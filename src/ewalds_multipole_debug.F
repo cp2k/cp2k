@@ -828,7 +828,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
            ! Rebuild neighbor lists
            CALL list_control ( atomic_kind_set, particle_set, local_particles, &
                 cell, nonbond_env, logger%para_env, mm_section, &
-                shell_particle_set, core_particle_set, error=error)
+                shell_particle_set, core_particle_set, ignore_topology=.FALSE., error=error)
 
            forces_glob = 0.0_dp
            forces_local= 0.0_dp
@@ -868,7 +868,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
            ! Rebuild neighbor lists
            CALL list_control ( atomic_kind_set, particle_set, local_particles, &
                 cell, nonbond_env, logger%para_env, mm_section, &
-                shell_particle_set, core_particle_set, error=error)
+                shell_particle_set, core_particle_set, ignore_topology=.FALSE., error=error)
 
            forces_glob = 0.0_dp
            forces_local= 0.0_dp

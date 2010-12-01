@@ -630,7 +630,7 @@ CONTAINS
             cell=topology%cell, r_max=r_max, r_minsq=r_minsq, &
             ei_scale14=1.0_dp, vdw_scale14=1.0_dp, nonbonded=nonbonded, &
             para_env=para_env, build_from_scratch=.TRUE., geo_check=.TRUE., &
-            mm_section=generate_section, error=error)
+            mm_section=generate_section, ignore_topology=.FALSE., error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,"GENERATE| Number of prescreened bonds (neighbors):",T71,I10)')&
                nonbonded%neighbor_kind_pairs(1)%npairs

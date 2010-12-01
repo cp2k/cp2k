@@ -53,3 +53,6 @@ h2o_gks_e.inp      3
 # SCP ice
 ice-scp-ewald.inp 3
 ice-scp-ewald_gks.inp 3
+# ewald with a molecular topology defined
+ice-ewald-mol.inp 3
+ice-ewald-nomol.inp 3

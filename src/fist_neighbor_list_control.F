@@ -60,7 +60,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
        cell, fist_nonbond_env, para_env, mm_section,shell_particle_set,&
-       core_particle_set, force_update, error)
+       core_particle_set, force_update, ignore_topology, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
     TYPE(particle_type), POINTER             :: particle_set(:)
@@ -72,6 +72,7 @@ CONTAINS
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set(:), &
                                                 core_particle_set(:)
     LOGICAL, INTENT(IN), OPTIONAL            :: force_update
+    LOGICAL, INTENT(IN)                      :: ignore_topology
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_control', &
@@ -101,7 +102,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
+ 
     ! *** Assigning local pointers ***
     CALL fist_nonbond_env_get(fist_nonbond_env,&
                               nonbonded=nonbonded,&
@@ -216,7 +217,8 @@ CONTAINS
             local_particles, cell, rlist_cut, rlist_lowsq, ei_scale14, &
             vdw_scale14, nonbonded, para_env, &
             build_from_scratch=build_from_scratch, geo_check=geo_check, &
-            mm_section=mm_section, full_nl=full_nl, error=error)
+            mm_section=mm_section, full_nl=full_nl,&
+            ignore_topology=ignore_topology, error=error)
        
        CALL cell_release(cell_last_update,error=error)
        CALL cell_create(cell_last_update,error=error)

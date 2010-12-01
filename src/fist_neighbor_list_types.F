@@ -255,7 +255,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
        particle_set, rab, check_spline, id_kind, is_full, skip, cell, &
-       ei_scale14, vdw_scale14, error)
+       ei_scale14, vdw_scale14, ignore_topology, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     TYPE(particle_type), DIMENSION(:), &
@@ -266,6 +266,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: is_full, skip
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
+    LOGICAL, INTENT(IN)                      :: ignore_topology
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
@@ -280,24 +281,30 @@ CONTAINS
                                                 is_onfo
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
-    ex_ei = ANY(particle_set(atom_a)%list_exclude_ei==atom_b)
-    ex_vdw = ANY(particle_set(atom_a)%list_exclude_vdw==atom_b)
-    is_onfo = ANY(particle_set(atom_a)%list_onfo==atom_b)
-    IF (ex_ei.OR.ex_vdw.OR.is_onfo) THEN
-       ! Check if this pair could correspond to a local interaction (bond, bend,
-       ! or torsion) to which the exclusion lists and 14 potentials apply.
-       !
-       ! rab is the relative vector that may include some cell vectors. rabc is
-       ! the 'shortest' possible relative vector, i.e. cell vectors are
-       ! subtracted. When they are not the same, rab corresponds to a non-local
-       ! interaction and the exclusion lists do not apply.
-       rabc = pbc(rab, cell)
-       IF ((ANY(ABS(rab-rabc)>eps_default))) THEN
-          ex_ei = .FALSE.
-          ex_vdw = .FALSE.
-          is_onfo = .FALSE.
+    IF (ignore_topology) THEN
+       ex_ei = .FALSE.
+       ex_vdw = .FALSE.
+       is_onfo = .FALSE.
+    ELSE
+       ex_ei = ANY(particle_set(atom_a)%list_exclude_ei==atom_b)
+       ex_vdw = ANY(particle_set(atom_a)%list_exclude_vdw==atom_b)
+       is_onfo = ANY(particle_set(atom_a)%list_onfo==atom_b)
+       IF (ex_ei.OR.ex_vdw.OR.is_onfo) THEN
+          ! Check if this pair could correspond to a local interaction (bond, bend,
+          ! or torsion) to which the exclusion lists and 14 potentials apply.
+          !
+          ! rab is the relative vector that may include some cell vectors. rabc is
+          ! the 'shortest' possible relative vector, i.e. cell vectors are
+          ! subtracted. When they are not the same, rab corresponds to a non-local
+          ! interaction and the exclusion lists do not apply.
+          rabc = pbc(rab, cell)
+          IF ((ANY(ABS(rab-rabc)>eps_default))) THEN
+             ex_ei = .FALSE.
+             ex_vdw = .FALSE.
+             is_onfo = .FALSE.
+          END IF
        END IF
-    END IF
+    ENDIF
 
     ! The skip option is .TRUE. for QM-QM pairs in an QM/MM run. In case these
     ! interactions have an ex_ei option, we store it in the neighbor list to

@@ -213,7 +213,7 @@ CONTAINS
        ! First check with list_control to update neighbor lists
        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
             cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
-            core_particle_set, error=error)
+            core_particle_set, ignore_topology=.FALSE., error=error)
     END IF
 
     ! Initialize force, energy and pressure tensor arrays
