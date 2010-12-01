@@ -89,7 +89,7 @@ MODULE dbcsr_operations
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_switch_data_area, dbcsr_valid_index
+       dbcsr_switch_data_area, dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
@@ -1936,7 +1936,7 @@ CONTAINS
           CALL dbcsr_data_ensure_size (mat_comm%m%data_area, get_sizes(i_d),&
                nocopy=.TRUE., zero_pad=.FALSE., error=error)
           CALL ensure_array_size (mat_comm%m%index, lb=1, ub=get_sizes(i_i),&
-               nocopy=.TRUE., special=mat_comm%m%special_memory,&
+               nocopy=.TRUE., special=dbcsr_uses_special_memory(mat_comm),&
                zero_pad=.TRUE., error=error)
           CALL mp_recv (mat_comm%m%index(1:get_sizes(i_i)), &
                src_p, step, mp_group)
@@ -2501,17 +2501,18 @@ CONTAINS
                dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
-               special=matrix_a%m%special_memory, &
+               special=dbcsr_uses_special_memory(matrix_a), &
                replication_type=repl_type, error=error)
        ELSE
           CALL dbcsr_create(matrix_b,'copy of '//dbcsr_name(matrix_a),&
                dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
-               special=matrix_a%m%special_memory,&
+               special=dbcsr_uses_special_memory(matrix_a),&
                replication_type=repl_type, error=error)
        ENDIF
-       CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index), error=error)
+       CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index),&
+            special=dbcsr_uses_special_memory(matrix_b), error=error)
        !
        ! copy index and data
        matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
@@ -2880,14 +2881,14 @@ CONTAINS
             dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
             matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
             nblks=matrix_a%m%nblks, data_type=new_type,&
-            special=matrix_a%m%special_memory, &
+            special=dbcsr_uses_special_memory(matrix_a), &
             replication_type=repl_type, error=error)
     ELSE
        CALL dbcsr_create(matrix_b,'submatrix copy of '//TRIM(dbcsr_name(matrix_a)),&
             dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
             matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
             nblks=matrix_a%m%nblks, data_type=new_type,&
-            special=matrix_a%m%special_memory,&
+            special=dbcsr_uses_special_memory(matrix_a),&
             replication_type=repl_type, error=error)
     ENDIF
     CALL dbcsr_finalize(matrix_b, error=error)

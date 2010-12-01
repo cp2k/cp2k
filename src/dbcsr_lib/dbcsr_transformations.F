@@ -227,7 +227,8 @@ CONTAINS
     CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
          dbcsr_get_matrix_type(normal),&
          normal%m%col_blk_size, normal%m%row_blk_size,&
-         data_type=normal%m%data_type, special=normal%m%special_memory, error=error)
+         data_type=normal%m%data_type,&
+         special=dbcsr_uses_special_memory(normal), error=error)
     CALL dbcsr_distribution_release (new_dist)
     ! Reserve the space for the new indices.
     IF (tr_index) THEN
@@ -442,7 +443,7 @@ CONTAINS
     !vw should be created before calling this procedure
     CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
          dbcsr_type_no_symmetry, sm%m%row_blk_size, sm%m%col_blk_size,&
-         0,0, dbcsr_get_data_type(sm), special=sm%m%special_memory,&
+         0,0, dbcsr_get_data_type(sm), special=dbcsr_uses_special_memory(sm),&
          error=error)
     IF (dbcsr_get_matrix_type (sm) .EQ. dbcsr_type_antisymmetric) THEN
        desm%m%negate_real = .TRUE.
@@ -715,7 +716,7 @@ CONTAINS
        CALL dbcsr_create(distributed, 'Distributed '//matrix%m%name,&
             matrix%m%dist,&
             dbcsr_type_no_symmetry, matrix%m%row_blk_size, matrix%m%col_blk_size,&
-            0, 0, matrix%m%data_type, special=matrix%m%special_memory, &
+            0, 0, matrix%m%data_type, special=dbcsr_uses_special_memory(matrix), &
             error=error)
        distributed%m%replication_type = dbcsr_repl_none
        ! First count how many blocks are local.
@@ -2301,7 +2302,7 @@ CONTAINS
     CALL dbcsr_create(replicated, 'Replicated '//TRIM(matrix%m%name),&
          matrix%m%dist,&
          dbcsr_type_no_symmetry, matrix%m%row_blk_size, matrix%m%col_blk_size,&
-         0, 0, matrix%m%data_type, special=matrix%m%special_memory,&
+         0, 0, matrix%m%data_type, special=dbcsr_uses_special_memory(matrix),&
          replication_type=rep_type, error=error)
     ! Count initial sizes for sending. Also, ensure that blocks are on their
     ! home processors.

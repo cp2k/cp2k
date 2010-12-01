@@ -67,7 +67,8 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
-       dbcsr_nfullrows_local, dbcsr_row_block_sizes, dbcsr_valid_index
+       dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
+       dbcsr_uses_special_memory, dbcsr_valid_index
 
 !$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
@@ -1288,7 +1289,8 @@ CONTAINS
                data_size, nocopy=.TRUE.,error=error)
           CALL ensure_array_size (&
                buffer_set%mats(row_image, col_image)%m%index,&
-               ub=index_size, nocopy=.TRUE., special=.TRUE.,&
+               ub=index_size, nocopy=.TRUE.,&
+               special=dbcsr_uses_special_memory(buffer_set%mats(row_image, col_image)),&
                error=error)
           !buffer_set%mats(row_image, col_image)%m%transpose&
           !     = source_matrix%m%transpose
