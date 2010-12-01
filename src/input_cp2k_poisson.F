@@ -301,14 +301,23 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_create(keyword, name="EWALD_ACCURACY",&
          description="Expected accuracy in the Ewald sum. This number affects only the calculation of "//&
          "the cutoff for the real-space term of the ewald summation (EWALD|PME|SPME). This keyword has no "//&
-         "effect on the reciprocal space term (which can be tuned indipendently).",&
+         "effect on the reciprocal space term (which can be tuned independently).",&
          usage="EWALD_ACCURACY {real}", n_var=1, type_of_var=real_t,&
          unit_str="hartree",default_r_val=1.0E-6_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="EWALD_R_CUT",&
+         description="Explicitly provide the real-space cutoff of the ewald summation (EWALD|PME|SPME). "//&
+                     "If present, overwrites the estimate of EWALD_ACCURACY.",&
+         usage="EWALD_R_CUT 5", n_var=1, type_of_var=real_t, unit_str="angstrom",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="alpha",&
-         description="alpha parameter associated with Ewald (EWALD|PME|SPME). Recommended is alpha = 3.5 / r_cut.",&
+         description="alpha parameter associated with Ewald (EWALD|PME|SPME). "//&
+                     "Recommended for small systems is is alpha = 3.5 / r_cut. "//&
+                     "Tuning alpha, r_cut and gmax is needed to obtain O(N**1.5) scaling for ewald.",&
          usage="alpha .30",&
          default_r_val=cp_unit_to_cp2k(value=0.35_dp,unit_str="angstrom^-1", error=error), &
          unit_str='angstrom^-1',error=error)

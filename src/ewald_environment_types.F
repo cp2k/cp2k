@@ -329,7 +329,7 @@ CONTAINS
 
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: gmax_read
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: dummy
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
@@ -348,7 +348,12 @@ CONTAINS
        IF (ewald_env%ewald_type==do_ewald_none) THEN
           ewald_env%rcut = 0.0_dp
        ELSE
-          ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
+          CALL section_vals_val_get(ewald_section,"EWALD_R_CUT",explicit=explicit,error=error)
+          IF (explicit) THEN
+             CALL section_vals_val_get(ewald_section,"EWALD_R_CUT",r_val=ewald_env%rcut,error=error)
+          ELSE
+             ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
+          ENDIF
        END IF
        ! we have no defaults for gmax, gmax is only needed for ewald and spme
        SELECT CASE ( ewald_env%ewald_type )
