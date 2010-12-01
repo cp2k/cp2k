@@ -300,7 +300,9 @@ SUBROUTINE create_ewald_section(section,error)
 
     CALL keyword_create(keyword, name="EWALD_ACCURACY",&
          description="Expected accuracy in the Ewald sum. This number affects only the calculation of "//&
-         "the cutoff for the real-space term of the ewald summation (EWALD|PME|SPME). This keyword has no "//&
+         "the cutoff for the real-space term of the ewald summation (EWALD|PME|SPME) as well as the "//&
+         "construction of the neighbor lists (if the cutoff for non-bonded terms is smaller than the "//&
+         "value employed to compute the EWALD real-space term). This keyword has no "//&
          "effect on the reciprocal space term (which can be tuned independently).",&
          usage="EWALD_ACCURACY {real}", n_var=1, type_of_var=real_t,&
          unit_str="hartree",default_r_val=1.0E-6_dp,error=error)
@@ -309,8 +311,9 @@ SUBROUTINE create_ewald_section(section,error)
 
     CALL keyword_create(keyword, name="RCUT",&
          description="Explicitly provide the real-space cutoff of the ewald summation (EWALD|PME|SPME). "//&
-                     "If present, overwrites the estimate of EWALD_ACCURACY and affects also the "//&
-                     "the construction of the neighbor lists for non-bonded terms (in FIST).",&
+                     "If present, overwrites the estimate of EWALD_ACCURACY and may affect the "//&
+                     "construction of the neighbor lists for non-bonded terms (in FIST), if the value "//&
+                     "specified is larger than the cutoff for non-bonded interactions.",&
          usage="RCUT 5.0", n_var=1, type_of_var=real_t, unit_str="angstrom",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
