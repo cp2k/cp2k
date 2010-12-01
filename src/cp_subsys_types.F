@@ -8,9 +8,11 @@
 !> \par History
 !>      07.2003 created [fawzi]
 !>      09.2007 cleaned [tlaino] - University of Zurich
+!>      22.11.2010 pack/unpack particle routines added (MK)
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_subsys_types
+
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
@@ -23,6 +25,7 @@ MODULE cp_subsys_types
                                              distribution_1d_retain,&
                                              distribution_1d_type
   USE f77_blas
+  USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_release,&
                                              mol_kind_new_list_retain,&
                                              mol_kind_new_list_type
@@ -41,13 +44,20 @@ MODULE cp_subsys_types
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_types'
-  INTEGER, PRIVATE, SAVE :: last_fragment_id=0
+  INTEGER, PRIVATE, SAVE :: last_fragment_id = 0
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-  PUBLIC :: cp_subsys_type, cp_subsys_p_type
-  PUBLIC :: cp_subsys_create, cp_subsys_retain, cp_subsys_release,&
-            cp_subsys_get, cp_subsys_set
+  PUBLIC :: cp_subsys_type,&
+            cp_subsys_p_type
+
+  PUBLIC :: cp_subsys_create,&
+            cp_subsys_retain,&
+            cp_subsys_release,&
+            cp_subsys_get,&
+            cp_subsys_set,&
+            pack_subsys_particles,&
+            unpack_subsys_particles
 
 ! *****************************************************************************
 !> \brief represents a system: atoms, molecules, their pos,vel,...
@@ -387,11 +397,14 @@ CONTAINS
 !>      attributes.
 !> \par History
 !>      08.2003 created [fawzi]
+!>      22.11.2010 (MK)
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
-       local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
-       para_env, colvar_p, shell_particles, core_particles, gci, multipoles,error)
+                           local_particles, molecules_new, molecule_kinds_new,&
+                           local_molecules_new, para_env, colvar_p,&
+                           shell_particles, core_particles, gci, multipoles,&
+                           natom, nparticle, nshell, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -416,18 +429,24 @@ CONTAINS
     TYPE(global_constraint_type), OPTIONAL, &
       POINTER                                :: gci
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
+    INTEGER, INTENT(out), OPTIONAL           :: natom, nparticle, nshell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_get', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_subsys_get', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: n_atom, n_core, n_shell
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
+    n_atom = 0
+    n_core = 0
+    n_shell = 0
     
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
+
+    IF (.NOT.failure) THEN
        IF (PRESENT(id_nr)) id_nr = subsys%id_nr
        IF (PRESENT(ref_count)) ref_count = subsys%ref_count
        IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
@@ -442,7 +461,288 @@ CONTAINS
        IF (PRESENT(core_particles)) core_particles => subsys%core_particles
        IF (PRESENT(gci)) gci => subsys%gci
        IF (PRESENT(multipoles)) multipoles => subsys%multipoles
+       IF (PRESENT(natom).OR.PRESENT(nparticle).OR.PRESENT(nshell)) THEN
+          ! An atomic particle set should be present in each subsystem at the moment
+          CPPrecondition(ASSOCIATED(subsys%particles),cp_failure_level,routineP,error,failure)
+          n_atom = subsys%particles%n_els
+          ! Check if we have other kinds of particles in this subsystem
+          IF (ASSOCIATED(subsys%shell_particles)) THEN
+             n_shell = subsys%shell_particles%n_els
+             CPPrecondition(ASSOCIATED(subsys%core_particles),cp_failure_level,routineP,error,failure)
+             n_core = subsys%core_particles%n_els
+             ! The same number of shell and core particles is assumed
+             CPPrecondition((n_core == n_shell),cp_failure_level,routineP,error,failure)
+          ELSE IF (ASSOCIATED(subsys%core_particles)) THEN
+             ! This case should not occur at the moment
+             CPPrecondition(ASSOCIATED(subsys%shell_particles),cp_failure_level,routineP,error,failure)
+          ELSE
+             n_core = 0
+             n_shell = 0
+          END IF
+          IF (PRESENT(natom)) natom = n_atom
+          IF (PRESENT(nparticle)) nparticle = n_atom + n_shell
+          IF (PRESENT(nshell)) nshell = n_shell
+       END IF
     END IF
+
   END SUBROUTINE cp_subsys_get
+
+! *****************************************************************************
+!> \brief   Pack components of a subsystem particle sets into a single vector
+!> \author  Matthias Krack (MK)
+!> \date    19.11.10
+!> \version 1.0
+!> \note    It is assumed that f, r, or v are properly allocated already
+! *****************************************************************************
+  SUBROUTINE pack_subsys_particles(subsys,f,r,v,fscale,error)
+
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(OUT), OPTIONAL                  :: f, r, v
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fscale
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pack_subsys_particles', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom, j, k, natom, &
+                                                nparticle, nshell, nsize, &
+                                                shell_index
+    LOGICAL                                  :: failure
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+
+    NULLIFY (core_particles)
+    NULLIFY (particles)
+    NULLIFY (shell_particles)
+
+    CALL cp_subsys_get(subsys,&
+                       core_particles=core_particles,&
+                       natom=natom,&
+                       nparticle=nparticle,&
+                       nshell=nshell,&
+                       particles=particles,&
+                       shell_particles=shell_particles,&
+                       error=error)
+
+    nsize = 3*nparticle
+
+    ! Pack forces
+
+    IF (PRESENT(f)) THEN
+      CPPrecondition((SIZE(f) >= nsize),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            f(j) = particles%els(iatom)%f(i)
+          END DO
+        ELSE
+          DO i=1,3
+            j = j + 1
+            f(j) = core_particles%els(shell_index)%f(i)
+          END DO
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            f(k+i) = shell_particles%els(shell_index)%f(i)
+          END DO
+        END IF
+      END DO
+      IF (PRESENT(fscale)) f(1:nsize) = fscale*f(1:nsize)
+    END IF
+
+    ! Pack coordinates
+
+    IF (PRESENT(r)) THEN
+      CPPrecondition((SIZE(r) >= nsize),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            r(j) = particles%els(iatom)%r(i)
+          END DO
+        ELSE
+          DO i=1,3
+            j = j + 1
+            r(j) = core_particles%els(shell_index)%r(i)
+          END DO
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            r(k+i) = shell_particles%els(shell_index)%r(i)
+          END DO
+        END IF
+      END DO
+    END IF
+
+    ! Pack velocities
+
+    IF (PRESENT(v)) THEN
+      CPPrecondition((SIZE(v) >= nsize),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            v(j) = particles%els(iatom)%v(i)
+          END DO
+        ELSE
+          DO i=1,3
+            j = j + 1
+            v(j) = core_particles%els(shell_index)%v(i)
+          END DO
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            v(k+i) = shell_particles%els(shell_index)%v(i)
+          END DO
+        END IF
+      END DO
+    END IF
+
+  END SUBROUTINE pack_subsys_particles
+
+! *****************************************************************************
+!> \brief   Unpack components of a subsystem particle sets into a single vector
+!> \author  Matthias Krack (MK)
+!> \date    19.11.10
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE unpack_subsys_particles(subsys,f,r,v,fscale,error)
+
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: f, r, v
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fscale
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'unpack_subsys_particles', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom, j, k, natom, &
+                                                nparticle, nshell, nsize, &
+                                                shell_index
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fc, fs, mass, my_fscale
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+
+    NULLIFY (core_particles)
+    NULLIFY (particles)
+    NULLIFY (shell_particles)
+
+    CALL cp_subsys_get(subsys,&
+                       core_particles=core_particles,&
+                       natom=natom,&
+                       nparticle=nparticle,&
+                       nshell=nshell,&
+                       particles=particles,&
+                       shell_particles=shell_particles,&
+                       error=error)
+
+    nsize = 3*nparticle
+
+    ! Unpack forces
+
+    IF (PRESENT(f)) THEN
+      CPPrecondition((SIZE(f) >= nsize),cp_failure_level,routineP,error,failure)
+      IF (PRESENT(fscale)) THEN
+        my_fscale = fscale
+      ELSE
+        my_fscale = 1.0_dp
+      END IF
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            particles%els(iatom)%f(i) = my_fscale*f(j)
+          END DO
+        ELSE
+          DO i=1,3
+            j = j + 1
+            core_particles%els(shell_index)%f(i) = my_fscale*f(j)
+          END DO
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            shell_particles%els(shell_index)%f(i) = my_fscale*f(k+i)
+          END DO
+        END IF
+      END DO
+    END IF
+
+    ! Unpack coordinates
+
+    IF (PRESENT(r)) THEN
+      CPPrecondition((SIZE(r) >= nsize),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            particles%els(iatom)%r(i) = r(j)
+          END DO
+        ELSE
+          DO i=1,3
+            j = j + 1
+            core_particles%els(shell_index)%r(i) = r(j)
+          END DO
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            shell_particles%els(shell_index)%r(i) = r(k+i)
+          END DO
+          ! Update atomic position due to core and shell motion
+          mass = particles%els(iatom)%atomic_kind%mass
+          fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
+          fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
+          particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) +&
+                                        fs*shell_particles%els(shell_index)%r(1:3)
+        END IF
+      END DO
+    END IF
+
+    ! Unpack velocities
+
+    IF (PRESENT(v)) THEN
+      CPPrecondition((SIZE(v) >= nsize),cp_failure_level,routineP,error,failure)
+      j = 0
+      DO iatom=1,natom
+        shell_index = particles%els(iatom)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            j = j + 1
+            particles%els(iatom)%v(i) = v(j)
+          END DO
+        ELSE
+          DO i=1,3
+            j = j + 1
+            core_particles%els(shell_index)%v(i) = v(j)
+          END DO
+          k = 3*(natom + shell_index - 1)
+          DO i=1,3
+            shell_particles%els(shell_index)%v(i) = v(k+i)
+          END DO
+          ! Update atomic velocity due to core and shell motion
+          mass = particles%els(iatom)%atomic_kind%mass
+          fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
+          fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
+          particles%els(iatom)%v(1:3) = fc*core_particles%els(shell_index)%v(1:3) +&
+                                        fs*shell_particles%els(shell_index)%v(1:3)
+        END IF
+      END DO
+    END IF
+
+  END SUBROUTINE unpack_subsys_particles
 
 END MODULE cp_subsys_types

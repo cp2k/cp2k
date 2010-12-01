@@ -29,8 +29,11 @@ MODULE neb_md_utils
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
   USE parallel_rng_types,              ONLY: next_random_number
-  USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: massunit
+  USE particle_types,                  ONLY: get_particle_pos_or_vel,&
+                                             particle_type,&
+                                             update_particle_pos_or_vel
+  USE physcon,                         ONLY: kelvin,&
+                                             massunit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -45,111 +48,112 @@ MODULE neb_md_utils
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialize velocities of replica in an MD optimized algorithm within NEB
+!> \brief Initialize velocities of replica in an MD optimized algorithm within
+!>        NEB
 !> \author Teodoro Laino 09.2006
+!> \par History
+!>      25.11.2010 Consider core-shell model (MK)
 ! *****************************************************************************
-  SUBROUTINE neb_initialize_velocity(vels, neb_section, particle_set, i, iw, globenv,&
-       neb_env, error)
+  SUBROUTINE neb_initialize_velocity(vels,neb_section,particle_set,i_rep,iw,&
+                                     globenv,neb_env,error)
+
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vels
     TYPE(section_vals_type), POINTER         :: neb_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: i, iw
+    INTEGER, INTENT(IN)                      :: i_rep, iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(neb_type), POINTER                  :: neb_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'neb_initialize_velocity', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'neb_initialize_velocity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, kind, nfield, ref_dim
-    LOGICAL                                  :: failure
+    INTEGER                                  :: iatom, ivar, k, natom, &
+                                                nparticle, nvar
     REAL(KIND=dp)                            :: akin, mass, mass_tot, sc, &
-                                                temp, temp_ext, tmp_r1, &
-                                                vcom(3)
+                                                temp, temp_ext, tmp_r1
+    REAL(KIND=dp), DIMENSION(3)              :: v, vcom
     TYPE(section_vals_type), POINTER         :: md_section
 
-    failure = .FALSE.
-    IF (neb_env%opt_type==band_md_opt) THEN
+    IF (neb_env%opt_type == band_md_opt) THEN
        md_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%MD",error=error)
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=temp_ext,error=error)
-       ! Initialize velocity according external temperature
+       ! Initialize velocity according to external temperature
+       nparticle = SIZE(vels,1)
+       natom = SIZE(particle_set)
        mass_tot = 0.0_dp
-       vcom     = 0.0_dp
-       vels(:,i)  = 0.0_dp
-       ! Check if BAND is working in cartesian or in internal coordinates
-       IF (neb_env%use_colvar) THEN
-          nfield  = 1
-          ref_dim = neb_env%nsize_int
-       ELSE
-          nfield  = 3
-          ref_dim = neb_env%nsize_xyz
-       END IF
-       DO k = 1, ref_dim
-          vels(k,i) = next_random_number(globenv%gaussian_rng_stream,error=error)
+       vcom(1:3) = 0.0_dp
+       vels(:,i_rep)  = 0.0_dp
+       DO k=1,nparticle
+          vels(k,i_rep) = next_random_number(globenv%gaussian_rng_stream,error=error)
        END DO
+       ! Check always if BAND is working in Cartesian or in internal coordinates
        ! If working in cartesian coordinates let's get rid of the COM
-       ! Compute also the total mass (both in cartesian and internal)
-       IF (.NOT.neb_env%use_colvar) THEN
-          DO k = 1, ref_dim/nfield
-             kind = (k-1)*nfield
-             mass = particle_set(k)%atomic_kind%mass
-             mass_tot = mass_tot + mass
-             vcom(1:nfield) = vcom(1:nfield) + mass * vels(kind+1:kind+nfield,i)
-          END DO
-          vcom = vcom / mass_tot
+       ! Compute also the total mass (both in Cartesian and internal)
+       IF (neb_env%use_colvar) THEN
+          nvar = nparticle
+          mass_tot = REAL(nvar,KIND=dp)*massunit
        ELSE
-          mass_tot = REAL(ref_dim,KIND=dp)*massunit
-          vcom = 0.0_dp
+          DO iatom=1,natom
+             mass = particle_set(iatom)%atomic_kind%mass
+             mass_tot = mass_tot + mass
+             v(1:3) = get_particle_pos_or_vel(iatom,particle_set,vels(:,i_rep))
+             vcom(1:3) = vcom(1:3) + mass*v(1:3)
+          END DO
+          vcom(1:3) = vcom(1:3)/mass_tot
        END IF
-       ! Compute Kinetic Energy and Temperature
+       ! Compute kinetic energy and temperature
        akin = 0.0_dp
-       DO k = 1, ref_dim/nfield
-          kind = (k-1)*nfield
-          IF (neb_env%use_colvar) THEN
-             mass = massunit
-          ELSE
-             mass = particle_set(k)%atomic_kind%mass
-          END IF
-          ! Moving the velocities so that the COM velocity is zero
-          vels(kind+1:kind+nfield,i) = vels(kind+1:kind+nfield,i) - vcom(1:nfield)
-          akin = akin + 0.5_dp*(mass*DOT_PRODUCT(vels(kind+1:kind+nfield,i),vels(kind+1:kind+nfield,i)))
-       END DO
-       temp = 2.0_dp * akin / REAL ( ref_dim,KIND=dp)
+       IF (neb_env%use_colvar) THEN
+          DO ivar=1,nvar
+             akin = akin + 0.5_dp*massunit*vels(ivar,i_rep)*vels(ivar,i_rep)
+          END DO
+       ELSE
+          DO iatom=1,natom
+             mass = particle_set(iatom)%atomic_kind%mass
+             v(1:3) = -vcom(1:3)
+             CALL update_particle_pos_or_vel(iatom,particle_set,v(1:3),vels(:,i_rep))
+             akin = akin + 0.5_dp*mass*DOT_PRODUCT(v(1:3),v(1:3))
+          END DO
+          nvar = 3*natom
+       END IF
+       temp = 2.0_dp*akin/REAL(nvar,KIND=dp)
        ! Scale velocities to get the correct initial temperature and
-       sc        = SQRT ( temp_ext / temp )
-       vels(:,i)   = vels(:,i) * sc
-       ! Re-Compute Kinetic Energy and Temperature and Velocity of COM
+       sc = SQRT(temp_ext/temp)
+       vels(:,i_rep) = vels(:,i_rep)*sc
+       ! Re-compute kinetic energya and temperature and velocity of COM
        akin = 0.0_dp
        vcom = 0.0_dp
-       DO k = 1, ref_dim/nfield
-          kind = (k-1)*nfield
-          IF (neb_env%use_colvar) THEN
-             mass = massunit
-          ELSE
-             mass = particle_set(k)%atomic_kind%mass
-             vcom(1:nfield) =  vcom(1:nfield) + mass * vels(kind+1:kind+nfield,i)
-          END IF
-          akin = akin + 0.5_dp*(mass*DOT_PRODUCT(vels(kind+1:kind+nfield,i),vels(kind+1:kind+nfield,i)))
-       END DO
-       vcom = vcom / mass_tot
+       IF (neb_env%use_colvar) THEN
+          DO ivar=1,nvar
+             akin = akin + 0.5_dp*massunit*vels(ivar,i_rep)*vels(ivar,i_rep)
+          END DO
+       ELSE
+          DO iatom=1,natom
+             mass = particle_set(iatom)%atomic_kind%mass
+             v(1:3) = get_particle_pos_or_vel(iatom,particle_set,vels(:,i_rep))
+             vcom(1:3) = vcom(1:3) + mass*v(1:3)
+             akin = akin + 0.5_dp*mass*DOT_PRODUCT(v(1:3),v(1:3))
+          END DO
+       END IF
+       vcom(1:3) = vcom(1:3)/mass_tot
        ! Dump information
-       IF (iw>0) THEN
-          temp = 2.0_dp * akin / REAL ( ref_dim, KIND=dp)
+       IF (iw > 0) THEN
+          temp = 2.0_dp*akin/REAL(nvar,KIND=dp)
           tmp_r1 = cp_unit_from_cp2k(temp,"K",error=error)
-          WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
-               ' NEB| Initial Temperature ', tmp_r1, " K"
-          WRITE ( iw, '( A, T61, F20.12 )' ) &
-               ' NEB| Centre of mass velocity in direction x:', vcom ( 1 )
-          WRITE ( iw, '( A, T61, F20.12 )' ) &
-               ' NEB| Centre of mass velocity in direction y:', vcom ( 2 )
-          WRITE ( iw, '( A, T61, F20.12 )' ) &
-               ' NEB| Centre of mass velocity in direction z:', vcom ( 3 )
-          WRITE(iw,'(T2,"NEB|",75("*"))')
+          WRITE (iw,'(A,T61,F18.2,A2)')&
+             ' NEB| Initial Temperature ',tmp_r1," K"
+          WRITE (iw,'(A,T61,F20.12)')&
+             ' NEB| Centre of mass velocity in direction x:',vcom(1),&
+             ' NEB| Centre of mass velocity in direction y:',vcom(2),&
+             ' NEB| Centre of mass velocity in direction z:',vcom(3)
+          WRITE (iw,'(T2,"NEB|",75("*"))')
        END IF
     ELSE 
-       vels(:,i) = 0.0_dp
+       vels(:,i_rep) = 0.0_dp
     END IF
+
   END SUBROUTINE neb_initialize_velocity
 
 ! *****************************************************************************
@@ -230,11 +234,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: explicit, failure, lval
+    LOGICAL                                  :: explicit, lval
     REAL(KIND=dp)                            :: factor, norm
 
-    failure = .FALSE.
-    ! Check the sign of V.dot.F
+! Check the sign of V.dot.F
+
     CALL section_vals_get(vc_section,explicit=explicit,error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(vc_section,"PROJ_VELOCITY_VERLET",l_val=lval, error=error)
@@ -261,8 +265,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Computes temperatures
 !> \author Teodoro Laino 09.2006
+!> \par History
+!>      24.11.2010 rewritten to include core-shell model (MK)
 ! *****************************************************************************
-  SUBROUTINE get_temperatures(vels, particle_set, temperatures, ekin, factor, error)
+  SUBROUTINE get_temperatures(vels,particle_set,temperatures,ekin,factor,error)
+
     TYPE(neb_var_type), POINTER              :: vels
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -272,38 +279,40 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_temperatures', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_temperatures', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, k, kind, nfield, ref_dim
+    INTEGER                                  :: i_rep, iatom, ivar, n_rep, &
+                                                natom, nvar
     REAL(KIND=dp)                            :: akin, mass, myfactor, temploc
+    REAL(KIND=dp), DIMENSION(3)              :: v
 
-    myfactor     = cp_unit_from_cp2k(1.0_dp,"K",error=error)
+    myfactor = kelvin
     IF (PRESENT(factor)) myfactor = factor
-    IF (PRESENT(ekin))   ekin = 0.0_dp
-    temperatures = 0.0_dp
-    ref_dim = SIZE(vels%wrk,1)
-    IF (vels%in_use==do_band_collective) THEN
-       nfield  = 1
-    ELSE
-       nfield  = 3
-    END IF
-    DO i = 2, SIZE(vels%wrk,2)-1
-       akin = 0.0_dp
-       DO k = 1, ref_dim/nfield
-          kind = (k-1)*nfield
-          IF (vels%in_use==do_band_collective) THEN
-             mass = massunit
-          ELSE
-             mass = particle_set(k)%atomic_kind%mass
-          END IF
-          ! Moving the velocities so that the COM velocity is zero
-          akin = akin + 0.5_dp*(mass*DOT_PRODUCT(vels%wrk(kind+1:kind+nfield,i),vels%wrk(kind+1:kind+nfield,i)))
-       END DO
-       IF (PRESENT(ekin)) ekin(i) = akin
-       temploc = 2.0_dp * akin / REAL ( ref_dim, KIND=dp)
-       temperatures(i) = temploc * myfactor
+    IF (PRESENT(ekin)) ekin(:) = 0.0_dp
+    temperatures(:) = 0.0_dp
+    nvar = SIZE(vels%wrk,1)
+    n_rep = SIZE(vels%wrk,2)
+    natom = SIZE(particle_set)
+    DO i_rep=2,n_rep-1
+      akin = 0.0_dp
+      IF (vels%in_use == do_band_collective) THEN
+        DO ivar=1,nvar
+          akin = akin + 0.5_dp*massunit*vels%wrk(ivar,i_rep)*vels%wrk(ivar,i_rep)
+        END DO
+      ELSE
+        DO iatom=1,natom
+          mass = particle_set(iatom)%atomic_kind%mass
+          v(1:3) = get_particle_pos_or_vel(iatom,particle_set,vels%wrk(:,i_rep))
+          akin = akin + 0.5_dp*mass*DOT_PRODUCT(v(1:3),v(1:3))
+        END DO
+        nvar = 3*natom
+      END IF
+      IF (PRESENT(ekin)) ekin(i_rep) = akin
+      temploc = 2.0_dp*akin/REAL(nvar,KIND=dp)
+      temperatures(i_rep) = temploc*myfactor
     END DO
+
   END SUBROUTINE get_temperatures
 
 END MODULE neb_md_utils

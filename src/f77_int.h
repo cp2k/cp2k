@@ -40,6 +40,10 @@ SUBROUTINE cp_get_natom(env_id, natom, ierr)
   INTEGER :: natom, env_id, ierr
 END SUBROUTINE cp_get_natom
 
+SUBROUTINE cp_get_nparticle(env_id, nparticle, ierr)
+  INTEGER :: nparticle, env_id, ierr
+END SUBROUTINE cp_get_nparticle
+
 SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr)
   use kinds, only: dp
   INTEGER :: n_el, env_id, ierr

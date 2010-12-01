@@ -67,8 +67,8 @@ MODULE force_env_methods
                                              get_fist_env
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
-       force_env_get, force_env_get_natom, force_env_p_type, &
-       force_env_pos_get, force_env_set, force_env_set_cell, force_env_type, &
+       force_env_get, force_env_get_natom, force_env_get_pos, &
+       force_env_p_type, force_env_set, force_env_set_cell, force_env_type, &
        use_eip_force, use_ep_force, use_fist_force, use_mixed_force, &
        use_prog_name, use_qmmm, use_qs_force
   USE force_fields_util,               ONLY: get_generic_info
@@ -284,7 +284,7 @@ CONTAINS
           nat=force_env_get_natom(force_env,error=error)
           ALLOCATE(pos(3*nat),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          CALL force_env_pos_get(force_env, pos, 3*nat, error=error)
+          CALL force_env_get_pos(force_env, pos, 3*nat, error=error)
           DEALLOCATE(pos,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)

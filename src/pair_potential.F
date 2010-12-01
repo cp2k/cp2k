@@ -387,11 +387,11 @@ CPSourceFileRef,&
             xsav,hicut
        dx2 = (hicut - locut)/REAL(npoints+1,KIND=dp)
        x  = locut + dx2
-       WRITE(iw,'("SPLINE_INFO|",5X,A,F15.9)') "Spline value at RMIN (Hartree):",&
+       WRITE(iw,'("SPLINE_INFO|",5X,A,ES17.9)') "Spline value at RMIN (Hartree):",&
             potential_s(spl_p,x*x,xdum,spl_f,logger)
-       WRITE(iw,'("SPLINE_INFO|",5X,A,F15.9)') "Spline value at RMAX (Hartree):",&
+       WRITE(iw,'("SPLINE_INFO|",5X,A,ES17.9)') "Spline value at RMAX (Hartree):",&
             potential_s(spl_p,hicut*hicut,xdum,spl_f,logger)
-       WRITE(iw,'("SPLINE_INFO|",5X,A,F15.9)') "Non-bonded cutoff:             ",&
+       WRITE(iw,'("SPLINE_INFO|",5X,A,ES17.9)') "Non-bonded cutoff:             ",&
             energy_cutoff
     END IF
     ! Print spline data on file if requested

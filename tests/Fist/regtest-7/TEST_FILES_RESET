@@ -407,3 +407,5 @@ uo2_nvt_1.inp
 uo2_nvt_2.inp
 uo2_nvt_3.inp
 uo2_nvt_4.inp
+# Enable Band (NEB) runs using the core-shell model 
+UO2-4x4x4-autofit.inp

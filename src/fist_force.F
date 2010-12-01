@@ -162,7 +162,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-
     NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
          fist_nonbond_env,mm_section,local_molecules,local_particles,&
          molecule_kind_set,molecule_set,particle_set, print_section,&

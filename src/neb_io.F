@@ -16,6 +16,7 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_io
+
   USE cell_types,                      ONLY: cell_type
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_files,                        ONLY: close_file,&
@@ -57,8 +58,10 @@ MODULE neb_io
   USE neb_md_utils,                    ONLY: get_temperatures
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
-  USE particle_types,                  ONLY: particle_type,&
+  USE particle_types,                  ONLY: get_particle_pos_or_vel,&
+                                             particle_type,&
                                              write_particle_coordinates
+  USE physcon,                         ONLY: angstrom
   USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -214,7 +217,7 @@ CONTAINS
              CALL section_vals_val_get(neb_env%motion_print_section,"TRAJECTORY%UNIT",&
                   c_val=unit_str,error=error)
              unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-             !         *** This information can be digested by Molden ***
+             ! This information can be digested by Molden
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,crd,dump_xmol,"POS",title,&
                   cell=cell,array=coords%xyz(:,irep),unit_conv=unit_conv,error=error)
@@ -226,7 +229,6 @@ CONTAINS
              CALL section_vals_val_get(neb_env%motion_print_section,"VELOCITIES%UNIT",&
                   c_val=unit_str,error=error)
              unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-             !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,vel,dump_xmol,"VEL",title,&
                   cell=cell,array=vels%xyz(:,irep),unit_conv=unit_conv,error=error)
@@ -238,7 +240,6 @@ CONTAINS
              CALL section_vals_val_get(neb_env%motion_print_section,"FORCES%UNIT",&
                   c_val=unit_str,error=error)
              unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-             !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,frc,dump_xmol,"FRC",title,&
                   cell=cell,array=forces%xyz(:,irep),unit_conv=unit_conv,error=error)
@@ -354,35 +355,44 @@ CONTAINS
                           vels=vels,&
                           error=error)
     END IF
+
     CALL timestop(handle)
+
   END SUBROUTINE dump_neb_info
 
 ! *****************************************************************************
 !> \brief dump coordinates of a replica NEB
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE dump_replica_coordinates(particle_set, coords, i, ienum, iw, use_colvar)
+  SUBROUTINE dump_replica_coordinates(particle_set,coords,i_rep,ienum,iw,use_colvar)
+
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(neb_var_type), POINTER              :: coords
-    INTEGER, INTENT(IN)                      :: i, ienum, iw
+    INTEGER, INTENT(IN)                      :: i_rep, ienum, iw
     LOGICAL, INTENT(IN)                      :: use_colvar
 
-    INTEGER                                  :: j
+    INTEGER                                  :: iatom, j
+    REAL(KIND=dp), DIMENSION(3)              :: r
 
-    IF (iw>0) THEN
-       WRITE(iw,'(/,T2,"NEB|",75("*"))')
-       WRITE(iw,'(T2,"NEB|",1X,A,I6,A)')"Geometry for Replica Nr. ",ienum,"."
-       DO j = 1, SIZE(particle_set)
-          WRITE(iw,'(T2,"NEB|",1X,A10,5X,3F15.9)')TRIM(particle_set(j)%atomic_kind%name),&
-               coords%xyz((j-1)*3+1:(j-1)*3+3,i)    
+    IF (iw > 0) THEN
+       WRITE (iw,'(/,T2,"NEB|",75("*"))')
+       WRITE (iw,'(T2,"NEB|",1X,A,I0,A)')&
+          "Geometry for Replica Nr. ",ienum," in Angstrom"
+       DO iatom=1,SIZE(particle_set)
+          r(1:3) = get_particle_pos_or_vel(iatom,particle_set,coords%xyz(:,i_rep))
+          WRITE (iw,'(T2,"NEB|",1X,A10,5X,3F15.9)')&
+             TRIM(particle_set(iatom)%atomic_kind%name),r(1:3)*angstrom
        END DO
        IF (use_colvar) THEN
-          WRITE(iw,'(/,T2,"NEB|",1X,A10)')"COLLECTIVE VARIABLES:"
-          WRITE(iw,'(T2,"NEB|",16X,3F15.9)')(coords%int(j,i),j=1,SIZE(coords%int(:,:),1))
+          WRITE (iw,'(/,T2,"NEB|",1X,A10)')"COLLECTIVE VARIABLES:"
+          WRITE (iw,'(T2,"NEB|",16X,3F15.9)')&
+             (coords%int(j,i_rep),j=1,SIZE(coords%int(:,:),1))
        END IF
-       WRITE(iw,'(T2,"NEB|",75("*"))')
+       WRITE (iw,'(T2,"NEB|",75("*"))')
+       CALL m_flush(iw)
     END IF
+
   END SUBROUTINE dump_replica_coordinates
 
 ! *****************************************************************************
@@ -415,7 +425,6 @@ CONTAINS
        logger => cp_error_get_logger(new_error)
        CALL force_env_get(f_env%force_env,root_section=root_section,error=new_error)
        j    = irep + (rep_env%local_rep_indices(1)-1)
-
        ! Get replica_project_name
        replica_proj_name = get_replica_project_name(rep_env, n_rep, j)
        lp=LEN_TRIM(replica_proj_name)
@@ -427,7 +436,6 @@ CONTAINS
        output_file_path=replica_proj_name(1:lp)//".out"
        CALL section_vals_val_set(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
             c_val=TRIM(output_file_path),error=error)
-
        IF (logger%default_global_unit_nr>0) THEN
           CALL close_file(logger%default_global_unit_nr)
           CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
@@ -538,7 +546,7 @@ CONTAINS
             new_error=new_error, failure=failure, handle=handle2)
        logger => cp_error_get_logger(new_error)
        output_unit = logger%default_global_unit_nr
-       IF (output_unit>0) THEN
+       IF (output_unit > 0) THEN
           WRITE (UNIT=output_unit,FMT='(/,(T2,A79))')&
                "*******************************************************************************",&
                "**                  MAPPING OF BAND REPLICA TO REPLICA ENV                   **",&
@@ -551,7 +559,7 @@ CONTAINS
        END IF
        DO irep = 1, n_rep_neb, n_rep
           replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep+rep_env%local_rep_indices(1)-1)
-          IF (output_unit>0) THEN
+          IF (output_unit > 0) THEN
              WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
                   "** Band Replica   Nr.: ",irep+rep_env%local_rep_indices(1)-1,&
                   "Output available on file: "//TRIM(replica_proj_name)//".out","**"

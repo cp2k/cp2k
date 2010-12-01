@@ -88,7 +88,10 @@ MODULE particle_types
             write_particle_coordinates,&
             write_structure_data,&
             write_particle_matrix,&
-            update_particle_set
+            update_particle_set,&
+            update_particle_pos_or_vel
+
+  PUBLIC :: get_particle_pos_or_vel
 
 CONTAINS
 
@@ -359,14 +362,14 @@ CONTAINS
           SELECT CASE (TRIM(content))
           CASE ("POS")
              IF (PRESENT(array)) THEN
-                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+                r(1:3) = get_particle_pos_or_vel(iatom,particle_set,array)
              ELSE
                 r(:) = particle_set(iatom)%r(:)
              END IF
              WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),r(1:3)*factor
           CASE ("VEL")
              IF (PRESENT(array)) THEN
-                v(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+                v(1:3) = get_particle_pos_or_vel(iatom,particle_set,array)
              ELSE
                 v(:) = particle_set(iatom)%v(:)
              END IF
@@ -385,14 +388,14 @@ CONTAINS
           SELECT CASE (TRIM(content))
           CASE ("POS")
              IF (PRESENT(array)) THEN
-                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+                r(1:3) = get_particle_pos_or_vel(iatom,particle_set,array)
              ELSE
                 r(:) = particle_set(iatom)%r(:)
              END IF
              WRITE (iunit,"(3F20.10)")r(1:3)*factor
           CASE ("VEL")
              IF (PRESENT(array)) THEN
-                v(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+                v(1:3) = get_particle_pos_or_vel(iatom,particle_set,array)
              ELSE
                 v(:) = particle_set(iatom)%v(:)
              END IF
@@ -966,5 +969,75 @@ CONTAINS
     ENDIF
     
   END SUBROUTINE update_particle_set
+
+! *****************************************************************************
+!> \brief   Return the atomic position or velocity of atom iatom in x from a
+!>          packed vector even if core-shell particles are present
+!> \author  Matthias Krack
+!> \date    25.11.2010
+!> \version 1.0
+! *****************************************************************************
+  FUNCTION get_particle_pos_or_vel(iatom,particle_set,vector) RESULT(x)
+    
+    INTEGER, INTENT(IN)                      :: iatom
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
+    REAL(KIND=dp), DIMENSION(3)              :: x
+
+    INTEGER                                  :: ic, is
+    REAL(KIND=dp)                            :: fc, fs, mass
+
+    ic = 3*(iatom - 1)
+    IF (particle_set(iatom)%shell_index == 0) THEN
+       x(1:3) = vector(ic+1:ic+3)
+    ELSE
+       is = 3*(SIZE(particle_set) + particle_set(iatom)%shell_index - 1)
+       mass = particle_set(iatom)%atomic_kind%mass
+       fc = particle_set(iatom)%atomic_kind%shell%mass_core/mass
+       fs = particle_set(iatom)%atomic_kind%shell%mass_shell/mass
+       x(1:3) = fc*vector(ic+1:ic+3) + fs*vector(is+1:is+3)
+    END IF
+
+  END FUNCTION get_particle_pos_or_vel
+
+! *****************************************************************************
+!> \brief   Update the atomic position or velocity by x and return the updated
+!>          atomic position or velocity in x even if core-shell particles are
+!>          present
+!> \author  Matthias Krack
+!> \date    26.11.2010
+!> \version 1.0
+!> \note    particle-set is not changed, only the positions or velocities in
+!>          the packed vector are updated
+! *****************************************************************************
+  SUBROUTINE update_particle_pos_or_vel(iatom,particle_set,x,vector)
+    
+    INTEGER, INTENT(IN)                      :: iatom
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(INOUT)                          :: x
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vector
+
+    INTEGER                                  :: ic, is
+    REAL(KIND=dp)                            :: fc, fs, mass
+
+    ic = 3*(iatom - 1)
+    IF (particle_set(iatom)%shell_index == 0) THEN
+       vector(ic+1:ic+3) = vector(ic+1:ic+3) + x(1:3)
+       x(1:3) = vector(ic+1:ic+3)
+    ELSE
+       is = 3*(SIZE(particle_set) + particle_set(iatom)%shell_index - 1)
+       mass = particle_set(iatom)%atomic_kind%mass
+       fc = particle_set(iatom)%atomic_kind%shell%mass_core/mass
+       fs = particle_set(iatom)%atomic_kind%shell%mass_shell/mass
+       vector(ic+1:ic+3) = vector(ic+1:ic+3) + x(1:3)
+       vector(is+1:is+3) = vector(is+1:is+3) + x(1:3)
+       x(1:3) = fc*vector(ic+1:ic+3) + fs*vector(is+1:is+3)
+    END IF
+
+  END SUBROUTINE update_particle_pos_or_vel
 
 END MODULE particle_types

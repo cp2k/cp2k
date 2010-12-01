@@ -76,6 +76,9 @@ MODULE input_cp2k_restarts
                                              get_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: get_particle_pos_or_vel,&
+                                             particle_type
+  USE physcon,                         ONLY: angstrom
   USE pint_transformations,            ONLY: pint_u2x
   USE pint_types,                      ONLY: pint_env_type,&
                                              thermostat_gle,&
@@ -505,8 +508,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, handle, handle2, i, &
-                                                irep, isec, j, nfield, &
-                                                nhc_len, stat, tot_nhcneed
+                                                irep, isec, j, nhc_len, stat, &
+                                                tot_nhcneed
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, my_save_mem
@@ -515,9 +518,11 @@ CONTAINS
     REAL(KIND=dp), POINTER                   :: constant, t
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: replica_section, work_section
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_part, &
@@ -528,6 +533,8 @@ CONTAINS
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
          work_section, thermostat_shell, t, averages, constant, &
          walkers_status, itimes, meta_env)
+    NULLIFY (particles)
+    NULLIFY (subsys)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          thermostat_part=thermostat_part,&
@@ -795,6 +802,8 @@ CONTAINS
     IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
        ! Update NEB section
        replica_section => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
+       CALL force_env_get(force_env,subsys=subsys,error=error)
+       CALL cp_subsys_get(subsys,particles=particles,error=error)
        IF (PRESENT(coords)) THEN
           ! Allocate possible missing sections
           DO
@@ -805,10 +814,11 @@ CONTAINS
           DO isec = 1, coords%size_wrk(2)
              CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec,error=error) 
              work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
-             CALL section_neb_coord_val_set(work_section,coords%xyz(:,isec),SIZE(coords%xyz,1),3,error)
+             CALL section_neb_coord_val_set(work_section,coords%xyz(:,isec),SIZE(coords%xyz,1),3*SIZE(particles%els),&
+                                            3,particles%els,angstrom,error)
              ! Update Collective Variables
-             IF (coords%in_use==do_band_collective) THEN
-                ALLOCATE(wrk(coords%size_wrk(1)),stat=stat)
+             IF (coords%in_use == do_band_collective) THEN
+                ALLOCATE (wrk(coords%size_wrk(1)),stat=stat)
                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
                 wrk = coords%wrk(:,isec)
                 CALL section_vals_val_set(replica_section,"COLLECTIVE",r_vals_ptr=wrk,&
@@ -817,17 +827,23 @@ CONTAINS
           END DO
        END IF
        IF (PRESENT(vels)) THEN
+          CALL force_env_get(force_env,subsys=subsys,error=error)
+          CALL cp_subsys_get(subsys,particles=particles,error=error)
           ! Allocate possible missing sections
           DO
              IF (vels%size_wrk(2)<=SIZE(replica_section%values,2)) EXIT
              CALL section_vals_add_values(replica_section,error=error)
           END DO
-          nfield = 3
-          IF (vels%in_use==do_band_collective) nfield = 1
           ! Write Values
           DO isec = 1, vels%size_wrk(2)
              work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec,error=error)
-             CALL section_neb_coord_val_set(work_section,vels%wrk(:,isec),SIZE(vels%wrk,1),nfield,error)
+             IF (vels%in_use == do_band_collective) THEN
+                CALL section_neb_coord_val_set(work_section,vels%wrk(:,isec),SIZE(vels%wrk,1),SIZE(vels%wrk,1),&
+                                               1,particles%els,1.0_dp,error)
+             ELSE
+                CALL section_neb_coord_val_set(work_section,vels%wrk(:,isec),SIZE(vels%wrk,1),3*SIZE(particles%els),&
+                                               3,particles%els,1.0_dp,error)
+             END IF
           END DO
        END IF
     END IF
@@ -1648,11 +1664,15 @@ CONTAINS
 !>      12.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE section_neb_coord_val_set(coord_section, array, nsize, nfield,error)
+  SUBROUTINE section_neb_coord_val_set(coord_section,array,narray,nsize,nfield,&
+                                       particle_set,conv_factor,error)
 
     TYPE(section_vals_type), POINTER         :: coord_section
     REAL(KIND=dp), DIMENSION(*)              :: array
-    INTEGER, INTENT(IN)                      :: nsize, nfield
+    INTEGER, INTENT(IN)                      :: narray, nsize, nfield
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp)                            :: conv_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
@@ -1665,8 +1685,8 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
-    NULLIFY(my_val, old_val, section, vals)
+    failure = .FALSE.
+    NULLIFY (my_val, old_val, section, vals)
     CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,error,failure)
     section => coord_section%section
@@ -1684,10 +1704,14 @@ CONTAINS
        Nlist = cp_sll_val_get_length(vals,error)
     END IF
     DO irk=1,nsize/nfield
-       i = (irk-1)*nfield
-       ALLOCATE(my_c(nfield),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-       my_c = array(i+1:i+nfield)
+       ALLOCATE (my_c(nfield),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (nfield == 3) THEN
+          my_c(1:3) = get_particle_pos_or_vel(irk,particle_set,array(1:narray))
+          my_c(1:3) = my_c(1:3)*conv_factor
+       ELSE
+          my_c(1) = array(i)
+       END IF
        CALL val_create(my_val,r_vals_ptr=my_c,error=error)
 
        IF (Nlist /= 0) THEN

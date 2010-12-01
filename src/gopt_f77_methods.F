@@ -18,6 +18,7 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
+
     USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                                get_atomic_kind
     USE averages_types,                  ONLY: average_quantities_type,&
@@ -33,8 +34,8 @@
                                                write_cell
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                               cp_subsys_type
-    USE cp_subsys_methods,               ONLY: pack_subsys_particles,&
+                                               cp_subsys_type,&
+                                               pack_subsys_particles,&
                                                unpack_subsys_particles
     USE dimer_methods,                   ONLY: cp_eval_at_ts
     USE f77_blas
@@ -270,17 +271,13 @@ CPSourceFileRef,&
        END IF
        CALL virial_release(virial_avg, error)
     CASE(default_shellcore_method_id)
-       CALL cp_subsys_get(subsys, shell_particles=shell_particles,&
-            core_particles=core_particles,  error=error)
-       idg=0
+       CALL cp_subsys_get(subsys,shell_particles=shell_particles,core_particles=core_particles,error=error)
+       idg = 0
        DO ip=1,particles%n_els
-         NULLIFY (atomic_kind)
-         atomic_kind => particles%els(ip)%atomic_kind
-         CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_shell,mass=mass,shell=shell)
-         IF (is_shell) THEN
-           shell_index = particles%els(ip)%shell_index
+         shell_index = particles%els(ip)%shell_index
+         IF (shell_index /= 0) THEN
            DO idir=1,3
-              idg = 3*(shell_index-1) + idir
+              idg = 3*(shell_index - 1) + idir
               shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir) - x(idg)
            END DO
          END IF
@@ -299,13 +296,10 @@ CPSourceFileRef,&
 
        ! Possibly take the gradients
        IF (PRESENT(gradient)) THEN
-         IF (master==para_env%mepos) THEN ! we are on the master
+         IF (master == para_env%mepos) THEN ! we are on the master
             CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
-            CALL force_env_get(gopt_env%force_env, subsys=subsys,error=error)
             idg = 0
-            CALL cp_subsys_get(subsys, shell_particles=shell_particles, core_particles=core_particles, error=error)
             DO ip=1,shell_particles%n_els
-               shell_index = core_particles%els(ip)%shell_index
                DO idir=1,3
                  idg = idg + 1
                  gradient(idg) = -(core_particles%els(ip)%f(idir) - shell_particles%els(ip)%f(idir))

@@ -351,7 +351,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ierr, irep, md_iter, &
-                                                my_calc_f
+                                                my_calc_f, ndim
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
@@ -363,7 +363,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       my_calc_f=3*rep_env%nat
+       my_calc_f=3*rep_env%nparticle
        IF (PRESENT(calc_f)) THEN
           IF (.NOT.calc_f) my_calc_f=0
        END IF
@@ -375,12 +375,11 @@ CONTAINS
        md_iter=logger%iter_info%iteration(2)
        CALL f_env_rm_defaults(f_env,new_error,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-
        DO i=1,SIZE(rep_env%local_rep_indices)
-          irep=rep_env%local_rep_indices(i)
+          irep = rep_env%local_rep_indices(i)
+          ndim = 3*rep_env%nparticle
           IF (rep_env%sync_v) THEN
-             CALL cp_set_vel(rep_env%f_env_id,rep_env%v(:,irep),&
-                  3*rep_env%nat,ierr)
+             CALL cp_set_vel(rep_env%f_env_id,rep_env%v(:,irep),ndim,ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              IF (failure) EXIT
           END IF
@@ -406,10 +405,9 @@ CONTAINS
                error=error)
           CALL f_env_rm_defaults(f_env,new_error,ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-
-          CALL cp_calc_force(rep_env%f_env_id,rep_env%r(:,irep),3*rep_env%nat,&
-               rep_env%f(3*rep_env%nat+1,irep),rep_env%f(:3*rep_env%nat,irep),&
-               my_calc_f,ierr)
+          CALL cp_calc_force(rep_env%f_env_id,rep_env%r(:,irep),ndim,&
+                             rep_env%f(ndim+1,irep),rep_env%f(:ndim,irep),&
+                             my_calc_f,ierr)
           CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
           IF (failure) EXIT
        END DO

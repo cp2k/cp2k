@@ -13,6 +13,7 @@
 !> \par History
 !>      07.2004 created [fawzi]
 !>      11.2004 parallel version [fawzi]
+!>      22.11.2010 get_nparticle nparticle added (MK)
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cp_init_cp2k(init_mpi,ierr)
@@ -96,6 +97,16 @@ SUBROUTINE cp_get_natom(env_id, natom, ierr)
 
   CALL gna(env_id,natom,ierr)
 END SUBROUTINE cp_get_natom
+
+! *****************************************************************************
+SUBROUTINE cp_get_nparticle(env_id, nparticle, ierr)
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: gnp => get_nparticle
+  IMPLICIT NONE
+  INTEGER :: nparticle, env_id, ierr
+
+  CALL gnp(env_id,nparticle,ierr)
+END SUBROUTINE cp_get_nparticle
 
 ! *****************************************************************************
 SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr)

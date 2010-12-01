@@ -17,6 +17,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE replica_types
+
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_env,                     ONLY: cp_cart_create,&
@@ -65,8 +66,8 @@ MODULE replica_types
 !> \param ref_count reference count
 !> \param id_nr identity number (unique or each replica_env)
 !> \param nrep number of replicas
-!> \param nat number of atoms (in each replica)
-!> \param ndim number of dimensions (3*nat)
+!> \param nparticle number of particles (usually atoms) in each replica
+!> \param ndim = 3*nparticle
 !> \param f_env_id id of the force env that will do the calculations for the
 !>        replicas owned by this processor
 !> \param r ,v,f: positions, velocities and forces of the replicas.
@@ -103,7 +104,7 @@ MODULE replica_types
 ! *****************************************************************************
   TYPE replica_env_type
      INTEGER                                           :: ref_count, id_nr, f_env_id,&
-                                                          nrep, nat, ndim, &
+                                                          nrep, ndim, nparticle,&
                                                           my_rep_group, force_dim
      REAL(kind=dp), DIMENSION(:,:), POINTER            :: r,v,f
      LOGICAL                                           :: sync_v, keep_wf_history
@@ -166,7 +167,7 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: input_file_path, &
                                                 output_file_path
     INTEGER :: comm_cart, comm_f, comm_inter_rep, forcedim, i, i0, ierr, ip, &
-      ir, irep, lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr
+      ir, irep, lp, my_prep, new_env_id, nparticle, nrep_local, stat, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: gridinfo
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL                                  :: failure
@@ -296,10 +297,10 @@ CONTAINS
 
        IF (.NOT.failure) THEN
           rep_env%f_env_id=new_env_id
-          CALL cp_get_natom(new_env_id,natom,ierr)
+          CALL cp_get_nparticle(new_env_id,nparticle,ierr)
           CPPostcondition(ierr==0,cp_fatal_level,routineP,error,failure)
-          rep_env%nat=natom
-          rep_env%ndim=3*natom
+          rep_env%nparticle = nparticle
+          rep_env%ndim = 3*nparticle
           ALLOCATE(rep_env%replica_owner(nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
@@ -332,8 +333,8 @@ CONTAINS
           rep_env%para_env_f => para_env_f
           rep_env%para_env_inter_rep => para_env_inter_rep
 
-          ALLOCATE(rep_env%r(rep_env%ndim,nrep),rep_env%v(rep_env%ndim,nrep),&
-               rep_env%f(rep_env%ndim+1,nrep), stat=stat)
+          ALLOCATE (rep_env%r(rep_env%ndim,nrep),rep_env%v(rep_env%ndim,nrep),&
+                    rep_env%f(rep_env%ndim+1,nrep), stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
           rep_env%r=0._dp
@@ -343,8 +344,7 @@ CONTAINS
           CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
           DO i=1,nrep
              IF (rep_env%rep_is_local(i)) THEN
-                CALL cp_get_pos(rep_env%f_env_id, &
-                     rep_env%r(:,i), rep_env%ndim, ierr)
+                CALL cp_get_pos(rep_env%f_env_id,rep_env%r(:,i),rep_env%ndim,ierr)
                 CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
              END IF
           END DO
@@ -489,8 +489,8 @@ CONTAINS
     IF (ASSOCIATED(rep_env)) THEN
        WRITE(unit_nr,"('<replica_env, id_nr=',i6,' ref_count=',i6,'> sync_v=',l1,',')")&
             rep_env%id_nr,rep_env%ref_count, rep_env%sync_v
-       WRITE (unit_nr,"(' f_env_id=',i6,', nrep=',i6,', nat=',i8,', ndim=',i8,',')")&
-            rep_env%f_env_id, rep_env%nrep,rep_env%nat, rep_env%ndim
+       WRITE (unit_nr,"(' f_env_id=',i6,', nrep=',i6,', nparticle=',i8,', ndim=',i8,',')")&
+            rep_env%f_env_id, rep_env%nrep,rep_env%nparticle, rep_env%ndim
        WRITE (unit_nr,"(' replica_owner=')", advance="no")
        WRITE (unit_nr,"(10i6)") rep_env%replica_owner
        WRITE (unit_nr,"(' cart=')", advance="no")

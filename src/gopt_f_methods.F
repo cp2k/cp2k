@@ -16,15 +16,16 @@ MODULE gopt_f_methods
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_methods,               ONLY: pack_subsys_particles
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
+                                             cp_subsys_type,&
+                                             pack_subsys_particles
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: update_dimer_vec
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_get_nparticle,&
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -79,7 +80,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, idg, j, nshell, stat
+    INTEGER                                  :: i, idg, j, nparticle, stat
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -89,13 +90,14 @@ CONTAINS
     NULLIFY (cell)
     NULLIFY (subsys)
 
-    nshell = 0
-
     SELECT CASE (gopt_env%type_id)
     CASE (default_minimization_method_id,default_ts_method_id)
       CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
       ! before starting we handle the case of translating coordinates (QM/MM)
       CALL apply_qmmm_translate(gopt_env%force_env,error=error)
+      nparticle = force_env_get_nparticle(gopt_env%force_env,error)
+      ALLOCATE (x0(3*nparticle),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL pack_subsys_particles(subsys=subsys,r=x0,error=error)
     CASE (default_cell_method_id)
       CALL force_env_get(gopt_env%force_env,cell=cell,error=error)

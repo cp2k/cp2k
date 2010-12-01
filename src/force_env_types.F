@@ -10,6 +10,7 @@
 !>      cjm, SEPT-12-2002: major reorganization
 !>      fawzi, APR-12-2003: introduced force_env
 !>      cjm, FEB-27-2006: no more box_change
+!>      MK, Nov. 2010: new interfaces added and others were updated
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE force_env_types
@@ -19,8 +20,10 @@ MODULE force_env_types
   USE cp_result_types,                 ONLY: cp_result_release,&
                                              cp_result_retain,&
                                              cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
-                                             cp_subsys_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsys_type,&
+                                             pack_subsys_particles
   USE cpot_types,                      ONLY: cpot_release,&
                                              cpot_type
   USE eip_environment_types,           ONLY: eip_env_get,&
@@ -55,7 +58,6 @@ MODULE force_env_types
   USE mixed_environment_types,         ONLY: get_mixed_env,&
                                              mixed_env_release,&
                                              mixed_environment_type
-  USE particle_list_types,             ONLY: particle_list_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
                                              qmmm_env_qm_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -103,13 +105,17 @@ MODULE force_env_types
 
   PUBLIC :: force_env_type,&
             force_env_p_type
+
   PUBLIC :: force_env_retain,&
             force_env_release,&
-            force_env_set,&
             force_env_get,&
-            force_env_set_cell,&
-            force_env_pos_get,&
             force_env_get_natom,&
+            force_env_get_nparticle,&
+            force_env_get_frc,&
+            force_env_get_pos,&
+            force_env_get_vel,&
+            force_env_set,&
+            force_env_set_cell,&
             multiple_fe_list
 
 ! *****************************************************************************
@@ -303,6 +309,7 @@ CONTAINS
        kinetic_energy, harmonic_shell, kinetic_shell, cell, cell_ref, sub_force_env,&
        qmmm_env, eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
        method_name_id, root_section, mixed_env, results, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -507,7 +514,180 @@ CONTAINS
        IF (PRESENT(root_section))  root_section  => force_env%root_section
        IF (PRESENT(ep_env))        ep_env        => force_env%ep_env
     END IF
+
   END SUBROUTINE force_env_get
+
+! *****************************************************************************
+!> \brief returns the number of atoms
+!> \param force_env the force_env you what information about
+!> \param natom the number of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+!> \date   22.11.2010 updated (MK)
+! *****************************************************************************
+  FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
+  
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: n_atom
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
+    failure = .FALSE.
+    n_atom = 0
+    NULLIFY (subsys)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CALL cp_error_check(error,failure)
+    IF (.NOT.failure) THEN
+       CALL cp_subsys_get(subsys,natom=n_atom,error=error)
+    END IF
+
+  END FUNCTION force_env_get_natom
+
+! *****************************************************************************
+!> \brief returns the number of particles in a force environment
+!> \param force_env the force_env you what information about
+!> \param nparticles the number of particles
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Matthias Krack
+!> \date   22.11.2010 (MK)
+! *****************************************************************************
+  FUNCTION force_env_get_nparticle(force_env,error) RESULT(n_particle)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: n_particle
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
+    failure = .FALSE.
+    n_particle = 0
+    NULLIFY (subsys)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CALL cp_error_check(error,failure)
+    IF (.NOT.failure) THEN
+      CALL cp_subsys_get(subsys,nparticle=n_particle,error=error)
+    END IF
+
+  END FUNCTION force_env_get_nparticle
+
+! *****************************************************************************
+!> \brief returns the particle forces in a dimension(*) array
+!> \param force_env the force_env you want to get the forces
+!> \param frc the array of the forces
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Matthias Krack
+!> \date   22.11.2010 Creation
+! *****************************************************************************
+  SUBROUTINE force_env_get_frc(force_env,frc,n,error)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: frc
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_frc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CALL cp_error_check(error,failure)
+    IF (.NOT.failure) THEN
+       CALL pack_subsys_particles(subsys=subsys,f=frc(1:n),error=error)
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE force_env_get_frc
+
+! *****************************************************************************
+!> \brief returns the particle positions in a dimension(*) array
+!> \param force_env the force_env you want to get the positions
+!> \param pos the array of the positions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+!> \date   22.11.2010 updated (MK)
+! *****************************************************************************
+  SUBROUTINE force_env_get_pos(force_env,pos,n,error)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(kind=dp), DIMENSION(*), INTENT(OUT) :: pos
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_pos', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CALL cp_error_check(error,failure)
+    IF (.NOT.failure) THEN
+       CALL pack_subsys_particles(subsys=subsys,r=pos(1:n),error=error)
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE force_env_get_pos
+
+! *****************************************************************************
+!> \brief returns the particle velocities in a dimension(*) array
+!> \param force_env the force_env you want to get the velocities
+!> \param vel the array of the velocities
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Matthias Krack
+!> \date   22.11.2010 Creation (MK)
+! *****************************************************************************
+  SUBROUTINE force_env_get_vel(force_env,vel,n,error)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: vel
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_vel', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CALL cp_error_check(error,failure)
+    IF (.NOT.failure) THEN
+       CALL pack_subsys_particles(subsys=subsys,v=vel(1:n),error=error)
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE force_env_get_vel
 
 ! *****************************************************************************
 !> \brief changes some attributes of the force_env
@@ -521,6 +701,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
      method_name_id, additional_potential, results, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER         :: fp_env
@@ -537,7 +718,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -572,165 +753,20 @@ CONTAINS
        IF (PRESENT(additional_potential)) THEN
           force_env%additional_potential = additional_potential
        END IF
-       IF(PRESENT(results))THEN
-          IF(ASSOCIATED(results))THEN
+       IF (PRESENT(results)) THEN
+          IF(ASSOCIATED(results)) THEN
              CALL cp_result_retain(results,error)
           END IF
           CALL cp_result_release(force_env%results,error)
           force_env%results => results
        END IF
-       IF (PRESENT(method_name_id))THEN
+       IF (PRESENT(method_name_id)) THEN
           force_env%method_name_id=method_name_id
        END IF
     END IF
+
   END SUBROUTINE force_env_set
 
-! *****************************************************************************
-!> \brief returns the position in a dimension(*) array
-!> \param force_env the force_env you want to get the positions
-!> \param pos the array of the positions
-!> \param n_el the number of positions (3*natom), just to check
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(kind=dp), DIMENSION(*), INTENT(out) :: pos
-    INTEGER, INTENT(in)                      :: n_el
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_pos_get', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, idir, ii, ip, my_n_el
-    LOGICAL                                  :: failure
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-    
-    CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       IF (.NOT.failure) THEN
-          CALL force_env_get(force_env,&
-               subsys=subsys,error=error)
-          CALL cp_error_check(error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          particles => subsys%particles
-          my_n_el=3*particles%n_els
-          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-                         routineP,"wrong pos size ("//cp_to_string(n_el)&
-                         //" vs" // &
-                         cp_to_string(my_n_el) // &
- CPSourceFileRef,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          ii=0
-          particles => subsys%particles
-          DO ip=1,particles%n_els
-             DO idir=1,3
-                ii=ii+1
-                pos(ii)=particles%els(ip)%r(idir)
-             END DO
-          END DO
-       END IF
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE force_env_pos_get
-
-! *****************************************************************************
-!> \brief returns the number of atoms
-!> \param force_env the force_env you what information about
-!> \param natom the numer of atoms
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER                                  :: n_atom
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get_natom', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-    
-    n_atom=0
-    IF (.NOT.failure) THEN
-       NULLIFY(subsys)
-       CALL force_env_get(force_env,&
-            subsys=subsys,error=error)
-       CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          particles => subsys%particles
-          n_atom=particles%n_els
-       END IF
-    END IF
-  END FUNCTION force_env_get_natom
-  
-! *****************************************************************************
-!> \brief returns the order of the multiple force_env
-!> \param force_env the force_env you what information about
-!> \param natom the numer of atoms
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author teo
-! *****************************************************************************
-SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
-    TYPE(section_vals_type), POINTER         :: force_env_sections, &
-                                                root_section
-    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    INTEGER                                  :: nforce_eval
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'multiple_fe_list', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iforce_eval, main_force_eval, &
-                                                stat
-    INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    ! Let's treat the case of Multiple force_eval
-
-    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
-    CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
-         i_vals=my_i_force_eval,ignore_required=.TRUE.,error=error)
-    ALLOCATE(i_force_eval(nforce_eval),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    IF (nforce_eval>0) THEN
-       IF (nforce_eval==SIZE(my_i_force_eval)) THEN
-          i_force_eval                = my_i_force_eval
-       ELSE
-          ! The difference in the amount of defined force_env MUST be one..
-          CPPostcondition(nforce_eval-SIZE(my_i_force_eval)==1,cp_fatal_level,routineP,error,failure)
-          DO iforce_eval = 1, nforce_eval
-             IF (ANY(my_i_force_eval==iforce_eval)) CYCLE
-             main_force_eval = iforce_eval
-             EXIT
-          END DO
-          i_force_eval(1)             = main_force_eval
-          i_force_eval(2:nforce_eval) = my_i_force_eval
-       END IF
-    END IF
-  END SUBROUTINE multiple_fe_list
-  
 ! *****************************************************************************
 !> \brief changes the cell of the system
 !> \param force_env the force environment where the cell should be changed
@@ -745,11 +781,12 @@ SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nfor
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set_cell', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_set_cell', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iforce_eval, nforce_eval
@@ -818,7 +855,57 @@ CPSourceFileRef,&
                error,failure)
        END SELECT
     END IF
+
   END SUBROUTINE force_env_set_cell
 
+! *****************************************************************************
+!> \brief returns the order of the multiple force_env
+!> \param force_env the force_env you what information about
+!> \param natom the numer of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+
+    TYPE(section_vals_type), POINTER         :: force_env_sections, &
+                                                root_section
+    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
+    INTEGER                                  :: nforce_eval
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'multiple_fe_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iforce_eval, main_force_eval, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    ! Let's treat the case of Multiple force_eval
+    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+    CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
+         i_vals=my_i_force_eval,ignore_required=.TRUE.,error=error)
+    ALLOCATE(i_force_eval(nforce_eval),stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    IF (nforce_eval>0) THEN
+       IF (nforce_eval==SIZE(my_i_force_eval)) THEN
+          i_force_eval                = my_i_force_eval
+       ELSE
+          ! The difference in the amount of defined force_env MUST be one..
+          CPPostcondition(nforce_eval-SIZE(my_i_force_eval)==1,cp_fatal_level,routineP,error,failure)
+          DO iforce_eval = 1, nforce_eval
+             IF (ANY(my_i_force_eval==iforce_eval)) CYCLE
+             main_force_eval = iforce_eval
+             EXIT
+          END DO
+          i_force_eval(1)             = main_force_eval
+          i_force_eval(2:nforce_eval) = my_i_force_eval
+       END IF
+    END IF
+
+  END SUBROUTINE multiple_fe_list
+  
 END MODULE force_env_types
 

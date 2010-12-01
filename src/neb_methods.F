@@ -36,7 +36,6 @@ MODULE neb_methods
   USE header,                          ONLY: band_header
   USE input_constants,                 ONLY: band_diis_opt,&
                                              band_md_opt,&
-                                             do_band_cartesian,&
                                              do_rep_blocked,&
                                              do_sm
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -120,7 +119,6 @@ CONTAINS
        neb_section    => section_vals_get_subs_vals(motion_section,"BAND",error=error)
        output_unit=cp_print_key_unit_nr(logger,neb_section,"PROGRAM_RUN_INFO",&
             extension=".nebLog",error=error)
-
        CALL section_vals_val_get(neb_section,"NPROC_REP",i_val=prep, error=error)
        CALL section_vals_val_get(neb_section,"PROC_DIST_TYPE",i_val=proc_dist_type, error=error)
        row_force = (proc_dist_type==do_rep_blocked)
@@ -147,7 +145,7 @@ CPSourceFileRef,&
           CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
           particle_set => subsys%particles%els
           ! Read NEB controlling parameters
-          ALLOCATE(neb_env, stat=stat)
+          ALLOCATE (neb_env,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           neb_env%force_env            => f_env%force_env
           neb_env%root_section         => input
@@ -175,27 +173,25 @@ CPSourceFileRef,&
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. START"
           iw = cp_print_key_unit_nr(logger,neb_section,"PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
             extension=".nebLog",error=error)
-          CALL build_replica_coords(neb_section, particle_set,&
-               coords, vels, neb_env, iw, globenv, &
-               rep_env%para_env, error)
+          CALL build_replica_coords(neb_section,particle_set,coords,vels,neb_env,iw,globenv,&
+                                    rep_env%para_env,error)
           CALL cp_print_key_finished_output(iw,logger,neb_section,&
                "PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
-          IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
+          IF (output_unit > 0) WRITE (output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
           ! Print some additional info in the replica_env initialization file
           CALL neb_rep_env_map_info(rep_env, neb_env, error)
-
           ! Perform NEB optimization
           SELECT CASE(neb_env%opt_type)
-          CASE(band_md_opt)
+          CASE (band_md_opt)
              neb_env%opt_type_label = "MOLECULAR DYNAMICS"
              md_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%MD",error=error)
              CALL neb_md(rep_env, neb_env, coords, vels, forces, particle_set, output_unit,&
-                  md_section, logger, globenv, error)
-          CASE(band_diis_opt)
+                         md_section, logger, globenv, error)
+          CASE (band_diis_opt)
              neb_env%opt_type_label = "DIIS"
              diis_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%DIIS",error=error)
              CALL neb_diis(rep_env, neb_env, coords, vels, forces, particle_set, output_unit,&
-                  diis_section, logger, globenv, error)
+                           diis_section, logger, globenv, error)
           END SELECT
           ! Release force_eval
           CALL f_env_rm_defaults(f_env,new_error,ierr)
@@ -235,12 +231,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_md', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ind, iparticle, &
-                                                istep, iw, k, max_steps, &
-                                                nfield, ref_dim, stat
+    INTEGER                                  :: handle, iatom, ic, is, istep, &
+                                                iw, max_steps, natom, &
+                                                shell_index, stat
     LOGICAL                                  :: converged, failure, &
                                                 should_stop
-    REAL(KIND=dp)                            :: dm, dt, my_mass
+    REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mass
@@ -276,28 +272,21 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Setting up the mass array
        IF (neb_env%use_colvar) THEN
-          nfield  = 1
-          ref_dim = neb_env%nsize_int
+          mass(:,:) = 0.5_dp*dt/massunit
        ELSE
-          nfield  = 3
-          ref_dim = neb_env%nsize_xyz
-       END IF
-       DO iparticle = 1, ref_dim/nfield
-          IF (coords%in_use==do_band_cartesian) THEN
-             my_mass = particle_set(iparticle)%atomic_kind%mass
-          ELSE
-             my_mass = massunit
-          END IF
-          dm = 0.5_dp*dt/my_mass
-          DO k = 1, nfield
-             ind = (iparticle-1)*nfield + k
-             mass(ind,1) = dm
+          natom = SIZE(particle_set)
+          DO iatom=1,natom
+             ic = 3*(iatom - 1)
+             shell_index = particle_set(iatom)%shell_index
+             IF (shell_index == 0) THEN
+                mass(ic+1:ic+3,:) = 0.5_dp*dt/particle_set(iatom)%atomic_kind%mass
+             ELSE
+                is = 3*(natom + shell_index - 1)
+                mass(ic+1:ic+3,:) = 0.5_dp*dt/particle_set(iatom)%atomic_kind%shell%mass_core
+                mass(is+1:is+3,:) = 0.5_dp*dt/particle_set(iatom)%atomic_kind%shell%mass_shell
+             END IF
           END DO
-       END DO
-       ! Copying the mass array for all replicas
-       DO k = 2, neb_env%number_of_replica
-          mass(:,k) = mass(:,k-1)
-       END DO
+       END IF
        ! Initializing forces array
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
             output_unit, distances, neb_env%number_of_replica, error=error)
@@ -321,13 +310,13 @@ CPSourceFileRef,&
           ! Save the optimization step counter
           neb_env%istep = istep
           ! Velocity Verlet (first part)
-          vels%wrk(:,:)   = vels%wrk(:,:)   + mass(:,:) * forces%wrk(:,:)
+          vels%wrk(:,:) = vels%wrk(:,:) + mass(:,:)*forces%wrk(:,:)
           ! Control on velocity - I part [rescale, annealing]
           CALL control_vels_a(vels, particle_set, tc_section, vc_section, output_unit,&
                istep, error)
           ! Coordinate step
-          Dcoords%wrk(:,:) = dt * vels%wrk(:,:)
-          coords %wrk(:,:) = coords%wrk(:,:) + Dcoords%wrk(:,:)
+          Dcoords%wrk(:,:) = dt*vels%wrk(:,:)
+          coords%wrk(:,:) = coords%wrk(:,:) + Dcoords%wrk(:,:)
 
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
                output_unit, distances, neb_env%number_of_replica, error=error)
@@ -340,7 +329,7 @@ CPSourceFileRef,&
           ! Control on velocity - II part [check vels VS forces, Steepest Descent like]
           CALL control_vels_b(vels, forces, vc_section, error)
           ! Velocity Verlet (second part)
-          vels%wrk(:,:)   = vels%wrk(:,:) + mass(:,:) * forces%wrk(:,:)
+          vels%wrk(:,:) = vels%wrk(:,:) + mass(:,:)*forces%wrk(:,:)
           ! Dump Infos
           CALL dump_neb_info(neb_env=neb_env,&
                              coords=coords,&
@@ -356,6 +345,7 @@ CPSourceFileRef,&
           converged = check_convergence(neb_env, Dcoords, forces, error)
           IF (converged) EXIT
        END DO md_opt_loop
+
        DEALLOCATE (mass,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (energies,stat=stat)
@@ -367,6 +357,7 @@ CPSourceFileRef,&
             "REPLICA_INFO", error=error)
     END IF
     CALL timestop(handle)
+
   END SUBROUTINE neb_md
 
 ! *****************************************************************************

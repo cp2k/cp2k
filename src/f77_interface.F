@@ -25,7 +25,8 @@ MODULE f77_interface
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type,&
+                                             unpack_subsys_particles
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
@@ -37,7 +38,8 @@ MODULE f77_interface
                                              force_env_calc_energy_force,&
                                              force_env_shake
   USE force_env_types,                 ONLY: &
-       force_env_get, force_env_get_natom, force_env_pos_get, &
+       force_env_get, force_env_get_frc, force_env_get_natom, &
+       force_env_get_nparticle, force_env_get_pos, force_env_get_vel, &
        force_env_release, force_env_retain, force_env_set, &
        force_env_set_cell, force_env_type, multiple_fe_list
   USE fp_types,                        ONLY: fp_env_create,&
@@ -80,7 +82,6 @@ MODULE f77_interface
                                              meta_env_type
   USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
-  USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon
   USE qmmm_main,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
@@ -100,7 +101,7 @@ MODULE f77_interface
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
 
 ! *****************************************************************************
@@ -127,7 +128,7 @@ MODULE f77_interface
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
             get_force, calc_energy_force, get_energy, &
-            calc_energy, calc_force, check_input, get_natom,&
+            calc_energy, calc_force, check_input, get_natom, get_nparticle,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
             set_vel, get_vel, do_shake, set_cell, get_cell
 CONTAINS
@@ -897,85 +898,197 @@ CPSourceFileRef,&
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author fawzi
+!> \date   22.11.2010 (MK)
 ! *****************************************************************************
   SUBROUTINE get_natom(env_id, n_atom, ierr)
-    INTEGER, INTENT(in)                      :: env_id
-    INTEGER, INTENT(out)                     :: n_atom, ierr
+  
+    INTEGER, INTENT(IN)                      :: env_id
+    INTEGER, INTENT(OUT)                     :: n_atom, ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_natom', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_natom', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.FALSE.
-
-    NULLIFY(f_env)
+    failure = .FALSE.
+    n_atom = 0
+    NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    n_atom=0
-    IF (.not.failure) THEN
-       n_atom=force_env_get_natom(f_env%force_env,error=error)
+    IF (.NOT.failure) THEN
+       n_atom = force_env_get_natom(f_env%force_env,error=error)
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
+
   END SUBROUTINE get_natom
 
 ! *****************************************************************************
-!> \brief sets the positions of the atoms
+!> \brief returns the number of particles in the given force env
 !> \param new_pos the array with the new positions
-!> \param n_el number of positions (3*natom) just to check
+!> \param n_el number of positions (3*nparticle) just to check
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
+!> \author Matthias Krack
+!> 
 ! *****************************************************************************
-  SUBROUTINE set_pos(env_id, new_pos, n_el, ierr)
-    INTEGER, INTENT(in)                      :: env_id, n_el
-    REAL(kind=dp), DIMENSION(1:n_el)         :: new_pos
-    INTEGER, INTENT(out)                     :: ierr
+  SUBROUTINE get_nparticle(env_id, n_particle, ierr)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_pos', &
+    INTEGER, INTENT(IN)                      :: env_id
+    INTEGER, INTENT(OUT)                     :: n_particle, ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nparticle', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
-
-    NULLIFY(f_env)
+    failure = .FALSE.
+    n_particle = 0
+    NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       NULLIFY(subsys)
-       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+    IF (.NOT.failure) THEN
+       n_particle = force_env_get_nparticle(f_env%force_env,error=error)
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE get_nparticle
+
+! *****************************************************************************
+!> \brief gets a cell 
+!> \param cell the array with the cell matrix 
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE get_cell(env_id, cell, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id
+    REAL(KIND=DP), DIMENSION(3, 3)           :: cell
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell_full
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    NULLIFY (f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       NULLIFY (cell_full)
+       CALL force_env_get(f_env%force_env,cell=cell_full,error=error)
        CALL cp_error_check(error,failure)
        IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(cell_full),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          particles => subsys%particles
-          my_n_el=3*particles%n_els
-          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-               routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
-               cp_to_string(my_n_el)//") "//&
-CPSourceFileRef,&
-               error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          ii=0
-          particles => subsys%particles
-          DO ip=1,particles%n_els
-             DO idir=1,3
-                ii=ii+1
-                particles%els(ip)%r(idir)=new_pos(ii)
-             END DO
-          END DO
+          cell = cell_full%hmat
        END IF
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
-  END SUBROUTINE set_pos
+
+  END SUBROUTINE get_cell
+
+! *****************************************************************************
+!> \brief gets the forces of the particles
+!> \param frc the array where to write the forces
+!> \param n_el number of positions (3*nparticle) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+!> \date   22.11.2010 (MK)
+! *****************************************************************************
+  SUBROUTINE get_force(env_id, frc, n_el, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id, n_el
+    REAL(KIND=dp), DIMENSION(1:n_el)         :: frc
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    NULLIFY (f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       CALL force_env_get_frc(f_env%force_env,frc,n_el,error)
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE get_force
+
+! *****************************************************************************
+!> \brief gets the positions of the particles
+!> \param pos the array where to write the positions
+!> \param n_el number of positions (3*nparticle) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+!> \date   22.11.2010 (MK)
+! *****************************************************************************
+  SUBROUTINE get_pos(env_id, pos, n_el, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id, n_el
+    REAL(KIND=DP), DIMENSION(1:n_el)         :: pos
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pos', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    NULLIFY (f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       CALL force_env_get_pos(f_env%force_env,pos,n_el,error)
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE get_pos
+
+! *****************************************************************************
+!> \brief gets the velocities of the particles
+!> \param vel the array where to write the velocities
+!> \param n_el number of velocities (3*nparticle) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+!> date    22.11.2010 (MK)
+! *****************************************************************************
+  SUBROUTINE get_vel(env_id, vel, n_el, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id, n_el
+    REAL(KIND=DP), DIMENSION(1:n_el)         :: vel
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_vel', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    NULLIFY (f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       CALL force_env_get_vel(f_env%force_env,vel,n_el,error)
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE get_vel
 
 ! *****************************************************************************
 !> \brief sets a new cell 
@@ -985,11 +1098,12 @@ CPSourceFileRef,&
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE set_cell(env_id, new_cell, ierr)
-    INTEGER, INTENT(in)                      :: env_id
-    REAL(kind=dp), DIMENSION(3, 3)           :: new_cell
-    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_cell', &
+    INTEGER, INTENT(IN)                      :: env_id
+    REAL(KIND=DP), DIMENSION(3, 3)           :: new_cell
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_cell', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -997,12 +1111,11 @@ CPSourceFileRef,&
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.FALSE.
-
-    NULLIFY(f_env)
+    failure = .FALSE.
+    NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       NULLIFY(cell)
+    IF (.NOT.failure) THEN
+       NULLIFY (cell)
        CALL force_env_get(f_env%force_env,cell=cell,error=error)
        CALL cp_error_check(error,failure)
        IF (.NOT.failure) THEN
@@ -1015,249 +1128,80 @@ CPSourceFileRef,&
        END IF
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
+
   END SUBROUTINE set_cell
 
 ! *****************************************************************************
-!> \brief gets a cell 
-!> \param cell the array with the cell matrix 
-!> \param env_id id of the force_env
-!> \param ierr will return a number different from 0 if there was an error
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE get_cell(env_id, cell, ierr)
-    INTEGER, INTENT(in)                      :: env_id
-    REAL(kind=dp), DIMENSION(3, 3)           :: cell
-    INTEGER, INTENT(out)                     :: ierr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_cell', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(cell_type), POINTER                 :: cell_full
-    TYPE(cp_error_type)                      :: error
-    TYPE(f_env_type), POINTER                :: f_env
-
-    failure=.FALSE.
-
-    NULLIFY(f_env)
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       NULLIFY(cell_full)
-       CALL force_env_get(f_env%force_env,cell=cell_full,error=error)
-       CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(cell_full),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          cell = cell_full%hmat 
-       END IF
-    END IF
-    CALL f_env_rm_defaults(f_env,error,ierr)
-  END SUBROUTINE get_cell
-
-! *****************************************************************************
-!> \brief gets the positions of the atoms
-!> \param pos the array where to write the positions
-!> \param n_el number of positions (3*natom) just to check
+!> \brief sets the positions of the particles
+!> \param new_pos the array with the new positions
+!> \param n_el number of positions (3*nparticle) just to check
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author fawzi
+!> \date   22.11.2010 updated (MK)
 ! *****************************************************************************
-  SUBROUTINE get_pos(env_id, pos, n_el, ierr)
-    INTEGER, INTENT(in)                      :: env_id, n_el
-    REAL(kind=dp), DIMENSION(1:n_el)         :: pos
-    INTEGER, INTENT(out)                     :: ierr
+  SUBROUTINE set_pos(env_id, new_pos, n_el, ierr)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_pos', &
+    INTEGER, INTENT(IN)                      :: env_id, n_el
+    REAL(KIND=dp), DIMENSION(1:n_el)         :: new_pos
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_pos', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error
-    TYPE(f_env_type), POINTER                :: f_env
-
-    failure=.FALSE.
-
-    NULLIFY(f_env)
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       CALL force_env_pos_get(f_env%force_env,pos,n_el,error)
-    END IF
-    CALL f_env_rm_defaults(f_env,error,ierr)
-  END SUBROUTINE get_pos
-
-! *****************************************************************************
-!> \brief sets the velocities of the atoms
-!> \param new_vel the array with the new velocities
-!> \param n_el number of velocities (3*natom) just to check
-!> \param env_id id of the force_env
-!> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE set_vel(env_id, new_vel, n_el, ierr)
-    INTEGER, INTENT(in)                      :: env_id, n_el
-    REAL(kind=dp), DIMENSION(1:n_el)         :: new_vel
-    INTEGER, INTENT(out)                     :: ierr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_vel', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: idir, ii, ip, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
-
-    NULLIFY(f_env)
+    failure = .FALSE.
+    NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       NULLIFY(subsys)
+    IF (.NOT.failure) THEN
+       NULLIFY (subsys)
        CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
        CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          particles => subsys%particles
-          my_n_el=3*particles%n_els
-          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-               routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
-               cp_to_string(my_n_el)//") "//&
-CPSourceFileRef,&
-               error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          ii=0
-          particles => subsys%particles
-          DO ip=1,particles%n_els
-             DO idir=1,3
-                ii=ii+1
-                particles%els(ip)%v(idir)=new_vel(ii)
-             END DO
-          END DO
-       END IF
+       CALL unpack_subsys_particles(subsys=subsys,r=new_pos,error=error)
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE set_pos
+
+! *****************************************************************************
+!> \brief sets the velocities of the particles
+!> \param new_vel the array with the new velocities
+!> \param n_el number of velocities (3*nparticle) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+!> \date   22.11.2010 updated (MK)
+! *****************************************************************************
+  SUBROUTINE set_vel(env_id, new_vel, n_el, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id, n_el
+    REAL(kind=dp), DIMENSION(1:n_el)         :: new_vel
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_vel', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    NULLIFY (f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       NULLIFY (subsys)
+       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+       CALL cp_error_check(error,failure)
+       CALL unpack_subsys_particles(subsys=subsys,v=new_vel,error=error)
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
   END SUBROUTINE set_vel
-
-! *****************************************************************************
-!> \brief gets the velocities of the atoms
-!> \param vel the array where to write the velocities
-!> \param n_el number of velocities (3*natom) just to check
-!> \param env_id id of the force_env
-!> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE get_vel(env_id, vel, n_el, ierr)
-    INTEGER, INTENT(in)                      :: env_id, n_el
-    REAL(kind=dp), DIMENSION(1:n_el)         :: vel
-    INTEGER, INTENT(out)                     :: ierr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_vel', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: idir, ii, ip, my_n_el
-    LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(f_env_type), POINTER                :: f_env
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-
-    NULLIFY(f_env)
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       IF (.NOT.failure) THEN
-          CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
-          CALL cp_error_check(error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          particles => subsys%particles
-          my_n_el=3*particles%n_els
-          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-               routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
-               cp_to_string(my_n_el)//&
-CPSourceFileRef,&
-               error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          ii=0
-          particles => subsys%particles
-          DO ip=1,particles%n_els
-             DO idir=1,3
-                ii=ii+1
-                vel(ii)=particles%els(ip)%v(idir)
-             END DO
-          END DO
-       END IF
-    END IF
-    CALL f_env_rm_defaults(f_env,error,ierr)
-  END SUBROUTINE get_vel
-
-! *****************************************************************************
-!> \brief gets the forces of the atoms
-!> \param force the array where to write the forces
-!> \param n_el number of positions (3*natom) just to check
-!> \param env_id id of the force_env
-!> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE get_force(env_id, force, n_el, ierr)
-    INTEGER, INTENT(in)                      :: env_id, n_el
-    REAL(kind=dp), DIMENSION(1:n_el)         :: force
-    INTEGER, INTENT(out)                     :: ierr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_force', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: idir, ii, ip, my_n_el
-    LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(f_env_type), POINTER                :: f_env
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-
-    NULLIFY(f_env)
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       IF (.NOT.failure) THEN
-          NULLIFY(subsys)
-          CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
-          CALL cp_error_check(error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          particles => subsys%particles
-          my_n_el=3*particles%n_els
-          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-               routineP,"wrong force size ("//cp_to_string(n_el)//" vs"//&
-               cp_to_string(my_n_el)//&
-CPSourceFileRef,&
-               error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          ii=0
-          particles => subsys%particles
-          DO ip=1,particles%n_els
-             DO idir=1,3
-                ii=ii+1
-                force(ii)=particles%els(ip)%f(idir)
-             END DO
-          END DO
-       END IF
-    END IF
-    CALL f_env_rm_defaults(f_env,error,ierr)
-  END SUBROUTINE get_force
 
 ! *****************************************************************************
 !> \brief updates the energy and the forces of given force_env
@@ -1268,6 +1212,7 @@ CPSourceFileRef,&
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE calc_energy_force(env_id,calc_force,ierr)
+
     INTEGER, INTENT(in)                      :: env_id
     LOGICAL, INTENT(in)                      :: calc_force
     INTEGER, INTENT(out)                     :: ierr
@@ -1280,17 +1225,16 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.FALSE.
-
-    NULLIFY(f_env)
+    failure = .FALSE.
+    NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
        logger => cp_error_get_logger(error)
        CALL cp_iterate(logger%iter_info,error=error) ! add one to the iteration count
-       CALL force_env_calc_energy_force(f_env%force_env,&
-            calc_force=calc_force,error=error)
+       CALL force_env_calc_energy_force(f_env%force_env,calc_force=calc_force,error=error)
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
+
   END SUBROUTINE calc_energy_force
 
 ! *****************************************************************************
@@ -1301,6 +1245,7 @@ CPSourceFileRef,&
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE get_energy(env_id,e_pot,ierr)
+
     INTEGER, INTENT(in)                      :: env_id
     REAL(kind=dp), INTENT(out)               :: e_pot
     INTEGER, INTENT(out)                     :: ierr
@@ -1312,15 +1257,14 @@ CPSourceFileRef,&
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.FALSE.
-
-    NULLIFY(f_env)
+    failure = .FALSE.
+    NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
-       CALL force_env_get(f_env%force_env,&
-            potential_energy=e_pot, error=error)
+       CALL force_env_get(f_env%force_env,potential_energy=e_pot,error=error)
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
+
   END SUBROUTINE get_energy
 
 ! *****************************************************************************
@@ -1336,15 +1280,17 @@ CPSourceFileRef,&
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
-    INTEGER, INTENT(in)                      :: env_id, n_el
-    REAL(kind=dp), DIMENSION(1:n_el), &
-      INTENT(in)                             :: pos
-    REAL(kind=dp), INTENT(out)               :: e_pot
-    INTEGER, INTENT(out)                     :: ierr
 
-    REAL(kind=dp), DIMENSION(1)              :: dummy_f
+    INTEGER, INTENT(IN)                      :: env_id, n_el
+    REAL(KIND=dp), DIMENSION(1:n_el), &
+      INTENT(IN)                             :: pos
+    REAL(KIND=dp), INTENT(OUT)               :: e_pot
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    REAL(KIND=dp), DIMENSION(1)              :: dummy_f
 
     CALL calc_force(env_id,pos,n_el,e_pot,dummy_f,0,ierr)
+
   END SUBROUTINE calc_energy
 
 ! *****************************************************************************
@@ -1365,6 +1311,7 @@ CPSourceFileRef,&
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
+
     INTEGER, INTENT(in)                      :: env_id, n_el_pos
     REAL(kind=dp), DIMENSION(1:n_el_pos), &
       INTENT(in)                             :: pos
@@ -1376,11 +1323,12 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: calc_f
 
-    calc_f=(n_el_force/=0)
+    calc_f = (n_el_force /= 0)
     CALL set_pos(env_id,pos,n_el_pos,ierr)
-    IF (ierr==0) CALL calc_energy_force(env_id,calc_f,ierr)
-    IF (ierr==0) CALL get_energy(env_id,e_pot,ierr)
-    IF (calc_f.AND.ierr==0) CALL get_force(env_id,force,n_el_force,ierr)
+    IF (ierr == 0) CALL calc_energy_force(env_id,calc_f,ierr)
+    IF (ierr == 0) CALL get_energy(env_id,e_pot,ierr)
+    IF (calc_f.AND.(ierr == 0)) CALL get_force(env_id,force,n_el_force,ierr)
+
   END SUBROUTINE calc_force
 
 ! *****************************************************************************

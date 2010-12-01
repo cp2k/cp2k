@@ -95,3 +95,5 @@
 2gly_DIIS-SM.inp
 #numerics
 2gly_DIIS-DNEB.inp
+# Enable Band (NEB) runs using the core-shell model 
+2gly_DIIS-NEB.inp
