@@ -79,7 +79,6 @@ MODULE particle_types
   ! Public subroutines
 
   PUBLIC :: allocate_particle_set,&
-            clone_particle,&
             deallocate_particle_set,&
             get_particle_set,&
             write_fist_particle_coordinates,&
@@ -94,46 +93,6 @@ MODULE particle_types
   PUBLIC :: get_particle_pos_or_vel
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief copies all the attributes of a particle to another
-!> \param p_in the particle to copy
-!> \param p_out the place where to copy
-!> \param nullify_non_owned_pointers if the pointers to shared structures
-!>        should be nullified. If false, copies the pointer (but does not
-!>        try to perform any memory handling).
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      05.2004 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
-    TYPE(particle_type), INTENT(in)          :: p_in
-    TYPE(particle_type), INTENT(out)         :: p_out
-    LOGICAL, INTENT(in)                      :: nullify_non_owned_pointers
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
-      routineP = moduleN//':'//routineN
-
-    NULLIFY(p_out%atomic_kind)
-    NULLIFY(p_out%list_exclude_vdw)
-    NULLIFY(p_out%list_exclude_ei)
-    NULLIFY(p_out%list_onfo)
-    IF (.NOT.nullify_non_owned_pointers) THEN
-       p_out%atomic_kind => p_in%atomic_kind
-       p_out%list_exclude_vdw => p_in%list_exclude_vdw
-       p_out%list_exclude_ei => p_in%list_exclude_ei
-       p_out%list_onfo => p_in%list_onfo
-    END IF
-    p_out%r=p_in%r
-    p_out%f=p_in%f
-    p_out%v=p_in%v
-    p_out%shell_index=p_in%shell_index
-    p_out%atom_index=p_in%atom_index
-    p_out%t_region_index=p_in%t_region_index
-  END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 !> \brief   Allocate a particle set.
