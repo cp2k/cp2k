@@ -73,8 +73,7 @@ MODULE cp_dbcsr_interface
        dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_uses_special_memory, &
-       dbcsr_valid_index
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
        dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
@@ -171,7 +170,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_matrix_type
   PUBLIC :: cp_dbcsr_get_occupation
   PUBLIC :: cp_dbcsr_distribution
-  PUBLIC :: cp_dbcsr_uses_special_memory
   PUBLIC :: cp_dbcsr_nblkrows_local
   PUBLIC :: cp_dbcsr_nblkcols_local
   PUBLIC :: cp_dbcsr_nblkrows_total
@@ -775,14 +773,6 @@ CONTAINS
     CALL timestop(handle)
 
   END FUNCTION cp_dbcsr_distribution
-
-  PURE FUNCTION cp_dbcsr_uses_special_memory (matrix) RESULT (uses_special)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    LOGICAL                                  :: uses_special
-
-    uses_special = dbcsr_uses_special_memory(matrix%matrix)
-
-  END FUNCTION cp_dbcsr_uses_special_memory
 
   SUBROUTINE cp_create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
@@ -2121,7 +2111,7 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_work_create
 
   SUBROUTINE cp_dbcsr_create_new(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
+       row_blk_size, col_blk_size, nblks, nze, data_type, reuse,&
        mutable_work, replication_type, error, row_mapping, col_mapping,round_blk_size_up)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
@@ -2130,7 +2120,7 @@ CONTAINS
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
     CHARACTER, INTENT(IN), OPTIONAL          :: data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     TYPE(cp_dbcsr_mapping_type), OPTIONAL, &
@@ -2214,7 +2204,7 @@ CONTAINS
     ENDIF
     CALL dbcsr_create(matrix%matrix, name, matrix%dbcsr_distribution,&
          matrix_type,&
-       low_rbs, low_cbs, nblks, nze, data_type, special, reuse,&
+       low_rbs, low_cbs, nblks, nze, data_type, .FALSE., reuse,&
        mutable_work, replication_type, dbcsr_error)
     CALL array_release (low_rbs)
     CALL array_release (low_cbs)
@@ -2255,7 +2245,7 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_create_template(matrix, name, template,&
        dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
+       row_blk_size, col_blk_size, nblks, nze, data_type, reuse,&
        mutable_work, replication_type, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -2267,7 +2257,7 @@ CONTAINS
       OPTIONAL                               :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
     CHARACTER, INTENT(IN), OPTIONAL          :: data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2282,7 +2272,7 @@ CONTAINS
     CALL dbcsr_create(matrix%matrix, template%matrix,&
          name=name, dist=dist, matrix_type=matrix_type,&
          row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
-         nblks=nblks, nze=nze, data_type=data_type, special=special,&
+         nblks=nblks, nze=nze, data_type=data_type, special=.FALSE.,&
          reuse=reuse, mutable_work=mutable_work,&
          replication_type=replication_type,&
          error=dbcsr_error)

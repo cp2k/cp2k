@@ -27,8 +27,7 @@ MODULE preconditioner
        cp_dbcsr_nblkcols_local, cp_dbcsr_nblkrows_local, &
        cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_print, &
        cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_release_p, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_trace, &
-       cp_dbcsr_uses_special_memory, cp_dbcsr_verify_matrix, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_trace, cp_dbcsr_verify_matrix, &
        cp_dbcsr_work_create
   USE cp_dbcsr_operations,             ONLY: &
        copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy_vec, &
@@ -343,12 +342,12 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
         CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
              cp_dbcsr_distribution(matrix_h), dbcsr_type_no_symmetry,&
              cp_dbcsr_row_block_sizes(matrix_h), cp_dbcsr_col_block_sizes(matrix_h), &
-             0, 0, dbcsr_type_real_4, special=.TRUE.,error=error)
+             0, 0, dbcsr_type_real_4, error=error)
      ELSE
         CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
              cp_dbcsr_distribution(matrix_h), dbcsr_type_no_symmetry,&
              cp_dbcsr_row_block_sizes(matrix_h), cp_dbcsr_col_block_sizes(matrix_h), &
-             0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+             0, 0, dbcsr_type_real_default, error=error)
      ENDIF
      CALL cp_dbcsr_finalize(preconditioner_env%dbcsr_matrix, error=error)
      IF(ASSOCIATED(preconditioner_env%fm)) THEN
@@ -2110,7 +2109,7 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_dbcsr_create(mat_t, 'mat t', &
          cp_dbcsr_distribution(matrix_s), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(matrix_s),&
          cp_dbcsr_col_block_sizes(matrix_s), 0, 0,&
-         cp_dbcsr_get_data_type(matrix_s), cp_dbcsr_uses_special_memory(matrix_s), error=error)
+         cp_dbcsr_get_data_type(matrix_s), error=error)
     CALL cp_dbcsr_finalize(mat_t, error=error)
     CALL copy_fm_to_dbcsr(fm_work1,mat_t, error=error)
     IF(.TRUE.)CALL cp_dbcsr_verify_matrix(mat_t, error=error)
@@ -2127,13 +2126,13 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_dbcsr_create(mat_li, 'matrix li', &
          cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
-         cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
+         cp_dbcsr_get_data_type(mat_t), error=error)
     CALL cp_dbcsr_finalize(mat_li, error=error)
     CALL cp_dbcsr_init (mat_v,error=error)
     CALL cp_dbcsr_create(mat_v, 'matrix v', &
          cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
-         cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
+         cp_dbcsr_get_data_type(mat_t), error=error)
     CALL cp_dbcsr_finalize(mat_v, error=error)
 
     CALL cp_dbcsr_work_create(mat_li,work_mutable=.TRUE.,&
@@ -2154,7 +2153,7 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_dbcsr_create(prcnd, ' PRECONDITIONER ', &
          cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), cp_dbcsr_get_num_blocks(mat_t), cp_dbcsr_get_data_size(mat_t),&
-         cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
+         cp_dbcsr_get_data_type(mat_t), error=error)
     CALL cp_dbcsr_finalize(prcnd, error=error)
 
     ! some variables

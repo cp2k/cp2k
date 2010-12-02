@@ -733,7 +733,7 @@ CONTAINS
        CALL cp_dbcsr_init (mat_v, error)
        CALL cp_dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_no_symmetry,&
             cp_dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, 0, 0,&
-            cp_dbcsr_get_data_type (sparse_matrix), special=.TRUE.,error=error)
+            cp_dbcsr_get_data_type (sparse_matrix), error=error)
        CALL cp_dbcsr_finalize (mat_v, error=error)
        CALL copy_fm_to_dbcsr(matrix_v, mat_v, error=error)
        CALL cp_dbcsr_verify_matrix(mat_v, error)
@@ -745,7 +745,7 @@ CONTAINS
                dbcsr_type_no_symmetry,&
                cp_dbcsr_row_block_sizes (sparse_matrix),&
                cp_dbcsr_col_block_sizes (mat_v),&
-               data_type=cp_dbcsr_get_data_type (sparse_matrix), special=.TRUE.,error=error)
+               data_type=cp_dbcsr_get_data_type (sparse_matrix), error=error)
           CALL cp_dbcsr_finalize (mat_g, error=error)
           CALL copy_fm_to_dbcsr(matrix_g, mat_g, error=error)
        ENDIF

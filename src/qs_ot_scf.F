@@ -426,7 +426,7 @@ CONTAINS
           CALL cp_dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
           CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&
                cp_dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
-               special=.TRUE.,error=error)
+               error=error)
           CALL cp_dbcsr_finalize(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
           CALL cp_dbcsr_distribution_release (dist)
           CALL array_release (col_dist)

@@ -10,8 +10,7 @@ MODULE qs_gspace_mixing
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace, cp_dbcsr_uses_special_memory
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_alloc_block_from_nbl,&
@@ -1781,8 +1780,7 @@ CONTAINS
                dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
                col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-               nblks=0, nze=0, special=cp_dbcsr_uses_special_memory(matrix_s(1)%matrix), &
-               error=error)
+               nblks=0, nze=0, error=error)
           CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
@@ -1800,8 +1798,7 @@ CONTAINS
                   dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                   row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
                   col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                  nblks=0, nze=0, special=cp_dbcsr_uses_special_memory(matrix_s(1)%matrix), &
-                  error=error)
+                  nblks=0, nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
              CALL cp_dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
           ENDDO

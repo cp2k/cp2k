@@ -726,14 +726,14 @@ CONTAINS
         !                                        context=orbitals%matrix_struct%context,error=error)
         CALL cp_dbcsr_init_p(h_block,error=error)
         CALL cp_dbcsr_create(h_block, "h_block", dist, dbcsr_type_no_symmetry,&
-             row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+             row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, &
              error=error)
         CALL cp_dbcsr_finalize(h_block, error=error)
         !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
         IF (compute_evecs) THEN
            CALL cp_dbcsr_init_p(e_vectors,error=error)
            CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
-                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default,&
                 error=error)
            CALL cp_dbcsr_finalize(e_vectors, error=error)
            !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)

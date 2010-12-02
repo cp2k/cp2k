@@ -2158,7 +2158,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
              CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
              CALL cp_dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&! fm->dbcsr
                   cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
-                  special=.TRUE.,error=error)! fm->dbcsr
+                  error=error)! fm->dbcsr
              CALL cp_dbcsr_finalize(mos(ispin)%mo_set%mo_coeff_b, error=error)! fm->dbcsr
              CALL cp_dbcsr_distribution_release (dist)! fm->dbcsr
              CALL array_release (col_blk_size)! fm->dbcsr
@@ -2208,7 +2208,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
              CALL cp_dbcsr_create(mo_derivs(1)%matrix, "mo_derivs",&
                   cp_dbcsr_distribution(mo_coeff_b), dbcsr_type_no_symmetry,&
                   cp_dbcsr_row_block_sizes(mo_coeff_b), cp_dbcsr_col_block_sizes(mo_coeff_b),&
-                  0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+                  0, 0, dbcsr_type_real_default, error=error)
              CALL cp_dbcsr_finalize(mo_derivs(1)%matrix, error=error)
           ELSE
              ALLOCATE(mo_derivs(dft_control%nspins))
@@ -2219,7 +2219,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
                 CALL cp_dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs",&
                      cp_dbcsr_distribution(mo_coeff_b), dbcsr_type_no_symmetry,&
                      cp_dbcsr_row_block_sizes(mo_coeff_b), cp_dbcsr_col_block_sizes(mo_coeff_b),&
-                     0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+                     0, 0, dbcsr_type_real_default, error=error)
                 CALL cp_dbcsr_finalize(mo_derivs(ispin)%matrix, error=error)
              ENDDO
           ENDIF
