@@ -388,332 +388,335 @@ CPSourceFileRef,&
     ! 10. Fill in the particle_set%list_onfo
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
-    natom=topology%natoms
-    ! Reorder bonds
-    ALLOCATE(ex_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO I=1,natom
-       ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%bond_a)) THEN
-      N = SIZE(conn_info%bond_a)
-      CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
-    END IF
-
-    ! Check if a list of 1-2 exclusion bonds is defined.. if not use all bonds
-    NULLIFY(ex_bond_list_vdw, ex_bond_list_ei)
-    ! VdW
-    exclude_section => section_vals_get_subs_vals(topology_section,"EXCLUDE_VDW_LIST",error=error)
-    CALL section_vals_get(exclude_section, explicit=explicit, error=error)
-    present_12_excl_vdw_list = .FALSE.
-    IF (explicit) present_12_excl_vdw_list = .TRUE.
-    IF (present_12_excl_vdw_list) THEN
-       ALLOCATE(ex_bond_list_vdw(natom),stat=stat)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+    IF (method_name_id == do_fist) THEN
+       natom=topology%natoms
+       ! Reorder bonds
+       ALLOCATE(ex_bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I=1,natom
-          ALLOCATE(ex_bond_list_vdw(I)%array1(0),stat=stat)
+          ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
-       CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_vdw,&
-                                 particle_set, error)
-    ELSE
-       ex_bond_list_vdw => ex_bond_list
-    END IF
-    ! EI
-    exclude_section => section_vals_get_subs_vals(topology_section,"EXCLUDE_EI_LIST",error=error)
-    CALL section_vals_get(exclude_section, explicit=explicit, error=error)
-    present_12_excl_ei_list = .FALSE.
-    IF (explicit) present_12_excl_ei_list = .TRUE.
-    IF (present_12_excl_ei_list) THEN
-       ALLOCATE(ex_bond_list_ei(natom),stat=stat)
+       N = 0
+       IF(ASSOCIATED(conn_info%bond_a)) THEN
+         N = SIZE(conn_info%bond_a)
+         CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+       END IF
+
+       ! Check if a list of 1-2 exclusion bonds is defined.. if not use all bonds
+       NULLIFY(ex_bond_list_vdw, ex_bond_list_ei)
+       ! VdW
+       exclude_section => section_vals_get_subs_vals(topology_section,"EXCLUDE_VDW_LIST",error=error)
+       CALL section_vals_get(exclude_section, explicit=explicit, error=error)
+       present_12_excl_vdw_list = .FALSE.
+       IF (explicit) present_12_excl_vdw_list = .TRUE.
+       IF (present_12_excl_vdw_list) THEN
+          ALLOCATE(ex_bond_list_vdw(natom),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO I=1,natom
+             ALLOCATE(ex_bond_list_vdw(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_vdw,&
+                                    particle_set, error)
+       ELSE
+          ex_bond_list_vdw => ex_bond_list
+       END IF
+       ! EI
+       exclude_section => section_vals_get_subs_vals(topology_section,"EXCLUDE_EI_LIST",error=error)
+       CALL section_vals_get(exclude_section, explicit=explicit, error=error)
+       present_12_excl_ei_list = .FALSE.
+       IF (explicit) present_12_excl_ei_list = .TRUE.
+       IF (present_12_excl_ei_list) THEN
+          ALLOCATE(ex_bond_list_ei(natom),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO I=1,natom
+             ALLOCATE(ex_bond_list_ei(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_ei,&
+                                    particle_set, error)
+       ELSE
+          ex_bond_list_ei => ex_bond_list
+       END IF
+
+
+       CALL section_vals_val_get(topology_section, "AUTOGEN_EXCLUDE_LISTS", &
+            l_val=autogen, error=error)
+       ! Reorder bends
+       ALLOCATE(ex_bend_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I=1,natom
-          ALLOCATE(ex_bond_list_ei(I)%array1(0),stat=stat)
+          ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
-       CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_ei,&
-                                 particle_set, error)
-    ELSE
-       ex_bond_list_ei => ex_bond_list
-    END IF
-
-
-    CALL section_vals_val_get(topology_section, "AUTOGEN_EXCLUDE_LISTS", &
-         l_val=autogen, error=error)
-    ! Reorder bends
-    ALLOCATE(ex_bend_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO I=1,natom
-       ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    IF (autogen) THEN
-       ! Construct autogenerated 1-3 pairs, i.e. all possible 1-3 pairs instead
-       ! of only the bends that are present in the topology.
-       ALLOCATE(pairs(0,2),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       N = 0
-       DO iatom = 1, natom
-          DO i = 1, SIZE(ex_bond_list(iatom)%array1)
-             ! a neighboring atom of iatom:
-             atom_i = ex_bond_list(iatom)%array1(i)
-             DO j = 1, i-1
-                ! another neighboring atom of iatom
-                atom_j = ex_bond_list(iatom)%array1(j)
-                ! It is only a true bend if there is no shorter path.
-                ! No need to check if i and j correspond to the same atom.
-                ! Check if i and j are not involved in a bond:
-                check = .FALSE.
-                DO counter = 1, SIZE(ex_bond_list(atom_i)%array1)
-                  IF (ex_bond_list(atom_i)%array1(counter) == atom_j) THEN
-                     check = .TRUE.
-                     EXIT
-                  END IF
-                END DO
-                IF (check) CYCLE
-                ! Add the genuine 1-3 pair
-                N = N + 1
-                IF (SIZE(pairs,dim=1)<=N) THEN
-                   CALL reallocate(pairs, 1, N+5, 1, 2)
-                END IF
-                pairs(N,1) = atom_i
-                pairs(N,2) = atom_j
-             END DO
-          END DO
-       END DO
-       CALL reorder_structure(ex_bend_list, pairs(:,1), pairs(:,2), N, error)
-       DEALLOCATE(pairs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-       IF (ASSOCIATED(conn_info%theta_a)) THEN
-          N = SIZE(conn_info%theta_a)
-          CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
-       END IF
-    END IF
-
-    ! Reorder onfo
-    ALLOCATE(ex_onfo_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO I=1,natom
-       ALLOCATE(ex_onfo_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    IF (autogen) THEN
-       ! Construct autogenerated 1-4 pairs, i.e. all possible 1-4 pairs instead
-       ! of only the onfo's that are present in the topology.
-       ALLOCATE(pairs(0,2),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       N = 0
-       DO iatom = 1, natom
-          DO i = 1, SIZE(ex_bond_list(iatom)%array1)
-             ! a neighboring atom of iatom:
-             atom_i = ex_bond_list(iatom)%array1(i)
-             DO j = 1, SIZE(ex_bend_list(iatom)%array1)
-                ! a next neighboring atom of iatom:
-                atom_j = ex_bend_list(iatom)%array1(j)
-                ! It is only a true onfo if there is no shorter path.
-                ! check if i and j are not the same atom
-                IF (atom_i==atom_j) CYCLE
-                ! check if i and j are not involved in a bond
-                check = .FALSE.
-                DO counter = 1, SIZE(ex_bond_list(atom_i)%array1)
-                  IF (ex_bond_list(atom_i)%array1(counter) == atom_j) THEN
-                     check = .TRUE.
-                     EXIT
-                  END IF
-                END DO
-                IF (check) CYCLE
-                ! check if i and j are not involved in a bend
-                check = .FALSE.
-                DO counter = 1, SIZE(ex_bend_list(atom_i)%array1)
-                  IF (ex_bend_list(atom_i)%array1(counter) == atom_j) THEN
-                     check = .TRUE.
-                     EXIT
-                  END IF
-                END DO
-                IF (check) CYCLE
-                ! Add the true onfo.
-                N = N + 1
-                IF (SIZE(pairs,dim=1)<=N) THEN
-                   CALL reallocate(pairs, 1, N+5, 1, 2)
-                END IF
-                pairs(N,1) = atom_i
-                pairs(N,2) = atom_j
-             END DO
-          END DO
-       END DO
-       CALL reorder_structure(ex_onfo_list, pairs(:,1), pairs(:,2), N, error)
-       DEALLOCATE(pairs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-       IF(ASSOCIATED(conn_info%onfo_a)) THEN
-          N = SIZE(conn_info%onfo_a)
-          CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
-       END IF
-    END IF
-
-    ! Build the exclusion (and onfo) list per atom.
-    DO iatom = 1, SIZE(particle_set)
-       ! Setup exclusion list for VDW: always exclude itself
-       dim0 = 1
-       ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
-       dim1 = 0
-       IF  (topology%exclude_vdw==do_skip_12.OR. &
-            topology%exclude_vdw==do_skip_13.OR. &
-            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list_vdw(iatom)%array1)
-       dim1 = dim1 + dim0
-       dim2 = 0
-       IF  (topology%exclude_vdw==do_skip_13.OR. &
-            topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
-       dim2 = dim1 + dim2
-       dim3 = 0
-       IF  (topology%exclude_vdw==do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
-       dim3 = dim2 + dim3
-       IF (dim3 /= 0) THEN
-          NULLIFY(list, wlist)
-          ALLOCATE(wlist(dim3),stat=stat)
+       IF (autogen) THEN
+          ! Construct autogenerated 1-3 pairs, i.e. all possible 1-3 pairs instead
+          ! of only the bends that are present in the topology.
+          ALLOCATE(pairs(0,2),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          wlist(  dim0:dim0) = iatom
-          IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_vdw(iatom)%array1
-          IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
-          IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
-          ! Get a unique list
-          DO i = 1, SIZE(wlist)-1
-             IF (wlist(i)==0)CYCLE
-             DO j = i+1, SIZE(wlist)
-                IF(wlist(j)==wlist(i)) wlist(j) = 0
-             END DO
-          END DO
-          dim3 = SIZE(wlist)-COUNT(wlist==0)
-          ALLOCATE(list(dim3),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          j = 0
-          DO i = 1, SIZE(wlist)
-             IF (wlist(i)==0)CYCLE
-             j = j + 1
-             list(j)=wlist(i)
-          END DO
-          DEALLOCATE(wlist,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ! Unique list completed
-          NULLIFY(list2)
-          IF((topology%exclude_vdw==topology%exclude_ei).AND.&
-               (.NOT.present_12_excl_ei_list).AND.(.NOT.present_12_excl_vdw_list)) THEN
-             list2 => list
-          ELSE
-             ! Setup exclusion list for EI : always exclude itself
-             dim0 = 1
-             ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
-             dim1 = 0
-             IF  (topology%exclude_ei==do_skip_12.OR. &
-                  topology%exclude_ei==do_skip_13.OR. &
-                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list_ei(iatom)%array1)
-             dim1 = dim1 + dim0
-             dim2 = 0
-             IF  (topology%exclude_ei==do_skip_13.OR. &
-                  topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
-             dim2 = dim1 + dim2
-             dim3 = 0
-             IF  (topology%exclude_ei==do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
-             dim3 = dim2 + dim3
-
-             IF (dim3 /= 0) THEN
-                ALLOCATE(wlist(dim3),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                wlist(  dim0:dim0) = iatom
-                IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_ei(iatom)%array1
-                IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
-                IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
-                ! Get a unique list
-                DO i = 1, SIZE(wlist)-1
-                   IF (wlist(i)==0)CYCLE
-                   DO j = i+1, SIZE(wlist)
-                      IF(wlist(j)==wlist(i)) wlist(j) = 0
+          N = 0
+          DO iatom = 1, natom
+             DO i = 1, SIZE(ex_bond_list(iatom)%array1)
+                ! a neighboring atom of iatom:
+                atom_i = ex_bond_list(iatom)%array1(i)
+                DO j = 1, i-1
+                   ! another neighboring atom of iatom
+                   atom_j = ex_bond_list(iatom)%array1(j)
+                   ! It is only a true bend if there is no shorter path.
+                   ! No need to check if i and j correspond to the same atom.
+                   ! Check if i and j are not involved in a bond:
+                   check = .FALSE.
+                   DO counter = 1, SIZE(ex_bond_list(atom_i)%array1)
+                     IF (ex_bond_list(atom_i)%array1(counter) == atom_j) THEN
+                        check = .TRUE.
+                        EXIT
+                     END IF
                    END DO
+                   IF (check) CYCLE
+                   ! Add the genuine 1-3 pair
+                   N = N + 1
+                   IF (SIZE(pairs,dim=1)<=N) THEN
+                      CALL reallocate(pairs, 1, N+5, 1, 2)
+                   END IF
+                   pairs(N,1) = atom_i
+                   pairs(N,2) = atom_j
                 END DO
-                dim3 = SIZE(wlist)-COUNT(wlist==0)
-                ALLOCATE(list2(dim3),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                j = 0
-                DO i = 1, SIZE(wlist)
-                   IF (wlist(i)==0)CYCLE
-                   j = j + 1
-                   list2(j)=wlist(i)
+             END DO
+          END DO
+          CALL reorder_structure(ex_bend_list, pairs(:,1), pairs(:,2), N, error)
+          DEALLOCATE(pairs,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          IF (ASSOCIATED(conn_info%theta_a)) THEN
+             N = SIZE(conn_info%theta_a)
+             CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+          END IF
+       END IF
+
+       ! Reorder onfo
+       ALLOCATE(ex_onfo_list(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          ALLOCATE(ex_onfo_list(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       IF (autogen) THEN
+          ! Construct autogenerated 1-4 pairs, i.e. all possible 1-4 pairs instead
+          ! of only the onfo's that are present in the topology.
+          ALLOCATE(pairs(0,2),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          N = 0
+          DO iatom = 1, natom
+             DO i = 1, SIZE(ex_bond_list(iatom)%array1)
+                ! a neighboring atom of iatom:
+                atom_i = ex_bond_list(iatom)%array1(i)
+                DO j = 1, SIZE(ex_bend_list(iatom)%array1)
+                   ! a next neighboring atom of iatom:
+                   atom_j = ex_bend_list(iatom)%array1(j)
+                   ! It is only a true onfo if there is no shorter path.
+                   ! check if i and j are not the same atom
+                   IF (atom_i==atom_j) CYCLE
+                   ! check if i and j are not involved in a bond
+                   check = .FALSE.
+                   DO counter = 1, SIZE(ex_bond_list(atom_i)%array1)
+                     IF (ex_bond_list(atom_i)%array1(counter) == atom_j) THEN
+                        check = .TRUE.
+                        EXIT
+                     END IF
+                   END DO
+                   IF (check) CYCLE
+                   ! check if i and j are not involved in a bend
+                   check = .FALSE.
+                   DO counter = 1, SIZE(ex_bend_list(atom_i)%array1)
+                     IF (ex_bend_list(atom_i)%array1(counter) == atom_j) THEN
+                        check = .TRUE.
+                        EXIT
+                     END IF
+                   END DO
+                   IF (check) CYCLE
+                   ! Add the true onfo.
+                   N = N + 1
+                   IF (SIZE(pairs,dim=1)<=N) THEN
+                      CALL reallocate(pairs, 1, N+5, 1, 2)
+                   END IF
+                   pairs(N,1) = atom_i
+                   pairs(N,2) = atom_j
                 END DO
-                DEALLOCATE(wlist,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                ! Unique list completed
+             END DO
+          END DO
+          CALL reorder_structure(ex_onfo_list, pairs(:,1), pairs(:,2), N, error)
+          DEALLOCATE(pairs,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          IF(ASSOCIATED(conn_info%onfo_a)) THEN
+             N = SIZE(conn_info%onfo_a)
+             CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+          END IF
+       END IF
+
+       ! Build the exclusion (and onfo) list per atom.
+       DO iatom = 1, SIZE(particle_set)
+          ! Setup exclusion list for VDW: always exclude itself
+          dim0 = 1
+          ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
+          dim1 = 0
+          IF  (topology%exclude_vdw==do_skip_12.OR. &
+               topology%exclude_vdw==do_skip_13.OR. &
+               topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list_vdw(iatom)%array1)
+          dim1 = dim1 + dim0
+          dim2 = 0
+          IF  (topology%exclude_vdw==do_skip_13.OR. &
+               topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
+          dim2 = dim1 + dim2
+          dim3 = 0
+          IF  (topology%exclude_vdw==do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
+          dim3 = dim2 + dim3
+          IF (dim3 /= 0) THEN
+             NULLIFY(list, wlist)
+             ALLOCATE(wlist(dim3),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             wlist(  dim0:dim0) = iatom
+             IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_vdw(iatom)%array1
+             IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
+             IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
+             ! Get a unique list
+             DO i = 1, SIZE(wlist)-1
+                IF (wlist(i)==0)CYCLE
+                DO j = i+1, SIZE(wlist)
+                   IF(wlist(j)==wlist(i)) wlist(j) = 0
+                END DO
+             END DO
+             dim3 = SIZE(wlist)-COUNT(wlist==0)
+             ALLOCATE(list(dim3),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             j = 0
+             DO i = 1, SIZE(wlist)
+                IF (wlist(i)==0)CYCLE
+                j = j + 1
+                list(j)=wlist(i)
+             END DO
+             DEALLOCATE(wlist,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ! Unique list completed
+             NULLIFY(list2)
+             IF((topology%exclude_vdw==topology%exclude_ei).AND.&
+                  (.NOT.present_12_excl_ei_list).AND.(.NOT.present_12_excl_vdw_list)) THEN
+                list2 => list
+             ELSE
+                ! Setup exclusion list for EI : always exclude itself
+                dim0 = 1
+                ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
+                dim1 = 0
+                IF  (topology%exclude_ei==do_skip_12.OR. &
+                     topology%exclude_ei==do_skip_13.OR. &
+                     topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list_ei(iatom)%array1)
+                dim1 = dim1 + dim0
+                dim2 = 0
+                IF  (topology%exclude_ei==do_skip_13.OR. &
+                     topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
+                dim2 = dim1 + dim2
+                dim3 = 0
+                IF  (topology%exclude_ei==do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
+                dim3 = dim2 + dim3
+
+                IF (dim3 /= 0) THEN
+                   ALLOCATE(wlist(dim3),stat=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   wlist(  dim0:dim0) = iatom
+                   IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_ei(iatom)%array1
+                   IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
+                   IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
+                   ! Get a unique list
+                   DO i = 1, SIZE(wlist)-1
+                      IF (wlist(i)==0)CYCLE
+                      DO j = i+1, SIZE(wlist)
+                         IF(wlist(j)==wlist(i)) wlist(j) = 0
+                      END DO
+                   END DO
+                   dim3 = SIZE(wlist)-COUNT(wlist==0)
+                   ALLOCATE(list2(dim3),stat=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   j = 0
+                   DO i = 1, SIZE(wlist)
+                      IF (wlist(i)==0)CYCLE
+                      j = j + 1
+                      list2(j)=wlist(i)
+                   END DO
+                   DEALLOCATE(wlist,stat=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ! Unique list completed
+                END IF
              END IF
           END IF
-       END IF
-       particle_set(iatom)%list_exclude_vdw => list
-       particle_set(iatom)%list_exclude_ei  => list2
-       ! Keep a list of onfo atoms for proper selection of specialized 1-4
-       ! potentials instead of conventional nonbonding potentials.
-       ALLOCATE(particle_set(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! copy of data, not copy of pointer
-       particle_set(iatom)%list_onfo = ex_onfo_list(iatom)%array1
-       IF (iw>0) THEN
-          IF (ASSOCIATED(list)) &
-               WRITE(iw,*)"exclusion list_vdw :: ",&
-               "atom num :",iatom,"exclusion list ::",&
-               list
-          IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-             IF (ASSOCIATED(list2)) &
-                  WRITE(iw,*)"exclusion list_ei :: ",&
+          particle_set(iatom)%list_exclude_vdw => list
+          particle_set(iatom)%list_exclude_ei  => list2
+          ! Keep a list of onfo atoms for proper selection of specialized 1-4
+          ! potentials instead of conventional nonbonding potentials.
+          ALLOCATE(particle_set(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! copy of data, not copy of pointer
+          particle_set(iatom)%list_onfo = ex_onfo_list(iatom)%array1
+          IF (iw>0) THEN
+             IF (ASSOCIATED(list)) &
+                  WRITE(iw,*)"exclusion list_vdw :: ",&
                   "atom num :",iatom,"exclusion list ::",&
-                  list2
+                  list
+             IF(topology%exclude_vdw/=topology%exclude_ei) THEN
+                IF (ASSOCIATED(list2)) &
+                     WRITE(iw,*)"exclusion list_ei :: ",&
+                     "atom num :",iatom,"exclusion list ::",&
+                     list2
+             END IF
+             IF (ASSOCIATED(particle_set(iatom)%list_onfo)) &
+                  WRITE(iw,*)"onfo list :: ",&
+                  "atom num :",iatom,"onfo list ::",&
+                  particle_set(iatom)%list_onfo
           END IF
-          IF (ASSOCIATED(particle_set(iatom)%list_onfo)) &
-               WRITE(iw,*)"onfo list :: ",&
-               "atom num :",iatom,"onfo list ::",&
-               particle_set(iatom)%list_onfo
+       END DO
+       ! deallocate onfo
+       DO I=1,natom
+          DEALLOCATE(ex_onfo_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_onfo_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! deallocate bends
+       DO I=1,natom
+          DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_bend_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! deallocate bonds
+       IF (present_12_excl_ei_list) THEN
+          DO I=1,natom
+             DEALLOCATE(ex_bond_list_ei(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(ex_bond_list_ei,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          NULLIFY(ex_bond_list_ei)
        END IF
-    END DO
-    ! deallocate onfo
-    DO I=1,natom
-       DEALLOCATE(ex_onfo_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DEALLOCATE(ex_onfo_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! deallocate bends
-    DO I=1,natom
-       DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DEALLOCATE(ex_bend_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! deallocate bonds
-    IF (present_12_excl_ei_list) THEN
+       IF (present_12_excl_vdw_list) THEN
+          DO I=1,natom
+             DEALLOCATE(ex_bond_list_vdw(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(ex_bond_list_vdw,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          NULLIFY(ex_bond_list_vdw)
+       END IF
        DO I=1,natom
-          DEALLOCATE(ex_bond_list_ei(I)%array1,stat=stat)
+          DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
-       DEALLOCATE(ex_bond_list_ei,stat=stat)
+       DEALLOCATE(ex_bond_list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-       NULLIFY(ex_bond_list_ei)
-    END IF
-    IF (present_12_excl_vdw_list) THEN
-       DO I=1,natom
-          DEALLOCATE(ex_bond_list_vdw(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(ex_bond_list_vdw,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-       NULLIFY(ex_bond_list_vdw)
-    END IF
-    DO I=1,natom
-       DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DEALLOCATE(ex_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
