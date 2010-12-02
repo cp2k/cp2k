@@ -37,7 +37,8 @@ MODULE fist_environment_types
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_retain,&
                                              ewald_pw_type
-  USE exclusion_types,                 ONLY: exclusion_type
+  USE exclusion_types,                 ONLY: exclusion_release,&
+                                             exclusion_type
   USE f77_blas
   USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                              fist_energy_type
@@ -483,7 +484,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -504,31 +505,7 @@ CONTAINS
           CALL cp_result_release(fist_env%results,error=error)          
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
-
-          IF (ASSOCIATED(fist_env%exclusions)) THEN
-             DO iatom=1,SIZE(fist_env%exclusions)
-                IF (ASSOCIATED(fist_env%exclusions(iatom)%list_exclude_vdw,&
-                     fist_env%exclusions(iatom)%list_exclude_ei)) THEN
-                   DEALLOCATE(fist_env%exclusions(iatom)%list_exclude_vdw,STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                ELSE
-                   IF (ASSOCIATED(fist_env%exclusions(iatom)%list_exclude_vdw)) THEN
-                      DEALLOCATE(fist_env%exclusions(iatom)%list_exclude_vdw,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF (ASSOCIATED(fist_env%exclusions(iatom)%list_exclude_ei)) THEN
-                      DEALLOCATE(fist_env%exclusions(iatom)%list_exclude_ei,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                ENDIF
-                IF (ASSOCIATED(fist_env%exclusions(iatom)%list_onfo)) THEN
-                  DEALLOCATE(fist_env%exclusions(iatom)%list_onfo,stat=stat)
-                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                ENDIF
-             ENDDO
-             DEALLOCATE(fist_env%exclusions,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ENDIF
+          CALL exclusion_release(fist_env%exclusions,error=error)
 
           DEALLOCATE(fist_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
