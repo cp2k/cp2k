@@ -611,15 +611,6 @@ CONTAINS
           particle_set(i)%r(2) = atom_info%r(2,i)
           particle_set(i)%r(3) = atom_info%r(3,i)
           pbc_coord(:,i) = pbc(atom_info%r(:,i),topology%cell)
-          NULLIFY(particle_set(i)%list_exclude_vdw)
-          NULLIFY(particle_set(i)%list_exclude_ei)
-          NULLIFY(particle_set(i)%list_onfo)
-          ALLOCATE(particle_set(i)%list_exclude_vdw(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(particle_set(i)%list_exclude_ei(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(particle_set(i)%list_onfo(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MIN",r_val=tmp,&
             error=error)
@@ -630,7 +621,7 @@ CONTAINS
             cell=topology%cell, r_max=r_max, r_minsq=r_minsq, &
             ei_scale14=1.0_dp, vdw_scale14=1.0_dp, nonbonded=nonbonded, &
             para_env=para_env, build_from_scratch=.TRUE., geo_check=.TRUE., &
-            mm_section=generate_section, ignore_topology=.FALSE., error=error)
+            mm_section=generate_section, ignore_topology=.TRUE., error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,"GENERATE| Number of prescreened bonds (neighbors):",T71,I10)')&
                nonbonded%neighbor_kind_pairs(1)%npairs

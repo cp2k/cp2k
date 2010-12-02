@@ -134,8 +134,14 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxatom=maxatom)
 
-    ! Allocate work storage
     present_local_particles = PRESENT(local_particles)
+
+    ! if topology matters local particles are present
+    IF (.NOT. ignore_topology) THEN
+      CPPostcondition(present_local_particles,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
     ALLOCATE (atom(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
