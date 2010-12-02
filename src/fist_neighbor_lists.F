@@ -31,6 +31,7 @@ MODULE fist_neighbor_lists
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_add,&
                                              fist_neighbor_deallocate,&
@@ -84,7 +85,7 @@ CONTAINS
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set, particle_set, &
         local_particles, cell, r_max, r_minsq, ei_scale14, vdw_scale14, &
         nonbonded, para_env, build_from_scratch, geo_check, mm_section, &
-        full_nl, ignore_topology, error)
+        full_nl, exclusions, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -101,7 +102,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: mm_section
     LOGICAL, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: full_nl
-    LOGICAL, INTENT(IN)                      :: ignore_topology
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL                               :: exclusions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
@@ -136,8 +138,9 @@ CONTAINS
 
     present_local_particles = PRESENT(local_particles)
 
-    ! if topology matters local particles are present
-    IF (.NOT. ignore_topology) THEN
+    ! if exclusions matters local particles are present. Seems like only the exclusions
+    ! for the local particles are needed, which would imply a huge memory savings for fist
+    IF (PRESENT(exclusions)) THEN
       CPPostcondition(present_local_particles,cp_failure_level,routineP,error,failure)
     ENDIF
 
@@ -197,7 +200,7 @@ CONTAINS
     CALL build_neighbor_lists(nonbonded, particle_set, atom, cell, &
          maxatom_local, print_subcell_grid, output_unit, r_max, r_minsq, &
          ei_scale14, vdw_scale14, geo_check,"NONBONDED", skip_kind, &
-         my_full_nl, ignore_topology, error)
+         my_full_nl, exclusions, error)
 
     ! Sort the list according kinds for each cell
     CALL sort_neighbor_lists(nonbonded, nkind, error)
@@ -264,7 +267,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(nonbonded, particle_set, atom,cell, &
         maxatom_local, print_subcell_grid, output_unit, r_max, r_minsq, &
-        ei_scale14, vdw_scale14, geo_check, name, skip_kind, full_nl, ignore_topology, error)
+        ei_scale14, vdw_scale14, geo_check, name, skip_kind, full_nl, exclusions, error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -281,7 +284,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     LOGICAL, DIMENSION(:, :), POINTER        :: full_nl
-    LOGICAL, INTENT(IN)                      :: ignore_topology
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL                               :: exclusions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists', &
@@ -589,7 +593,7 @@ CONTAINS
                         is_full=is_full, &
                         skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                         cell=cell, ei_scale14=ei_scale14, &
-                        vdw_scale14=vdw_scale14, ignore_topology=ignore_topology, error=error)
+                        vdw_scale14=vdw_scale14, exclusions=exclusions, error=error)
                    ! This is to handle properly when interaction radius is larger than cell size
                    IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
                       invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
@@ -601,7 +605,7 @@ CONTAINS
                            is_full=is_full, &
                            skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                            cell=cell, ei_scale14=ei_scale14, &
-                           vdw_scale14=vdw_scale14, ignore_topology=ignore_topology, error=error)
+                           vdw_scale14=vdw_scale14, exclusions=exclusions, error=error)
                    END IF
                    ! Check for too close hits
                    IF (check_spline) THEN

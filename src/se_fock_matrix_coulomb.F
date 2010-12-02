@@ -669,7 +669,7 @@ CONTAINS
        
        ! Build-up neighbor lists for real-space part of Ewald multipoles
        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-            cell, se_nonbond_env, para_env, se_section, ignore_topology=.TRUE., error=error)
+            cell, se_nonbond_env, para_env, se_section, error=error)
 
        enuc = 0.0_dp
        energy%core_overlap      = 0.0_dp

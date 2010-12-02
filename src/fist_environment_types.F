@@ -37,6 +37,7 @@ MODULE fist_environment_types
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_retain,&
                                              ewald_pw_type
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                              fist_energy_type
@@ -89,6 +90,7 @@ MODULE fist_environment_types
     TYPE (fist_nonbond_env_type), POINTER        :: fist_nonbond_env
     TYPE(section_vals_type), POINTER             :: input
     TYPE(cp_result_type),POINTER                 :: results
+    TYPE(exclusion_type), DIMENSION(:), POINTER  :: exclusions
  END TYPE fist_environment_type
 
 ! *****************************************************************************
@@ -104,7 +106,8 @@ MODULE fist_environment_types
 
 ! *** Public data types ***
   PUBLIC :: fist_environment_type,&
-            fist_environment_p_type
+            fist_environment_p_type,&
+            exclusion_type
 
 ! *** Public subroutines ***
   PUBLIC :: get_fist_env,&
@@ -132,7 +135,7 @@ CONTAINS
        local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
        cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
        qmmm_env, input, shell_model, shell_model_ad, shell_particle_set,&
-       core_particle_set, multipoles, results, error )
+       core_particle_set, multipoles, results, exclusions, error )
 
     TYPE(fist_environment_type), INTENT(IN)  :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -165,6 +168,8 @@ CONTAINS
                                                 core_particle_set( : )
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
@@ -189,6 +194,7 @@ CONTAINS
     IF ( PRESENT ( cell_ref ) ) cell_ref => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
     IF ( PRESENT ( thermo ) ) thermo => fist_env % thermo
+    IF ( PRESENT ( exclusions ) ) exclusions => fist_env % exclusions
     IF ( PRESENT ( para_env ) ) para_env => fist_env % para_env
     IF ( PRESENT ( ewald_pw ) ) ewald_pw => fist_env % ewald_pw
     IF ( PRESENT ( fist_nonbond_env ) ) fist_nonbond_env => fist_env % fist_nonbond_env
@@ -238,6 +244,7 @@ CONTAINS
     NULLIFY (fist_env%thermo)
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
+    NULLIFY (fist_env%exclusions)
     fist_env % qmmm = .FALSE.
     fist_env % shell_model = .FALSE.
     fist_env % shell_model_ad = .FALSE.
@@ -263,7 +270,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           input, shell_model, shell_model_ad, error )
+                           input, shell_model, shell_model_ad, exclusions, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -290,6 +297,8 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
@@ -392,6 +401,7 @@ CONTAINS
                         error=error)
       CALL mol_new_list_release(molecules_new,error=error)
     END IF
+    IF (PRESENT(exclusions)) fist_env%exclusions=>exclusions
     IF (PRESENT(shell_model)) THEN
        fist_env%shell_model = shell_model
     END IF
@@ -473,7 +483,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: iatom, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -494,6 +504,32 @@ CONTAINS
           CALL cp_result_release(fist_env%results,error=error)          
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
+
+          IF (ASSOCIATED(fist_env%exclusions)) THEN
+             DO iatom=1,SIZE(fist_env%exclusions)
+                IF (ASSOCIATED(fist_env%exclusions(iatom)%list_exclude_vdw,&
+                     fist_env%exclusions(iatom)%list_exclude_ei)) THEN
+                   DEALLOCATE(fist_env%exclusions(iatom)%list_exclude_vdw,STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ELSE
+                   IF (ASSOCIATED(fist_env%exclusions(iatom)%list_exclude_vdw)) THEN
+                      DEALLOCATE(fist_env%exclusions(iatom)%list_exclude_vdw,STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
+                   IF (ASSOCIATED(fist_env%exclusions(iatom)%list_exclude_ei)) THEN
+                      DEALLOCATE(fist_env%exclusions(iatom)%list_exclude_ei,STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
+                ENDIF
+                IF (ASSOCIATED(fist_env%exclusions(iatom)%list_onfo)) THEN
+                  DEALLOCATE(fist_env%exclusions(iatom)%list_onfo,stat=stat)
+                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ENDIF
+             ENDDO
+             DEALLOCATE(fist_env%exclusions,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+
           DEALLOCATE(fist_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

@@ -10,6 +10,7 @@ MODULE fist_neighbor_list_types
 
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
@@ -255,7 +256,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
        particle_set, rab, check_spline, id_kind, is_full, skip, cell, &
-       ei_scale14, vdw_scale14, ignore_topology, error)
+       ei_scale14, vdw_scale14, exclusions, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     TYPE(particle_type), DIMENSION(:), &
@@ -266,7 +267,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: is_full, skip
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
-    LOGICAL, INTENT(IN)                      :: ignore_topology
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL                               :: exclusions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
@@ -281,14 +283,14 @@ CONTAINS
                                                 is_onfo
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
-    IF (ignore_topology) THEN
+    IF (.NOT.PRESENT(exclusions)) THEN
        ex_ei = .FALSE.
        ex_vdw = .FALSE.
        is_onfo = .FALSE.
     ELSE
-       ex_ei = ANY(particle_set(atom_a)%list_exclude_ei==atom_b)
-       ex_vdw = ANY(particle_set(atom_a)%list_exclude_vdw==atom_b)
-       is_onfo = ANY(particle_set(atom_a)%list_onfo==atom_b)
+       ex_ei = ANY(exclusions(atom_a)%list_exclude_ei==atom_b)
+       ex_vdw = ANY(exclusions(atom_a)%list_exclude_vdw==atom_b)
+       is_onfo = ANY(exclusions(atom_a)%list_onfo==atom_b)
        IF (ex_ei.OR.ex_vdw.OR.is_onfo) THEN
           ! Check if this pair could correspond to a local interaction (bond, bend,
           ! or torsion) to which the exclusion lists and 14 potentials apply.

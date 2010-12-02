@@ -15,6 +15,7 @@ MODULE topology_coordinate_util
                                              set_atomic_kind
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE exclusion_types,                 ONLY: exclusion_type
   USE external_potential_types,        ONLY: allocate_potential,&
                                              fist_potential_type,&
                                              get_potential,&
@@ -70,7 +71,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,topology,qmmm,qmmm_env,&
-       subsys_section,force_env_section,error)
+       subsys_section,force_env_section,exclusions,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -86,6 +87,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
@@ -374,8 +377,6 @@ CPSourceFileRef,&
        END IF
        particle_set(i)%atomic_kind => atomic_kind_set(ikind)
        particle_set(i)%r(:) = atom_info%r(:,i) - dims
-       NULLIFY(particle_set(i)%list_exclude_vdw)
-       NULLIFY(particle_set(i)%list_exclude_ei)
     END DO
     CALL timestop(handle2)
     DEALLOCATE(kind_of,STAT=stat)
@@ -383,14 +384,23 @@ CPSourceFileRef,&
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. Fill in the particle_set%list_exclude_vdw
-    ! 9. Fill in the particle_set%list_exclude_ei
-    ! 10. Fill in the particle_set%list_onfo
+    ! 8. Fill in the exclusions%list_exclude_vdw
+    ! 9. Fill in the exclusions%list_exclude_ei
+    ! 10. Fill in the exclusions%list_onfo
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     IF (method_name_id == do_fist) THEN
+       CPPostcondition(PRESENT(exclusions),cp_failure_level,routineP,error,failure)
        natom=topology%natoms
+       ! allocate exclusions. Most likely they would only be needed for the local_particles
+       ALLOCATE(exclusions(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          NULLIFY(exclusions(i)%list_exclude_vdw)
+          NULLIFY(exclusions(i)%list_exclude_ei)
+          NULLIFY(exclusions(i)%list_onfo)
+       ENDDO
        ! Reorder bonds
        ALLOCATE(ex_bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -650,14 +660,14 @@ CPSourceFileRef,&
                 END IF
              END IF
           END IF
-          particle_set(iatom)%list_exclude_vdw => list
-          particle_set(iatom)%list_exclude_ei  => list2
+          exclusions(iatom)%list_exclude_vdw => list
+          exclusions(iatom)%list_exclude_ei  => list2
           ! Keep a list of onfo atoms for proper selection of specialized 1-4
           ! potentials instead of conventional nonbonding potentials.
-          ALLOCATE(particle_set(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
+          ALLOCATE(exclusions(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! copy of data, not copy of pointer
-          particle_set(iatom)%list_onfo = ex_onfo_list(iatom)%array1
+          exclusions(iatom)%list_onfo = ex_onfo_list(iatom)%array1
           IF (iw>0) THEN
              IF (ASSOCIATED(list)) &
                   WRITE(iw,*)"exclusion list_vdw :: ",&
@@ -669,10 +679,10 @@ CPSourceFileRef,&
                      "atom num :",iatom,"exclusion list ::",&
                      list2
              END IF
-             IF (ASSOCIATED(particle_set(iatom)%list_onfo)) &
+             IF (ASSOCIATED(exclusions(iatom)%list_onfo)) &
                   WRITE(iw,*)"onfo list :: ",&
                   "atom num :",iatom,"onfo list ::",&
-                  particle_set(iatom)%list_onfo
+                  exclusions(iatom)%list_onfo
           END IF
        END DO
        ! deallocate onfo

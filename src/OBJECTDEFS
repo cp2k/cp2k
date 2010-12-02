@@ -183,6 +183,7 @@ OBJECTS_GENERIC =\
  ewalds.o\
  ewalds_multipole.o\
  ewalds_multipole_debug.o\
+ exclusion_types.o\
  extended_system_dynamics.o\
  extended_system_init.o\
  extended_system_mapping.o\

@@ -21,6 +21,7 @@ MODULE topology
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
@@ -99,7 +100,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set,&
        molecule_set, colvar_p, gci, root_section, para_env, qmmm, qmmm_env,&
-       force_env_section, subsys_section, use_motion_section, error)
+       force_env_section, subsys_section, use_motion_section, exclusions, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -120,6 +121,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
@@ -187,13 +190,13 @@ CONTAINS
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
             topology, my_qmmm, qmmm_env, subsys_section,&
-            force_env_section=force_env_section,&
+            force_env_section=force_env_section, exclusions=exclusions,&
             error=error)
     ELSE 
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
             topology,subsys_section=subsys_section,&
-            force_env_section=force_env_section,&
+            force_env_section=force_env_section, exclusions=exclusions, &
             error=error)
     END IF
 

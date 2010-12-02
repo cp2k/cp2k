@@ -33,6 +33,7 @@ MODULE fist_force
                                              ewald_print,&
                                              ewald_self
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
@@ -143,6 +144,8 @@ CONTAINS
                                                 local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(exclusion_type), DIMENSION(:), &
+      POINTER                                :: exclusions
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -178,7 +181,7 @@ CONTAINS
          local_molecules=local_molecules, thermo=thermo, &
          molecule_kind_set=molecule_kind_set, fist_nonbond_env=fist_nonbond_env,&
          cell=cell, shell_model=shell_present, shell_model_ad=shell_model_ad, &
-         multipoles=multipoles, error=error)
+         multipoles=multipoles, exclusions=exclusions, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
          do_ipol=do_ipol,error=error)
@@ -212,7 +215,7 @@ CONTAINS
        ! First check with list_control to update neighbor lists
        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
             cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
-            core_particle_set, ignore_topology=.FALSE., error=error)
+            core_particle_set, exclusions=exclusions, error=error)
     END IF
 
     ! Initialize force, energy and pressure tensor arrays

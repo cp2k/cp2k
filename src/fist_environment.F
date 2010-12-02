@@ -39,6 +39,7 @@ MODULE fist_environment
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE fist_energy_types,               ONLY: allocate_fist_energy,&
                                              fist_energy_type
@@ -115,6 +116,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(exclusion_type), DIMENSION(:), &
+      POINTER                                :: exclusions
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
@@ -141,7 +144,7 @@ CONTAINS
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
     NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
          poisson_section, shell_particle_set, shell_particles, &
-         core_particle_set, core_particles)
+         core_particle_set, core_particles, exclusions)
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     END IF
@@ -182,7 +185,8 @@ CONTAINS
                             subsys%colvar_p, subsys%gci, root_section, para_env, qmmm=qmmm,&
                             qmmm_env=qmmm_env, force_env_section=force_env_section,&
                             subsys_section=subsys_section,use_motion_section=use_motion_section,&
-                            error=error)
+                            exclusions=exclusions, error=error)
+    CALL set_fist_env(fist_env, exclusions=exclusions, error=error)
 
     CALL force_field_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
                                ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&

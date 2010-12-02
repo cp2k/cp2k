@@ -59,9 +59,6 @@ MODULE particle_types
   ! Data types
 ! *****************************************************************************
   TYPE particle_type
-     INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw
-     INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei
-     INTEGER, POINTER, DIMENSION(:)        :: list_onfo
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
@@ -121,9 +118,6 @@ CONTAINS
 
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
-      NULLIFY (particle_set(iparticle)%list_exclude_vdw)
-      NULLIFY (particle_set(iparticle)%list_exclude_ei)
-      NULLIFY (particle_set(iparticle)%list_onfo)
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
@@ -148,33 +142,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
-       DO iparticle=1,SIZE(particle_set)
-          IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw,&
-               particle_set(iparticle)%list_exclude_ei)) THEN
-             DEALLOCATE(particle_set(iparticle)%list_exclude_vdw,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             NULLIFY(particle_set(iparticle)%list_exclude_ei)
-          ELSE
-             IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw)) THEN
-                DEALLOCATE(particle_set(iparticle)%list_exclude_vdw,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-             IF (ASSOCIATED(particle_set(iparticle)%list_exclude_ei)) THEN
-                DEALLOCATE(particle_set(iparticle)%list_exclude_ei,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-         END IF
-         IF (ASSOCIATED(particle_set(iparticle)%list_onfo)) THEN
-            DEALLOCATE(particle_set(iparticle)%list_onfo,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         END IF
-         NULLIFY(particle_set(iparticle)%atomic_kind)
-      END DO
       DEALLOCATE (particle_set,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
