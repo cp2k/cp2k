@@ -1678,7 +1678,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ik, irk, Nlist, stat
+    INTEGER                                  :: ik, irk, Nlist, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_c
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -1710,7 +1710,7 @@ CONTAINS
           my_c(1:3) = get_particle_pos_or_vel(irk,particle_set,array(1:narray))
           my_c(1:3) = my_c(1:3)*conv_factor
        ELSE
-          my_c(1) = array(i)
+          my_c(1) = array(irk)
        END IF
        CALL val_create(my_val,r_vals_ptr=my_c,error=error)
 

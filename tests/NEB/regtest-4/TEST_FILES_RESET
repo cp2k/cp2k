@@ -36,3 +36,5 @@ NEB-MIXED.inp
 2gly_DIIS-SD-2.inp
 # Enable Band (NEB) runs using the core-shell model 
 2gly_IT-NEB-CV-res.inp
+# Bug fix 
+2gly_IT-NEB-CV-res.inp
