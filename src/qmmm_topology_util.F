@@ -16,6 +16,9 @@ MODULE qmmm_topology_util
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -32,7 +35,7 @@ MODULE qmmm_topology_util
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Modifies the atom_info%label_atmname
+!> \brief Modifies the atom_info%id_atmname
 !> \par History
 !>      11.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -64,14 +67,14 @@ CONTAINS
     ! setting ilast and ifirst for QM molecule
     !
     CPPostcondition(SIZE(qmmm_env%qm_atom_index) /= 0,cp_failure_level,routineP,error,failure)
-    qmmm_index_in_range=(MAXVAL(qmmm_env%qm_atom_index)<=SIZE(topology%atom_info%label_atmname)) &
+    qmmm_index_in_range=(MAXVAL(qmmm_env%qm_atom_index)<=SIZE(topology%atom_info%id_atmname)) &
                         .AND.(MINVAL(qmmm_env%qm_atom_index)>0)
     CPPostcondition(qmmm_index_in_range,cp_failure_level,routineP,error,failure)
     DO iatm = 1, SIZE(qmmm_env%qm_atom_index)
-       topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
-            TRIM(topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)))
-       topology%atom_info%label_resname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
-            TRIM(topology%atom_info%label_resname(qmmm_env%qm_atom_index(iatm)))
+       topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm)) = str2id(s2s("_QM_"//&
+            TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm))))))
+       topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm)) = str2id(s2s("_QM_"//&
+            TRIM(id2str(topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm))))))
     END DO
     !
     ! Modify type for MM link atoms 
@@ -81,10 +84,10 @@ CONTAINS
           prefix_lnk = "_LNK000"
           WRITE(prefix_lnk(5:),'(I20)')iatm
           CALL compress(prefix_lnk,.TRUE.)
-          topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
-               TRIM(topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)))
-          topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm)) = TRIM(prefix_lnk)//&
-               TRIM(topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm))) 
+          topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm)) = str2id(s2s(TRIM(prefix_lnk)//&
+               TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm))))))
+          topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm)) = str2id(s2s(TRIM(prefix_lnk)//&
+               TRIM(id2str(topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm)))))) 
        END DO
     END IF
     !

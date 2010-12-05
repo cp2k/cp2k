@@ -32,20 +32,20 @@ MODULE topology_types
 
 ! *****************************************************************************
   TYPE atom_info_type
-     CHARACTER (LEN=default_string_length), POINTER :: label_molname(:)
-     CHARACTER (LEN=default_string_length), POINTER :: label_resname(:)
-     INTEGER,                               POINTER :: label_resid(:)
-     CHARACTER (LEN=default_string_length), POINTER :: label_atmname(:)
-     CHARACTER (LEN=default_string_length), POINTER :: atom_names(:)
+     INTEGER, DIMENSION(:), POINTER         :: id_molname
+     INTEGER, DIMENSION(:), POINTER         :: id_resname
+     INTEGER, DIMENSION(:), POINTER         :: id_atmname
+     INTEGER, DIMENSION(:), POINTER         :: id_atom_names
+     INTEGER, DIMENSION(:), POINTER         :: id_element
+     INTEGER, POINTER                       :: resid(:)
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: r
-     INTEGER, POINTER :: map_mol_typ(:)
-     INTEGER, POINTER :: map_mol_num(:)
-     INTEGER, POINTER :: map_mol_res(:)
-     REAL(KIND=dp), POINTER :: atm_charge(:)
-     REAL(KIND=dp), POINTER :: atm_mass(:)
-     REAL(KIND=dp), POINTER :: occup(:)
-     REAL(KIND=dp), POINTER :: beta(:)
-     CHARACTER (LEN=default_string_length), POINTER :: element(:)
+     INTEGER, POINTER                       :: map_mol_typ(:)
+     INTEGER, POINTER                       :: map_mol_num(:)
+     INTEGER, POINTER                       :: map_mol_res(:)
+     REAL(KIND=dp), POINTER                 :: atm_charge(:)
+     REAL(KIND=dp), POINTER                 :: atm_mass(:)
+     REAL(KIND=dp), POINTER                 :: occup(:)
+     REAL(KIND=dp), POINTER                 :: beta(:)
   END TYPE atom_info_type
 
 ! *****************************************************************************
@@ -256,11 +256,11 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 3. Initialize and Nullify things in topology%atom_info
     !-----------------------------------------------------------------------------
-    NULLIFY(topology%atom_info%label_molname)
-    NULLIFY(topology%atom_info%label_resname)
-    NULLIFY(topology%atom_info%label_resid)
-    NULLIFY(topology%atom_info%label_atmname)
-    NULLIFY(topology%atom_info%atom_names)
+    NULLIFY(topology%atom_info%id_molname)
+    NULLIFY(topology%atom_info%id_resname)
+    NULLIFY(topology%atom_info%resid)
+    NULLIFY(topology%atom_info%id_atmname)
+    NULLIFY(topology%atom_info%id_atom_names)
     NULLIFY(topology%atom_info%r)
     NULLIFY(topology%atom_info%map_mol_typ)
     NULLIFY(topology%atom_info%map_mol_num)
@@ -269,7 +269,7 @@ CONTAINS
     NULLIFY(topology%atom_info%atm_mass)
     NULLIFY(topology%atom_info%occup)
     NULLIFY(topology%atom_info%beta)
-    NULLIFY(topology%atom_info%element)
+    NULLIFY(topology%atom_info%id_element)
     !-----------------------------------------------------------------------------
     ! 4. Initialize and Nullify things in topology%conn_info
     !-----------------------------------------------------------------------------
@@ -415,24 +415,24 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. DEALLOCATE things in topology%atom_info
     !-----------------------------------------------------------------------------
-    IF(ASSOCIATED(topology%atom_info%label_molname)) THEN
-       DEALLOCATE(topology%atom_info%label_molname,STAT=stat)
+    IF(ASSOCIATED(topology%atom_info%id_molname)) THEN
+       DEALLOCATE(topology%atom_info%id_molname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(topology%atom_info%label_resname)) THEN
-       DEALLOCATE(topology%atom_info%label_resname,STAT=stat)
+    IF(ASSOCIATED(topology%atom_info%id_resname)) THEN
+       DEALLOCATE(topology%atom_info%id_resname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(topology%atom_info%label_resid)) THEN
-       DEALLOCATE(topology%atom_info%label_resid,STAT=stat)
+    IF(ASSOCIATED(topology%atom_info%resid)) THEN
+       DEALLOCATE(topology%atom_info%resid,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(topology%atom_info%label_atmname)) THEN
-       DEALLOCATE(topology%atom_info%label_atmname,STAT=stat)
+    IF(ASSOCIATED(topology%atom_info%id_atmname)) THEN
+       DEALLOCATE(topology%atom_info%id_atmname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(topology%atom_info%atom_names)) THEN
-       DEALLOCATE(topology%atom_info%atom_names,STAT=stat)
+    IF(ASSOCIATED(topology%atom_info%id_atom_names)) THEN
+       DEALLOCATE(topology%atom_info%id_atom_names,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%atom_info%r)) THEN
@@ -467,8 +467,8 @@ CONTAINS
        DEALLOCATE(topology%atom_info%beta,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(topology%atom_info%element)) THEN
-       DEALLOCATE(topology%atom_info%element,STAT=stat)
+    IF(ASSOCIATED(topology%atom_info%id_element)) THEN
+       DEALLOCATE(topology%atom_info%id_element,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     !-----------------------------------------------------------------------------
@@ -903,23 +903,23 @@ CONTAINS
     failure = .FALSE.
     atom_info => topology%atom_info
 
-    IF (ASSOCIATED(atom_info%label_molname)) THEN
-       DEALLOCATE(atom_info%label_molname,STAT=stat)
+    IF (ASSOCIATED(atom_info%id_molname)) THEN
+       DEALLOCATE(atom_info%id_molname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (ASSOCIATED(atom_info%label_resid)) THEN
-       DEALLOCATE(atom_info%label_resid,STAT=stat)
+    IF (ASSOCIATED(atom_info%resid)) THEN
+       DEALLOCATE(atom_info%resid,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (ASSOCIATED(atom_info%label_resname)) THEN
-       DEALLOCATE(atom_info%label_resname,STAT=stat)
+    IF (ASSOCIATED(atom_info%id_resname)) THEN
+       DEALLOCATE(atom_info%id_resname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (ASSOCIATED(atom_info%label_atmname)) THEN
-       DEALLOCATE(atom_info%label_atmname,STAT=stat)
+    IF (ASSOCIATED(atom_info%id_atmname)) THEN
+       DEALLOCATE(atom_info%id_atmname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 

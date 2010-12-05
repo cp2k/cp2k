@@ -18,6 +18,9 @@ MODULE topology_xyz
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -47,7 +50,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-    CHARACTER(LEN=default_string_length)     :: my_default_index
+    CHARACTER(LEN=default_string_length)     :: my_default_index, strtmp
     INTEGER                                  :: frame, handle, iw, j, natom
     LOGICAL                                  :: failure, my_end
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -78,17 +81,17 @@ CONTAINS
        CALL parser_get_object  (parser,natom,error=error)
        frame = frame + 1
        IF (frame == 1) THEN
-          CALL reallocate(atom_info%label_molname, 1,    natom)
-          CALL reallocate(atom_info%label_resname, 1,    natom)
-          CALL reallocate(atom_info%label_resid,   1,    natom)
-          CALL reallocate(atom_info%label_atmname, 1,    natom)
+          CALL reallocate(atom_info%id_molname, 1,    natom)
+          CALL reallocate(atom_info%id_resname, 1,    natom)
+          CALL reallocate(atom_info%resid,   1,    natom)
+          CALL reallocate(atom_info%id_atmname, 1,    natom)
           CALL reallocate(atom_info%r,             1,3,1,natom)
           CALL reallocate(atom_info%atm_mass,      1,    natom)
           CALL reallocate(atom_info%atm_charge,    1,    natom)
           CALL reallocate(atom_info%occup,         1,    natom)
           CALL reallocate(atom_info%beta,          1,    natom)
-          CALL reallocate(atom_info%element,       1,    natom)
-       ELSE IF(natom > SIZE(atom_info%label_atmname)) THEN
+          CALL reallocate(atom_info%id_element,       1,    natom)
+       ELSE IF(natom > SIZE(atom_info%id_atmname)) THEN
           CALL stop_program (routineP,&
                "Atom number differs in different frames!")
        END IF
@@ -96,25 +99,26 @@ CONTAINS
        CALL parser_get_next_line(parser,2,error=error)
        DO j = 1, natom
           ! Atom coordinates
-          READ(parser%input_line,*)atom_info%label_atmname(j),&
+          READ(parser%input_line,*)strtmp,&
                                    atom_info%r(1,j),&
                                    atom_info%r(2,j),&
                                    atom_info%r(3,j)
+          atom_info%id_atmname(j)=str2id(s2s(strtmp))
           ! For default, set atom name to residue name to molecule name
           WRITE(my_default_index,'(I0)')j   
-          atom_info%label_molname(j)   =  TRIM(atom_info%label_atmname(j))//TRIM(my_default_index)
-          atom_info%label_resname(j)   =  atom_info%label_molname(j)
-          atom_info%label_resid(j)     =  1
-          atom_info%element(j)         =  atom_info%label_atmname(j)
+          atom_info%id_molname(j)   =  str2id(s2s(TRIM(id2str(atom_info%id_atmname(j)))//TRIM(my_default_index)))
+          atom_info%id_resname(j)   =  atom_info%id_molname(j)
+          atom_info%resid(j)     =  1
+          atom_info%id_element(j)         =  atom_info%id_atmname(j)
           atom_info%atm_mass(j)        =  HUGE(0.0_dp)
           atom_info%atm_charge(j)      = -HUGE(0.0_dp)
           IF(iw>0) WRITE(iw,'(T2,"XYZ_INFO| ",A4,3F8.3,A4,I4)') &
-               TRIM(atom_info%label_atmname(j)),&
+               TRIM(id2str(atom_info%id_atmname(j))),&
                atom_info%r(1,j),&
                atom_info%r(2,j),&
                atom_info%r(3,j),&
-               TRIM(atom_info%label_resname(j)),&
-               atom_info%label_resid(j)
+               TRIM(id2str(atom_info%id_resname(j))),&
+               atom_info%resid(j)
           atom_info%r(1,j) = cp_unit_to_cp2k(atom_info%r(1,j),"angstrom",error=error)
           atom_info%r(2,j) = cp_unit_to_cp2k(atom_info%r(2,j),"angstrom",error=error)
           atom_info%r(3,j) = cp_unit_to_cp2k(atom_info%r(3,j),"angstrom",error=error)

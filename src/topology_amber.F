@@ -31,6 +31,9 @@ MODULE topology_amber
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_generate_util,          ONLY: topology_generate_molname
@@ -132,16 +135,16 @@ CONTAINS
     CALL parser_get_object(parser,natom,error=error)
     topology%natoms = natom
     IF(iw>0) WRITE(iw,'(T2,A,I0)') 'CRD_INFO| Number of atoms: ',natom
-    CALL reallocate(atom_info%label_molname, 1,    natom)
-    CALL reallocate(atom_info%label_resname, 1,    natom)
-    CALL reallocate(atom_info%label_resid,   1,    natom)
-    CALL reallocate(atom_info%label_atmname, 1,    natom)
+    CALL reallocate(atom_info%id_molname, 1,    natom)
+    CALL reallocate(atom_info%id_resname, 1,    natom)
+    CALL reallocate(atom_info%resid,   1,    natom)
+    CALL reallocate(atom_info%id_atmname, 1,    natom)
     CALL reallocate(atom_info%r,             1,3,1,natom)
     CALL reallocate(atom_info%atm_mass,      1,    natom)
     CALL reallocate(atom_info%atm_charge,    1,    natom)
     CALL reallocate(atom_info%occup,         1,    natom)
     CALL reallocate(atom_info%beta,          1,    natom)
-    CALL reallocate(atom_info%element,       1,    natom)
+    CALL reallocate(atom_info%id_element,       1,    natom)
 
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
@@ -154,22 +157,22 @@ CONTAINS
                                 atom_info%r(1,j+1),atom_info%r(2,j+1),atom_info%r(3,j+1)
        ! All these information will have to be setup elsewhere..
        ! CRD file does not contain anything related..
-       atom_info%label_atmname(j  ) = "__UNDEF__"
-       atom_info%label_molname(j  ) = "__UNDEF__"
-       atom_info%label_resname(j  ) = "__UNDEF__"
-       atom_info%element      (j  ) = "__UNDEF__"
-       atom_info%label_resid  (j  ) =  HUGE(0)
+       atom_info%id_atmname(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%id_molname(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%id_resname(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%id_element(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%resid  (j  ) =  HUGE(0)
        atom_info%atm_mass     (j  ) =  HUGE(0.0_dp)
        atom_info%atm_charge   (j  ) = -HUGE(0.0_dp)
        atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom",error=error)
        atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom",error=error)
        atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom",error=error)
 
-       atom_info%label_atmname(j+1) = "__UNDEF__"
-       atom_info%label_molname(j+1) = "__UNDEF__"
-       atom_info%label_resname(j+1) = "__UNDEF__"
-       atom_info%element      (j+1) = "__UNDEF__"
-       atom_info%label_resid  (j+1) =  HUGE(0)
+       atom_info%id_atmname(j+1) = str2id(s2s("__UNDEF__"))
+       atom_info%id_molname(j+1) = str2id(s2s("__UNDEF__"))
+       atom_info%id_resname(j+1) = str2id(s2s("__UNDEF__"))
+       atom_info%id_element(j+1) = str2id(s2s("__UNDEF__"))
+       atom_info%resid  (j+1) =  HUGE(0)
        atom_info%atm_mass     (j+1) =  HUGE(0.0_dp)
        atom_info%atm_charge   (j+1) = -HUGE(0.0_dp)
        atom_info%r(1,j+1) = cp_unit_to_cp2k(atom_info%r(1,j+1),"angstrom",error=error)
@@ -190,11 +193,11 @@ CPSourceFileRef,&
        READ(parser%input_line,*)atom_info%r(1,j  ),atom_info%r(2,j  ),atom_info%r(3,j  )
        ! All these information will have to be setup elsewhere..
        ! CRD file does not contain anything related..
-       atom_info%label_atmname(j  ) = "__UNDEF__"
-       atom_info%label_molname(j  ) = "__UNDEF__"
-       atom_info%label_resname(j  ) = "__UNDEF__"
-       atom_info%element      (j  ) = "__UNDEF__"
-       atom_info%label_resid  (j  ) =  HUGE(0)
+       atom_info%id_atmname(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%id_molname(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%id_resname(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%id_element(j  ) = str2id(s2s("__UNDEF__"))
+       atom_info%resid  (j  ) =  HUGE(0)
        atom_info%atm_mass     (j  ) =  HUGE(0.0_dp)
        atom_info%atm_charge   (j  ) = -HUGE(0.0_dp)
        atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom",error=error)
@@ -380,7 +383,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length)     :: input_format, section
     CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: isymbl, labres
+      ALLOCATABLE, DIMENSION(:)              :: isymbl, labres, strtmp_a
     INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, index_now, info(31), &
       istart, mbona, mbper, mdper, mgper, mphia, mtheta, natom, natom_prev, &
       natyp, nbona, nbond_prev, nbonh, nbper, ndper, ngper, nhparm, nmxrs, &
@@ -460,7 +463,7 @@ CPSourceFileRef,&
                 check = PRESENT(atom_info).AND.PRESENT(conn_info)
                 CPPrecondition(check,cp_failure_level,routineP,error,failure)
                 natom_prev = 0
-                IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
+                IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
                 ! Allocate for extracting connectivity infos
                 ALLOCATE(labres (nres               ),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -550,8 +553,15 @@ CPSourceFileRef,&
              CYCLE
           CASE("AMBER_ATOM_TYPE")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%label_atmname,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, atom_info%label_atmname(natom_prev+1:), natom, error)
+             CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
+             ALLOCATE(strtmp_a(natom), stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL rd_amber_section(parser, section, strtmp_a , natom, error)
+             DO i=1,natom
+                atom_info%id_atmname(natom_prev+i)=str2id(strtmp_a(i))
+             ENDDO
+             DEALLOCATE(strtmp_a, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CASE("CHARGE")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
@@ -564,11 +574,11 @@ CPSourceFileRef,&
              CALL rd_amber_section(parser, section, atom_info%atm_mass(natom_prev+1:), natom, error)
           CASE("RESIDUE_LABEL")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%label_resname,1,natom_prev+natom)
+             CALL reallocate(atom_info%id_resname,1,natom_prev+natom)
              CALL rd_amber_section(parser, section, labres, nres, error)
           CASE("RESIDUE_POINTER")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%label_resid,1,natom_prev+natom)
+             CALL reallocate(atom_info%resid,1,natom_prev+natom)
              CALL rd_amber_section(parser, section, ipres, nres, error)
           CASE("ATOM_TYPE_INDEX")
              IF (.NOT.do_forcefield) CYCLE
@@ -667,7 +677,10 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(iwork(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       isymbl = atom_info%label_atmname(natom_prev+1:)
+
+       DO i=1,SIZE(isymbl)
+          isymbl(i) = id2str(atom_info%id_atmname(natom_prev+i))
+       ENDDO
 
        ! Sort atom names + charges and identify unique types
        CALL sort(isymbl, natom, iwork)
@@ -683,18 +696,18 @@ CPSourceFileRef,&
 
        ! Copy back the modified and conformed atom types
        DO i = 1, natom
-          atom_info%label_atmname(natom_prev+iwork(i)) = isymbl(i)
+          atom_info%id_atmname(natom_prev+iwork(i)) = str2id(s2s(isymbl(i)))
        END DO
 
        ! -----------------------------------------------------------
        ! Fill residue_name and residue_id information before exiting
        ! -----------------------------------------------------------
        DO i = 1, nres-1
-          atom_info%label_resname(natom_prev+ipres(i):natom_prev+ipres(i+1)) = labres(i)
-          atom_info%label_resid(natom_prev+ipres(i):natom_prev+ipres(i+1))   = i
+          atom_info%id_resname(natom_prev+ipres(i):natom_prev+ipres(i+1)) = str2id(s2s(labres(i)))
+          atom_info%resid(natom_prev+ipres(i):natom_prev+ipres(i+1))   = i
        END DO
-       atom_info%label_resname(natom_prev+ipres(i):natom_prev+natom) = labres(i)
-       atom_info%label_resid(natom_prev+ipres(i):natom_prev+natom)   = i
+       atom_info%id_resname(natom_prev+ipres(i):natom_prev+natom) = str2id(s2s(labres(i)))
+       atom_info%resid(natom_prev+ipres(i):natom_prev+natom)   = i
 
        ! Deallocate when extracting connectivity infos
        DEALLOCATE(iwork,stat=stat)
@@ -813,10 +826,10 @@ CPSourceFileRef,&
        ! ----------------------------------------------------------
        ! Generate molecule names
        ! ----------------------------------------------------------
-       CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
-       atom_info%label_molname(natom_prev+1:natom_prev+natom) = "__UNDEF__"
+       CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
+       atom_info%id_molname(natom_prev+1:natom_prev+natom) = str2id(s2s("__UNDEF__"))
        CALL topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
-            atom_info%label_molname(natom_prev+1:natom_prev+natom), error)
+            atom_info%id_molname(natom_prev+1:natom_prev+natom), error)
        CALL timestop(handle2)
     END IF
 

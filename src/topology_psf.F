@@ -33,6 +33,9 @@ MODULE topology_psf
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -80,7 +83,8 @@ CONTAINS
 
     CHARACTER(LEN=2*default_string_length)   :: psf_format
     CHARACTER(LEN=3)                         :: c_int
-    CHARACTER(LEN=default_string_length)     :: dummy_field, field, label
+    CHARACTER(LEN=default_string_length)     :: dummy_field, field, label, &
+                                                strtmp1, strtmp2, strtmp3
     INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
       natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
       ntheta_prev, output_unit
@@ -102,7 +106,7 @@ CONTAINS
     atom_info => topology%atom_info
     conn_info => topology%conn_info
     natom_prev = 0
-    IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
+    IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
     c_int      = 'I8'
     label      = 'PSF'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
@@ -152,10 +156,10 @@ CPSourceFileRef,&
              error=error,failure=failure)
        IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ',natom
        !malloc the memory that we need
-       CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
-       CALL reallocate(atom_info%label_resid,1,natom_prev+natom)
-       CALL reallocate(atom_info%label_resname,1,natom_prev+natom)
-       CALL reallocate(atom_info%label_atmname,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
+       CALL reallocate(atom_info%resid,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_resname,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
        CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
        CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
        !Read in the atom info
@@ -164,13 +168,16 @@ CPSourceFileRef,&
              index_now=iatom+natom_prev
              CALL parser_get_next_line(parser,1,error=error)
              READ(parser%input_line,FMT=*,ERR=9)i,&
-                                      atom_info%label_molname(index_now),&
-                                      atom_info%label_resid(index_now),&
-                                      atom_info%label_resname(index_now),&
+                                      strtmp1,&
+                                      atom_info%resid(index_now),&
+                                      strtmp2,&
                                       dummy_field,&
-                                      atom_info%label_atmname(index_now),&
+                                      strtmp3,&
                                       atom_info%atm_charge(index_now),&
                                       atom_info%atm_mass(index_now)
+             atom_info%id_molname(index_now)=str2id(s2s(strtmp1))
+             atom_info%id_resname(index_now)=str2id(s2s(strtmp2))
+             atom_info%id_atmname(index_now)=str2id(s2s(strtmp3))
           END DO
        ELSE
           DO iatom=1,natom
@@ -178,18 +185,21 @@ CPSourceFileRef,&
              CALL parser_get_next_line(parser,1,error=error)
              READ(parser%input_line,FMT=psf_format)&
                   i,&
-                  atom_info%label_molname(index_now),&
-                  atom_info%label_resid(index_now),&
-                  atom_info%label_resname(index_now),&
+                  strtmp1,&
+                  atom_info%resid(index_now),&
+                  strtmp2,&
                   dummy_field,&
-                  atom_info%label_atmname(index_now),&
+                  strtmp3,&
                   atom_info%atm_charge(index_now),&
                   atom_info%atm_mass(index_now),&
                   idum
-             atom_info%label_atmname(index_now) = TRIM(ADJUSTL(atom_info%label_atmname(index_now)))
+             atom_info%id_molname(index_now)=str2id(s2s(strtmp1))
+             atom_info%id_resname(index_now)=str2id(s2s(strtmp2))
+             atom_info%id_atmname(index_now)=str2id(s2s(ADJUSTL(strtmp3)))
           END DO
        END IF
     END IF
+    
     !
     ! BOND section
     !
@@ -433,16 +443,16 @@ CPSourceFileRef,&
     natom = 0
     nbond = 0
     i     = 0
-    IF(ASSOCIATED(atom_info%label_molname)) natom = SIZE(atom_info%label_molname)
+    IF(ASSOCIATED(atom_info%id_molname)) natom = SIZE(atom_info%id_molname)
     IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
     IF(ASSOCIATED(conn_info%c_bond_a))    i = SIZE(conn_info%c_bond_a)
     DO ibond=1,nbond
        iatom = conn_info%bond_a(ibond)
        jatom = conn_info%bond_b(ibond)
        IF(topology%para_res) THEN
-          IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
-               (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
-               (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+          IF((atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)).OR.&
+               (atom_info%resid(iatom)/=atom_info%resid(jatom)).OR.&
+               (atom_info%id_resname(iatom)/=atom_info%id_resname(jatom)))THEN
              IF(iw>0) WRITE(iw,'(T2,A,2I6)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
                   iatom,jatom
              i = i + 1
@@ -452,7 +462,7 @@ CPSourceFileRef,&
              conn_info%c_bond_b(i) = jatom
           END IF
        ELSE
-          IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
+          IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        END IF
@@ -592,7 +602,7 @@ CPSourceFileRef,&
        atom_info => topology%atom_info
        conn_info => topology%conn_info
        natom = 0
-       IF(ASSOCIATED(atom_info%label_molname)) natom = SIZE(atom_info%label_molname)
+       IF(ASSOCIATED(atom_info%id_molname)) natom = SIZE(atom_info%id_molname)
        nbond = 0
        IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
        ntheta = 0
@@ -646,7 +656,7 @@ CPSourceFileRef,&
              istart1 = MINVAL(wrk(istart:iend))
              iend1   = MAXVAL(wrk(istart:iend))
              CPPostcondition(iend1-istart1+1==noe,cp_failure_level,routineP,error,failure)
-             atom_info%label_molname(istart1:iend1)="MOL"//cp_to_string(item)
+             atom_info%id_molname(istart1:iend1)=str2id(s2s("MOL"//cp_to_string(item)))
              item = tag_mols(i)
              istart = i
           END DO
@@ -655,7 +665,7 @@ CPSourceFileRef,&
           istart1 = MINVAL(wrk(istart:iend))
           iend1   = MAXVAL(wrk(istart:iend))
           CPPostcondition(iend1-istart1+1==noe,cp_failure_level,routineP,error,failure)
-          atom_info%label_molname(istart1:iend1)="MOL"//cp_to_string(item)
+          atom_info%id_molname(istart1:iend1)=str2id(s2s("MOL"//cp_to_string(item)))
           ! Deallocate bonds
           DO i=1,natom
              DEALLOCATE(ex_bond_list(i)%array1,stat=stat)
@@ -779,7 +789,7 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL read_chrg_section(charge_atm,charge_inp,section=tmp_section,start=0,error=error)
        DO j = 1, topology%natoms
-          record = atom_info%label_atmname(j)
+          record = id2str(atom_info%id_atmname(j))
           ldum = qmmm_ff_precond_only_qm(record)
           CALL uppercase(record)
           DO i = 1, nchg
@@ -815,9 +825,9 @@ CPSourceFileRef,&
     WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')topology%natoms," !NATOM"
     my_index = 1
     i        = 1
-    my_tag1 = atom_info%label_molname(i)
-    my_tag2 = atom_info%label_resname(i)
-    my_tag3 = atom_info%label_atmname(i)
+    my_tag1 = id2str(atom_info%id_molname(i))
+    my_tag2 = id2str(atom_info%id_resname(i))
+    my_tag3 = id2str(atom_info%id_atmname(i))
     ldum = qmmm_ff_precond_only_qm(my_tag1)
     ldum = qmmm_ff_precond_only_qm(my_tag2)
     ldum = qmmm_ff_precond_only_qm(my_tag3)
@@ -834,9 +844,9 @@ CPSourceFileRef,&
     DO i=2,topology%natoms
        IF  ((atom_info%map_mol_num(i)/=atom_info%map_mol_num(i-1)).OR.&
             (atom_info%map_mol_res(i)/=atom_info%map_mol_res(i-1))) my_index = my_index + 1
-       my_tag1 = atom_info%label_molname(i)
-       my_tag2 = atom_info%label_resname(i)
-       my_tag3 = atom_info%label_atmname(i)
+       my_tag1 = id2str(atom_info%id_molname(i))
+       my_tag2 = id2str(atom_info%id_resname(i))
+       my_tag3 = id2str(atom_info%id_atmname(i))
        ldum = qmmm_ff_precond_only_qm(my_tag1)
        ldum = qmmm_ff_precond_only_qm(my_tag2)
        ldum = qmmm_ff_precond_only_qm(my_tag3)

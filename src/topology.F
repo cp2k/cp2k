@@ -44,6 +44,9 @@ MODULE topology
   USE qmmm_topology_util,              ONLY: qmmm_connectivity_control,&
                                              qmmm_coordinate_control
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -303,9 +306,9 @@ CONTAINS
     ! 2. In case element was autoassigned let's keep up2date the element name 
     !    with the atom_name
     IF (topology%aa_element) THEN
-       check = SIZE(topology%atom_info%element)==SIZE(topology%atom_info%label_atmname)
+       check = SIZE(topology%atom_info%id_element)==SIZE(topology%atom_info%id_atmname)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
-       topology%atom_info%element = topology%atom_info%label_atmname
+       topology%atom_info%id_element = topology%atom_info%id_atmname
     END IF
 
     ! 3. Check for the element name.. 
@@ -323,9 +326,12 @@ CONTAINS
     CALL create_ff_map("CHARMM",error)
     CALL create_ff_map("GROMOS",error)
 
-    ALLOCATE(elements(SIZE(topology%atom_info%element)),stat=stat)
+    ALLOCATE(elements(SIZE(topology%atom_info%id_element)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    elements = topology%atom_info%element
+    DO i=1,SIZE(elements)
+       elements(i) = id2str(topology%atom_info%id_element(i))
+    ENDDO
+
     DO i = 1, topology%natoms
        IF (elements(i)=="__DEF__") CYCLE
        ! If present an underscore let's skip all that over the underscore
@@ -341,13 +347,13 @@ CONTAINS
        END DO
        element0 = elements(i)(1:j)
        ! ALWAYS check for elements..
-       CALL check_subsys_element(element0,topology%atom_info%label_atmname(i),my_element,&
+       CALL check_subsys_element(element0,id2str(topology%atom_info%id_atmname(i)),my_element,&
             subsys_section,use_mm_map_first,error)
        ! Earn time fixing same element labels for same atoms
        element0 = elements(i)
        DO k = i, topology%natoms
-          IF (element0==topology%atom_info%element(k)) THEN
-             topology%atom_info%element(k)=my_element
+          IF (element0==id2str(topology%atom_info%id_element(k))) THEN
+             topology%atom_info%id_element(k)=str2id(s2s(my_element))
              elements(k)="__DEF__"
           END IF
        END DO
@@ -459,7 +465,7 @@ CPSourceFileRef,&
                   error=error,failure=failure)
           END SELECT
        END DO
-       CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
+       CALL cp_assert(SIZE(topology%atom_info%id_molname)==topology%natoms,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "Number of atoms in connectivity control is larger than the "//&
             "number of atoms in coordinate control. check coordinates and "//&
@@ -554,6 +560,7 @@ CPSourceFileRef,&
        ! We should never reach this point..
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)   
     END SELECT
+
     ! Parse &COORD section and in case overwrite..
     CALL read_atoms_input ( topology, overwrite=(topology%coord_type/=do_coord_off),&
          subsys_section=subsys_section,save_mem=save_mem,error=error)

@@ -16,7 +16,6 @@
 !>     CJM 31-7-03  : Major rewrite.  No more atype
 ! *****************************************************************************
 MODULE atoms_input
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -39,6 +38,9 @@ MODULE atoms_input
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -70,7 +72,8 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: my_default_index, unit_str
+    CHARACTER(len=default_string_length)     :: my_default_index, strtmp, &
+                                                unit_str
     INTEGER                                  :: end_c, handle, iatom, ILEN, &
                                                 j, natom, output_unit, &
                                                 start_c, wrd
@@ -149,7 +152,7 @@ CPSourceFileRef,&
                   "incorrectly formatted line in coord section'"//line_att//"'",&
                   error,failure)
              IF (wrd==1) THEN
-                atom_info%label_atmname(iatom)=line_att(start_c:end_c-1)
+                atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
              ELSE
                 READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
              END IF
@@ -160,11 +163,11 @@ CPSourceFileRef,&
        ! Element is assigned on the basis of the atm_name
        topology%aa_element = .TRUE.
 
-       CALL reallocate(atom_info%label_molname,1,natom)
-       CALL reallocate(atom_info%label_resname,1,natom)
-       CALL reallocate(atom_info%label_resid,1,natom)
-       CALL reallocate(atom_info%label_atmname,1,natom)
-       CALL reallocate(atom_info%element,1,natom)
+       CALL reallocate(atom_info%id_molname,1,natom)
+       CALL reallocate(atom_info%id_resname,1,natom)
+       CALL reallocate(atom_info%resid,1,natom)
+       CALL reallocate(atom_info%id_atmname,1,natom)
+       CALL reallocate(atom_info%id_element,1,natom)
        CALL reallocate(atom_info%r,1,3,1,natom)
        CALL reallocate(atom_info%atm_mass,1,natom)
        CALL reallocate(atom_info%atm_charge,1,natom)
@@ -175,11 +178,11 @@ CPSourceFileRef,&
           is_ok=cp_sll_val_next(list,val,error=error)
           CALL val_get(val,c_val=line_att,error=error)
           ILEN = default_string_length
-          atom_info%label_molname(iatom) = ""
-          atom_info%label_resname(iatom) = ""
-          atom_info%label_resid(iatom) = 1
-          atom_info%label_atmname(iatom) = ""
-          atom_info%element(iatom) = ""
+          atom_info%id_molname(iatom) = str2id(s2s(""))
+          atom_info%id_resname(iatom) = str2id(s2s(""))
+          atom_info%resid(iatom) = 1
+          atom_info%id_atmname(iatom) = str2id(s2s(""))
+          atom_info%id_element(iatom) = str2id(s2s(""))
           ! *** Read name and atomic coordinates ***
           start_c=1
           DO wrd=1,4
@@ -201,7 +204,7 @@ CPSourceFileRef,&
                   "incorrectly formatted line in coord section'"//line_att//"'",&
                   error,failure)
              IF (wrd==1) THEN
-                atom_info%label_atmname(iatom)=line_att(start_c:end_c-1)
+                atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
              ELSE
                 READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
              END IF
@@ -209,13 +212,13 @@ CPSourceFileRef,&
           END DO
           ! For default, set atom name to residue name to molecule name
           WRITE(my_default_index,'(I0)')iatom
-          atom_info%label_molname(iatom) = TRIM(atom_info%label_atmname(iatom))//TRIM(my_default_index)
-          atom_info%label_resname(iatom) = TRIM(atom_info%label_molname(iatom))
-          atom_info%element(iatom)       = TRIM(atom_info%label_atmname(iatom))
+          atom_info%id_molname(iatom) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(iatom)))//TRIM(my_default_index))) !XXXXXXXXXX-fixme-XXXXXXXXXX
+          atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
+          atom_info%id_element(iatom) = atom_info%id_atmname(iatom)
           topology%molname_generated = .TRUE.
           IF (start_c<=LEN_TRIM(line_att)) THEN
-             READ(line_att(start_c:LEN_TRIM(line_att)),*)atom_info%label_molname(iatom)
-             atom_info%label_resname(iatom) = atom_info%label_molname(iatom)
+             READ(line_att(start_c:LEN_TRIM(line_att)),*) strtmp; atom_info%id_molname(iatom)=str2id(strtmp)
+             atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
              topology%molname_generated = .FALSE.
           END IF
           atom_info%atm_mass(iatom)   = 0.0_dp 

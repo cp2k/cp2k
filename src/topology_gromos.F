@@ -22,6 +22,8 @@ MODULE topology_gromos
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE string_table,                    ONLY: s2s,&
+                                             str2id
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -103,7 +105,7 @@ CONTAINS
     conn_info => topology%conn_info
 
     natom_prev = 0
-    IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
+    IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
     ! TITLE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the TITLE section'
     CALL parser_create(parser,file_name,para_env=para_env,error=error)
@@ -187,11 +189,11 @@ CONTAINS
     IF(found) THEN
        CALL parser_get_next_line(parser,1,error=error)
        CALL parser_get_object(parser,natom,error=error)
-       CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
-       CALL reallocate(atom_info%label_resid,1,natom_prev+natom)
-       CALL reallocate(atom_info%label_resname,1,natom_prev+natom)
-       CALL reallocate(atom_info%label_atmname,1,natom_prev+natom)
-       CALL reallocate(atom_info%element,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
+       CALL reallocate(atom_info%resid,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_resname,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
+       CALL reallocate(atom_info%id_element,1,natom_prev+natom)
        CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
        CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
        CALL parser_get_next_line(parser,1,error=error)
@@ -199,13 +201,13 @@ CONTAINS
           index_now = iatom + natom_prev
           CALL parser_get_object(parser,itemp,error=error)
           CALL parser_get_object(parser,itemp,error=error)
-          atom_info%label_resid(index_now)=itemp
-          atom_info%label_molname(index_now) = namearray2(itemp)
-          atom_info%label_resname(index_now) = namearray2(itemp)
+          atom_info%resid(index_now)=itemp
+          atom_info%id_molname(index_now)=str2id(s2s(namearray2(itemp)))
+          atom_info%id_resname(index_now)=str2id(s2s(namearray2(itemp)))
           CALL parser_get_object(parser,string,error=error)
           CALL parser_get_object(parser,itemp,error=error)
-          atom_info%label_atmname(index_now) = namearray1(itemp)
-          atom_info%element(index_now)       = namearray1(itemp)
+          atom_info%id_atmname(index_now)=str2id(s2s(namearray1(itemp)))
+          atom_info%id_element(index_now)=str2id(s2s(namearray1(itemp)))
           CALL parser_get_object(parser,atom_info%atm_mass(index_now),error=error)
           CALL parser_get_object(parser,atom_info%atm_charge(index_now),error=error)
           CALL parser_get_object(parser,itemp,error=error)
@@ -534,23 +536,23 @@ CONTAINS
     CALL parser_release(parser,error=error)
 
     offset = 0
-    IF(ASSOCIATED(atom_info%label_molname)) offset=SIZE(atom_info%label_molname)
-    CALL reallocate(atom_info%label_molname,1,offset+nsolvent*natom)
-    CALL reallocate(atom_info%label_resid,1,offset+nsolvent*natom)
-    CALL reallocate(atom_info%label_resname,1,offset+nsolvent*natom)
-    CALL reallocate(atom_info%label_atmname,1,offset+nsolvent*natom)
-    CALL reallocate(atom_info%element,1,offset+nsolvent*natom)
+    IF(ASSOCIATED(atom_info%id_molname)) offset=SIZE(atom_info%id_molname)
+    CALL reallocate(atom_info%id_molname,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%resid,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%id_resname,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%id_atmname,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%id_element,1,offset+nsolvent*natom)
     CALL reallocate(atom_info%atm_charge,1,offset+nsolvent*natom)
     CALL reallocate(atom_info%atm_mass,1,offset+nsolvent*natom)
     DO isolvent=1,nsolvent
        offset = nsolute + natom*isolvent - natom
        DO iatom=1,natom
           index_now = offset+iatom
-          atom_info%label_atmname(index_now) = namearray1(na(iatom))
-          atom_info%element(index_now)       = namearray1(na(iatom))
-          atom_info%label_molname(index_now) = "SOL"
-          atom_info%label_resname(index_now) = "SOL"
-          atom_info%label_resid(index_now)   = isolvent
+          atom_info%id_atmname(index_now) = str2id(s2s(namearray1(na(iatom))))
+          atom_info%id_element(index_now) = str2id(s2s(namearray1(na(iatom))))
+          atom_info%id_molname(index_now) = str2id(s2s("SOL"))
+          atom_info%id_resname(index_now) = str2id(s2s("SOL"))
+          atom_info%resid(index_now)   = isolvent
           atom_info%atm_mass(index_now)      = am(iatom)
           atom_info%atm_charge(index_now)    = ac(iatom)
        END DO
@@ -580,9 +582,9 @@ CONTAINS
        iatom = conn_info%bond_a(ibond)
        jatom = conn_info%bond_b(ibond)
        IF(topology%para_res) THEN
-          IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
-               (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
-               (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+          IF((atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)).OR.&
+               (atom_info%resid(iatom)/=atom_info%resid(jatom)).OR.&
+               (atom_info%id_resname(iatom)/=atom_info%id_resname(jatom)))THEN
              IF(iw>0) WRITE(iw,'(T2,A,2I3)') "GTOP_INFO| PARA_RES, bond between molecules atom ",&
                   iatom,jatom
              i = i + 1
@@ -594,7 +596,7 @@ CONTAINS
              conn_info%c_bond_type(i) = conn_info%bond_type(ibond)
           END IF
        ELSE
-          IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
+          IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        END IF
@@ -634,7 +636,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
-    CHARACTER(LEN=default_string_length)     :: label, string
+    CHARACTER(LEN=default_string_length)     :: label, string, strtmp, strtmp2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(5)                           :: avail_section
     INTEGER                                  :: handle, istat, itemp, iw, &
@@ -663,11 +665,11 @@ CONTAINS
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
 
-    CALL reallocate(atom_info%label_molname,1,nblock_atom)
-    CALL reallocate(atom_info%label_resname,1,nblock_atom)
-    CALL reallocate(atom_info%label_resid,1,nblock_atom)
-    CALL reallocate(atom_info%label_atmname,1,nblock_atom)
-    CALL reallocate(atom_info%element,1,nblock_atom)
+    CALL reallocate(atom_info%id_molname,1,nblock_atom)
+    CALL reallocate(atom_info%id_resname,1,nblock_atom)
+    CALL reallocate(atom_info%resid,1,nblock_atom)
+    CALL reallocate(atom_info%id_atmname,1,nblock_atom)
+    CALL reallocate(atom_info%id_element,1,nblock_atom)
     CALL reallocate(atom_info%r,1,3,1,nblock_atom)
     CALL reallocate(atom_info%atm_mass,1,nblock_atom)
     CALL reallocate(atom_info%atm_charge,1,nblock_atom)
@@ -699,12 +701,12 @@ CONTAINS
        DO
           IF(string == TRIM("END")) EXIT
           natom=natom+1
-          IF(natom>SIZE(atom_info%label_molname)) THEN
-             CALL reallocate(atom_info%label_molname,1,nblock_atom+natom)
-             CALL reallocate(atom_info%label_resname,1,nblock_atom+natom)
-             CALL reallocate(atom_info%label_resid,1,nblock_atom+natom)
-             CALL reallocate(atom_info%label_atmname,1,nblock_atom+natom)
-             CALL reallocate(atom_info%element,1,nblock_atom+natom)
+          IF(natom>SIZE(atom_info%id_molname)) THEN
+             CALL reallocate(atom_info%id_molname,1,nblock_atom+natom)
+             CALL reallocate(atom_info%id_resname,1,nblock_atom+natom)
+             CALL reallocate(atom_info%resid,1,nblock_atom+natom)
+             CALL reallocate(atom_info%id_atmname,1,nblock_atom+natom)
+             CALL reallocate(atom_info%id_element,1,nblock_atom+natom)
              CALL reallocate(atom_info%r,1,3,1,nblock_atom+natom)
              CALL reallocate(atom_info%atm_mass,1,nblock_atom+natom)
              CALL reallocate(atom_info%atm_charge,1,nblock_atom+natom)
@@ -712,11 +714,12 @@ CONTAINS
              CALL reallocate(atom_info%beta,1,nblock_atom+natom)
           END IF
           READ (string,*) &
-               atom_info%label_resid(natom),atom_info%label_resname(natom),&
-               atom_info%label_atmname(natom),&
+               atom_info%resid(natom),strtmp,strtmp2,&
                itemp, atom_info%r(1,natom), atom_info%r(2,natom), atom_info%r(3,natom)
-          atom_info%label_molname(natom) = atom_info%label_resname(natom)
-          atom_info%element(natom)       = atom_info%label_atmname(natom) 
+          atom_info%id_resname(natom)=str2id(s2s(strtmp))
+          atom_info%id_atmname(natom)=str2id(s2s(strtmp2))
+          atom_info%id_molname(natom) = atom_info%id_resname(natom)
+          atom_info%id_element(natom) = atom_info%id_atmname(natom) 
           atom_info%r(1,natom) = cp_unit_to_cp2k(atom_info%r(1,natom),"nm",error=error)
           atom_info%r(2,natom) = cp_unit_to_cp2k(atom_info%r(2,natom),"nm",error=error)
           atom_info%r(3,natom) = cp_unit_to_cp2k(atom_info%r(3,natom),"nm",error=error)
@@ -741,11 +744,12 @@ CONTAINS
              IF(string == TRIM("END")) EXIT
              natom=natom+1
              READ (string,*) &
-                  atom_info%label_resid(natom),atom_info%label_resname(natom),&
-                  atom_info%label_atmname(natom),&
+                  atom_info%resid(natom),strtmp,strtmp2,&
                   itemp,velocity(1,natom),velocity(2,natom),velocity(3,natom)
-             atom_info%label_molname(natom) = atom_info%label_resname(natom)
-             atom_info%element(natom)       = atom_info%label_atmname(natom) 
+             atom_info%id_resname(natom)=str2id(strtmp)
+             atom_info%id_atmname(natom)=str2id(strtmp2)
+             atom_info%id_molname(natom)=atom_info%id_resname(natom)
+             atom_info%id_element(natom)=atom_info%id_atmname(natom) 
              velocity(1,natom) = cp_unit_to_cp2k(velocity(1,natom),"nm*ps^-1",error=error)
              velocity(2,natom) = cp_unit_to_cp2k(velocity(2,natom),"nm*ps^-1",error=error)
              velocity(3,natom) = cp_unit_to_cp2k(velocity(3,natom),"nm*ps^-1",error=error)
@@ -762,18 +766,18 @@ CONTAINS
     DEALLOCATE(velocity,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL reallocate(atom_info%label_molname,1,natom)
-    CALL reallocate(atom_info%label_resname,1,natom)
-    CALL reallocate(atom_info%label_resid,1,natom)
-    CALL reallocate(atom_info%label_atmname,1,natom)
-    CALL reallocate(atom_info%element,1,natom)
+    CALL reallocate(atom_info%id_molname,1,natom)
+    CALL reallocate(atom_info%id_resname,1,natom)
+    CALL reallocate(atom_info%resid,1,natom)
+    CALL reallocate(atom_info%id_atmname,1,natom)
+    CALL reallocate(atom_info%id_element,1,natom)
     CALL reallocate(atom_info%r,1,3,1,natom)
     CALL reallocate(atom_info%atm_mass,1,natom)
     CALL reallocate(atom_info%atm_charge,1,natom)
     CALL reallocate(atom_info%occup,1,natom)
     CALL reallocate(atom_info%beta,1,natom)
 
-    IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
+    IF(.NOT.topology%para_res) atom_info%resid(:) = 1
 
     topology%natoms = natom
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&

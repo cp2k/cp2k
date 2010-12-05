@@ -36,6 +36,9 @@ MODULE topology_cif
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -87,7 +90,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: realloc_factor = 1.2_dp, &
                                                 threshold = 1.0E-3_dp
 
-    CHARACTER(LEN=default_string_length)     :: s_tag
+    CHARACTER(LEN=default_string_length)     :: s_tag, strtmp
     INTEGER                                  :: handle, ii, iln0, iln1, iln2, &
                                                 iln3, isym, itype, iw, jj, &
                                                 natom, natom_orig, newsize
@@ -113,16 +116,16 @@ CONTAINS
     topology%aa_element = .TRUE.
 
     atom_info => topology%atom_info
-    CALL reallocate(atom_info%label_molname,1,nblock_atom)
-    CALL reallocate(atom_info%label_resname,1,nblock_atom)
-    CALL reallocate(atom_info%label_resid,1,nblock_atom)
-    CALL reallocate(atom_info%label_atmname,1,nblock_atom)
+    CALL reallocate(atom_info%id_molname,1,nblock_atom)
+    CALL reallocate(atom_info%id_resname,1,nblock_atom)
+    CALL reallocate(atom_info%resid,1,nblock_atom)
+    CALL reallocate(atom_info%id_atmname,1,nblock_atom)
     CALL reallocate(atom_info%r,1,3,1,nblock_atom)
     CALL reallocate(atom_info%atm_mass,1,nblock_atom)
     CALL reallocate(atom_info%atm_charge,1,nblock_atom)
     CALL reallocate(atom_info%occup,1,nblock_atom)
     CALL reallocate(atom_info%beta,1,nblock_atom)
-    CALL reallocate(atom_info%element,1,nblock_atom)
+    CALL reallocate(atom_info%id_element,1,nblock_atom)
 
     IF (iw>0)  WRITE(iw,*) "    Reading in CIF file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,&
@@ -240,18 +243,18 @@ CPSourceFileRef)
     DO WHILE ((INDEX(parser%input_line,"loop_")==0).AND.(parser%input_line(1:1)/="_"))
        natom = natom + 1
        ! Resize in case needed
-       IF (natom > SIZE(atom_info%label_molname)) THEN
+       IF (natom > SIZE(atom_info%id_molname)) THEN
           newsize=natom*realloc_factor+nblock_atom
-          CALL reallocate(atom_info%label_molname,1,newsize)
-          CALL reallocate(atom_info%label_resname,1,newsize)
-          CALL reallocate(atom_info%label_resid,1,newsize)
-          CALL reallocate(atom_info%label_atmname,1,newsize)
+          CALL reallocate(atom_info%id_molname,1,newsize)
+          CALL reallocate(atom_info%id_resname,1,newsize)
+          CALL reallocate(atom_info%resid,1,newsize)
+          CALL reallocate(atom_info%id_atmname,1,newsize)
           CALL reallocate(atom_info%r,1,3,1,newsize)
           CALL reallocate(atom_info%atm_mass,1,newsize)
           CALL reallocate(atom_info%atm_charge,1,newsize)
           CALL reallocate(atom_info%occup,1,newsize)
           CALL reallocate(atom_info%beta,1,newsize)
-          CALL reallocate(atom_info%element,1,newsize)
+          CALL reallocate(atom_info%id_element,1,newsize)
        END IF
        ii    = 1
        itype = 0
@@ -261,11 +264,12 @@ CPSourceFileRef)
              ! Skip this field
              CALL parser_get_object (parser,s_tag,error=error)
           CASE (0)
-             CALL parser_get_object  (parser,atom_info%label_atmname(natom),error=error)
-             atom_info%label_molname(natom) = "MOL"//TRIM(ADJUSTL(cp_to_string(natom)))
-             atom_info%label_resname(natom) = atom_info%label_molname(natom)
-             atom_info%label_resid(natom)   = 1
-             atom_info%element(natom)       = atom_info%label_atmname(natom)
+             CALL parser_get_object  (parser,strtmp,error=error)
+             atom_info%id_atmname(natom) = str2id(strtmp)
+             atom_info%id_molname(natom) = str2id(s2s("MOL"//TRIM(ADJUSTL(cp_to_string(natom)))))
+             atom_info%id_resname(natom) = atom_info%id_molname(natom)
+             atom_info%resid(natom)      = 1
+             atom_info%id_element(natom) = atom_info%id_atmname(natom)
           CASE (1)
              CALL cif_get_real(parser,atom_info%r(1,natom),error)
           CASE (2)
@@ -310,7 +314,7 @@ CPSourceFileRef)
 CPSourceFileRef,&
          only_ionode=.TRUE.)
     IF (iw>0) WRITE(iw,'(A,I0)')" CIF_INFO| Number of atoms before applying symmetry operations :: ",natom
-    IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(atom_info%label_atmname(ii)),atom_info%r(1:3,ii),ii=1,natom)
+    IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
     IF (found) THEN
        ! Apply symmetry elements and generate the whole set of atoms in the unit cell
        CALL parser_get_next_line(parser,1,error=error)
@@ -352,24 +356,24 @@ CPSourceFileRef,&
              IF (check) THEN
                 natom = natom + 1
                 ! Resize in case needed
-                IF (natom > SIZE(atom_info%label_molname)) THEN
+                IF (natom > SIZE(atom_info%id_molname)) THEN
                    newsize=natom*realloc_factor+nblock_atom
-                   CALL reallocate(atom_info%label_molname,1,newsize)
-                   CALL reallocate(atom_info%label_resname,1,newsize)
-                   CALL reallocate(atom_info%label_resid,1,newsize)
-                   CALL reallocate(atom_info%label_atmname,1,newsize)
+                   CALL reallocate(atom_info%id_molname,1,newsize)
+                   CALL reallocate(atom_info%id_resname,1,newsize)
+                   CALL reallocate(atom_info%resid,1,newsize)
+                   CALL reallocate(atom_info%id_atmname,1,newsize)
                    CALL reallocate(atom_info%r,1,3,1,newsize)
                    CALL reallocate(atom_info%atm_mass,1,newsize)
                    CALL reallocate(atom_info%atm_charge,1,newsize)
                    CALL reallocate(atom_info%occup,1,newsize)
                    CALL reallocate(atom_info%beta,1,newsize)
-                   CALL reallocate(atom_info%element,1,newsize)
+                   CALL reallocate(atom_info%id_element,1,newsize)
                 END IF
-                atom_info%label_atmname(natom) = atom_info%label_atmname(ii)
-                atom_info%label_molname(natom) = atom_info%label_molname(ii)
-                atom_info%label_resname(natom) = atom_info%label_resname(ii)
-                atom_info%label_resid(natom)   = atom_info%label_resid(ii)
-                atom_info%element(natom)       = atom_info%element(ii)
+                atom_info%id_atmname(natom) = atom_info%id_atmname(ii)
+                atom_info%id_molname(natom) = atom_info%id_molname(ii)
+                atom_info%id_resname(natom) = atom_info%id_resname(ii)
+                atom_info%id_element(natom) = atom_info%id_element(ii)
+                atom_info%resid(natom)      = atom_info%resid(ii)
                 atom_info%r(1:3,natom)         = r1
              END IF
           END DO Loop_over_unique_atoms
@@ -380,23 +384,23 @@ CPSourceFileRef,&
     END IF
     IF (iw>0) WRITE(iw,'(A,I0)')" CIF_INFO| Number of symmetry operations :: ",isym
     IF (iw>0) WRITE(iw,'(A,I0)')" CIF_INFO| Number of total atoms :: ",natom
-    IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(atom_info%label_atmname(ii)),atom_info%r(1:3,ii),ii=1,natom)
+    IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
 
     ! Releasse local cell type and parser
     CALL cell_release(cell,error=error)
     CALL parser_release(parser,error=error)
     
     ! Reallocate all structures with the exact NATOM size
-    CALL reallocate(atom_info%label_molname,1,natom)
-    CALL reallocate(atom_info%label_resname,1,natom)
-    CALL reallocate(atom_info%label_resid,1,natom)
-    CALL reallocate(atom_info%label_atmname,1,natom)
+    CALL reallocate(atom_info%id_molname,1,natom)
+    CALL reallocate(atom_info%id_resname,1,natom)
+    CALL reallocate(atom_info%resid,1,natom)
+    CALL reallocate(atom_info%id_atmname,1,natom)
     CALL reallocate(atom_info%r,1,3,1,natom)
     CALL reallocate(atom_info%atm_mass,1,natom)
     CALL reallocate(atom_info%atm_charge,1,natom)
     CALL reallocate(atom_info%occup,1,natom)
     CALL reallocate(atom_info%beta,1,natom)
-    CALL reallocate(atom_info%element,1,natom)
+    CALL reallocate(atom_info%id_element,1,natom)
     
     topology%natoms            = natom
     topology%molname_generated = .TRUE.

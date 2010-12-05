@@ -83,11 +83,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
-                                       label_molname, error)
+                                       id_molname, error)
     TYPE(connectivity_info_type), POINTER    :: conn_info
     INTEGER, INTENT(IN)                      :: natom, natom_prev, nbond_prev
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), INTENT(INOUT)            :: label_molname
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: id_molname
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname', &
@@ -117,9 +116,9 @@ CONTAINS
     
     nmol=0
     DO i = 1, natom
-       IF (label_molname(i)=="__UNDEF__") THEN
+       IF (id2str(id_molname(i))=="__UNDEF__") THEN
           molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
-          CALL generate_molname_low(i, atom_bond_list, molname, label_molname, error)
+          CALL generate_molname_low(i, atom_bond_list, molname, id_molname, error)
           nmol = nmol + 1
        END IF
     END DO
@@ -137,13 +136,12 @@ CONTAINS
 !>        provide them
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE generate_molname_low(i, atom_bond_list, molname, label_molname, error)
+  RECURSIVE SUBROUTINE generate_molname_low(i, atom_bond_list, molname, id_molname, error)
     INTEGER, INTENT(IN)                      :: i
     TYPE(array1_list_type), DIMENSION(:)     :: atom_bond_list
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: molname
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), INTENT(INOUT)            :: label_molname
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: id_molname
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &
@@ -151,11 +149,11 @@ CONTAINS
 
     INTEGER                                  :: j
 
-    label_molname(i) = molname
+    id_molname(i) = str2id(molname)
     DO j = 1, SIZE(atom_bond_list(i)%array1)
        IF (atom_bond_list(i)%array1(j)<=i) CYCLE
        CALL generate_molname_low(atom_bond_list(i)%array1(j), atom_bond_list, molname,&
-                                 label_molname, error)
+                                 id_molname, error)
        atom_bond_list(i)%array1(j)=-1
     END DO
   END SUBROUTINE generate_molname_low
@@ -233,7 +231,7 @@ CONTAINS
           ntype=ntype+1
           atom_info%map_mol_typ(iatom)=ntype        
        ELSE
-          IF(atom_info%label_molname(iatom-1)==atom_info%label_molname(iatom)) THEN
+          IF(atom_info%id_molname(iatom-1)==atom_info%id_molname(iatom)) THEN
              atom_info%map_mol_typ(iatom)=ntype
           ELSE
              ntype=ntype+1
@@ -254,7 +252,7 @@ CONTAINS
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
     CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
-    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%label_molname)   
+    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%id_molname)   
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -329,8 +327,8 @@ CONTAINS
        mol_num = atom_info%map_mol_num(1)
        atom_info%map_mol_res(1) = mol_res
        DO i = 2, natom
-          IF((atom_info%label_resid(i-1)/=atom_info%label_resid(i)).OR.&
-             (TRIM(atom_info%label_resname(i-1))/=TRIM(atom_info%label_resname(i))))THEN
+          IF((atom_info%resid(i-1)/=atom_info%resid(i)).OR.&
+             (atom_info%id_resname(i-1)/=atom_info%id_resname(i)))THEN
              mol_res = mol_res + 1
           END IF
           IF (atom_info%map_mol_typ(i)/=mol_typ.OR.atom_info%map_mol_num(i)/=mol_num) THEN
@@ -349,8 +347,8 @@ CONTAINS
                                        "map_mol_typ",atom_info%map_mol_typ(iatom),&
                                        "map_mol_num",atom_info%map_mol_num(iatom),&
                                        "map_mol_res",atom_info%map_mol_res(iatom),&
-                                       "mol_name:",TRIM(atom_info%label_molname(iatom)),&
-                                       "res_name:",TRIM(atom_info%label_resname(iatom))
+                                       "mol_name:",TRIM(id2str(atom_info%id_molname(iatom))),&
+                                       "res_name:",TRIM(id2str(atom_info%id_resname(iatom)))
        END DO
     END IF
     IF (my_qmmm) THEN
@@ -371,9 +369,9 @@ CONTAINS
           IF (iw>0) WRITE(iw,*)"qm fragment:: ifirst, ilast",ifirst,ilast
           CPPostcondition(((ifirst/=0).OR.(ilast/=natom)),cp_failure_level,routineP,error,failure)
           DO iatm = ifirst, ilast
-             atom_info%label_molname(iatm) = "_QM_"//&
-                  TRIM(atom_info%label_molname(iatm))
-             IF (iw>0) WRITE(iw,*)"QM Molecule name :: ", atom_info%label_molname(iatm)
+             atom_info%id_molname(iatm) = str2id(s2s("_QM_"//&
+                  TRIM(id2str(atom_info%id_molname(iatm)))))
+             IF (iw>0) WRITE(iw,*)"QM Molecule name :: ", id2str(atom_info%id_molname(iatm))
              WHERE (qm_atom_index == iatm) qm_atom_index = 0
           END DO
           DO iatm = 1, ifirst-1
@@ -563,7 +561,7 @@ CONTAINS
        CALL timeset(TRIM(routineN)//"_1",handle2)
        DO iatom=1,natom
           list(iatom) = iatom
-          upper_sym_1 = atom_info%element(iatom)
+          upper_sym_1 = id2str(atom_info%id_element(iatom))
           IF(topology%bondparm_type==do_bondparm_covalent) THEN
              CALL get_ptable_info(symbol=upper_sym_1, covalent_radius=radius(iatom))
           ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
@@ -673,7 +671,7 @@ CONTAINS
        ! No need to check consistency between provided molecule name and
        ! generated connectivity since we overrided the molecule definition.
        IF (topology%create_molecules) THEN
-          atom_info%label_molname = "TO_DEFINE_LATER"
+          atom_info%id_molname = str2id(s2s("TO_DEFINE_LATER"))
           ! A real name assignment will then be performed in the reorder module..
        END IF
        ! It may happen that the connectivity created is fault for the missing
@@ -686,7 +684,7 @@ CONTAINS
              IF (h_list(iatm1)) CYCLE
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
-                IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
+                IF (atom_info%id_molname(iatm1)/=atom_info%id_molname(iatm2)) CYCLE
                 IF(h_list(iatm2).OR.(iatm2<=iatm1)) CYCLE
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
@@ -731,7 +729,7 @@ CONTAINS
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
                 print_info = .FALSE.
-                IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
+                IF (atom_info%id_molname(iatm1)/=atom_info%id_molname(iatm2)) CYCLE
                 IF (h_list(iatm2).AND.(iatm2<=iatm1)) CYCLE
                 ! Screen isolated atoms
                 IF ((ANY(isolated_atoms==iatm1)).OR.(ANY(isolated_atoms==iatm2))) CYCLE
@@ -846,9 +844,9 @@ CONTAINS
           DO ibond=1,SIZE(conn_info%bond_a)
              iatom = conn_info%bond_a(ibond)
              jatom = conn_info%bond_b(ibond)
-             IF((atom_info%label_molname(iatom)  /=atom_info%label_molname(jatom)).OR.&
-                  (atom_info%label_resid(iatom)  /=atom_info%label_resid(jatom)).OR.&
-                  (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+             IF((atom_info%id_molname(iatom)  /=atom_info%id_molname(jatom)).OR.&
+                  (atom_info%resid(iatom)  /=atom_info%resid(jatom)).OR.&
+                  (atom_info%id_resname(iatom)/=atom_info%id_resname(jatom)))THEN
                 IF(iw>0) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
                      iatom,jatom
                 cbond = cbond + 1
@@ -857,7 +855,7 @@ CONTAINS
                 conn_info%c_bond_a(cbond) = iatom
                 conn_info%c_bond_b(cbond) = jatom
              ELSE
-                IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
+                IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
                    CALL stop_program ("topology_generate_bond",&
                      "bonds between different molecule types??? ")
                 END IF
@@ -904,7 +902,7 @@ CONTAINS
     conn_ok = .TRUE.
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       natom   = SIZE(atom_info%label_atmname)
+       natom   = SIZE(atom_info%id_atmname)
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I = 1, natom
@@ -921,7 +919,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO i = 1, natom
-          mol_map(i) = str2id(s2s(TRIM(atom_info%label_molname(i))))
+          mol_map(i) = atom_info%id_molname(i)
        END DO
        mol_map_o = mol_map
 
@@ -1904,7 +1902,7 @@ CONTAINS
              ! Problematic cases::
              ! Nitrogen 
              accept_impr = .TRUE.
-             atm_symbol  = atom_info%element(i)
+             atm_symbol  = id2str(atom_info%id_element(i))
              CALL uppercase(atm_symbol)
              IF (atm_symbol=="N ") THEN
                 accept_impr = .FALSE.

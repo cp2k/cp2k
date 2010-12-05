@@ -28,7 +28,8 @@ MODULE topology_util
                                              gromos_map
   USE periodic_table,                  ONLY: get_ptable_info
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE string_table,                    ONLY: str2id
+  USE string_table,                    ONLY: id2str,&
+                                             str2id
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -179,7 +180,7 @@ CONTAINS
     ALLOCATE(atom_bond_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO I=1,natom
-       map_atom_type(I) = str2id(atom_info%label_atmname(i))
+       map_atom_type(I) = atom_info%id_atmname(i)
        ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
@@ -189,7 +190,7 @@ CONTAINS
     ALLOCATE(atom_info%map_mol_num(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     atom_info%map_mol_num = -1
-    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%label_molname)
+    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%id_molname)
     max_mol_num = MAXVAL(atom_info%map_mol_num)
     ! In atom_info%map_mol_num have already been mapped molecules
     ALLOCATE(mol_bnd(2,max_mol_num),STAT=stat)
@@ -365,10 +366,10 @@ CONTAINS
     !Lets swap the atoms now
     DO iatm=1,natom
        location = new_position(iatm)
-       tlabel_molname(iatm)       = atom_info%label_molname(location)
-       tlabel_resname(iatm)       = atom_info%label_resname(location)
-       tlabel_atmname(iatm)       = atom_info%label_atmname(location)
-       telement(iatm)             = atom_info%element(location)
+       tlabel_molname(iatm)       = id2str(atom_info%id_molname(location))
+       tlabel_resname(iatm)       = id2str(atom_info%id_resname(location))
+       tlabel_atmname(iatm)       = id2str(atom_info%id_atmname(location))
+       telement(iatm)             = id2str(atom_info%id_element(location))
        tr(1,iatm)                 = atom_info%r(1,location)
        tr(2,iatm)                 = atom_info%r(2,location)
        tr(3,iatm)                 = atom_info%r(3,location)
@@ -383,16 +384,16 @@ CONTAINS
        topology%create_molecules = .FALSE.
     END IF
     DO iatm=1,natom
-       atom_info%label_molname(iatm)   = tlabel_molname(iatm)
-       atom_info%label_resname(iatm)   = tlabel_resname(iatm)
-       atom_info%label_resid(iatm)     = mol_num(iatm)
-       atom_info%label_atmname(iatm)   = tlabel_atmname(iatm)
-       atom_info%element(iatm)         = telement(iatm)
-       atom_info%r(1,iatm)             = tr(1,iatm)
-       atom_info%r(2,iatm)             = tr(2,iatm)
-       atom_info%r(3,iatm)             = tr(3,iatm)
-       atom_info%atm_charge(iatm)      = tatm_charge(iatm)
-       atom_info%atm_mass(iatm)        = tatm_mass(iatm)
+       atom_info%id_molname(iatm)   = str2id(tlabel_molname(iatm))
+       atom_info%id_resname(iatm)   = str2id(tlabel_resname(iatm))
+       atom_info%id_atmname(iatm)   = str2id(tlabel_atmname(iatm))
+       atom_info%id_element(iatm)   = str2id(telement(iatm))
+       atom_info%resid(iatm)        = mol_num(iatm)
+       atom_info%r(1,iatm)          = tr(1,iatm)
+       atom_info%r(2,iatm)          = tr(2,iatm)
+       atom_info%r(3,iatm)          = tr(3,iatm)
+       atom_info%atm_charge(iatm)   = tatm_charge(iatm)
+       atom_info%atm_mass(iatm)     = tatm_mass(iatm)
     END DO
 
     ! Let's reorder all the list provided in the input..
@@ -971,12 +972,9 @@ CONTAINS
   SUBROUTINE find_molecule(atom_bond_list,mol_info,mol_name)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
-    INTEGER, DIMENSION(:), POINTER           :: mol_info
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: mol_name
+    INTEGER, DIMENSION(:), POINTER           :: mol_info, mol_name
 
-    CHARACTER(LEN=default_string_length)     :: my_mol_name
-    INTEGER                                  :: I, N, nmol
+    INTEGER                                  :: I, my_mol_name, N, nmol
 
     N=SIZE(atom_bond_list)
     nmol=0
@@ -999,11 +997,8 @@ CONTAINS
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
     INTEGER, DIMENSION(:), POINTER           :: mol_info
-    INTEGER, INTENT(IN)                      :: iatom, imol
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: my_mol_name
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: mol_name
+    INTEGER, INTENT(IN)                      :: iatom, imol, my_mol_name
+    INTEGER, DIMENSION(:), POINTER           :: mol_name
 
     INTEGER                                  :: atom_b, i
 
@@ -1078,7 +1073,7 @@ CONTAINS
        !Let's look if an external mass has been defined..
        user_defined = .FALSE.
        DO i= 1, SIZE(keyword)
-          IF (atom_info%label_atmname(iatom)==keyword(i).AND.mass(i)/=HUGE(0.0_dp)) THEN
+          IF (id2str(atom_info%id_atmname(iatom))==keyword(i).AND.mass(i)/=HUGE(0.0_dp)) THEN
              atom_info%atm_mass(iatom) = mass(i)
              user_defined = .TRUE.
              EXIT
@@ -1086,11 +1081,11 @@ CONTAINS
        END DO
        ! If name didn't match let's try with the element
        IF (.NOT.user_defined) THEN
-          upper_sym_1=atom_info%element(iatom)
+          upper_sym_1=id2str(atom_info%id_element(iatom))
           CALL get_ptable_info(symbol=upper_sym_1,ielement=ielem_found,amass=atom_info%atm_mass(iatom))
        END IF
        IF(iw>0) WRITE(iw,'(7X,A,A5,A,F12.5)') "In topology_set_atm_mass :: element = ",&
-            atom_info%element(iatom)," a_mass ", atom_info%atm_mass(iatom)
+            id2str(atom_info%id_element(iatom))," a_mass ", atom_info%atm_mass(iatom)
     END DO
     DEALLOCATE(keyword,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1187,14 +1182,14 @@ CONTAINS
           !-----------------------------------------------------------------------------
           ! 2. Check that each molecule has the same atom sequences
           !-----------------------------------------------------------------------------
-          IF( TRIM(atom_info%label_atmname(iatom)) /= &
-              TRIM(atom_info%label_atmname(first+loc_counter-1)) ) THEN
+          IF( atom_info%id_atmname(iatom) /= &
+              atom_info%id_atmname(first+loc_counter-1) ) THEN
              CALL stop_program ("topology_molecules_check",&
                   "different atom name for same molecule kind"//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
-                  " expected atom name="//TRIM(atom_info%label_atmname(first+loc_counter-1))//&
-                  " found="//TRIM(atom_info%label_atmname(iatom)))
+                  " expected atom name="//TRIM(id2str(atom_info%id_atmname(first+loc_counter-1)))//&
+                  " found="//TRIM(id2str(atom_info%id_atmname(iatom))))
           END IF
           !-----------------------------------------------------------------------------
           !-----------------------------------------------------------------------------

@@ -11,7 +11,6 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_subsys_methods
-
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -42,6 +41,9 @@ MODULE cp_subsys_methods
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE topology,                        ONLY: connectivity_control
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
@@ -124,7 +126,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsys', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: my_element
+    CHARACTER(len=default_string_length)     :: my_element, strtmp1
     INTEGER                                  :: iat, id_, nat, stat
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -172,32 +174,33 @@ CONTAINS
        nat=SIZE(sub_atom_index)
        topology%natoms=nat
        CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%r),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%label_atmname),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%label_molname),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%label_resname),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_atmname),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_molname),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_resname),cp_failure_level,routineP,error,failure)
        CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_mass),cp_failure_level,routineP,error,failure)
        CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,error,failure)
-       ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%label_atmname(nat),&
-            topology%atom_info%label_molname(nat),topology%atom_info%label_resname(nat),&
-            topology%atom_info%element(nat), topology%atom_info%atm_mass(nat),&
+       ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%id_atmname(nat),&
+            topology%atom_info%id_molname(nat),topology%atom_info%id_resname(nat),&
+            topology%atom_info%id_element(nat), topology%atom_info%atm_mass(nat),&
             topology%atom_info%atm_charge(nat),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL cp_subsys_get(big_subsys, particles=particles, error=error)
        DO iat=1,nat
           topology%atom_info%r(:,iat)=particles%els(sub_atom_index(iat))%r
-          topology%atom_info%label_atmname(iat)=sub_atom_kind_name(iat)
-          topology%atom_info%label_molname(iat)=topology%atom_info%label_atmname(iat)
-          topology%atom_info%label_resname(iat)=topology%atom_info%label_atmname(iat)
+          topology%atom_info%id_atmname(iat)=str2id(s2s(sub_atom_kind_name(iat)))
+          topology%atom_info%id_molname(iat)=topology%atom_info%id_atmname(iat)
+          topology%atom_info%id_resname(iat)=topology%atom_info%id_atmname(iat)
           !
           ! Defining element
           !
-          id_ = INDEX(topology%atom_info%label_atmname(iat),"_")-1
-          IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
-          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),&
-               topology%atom_info%label_atmname(iat)(1:id_), my_element,&
+          id_ = INDEX(id2str(topology%atom_info%id_atmname(iat)),"_")-1
+          IF ( id_ == -1 ) id_ = LEN_TRIM(id2str(topology%atom_info%id_atmname(iat)))
+          strtmp1=id2str(topology%atom_info%id_atmname(iat))
+          strtmp1=strtmp1(1:id_)
+          CALL check_subsys_element(strtmp1,strtmp1, my_element,&
                subsys_section,use_mm_map_first=.FALSE.,error=error)
-          topology%atom_info%element(iat)=my_element
+          topology%atom_info%id_element(iat)=str2id(s2s(my_element))
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
        END DO

@@ -31,6 +31,7 @@ MODULE topology_connectivity_util
                                              molecule_type,&
                                              set_molecule,&
                                              set_molecule_set
+  USE string_table,                    ONLY: id2str
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -201,7 +202,7 @@ CONTAINS
           molecule_kind => molecule_kind_set(ikind)
           nsgf=0
           nelectron=0
-          name = TRIM(atom_info%label_molname(i))
+          name = TRIM(id2str(atom_info%id_molname(i)))
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                kind_number=ikind,&
                molname_generated=topology%molname_generated,&
@@ -350,7 +351,7 @@ CONTAINS
           DO i=1,natom
              !Atomic kind information will be filled in (PART 2)
              NULLIFY(atom_list(i)%atomic_kind)
-             atom_list(i)%name=atom_info%label_atmname(i+first-1)
+             atom_list(i)%name=id2str(atom_info%id_atmname(i+first-1)) ! XXXXXXXXX-fixme-XXXXXXXXX
              IF(iw>0) WRITE(iw,'(5X,A,3I5,1X,A5)') "atom_list ",&
                   imol,counter,i,atom_list(i)%name
           END DO

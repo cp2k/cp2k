@@ -42,6 +42,9 @@ MODULE topology_coordinate_util
                                              particle_type
   USE physcon,                         ONLY: massunit
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE string_utilities,                ONLY: str_comp,&
                                              str_search
   USE timings,                         ONLY: timeset,&
@@ -172,7 +175,7 @@ CONTAINS
              counter = counter + 1
              work(counter)   = atom_list(j)%name
              mass(counter)   = atom_info%atm_mass(first+j-1)
-             element(counter)= atom_info%element(first+j-1)
+             element(counter)= id2str(atom_info%id_element(first+j-1))
              charge(counter) = atom_info%atm_charge(first+j-1)
              IF(iw>0) WRITE(iw,'(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
                   "NEW ATOMIC KIND",work(counter),mass(counter),element(counter),charge(counter)
@@ -188,7 +191,7 @@ CONTAINS
                 counter = counter + 1
                 work(counter)   = atom_list(j)%name
                 mass(counter)   = atom_info%atm_mass(first+j-1)
-                element(counter)= atom_info%element(first+j-1)
+                element(counter)= id2str(atom_info%id_element(first+j-1))
                 charge(counter) = atom_info%atm_charge(first+j-1)
                 IF(iw>0) WRITE(iw,'(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
                      "NEW ATOMIC KIND",work(counter),mass(counter),element(counter),charge(counter)
@@ -197,9 +200,11 @@ CONTAINS
        END DO
     END DO
     topology%natom_type = counter
-    ALLOCATE(atom_info%atom_names(topology%natom_type),STAT=stat)
+    ALLOCATE(atom_info%id_atom_names(topology%natom_type),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    atom_info%atom_names(1:counter)=work(1:counter)
+    DO k=1,counter
+       atom_info%id_atom_names(k)=str2id(s2s(work(k)))
+    ENDDO
     DEALLOCATE(work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL reallocate(mass,1,counter)
@@ -236,11 +241,11 @@ CONTAINS
        atomic_kind => atomic_kind_set(i)
        mass(i) = mass(i) * massunit
        CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=i,&
-            name=atom_info%atom_names(i),element_symbol=element(i),&
+            name=id2str(atom_info%id_atom_names(i)),element_symbol=element(i),&
             mass=mass(i))
        IF (iw>0) THEN
           WRITE(iw,'(A,I5,A,I5,4A)')"Atomic Kind n.:",i," out of:",topology%natom_type,&
-               " name:   ",TRIM(atom_info%atom_names(i)),"   element:   ",&
+               " name:   ",TRIM(id2str(atom_info%id_atom_names(i))),"   element:   ",&
                TRIM(element(i))
        END IF
     END DO
@@ -263,7 +268,7 @@ CONTAINS
     natom_of_kind(:) = 0
     DO i=1,topology%natom_type
        DO j=1,topology%natoms
-          IF((atom_info%atom_names(i)==atom_info%label_atmname(j)).AND.(charge(i)==atom_info%atm_charge(j))) THEN
+          IF((atom_info%id_atom_names(i)==atom_info%id_atmname(j)).AND.(charge(i)==atom_info%atm_charge(j))) THEN
              natom_of_kind(i)=natom_of_kind(i)+1
              IF (kind_of(j)==0) kind_of(j)=i
           END IF
