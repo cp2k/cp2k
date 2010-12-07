@@ -23,6 +23,8 @@ MODULE semi_empirical_mpole_methods
                                              semi_empirical_mpole_type
   USE semi_empirical_par_utils,        ONLY: amn_l
   USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -274,8 +276,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     IF (ASSOCIATED(nddo_mpole)) THEN
@@ -296,6 +300,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(nddo_mpole%efield2(9,natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
   END SUBROUTINE nddo_mpole_setup
   
 END MODULE semi_empirical_mpole_methods
