@@ -323,7 +323,7 @@ CONTAINS
 
     !..if debug mode echo the subroutine name
     IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
-       WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,A)"
+       WRITE(sformat,*) "(A,",MAX(1,3*stack_size-7),"X,I4,1X,I6,1X,A,A)"
        WRITE ( mystring, sformat) &
             timer_env%astring,stack_size, &
             timer_env%routine_calls ( handle ), &
@@ -410,7 +410,7 @@ CONTAINS
 
     !..if debug mode echo the subroutine name
     IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
-       WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
+       WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-7),"X,I4,1X,I6,1X,A,F12.3)"
        WRITE ( mystring, sformat) &
             timer_env%bstring, & 
             timer_env%stack_size, &
