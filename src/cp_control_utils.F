@@ -1048,12 +1048,12 @@ CPSourceFileRef,&
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
-    CALL timeset(routineN,handle)
 
-    failure = .FALSE.
-    NULLIFY(logger, enum, keyword, section)
     IF (qs_control%semi_empirical) RETURN
     IF (qs_control%dftb)           RETURN
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    NULLIFY(logger, enum, keyword, section)
     logger => cp_error_get_logger(error)
 
     CALL create_qs_section(section,error=error)
