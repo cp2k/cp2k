@@ -92,11 +92,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: molname, name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_typeh, cnds
-    INTEGER :: cind, first, first_atom, gind, handle, i, ii, itype, iw, j, k, &
-      k1loc, k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, &
-      ncolv_glob, ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
-      nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, &
-      nmolecule, nrep, nvsite, nvsite_restraint, offset, stat
+    INTEGER :: cind, first, first_atom, gind, handle, handle2, i, ii, itype, &
+      iw, j, k, k1loc, k2loc, kk, last, last_atom, m, n_start_colv, natom, &
+      nbond, ncolv_glob, ncolv_mol, nfixd_list_gci, nfixd_restart, &
+      nfixd_restraint, nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, &
+      ng4x6_restraint, nhdist, nmolecule, nrep, nvsite, nvsite_restraint, &
+      offset, stat
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
@@ -143,6 +144,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
+    CALL timeset(routineN//"_1",handle2)
 
     cons_info => topology%cons_info
     hbonds_section => section_vals_get_subs_vals(input_file,&
@@ -192,6 +194,8 @@ CONTAINS
                      gci%ng4x6_restraint +&
                      gci%nvsite_restraint +&
                      gci%ncolv%nrestraint
+    CALL timestop(handle2)
+    CALL timeset(routineN//"_1",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Add more stuff to COLVAR constraint if constraint hydrogen is on
@@ -378,6 +382,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
+    CALL timestop(handle2)
+    CALL timeset(routineN//"_3",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Set the COLVAR constraint molecule_kind_set(ikind)%colv_list
@@ -458,6 +464,8 @@ CONTAINS
        END IF
     END IF
 
+    CALL timestop(handle2)
+    CALL timeset(routineN//"_4",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Set the group 3x3 constraint g3x3_list
@@ -518,6 +526,8 @@ CONTAINS
        END IF
     END IF
 
+    CALL timestop(handle2)
+    CALL timeset(routineN//"_5",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Set the group 4x6 constraint g4x6_list
@@ -577,6 +587,8 @@ CONTAINS
        END IF
     END IF
 
+    CALL timestop(handle2)
+    CALL timeset(routineN//"_6",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Set the group vsite constraint vsite_list
@@ -624,6 +636,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
        END IF
     END IF
+    CALL timestop(handle2)
+    CALL timeset(routineN//"_7",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Set the group fixed_atom constraint fixd_list
@@ -902,6 +916,7 @@ CONTAINS
                      gci%ncolv%nrestraint
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL timestop(handle2)
     CALL timestop(handle)
   END SUBROUTINE topology_constraint_pack
 
