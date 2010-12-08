@@ -884,11 +884,11 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
 
+    IF (dft_control%qs_control%semi_empirical) RETURN
+    IF (dft_control%qs_control%dftb) RETURN
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    IF (dft_control%qs_control%semi_empirical) RETURN
-    IF (dft_control%qs_control%dftb) RETURN
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
