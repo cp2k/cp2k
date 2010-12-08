@@ -17,9 +17,9 @@ MODULE qs_mo_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_finalize, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, &
+       cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
@@ -728,14 +728,12 @@ CONTAINS
         CALL cp_dbcsr_create(h_block, "h_block", dist, dbcsr_type_no_symmetry,&
              row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, &
              error=error)
-        CALL cp_dbcsr_finalize(h_block, error=error)
         !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
         IF (compute_evecs) THEN
            CALL cp_dbcsr_init_p(e_vectors,error=error)
            CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
                 row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default,&
                 error=error)
-           CALL cp_dbcsr_finalize(e_vectors, error=error)
            !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
         ENDIF
         CALL cp_dbcsr_distribution_release (dist)

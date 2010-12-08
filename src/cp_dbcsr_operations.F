@@ -612,7 +612,6 @@ CONTAINS
        CALL cp_dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_in,&
             0, 0, error=error)
-       CALL cp_dbcsr_finalize(in, error=error)
 
        CALL cp_dbcsr_init(out, error)
        CALL dbcsr_distribution_new (product_dist,&
@@ -633,7 +632,6 @@ CONTAINS
        CALL cp_dbcsr_create(out, "D", product_dist, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_out,&
             0, 0, error=error)
-       CALL cp_dbcsr_finalize(out, error=error)
 
        CALL copy_fm_to_dbcsr(fm_in, in, error=error)
        IF(ncol.NE.k_out.OR.my_beta.NE.0.0_dp) &
@@ -734,7 +732,6 @@ CONTAINS
        CALL cp_dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_no_symmetry,&
             cp_dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, 0, 0,&
             cp_dbcsr_get_data_type (sparse_matrix), error=error)
-       CALL cp_dbcsr_finalize (mat_v, error=error)
        CALL copy_fm_to_dbcsr(matrix_v, mat_v, error=error)
        CALL cp_dbcsr_verify_matrix(mat_v, error)
        !
@@ -746,7 +743,6 @@ CONTAINS
                cp_dbcsr_row_block_sizes (sparse_matrix),&
                cp_dbcsr_col_block_sizes (mat_v),&
                data_type=cp_dbcsr_get_data_type (sparse_matrix), error=error)
-          CALL cp_dbcsr_finalize (mat_g, error=error)
           CALL copy_fm_to_dbcsr(matrix_g, mat_g, error=error)
        ENDIF
        !
@@ -1947,7 +1943,6 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL cp_dbcsr_create(matrix, fm%name, distribution, dbcsr_type_no_symmetry,&
          row_blk_size, col_blk_size,&
          0, 0, dbcsr_type_real_8, error=error)
-    CALL cp_dbcsr_finalize(matrix, error=error)
     CALL copy_fm_to_dbcsr(fm, matrix, error=error)
     CALL cp_dbcsr_verify_matrix(matrix, error)
     CALL timestop(timing_handle)
@@ -2400,7 +2395,6 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL cp_dbcsr_init (bc_mat, error)
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%matrix%m%name, bc_dist,&
          dbcsr_type_no_symmetry, rbs, cbs, 0, 0, error=error)
-    CALL cp_dbcsr_finalize (bc_mat, error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
     CALL array_release (cbs)
@@ -2550,7 +2544,6 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%matrix%m%name, bc_dist,&
          dbcsr_type_no_symmetry, rbs, cbs, 0, 0, cp_dbcsr_get_data_type(matrix),&
          error=error)
-    CALL cp_dbcsr_finalize (bc_mat, error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
     CALL array_release (cbs)

@@ -16,8 +16,8 @@ MODULE admm_methods
   USE cp_control_types,                ONLY: admm_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
@@ -746,8 +746,6 @@ MODULE admm_methods
            cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
            cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
            error=error)
-      CALL cp_dbcsr_finalize(matrix_s_tilde, error=error)
-  
   
       CALL cp_dbcsr_copy(matrix_s_tilde, matrix_s_aux_fit(1)%matrix, error=error)
 
@@ -1115,7 +1113,6 @@ MODULE admm_methods
          cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
          error=error)
-    CALL cp_dbcsr_finalize(matrix_w_s, error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
 
     ALLOCATE(matrix_w_q)
@@ -1623,7 +1620,6 @@ MODULE admm_methods
          cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), &
          cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
          cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
-    CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
@@ -1765,7 +1761,6 @@ MODULE admm_methods
          cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
          cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), &
          error=error)
-    CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
 
@@ -1843,8 +1838,6 @@ MODULE admm_methods
          cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
          cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
          cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
-    CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
-
 
     CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
     CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp, error)
@@ -1909,7 +1902,6 @@ MODULE admm_methods
          cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), &
          cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
          cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
-    CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
@@ -1955,7 +1947,6 @@ MODULE admm_methods
              cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), &
              cp_dbcsr_get_data_size(ks_matrix),&
              cp_dbcsr_get_data_type(ks_matrix), error=error)
-        CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
         CALL cp_dbcsr_set(work, 0.0_dp, error)
@@ -1987,7 +1978,6 @@ MODULE admm_methods
              cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
              cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
              cp_dbcsr_get_data_type(ks_matrix), error=error)
-        CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
         CALL cp_dbcsr_set(work, 0.0_dp, error)
@@ -2045,7 +2035,6 @@ MODULE admm_methods
              cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
              cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
              cp_dbcsr_get_data_type(ks_matrix), error=error)
-        CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
         CALL cp_dbcsr_set(work, 0.0_dp, error)
@@ -2072,7 +2061,6 @@ MODULE admm_methods
              cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
              cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
              cp_dbcsr_get_data_type(ks_matrix), error=error)
-        CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
         CALL cp_dbcsr_set(work, 0.0_dp, error)
@@ -2394,9 +2382,8 @@ MODULE admm_methods
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
          cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix),&
-cp_dbcsr_get_data_size( matrix_ks(ispin)%matrix),&
-cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
-    CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
+         cp_dbcsr_get_data_size( matrix_ks(ispin)%matrix),&
+         cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error)
 

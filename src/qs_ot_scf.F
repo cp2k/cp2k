@@ -16,11 +16,10 @@ MODULE qs_ot_scf
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_finalize, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_replicate, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_set_diag, &
-       cp_dbcsr_trace
+       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_replicate, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -427,7 +426,6 @@ CONTAINS
           CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&
                cp_dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
                error=error)
-          CALL cp_dbcsr_finalize(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
           CALL cp_dbcsr_distribution_release (dist)
           CALL array_release (col_dist)
           CALL array_release (col_blk_size)

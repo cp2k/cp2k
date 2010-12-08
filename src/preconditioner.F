@@ -349,7 +349,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
              cp_dbcsr_row_block_sizes(matrix_h), cp_dbcsr_col_block_sizes(matrix_h), &
              0, 0, dbcsr_type_real_default, error=error)
      ENDIF
-     CALL cp_dbcsr_finalize(preconditioner_env%dbcsr_matrix, error=error)
      IF(ASSOCIATED(preconditioner_env%fm)) THEN
         CALL copy_fm_to_dbcsr(preconditioner_env%fm,preconditioner_env%dbcsr_matrix, error=error)
      ELSEIF(ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
@@ -2110,7 +2109,6 @@ END SUBROUTINE make_full_all_ortho
          cp_dbcsr_distribution(matrix_s), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(matrix_s),&
          cp_dbcsr_col_block_sizes(matrix_s), 0, 0,&
          cp_dbcsr_get_data_type(matrix_s), error=error)
-    CALL cp_dbcsr_finalize(mat_t, error=error)
     CALL copy_fm_to_dbcsr(fm_work1,mat_t, error=error)
     IF(.TRUE.)CALL cp_dbcsr_verify_matrix(mat_t, error=error)
     IF(dbg_print_matrix)CALL cp_dbcsr_print(mat_t,error=error)
@@ -2127,13 +2125,11 @@ END SUBROUTINE make_full_all_ortho
          cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
          cp_dbcsr_get_data_type(mat_t), error=error)
-    CALL cp_dbcsr_finalize(mat_li, error=error)
     CALL cp_dbcsr_init (mat_v,error=error)
     CALL cp_dbcsr_create(mat_v, 'matrix v', &
          cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
          cp_dbcsr_get_data_type(mat_t), error=error)
-    CALL cp_dbcsr_finalize(mat_v, error=error)
 
     CALL cp_dbcsr_work_create(mat_li,work_mutable=.TRUE.,&
          nblks_guess=cp_dbcsr_get_num_blocks(mat_t),sizedata_guess=cp_dbcsr_get_data_size(mat_t),&
@@ -2154,7 +2150,6 @@ END SUBROUTINE make_full_all_ortho
          cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), cp_dbcsr_get_num_blocks(mat_t), cp_dbcsr_get_data_size(mat_t),&
          cp_dbcsr_get_data_type(mat_t), error=error)
-    CALL cp_dbcsr_finalize(prcnd, error=error)
 
     ! some variables
     s = 1.0_dp ! s > 0
@@ -2469,7 +2464,6 @@ END SUBROUTINE make_full_all_ortho
        CALL cp_dbcsr_create (mat_tmp, "tmp mat_t", cp_dbcsr_distribution (mat_t), dbcsr_type_no_symmetry,&
             cp_dbcsr_row_block_sizes (mat_t), cp_dbcsr_col_block_sizes (mat_t),&
             error=error)
-       CALL cp_dbcsr_finalize(mat_tmp,error=error)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
        CALL cp_dbcsr_trace(mat_li, mat_tmp, trace, error=error)
        WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
@@ -2604,7 +2598,6 @@ WRITE(*,*) 'tend',t(13)-t(12)
          cp_dbcsr_distribution (matrix_t),&
          cp_dbcsr_get_matrix_type (matrix_t), cp_dbcsr_row_block_sizes(matrix_t),&
          cp_dbcsr_col_block_sizes(matrix_t), 0, 0, error=error)
-    CALL cp_dbcsr_finalize(preconditioner_env%sparse_matrix,error=error)
 
     ! M = T - epsilon * S
     shift=MAX(0.0_dp,energy_gap)
