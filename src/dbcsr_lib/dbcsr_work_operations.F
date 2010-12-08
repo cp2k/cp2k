@@ -375,6 +375,7 @@ CONTAINS
             error=error)
     ENDIF
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
+    CALL dbcsr_finalize (matrix, reshuffle=.FALSE., error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_create_new
 
@@ -606,6 +607,7 @@ CONTAINS
                dbcsr_get_data_type (matrix))
        END DO
     ENDIF
+    matrix%m%valid = .FALSE.
 !$OMP FLUSH
 !$  CALL dbcsr_modify_unlock (matrix)
     CALL dbcsr_error_stop(error_handler, error)
@@ -852,6 +854,8 @@ CONTAINS
           quick = quick .AND.&
                dbcsr_uses_special_memory(matrix%m%wms(1)%data_area) .EQV. &
                dbcsr_uses_special_memory(matrix%m%data_area)
+          quick = quick .AND. &
+               ASSOCIATED (matrix%m%wms(1)%row_i)
        ENDIF
     ELSE
        quick = .FALSE.
