@@ -1048,7 +1048,6 @@ CPSourceFileRef,&
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
-
     IF (qs_control%semi_empirical) RETURN
     IF (qs_control%dftb)           RETURN
     CALL timeset(routineN,handle)
