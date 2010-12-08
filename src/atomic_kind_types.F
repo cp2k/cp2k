@@ -1405,8 +1405,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind
+    INTEGER                                  :: handle, ikind, nkind
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
        nkind = SIZE(atomic_kind_set)
@@ -1421,6 +1423,8 @@ CONTAINS
             "The pointer atomic_kind_set is not associated",&
             para_env)
     END IF
+ 
+    CALL timestop(handle)
 
   END SUBROUTINE init_atomic_kind_set
 
@@ -2170,9 +2174,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind
+    INTEGER                                  :: handle, ikind, nkind
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+    CALL timeset(routineN,handle)
     IF (ASSOCIATED(atomic_kind_set)) THEN
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
@@ -2184,6 +2189,7 @@ CONTAINS
             "The pointer atomic_kind_set is not associated",&
             para_env)
     END IF
+    CALL timestop(handle)
   END SUBROUTINE check_atomic_kind_set
 
 ! *****************************************************************************
@@ -2385,10 +2391,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, output_unit
+    INTEGER                                  :: handle, ikind, nkind, &
+                                                output_unit
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (logger)
@@ -2412,6 +2421,8 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%KINDS",error=error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE write_atomic_kind_set
 
 ! *****************************************************************************
@@ -2431,10 +2442,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, output_unit
+    INTEGER                                  :: handle, ikind, nkind, &
+                                                output_unit
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (logger)
@@ -2465,6 +2479,8 @@ CONTAINS
 
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%KINDS/BASIS_SET",error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE write_gto_basis_sets
 

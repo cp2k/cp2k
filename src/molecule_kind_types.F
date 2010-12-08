@@ -45,6 +45,8 @@ MODULE molecule_kind_types
                                              dp
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1087,11 +1089,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: imolecule_kind, natom, nbend, nbond, nimpr, nmolecule, &
+    INTEGER :: handle, imolecule_kind, natom, nbend, nbond, nimpr, nmolecule, &
       nmolecule_kind, nopbend, ntors, ntotal, nub, output_unit
     LOGICAL                                  :: all_single_atoms, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1151,6 +1155,9 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%MOLECULES",error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE write_molecule_kind_set
 
 END MODULE molecule_kind_types

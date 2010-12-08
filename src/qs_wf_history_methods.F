@@ -449,9 +449,11 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, my_extrapolation_order, &
-                                                stat
+    INTEGER                                  :: handle, i, &
+                                                my_extrapolation_order, stat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
   my_extrapolation_order = 1
   IF (PRESENT(extrapolation_order)) my_extrapolation_order=extrapolation_order
@@ -526,6 +528,8 @@ CPSourceFileRef,&
         END DO
      END IF
   END IF
+
+  CALL timestop(handle)
 END SUBROUTINE wfi_create
 
 ! *****************************************************************************

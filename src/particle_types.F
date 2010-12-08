@@ -482,11 +482,18 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'write_qs_particle_coordinates', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER                                  :: iatom, ikind, iw, natom, z
+    INTEGER                                  :: handle, iatom, ikind, iw, &
+                                                natom, z
     REAL(KIND=dp)                            :: conv, mass, zeff
     TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -521,6 +528,8 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%ATOMIC_COORDINATES", error=error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE write_qs_particle_coordinates
 
 ! *****************************************************************************
@@ -541,7 +550,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER                                  :: iatom, iw, jatom, natom, stat
+    INTEGER                                  :: handle, iatom, iw, jatom, &
+                                                natom, stat
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: conv, dab
@@ -549,6 +559,8 @@ CONTAINS
       DIMENSION(:, :)                        :: distance_matrix
     REAL(KIND=dp), DIMENSION(3)              :: rab
     TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -583,6 +595,9 @@ CONTAINS
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%INTERATOMIC_DISTANCES", error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************

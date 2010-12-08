@@ -46,6 +46,8 @@ MODULE qs_interactions
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -85,8 +87,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, istat, l, &
-      lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, nset
+    INTEGER :: handle, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, &
+      istat, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, &
+      nset
     INTEGER, DIMENSION(:), POINTER           :: ls, npgf, nprj, nprj_ppnl, &
                                                 nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
@@ -112,6 +115,8 @@ CONTAINS
                                                 aux_fit_basis_set, &
                                                 orb_basis_set, soft_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
+
+    CALL timeset(routineN,handle)
 
     NULLIFY ( atomic_kind, all_potential, gth_potential, &
               orb_basis_set, aux_basis_set, soft_basis, geminal_basis_set, paw_proj_set)
@@ -492,6 +497,8 @@ CONTAINS
     IF (p_ppl)  CALL write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
     IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
     IF (p_paw)  CALL write_paw_radii(cell,atomic_kind_set,subsys_section,error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_interaction_radii
 

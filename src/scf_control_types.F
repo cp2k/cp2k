@@ -164,8 +164,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -266,6 +268,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE scf_c_create
 
 ! *****************************************************************************
@@ -359,13 +363,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cholesky_flag, ialgo
+    INTEGER                                  :: cholesky_flag, handle, ialgo
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: do_mixing, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
     TYPE(section_vals_type), POINTER         :: mixing_section, &
                                                 outer_scf_section, &
                                                 scf_section, smear_section
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (r_vals)
@@ -520,6 +526,8 @@ CONTAINS
        END IF ! do mixing
     END IF ! failure
 
+    CALL timestop(handle)
+
   END SUBROUTINE scf_c_read_parameters
 
   SUBROUTINE init_smear(smear,error)
@@ -609,7 +617,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit, roks_scheme
+    INTEGER                                  :: handle, output_unit, &
+                                                roks_scheme
     LOGICAL                                  :: failure, roks
     REAL(KIND=dp)                            :: elec_temp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -617,6 +626,8 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: scf_section
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -767,6 +778,8 @@ CONTAINS
             "PRINT%PROGRAM_RUN_INFO",error=error)
 
     END IF ! not failure
+
+    CALL timestop(handle)
 
   END SUBROUTINE scf_c_write_parameters
 

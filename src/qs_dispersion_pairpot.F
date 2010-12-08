@@ -107,9 +107,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: aname, filename
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: elem, i, ikind, j, max_elem, &
-                                                maxc, n_rep, nkind, nl, stat, &
-                                                vdw_pp_type, vdw_type
+    INTEGER                                  :: elem, handle, i, ikind, j, &
+                                                max_elem, maxc, n_rep, nkind, &
+                                                nl, stat, vdw_pp_type, &
+                                                vdw_type
     LOGICAL                                  :: at_end, failure, found, &
                                                 is_available
     REAL(KIND=dp)                            :: dum
@@ -117,6 +118,8 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
     TYPE(section_vals_type), POINTER         :: pp_section
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CALL section_vals_val_get(vdw_section,"POTENTIAL_TYPE",i_val=vdw_type,error=error)
@@ -304,6 +307,8 @@ CONTAINS
             error=error,failure=failure)
        CALL set_atomic_kind(atomic_kind,dispersion=disp,error=error)
     END DO
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_dispersion_pairpot_init
 
@@ -531,7 +536,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: symbol
-    INTEGER                                  :: ikind, nkind, output_unit
+    INTEGER                                  :: handle, ikind, nkind, &
+                                                output_unit
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -540,6 +546,8 @@ CONTAINS
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(section_vals_type), POINTER         :: dft_section
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -586,6 +594,8 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE write_dispersion
 ! *****************************************************************************

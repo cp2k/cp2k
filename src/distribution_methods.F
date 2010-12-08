@@ -116,7 +116,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
+    INTEGER :: atom_a, group, handle, iatom, imolecule, imolecule_kind, &
       imolecule_local, iparticle_kind, ipe, istat, iw, jpe, kind_a, &
       molecule_a, mype, n, natom, nload, nmolecule, nmolecule_kind, &
       nparticle_kind, npe, nsgf, output_unit
@@ -128,6 +128,8 @@ CONTAINS
       DIMENSION(:)                           :: local_molecule
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
 
@@ -418,6 +420,8 @@ CONTAINS
     DEALLOCATE (local_molecule,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule")
+
+    CALL timestop(handle)
 
   END SUBROUTINE distribute_molecules_1d
 

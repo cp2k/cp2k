@@ -16,6 +16,8 @@ MODULE qs_energy_types
                                              dp_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -84,8 +86,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: handle, istat
 
+    CALL timeset(routineN,handle)
     IF (.NOT.ASSOCIATED(qs_energy)) THEN
       ALLOCATE (qs_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"qs_energy",8*dp_size)
@@ -93,6 +96,7 @@ CONTAINS
     END IF
 
     CALL init_qs_energy(qs_energy)
+    CALL timestop(handle)
 
   END SUBROUTINE allocate_qs_energy
 

@@ -37,6 +37,8 @@ MODULE cp_control_utils
                                              default_string_length,&
                                              dp
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functionals_get_needs
@@ -316,12 +318,15 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mgrid_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: igrid_level, ngrid_level, stat
+    INTEGER                                  :: handle, igrid_level, &
+                                                ngrid_level, stat
     LOGICAL                                  :: explicit, failure, &
                                                 multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
     TYPE(section_vals_type), POINTER         :: mgrid_section
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(mgrid_section, cutofflist)
@@ -394,6 +399,7 @@ CPSourceFileRef,&
          CALL stop_program (routineN,"Multi grids not ordered")
       END IF
     END DO
+    CALL timestop(handle)
   END SUBROUTINE read_mgrid_section
 
 ! *****************************************************************************
@@ -408,8 +414,8 @@ CPSourceFileRef,&
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
-    INTEGER                                  :: itmp, j, jj, k, n_rep, n_var, &
-                                                nrep, stat
+    INTEGER                                  :: handle, itmp, j, jj, k, &
+                                                n_rep, n_var, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: explicit, failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
@@ -419,6 +425,8 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER :: becke_restraint_section, &
       ddapc_restraint_section, dftb_parameter, dftb_section, mull_section, &
       s2_restraint_section, se_section
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     was_present = .FALSE.
@@ -806,6 +814,8 @@ CPSourceFileRef,&
        IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
        IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
     END IF
+
+    CALL timestop(handle)
   END SUBROUTINE read_qs_section
 
 ! *****************************************************************************
@@ -861,7 +871,8 @@ CPSourceFileRef,&
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, il, myfun, output_unit
+    INTEGER                                  :: handle, ifun, il, myfun, &
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -872,6 +883,8 @@ CPSourceFileRef,&
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     IF (dft_control%qs_control%semi_empirical) RETURN
@@ -1011,6 +1024,8 @@ CPSourceFileRef,&
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE write_dft_control
 
 ! *****************************************************************************
@@ -1024,14 +1039,16 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, igrid_level, ngrid_level, &
-                                                output_unit
+    INTEGER                                  :: handle, i, igrid_level, &
+                                                ngrid_level, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(logger, enum, keyword, section)
@@ -1203,6 +1220,9 @@ CPSourceFileRef,&
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
     CALL section_release(section, error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE write_qs_control
 
 ! *****************************************************************************
