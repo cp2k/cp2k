@@ -1026,8 +1026,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, group, iatom, ikind, iset, isgf, isgfa, ishell, istat, &
-      la, maxl, maxll, nao, natom, ncount, nset, nsgf, z
+    INTEGER :: atom_a, group, handle, iatom, ikind, iset, isgf, isgfa, &
+      ishell, istat, la, maxl, maxll, nao, natom, ncount, nset, nsgf, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
@@ -1040,6 +1040,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+    CALL timeset(routineN,handle)
 
     group = para_env%group
     natom = SIZE(particle_set)
@@ -1261,6 +1263,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     
     DEALLOCATE (sdiag,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_mopac_dm
 
