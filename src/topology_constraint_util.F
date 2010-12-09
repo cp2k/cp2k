@@ -195,7 +195,7 @@ CONTAINS
                      gci%nvsite_restraint +&
                      gci%ncolv%nrestraint
     CALL timestop(handle2)
-    CALL timeset(routineN//"_1",handle2)
+    CALL timeset(routineN//"_2",handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Add more stuff to COLVAR constraint if constraint hydrogen is on
