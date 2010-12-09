@@ -116,21 +116,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, group, handle, iatom, imolecule, imolecule_kind, &
-      imolecule_local, iparticle_kind, ipe, istat, iw, jpe, kind_a, &
-      molecule_a, mype, n, natom, nload, nmolecule, nmolecule_kind, &
-      nparticle_kind, npe, nsgf, output_unit
+    INTEGER :: atom_a, bin, bin_price, group, handle, iatom, imolecule, &
+      imolecule_kind, imolecule_local, iparticle_kind, ipe, istat, iw, &
+      kind_a, molecule_a, mype, n, natom, nbins, nload, nmolecule, &
+      nmolecule_kind, nparticle_kind, npe, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nmolecule_local, &
                                                 nparticle_local, work, &
                                                 workload, workload_old
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    LOGICAL                                  :: found, heap_error
     TYPE(cp_1d_i_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: local_molecule
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(heap_t)                             :: bin_heap
-    LOGICAL :: heap_error, found
-    INTEGER :: nbins,bin,bin_price
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     CALL timeset(routineN,handle)
 
