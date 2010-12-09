@@ -92,7 +92,6 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              rel_none,&
@@ -159,7 +158,6 @@ CONTAINS
       matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_aux_fit, &
@@ -186,7 +184,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     NULLIFY (atomic_kind_set)
-    NULLIFY (distribution_2d)
     NULLIFY (force)
     NULLIFY (matrix_h)
     NULLIFY (matrix_s)
@@ -225,7 +222,6 @@ CONTAINS
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
-                    distribution_2d=distribution_2d,&
                     virial=virial,&
                     para_env=para_env,error=error)
 
@@ -295,11 +291,6 @@ CONTAINS
     END IF
     
     maxder = ncoset(nder)
-
-    ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
-    ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
-    ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
-    ! this seems necessary anyway.
 
     IF (calculate_forces) THEN
        ! S matrix

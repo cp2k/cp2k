@@ -24,7 +24,8 @@ MODULE qs_environment_types
                                              dft_control_retain,&
                                              dft_control_type,&
                                              tddfpt_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release_p
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_distribution_release,&
+                                             cp_dbcsr_release_p
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
@@ -49,6 +50,7 @@ MODULE qs_environment_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_type
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -355,6 +357,7 @@ MODULE qs_environment_types
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools_aux_fit
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
+    TYPE(dbcsr_distribution_obj), POINTER                 :: dbcsr_dist
     TYPE(cp_subsys_type), POINTER                         :: subsys
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(local_rho_type), POINTER                         :: local_rho_set
@@ -419,7 +422,7 @@ CONTAINS
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
        vppl, rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
-       local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
+       local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,&
@@ -492,6 +495,8 @@ CONTAINS
                                                 local_molecules
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(dbcsr_distribution_obj), OPTIONAL, &
+      POINTER                                :: dbcsr_dist
     TYPE(molecule_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -640,6 +645,7 @@ CONTAINS
     IF (PRESENT(subsys)) subsys => qs_env%subsys
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
+    IF (PRESENT(dbcsr_dist)) dbcsr_dist => qs_env%dbcsr_dist
     IF (PRESENT(oce)) oce =>  qs_env%oce
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(has_unit_metric)) has_unit_metric = qs_env%has_unit_metric
@@ -781,6 +787,7 @@ CONTAINS
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
     NULLIFY (qs_env%distribution_2d)
+    NULLIFY (qs_env%dbcsr_dist)
     NULLIFY (qs_env%subsys)
     NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%oce)
@@ -861,7 +868,7 @@ CONTAINS
        matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,& 
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
-       distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
+       distribution_2d,dbcsr_dist,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
@@ -917,6 +924,8 @@ CONTAINS
                                                 task_list_soft
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(dbcsr_distribution_obj), OPTIONAL, &
+      POINTER                                :: dbcsr_dist
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
@@ -1184,6 +1193,13 @@ CONTAINS
        CALL distribution_2d_retain(distribution_2d,error=error)
        CALL distribution_2d_release(qs_env%distribution_2d,error=error)
        qs_env%distribution_2d => distribution_2d
+    ENDIF
+    IF (PRESENT(dbcsr_dist)) THEN
+       IF(ASSOCIATED(qs_env%dbcsr_dist)) THEN
+          CALL cp_dbcsr_distribution_release(qs_env%dbcsr_dist)
+          DEALLOCATE(qs_env%dbcsr_dist)
+       ENDIF
+       qs_env%dbcsr_dist => dbcsr_dist
     ENDIF
     IF (PRESENT(input)) THEN
        CALL section_vals_retain(input,error=error)
@@ -1589,6 +1605,10 @@ CONTAINS
           CALL mpools_release(qs_env%mpools_aux_fit,error=error)
           IF (ASSOCIATED(qs_env%distribution_2d)) THEN
              CALL distribution_2d_release(qs_env%distribution_2d,error=error)
+          ENDIF
+          IF(ASSOCIATED(qs_env%dbcsr_dist)) THEN
+             CALL cp_dbcsr_distribution_release(qs_env%dbcsr_dist)
+             DEALLOCATE(qs_env%dbcsr_dist)
           ENDIF
           CALL cp_subsys_release(qs_env%subsys,error=error)
           CALL section_vals_release(qs_env%input,error=error)

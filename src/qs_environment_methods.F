@@ -11,15 +11,16 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_environment_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -111,6 +112,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -195,8 +197,17 @@ SUBROUTINE qs_env_setup(qs_env,error)
                                     blacs_env=qs_env%blacs_env,&
                                     force_env_section=qs_env%input, error=error)
 
+       ! and use it to create the dbcsr_dist, which should be the sole user of distribution_2d by now.
+       ALLOCATE(dbcsr_dist)
+       CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+       CALL set_qs_env(qs_env,dbcsr_dist=dbcsr_dist,error=error)
+
+       ! also keep distribution_2d in qs_env
        CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
+
+
+
        ! SCP
        IF ( scp_nddo .OR. scp_dft ) THEN
        ! create the SCP env
