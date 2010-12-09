@@ -17,14 +17,12 @@ MODULE scp_environment
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_diag,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -32,7 +30,6 @@ MODULE scp_environment
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -177,8 +174,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scp_energy_type), POINTER           :: energy
@@ -192,14 +188,13 @@ CONTAINS
     NULLIFY ( particle_set )
     NULLIFY ( para_env )
     NULLIFY ( atomic_kind_set, atomic_kind )
-    NULLIFY ( distribution_2d )
     NULLIFY ( pscp, ks_scp, block, ascp_diag, se_kind, atom_list )
 
     CALL get_qs_env (qs_env, para_env = para_env, &
                      atomic_kind_set = atomic_kind_set, &
                      particle_set = particle_set, &
-                     distribution_2d = distribution_2d, &
                      neighbor_list_id=neighbor_list_id, &
+                     dbcsr_dist=dbcsr_dist,&
                      error = error )
 
     ! Allocate the data structure for energies ***
@@ -231,7 +226,6 @@ CONTAINS
                           error=error)
 
     ! prepare for allocation
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom),cbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf_a, rbs, last_sgf_a)
@@ -250,7 +244,6 @@ CONTAINS
          nblks=0, nze=0, mutable_work=.TRUE., replication_type=dbcsr_repl_full, &
          error=error)
 
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     CALL array_release (col_blk_sizes)
 

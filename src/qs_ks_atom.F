@@ -18,7 +18,6 @@ MODULE qs_ks_atom
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -122,7 +121,6 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
@@ -163,7 +161,6 @@ CONTAINS
            para_env=para_env,&
            rho_atom_set=rho_atom,&
            virial=virial,&
-           distribution_2d=distribution_2d,&
            sab_orb=sab_orb,error=error)
 
     IF (my_tddft) THEN

@@ -24,14 +24,12 @@ MODULE qs_overlap
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
-                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_filter,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist
+                                             cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -39,7 +37,6 @@ MODULE qs_overlap
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp
@@ -162,8 +159,7 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list_a, &
                                                 basis_set_list_b
@@ -184,9 +180,9 @@ CONTAINS
      CPPrecondition(PRESENT(basis_set_id_a),cp_failure_level,routineP,error,failure)
      CPPrecondition(PRESENT(basis_set_id_b),cp_failure_level,routineP,error,failure)
  
-     NULLIFY ( atomic_kind_set,particle_set,distribution_2d,para_env )
+     NULLIFY (atomic_kind_set, particle_set, para_env)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-                     neighbor_list_id=neighbor_list_id,distribution_2d=distribution_2d,&
+                     neighbor_list_id=neighbor_list_id,dbcsr_dist=dbcsr_dist,&
                      para_env=para_env,error=error)
  
      nkind = SIZE(atomic_kind_set)
@@ -252,7 +248,6 @@ CONTAINS
 
         CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
         ! prepare for allocation
-        CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
         CALL array_nullify (row_blk_sizes)
         CALL array_nullify (col_blk_sizes)
         CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
@@ -300,7 +295,6 @@ CONTAINS
           CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i)%matrix,sab_nl,error)
         END DO
 
-        CALL cp_dbcsr_distribution_release (dbcsr_dist)
         CALL array_release (row_blk_sizes)
         CALL array_release (col_blk_sizes)
      END IF

@@ -15,9 +15,6 @@ MODULE scp_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_release,&
-                                             distribution_2d_retain,&
-                                             distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
@@ -66,7 +63,6 @@ MODULE scp_environment_types
     TYPE ( section_vals_type ), POINTER                   :: input
     TYPE ( cp_para_env_type ),  POINTER                   :: para_env
     TYPE ( cp_blacs_env_type ), POINTER                   :: blacs_env
-    TYPE ( distribution_2d_type ), POINTER                :: distribution_2d
   END TYPE scp_environment_type
 
 ! *** Public data types ***
@@ -87,7 +83,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, force, input,&
                           rho_scp, rspw, para_env, blacs_env, ks_scp_env, & 
-                          distribution_2d, eps_gvg_rspace, eps_rho_rspace, &
+                          eps_gvg_rspace, eps_rho_rspace, &
                           pscp, ks_scp, ascp_diag, error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -105,8 +101,6 @@ CONTAINS
       POINTER                                :: blacs_env
     TYPE(qs_ks_scp_env_type), OPTIONAL, &
       POINTER                                :: ks_scp_env
-    TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
@@ -129,7 +123,6 @@ CONTAINS
     IF (PRESENT(rho_scp)) rho_scp => scp_env%rho_scp
     IF (PRESENT(rspw)) rspw => scp_env%rspw
     IF (PRESENT(ks_scp_env)) ks_scp_env => scp_env%ks_scp_env
-    IF (PRESENT(distribution_2d)) distribution_2d => scp_env%distribution_2d
     IF (PRESENT(eps_gvg_rspace )) eps_gvg_rspace = scp_env%eps_gvg_rspace
     IF (PRESENT(eps_rho_rspace )) eps_rho_rspace = scp_env%eps_rho_rspace
     IF (PRESENT( pscp )) pscp => scp_env%pscp
@@ -156,7 +149,6 @@ CONTAINS
     NULLIFY (scp_env%ks_scp_env)
     NULLIFY (scp_env%para_env)
     NULLIFY (scp_env%blacs_env)
-    NULLIFY (scp_env%distribution_2d)
     NULLIFY (scp_env%aux_coeff_set)
     NULLIFY (scp_env%pscp)
     NULLIFY (scp_env%ks_scp)
@@ -174,7 +166,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, ks_scp_env,&
                           input, rho_scp, rspw, para_env, blacs_env, &
-                          distribution_2d, eps_gvg_rspace, eps_rho_rspace, &
+                          eps_gvg_rspace, eps_rho_rspace, &
                           ascp_diag, pscp, ks_scp, error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -192,8 +184,6 @@ CONTAINS
       POINTER                                :: para_env
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
-    TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
@@ -244,11 +234,6 @@ CONTAINS
        CALL qs_ks_scp_release(scp_env%ks_scp_env, error=error)
        scp_env%ks_scp_env => ks_scp_env
     END IF
-    IF (PRESENT(distribution_2d)) THEN
-       CALL distribution_2d_retain(distribution_2d,error=error)
-       CALL distribution_2d_release(scp_env%distribution_2d,error=error)
-       scp_env%distribution_2d => distribution_2d
-    ENDIF
     IF (PRESENT(eps_gvg_rspace)) THEN
        scp_env%eps_gvg_rspace = eps_gvg_rspace
     ENDIF
@@ -342,9 +327,6 @@ SUBROUTINE scp_env_release(scp_env,error)
              CALL deallocate_scp_energy(scp_env%energy)
         IF (ASSOCIATED(scp_env%force)) &
              CALL deallocate_scp_force(scp_env%force)
-        IF (ASSOCIATED(scp_env%distribution_2d)) THEN
-           CALL distribution_2d_release(scp_env%distribution_2d,error=error)
-        ENDIF
         IF (ASSOCIATED(scp_env%pscp)) THEN
            CALL cp_dbcsr_deallocate_matrix ( scp_env%pscp, error )
         ENDIF

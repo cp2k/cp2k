@@ -28,13 +28,11 @@ MODULE qs_linres_op
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -52,7 +50,6 @@ MODULE qs_linres_op
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -141,9 +138,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
@@ -159,7 +155,7 @@ CONTAINS
          &  logger,particle_set,lr_section,fm_work1,&
          &  basisfun_center,centers_set,center_list,p_psi0,&
          &  rxp_psi0,vecbuf_c0,psi0_order,&
-         &  mo_coeff,op_ao,sab_all,distribution_2d)
+         &  mo_coeff,op_ao,sab_all)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -181,7 +177,7 @@ CONTAINS
                     particle_set=particle_set, &
                     sab_all=sab_all,&
                     sab_orb=sab_orb,&
-                    distribution_2d=distribution_2d,&
+                    dbcsr_dist=dbcsr_dist,&
                     error=error)
 
     nspins = dft_control%nspins
@@ -229,7 +225,6 @@ CONTAINS
 
     !
     ! prepare for allocation
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -431,7 +426,6 @@ CONTAINS
        END DO  ! ispin
     ENDIF
 
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)

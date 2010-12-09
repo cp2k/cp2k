@@ -33,7 +33,6 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_restart_wfn,&
                                              use_rt_restart
@@ -116,7 +115,6 @@ MODULE  rt_propagation_utils
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
@@ -134,7 +132,6 @@ MODULE  rt_propagation_utils
     NULLIFY (force)
     NULLIFY (particle_set)
     NULLIFY(rtp)
-    NULLIFY(distribution_2d)
     NULLIFY(s_derivs)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -142,7 +139,6 @@ MODULE  rt_propagation_utils
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     neighbor_list_id=neighbor_list_id,&
-                    distribution_2d=distribution_2d,&
                     sab_orb=sab_orb,&
                     force=force,&
                     error=error)

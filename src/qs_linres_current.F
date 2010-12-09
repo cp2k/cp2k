@@ -31,16 +31,15 @@ MODULE qs_linres_current
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, &
+       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
@@ -68,7 +67,6 @@ MODULE qs_linres_current
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
   USE input_section_types,             ONLY: section_get_ivals,&
@@ -227,9 +225,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(neighbor_list_set_p_type), &
@@ -252,7 +249,7 @@ CONTAINS
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
          &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
          &  particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
-         &  para_env,center_list,mo_coeff,psi_a_iB,distribution_2d,&
+         &  para_env,center_list,mo_coeff,psi_a_iB,&
          &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all)
 
     logger => cp_error_get_logger(error)
@@ -280,7 +277,7 @@ CONTAINS
          &          subsys=subsys,&
          &          sab_all=sab_all,&
          &          particle_set=particle_set,&
-         &          distribution_2d=distribution_2d,&
+         &          dbcsr_dist=dbcsr_dist,&
          &          error=error)
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
@@ -313,7 +310,6 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -357,7 +353,6 @@ CONTAINS
             name="density_matrix_iii",error=error)
     ENDDO
     !
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     !
@@ -2221,9 +2216,8 @@ CONTAINS
                                                 psi_p1, psi_p2, psi_rxp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(neighbor_list_set_p_type), &
@@ -2248,7 +2242,7 @@ CONTAINS
          &          mos=mos,&
          &          para_env=para_env,&
          &          cell=cell,&
-         &          distribution_2d=distribution_2d,&
+         &          dbcsr_dist=dbcsr_dist,&
          &          particle_set=particle_set,&
          &          sab_all=sab_all,&
          &          sab_orb=sab_orb,&
@@ -2293,7 +2287,6 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -2354,7 +2347,6 @@ CONTAINS
     ENDDO
     !
     !
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     !
@@ -2679,9 +2671,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: buf, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(neighbor_list_set_p_type), &
@@ -2708,7 +2699,7 @@ CONTAINS
          &          particle_set=particle_set,&
          &          sab_all=sab_all,&
          &          sab_orb=sab_orb,&
-         &          distribution_2d=distribution_2d,&
+         &          dbcsr_dist=dbcsr_dist,&
          &          error=error)
 
     nspins = dft_control%nspins
@@ -2743,7 +2734,6 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -2804,7 +2794,6 @@ CONTAINS
     ENDDO
     !
     !
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     !

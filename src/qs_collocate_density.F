@@ -903,7 +903,6 @@ CONTAINS
        CALL cp_dbcsr_copy(deltap,matrix_p,name="DeltaP",error=error)
        ! this matrix has no strict sparsity pattern in parallel
        !deltap%sparsity_id=-1
-       !CALL distribution_2d_release(deltap%distribution_2d,error=error)
     ELSE
        deltap=>matrix_p
     ENDIF
@@ -1388,7 +1387,6 @@ CONTAINS
        !CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
        ! this matrix has no strict sparsity pattern in parallel
        !deltap%sparsity_id=-1
-       !CALL distribution_2d_release(deltap%distribution_2d,error=error)
     ELSE
        deltap=>matrix_p
     ENDIF

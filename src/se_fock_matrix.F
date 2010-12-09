@@ -27,7 +27,6 @@ MODULE se_fock_matrix
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
@@ -109,7 +108,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(scp_energy_type), POINTER           :: energy_scp
@@ -129,7 +127,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
          para_env=para_env, se_store_int_env=store_int_env, scp_env=scp_env,&
-         atomic_kind_set=atomic_kind_set, distribution_2d=distribution_2d,&
+         atomic_kind_set=atomic_kind_set, &
          error=error)
 
     SELECT CASE (dft_control%qs_control%method_id)

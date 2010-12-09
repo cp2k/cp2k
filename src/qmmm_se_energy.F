@@ -26,7 +26,6 @@ MODULE qmmm_se_energy
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
@@ -104,7 +103,6 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -118,7 +116,7 @@ CONTAINS
     NULLIFY (matrix_s, atomic_kind_set)
     NULLIFY (se_kind_a, se_kind_mm, se_taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, distribution_2d=distribution_2d, error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
     CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&

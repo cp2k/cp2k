@@ -21,7 +21,6 @@ MODULE qs_energy
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
@@ -147,7 +146,6 @@ CONTAINS
                                                 matrix_w, mo_derivs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -163,7 +161,7 @@ CONTAINS
     NULLIFY(matrix_w)
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
-                    distribution_2d=distribution_2d, error=error)
+                     error=error)
     
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
     qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.

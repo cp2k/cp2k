@@ -89,7 +89,6 @@ MODULE qs_scf
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default,&
                                              dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
@@ -2091,7 +2090,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mixing_storage_type), POINTER       :: mixing_store
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -2104,8 +2102,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
             dft_control, mos, ks_env,&
             ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit)
-    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, mo_coeff_aux_fit,&
-            mo_derivs_aux_fit,para_env,distribution_2d,xas_env)
+    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, &
+         mo_coeff_aux_fit, mo_derivs_aux_fit, para_env, xas_env)
 
     failure=.FALSE.
 
@@ -2120,7 +2118,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
          ks_env=ks_env,&
          atomic_kind_set=atomic_kind_set,&
          matrix_s=matrix_s,&
-         distribution_2d=distribution_2d,&
          para_env=para_env, xas_env=xas_env,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)

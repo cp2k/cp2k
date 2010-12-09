@@ -28,13 +28,11 @@ MODULE xas_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -58,7 +56,6 @@ MODULE xas_methods
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_list, state_loc_range, xas_1s_type, &
        xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
@@ -619,9 +616,8 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -649,7 +645,7 @@ CONTAINS
 
       NULLIFY( atomic_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
       NULLIFY( para_env, particle_set, scf_env)
-      NULLIFY(distribution_2d,qs_loc_env)
+      NULLIFY(qs_loc_env)
       NULLIFY(sab_orb)
       CALL get_qs_env(qs_env=qs_env, &
                 atomic_kind_set=atomic_kind_set, &
@@ -660,7 +656,7 @@ CONTAINS
                 para_env=para_env, particle_set=particle_set,&
                 scf_env=scf_env, &
                 sab_orb=sab_orb,&
-                distribution_2d=distribution_2d,&
+                dbcsr_dist=dbcsr_dist,&
                 error=error)
    
       nexc_search = xas_control%nexc_search
@@ -874,7 +870,6 @@ CONTAINS
          CALL get_particle_set(particle_set=particle_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf,error=error)
-         CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
          ALLOCATE (rbs(natom), STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -905,7 +900,6 @@ CONTAINS
            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
          END DO
 
-         CALL cp_dbcsr_distribution_release (dbcsr_dist)
          CALL array_release (row_blk_sizes)
       END IF
 

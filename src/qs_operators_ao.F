@@ -27,7 +27,6 @@ MODULE qs_operators_ao
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -100,7 +99,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
@@ -127,7 +125,6 @@ CONTAINS
                     para_env=para_env,&
                     sab_orb=sab_orb,&
                     cell=cell,&
-                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -463,7 +460,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
@@ -490,7 +486,6 @@ CONTAINS
                     para_env=para_env,&
                     sab_all=sab_all,&
                     cell=cell,&
-                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -851,7 +846,6 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_dip
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
@@ -875,7 +869,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-         distribution_2d=distribution_2d,&
          sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -1142,7 +1135,6 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_dip
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
@@ -1166,7 +1158,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,sab_orb=sab_orb,&
-         distribution_2d=distribution_2d,error=error)
+         error=error)
 
     nkind = SIZE(atomic_kind_set)
 

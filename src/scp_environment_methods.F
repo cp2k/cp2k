@@ -10,7 +10,6 @@
 MODULE scp_environment_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -56,7 +55,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
@@ -69,19 +67,17 @@ CONTAINS
   NULLIFY( blacs_env )
   NULLIFY( scp_rho )
   NULLIFY( rspw )
-  NULLIFY( distribution_2d )
   NULLIFY( ks_scp_env )
 
   CALL get_qs_env ( qs_env = qs_env, blacs_env=blacs_env, & 
                                        para_env=para_env, &
                                          pw_env = pw_env, &
-                         distribution_2d = distribution_2d, &
                          error=error)
 
   CALL pw_env_get ( pw_env, auxbas_pw_pool = auxbas_pw_pool, error=error )
 
-! borrow the parallel, blacs, and 2d-distribution environment from QS
-  CALL set_scp_env ( scp_env, distribution_2d = distribution_2d, &
+! borrow the parallel, blacs, and environment from QS
+  CALL set_scp_env ( scp_env, &
                                             para_env = para_env, &
                                             blacs_env = blacs_env,&
                                             error=error )

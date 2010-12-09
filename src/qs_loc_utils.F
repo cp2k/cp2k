@@ -47,7 +47,6 @@ MODULE qs_loc_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: do_loc_none,&
                                              op_loc_berry,&
                                              op_loc_pipek,&
@@ -708,7 +707,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: op_sm_set
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
@@ -726,13 +724,13 @@ CONTAINS
     NULLIFY (atomic_kind, atomic_kind_set)
     NULLIFY ( cell, op_sm_set , orb_basis_set, particle_set)
     NULLIFY (sab_orb)
-    NULLIFY (cosab, sinab, work, distribution_2d)
+    NULLIFY (cosab, sinab, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set, sab_orb=sab_orb,&
-                    distribution_2d=distribution_2d,error=error)
+                    error=error)
 
     nkind = SIZE(atomic_kind_set)
 

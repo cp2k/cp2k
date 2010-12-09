@@ -19,14 +19,16 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_multiply
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist
+                                             cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -35,12 +37,10 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -141,10 +141,9 @@ CONTAINS
       POINTER                                :: gamma_matrix, matrix_h, &
                                                 matrix_p, matrix_s, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -206,11 +205,10 @@ CONTAINS
       ELSE
         nmat=1
       END IF
-      NULLIFY(distribution_2d)
       CALL get_qs_env(qs_env=qs_env,&
           particle_set=particle_set,&
           neighbor_list_id=neighbor_list_id,&
-          distribution_2d=distribution_2d,error=error)
+          dbcsr_dist=dbcsr_dist,error=error)
       natom = SIZE(particle_set)
       nrow = natom
       ncol = natom
@@ -223,8 +221,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       gamma_matrix=gamma_matrix,error=error)
 
-      CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error,&
-           mp_obj=dbcsr_distribution_mp (cp_dbcsr_distribution (matrix_s(1)%matrix)))
       ALLOCATE (rbs(natom), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL convert_offsets_to_sizes (felem, rbs, lelem)
@@ -255,7 +251,6 @@ CONTAINS
               error=error)
       END DO
 
-      CALL cp_dbcsr_distribution_release (dbcsr_dist)
       CALL array_release (row_blk_sizes)
 
       DEALLOCATE (felem,lelem,STAT=istat)
@@ -798,17 +793,15 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    NULLIFY(matrix_s,matrix_h,particle_set,sab_orb,distribution_2d,&
-            atomic_kind_set)
+    NULLIFY(matrix_s, matrix_h, particle_set, sab_orb, atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,&
@@ -816,9 +809,10 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb,&
+                    sab_orb=sab_orb,& 
+                    dbcsr_dist=dbcsr_dist,&
                     neighbor_list_id=neighbor_list_id, &
-                    distribution_2d=distribution_2d,error=error)
+                    error=error)
 
     dftb_control => dft_control%qs_control%dftb_control
 
@@ -843,7 +837,6 @@ CONTAINS
       nmat = 1
     END IF
 
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -889,7 +882,6 @@ CONTAINS
       END DO
     END IF
 
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
 
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)

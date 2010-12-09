@@ -47,7 +47,6 @@ MODULE qs_wf_history_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
@@ -628,14 +627,13 @@ END FUNCTION wfi_get_method_label
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: csc, fm_tmp, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
-    NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, &
-         rho_xc, distribution_2d)
+    NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, &
+         rho, rho_xc)
     failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
@@ -652,7 +650,6 @@ END FUNCTION wfi_get_method_label
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env, mos=mos,&
             rho=rho,rho_xc=rho_xc,matrix_s=matrix_s,&
-                    distribution_2d=distribution_2d,&
             error=error)
        CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)

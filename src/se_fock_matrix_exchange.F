@@ -21,7 +21,6 @@ MODULE se_fock_matrix_exchange
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_none,&
                                              do_se_IS_kdso,&
@@ -104,7 +103,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -127,7 +125,7 @@ CONTAINS
 
     NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,se_taper=se_taper,&
-         para_env=para_env,virial=virial,distribution_2d=distribution_2d,error=error)
+         para_env=para_env,virial=virial,error=error)
 
     CALL initialize_se_taper(se_taper,exchange=.TRUE.,error=error)
     se_control => dft_control%qs_control%se_control

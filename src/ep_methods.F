@@ -2235,7 +2235,6 @@ CONTAINS
 !                                               maxao_maxmo_fm_pool, &
 !                                               maxmo_maxmo_fm_pool
 !   TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
-!   TYPE(distribution_2d_type), POINTER      :: distribution_2d
 !   TYPE(ep_force_type), POINTER             :: ep_force
 !   TYPE(f_env_type), POINTER                :: f_env
 !   TYPE(global_environment_type), POINTER   :: sub_globenv

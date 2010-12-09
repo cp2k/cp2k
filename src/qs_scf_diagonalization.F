@@ -43,7 +43,6 @@ MODULE qs_scf_diagonalization
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&
@@ -456,7 +455,6 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
       POINTER                                :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
 
@@ -464,9 +462,9 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
    
     CALL timeset(routineN,handle)
 
-    NULLIFY(sab_orb,matrix_s,distribution_2d)
+    NULLIFY(sab_orb, matrix_s)
     CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
-         matrix_s=matrix_s, distribution_2d=distribution_2d, &
+         matrix_s=matrix_s, &
          error=error)
 
     nspin = SIZE(mos)

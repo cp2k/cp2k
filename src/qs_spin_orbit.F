@@ -26,7 +26,6 @@ MODULE qs_spin_orbit
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -104,7 +103,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
@@ -129,7 +127,6 @@ CONTAINS
                     para_env=para_env,&
                     sab_orb=sab_orb,&
                     cell=cell,&
-                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)

@@ -24,7 +24,6 @@ MODULE qs_rho_methods
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -105,7 +104,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -113,7 +111,6 @@ CONTAINS
 
     NULLIFY (pw_env,auxbas_pw_pool,matrix_s,dft_control)
     NULLIFY (sab_orb)
-    NULLIFY (distribution_2d)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     my_gapw_xc=.FALSE.
@@ -134,13 +131,11 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
            matrix_s=matrix_s, &
            sab_orb=sab_orb,&
-           distribution_2d=distribution_2d,&
            error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
            matrix_s_aux_fit=matrix_s,&
            sab_aux_fit=sab_orb,&
-           distribution_2d=distribution_2d,&
            error=error)
     END SELECT
 

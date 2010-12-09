@@ -22,7 +22,6 @@ MODULE qs_gspace_mixing
                                              cp_fm_upper_to_full
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
@@ -1752,7 +1751,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1763,9 +1761,9 @@ CONTAINS
    
     CALL timeset(routineN,handle)
 
-    NULLIFY(sab_orb,scf_env,distribution_2d,matrix_s)
+    NULLIFY(sab_orb, scf_env, matrix_s)
     CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
-         scf_env=scf_env, distribution_2d=distribution_2d, &
+         scf_env=scf_env, &
          matrix_s=matrix_s, &
          error=error)
 

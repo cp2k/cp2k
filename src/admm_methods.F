@@ -54,7 +54,6 @@ MODULE admm_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
        do_admm_basis_set_projection, do_admm_block_aux_basis_off, &
        do_admm_block_aux_basis_on, do_admm_block_density_matrix, &
@@ -1085,11 +1084,10 @@ MODULE admm_methods
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 neighbor_list_id, nmo
     TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_w_q, matrix_w_s, distribution_2d)
+    NULLIFY(matrix_w_q, matrix_w_s)
 
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
@@ -1098,7 +1096,6 @@ MODULE admm_methods
 
     ! *** Create sparse work matrices
     CALL get_qs_env(qs_env=qs_env,&
-                    distribution_2d=distribution_2d,&
                     neighbor_list_id=neighbor_list_id,&
                     error=error) 
 

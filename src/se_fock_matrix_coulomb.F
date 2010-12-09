@@ -34,7 +34,6 @@ MODULE se_fock_matrix_coulomb
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
@@ -147,7 +146,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_iterator_p_type), &
@@ -177,7 +175,7 @@ CONTAINS
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_se=sab_se, atomic_kind_set=atomic_kind_set, &
-            particle_set=particle_set, virial=virial, distribution_2d=distribution_2d, error=error)
+            particle_set=particle_set, virial=virial, error=error)
       
        ! Parameters
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
@@ -562,7 +560,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
@@ -592,7 +589,7 @@ CONTAINS
             atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
             se_nonbond_env=se_nonbond_env, scp_env=scp_env, virial=virial, &
-            distribution_2d=distribution_2d, error=error)
+            error=error)
        
        nlocal_particles = SUM(local_particles%n_el(:))
        natoms           = SIZE(particle_set)
@@ -1380,7 +1377,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
@@ -1403,7 +1399,7 @@ CONTAINS
       failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)!sm->dbcsr
+    CALL get_qs_env(qs_env=qs_env, error=error)!sm->dbcsr
 
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, diagmat_ks, &

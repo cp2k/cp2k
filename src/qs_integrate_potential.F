@@ -738,9 +738,6 @@ CONTAINS
           ALLOCATE(deltap)
           CALL cp_dbcsr_init(deltap, error=error)
           CALL cp_dbcsr_copy(deltap,p%matrix,name="LocalP",error=error)
-          ! this matrix has no strict sparsity pattern in parallel
-          !deltap%sparsity_id=-1
-          !CALL distribution_2d_release(deltap%distribution_2d,error=error)
        END IF
     END IF
 
