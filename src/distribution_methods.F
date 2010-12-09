@@ -128,6 +128,9 @@ CONTAINS
       DIMENSION(:)                           :: local_molecule
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(heap_t)                             :: bin_heap
+    LOGICAL :: heap_error, found
+    INTEGER :: nbins,bin,bin_price
 
     CALL timeset(routineN,handle)
 
@@ -192,16 +195,40 @@ CONTAINS
 
 !     *** Get the number of local molecules of the current molecule kind ***
 
+      nbins=npe
+      CALL heap_new (bin_heap, nbins, heap_error)
+      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+           routineN, "Error creating heap.", error=error)
+      CALL heap_fill (bin_heap,&
+           (/(bin,bin=1,nbins)/), workload , heap_error)
+      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+           routineN, "Error initially filling the heap.", error=error)
+
       DO imolecule=1,nmolecule
-        ipe = 1
-        DO jpe=1,npe
-          IF (workload(jpe) < workload(ipe)) ipe = jpe
-        END DO
-        workload(ipe) = workload(ipe) + nload
-        IF (ipe == mype) THEN
-          nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
-        END IF
+         CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
+         CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+              routineN, "Error getting topmost heap element.", error=error)
+         CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
+              routineN, "No topmost heap element found.", error=error)
+
+         ipe = bin
+         CALL cp_assert (bin_price==workload(ipe), cp_fatal_level, cp_internal_error,&
+              routineN, "inconsistent heap", error=error)
+
+         workload(ipe) = workload(ipe) + nload
+         IF (ipe == mype) THEN
+           nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
+         END IF
+
+         bin_price = workload(ipe)
+         CALL heap_reset_first (bin_heap, bin_price, heap_error)
+         CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+              routineN, "Error setting price of top heap element.", error=error)
       END DO
+
+      CALL heap_release (bin_heap, heap_error)
+      CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+           routineN, "Error releasing heap.", error=error)
 
 !     *** Reset work load ***
 
@@ -224,25 +251,48 @@ CONTAINS
 
       imolecule_local = 0
 
-      DO imolecule=1,nmolecule
-        ipe = 1
-        DO jpe=1,npe
-          IF (workload(jpe) < workload(ipe)) ipe = jpe
-        END DO
-        workload(ipe) = workload(ipe) + nload
-        IF (ipe == mype) THEN
-          imolecule_local = imolecule_local + 1
-          molecule_a = molecule_list(imolecule)
-          local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
-          DO iatom=1,natom
-            atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
+      nbins=npe
+      CALL heap_new (bin_heap, nbins, heap_error)
+      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+           routineN, "Error creating heap.", error=error)
+      CALL heap_fill (bin_heap,&
+           (/(bin,bin=1,nbins)/), workload , heap_error)
+      CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+           routineN, "Error initially filling the heap.", error=error)
 
-            CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
-                                 kind_number=kind_a)
-            nparticle_local(kind_a) = nparticle_local(kind_a) + 1
-          END DO
-        END IF
+      DO imolecule=1,nmolecule
+         CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
+         CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+              routineN, "Error getting topmost heap element.", error=error)
+         CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
+              routineN, "No topmost heap element found.", error=error)
+
+         ipe = bin
+         CALL cp_assert (bin_price==workload(ipe), cp_fatal_level, cp_internal_error,&
+              routineN, "inconsistent heap", error=error)
+
+         workload(ipe) = workload(ipe) + nload
+         IF (ipe == mype) THEN
+            imolecule_local = imolecule_local + 1
+            molecule_a = molecule_list(imolecule)
+            local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
+            DO iatom=1,natom
+              atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
+
+              CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
+                                   kind_number=kind_a)
+              nparticle_local(kind_a) = nparticle_local(kind_a) + 1
+            END DO
+         END IF
+         bin_price = workload(ipe)
+         CALL heap_reset_first (bin_heap, bin_price, heap_error)
+         CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+              routineN, "Error setting price of top heap element.", error=error)
       END DO
+
+      CALL heap_release (bin_heap, heap_error)
+      CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+           routineN, "Error releasing heap.", error=error)
 
     END DO
 
