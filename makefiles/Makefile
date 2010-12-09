@@ -80,7 +80,7 @@ build: dirs deptool
 
 fes: dirs deptool
 	$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
-	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(FES) 
+	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) HACKLIBDEP=yes VERSION=$(VERSION) $(FES) 
 
 dirs:
 	@mkdir -p $(EXEDIR)
@@ -276,16 +276,15 @@ $(PROG): $(ALL_LIB) cp2k.o
 $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
 	$(LD) $(LDFLAGS) -o $(CP2KSHELL) cp2k_shell.o $(ALL_LIB) $(LIBS)
 
+$(FES): $(FESOBJS) graph.o 
+	$(LD) $(LDFLAGS) -o $(FES) graph.o $(FESOBJS)
+
 #
 # these are tools, but their integration in the build is ugly at least (e.g. see dependencies).
 #
 makedepf90:
 	-test -d $(TOOLDIR)/makedepf90-build || cp -r $(TOOLSRC)/makedepf90 makedepf90-build
 	{ cd makedepf90-build ; ./configure --prefix=$(TOOLDIR) --bindir=$(TOOLDIR) ; $(MAKE) VERSION="2.8.8cp2k" ; $(MAKE) install ; }
-
-$(FES): $(FESOBJS)
-	$(LD) $(LDFLAGS) -o $(FES) $(FESOBJS)
-
 
 #
 # the rule how to generate the .o from the .F
