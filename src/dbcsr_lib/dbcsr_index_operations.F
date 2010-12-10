@@ -16,9 +16,9 @@ MODULE dbcsr_index_operations
 
   USE array_types,                     ONLY: array_data,&
                                              array_size
-  USE dbcsr_dist_operations,           ONLY: find_local_virtual_elements,&
-                                             get_global_bins,&
-                                             get_local_bins,&
+  USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_rows,&
+                                             dbcsr_get_row_map,&
+                                             find_local_virtual_elements,&
                                              get_stored_canonical
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
@@ -1412,28 +1412,19 @@ CONTAINS
          error=error)
     !> Finally the matrix is designated as having a local-based index.
     matrix%m%local_indexing = .TRUE.
-    CALL get_local_bins (matrix%m%local_rows,&
-         dbcsr_distribution_row_dist (dist),&
+    CALL dbcsr_get_local_rows (dist, matrix%m%local_rows,&
          matrix%m%index(dbcsr_slot_home_prow),&
          error=error)
     CALL dbcsr_assert (array_size(matrix%m%local_rows), "EQ", nlocal_rows,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Inconsistent local row counts.",&
          __LINE__, error=error)
-    CALL get_global_bins (matrix%m%global_rows,&
-         dbcsr_distribution_row_dist (dist),&
-         matrix%m%index(dbcsr_slot_home_prow),&
-         error=error)
+    CALL dbcsr_get_row_map (dist, matrix%m%global_rows, error=error)
     CALL dbcsr_assert (array_size(matrix%m%global_rows), "EQ", ntotal_rows,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Inconsistent global row counts.",&
          __LINE__, error=error)
-    IF (array_size (matrix%m%global_rows) .GT. 0) THEN
-       CALL dbcsr_assert (MAXVAL (array_DATA(matrix%m%global_rows)), "EQ", nlocal_rows,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Inconsistent local row determination.",&
-            __LINE__, error=error)
-    ELSE
+    IF (array_size (matrix%m%global_rows) .EQ. 0) THEN
        CALL dbcsr_assert (nlocal_rows, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Invalid number of local or global rows.",&

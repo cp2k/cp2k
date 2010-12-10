@@ -15,6 +15,7 @@
 MODULE dbcsr_dist_operations
 
   USE array_types,                     ONLY: array_data,&
+                                             array_exists,&
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
@@ -80,12 +81,14 @@ MODULE dbcsr_dist_operations
              rebin_imaged_distribution,&
              test_create_bl_distribution,&
              match_sizes_to_dist, make_sizes_dense,&
-             find_local_virtual_elements,&
-             get_global_bins, get_local_bins,&
-             map_local_virtual_elements,&
              mostly_non_transposed,&
              dbcsr_print_dist,&
              image_calculator
+
+  PUBLIC ::  find_local_virtual_elements,&
+             map_local_virtual_elements,&
+             dbcsr_get_local_rows, dbcsr_get_local_cols,&
+             dbcsr_get_row_map, dbcsr_get_col_map
 
 
   INTERFACE dbcsr_get_stored_block_info
@@ -1957,70 +1960,228 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Determines mapping from local to global bins
-!> \par Use
-!>      Used to map a row-local row_p index to global rows.
-!> \param[out] global_map       mapping of local elements to global bins
+!> \brief Finds the local virtual elements
+!>
+!> All elements are mapped at once.  Therefore an entry in the
+!> resulting array can be used as a lookup index for any of the local
+!> element arrays.  The distribution itself tells into which array to
+!> look.
+!> \param[out] locall_virtual_elements   local virtual elements
+!> \param[in] bin_distribution           distribution of elements to bins
+!> \param[in] nbins                      number of bins
+! *****************************************************************************
+  SUBROUTINE find_all_local_elements (local_elements, &
+       bin_distribution, nbins)
+    INTEGER, INTENT(IN)                      :: nbins
+    INTEGER, DIMENSION(:), INTENT(IN)        :: bin_distribution
+    TYPE(array_i1d_obj), &
+      DIMENSION(0:nbins-1), INTENT(INOUT)    :: local_elements
+
+    INTEGER                                  :: bin, el
+    INTEGER, DIMENSION(0:nbins-1)            :: nlve
+
+    nlve(:) = 0
+    DO el = 1, SIZE (bin_distribution)
+       bin = bin_distribution (el)
+       nlve(bin) = nlve(bin) + 1
+       local_elements(bin)%low%data(nlve(bin)) = el
+    ENDDO
+  END SUBROUTINE find_all_local_elements
+
+! *****************************************************************************
+!> \brief Points to local virtual elements.
+!>
+!> All elements are mapped at once.  Therefore an entry in the
+!> resulting array can be used as a lookup index for any of the local
+!> element arrays.  The distribution itself tells into which array to
+!> look.
+!> \param[out] global_virtual_elements   enumerated local elements
+!> \param[in] bin_distribution           distribution of elements to bins
+!> \param[in] nbins                      number of bins
+! *****************************************************************************
+  PURE SUBROUTINE map_all_local_elements (global_elements, &
+       bin_distribution, nbins)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: global_elements
+    INTEGER, DIMENSION(:), INTENT(IN)        :: bin_distribution
+    INTEGER, INTENT(IN)                      :: nbins
+
+    INTEGER                                  :: bin, el
+    INTEGER, DIMENSION(0:nbins-1)            :: nlve
+
+    nlve(:) = 0
+    DO el = 1, SIZE (bin_distribution)
+       bin = bin_distribution (el)
+       nlve(bin) = nlve(bin) + 1
+       global_elements(el) = nlve(bin)
+    ENDDO
+  END SUBROUTINE map_all_local_elements
+
+
+! *****************************************************************************
+!> \brief Determines mapping from local to global rows
+!> \param[in] matrix            mapping for this distribution
 !> \param[in] bin_distribution  mapping of elements to bins
 !> \param[in] local_bin         the local bin
 !> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE get_local_bins (local_map, bin_distribution, local_bin, error)
-    TYPE(array_i1d_obj), INTENT(OUT)         :: local_map
-    TYPE(array_i1d_obj), INTENT(IN)          :: bin_distribution
-    INTEGER, INTENT(IN)                      :: local_bin
+  SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_row, error)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: local_rows
+    INTEGER, INTENT(IN)                      :: local_row
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_local_bins', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_rows', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cnt, error_handle, &
-                                                nlocal_elements
-    INTEGER, DIMENSION(:), POINTER           :: bin_dist, map
+    INTEGER                                  :: el, error_handle, nprows, prow
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: row_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
-    bin_dist => array_data (bin_distribution)
-    nlocal_elements = COUNT (bin_dist .EQ. local_bin)
-    ALLOCATE (map(nlocal_elements))
-    CALL find_local_virtual_elements (map, cnt, bin_dist, local_grid=local_bin)
-    CALL dbcsr_assert (nlocal_elements, "EQ", cnt,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Inconsistent counts", __LINE__, error=error)
-    CALL array_nullify (local_map)
-    CALL array_new (local_map, map, gift=.TRUE.)
+    ! If the current local row mappings do not exist, create them.
+    IF (.NOT. ASSOCIATED (dist%d%other_rows)) THEN
+       nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
+       ALLOCATE (dist%d%other_rows(0:dbcsr_mp_nprows (dist%d%mp_env)-1))
+       DO prow = 0, dbcsr_mp_nprows (dist%d%mp_env)-1
+          CALL array_nullify (dist%d%other_rows(prow))
+       ENDDO
+       ALLOCATE (nle (0:nprows-1))
+       row_dist => array_data (dbcsr_distribution_row_dist (dist))
+       ! Count the number of local elements per row.
+       nle(:) = 0
+       DO el = 1, SIZE (row_dist)
+          prow = row_dist(el)
+          nle(prow) = nle(prow) + 1
+       ENDDO
+       DO prow = 0, nprows-1
+          CALL array_new (dist%d%other_rows(prow),&
+               (/ (0, el=1,nle(prow)) /), lb=1)
+       ENDDO
+       DEALLOCATE (nle)
+       CALL find_all_local_elements (dist%d%other_rows, row_dist, nprows)
+    ENDIF
+    local_rows = dist%d%other_rows(local_row)
+    CALL array_hold (local_rows)
     CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE get_local_bins
+  END SUBROUTINE dbcsr_get_local_rows
 
 ! *****************************************************************************
-!> \brief Determines mapping from global to local bins
-!> \par Use
-!> \param[out] global_map       mapping of local elements to global bins
+!> \brief Determines mapping from local to global cols
+!> \param[in] matrix            mapping for this distribution
 !> \param[in] bin_distribution  mapping of elements to bins
 !> \param[in] local_bin         the local bin
 !> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE get_global_bins (global_map, bin_distribution, local_bin, error)
-    TYPE(array_i1d_obj), INTENT(OUT)         :: global_map
-    TYPE(array_i1d_obj), INTENT(IN)          :: bin_distribution
-    INTEGER, INTENT(IN)                      :: local_bin
+  SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_col, error)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: local_cols
+    INTEGER, INTENT(IN)                      :: local_col
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_global_bins', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_cols', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cnt, error_handle, nelements
-    INTEGER, DIMENSION(:), POINTER           :: bin_dist, map
+    INTEGER                                  :: el, error_handle, npcols, pcol
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: col_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
-    bin_dist => array_data (bin_distribution)
-    nelements = array_size (bin_distribution)
-    ALLOCATE (map(nelements))
-    CALL map_local_virtual_elements (map, cnt, bin_dist,&
-         local_grid=local_bin)
-    CALL array_nullify (global_map)
-    CALL array_new (global_map, map, gift=.TRUE.)
+    ! If the current local col mappings do not exist, create them.
+    IF (.NOT. ASSOCIATED (dist%d%other_cols)) THEN
+       npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
+       ALLOCATE (dist%d%other_cols(0:dbcsr_mp_npcols (dist%d%mp_env)-1))
+       DO pcol = 0, dbcsr_mp_npcols (dist%d%mp_env)-1
+          CALL array_nullify (dist%d%other_cols(pcol))
+       ENDDO
+       ALLOCATE (nle (0:npcols-1))
+       col_dist => array_data (dbcsr_distribution_col_dist (dist))
+       ! Count the number of local elements per col.
+       nle(:) = 0
+       DO el = 1, SIZE (col_dist)
+          pcol = col_dist(el)
+          nle(pcol) = nle(pcol) + 1
+       ENDDO
+       DO pcol = 0, npcols-1
+          CALL array_new (dist%d%other_cols(pcol),&
+               (/ (0, el=1,nle(pcol)) /), lb=1)
+       ENDDO
+       DEALLOCATE (nle)
+       CALL find_all_local_elements (dist%d%other_cols, col_dist, npcols)
+    ENDIF
+    local_cols = dist%d%other_cols(local_col)
+    CALL array_hold (local_cols)
     CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE get_global_bins
+  END SUBROUTINE dbcsr_get_local_cols
+
+
+! *****************************************************************************
+!> \brief Determines mapping from local to global rows
+!> \param[in] matrix            mapping for this distribution
+!> \param[in] bin_distribution  mapping of elements to bins
+!> \param[in] local_bin         the local bin
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_row_map (dist, row_map, error)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: row_map
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_row_map', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, nprows
+    INTEGER, DIMENSION(:), POINTER           :: rmap, row_dist
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! If the current local row mappings do not exist, create them.
+    IF (.NOT. array_exists (dist%d%other_row_map)) THEN
+       row_dist => array_data (dbcsr_distribution_row_dist (dist))
+       ALLOCATE (rmap (SIZE (row_dist)))
+       nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
+       CALL map_all_local_elements (rmap, row_dist, nprows)
+       CALL array_new (dist%d%other_row_map, rmap, gift=.TRUE.)
+    ENDIF
+    row_map = dist%d%other_row_map
+    CALL array_hold (row_map)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_row_map
+
+
+! *****************************************************************************
+!> \brief Determines mapping from local to global cols
+!> \param[in] matrix            mapping for this distribution
+!> \param[in] bin_distribution  mapping of elements to bins
+!> \param[in] local_bin         the local bin
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_col_map (dist, col_map, error)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: col_map
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_col_map', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, npcols
+    INTEGER, DIMENSION(:), POINTER           :: cmap, col_dist
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! If the current local col mappings do not exist, create them.
+    IF (.NOT. array_exists (dist%d%other_col_map)) THEN
+       col_dist => array_data (dbcsr_distribution_col_dist (dist))
+       ALLOCATE (cmap (SIZE (col_dist)))
+       npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
+       CALL map_all_local_elements (cmap, col_dist, npcols)
+       CALL array_new (dist%d%other_col_map, cmap, gift=.TRUE.)
+    ENDIF
+    col_map = dist%d%other_col_map
+    CALL array_hold (col_map)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_col_map
 
 
 ! *****************************************************************************

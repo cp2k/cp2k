@@ -935,6 +935,10 @@ CONTAINS
     !WRITE(*,*)' loc_cols', array_data(dist%d%local_cols)
     CALL array_nullify (dist%d%row_map)
     CALL array_nullify (dist%d%col_map)
+    NULLIFY (dist%d%other_rows)
+    NULLIFY (dist%d%other_cols)
+    CALL array_nullify (dist%d%other_row_map)
+    CALL array_nullify (dist%d%other_col_map)
   END SUBROUTINE dbcsr_distribution_new
 
 ! *****************************************************************************
@@ -958,6 +962,8 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
 
+    INTEGER                                  :: i
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (dist%d)) THEN
@@ -971,6 +977,20 @@ CONTAINS
           CALL array_release (dist%d%thread_dist)
           CALL array_release (dist%d%row_map)
           CALL array_release (dist%d%col_map)
+          IF (ASSOCIATED (dist%d%other_rows)) THEN
+             DO i = LBOUND (dist%d%other_rows,1), UBOUND (dist%d%other_rows,1)
+                CALL array_release (dist%d%other_rows(i))
+             END DO
+             DEALLOCATE (dist%d%other_rows)
+          ENDIF
+          IF (ASSOCIATED (dist%d%other_cols)) THEN
+             DO i = LBOUND (dist%d%other_cols,1), UBOUND (dist%d%other_cols,1)
+                CALL array_release (dist%d%other_cols(i))
+             END DO
+             DEALLOCATE (dist%d%other_cols)
+          ENDIF
+          CALL array_release (dist%d%other_row_map)
+          CALL array_release (dist%d%other_col_map)
           DEALLOCATE (dist%d)
           CALL dbcsr_distribution_init (dist)
        ENDIF

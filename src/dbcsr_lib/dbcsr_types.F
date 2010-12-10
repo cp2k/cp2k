@@ -129,6 +129,8 @@ MODULE dbcsr_types
 !> \var local_rows            list of rows local to the processor grid row
 !> \var local_cols            list of columns local to the processor grid
 !>                            column
+!> \var other_rows            local rows for each process row
+!> \var other_cols            local columns for each process column
 !> \var row_map               distribution map for rows
 !> \var col_map               distribution map for columns
 !> \var thread_dist           thread distribution (of the rows)
@@ -136,11 +138,12 @@ MODULE dbcsr_types
 !> \var mp_env                mulitprocessor environment on which the
 !>                            distribution is based
 !> \var refcount              reference counter
-!> \var dist2d                associated distribution_2d type
 ! *****************************************************************************
   TYPE dbcsr_distribution_type
      TYPE(array_i1d_obj)               :: row_dist, col_dist
      TYPE(array_i1d_obj)               :: local_rows, local_cols
+     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_rows, other_cols
+     TYPE(array_i1d_obj)               :: other_row_map, other_col_map
      TYPE(array_i1d_obj)               :: row_map, col_map
      TYPE(array_i1d_obj)               :: thread_dist
      INTEGER                           :: num_threads

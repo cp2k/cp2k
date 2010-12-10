@@ -28,8 +28,8 @@ MODULE dbcsr_internal_operations
        dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
        dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: checker_tr,&
-                                             get_global_bins,&
-                                             get_local_bins
+                                             dbcsr_get_local_rows,&
+                                             dbcsr_get_row_map
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                              dbcsr_expand_row_index,&
@@ -81,7 +81,8 @@ MODULE dbcsr_internal_operations
        dbcsr_scalar_type, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8,&
        dbcsr_iterator, dbcsr_slot_size, dbcsr_slot_row_p, dbcsr_slot_blk_p,&
-       dbcsr_num_slots, dbcsr_slot_home_prow, dbcsr_slot_home_pcol
+       dbcsr_num_slots, dbcsr_slot_home_prow, dbcsr_slot_home_pcol,&
+       dbcsr_distribution_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_set_debug
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -258,6 +259,7 @@ CONTAINS
                                                 right_buffer_1, right_buffer_2
     TYPE(dbcsr_data_obj)                     :: left_data_rp, left_data_sp, &
                                                 right_data_rp, right_data_sp
+    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_error_type)                   :: t_error
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
@@ -1117,17 +1119,15 @@ CONTAINS
                 ! recalculated.
                 CALL array_release (right_buffer_calc%mats(v_ki+1, 1)%m%local_rows)
                 CALL array_release (right_buffer_calc%mats(v_ki+1, 1)%m%global_rows)
-                CALL get_local_bins (right_buffer_calc%mats(v_ki+1, 1)%m%local_rows,&
-                     dbcsr_distribution_row_dist (dbcsr_distribution (&
-                     right_buffer_calc%mats(v_ki+1, 1))),&
+                dist = dbcsr_distribution (&
+                            right_buffer_calc%mats(v_ki+1, 1))
+                CALL dbcsr_get_local_rows (dist,&
+                     right_buffer_calc%mats(v_ki+1, 1)%m%local_rows,&
                      right_buffer_calc%mats(v_ki+1, 1)%m%index(dbcsr_slot_home_prow),&
                      error=error)
-                CALL get_global_bins (right_buffer_calc%mats(v_ki+1, 1)%m%global_rows,&
-                     dbcsr_distribution_row_dist (dbcsr_distribution (&
-                     right_buffer_calc%mats(v_ki+1, 1))),&
-                     right_buffer_calc%mats(v_ki+1, 1)%m%index(dbcsr_slot_home_prow),&
+                CALL dbcsr_get_row_map(dist,&
+                     right_buffer_calc%mats(v_ki+1, 1)%m%global_rows,&
                      error=error)
-                     
                 CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
                      right_norms, error=error)
              ENDIF
