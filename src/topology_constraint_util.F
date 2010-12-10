@@ -165,11 +165,16 @@ CONTAINS
     DO i=1,topology%nmol
        molecule => molecule_set(i)
        NULLIFY(lci)
-       ALLOCATE(lci,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(lci%lcolv)
-       NULLIFY(lci%lg3x3)
-       NULLIFY(lci%lg4x6)
+       ! only allocate the lci if constraints are active. Can this stuff be distributed ?
+       IF (topology%const_atom .OR. topology%const_hydr .OR. &
+           topology%const_33   .OR. topology%const_46   .OR. &
+           topology%const_colv ) THEN
+          ALLOCATE(lci,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          NULLIFY(lci%lcolv)
+          NULLIFY(lci%lg3x3)
+          NULLIFY(lci%lg4x6)
+       ENDIF
        CALL set_molecule(molecule,lci=lci)
     END DO
     ALLOCATE(gci,STAT=stat)
