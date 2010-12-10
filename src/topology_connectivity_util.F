@@ -347,9 +347,9 @@ CONTAINS
           DO i=1,natom
              !Atomic kind information will be filled in (PART 2)
              NULLIFY(atom_list(i)%atomic_kind)
-             atom_list(i)%name=id2str(atom_info%id_atmname(i+first-1)) ! XXXXXXXXX-fixme-XXXXXXXXX
+             atom_list(i)%id_name=atom_info%id_atmname(i+first-1)
              IF(iw>0) WRITE(iw,'(5X,A,3I5,1X,A5)') "atom_list ",&
-                  imol,counter,i,atom_list(i)%name
+                  imol,counter,i,TRIM(id2str(atom_list(i)%id_name))
           END DO
           CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
        END IF

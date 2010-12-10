@@ -60,7 +60,7 @@ MODULE molecule_kind_types
 ! *****************************************************************************
   TYPE atom_type
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    CHARACTER(LEN=default_string_length)  :: name
+    INTEGER :: id_name
   END TYPE atom_type
 
 ! *****************************************************************************
@@ -1017,15 +1017,14 @@ CONTAINS
       IF (ASSOCIATED(molecule_kind)) THEN
         natom = SIZE(molecule_kind%atom_list)
         nmolecule = SIZE(molecule_kind%molecule_list)
-
+      
         IF ( natom == 1 ) THEN
           atomic_kind => molecule_kind%atom_list(1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
-          WRITE (UNIT=output_unit,FMT="(/,T2,I5,A,T36,A,A,T64,A,A)")&
+          WRITE (UNIT=output_unit,FMT="(/,T2,I5,A,T36,A,A,T64,A)")&
             molecule_kind%kind_number,&
             ". Molecule kind: "//TRIM(molecule_kind%name),&
-            "Atomic kind name:   ",TRIM(name),"Atom label:   ",&
-            TRIM(molecule_kind%atom_list(1)%name)
+            "Atomic kind name:   ",TRIM(name)
           WRITE (UNIT=output_unit,FMT="(T9,A,L1,T55,A,T75,I6)")&
              "Automatic name: ",molecule_kind%molname_generated,&
              "Number of molecules:",nmolecule
@@ -1034,12 +1033,12 @@ CONTAINS
             molecule_kind%kind_number,&
             ". Molecule kind: "//TRIM(molecule_kind%name),&
             "Number of atoms:    ",natom,&
-            "Atom         Atomic kind name             Atom name (label)"
+            "Atom         Atomic kind name"
           DO iatom=1,natom
             atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
-            WRITE (UNIT=output_unit,FMT="(T20,I6,(7X,A18,11X,A19))")&
-              iatom,TRIM(name),TRIM(molecule_kind%atom_list(iatom)%name)
+            WRITE (UNIT=output_unit,FMT="(T20,I6,(7X,A18))")&
+              iatom,TRIM(name)
           END DO
           WRITE (UNIT=output_unit,FMT="(/,T9,A,L1)")&
              "The name was automatically generated: ",&

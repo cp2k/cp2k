@@ -11,6 +11,7 @@
 !> \author MJM
 ! *****************************************************************************
 MODULE mc_control
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
@@ -96,7 +97,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=20)                        :: ensemble
-    CHARACTER(LEN=default_path_length)       :: restart_file_name
+    CHARACTER(LEN=default_path_length)       :: name, restart_file_name
     INTEGER                                  :: handle, ichain, imol_type, &
                                                 iparticle, iunit, natom, &
                                                 nmol_types, nmolecule, &
@@ -150,8 +151,9 @@ CONTAINS
           ! write the coordinates out
           DO ichain=1,nmolecule
              DO iunit=1,natom
+                CALL get_atomic_kind(atom_list(iunit)%atomic_kind, name=name)
                 WRITE(unit,'(1X,A,1X,3(F15.10,3X))') &
-                     TRIM(ADJUSTL(atom_list(iunit)%name)),&
+                     TRIM(ADJUSTL(name)),&
                      particles%els(iparticle)%r(1:3)*angstrom
                 iparticle=iparticle+1
              ENDDO

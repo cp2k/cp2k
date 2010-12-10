@@ -661,8 +661,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          atom_b_done(:)=""
          current_bond=1
          outer_bond:DO ibond=1,nbond
-            name_a=atom_list(bond_list(ibond)%a)%name
-            name_b=atom_list(bond_list(ibond)%b)%name
+            CALL get_atomic_kind(atom_list(bond_list(ibond)%a)%atomic_kind,name=name_a)
+            CALL get_atomic_kind(atom_list(bond_list(ibond)%b)%atomic_kind,name=name_b)
             DO jbond=1,current_bond
                IF(atom_a_done(jbond)==name_a .AND. atom_b_done(jbond)==name_b&
                     .OR. atom_a_done(jbond)==name_b .AND. atom_b_done(jbond)==name_a)THEN
@@ -693,9 +693,9 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          atom_c_done(:)=""
          current_bend=1
          outer_bend:DO ibend=1,nbend
-            name_a=atom_list(bend_list(ibend)%a)%name
-            name_b=atom_list(bend_list(ibend)%b)%name
-            name_c=atom_list(bend_list(ibend)%c)%name
+            CALL get_atomic_kind(atom_list(bend_list(ibend)%a)%atomic_kind,name=name_a)
+            CALL get_atomic_kind(atom_list(bend_list(ibend)%b)%atomic_kind,name=name_b)
+            CALL get_atomic_kind(atom_list(bend_list(ibend)%c)%atomic_kind,name=name_c)
             DO jbend=1,current_bend
                IF(atom_a_done(jbend)==name_a .AND. atom_b_done(jbend)==name_b &
                     .AND.atom_c_done(jbend)==name_c &
@@ -733,10 +733,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          atom_d_done(:)=""
          current_torsion=1
          outer_torsion:DO itorsion=1,ntorsion
-            name_a=atom_list(torsion_list(itorsion)%a)%name
-            name_b=atom_list(torsion_list(itorsion)%b)%name
-            name_c=atom_list(torsion_list(itorsion)%c)%name
-            name_d=atom_list(torsion_list(itorsion)%d)%name
+            CALL get_atomic_kind(atom_list(torsion_list(itorsion)%a)%atomic_kind,name=name_a)
+            CALL get_atomic_kind(atom_list(torsion_list(itorsion)%b)%atomic_kind,name=name_b)
+            CALL get_atomic_kind(atom_list(torsion_list(itorsion)%c)%atomic_kind,name=name_c)
+            CALL get_atomic_kind(atom_list(torsion_list(itorsion)%d)%atomic_kind,name=name_d)
             DO jtorsion=1,current_torsion
                IF(atom_a_done(jtorsion)==name_a .AND. atom_b_done(jtorsion)==name_b &
                     .AND.atom_c_done(jtorsion)==name_c .AND. atom_d_done(jtorsion)==name_d &
@@ -859,13 +859,15 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       IF(nchains .NE. 0) THEN
          DO ichain=1,nchains
             DO iatom=1,natoms
-               WRITE(unit,40003) TRIM(ADJUSTL(atom_list(iatom)%name)),&
+               CALL get_atomic_kind(atom_list(iatom)%atomic_kind,name=name)
+               WRITE(unit,40003) TRIM(ADJUSTL(name)),&
                coordinates(1:3,(ichain-1)*natoms+iatom)*angstrom
             ENDDO
          ENDDO
       ELSE
          DO iatom=1,natoms
-            WRITE(unit,40003) TRIM(ADJUSTL(atom_list(iatom)%name)),&
+            CALL get_atomic_kind(atom_list(iatom)%atomic_kind,name=name)
+            WRITE(unit,40003) TRIM(ADJUSTL(name)),&
                REAL(iatom,dp),REAL(iatom,dp),REAL(iatom,dp)
          ENDDO
       ENDIF

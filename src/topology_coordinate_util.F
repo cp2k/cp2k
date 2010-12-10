@@ -170,10 +170,10 @@ CONTAINS
             first_atom=first,last_atom=last)
        IF (iw>0) WRITE(iw,*)"boundaries of molecules (first, last) ::",first,last
        DO j = 1, natom
-          position=str_search(work,counter,atom_list(j)%name)
+          position=str_search(work,counter,id2str(atom_list(j)%id_name)) ! XXXXXXXXXX-fixme-XXXXXXXXXXXX
           IF(position==0)THEN
              counter = counter + 1
-             work(counter)   = atom_list(j)%name
+             work(counter)   = id2str(atom_list(j)%id_name)
              mass(counter)   = atom_info%atm_mass(first+j-1)
              element(counter)= id2str(atom_info%id_element(first+j-1))
              charge(counter) = atom_info%atm_charge(first+j-1)
@@ -182,14 +182,14 @@ CONTAINS
           ELSE
              found = .FALSE.
              DO k = 1, counter
-                IF((str_comp(work(k),atom_list(j)%name)).AND.(charge(k)==atom_info%atm_charge(first+j-1))) THEN
+                IF((str_comp(work(k),id2str(atom_list(j)%id_name))).AND.(charge(k)==atom_info%atm_charge(first+j-1))) THEN
                    found = .TRUE.
                    EXIT
                 END IF
              END DO
              IF(.NOT.found) THEN
                 counter = counter + 1
-                work(counter)   = atom_list(j)%name
+                work(counter)   = id2str(atom_list(j)%id_name)
                 mass(counter)   = atom_info%atm_mass(first+j-1)
                 element(counter)= id2str(atom_info%id_element(first+j-1))
                 charge(counter) = atom_info%atm_charge(first+j-1)
@@ -774,12 +774,12 @@ CPSourceFileRef,&
              IF(method_name_id == do_fist) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
                 CALL get_potential(potential=fist_potential,qeff=qeff)
-                IF((atom_list(j)%name == atmname).AND.(qeff==atom_info%atm_charge(first+j-1)) ) THEN
+                IF((id2str(atom_list(j)%id_name) == atmname).AND.(qeff==atom_info%atm_charge(first+j-1)) ) THEN
                    atom_list(j)%atomic_kind => atomic_kind_set(k)
                    EXIT
                 END IF
              ELSE
-                IF(atom_list(j)%name == atmname) THEN
+                IF(id2str(atom_list(j)%id_name) == atmname) THEN
                    atom_list(j)%atomic_kind => atomic_kind_set(k)
                    EXIT
                 END IF
