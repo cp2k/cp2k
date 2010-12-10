@@ -191,7 +191,11 @@ CONTAINS
     CALL cp_fm_create(storage,mo_localized%matrix_struct,name='storage',error=error)
 
     DO imol = 1, SIZE(molecule_set)
-       nstates(1) = molecule_set(imol)%lmi%nstates
+       IF (ASSOCIATED(molecule_set(imol)%lmi)) THEN
+          nstates(1) = molecule_set(imol)%lmi%nstates
+       ELSE
+          nstates(1) = 0 
+       ENDIF
        nstates(2) = para_env%mepos
 
        CALL mp_maxloc(nstates,para_env%group)

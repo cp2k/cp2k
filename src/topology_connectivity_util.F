@@ -322,10 +322,6 @@ CONTAINS
     DO imol=1,SIZE(molecule_set)
        molecule => molecule_set(imol)
        NULLIFY(lmi)
-       ALLOCATE(lmi,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       lmi%nstates=0
-       NULLIFY(lmi%states)
        CALL set_molecule(molecule,lmi=lmi)
     END DO
     CALL timestop(handle2)

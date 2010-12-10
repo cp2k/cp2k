@@ -124,6 +124,11 @@ CONTAINS
           molecule_kind => molecule_set(i)%molecule_kind
           CALL get_molecule_kind(molecule_kind=molecule_kind,natom=natom)
           natom_max = natom_max + natom
+          IF (.NOT.ASSOCIATED(molecule_set(i)%lmi)) THEN
+             ALLOCATE(molecule_set(i)%lmi,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             NULLIFY(molecule_set(i)%lmi%states)
+          ENDIF
           molecule_set(i)%lmi%nstates=0
           IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
              DEALLOCATE(molecule_set(i)%lmi%states,STAT=stat)
