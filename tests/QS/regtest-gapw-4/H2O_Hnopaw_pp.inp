@@ -11,13 +11,14 @@
     POTENTIAL_FILE_NAME ../POTENTIAL
     &MGRID
       NGRIDS 1
-      CUTOFF 280
+      CUTOFF 100
     &END MGRID
     &POISSON
        PERIODIC NONE
        POISSON_SOLVER MT
     &END
     &QS
+      EPS_DEFAULT 1.0E-5
       METHOD GAPW
     &END QS
     &SCF
@@ -36,7 +37,7 @@
         &END
       &END
       SCF_GUESS atomic
-      MAX_SCF 30
+      MAX_SCF 2
       EPS_SCF 1.0E-4
       &OT 
         MINIMIZER DIIS

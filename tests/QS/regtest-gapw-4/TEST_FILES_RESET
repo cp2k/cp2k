@@ -225,3 +225,5 @@ CO_xastpxfh_150Ry.inp
 H2O_allnopaw.inp
 #  
 H2O_Hnopaw_pp.inp
+# speedup
+H2O_Hnopaw_pp.inp

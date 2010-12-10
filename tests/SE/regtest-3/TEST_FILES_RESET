@@ -339,3 +339,5 @@ N3_rp_md.inp
 N3_dp_md.inp
 # numerics with refactoring the mopac guess 
 N3_rp_dp_md.inp
+# speedup
+LiH.inp
