@@ -45,8 +45,6 @@ MODULE topology_coordinate_util
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE string_utilities,                ONLY: str_comp,&
-                                             str_search
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -98,14 +96,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: element
-    CHARACTER(LEN=default_string_length), &
-      POINTER                                :: work(:)
     INTEGER :: atom_i, atom_j, counter, dim0, dim1, dim2, dim3, first, &
       handle, handle2, i, iatom, ikind, iw, j, k, last, method_name_id, n, &
-      natom, position, stat
-    INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
+      natom, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatomlist, id_element, &
+                                                id_work, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
     INTEGER, DIMENSION(:, :), POINTER        :: pairs
@@ -148,16 +143,16 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_1',handle2)
     counter=0
-    NULLIFY(work,mass,element,charge)
-    ALLOCATE(work(topology%natoms),STAT=stat)
+    NULLIFY(id_work,mass,id_element,charge)
+    ALLOCATE(id_work(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(mass(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(element(topology%natoms),STAT=stat)
+    ALLOCATE(id_element(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(charge(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    work(:)=""
+    id_work=str2id(s2s(""))
     IF (iw>0) WRITE(iw,*)"molecule_kind_set ::",SIZE(molecule_kind_set)
     DO i = 1, SIZE(molecule_kind_set)
        j=molecule_kind_set(i)%molecule_list(1)
@@ -170,31 +165,30 @@ CONTAINS
             first_atom=first,last_atom=last)
        IF (iw>0) WRITE(iw,*)"boundaries of molecules (first, last) ::",first,last
        DO j = 1, natom
-          position=str_search(work,counter,id2str(atom_list(j)%id_name)) ! XXXXXXXXXX-fixme-XXXXXXXXXXXX
-          IF(position==0)THEN
+          IF(.NOT.ANY(id_work(1:counter).EQ.atom_list(j)%id_name)) THEN
              counter = counter + 1
-             work(counter)   = id2str(atom_list(j)%id_name)
+             id_work(counter)   = atom_list(j)%id_name
              mass(counter)   = atom_info%atm_mass(first+j-1)
-             element(counter)= id2str(atom_info%id_element(first+j-1))
+             id_element(counter)= atom_info%id_element(first+j-1)
              charge(counter) = atom_info%atm_charge(first+j-1)
              IF(iw>0) WRITE(iw,'(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
-                  "NEW ATOMIC KIND",work(counter),mass(counter),element(counter),charge(counter)
+                  "NEW ATOMIC KIND",id2str(id_work(counter)),mass(counter),id2str(id_element(counter)),charge(counter)
           ELSE
              found = .FALSE.
              DO k = 1, counter
-                IF((str_comp(work(k),id2str(atom_list(j)%id_name))).AND.(charge(k)==atom_info%atm_charge(first+j-1))) THEN
+                IF((id_work(k)==atom_list(j)%id_name).AND.(charge(k)==atom_info%atm_charge(first+j-1))) THEN
                    found = .TRUE.
                    EXIT
                 END IF
              END DO
              IF(.NOT.found) THEN
                 counter = counter + 1
-                work(counter)   = id2str(atom_list(j)%id_name)
+                id_work(counter)   = atom_list(j)%id_name
                 mass(counter)   = atom_info%atm_mass(first+j-1)
-                element(counter)= id2str(atom_info%id_element(first+j-1))
+                id_element(counter)= atom_info%id_element(first+j-1)
                 charge(counter) = atom_info%atm_charge(first+j-1)
                 IF(iw>0) WRITE(iw,'(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
-                     "NEW ATOMIC KIND",work(counter),mass(counter),element(counter),charge(counter)
+                     "NEW ATOMIC KIND",id2str(id_work(counter)),mass(counter),id2str(id_element(counter)),charge(counter)
              END IF
           END IF
        END DO
@@ -203,12 +197,12 @@ CONTAINS
     ALLOCATE(atom_info%id_atom_names(topology%natom_type),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO k=1,counter
-       atom_info%id_atom_names(k)=str2id(s2s(work(k)))
+       atom_info%id_atom_names(k)=id_work(k)
     ENDDO
-    DEALLOCATE(work,STAT=stat)
+    DEALLOCATE(id_work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL reallocate(mass,1,counter)
-    CALL reallocate(element,1,counter)
+    CALL reallocate(id_element,1,counter)
     CALL reallocate(charge,1,counter)
     IF(iw>0) &
          WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
@@ -241,17 +235,17 @@ CONTAINS
        atomic_kind => atomic_kind_set(i)
        mass(i) = mass(i) * massunit
        CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=i,&
-            name=id2str(atom_info%id_atom_names(i)),element_symbol=element(i),&
+            name=id2str(atom_info%id_atom_names(i)),element_symbol=id2str(id_element(i)),&
             mass=mass(i))
        IF (iw>0) THEN
           WRITE(iw,'(A,I5,A,I5,4A)')"Atomic Kind n.:",i," out of:",topology%natom_type,&
                " name:   ",TRIM(id2str(atom_info%id_atom_names(i))),"   element:   ",&
-               TRIM(element(i))
+               TRIM(id2str(id_element(i)))
        END IF
     END DO
     DEALLOCATE(mass,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(element,STAT=stat)
+    DEALLOCATE(id_element,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
 
