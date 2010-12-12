@@ -785,7 +785,7 @@ CONTAINS
     END TYPE local_lists
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, maxat, mol_a, mol_b, nkind, otype, stat, nsub
+      kcell, maxat, mol_a, mol_b, nkind, otype, stat, nsub, natom
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: index_list
@@ -802,6 +802,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: r_pbc
 
     CALL timeset(routineN//"_"//TRIM(name),handle)
     failure = .FALSE.
@@ -861,6 +862,14 @@ CONTAINS
       pres_a(ikind) = ANY(pair_radius(ikind,:) > 0._dp)
       pres_b(ikind) = ANY(pair_radius(:,ikind) > 0._dp)
     END DO
+
+    ! create a copy of the pbc'ed coordinates
+    natom=SIZE(particle_set)
+    ALLOCATE(r_pbc(3,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,natom
+       r_pbc(1:3,i)=pbc(particle_set(i)%r(1:3),cell)
+    ENDDO
 
     ! setup the local lists of atoms
     maxat = 0
@@ -969,7 +978,7 @@ CONTAINS
         DO iatom_local=1,nlista(ikind)
           iatom = lista(ikind)%list(iatom_local)
           atom_a = atom(ikind)%list(iatom)
-          r(:) = pbc(particle_set(atom_a)%r(:),cell)
+          r = r_pbc(:,atom_a)
           CALL give_ijk_subcell(r,i,j,k,cell,nsubcell)
           subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
         END DO
@@ -986,7 +995,7 @@ CONTAINS
         DO iatom_local=1,nlista(ikind)
           iatom = lista(ikind)%list(iatom_local)
           atom_a = atom(ikind)%list(iatom)
-          r(:) = pbc(particle_set(atom_a)%r(:),cell)
+          r = r_pbc(:,atom_a)
           CALL give_ijk_subcell(r,i,j,k,cell,nsubcell)
           subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
           subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
@@ -996,7 +1005,7 @@ CONTAINS
           jatom = listb(jkind)%list(jatom_local)
           atom_b = atom(jkind)%list(jatom)
           IF (my_molecular) mol_b = atom(jkind)%list_b_mol(jatom_local)
-          r(:) = pbc(particle_set(atom_b)%r(:),cell)
+          r = r_pbc(:,atom_b)
           CALL real_to_scaled(sb_pbc(:),r(:),cell)
 
           loop2_kcell: DO kcell=-ncell(3),ncell(3)
@@ -1070,7 +1079,7 @@ CONTAINS
                           include_ab = .TRUE.
                         END IF
                         IF (include_ab) THEN
-                          ra(:) = pbc(particle_set(atom_a)%r(:),cell)
+                          ra(:) = r_pbc(:,atom_a)
                           rab(:) = rb(:) - ra(:)
                           IF ( my_mic ) rab(:) = pbc(rab(:),cell)
                           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -1113,6 +1122,8 @@ CONTAINS
     DEALLOCATE (kind_a,pres_a,pres_b,lista,listb,nlista,nlistb,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (index_list,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(r_pbc,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
