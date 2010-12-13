@@ -792,9 +792,9 @@ CONTAINS
     LOGICAL                                  :: failure, include_ab, my_mic, &
                                                 my_molecular, my_symmetric
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: pres_a, pres_b
-    REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm
+    REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
     REAL(dp), DIMENSION(3)                   :: r, rab, ra, rb, s, sab_max, sb, &
-                                                sb_pbc, sb_min, sb_max
+                                                sb_pbc, sb_min, sb_max, rab_pbc, pd, sab_max_guard
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nlista, nlistb
     TYPE(local_lists), DIMENSION(:), POINTER :: lista, listb
     TYPE(neighbor_list_p_type), &
@@ -927,7 +927,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Load informations about the simulation cell
-    CALL get_cell(cell=cell,periodic=periodic)
+    CALL get_cell(cell=cell,periodic=periodic,deth=deth)
 
     ! Loop over all atomic kind pairs
     DO ikind=1,nkind
@@ -950,17 +950,22 @@ CONTAINS
           rabm = rab_max
         END IF
         rab2_max = rabm*rabm
-        sab_max(1) = rabm/plane_distance(1,0,0,cell)
-        sab_max(2) = rabm/plane_distance(0,1,0,cell)
-        sab_max(3) = rabm/plane_distance(0,0,1,cell)
 
-        IF ( my_mic ) THEN
-          ncell(:) = 0
-          periodic = 0
-        ELSE
-          ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        END IF
-        nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
+        pd(1) = plane_distance(1,0,0,cell)
+        pd(2) = plane_distance(0,1,0,cell)
+        pd(3) = plane_distance(0,0,1,cell)
+        
+        sab_max = rabm / pd
+        sab_max_guard = 6.0_dp / pd
+
+        ! It makes sense to have fewer subcells for larger systems
+        subcell_scale=((125.0_dp**3)/deth)**(1.0_dp/6.0_dp)
+
+        ! guess the number of subcells for optimal performance, guard against crazy stuff triggered by very small rabm
+        nsubcell(:) = MAX(1.0_dp,MIN(0.5_dp*subcells*subcell_scale/sab_max(:),0.5_dp*subcells/sab_max_guard(:))) 
+
+        ! number of image cells to be considered
+        ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
 
         CALL allocate_neighbor_list_set(neighbor_list_set=ab_list(iab)%neighbor_list_set,&
              r_max=rabm,symmetric=my_symmetric,mic=my_mic,molecular=my_molecular)
@@ -1044,6 +1049,8 @@ CONTAINS
                   loop_j: DO j=1,nsubcell(2)
                     loop_i: DO i=1,nsubcell(1)
 
+                      ! FIXME for non-periodic systems, the whole subcell trick is skipped
+                      ! yielding a Natom**2 pair list build. 
                       IF (periodic(3) /= 0) THEN
                         IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
                         IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
@@ -1081,15 +1088,25 @@ CONTAINS
                         IF (include_ab) THEN
                           ra(:) = r_pbc(:,atom_a)
                           rab(:) = rb(:) - ra(:)
-                          IF ( my_mic ) rab(:) = pbc(rab(:),cell)
                           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                           IF (rab2 < rab2_max) THEN
-                            CALL add_neighbor_node(&
-                              neighbor_list=kind_a(iatom_local)%neighbor_list,&
-                              neighbor=atom_b,&
-                              cell=cell_b,&
-                              r=rab,&
-                              nkind=nkind)
+                            include_ab=.TRUE.
+                            IF (my_mic) THEN
+                               ! only if rab is minimum image the pair will be included
+                               ! ideally the range of the pair list is < L/2 so that this never triggers
+                               rab_pbc(:) = pbc(rab(:),cell)
+                               IF (SUM((rab_pbc-rab)**2) > EPSILON(1.0_dp)) THEN
+                                  include_ab = .FALSE.
+                               ENDIF
+                            ENDIF
+                            IF (include_ab) THEN
+                               CALL add_neighbor_node(&
+                                    neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                                    neighbor=atom_b,&
+                                    cell=cell_b,&
+                                    r=rab,&
+                                    nkind=nkind)
+                            ENDIF
                           END IF
                         END IF
                       END DO

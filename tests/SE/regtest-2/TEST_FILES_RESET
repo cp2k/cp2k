@@ -411,3 +411,5 @@ H2O-32.inp
 hcl_ot.inp
 # numerics with refactoring the mopac guess 
 ZrF2-PM6.inp
+# changed mic pair list build 
+H2O-32.inp

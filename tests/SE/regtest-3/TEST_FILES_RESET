@@ -341,3 +341,15 @@ N3_dp_md.inp
 N3_rp_dp_md.inp
 # speedup
 LiH.inp
+# changed mic pair list build 
+SiO2.inp
+# changed mic pair list build 
+H2O-4.inp
+# changed mic pair list build 
+LiH.inp
+# changed mic pair list build 
+SiO2_lr_quad.inp
+# changed mic pair list build 
+Al2O3.inp
+# changed mic pair list build 
+Co_complex.inp
