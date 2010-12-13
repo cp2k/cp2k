@@ -16,6 +16,7 @@ MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data,&
                                              array_exists,&
                                              array_hold,&
+                                             array_i1d_obj,&
                                              array_release
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
@@ -28,6 +29,8 @@ MODULE dbcsr_internal_operations
        dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
        dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: checker_tr,&
+                                             dbcsr_get_col_map,&
+                                             dbcsr_get_local_cols,&
                                              dbcsr_get_local_rows,&
                                              dbcsr_get_row_map
   USE dbcsr_error_handling
@@ -82,7 +85,7 @@ MODULE dbcsr_internal_operations
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8,&
        dbcsr_iterator, dbcsr_slot_size, dbcsr_slot_row_p, dbcsr_slot_blk_p,&
        dbcsr_num_slots, dbcsr_slot_home_prow, dbcsr_slot_home_pcol,&
-       dbcsr_distribution_obj
+       dbcsr_distribution_obj, dbcsr_distribution_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_set_debug
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -1108,6 +1111,7 @@ CONTAINS
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
              !
+             ! Sets the local right-matrix columns
              IF (otf_filtering) THEN
                 left_norms(:) = HUGE(left_norms(1))
                 right_norms(:) = HUGE(right_norms(1))
@@ -1338,6 +1342,15 @@ CONTAINS
 !> \param[in] k_block_epss    (optional) on-the-fly filtering epsilon per block
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
+!> \par Local indexing
+!>      If the right matrix has local indexing, then only the declared local
+!>      rows are used in the multiply.  This is primarily used to reduce the
+!>      amount of data transferred among nodes.
+!>
+!>      When the right matrix has local column process mapping
+!>      enabled, then the multiplication algorithm uses less space;
+!>      however, lookups between local process block columns and the
+!>      global block columns are incurred.
 ! *****************************************************************************
   SUBROUTINE dbcsr_nn_mult_lin(left, right, product, submatrix_box, flop,&
        retain_sparsity, use_plasma, alpha,&
@@ -1364,21 +1377,23 @@ CONTAINS
       a_last_block, a_row_l, a_row_logical, a_row_size_logical, b_blk, &
       b_col_logical, b_col_size_logical, b_first_block, b_last_block, &
       b_row_l, b_row_logical, b_row_size_logical, blk_end, blk_size, &
-      blk_start, c_blk_pt, c_col_logical, c_col_size_logical, c_nze, &
-      c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
+      blk_start, c_blk_pt, c_col_index, c_col_logical, c_col_size_logical, &
+      c_nze, c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
       error_handler, first_k, first_mergeable, i, ithread, j, last_k, &
       lastblk, new_blk, new_index_size, new_row_blks, nthreads, old_blk, &
-      old_row_begin_blk, old_size, row_begin_blk, size_c_blk_ps, stack_p, &
-      stack_p_a, stack_p_b, stack_p_c
-    INTEGER :: stat, submat_f_col, submat_f_row, submat_l_col, submat_l_row, &
-      this_right_limit
+      old_row_begin_blk, old_size, product_ncols, row_begin_blk, &
+      size_c_blk_ps, stack_p, stack_p_a
+    INTEGER :: stack_p_b, stack_p_c, stat, submat_f_col, submat_f_row, &
+      submat_l_col, submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index, new_index_tmp
     INTEGER, DIMENSION(:), POINTER :: k_blk_local, left_col_blk_offset, &
       left_local_rows, left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
-      product_col_blk_offset, right_col_blk_offset
+      product_col_blk_offset, right_col_blk_offset, right_col_map
+    TYPE(array_i1d_obj)                      :: right_col_map_obj, &
+                                                right_local_cols_obj
 
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, keep_sparsity, &
@@ -1395,7 +1410,8 @@ CONTAINS
     TYPE(dgemm_join), &
       DIMENSION(dgemm_stack_size)            :: dgemm_joins
     REAL(kind=sp)                            :: a_norm, b_norm, a_row_eps
-    LOGICAL, PARAMETER :: dbg = .FALSE.
+    LOGICAL, PARAMETER :: dbg = .FALSE., local_cols = .TRUE.
+    TYPE(dbcsr_distribution_obj) :: dist
 
 !   ---------------------------------------------------------------------------
 
@@ -1438,6 +1454,18 @@ CONTAINS
     ! Calculate the global -> local mapping
     IF (right%local_indexing) THEN
        k_blk_local => array_data(right%global_rows)
+    ENDIF
+    ! Global -> local mapping for product & right matrix columns.
+    IF (local_cols) THEN
+       dist = right%dist
+       CALL dbcsr_get_local_cols (dist,&
+            right_local_cols_obj,&
+            right%index(dbcsr_slot_home_pcol),&
+            error=error)
+       CALL dbcsr_get_col_map(dist,&
+            right_col_map_obj,&
+            error=error)
+       right_col_map => array_data (right_col_map_obj)
     ENDIF
     ! Submatrix handling
     left_limit_rows = MAXVAL (submatrix_box(1:2)) .GT. 0
@@ -1488,11 +1516,16 @@ CONTAINS
                                       * REAL(right%nblkcols_local, real_8))
     ALLOCATE (new_index (3, new_index_size))
     ! c_blk_ps contains the block pointers in the product's current row
-    ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
+    IF (local_cols) THEN
+       product_ncols = product%nblkcols_local
+    ELSE
+       product_ncols = product%nblkcols_total
+    ENDIF
+    ALLOCATE (c_blk_ps(product_ncols), stat=stat)
     CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "c_blk_ps",__LINE__,error)
     c_blk_ps(:) = 0
-    ALLOCATE (c_blk_ps_p(product%nblkcols_total), stat=stat)
+    ALLOCATE (c_blk_ps_p(product_ncols), stat=stat)
     CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "c_blk_ps_p",__LINE__,error)
     size_c_blk_ps = 0
@@ -1538,9 +1571,15 @@ CONTAINS
        ENDIF
        old_row_begin_blk = old_blk
        ! Clear the c_blk_ps array
-       DO i = 1, size_c_blk_ps
-          c_blk_ps(c_blk_ps_p(i)) = 0
-       ENDDO
+       IF (local_cols) THEN
+          DO i = 1, size_c_blk_ps
+             c_blk_ps(c_blk_ps_p(i)) = 0
+          ENDDO
+       ELSE
+          DO i = 1, size_c_blk_ps
+             c_blk_ps(c_blk_ps_p(i)) = 0
+          ENDDO
+       ENDIF
        size_c_blk_ps = 0
        ! Fill in the c_blk_ps array
        IF (dbg) WRITE(*,*)ithread,routineN//" old_blk, old_size, old_row_begin_blk",&
@@ -1552,10 +1591,19 @@ CONTAINS
                   product%wms(ithread+1)%col_i(old_blk),&
                   product%wms(ithread+1)%blk_p(old_blk)
              c_col_logical = product%wms(ithread+1)%col_i(old_blk)
-             c_blk_ps(c_col_logical)&
+             IF (local_cols) THEN
+                c_col_index = right_col_map (c_col_logical)
+             ELSE
+                c_col_index = c_col_logical
+             ENDIF
+             c_blk_ps(c_col_index)&
                   = product%wms(ithread+1)%blk_p(old_blk)
              size_c_blk_ps = size_c_blk_ps + 1
-             c_blk_ps_p(size_c_blk_ps) = product%wms(ithread+1)%col_i(old_blk)
+             IF (local_cols) THEN
+                c_blk_ps_p(size_c_blk_ps) = right_col_map (product%wms(ithread+1)%col_i(old_blk))
+             ELSE
+                c_blk_ps_p(size_c_blk_ps) = product%wms(ithread+1)%col_i(old_blk)
+             ENDIF
              old_blk = old_blk+1
              IF (old_blk .GT. old_size) THEN
                 !old_blk = old_blk-1
@@ -1645,7 +1693,12 @@ CONTAINS
              ENDIF
              b_col_logical = right%col_i(b_blk)
              c_col_logical = b_col_logical
-             block_exists = c_blk_ps(c_col_logical) .NE. 0
+             IF (local_cols) THEN
+                c_col_index = right_col_map (c_col_logical)
+             ELSE
+                c_col_index = c_col_logical
+             ENDIF
+             block_exists = c_blk_ps(c_col_index) .NE. 0
              IF (otf_filtering) THEN
                 b_norm = right_norms(b_blk)
                 IF (a_norm * b_norm .LT. a_row_eps) THEN
@@ -1695,8 +1748,8 @@ CONTAINS
                 this_right_limit = 0
              ENDIF
              b_col_size_logical = right_col_blk_offset(b_col_logical+1) - blk_start
-             offset = ABS(c_blk_ps(c_col_logical))
-             tr_p = c_blk_ps(c_col_logical) .LT. 0
+             offset = ABS(c_blk_ps(c_col_index))
+             tr_p = c_blk_ps(c_col_index) .LT. 0
              stack_p_b = stack_p_b + 1
              parameters_b(stack_p_b)%offset = ABS(right%blk_p(b_blk))
              parameters_b(stack_p_b)%tr = right%blk_p(b_blk) .LT. 0
@@ -1745,9 +1798,9 @@ CONTAINS
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
                 lastblk = lastblk + 1
-                c_blk_ps (c_col_logical) = offset
+                c_blk_ps (c_col_index) = offset
                 size_c_blk_ps = size_c_blk_ps + 1
-                c_blk_ps_p(size_c_blk_ps) = c_col_logical
+                c_blk_ps_p(size_c_blk_ps) = c_col_index
                 which_beta = beta_new
                 tr_p = offset .LT. 0
              ELSE
@@ -1881,6 +1934,10 @@ CONTAINS
     ENDIF
     !
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
+    IF (local_cols) THEN
+       CALL array_release (right_col_map_obj)
+       CALL array_release (right_local_cols_obj)
+    ENDIF
     product%wms(ithread+1)%lastblk&
          = product%wms(ithread+1)%lastblk + lastblk
     product%wms(ithread+1)%datasize&
