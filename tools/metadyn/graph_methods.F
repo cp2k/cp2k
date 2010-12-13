@@ -352,7 +352,7 @@ CONTAINS
           davg=(dxx+dyy)/REAL(nreplica-1, KIND=dp)
 
           ene=ene+0.5_dp*kb*(xx0-avg)**2
-          dx(:,irep)=dx(:,irep)+kb*(dxx+dyy-2.0_dp*davg)
+          dx(:,irep)=dx(:,irep)+kb*(xx0-avg)*(dxx-davg)+kb*(yy0-avg)*(dyy-davg)
        END DO
        dx(:,1)=0.0_dp
        dx(:,nreplica)=0.0_dp
