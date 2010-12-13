@@ -1,6 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   FES: a fast and general program to map metadynamics on grids              !
-!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009 Teodoro Laino       !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010                !
+!                 Teodoro Laino                                               !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -547,7 +548,7 @@ PROGRAM graph
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
   ! If requested find path
-  IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, x0, ndw, minima)
+  IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, minima)
      
   ! Free memory
   DEALLOCATE(ngrid,stat=stat)

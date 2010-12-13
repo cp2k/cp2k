@@ -1,6 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   FES: a fast and general program to map metadynamics on grids              !
-!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009 Teodoro Laino       !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010                !
+!                 Teodoro Laino                                               !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -168,6 +169,8 @@ CONTAINS
                                                 resto
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dx, rnd, xx
 
+    IF (ndw/=ndim) STOP "Not implemented for projected FES!"
+
     ntrust  = ngrid/10
     ntrials = PRODUCT (ngrid)
     WRITE(6,'(A,10I6)',ADVANCE="no")"FES| Trust hyper-radius ",ntrust
@@ -264,16 +267,124 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, x0, ndw, minima)
+  SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, minima)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, INTENT(IN)                      :: ndim
     INTEGER, DIMENSION(:), POINTER           :: ngrid
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid
+    INTEGER, DIMENSION(:), POINTER           :: iperd
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     INTEGER, INTENT(IN)                      :: ndw
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: minima
 
-    STOP "Not implemented yet!"
+    INTEGER, PARAMETER                       :: nreplica = 32
+    REAL(KIND=dp), PARAMETER                 :: kb = 0.05_dp
 
+    INTEGER                                  :: i, id, irep, iter, pnt
+    INTEGER, DIMENSION(:), POINTER           :: ipos
+    LOGICAL                                  :: converged
+    REAL(KIND=dp)                            :: avg, diff, ene, norm_dx, xx0, &
+                                                yy0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: davg, dxx, dyy, fes_rep, xx, &
+                                                yy
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dx, pos, pos_old
+
+    IF (ndw/=ndim) STOP "Not implemented for projected FES!"
+
+    ALLOCATE(xx(ndim),dx(ndim,nreplica),pos_old(ndim,nreplica),pos(ndim,nreplica),&
+             ipos(ndim),fes_rep(nreplica),dxx(ndim),dyy(ndim),yy(ndim),davg(ndim))
+    ! Evaluate position and derivative
+    id = 0
+    DO i=ndim,ndim-ndw+1,-1
+       id = id +1
+       pos(i,1)        = minima(id,1)
+       pos(i,nreplica) = minima(id,2)
+    END DO
+    
+    ! Interpolate nreplica-2 points
+    xx=(pos(:,nreplica)-pos(:,1))/REAL(nreplica-1,KIND=dp)
+    DO irep=2,nreplica-1
+       pos(:,irep)=pos(:,1)+xx(:)*REAL(irep-1,KIND=dp)
+    END DO
+
+    ! Compute value and derivative in all replicas
+    DO irep=1,nreplica
+       ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
+       pnt = point_no_pbc(ipos,ngrid,ndim)
+       dx(:,irep) = derivative (fes, ipos, iperd, ndim, ngrid, dp_grid)
+       fes_rep(irep) = -fes(pnt)
+    END DO
+
+    ! Implement a simple elastic band method (Hamiltonian): definitely not the best
+    ! method, but for such a simple task it should be more than enough
+    converged=.FALSE.
+    pos_old=pos
+    iter = 0
+    DO WHILE ((.NOT.converged).AND.(iter<=1000))
+       iter=iter+1
+       ene=0.0_dp
+       avg=0.0_dp
+       ! compute average length
+       DO irep=2,nreplica
+          xx=pos(:,irep)-pos(:,irep-1)
+          avg=avg+SQRT(DOT_PRODUCT(xx,xx))
+       END DO
+       avg=avg/REAL(nreplica-1, KIND=dp)
+
+       ! compute energy and derivatives
+       DO irep=1,nreplica
+          ! compute energy and derivative for each single point of the replica
+          ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
+          pnt = point_no_pbc(ipos,ngrid,ndim)
+          dx(:,irep) = derivative (fes, ipos, iperd, ndim, ngrid, dp_grid)
+          fes_rep(irep) = -fes(pnt)
+          IF ((irep==1).OR.(irep==nreplica)) CYCLE
+
+          ! compute the elastic term
+          xx  =pos(:,irep)-pos(:,irep-1)
+          xx0 =SQRT(DOT_PRODUCT(xx,xx))
+          dxx = 1.0_dp/xx0*xx
+
+          xx  =pos(:,irep+1)-pos(:,irep)
+          yy0 =SQRT(DOT_PRODUCT(xx,xx))
+          dyy =-1.0_dp/yy0*xx
+
+          davg=(dxx+dyy)/REAL(nreplica-1, KIND=dp)
+
+          ene=ene+0.5_dp*kb*(xx0-avg)**2
+          dx(:,irep)=dx(:,irep)+kb*(dxx+dyy-2.0_dp*davg)
+       END DO
+       dx(:,1)=0.0_dp
+       dx(:,nreplica)=0.0_dp
+
+       ! propagate the band with a SD step
+       diff=0.0_dp
+       DO irep=1,nreplica
+          ene=ene+fes_rep(irep)
+          IF ((irep==1).OR.(irep==nreplica)) CYCLE
+
+          norm_dx = SQRT(DOT_PRODUCT(dx(:,irep),dx(:,irep)))
+          pos(:,irep)  = pos(:,irep) - MIN(0.1_dp,norm_dx)*dx(:,irep)/norm_dx
+          xx=pos(:,irep)-pos_old(:,irep)
+          diff=diff+DOT_PRODUCT(xx,xx)
+       END DO
+       IF (SQRT(diff)<=0.001_dp) THEN
+          converged=.TRUE.
+       END IF
+       pos_old=pos
+       WRITE(*,*)"Iteration nr.",iter
+    END DO
+
+    WRITE(*,*)"MEP"
+    DO irep=1,nreplica
+       ! compute energy and derivative for each single point of the replica
+       ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
+       pnt = point_no_pbc(ipos,ngrid,ndim)
+       fes_rep(irep) = -fes(pnt)
+       WRITE(*,*)irep, pos(:,irep), fes_rep(irep)
+    END DO
+
+    DEALLOCATE(xx,dx,pos,fes_rep,ipos,pos_old,yy,dxx,davg)
   END SUBROUTINE fes_path
 
 END MODULE graph_methods
