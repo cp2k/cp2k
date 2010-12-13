@@ -415,7 +415,7 @@ MODULE dbcsr_types
 !> \var replication_type      multi-process replication used in the matrix
 !> \var transpose             matrix is logically transposed
 !> \var bscs                  BCS Column instead of BCS Row
-!> \var local_indexing        Local indexing instead of global indexing.
+!> \var local_indexing        Local indexing of rows instead of global indexing.
 !> \var local_rows            Map of local to global rows when local indexing
 !>                            is enabled
 !> \var local_rows            Map of global to local rows when local indexing

@@ -33,6 +33,7 @@ MODULE dbcsr_internal_operations
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                              dbcsr_expand_row_index,&
+                                             dbcsr_has_local_row_index,&
                                              dbcsr_repoint_index,&
                                              merge_index_arrays
   USE dbcsr_io,                        ONLY: all_print,&
@@ -60,9 +61,8 @@ MODULE dbcsr_internal_operations
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
        dbcsr_distribution_has_threads, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_row_dist, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_init, dbcsr_mp_grid_setup, dbcsr_mp_group, &
+       dbcsr_distribution_mp, dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_get_num_blocks, dbcsr_init, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
@@ -430,7 +430,7 @@ CONTAINS
                __LINE__, error=error)
        ENDIF
        IF (left_set%mats(1, 1)%m%bcsc) otf_filtering = .FALSE.
-       IF (left_set%mats(1, 1)%m%local_indexing) THEN
+       IF (dbcsr_has_local_row_index (left_set%mats(1, 1))) THEN
           nblkrows_used = dbcsr_nblkrows_local (left_set%mats(1, 1))
        ELSE
           nblkrows_used = dbcsr_nblkrows_total (left_set%mats(1, 1))
@@ -468,7 +468,7 @@ CONTAINS
              CALL dbcsr_count_row_index (&
                   left_set%mats(left_row_image, left_col_image)%m%row_p,&
                   row_counts, nblkrows_used)
-             IF (left_set%mats(left_row_image, left_col_image)%m%local_indexing) THEN
+             IF (dbcsr_has_local_row_index (left_set%mats(left_row_image, left_col_image))) THEN
                 CALL dbcsr_assert (array_exists (&
                      left_set%mats(left_row_image, left_col_image)%m%local_rows),&
                      dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1363,23 +1363,22 @@ CONTAINS
     INTEGER :: a_blk, a_col_logical, a_col_size_logical, a_first_block, &
       a_last_block, a_row_l, a_row_logical, a_row_size_logical, b_blk, &
       b_col_logical, b_col_size_logical, b_first_block, b_last_block, &
-      b_local_prow, b_row_l, b_row_logical, b_row_size_logical, blk_end, &
-      blk_size, blk_start, c_blk_pt, c_col_logical, c_col_size_logical, &
-      c_nze, c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
+      b_row_l, b_row_logical, b_row_size_logical, blk_end, blk_size, &
+      blk_start, c_blk_pt, c_col_logical, c_col_size_logical, c_nze, &
+      c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
       error_handler, first_k, first_mergeable, i, ithread, j, last_k, &
       lastblk, new_blk, new_index_size, new_row_blks, nthreads, old_blk, &
       old_row_begin_blk, old_size, row_begin_blk, size_c_blk_ps, stack_p, &
-      stack_p_a, stack_p_b
-    INTEGER :: stack_p_c, stat, submat_f_col, submat_f_row, submat_l_col, &
-      submat_l_row, this_right_limit
+      stack_p_a, stack_p_b, stack_p_c
+    INTEGER :: stat, submat_f_col, submat_f_row, submat_l_col, submat_l_row, &
+      this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: lflop, one_flop
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p, &
-                                                k_blk_local
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index, new_index_tmp
-    INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
-      left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
-      product_col_blk_offset, right_col_blk_offset, right_row_dist
+    INTEGER, DIMENSION(:), POINTER :: k_blk_local, left_col_blk_offset, &
+      left_local_rows, left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
+      product_col_blk_offset, right_col_blk_offset
 
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, keep_sparsity, &
@@ -1407,12 +1406,6 @@ CONTAINS
     CALL dbcsr_assert ("NOT", right%bcsc,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Wrong routine for BCSC matrices.", __LINE__, error=error)
-    IF (.FALSE.) THEN
-       CALL dbcsr_assert ("NOT", right%local_indexing,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Can not handle local indexing of right matrices.",&
-            __LINE__, error=error)
-    ENDIF
     data_type = product%data_type
     my_alpha = dbcsr_scalar_one (data_type)
     IF (PRESENT (alpha)) my_alpha = alpha
@@ -1444,27 +1437,7 @@ CONTAINS
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     ! Calculate the global -> local mapping
     IF (right%local_indexing) THEN
-       right_row_dist => array_data (dbcsr_distribution_row_dist (right%dist))
-       ALLOCATE (k_blk_local (right%nblkrows_total))
-       k_blk_local(:) = 0
-       b_local_prow = right%index(dbcsr_slot_home_prow)
-       j = 1
-       DO i = 1, right%nblkrows_total
-          IF (right_row_dist(i) .EQ. b_local_prow) THEN
-             k_blk_local(i) = j
-             j = j+1
-          ENDIF
-       ENDDO
-       CALL dbcsr_assert (j-1, "EQ", SIZE(right%row_p)-1,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Bad local row logic for the right matrix.", __LINE__, error=error)
-       IF (dbg) THEN
-          WRITE(*,*)routineN//" right row remapping for declared prow,pcol",&
-               b_local_prow, "and nlocal_rows=", j-1
-          WRITE(*,'(10(1X,I7))')k_blk_local
-          WRITE(*,*)"Dist:"
-          WRITE(*,'(10(1X,I7))')right_row_dist
-       ENDIF
+       k_blk_local => array_data(right%global_rows)
     ENDIF
     ! Submatrix handling
     left_limit_rows = MAXVAL (submatrix_box(1:2)) .GT. 0

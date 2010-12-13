@@ -60,7 +60,7 @@ MODULE dbcsr_index_operations
   ! Index transformations
   PUBLIC :: dbcsr_make_index_canonical, make_index_triangular,&
             transpose_index_local, dbcsr_order_matrix_index
-  PUBLIC :: dbcsr_make_index_local_row
+  PUBLIC :: dbcsr_make_index_local_row, dbcsr_has_local_row_index
   ! Dense/Sparse
   PUBLIC :: make_dense_index, make_undense_index
   ! Working with DBCSR and linear indices
@@ -1541,5 +1541,15 @@ CONTAINS
     !
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_index_checksum
+
+  FUNCTION dbcsr_has_local_row_index (matrix) RESULT (local_indexing)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL                                  :: local_indexing
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_has_local_row_index', &
+      routineP = moduleN//':'//routineN
+
+    local_indexing = matrix%m%local_indexing
+  END FUNCTION dbcsr_has_local_row_index
 
 END MODULE dbcsr_index_operations
