@@ -654,3 +654,4 @@ dimer3.inp
 dimer4.inp
 # numerics with refactoring the mopac guess 
 ice-scp-ewald.inp
+ice-scp-ewald.inp
