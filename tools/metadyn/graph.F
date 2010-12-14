@@ -22,7 +22,8 @@ PROGRAM graph
                                              fes_only_write,&
                                              fes_path,&
                                              fes_write
-  USE graph_utils,                     ONLY: get_val_res
+  USE graph_utils,                     ONLY: get_val_res,&
+                                             mep_input_data_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_getarg,&
@@ -43,14 +44,15 @@ PROGRAM graph
                                               tmp(:)
   LOGICAL                                  :: fix, l_cp2k, l_dp, l_fmin, &
                                               l_grid, l_math, l_orac, &
-                                              l_pmin, lstride, l_cpmd
+                                              l_pmin, lstride, l_cpmd, failure
   REAL(KIND=dp)                            :: diff, dp2, dum, eps_cut, ss, &
                                               x0w(3), xfw(3), delta_s_glob
   REAL(KIND=dp), POINTER :: delta_s(:,:), dp_cut(:), dp_grid(:), fes(:), &
-    gauss(:,:), minima(:,:), ss0(:,:), tmpr(:), ww(:), x0(:), xf(:)
+    gauss(:,:), ss0(:,:), tmpr(:), ww(:), x0(:), xf(:)
+  TYPE(mep_input_data_type)                :: mep_input_data
 
-! Initialize variables
-
+  failure=.FALSE.
+  ! Initialize variables
   nprd    = 0
   ndim    = 1
   ndw     = 1
@@ -95,6 +97,9 @@ PROGRAM graph
      WRITE(iw,*)'[-find-path]         (Finds MEP between all minima (found) in the computed FES)'
      WRITE(iw,*)'[-point-a]           (Specifies point (a) when using -find-path option)'
      WRITE(iw,*)'[-point-b]           (Specifies point (b) when using -find-path option)'
+     WRITE(iw,*)'[-mep-kb]            (Specifies the value of the force constant for the MEP: default 0.1_dp)'
+     WRITE(iw,*)'[-mep-nreplica]      (Specifies the number of replica points used in the MEP: default 8)'
+     WRITE(iw,*)'[-mep-iter]          (Specifies the maximum number of iterations used in the MEP: default 10000)'
      WRITE(iw,*)''
      WRITE(iw,*)'DEFAULT OUTPUT: fes.dat'
      WRITE(iw,*)''
@@ -260,8 +265,11 @@ PROGRAM graph
   ENDDO
 
   IF (l_pmin) THEN
-     ALLOCATE(minima(ndw,2))
-     minima = HUGE(0.0_dp)
+     ALLOCATE(mep_input_data%minima(ndw,2))
+     mep_input_data%minima  =HUGE(0.0_dp)
+     mep_input_data%max_iter=10000
+     mep_input_data%kb=0.1_dp
+     mep_input_data%nreplica=8
      ! Read for starting point (a) and (b)
      DO i=1,argcount
         CALL M_GETARG(i,wq_char)
@@ -269,21 +277,37 @@ PROGRAM graph
         IF (INDEX(wq_char,'-point-a').NE.0)THEN
            DO id=1,ndw
               CALL M_GETARG(i+id,wq_char)
-              READ(wq_char,*)minima(id,1)
+              READ(wq_char,*)mep_input_data%minima(id,1)
            ENDDO
         ENDIF
 
         IF (INDEX(wq_char,'-point-b').NE.0)THEN
            DO id=1,ndw
               CALL M_GETARG(i+id,wq_char)
-              READ(wq_char,*)minima(id,2)
+              READ(wq_char,*)mep_input_data%minima(id,2)
            ENDDO
         ENDIF
+
+        IF (INDEX(wq_char,'-mep-iter').NE.0)THEN
+           CALL M_GETARG(i+1,wq_char)
+           READ(wq_char,*)mep_input_data%max_iter
+        ENDIF
+
+        IF (INDEX(wq_char,'-mep-kb').NE.0)THEN
+           CALL M_GETARG(i+1,wq_char)
+           READ(wq_char,*)mep_input_data%kb
+        ENDIF
+
+        IF (INDEX(wq_char,'-mep-nreplica').NE.0)THEN
+           CALL M_GETARG(i+1,wq_char)
+           READ(wq_char,*)mep_input_data%nreplica
+        ENDIF
+
      END DO
-     IF (ANY(minima==HUGE(0.0_dp))) &
+     IF (ANY(mep_input_data%minima==HUGE(0.0_dp))) &
           STOP "-find-path requires the specification of -point-a and -point-b !"
   ELSE
-     ALLOCATE(minima(0,0))
+     ALLOCATE(mep_input_data%minima(0,0))
   END IF
 
   !  Defines the order of the collectiv var.: first the "wanted" ones, then the others
@@ -548,7 +572,7 @@ PROGRAM graph
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
   ! If requested find path
-  IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, minima)
+  IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data)
      
   ! Free memory
   DEALLOCATE(ngrid,stat=stat)
@@ -585,7 +609,7 @@ PROGRAM graph
   IF (stat/=0) STOP "Deallocation Error"
   DEALLOCATE(iprd,stat=stat )
   IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(minima,stat=stat)
+  DEALLOCATE(mep_input_data%minima,stat=stat)
   IF (stat/=0) STOP "Deallocation Error"
 
   ! Terminate FES

@@ -18,6 +18,7 @@
 MODULE graph_methods
 
   USE graph_utils,                     ONLY: derivative,&
+                                             mep_input_data_type,&
                                              pbc,&
                                              point_no_pbc,&
                                              point_pbc
@@ -263,11 +264,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finds path between two points (a) and (b)
 !> \par History
-!>      06.2009 created [tlaino]
+!>      12.2010 created [tlaino]
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, minima)
+  SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, INTENT(IN)                      :: ndim
     INTEGER, DIMENSION(:), POINTER           :: ngrid
@@ -275,12 +276,10 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iperd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     INTEGER, INTENT(IN)                      :: ndw
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: minima
+    TYPE(mep_input_data_type), INTENT(IN)    :: mep_input_data
 
-    INTEGER, PARAMETER                       :: max_iter = 10000, nreplica = 8
-    REAL(KIND=dp), PARAMETER                 :: kb = 0.1_dp
-
-    INTEGER                                  :: i, id, irep, iter, pnt
+    INTEGER                                  :: i, id, irep, iter, nreplica, &
+                                                pnt
     INTEGER, DIMENSION(:), POINTER           :: ipos
     LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: avg, diff, ene, norm_dx, xx0, &
@@ -290,15 +289,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dx, pos, pos_old
 
     IF (ndw/=ndim) STOP "Not implemented for projected FES!"
-
+    nreplica = mep_input_data%nreplica
     ALLOCATE(xx(ndim),dx(ndim,nreplica),pos_old(ndim,nreplica),pos(ndim,nreplica),&
              ipos(ndim),fes_rep(nreplica),dxx(ndim),dyy(ndim),yy(ndim),davg(ndim))
     ! Evaluate position and derivative
     id = 0
     DO i=ndim,ndim-ndw+1,-1
        id = id +1
-       pos(i,1)        = minima(id,1)
-       pos(i,nreplica) = minima(id,2)
+       pos(i,1)        = mep_input_data%minima(id,1)
+       pos(i,nreplica) = mep_input_data%minima(id,2)
     END DO
     
     ! Interpolate nreplica-2 points
@@ -320,7 +319,7 @@ CONTAINS
     converged=.FALSE.
     pos_old=pos
     iter = 0
-    DO WHILE ((.NOT.converged).AND.(iter<=max_iter))
+    DO WHILE ((.NOT.converged).AND.(iter<=mep_input_data%max_iter))
        iter=iter+1
        ene=0.0_dp
        avg=0.0_dp
@@ -351,8 +350,9 @@ CONTAINS
 
           davg=(dxx+dyy)/REAL(nreplica-1, KIND=dp)
 
-          ene=ene+0.5_dp*kb*(xx0-avg)**2
-          dx(:,irep)=dx(:,irep)+kb*(xx0-avg)*(dxx-davg)+kb*(yy0-avg)*(dyy-davg)
+          ene=ene+0.5_dp*mep_input_data%kb*(xx0-avg)**2
+          dx(:,irep)=dx(:,irep)+mep_input_data%kb*(xx0-avg)*(dxx-davg)+&
+                                mep_input_data%kb*(yy0-avg)*(dyy-davg)
        END DO
        dx(:,1)=0.0_dp
        dx(:,nreplica)=0.0_dp

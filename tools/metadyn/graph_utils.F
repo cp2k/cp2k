@@ -18,7 +18,16 @@ MODULE graph_utils
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
+
+  TYPE mep_input_data_type
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: minima
+     INTEGER                                :: max_iter
+     INTEGER                                :: nreplica
+     REAL(KIND=dp)                          :: kb
+  END TYPE mep_input_data_type
+
   PUBLIC :: get_val_res,&
+            mep_input_data_type,&
             point_pbc,&
             point_no_pbc,&
             derivative,&
