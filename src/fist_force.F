@@ -223,21 +223,15 @@ CONTAINS
        particle_set ( i ) % f ( 1 ) = 0.0_dp
        particle_set ( i ) % f ( 2 ) = 0.0_dp
        particle_set ( i ) % f ( 3 ) = 0.0_dp
-       particle_set ( i ) % rho     = 0.0_dp
-       particle_set ( i ) % f_embed = 0.0_dp
     ENDDO
     IF(nshell>0) THEN
        DO i=1,nshell
           shell_particle_set ( i ) % f ( 1 ) = 0.0_dp
           shell_particle_set ( i ) % f ( 2 ) = 0.0_dp
           shell_particle_set ( i ) % f ( 3 ) = 0.0_dp
-          shell_particle_set ( i ) % rho     = 0.0_dp
-          shell_particle_set ( i ) % f_embed = 0.0_dp
           core_particle_set ( i ) % f ( 1 )  = 0.0_dp
           core_particle_set ( i ) % f ( 2 )  = 0.0_dp
           core_particle_set ( i ) % f ( 3 )  = 0.0_dp
-          core_particle_set ( i ) % rho      = 0.0_dp
-          core_particle_set ( i ) % f_embed  = 0.0_dp
        END DO
     ENDIF
 

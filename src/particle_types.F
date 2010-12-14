@@ -63,8 +63,6 @@ MODULE particle_types
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
                                               v           ! velocity
-     ! Particle dependent terms for EAM
-     REAL(KIND=dp)                         :: rho, f_embed
      ! Particle dependent terms for shell-model
      INTEGER                               :: atom_index, t_region_index, shell_index
   END TYPE particle_type

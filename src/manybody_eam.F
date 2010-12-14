@@ -17,7 +17,9 @@ MODULE manybody_eam
   USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+  USE fist_nonbond_env_types,          ONLY: eam_type,&
+                                             fist_nonbond_env_get,&
+                                             fist_nonbond_env_set,&
                                              fist_nonbond_env_type,&
                                              pos_type
   USE kinds,                           ONLY: dp
@@ -63,6 +65,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
+    TYPE(eam_type), DIMENSION(:), POINTER    :: eam_data
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -74,7 +77,7 @@ CONTAINS
     do_eam = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update,&
-         r_last_update_pbc=r_last_update_pbc,error=error)
+         r_last_update_pbc=r_last_update_pbc, eam_data=eam_data,error=error)
     nkinds = SIZE(potparm%pot, 1)
     ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -94,12 +97,25 @@ CONTAINS
        END DO
     END DO
 
+    nparticle = SIZE (particle_set)
+
+    IF (do_eam) THEN
+       IF (.NOT. ASSOCIATED(eam_data)) THEN
+          ALLOCATE(eam_data(nparticle),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL fist_nonbond_env_set (fist_nonbond_env,  eam_data=eam_data, error=error)
+       ENDIF
+       DO i=1,nparticle
+          eam_data(i)%rho=0.0_dp
+          eam_data(i)%f_embed=0.0_dp
+       ENDDO
+    ENDIF
+
     ! Only if EAM potential are present
     IF (do_eam) THEN
        ! Add citation
        CALL cite_reference(Foiles1986)
        NULLIFY(eam_a, eam_b)
-       nparticle = SIZE (particle_set)
        ALLOCATE ( rho(nparticle), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        rho = 0._dp
@@ -139,7 +155,7 @@ CONTAINS
        END DO
        CALL mp_sum( rho, para_env%group )
        DO iparticle=1,nparticle
-          particle_set(iparticle)%rho = rho(iparticle)
+          eam_data(iparticle)%rho = rho(iparticle)
        END DO
 
        DEALLOCATE (rho,stat=stat)
@@ -200,10 +216,10 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE get_force_eam ( rab2, eam_a, eam_b, particle_set, atom_a, atom_b, f_eam )
+  SUBROUTINE get_force_eam ( rab2, eam_a, eam_b, eam_data, atom_a, atom_b, f_eam )
     REAL(dp), INTENT(IN)                     :: rab2
     TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
-    TYPE(particle_type), INTENT(IN)          :: particle_set( : )
+    TYPE(eam_type), INTENT(IN)               :: eam_data( : )
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     REAL(dp), INTENT(OUT)                    :: f_eam
 
@@ -236,7 +252,7 @@ CONTAINS
     qq = rab - eam_b%rval(index)
     denspj = eam_b%rhop(index) + qq*(eam_b%rhop(index+1) - eam_b%rhop(index))/eam_b%drar
 
-    fcp = denspj * particle_set(atom_a)%f_embed + denspi * particle_set(atom_b)%f_embed
+    fcp = denspj * eam_data(atom_a)%f_embed + denspi * eam_data(atom_b)%f_embed
     f_eam =  fcp / rab
   END SUBROUTINE get_force_eam
 

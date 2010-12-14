@@ -20,7 +20,8 @@ MODULE manybody_potential
   USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+  USE fist_nonbond_env_types,          ONLY: eam_type,&
+                                             fist_nonbond_env_get,&
                                              fist_nonbond_env_type,&
                                              pos_type
   USE kinds,                           ONLY: dp
@@ -89,6 +90,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     REAL(KIND=dp), POINTER                   :: fembed( : )
     TYPE(eam_pot_type), POINTER              :: eam
+    TYPE(eam_type), DIMENSION(:), POINTER    :: eam_data
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -102,7 +104,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
-         potparm = potparm ,error=error)
+         potparm = potparm , eam_data=eam_data, error=error)
     ! EAM requires a single loop 
     DO ikind = 1, SIZE ( atomic_kind_set )
        pot => potparm %pot ( ikind, ikind ) % pot
@@ -113,13 +115,14 @@ CONTAINS
          ALLOCATE(fembed(nparticle), stat=stat )
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          fembed(:) = 0._dp
+         CPPostcondition(ASSOCIATED(eam_data),cp_failure_level,routineP,error,failure)
          ! computation of embedding function and energy
          nparticle_local = local_particles%n_el(ikind)
          DO iparticle_local=1,nparticle_local
             iparticle = local_particles%list(ikind)%array(iparticle_local)
-            index = INT ( particle_set(iparticle)%rho / eam%drhoar) + 1
+            index = INT ( eam_data(iparticle)%rho / eam%drhoar) + 1
             IF (index > eam%npoints-1) index = eam%npoints-1
-            qr = particle_set(iparticle)%rho  -  eam%rhoval(index)
+            qr = eam_data(iparticle)%rho  -  eam%rhoval(index)
 
             embed = eam%frho(index) +  qr*eam%frhop(index)
             fembed (iparticle) = eam%frhop(index) + qr*(eam%frhop(index+1)-eam%frhop(index))/eam%drhoar
@@ -130,7 +133,7 @@ CONTAINS
          CALL mp_sum(fembed, para_env%group)
          DO iparticle=1,nparticle
             IF (particle_set(iparticle)%atomic_kind%kind_number==ikind) THEN
-               particle_set(iparticle)%f_embed = fembed(iparticle)
+               eam_data(iparticle)%f_embed = fembed(iparticle)
             END IF
          END DO
 
@@ -264,6 +267,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
+    TYPE(eam_type), DIMENSION(:), POINTER    :: eam_data
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -278,7 +282,7 @@ CONTAINS
     NULLIFY(eam_a, eam_b, tersoff)
 
     CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,potparm=potparm,&
-         natom_types=nkinds,r_last_update_pbc=r_last_update_pbc,error=error)
+         natom_types=nkinds, eam_data=eam_data, r_last_update_pbc=r_last_update_pbc,error=error)
 
     ! Initializing the potential energy, pressure tensor and force
     IF (use_virial) THEN
@@ -325,6 +329,7 @@ CONTAINS
           i = eam_kinds_index(ikind,jkind)
           IF (i==-1) CYCLE
           ! EAM
+          CPPostcondition(ASSOCIATED(eam_data),cp_failure_level,routineP,error,failure)
           DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
@@ -343,7 +348,7 @@ CONTAINS
              rab  = rab+cell_v
              rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
              IF (rab2 <= rab2_max) THEN
-                CALL get_force_eam ( rab2, eam_a, eam_b, particle_set, atom_a, atom_b, f_eam )
+                CALL get_force_eam ( rab2, eam_a, eam_b, eam_data, atom_a, atom_b, f_eam )
                 f_eam = f_eam * fac
 
                 fr(1) = - f_eam * rab(1)
