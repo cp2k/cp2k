@@ -277,8 +277,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndw
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: minima
 
-    INTEGER, PARAMETER                       :: nreplica = 32
-    REAL(KIND=dp), PARAMETER                 :: kb = 0.05_dp
+    INTEGER, PARAMETER                       :: nreplica = 8, max_iter = 10000
+    REAL(KIND=dp), PARAMETER                 :: kb = 0.1_dp
 
     INTEGER                                  :: i, id, irep, iter, pnt
     INTEGER, DIMENSION(:), POINTER           :: ipos
@@ -320,7 +320,7 @@ CONTAINS
     converged=.FALSE.
     pos_old=pos
     iter = 0
-    DO WHILE ((.NOT.converged).AND.(iter<=1000))
+    DO WHILE ((.NOT.converged).AND.(iter<=max_iter))
        iter=iter+1
        ene=0.0_dp
        avg=0.0_dp
@@ -372,16 +372,16 @@ CONTAINS
           converged=.TRUE.
        END IF
        pos_old=pos
-       WRITE(*,*)"Iteration nr.",iter
+       WRITE(*,*)"Iteration nr.",iter, SQRT(diff)
     END DO
 
-    WRITE(*,*)"MEP"
+    WRITE(*,*)"MEP saved on fort.10 file."
     DO irep=1,nreplica
        ! compute energy and derivative for each single point of the replica
        ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
        pnt = point_no_pbc(ipos,ngrid,ndim)
        fes_rep(irep) = -fes(pnt)
-       WRITE(*,*)irep, pos(:,irep), fes_rep(irep)
+       WRITE(10,*)irep, pos(:,irep), fes_rep(irep)
     END DO
 
     DEALLOCATE(xx,dx,pos,fes_rep,ipos,pos_old,yy,dxx,davg)
