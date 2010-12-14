@@ -517,19 +517,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: cluster_price, cost_model, group, handle, iatom, iatom_mol, &
-      icluster, imol, imolecule, imolecule_kind, ip, iparticle_kind, ipcol, &
-      iprow, istat, iw, kind_a, mypcol, myprow, n, natom, natom_mol, &
-      nclusters, nele, nmolecule, nmolecule_kind, nparticle_kind, npcol, &
-      nprow, nsgf, output_unit
+      iatom_one, icluster, imol, imolecule, imolecule_kind, ip, &
+      iparticle_kind, ipcol, iprow, istat, iw, kind_a, mypcol, myprow, n, &
+      natom, natom_mol, nclusters, nele, nmolecule, nmolecule_kind, &
+      nparticle_kind, npcol, nprow, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:) :: cluster_list, cluster_prices, &
       col_ele, nparticle_local_col, nparticle_local_row, row_ele, work
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
-    INTEGER, DIMENSION(:), POINTER :: cluster_col_dist, cluster_row_dist, &
+    INTEGER, DIMENSION(:), POINTER :: cluster_col_dist, &
+      cluster_col_distribution, cluster_row_dist, cluster_row_distribution, &
       col_distribution, lmax_basis, molecule_list, row_distribution
     LOGICAL :: basic_optimization, basic_spatial_optimization, clustering, &
       failure, molecular_distribution, skip_optimization
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbc_scaled_coords
+    REAL(KIND=dp), DIMENSION(3)              :: center
     TYPE(cluster_type)                       :: clusters
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       POINTER                                :: local_particle_col, &
@@ -606,6 +608,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_col",&
                                      nparticle_kind*int_size)
+
     IF(clustering) THEN
        CALL cp_assert (skip_optimization .OR. basic_optimization,&
             cp_fatal_level, cp_unimplemented_error_nr, routineN,&
@@ -746,70 +749,158 @@ CONTAINS
           ENDDO
        ENDDO
     ELSEIF (basic_optimization .OR. basic_spatial_optimization) THEN
-       CALL cp_assert (.NOT. molecular_distribution, cp_warning_level,&
-            cp_caller_error, routineN, &
-            "Molecular distribution and basic optimization are incompatible.",&
-            error=error)
-       nclusters = natom
+
+
+       IF (molecular_distribution) THEN
+           nclusters=nmolecule
+       ELSE
+           nclusters=natom
+       ENDIF
+
        ALLOCATE (cluster_list (nclusters), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "cluster_list",&
-            nclusters*int_size)
+            "cluster_list", nclusters*int_size)
        ALLOCATE (cluster_prices (nclusters), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "cluster_prices",&
-            nclusters*int_size)
-       CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+            "cluster_prices", nclusters*int_size)
+       ALLOCATE (cluster_row_distribution (nclusters), stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_prices", nclusters*int_size)
+       ALLOCATE (cluster_col_distribution (nclusters), stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_prices", nclusters*int_size)
+
+
        ! Fill in the clusters and their prices
-!$omp parallel do default (none) &
-!$omp          private (iatom, orb_basis_set, nsgf, lmax_basis, cluster_price) &
-!$omp          shared (natom, nclusters, &
-!$omp                  cluster_list, cluster_prices, particle_set, cost_model) &
-!$omp          shared (error)
-       DO iatom = 1, natom
-          CALL cp_assert (iatom .LE. nclusters, cp_fatal_level,&
-               cp_internal_error, routineN, "Bounds error", error=error)
-          cluster_list(iatom) = iatom
-          SELECT CASE (cost_model)
-          CASE (model_block_count)
-             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                  nsgf=nsgf)
-             cluster_price = nsgf
-          CASE (model_block_lmax)
-             CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
-                  orb_basis_set=orb_basis_set)
-             CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-             cluster_price = MAXVAL (lmax_basis)
-          CASE default
-             CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
-                  orb_basis_set=orb_basis_set)
-             CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-             cluster_price = 8 + (MAXVAL (lmax_basis)**2)
-          END SELECT
-          cluster_prices(iatom) = cluster_price
-       ENDDO
+       CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+       IF (.NOT.molecular_distribution) THEN
+          DO iatom = 1, natom
+             CALL cp_assert (iatom .LE. nclusters, cp_fatal_level,&
+                  cp_internal_error, routineN, "Bounds error", error=error)
+             cluster_list(iatom) = iatom
+             SELECT CASE (cost_model)
+             CASE (model_block_count)
+                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                     nsgf=nsgf)
+                cluster_price = nsgf
+             CASE (model_block_lmax)
+                CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                     orb_basis_set=orb_basis_set)
+                CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                cluster_price = MAXVAL (lmax_basis)
+             CASE default
+                CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                     orb_basis_set=orb_basis_set)
+                CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                cluster_price = 8 + (MAXVAL (lmax_basis)**2)
+             END SELECT
+             cluster_prices(iatom) = cluster_price
+          ENDDO
+       ELSE
+          imol = 0
+          DO imolecule_kind=1,nmolecule_kind
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+             DO imolecule=1,SIZE(molecule_list)
+                imol = imol + 1
+                cluster_list(imol) = imol
+                cluster_price = 0
+                DO iatom_mol=1,natom_mol
+                   iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                   SELECT CASE (cost_model)
+                   CASE (model_block_count)
+                      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                           nsgf=nsgf)
+                      cluster_price = cluster_price + nsgf
+                   CASE (model_block_lmax)
+                      CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+                      CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                      cluster_price = cluster_price + MAXVAL (lmax_basis)
+                   CASE default
+                      CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+                      CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                      cluster_price = cluster_price +  8 + (MAXVAL (lmax_basis)**2)
+                   END SELECT
+                ENDDO
+                cluster_prices(imol) = cluster_price
+             ENDDO
+          ENDDO
+       ENDIF
+
        ! And distribute
        IF (basic_optimization) THEN
           CALL make_basic_distribution (cluster_list, cluster_prices,&
-               nprow, row_distribution, npcol, col_distribution, error=error)
+               nprow, cluster_row_distribution, npcol, cluster_col_distribution, error=error)
        ELSE ! basic_spatial_optimization
-          ALLOCATE(pbc_scaled_coords(3,natom))
-          DO iatom=1, natom
-             CALL real_to_scaled(pbc_scaled_coords(:,iatom),pbc(particle_set(iatom)%r(:),cell),cell)
-          ENDDO
+          ALLOCATE(pbc_scaled_coords(3,nclusters))
+          IF (.NOT. molecular_distribution) THEN
+             ! just scaled coords
+             DO iatom=1, natom
+                CALL real_to_scaled(pbc_scaled_coords(:,iatom),pbc(particle_set(iatom)%r(:),cell),cell)
+             ENDDO
+          ELSE
+             ! use scaled coords of geometric center, folding when appropriate
+             imol = 0
+             DO imolecule_kind=1,nmolecule_kind
+                molecule_kind => molecule_kind_set(imolecule_kind)
+                CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+                DO imolecule=1,SIZE(molecule_list)
+                   imol = imol + 1
+                   iatom_one = molecule_set(molecule_list(imolecule))%first_atom
+                   center = 0.0_dp
+                   DO iatom_mol=1,natom_mol
+                      iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                      center = center + &
+                        pbc(particle_set(iatom)%r(:)-particle_set(iatom_one)%r(:),cell)+particle_set(iatom_one)%r(:)
+                   ENDDO 
+                   center = center / natom_mol
+                   CALL real_to_scaled(pbc_scaled_coords(:,imol),pbc(center,cell),cell)
+                ENDDO
+             ENDDO
+          ENDIF
+
           CALL make_basic_spatial_distribution (pbc_scaled_coords, cluster_prices,&
-                         nprow, row_distribution, npcol, col_distribution, error)
+                         nprow, cluster_row_distribution, npcol, cluster_col_distribution, error)
+
           DEALLOCATE(pbc_scaled_coords)
        ENDIF
 
+       ! And assign back
+       IF (.NOT. molecular_distribution) THEN
+          row_distribution = cluster_row_distribution
+          col_distribution = cluster_col_distribution
+       ELSE
+          imol = 0
+          DO imolecule_kind=1,nmolecule_kind
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+             DO imolecule=1,SIZE(molecule_list)
+                imol = imol + 1
+                DO iatom_mol=1,natom_mol
+                   iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
+                   row_distribution(iatom) = cluster_row_distribution(imol)
+                   col_distribution(iatom) = cluster_col_distribution(imol)
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDIF
+
+       ! cleanup
        DEALLOCATE (cluster_list, stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "cluster_list",&
-            nclusters*int_size)
+            "cluster_list", nclusters*int_size)
        DEALLOCATE (cluster_prices, stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "cluster_prices",&
-            nclusters*int_size)
+            "cluster_prices", nclusters*int_size)
+       DEALLOCATE (cluster_row_distribution, stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_prices", nclusters*int_size)
+       DEALLOCATE (cluster_col_distribution, stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_prices", nclusters*int_size)
+
     ELSE
        !
        ! this could be a lot of memory, even in QS case
