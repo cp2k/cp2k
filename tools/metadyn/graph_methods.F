@@ -277,7 +277,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndw
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: minima
 
-    INTEGER, PARAMETER                       :: nreplica = 8, max_iter = 10000
+    INTEGER, PARAMETER                       :: max_iter = 10000, nreplica = 8
     REAL(KIND=dp), PARAMETER                 :: kb = 0.1_dp
 
     INTEGER                                  :: i, id, irep, iter, pnt
