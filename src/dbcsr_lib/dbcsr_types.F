@@ -131,6 +131,10 @@ MODULE dbcsr_types
 !>                            column
 !> \var other_rows            local rows for each process row
 !> \var other_cols            local columns for each process column
+!> \var other_row_map         mapping from rows to sequence in local rows
+!> \var other_col_map         mapping from rows to sequence in local columns
+!> \var has_other_row_map     whether other_row_map is defined
+!> \var has_other_col_map     whether other_col_map is defined
 !> \var row_map               distribution map for rows
 !> \var col_map               distribution map for columns
 !> \var thread_dist           thread distribution (of the rows)
@@ -144,6 +148,7 @@ MODULE dbcsr_types
      TYPE(array_i1d_obj)               :: local_rows, local_cols
      TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_rows, other_cols
      TYPE(array_i1d_obj)               :: other_row_map, other_col_map
+     LOGICAL                           :: has_other_row_map, has_other_col_map
      TYPE(array_i1d_obj)               :: row_map, col_map
      TYPE(array_i1d_obj)               :: thread_dist
      INTEGER                           :: num_threads

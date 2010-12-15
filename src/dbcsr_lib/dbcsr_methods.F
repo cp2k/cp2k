@@ -929,16 +929,14 @@ CONTAINS
     dist%d%num_threads = 1
 !$  dist%d%num_threads = OMP_GET_MAX_THREADS()
     CALL array_nullify (dist%d%thread_dist)
-    !WRITE(*,*)' row_dist', array_data(dist%d%row_dist)
-    !WRITE(*,*)' col_dist', array_data(dist%d%col_dist)
-    !WRITE(*,*)' loc_rows', array_data(dist%d%local_rows)
-    !WRITE(*,*)' loc_cols', array_data(dist%d%local_cols)
     CALL array_nullify (dist%d%row_map)
     CALL array_nullify (dist%d%col_map)
     NULLIFY (dist%d%other_rows)
     NULLIFY (dist%d%other_cols)
     CALL array_nullify (dist%d%other_row_map)
     CALL array_nullify (dist%d%other_col_map)
+    dist%d%has_other_row_map = .FALSE.
+    dist%d%has_other_col_map = .FALSE.
   END SUBROUTINE dbcsr_distribution_new
 
 ! *****************************************************************************
@@ -989,8 +987,12 @@ CONTAINS
              END DO
              DEALLOCATE (dist%d%other_cols)
           ENDIF
-          CALL array_release (dist%d%other_row_map)
-          CALL array_release (dist%d%other_col_map)
+          IF (dist%d%has_other_row_map) THEN
+             CALL array_release (dist%d%other_row_map)
+          ENDIF
+          IF (dist%d%has_other_col_map) THEN
+             CALL array_release (dist%d%other_col_map)
+          ENDIF
           DEALLOCATE (dist%d)
           CALL dbcsr_distribution_init (dist)
        ENDIF

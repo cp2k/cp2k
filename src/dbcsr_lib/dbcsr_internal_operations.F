@@ -30,7 +30,6 @@ MODULE dbcsr_internal_operations
        dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: checker_tr,&
                                              dbcsr_get_col_map,&
-                                             dbcsr_get_local_cols,&
                                              dbcsr_get_local_rows,&
                                              dbcsr_get_row_map
   USE dbcsr_error_handling
@@ -1129,9 +1128,11 @@ CONTAINS
                      right_buffer_calc%mats(v_ki+1, 1)%m%local_rows,&
                      right_buffer_calc%mats(v_ki+1, 1)%m%index(dbcsr_slot_home_prow),&
                      error=error)
+                CALL array_hold (right_buffer_calc%mats(v_ki+1, 1)%m%local_rows)
                 CALL dbcsr_get_row_map(dist,&
                      right_buffer_calc%mats(v_ki+1, 1)%m%global_rows,&
                      error=error)
+                CALL array_hold (right_buffer_calc%mats(v_ki+1, 1)%m%global_rows)
                 CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
                      right_norms, error=error)
              ENDIF
@@ -1392,8 +1393,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: k_blk_local, left_col_blk_offset, &
       left_local_rows, left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_offset, right_col_blk_offset, right_col_map
-    TYPE(array_i1d_obj)                      :: right_col_map_obj, &
-                                                right_local_cols_obj
+    TYPE(array_i1d_obj)                      :: right_col_map_obj
 
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, keep_sparsity, &
@@ -1458,13 +1458,10 @@ CONTAINS
     ! Global -> local mapping for product & right matrix columns.
     IF (local_cols) THEN
        dist = right%dist
-       CALL dbcsr_get_local_cols (dist,&
-            right_local_cols_obj,&
-            right%index(dbcsr_slot_home_pcol),&
-            error=error)
        CALL dbcsr_get_col_map(dist,&
             right_col_map_obj,&
             error=error)
+       CALL array_hold (right_col_map_obj)
        right_col_map => array_data (right_col_map_obj)
     ENDIF
     ! Submatrix handling
@@ -1934,10 +1931,6 @@ CONTAINS
     ENDIF
     !
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
-    IF (local_cols) THEN
-       CALL array_release (right_col_map_obj)
-       CALL array_release (right_local_cols_obj)
-    ENDIF
     product%wms(ithread+1)%lastblk&
          = product%wms(ithread+1)%lastblk + lastblk
     product%wms(ithread+1)%datasize&
@@ -1960,6 +1953,9 @@ CONTAINS
     DEALLOCATE (new_index)
     ELSE
        DBG 'One of the matrices is empty!'
+    ENDIF
+    IF (local_cols) THEN
+       CALL array_release (right_col_map_obj)
     ENDIF
     DBG "Post-mult blk sizes, data", product%wms(ithread+1)%lastblk,&
          product%wms(ithread+1)%datasize

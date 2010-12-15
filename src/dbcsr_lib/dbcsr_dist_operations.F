@@ -52,6 +52,8 @@ MODULE dbcsr_dist_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+  LOGICAL, PARAMETER                   :: careful_mod = .FALSE.
+
 
   ! Queries
   PUBLIC :: dbcsr_get_block_index, checker_square_proc,&
@@ -2062,7 +2064,6 @@ CONTAINS
        CALL find_all_local_elements (dist%d%other_rows, row_dist, nprows)
     ENDIF
     local_rows = dist%d%other_rows(local_row)
-    CALL array_hold (local_rows)
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_local_rows
 
@@ -2111,7 +2112,6 @@ CONTAINS
        CALL find_all_local_elements (dist%d%other_cols, col_dist, npcols)
     ENDIF
     local_cols = dist%d%other_cols(local_col)
-    CALL array_hold (local_cols)
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_local_cols
 
@@ -2137,15 +2137,19 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
-    IF (.NOT. array_exists (dist%d%other_row_map)) THEN
+    IF (.NOT. dist%d%has_other_row_map) THEN
        row_dist => array_data (dbcsr_distribution_row_dist (dist))
        ALLOCATE (rmap (SIZE (row_dist)))
        nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
        CALL map_all_local_elements (rmap, row_dist, nprows)
        CALL array_new (dist%d%other_row_map, rmap, gift=.TRUE.)
+       dist%d%has_other_row_map = .TRUE.
+    ELSE
+       CALL dbcsr_assert (array_exists (dist%d%other_row_map),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Row map does not exist.", __LINE__, error=error)
     ENDIF
     row_map = dist%d%other_row_map
-    CALL array_hold (row_map)
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_row_map
 
@@ -2171,15 +2175,21 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
-    IF (.NOT. array_exists (dist%d%other_col_map)) THEN
+    IF (.NOT. dist%d%has_other_col_map) THEN
        col_dist => array_data (dbcsr_distribution_col_dist (dist))
        ALLOCATE (cmap (SIZE (col_dist)))
        npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
        CALL map_all_local_elements (cmap, col_dist, npcols)
        CALL array_new (dist%d%other_col_map, cmap, gift=.TRUE.)
+       dist%d%has_other_col_map = .TRUE.
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (array_exists (dist%d%other_col_map),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Column map does not exist.", __LINE__, error=error)
+       ENDIF
     ENDIF
     col_map = dist%d%other_col_map
-    CALL array_hold (col_map)
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_col_map
 

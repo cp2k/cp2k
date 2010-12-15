@@ -15,6 +15,7 @@
 MODULE dbcsr_index_operations
 
   USE array_types,                     ONLY: array_data,&
+                                             array_hold,&
                                              array_size
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_rows,&
                                              dbcsr_get_row_map,&
@@ -1415,11 +1416,13 @@ CONTAINS
     CALL dbcsr_get_local_rows (dist, matrix%m%local_rows,&
          matrix%m%index(dbcsr_slot_home_prow),&
          error=error)
+    CALL array_hold (matrix%m%local_rows)
     CALL dbcsr_assert (array_size(matrix%m%local_rows), "EQ", nlocal_rows,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Inconsistent local row counts.",&
          __LINE__, error=error)
     CALL dbcsr_get_row_map (dist, matrix%m%global_rows, error=error)
+    CALL array_hold (matrix%m%global_rows)
     CALL dbcsr_assert (array_size(matrix%m%global_rows), "EQ", ntotal_rows,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Inconsistent global row counts.",&
