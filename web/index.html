@@ -65,6 +65,7 @@ knowledge about the active development.
 <H3> Upcoming tutorials and workshops related to CP2K </H3>
 <UL>
  <LI> <A HREF="http://www.cecam.org/workshop-529.html">2nd CP2K Tutorial: enabling the power of imagination in MD simulations (Deadline subscriptions: Jan. 10th, 2011).</A>
+ <LI> <A HREF="http://www.cecam.org/workshop-515.html">Hybrid Quantum Mechanics/Molecular Mechanics (QM/MM) Approaches to Biochemistry (and beyond).</A>
 </UL>
 
 <H3> Past tutorials and workshops related to CP2K </H3>
