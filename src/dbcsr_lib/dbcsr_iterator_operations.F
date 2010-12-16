@@ -394,7 +394,7 @@ CONTAINS
   PURE SUBROUTINE find_first_valid_block (pos, maxpos, blk_p)
     INTEGER, INTENT(INOUT)                   :: pos
     INTEGER, INTENT(IN)                      :: maxpos
-    INTEGER, DIMENSION(1:maxpos), INTENT(IN) :: blk_p
+    INTEGER, DIMENSION(:), INTENT(IN)        :: blk_p
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_first_valid_block', &
       routineP = moduleN//':'//routineN
@@ -427,8 +427,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: pos
     INTEGER, INTENT(INOUT)                   :: row
     INTEGER, INTENT(IN)                      :: maxrows
-    INTEGER, DIMENSION(1:maxrows+1), &
-      INTENT(IN)                             :: row_p
+    INTEGER, DIMENSION(:), INTENT(IN)        :: row_p
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_proper_row', &
       routineP = moduleN//':'//routineN
@@ -472,9 +471,7 @@ CONTAINS
        blk_p, row_p, tdist, tid, local2global)
     INTEGER, INTENT(INOUT)                   :: pos, row
     INTEGER, INTENT(IN)                      :: maxpos, maxrows
-    INTEGER, DIMENSION(1:maxpos), INTENT(IN) :: blk_p
-    INTEGER, DIMENSION(1:maxrows+1), &
-      INTENT(IN)                             :: row_p
+    INTEGER, DIMENSION(:), INTENT(IN)        :: blk_p, row_p
     INTEGER, DIMENSION(1:maxrows), &
       INTENT(IN), OPTIONAL                   :: tdist
     INTEGER, INTENT(IN), OPTIONAL            :: tid

@@ -114,7 +114,6 @@ MODULE dbcsr_operations
        dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: ceil_log2,&
                                              dbcsr_checksum,&
-                                             dbcsr_set_debug,&
                                              dbcsr_verify_matrix,&
                                              swap,&
                                              uppercase
@@ -238,15 +237,8 @@ MODULE dbcsr_operations
      MODULE PROCEDURE dbcsr_lanczos_extremal_eig
   END INTERFACE
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
@@ -380,9 +372,8 @@ CONTAINS
     TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
                                                 product_matrix
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     !
     ! check parameters
@@ -401,7 +392,7 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Invalid transb_l = "//transb_l, __LINE__, error)
 
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)'========== MULTIPLICATION ========================'
        CALL dbcsr_verify_matrix (matrix_a, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error)
@@ -655,14 +646,14 @@ CONTAINS
 !$  i = omp_get_num_threads()
 !$omp end single nowait
 !$omp end parallel
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)routineN//" Matrices ", dbcsr_get_matrix_type(matrix_a),&
             dbcsr_get_matrix_type(matrix_b), dbcsr_get_matrix_type(matrix_c)
        WRITE(*,*)routineN//" Matrices ", transa_l, transb_l, "keep", keep_product_data
     ENDIF
     IF (keep_product_data) THEN
        IF (product_reindex) THEN
-          IF (dbg) WRITE(*,*)routineN//" Making canonical index"
+          IF (debug_mod) WRITE(*,*)routineN//" Making canonical index"
           CALL dbcsr_make_index_canonical (product_matrix)
        ENDIF
        CALL dbcsr_assert (.NOT. ASSOCIATED (product_matrix%m%wms),&
@@ -766,7 +757,7 @@ CONTAINS
     ELSE
        m2s_left => left_set
     ENDIF
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        DO i = 1, SIZE (m2s_right%mats,1)
           CALL dbcsr_verify_matrix(m2s_right%mats(i,1), error=error)
           CALL dbcsr_print(m2s_right%mats(i,1),nodata=.TRUE., error=error)
@@ -802,7 +793,7 @@ CONTAINS
     ! The index of the product matrix is reset to the CP2K form if it
     ! was previously set to the canonical form.
     IF (product_reindex) THEN
-       IF (dbg) WRITE(*,*)routineN//" Making CP2K index"
+       IF (debug_mod) WRITE(*,*)routineN//" Making CP2K index"
        CALL dbcsr_make_index_canonical(product_matrix, cp2k=.TRUE.)
     ELSEIF (use_dense_mult) THEN
        CALL dbcsr_make_undense(product_matrix, old_product_distribution,&
@@ -815,7 +806,7 @@ CONTAINS
        CALL dbcsr_distribution_release (old_product_distribution)
     ENDIF
     matrix_c = product_matrix
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
     ENDIF
     IF (.NOT. PRESENT (left_set)) THEN
@@ -843,7 +834,7 @@ CONTAINS
     IF (PRESENT (filter_eps)) THEN
        CALL dbcsr_filter (matrix_c, filter_eps, quick=.FALSE., error=error)
     ENDIF
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)routineN//" Use dense mult, symm", use_dense_mult, ab_dense, &
             dbcsr_has_symmetry (matrix_c)
        CALL dbcsr_verify_matrix (matrix_c, error=error)
@@ -1043,31 +1034,39 @@ CONTAINS
     my_limits(last_col_i)  = dbcsr_nfullcols_total (matrix_a)
     IF (has_limits) THEN
        IF (limits(last_col_i) .NE. 0) THEN
-          CALL dbcsr_assert (limits(last_col_i) .GE. 0, "AND",&
-               limits(last_col_i) .LE. dbcsr_nfullcols_total (matrix_a),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Specified last column is out of bounds.",__LINE__,error)
+          IF (debug_mod) THEN
+             CALL dbcsr_assert (limits(last_col_i) .GE. 0, "AND",&
+                  limits(last_col_i) .LE. dbcsr_nfullcols_total (matrix_a),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Specified last column is out of bounds.",__LINE__,error)
+          ENDIF
           my_limits(last_col_i) = limits(last_col_i)
        ENDIF
        IF (limits(first_col_i) .NE. 0) THEN
-          CALL dbcsr_assert (limits(first_col_i) .GE. 0, "AND",&
-               limits(first_col_i) .LE. dbcsr_nfullcols_total (matrix_a),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Specified first column is out of bounds.",__LINE__,error)
+          IF (debug_mod) THEN
+             CALL dbcsr_assert (limits(first_col_i) .GE. 0, "AND",&
+                  limits(first_col_i) .LE. dbcsr_nfullcols_total (matrix_a),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Specified first column is out of bounds.",__LINE__,error)
+          ENDIF
           my_limits(first_col_i) = limits(first_col_i)
        ENDIF
        IF (limits(last_row_i) .NE. 0) THEN
-          CALL dbcsr_assert (limits(last_row_i) .GE. 0, "AND",&
-               limits(last_row_i) .LE. dbcsr_nfullrows_total (matrix_a),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Specified last rowumn is out of bounds.",__LINE__,error)
+          IF (debug_mod) THEN
+             CALL dbcsr_assert (limits(last_row_i) .GE. 0, "AND",&
+                  limits(last_row_i) .LE. dbcsr_nfullrows_total (matrix_a),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Specified last rowumn is out of bounds.",__LINE__,error)
+          ENDIF
           my_limits(last_row_i) = limits(last_row_i)
        ENDIF
        IF (limits(first_row_i) .NE. 0) THEN
-          CALL dbcsr_assert (limits(first_row_i) .GE. 0, "AND",&
-               limits(first_row_i) .LE. dbcsr_nfullrows_total (matrix_a),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Specified first rowumn is out of bounds.",__LINE__,error)
+          IF (debug_mod) THEN
+             CALL dbcsr_assert (limits(first_row_i) .GE. 0, "AND",&
+                  limits(first_row_i) .LE. dbcsr_nfullrows_total (matrix_a),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Specified first rowumn is out of bounds.",__LINE__,error)
+          ENDIF
           my_limits(first_row_i) = limits(first_row_i)
        ENDIF
     ENDIF
@@ -1800,7 +1799,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reduce', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: i_d = 2, i_i = 1
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
     REAL(kind=dp), PARAMETER                 :: comp_eps = 1.0E-06_dp
 
     CHARACTER                                :: red_type
@@ -1892,7 +1890,7 @@ CONTAINS
     CALL dbcsr_data_init (data_ptr)
     CALL dbcsr_data_new (data_ptr, data_type)
     !
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        cs1 = dbcsr_checksum (matrix, error=error)
     ENDIF
     CALL dbcsr_insert_blocks (reduced, matrix, error=error)
@@ -1969,7 +1967,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (data_ptr)
     CALL dbcsr_data_release (data_ptr)
     CALL dbcsr_release (mat_recv)
-    IF (dbg .AND. (mynode .EQ. reduction_target)) THEN
+    IF (debug_mod .AND. (mynode .EQ. reduction_target)) THEN
        cs2 = dbcsr_checksum (reduced, local=.TRUE., error=error)
        IF (ABS(cs1) .GT. comp_eps) THEN
           CALL dbcsr_assert (ABS((cs2 - cs1) / cs1) .LT. comp_eps,&

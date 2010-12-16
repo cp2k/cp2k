@@ -35,9 +35,11 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
-    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data type mismatch for requested block.",__LINE__,error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
+            dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Data type mismatch for requested block.",__LINE__,error)
+    ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -135,9 +137,11 @@
     REAL(kind=real_4), DIMENSION(1,1), TARGET, SAVE    :: block0
 !   ---------------------------------------------------------------------------
     IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
-    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data type mismatch for requested block.",__LINE__,error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
+            dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Data type mismatch for requested block.",__LINE__,error)
+    ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -226,9 +230,11 @@
     REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data type mismatch for requested block.",__LINE__,error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
+            dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Data type mismatch for requested block.",__LINE__,error)
+    ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -261,10 +267,12 @@
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        nwms = SIZE(matrix%m%wms)
        iw = 1
-!$     CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
-!$        dbcsr_fatal_level, dbcsr_internal_error,&
-!$        routineN, "Number of work matrices not equal to number of threads", &
-!$        __LINE__, error=error)
+!$     IF (debug_mod) THEN
+!$        CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
+!$            dbcsr_fatal_level, dbcsr_internal_error,&
+!$            routineN, "Number of work matrices not equal to number of threads", &
+!$            __LINE__, error=error)
+!$     ENDIF
 !$     iw = omp_get_thread_num () + 1
        CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
@@ -321,9 +329,11 @@
     LOGICAL                                  :: stored_tr
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data type mismatch for requested block.",__LINE__,error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
+            dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Data type mismatch for requested block.",__LINE__,error)
+    ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -607,8 +617,10 @@
     CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, sym_tr)
     nze = row_size*col_size
     !
-    CALL dbcsr_assert (SIZE(block), "GE", nze, dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__,error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (SIZE(block), "GE", nze, dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__,error)
+    ENDIF
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
     IF(found) THEN
@@ -659,10 +671,12 @@
        ENDIF
        nwms = SIZE(matrix%m%wms)
        iw = 1
+!$     IF (debug_mod) THEN
 !$     CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
 !$        dbcsr_fatal_level, dbcsr_internal_error,&
 !$        routineN, "Number of work matrices not equal to number of threads", &
 !$        __LINE__, error=error)
+!$     ENDIF
 !$     iw = omp_get_thread_num () + 1
        blk_p = matrix%m%wms(iw)%datasize + 1
        IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(iw))) THEN

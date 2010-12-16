@@ -361,7 +361,7 @@ CONTAINS
        blk_last = matrix%row_p(row+1)
        IF (blk_last .GT. 0) THEN
           CALL dbcsr_find_column(column, matrix%row_p(row)+1, blk_last,&
-               matrix%col_i(1:blk_last), matrix%blk_p(1:blk_last),&
+               matrix%col_i, matrix%blk_p,&
                block_number, found)
        ELSE
           found = .FALSE.
@@ -1814,7 +1814,7 @@ CONTAINS
   PURE SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk_p,&
        blk,found)
     INTEGER, INTENT(IN)                      :: find_col, frst_blk, last_blk
-    INTEGER, DIMENSION(last_blk), INTENT(IN) :: col_i, blk_p
+    INTEGER, DIMENSION(:), INTENT(IN)        :: col_i, blk_p
     INTEGER, INTENT(OUT)                     :: blk
     LOGICAL, INTENT(OUT)                     :: found
 
