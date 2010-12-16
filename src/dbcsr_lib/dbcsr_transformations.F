@@ -900,8 +900,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 5
 
-    CHARACTER                                :: data_type
-    INTEGER :: blk, blk_l, blk_p, bp, col, col_img, data_p, dst_p, &
+    INTEGER :: blk, blk_l, blk_p, bp, col, col_img, data_p, data_type, dst_p, &
       error_handler, i, ithread, j, mp_group, ncol_images, nrow_images, &
       nsymmetries, nthreads, numproc, nze, pcol, prev_blk_p, prev_dst_p, &
       prow, row, row_img, sd_pos, sm_pos, src_p, stored_blk_p, stored_col, &
@@ -2183,10 +2182,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 3
 
-    CHARACTER                                :: data_type, rep_type
-    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
-      error_handler, mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, &
-      offset, row, row_size, smp, src_p, stored_blk_p, stored_col, stored_row
+    CHARACTER                                :: rep_type
+    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, data_type, &
+      dst_p, error_handler, mp_group, mynode, mypcol, myprow, nblks, &
+      numnodes, nze, offset, row, row_size, smp, src_p, stored_blk_p, &
+      stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 send_meta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count
@@ -2483,11 +2483,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 7
 
-    CHARACTER                                :: data_type
     INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, &
       cnt_skip, col, col_int, col_offset_new, col_offset_old, col_rle, &
-      col_size, col_size_new, data_offset_l, dst_p, error_handler, i, meta_l, &
-      mp_group, numnodes, nze_rle, row, row_int, row_offset_new, &
+      col_size, col_size_new, data_offset_l, data_type, dst_p, error_handler, &
+      i, meta_l, mp_group, numnodes, nze_rle, row, row_int, row_offset_new, &
       row_offset_old, row_rle, row_size, row_size_new, src_p, stored_col_new, &
       stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
@@ -2956,11 +2955,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
-    CHARACTER                                :: data_type
     CHARACTER(len=80)                        :: ifmt
-    INTEGER :: blk, blk_ps, blks, col, col_size, dst_p, error_handler, &
-      meta_l, mp_group, numnodes, nze, row, row_size, src_p, stored_col_new, &
-      stored_row_new
+    INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, &
+      error_handler, meta_l, mp_group, numnodes, nze, row, row_size, src_p, &
+      stored_col_new, stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp

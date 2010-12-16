@@ -117,15 +117,15 @@ CONTAINS
 ! *****************************************************************************
   PURE FUNCTION dbcsr_data_get_type (area) RESULT (data_type)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    CHARACTER                                :: data_type
+    INTEGER                                  :: data_type
 
     data_type = area%d%data_type
   END FUNCTION dbcsr_data_get_type
 
 ! Data type transformations
   FUNCTION data_type_2d_from_1d (type_1d) RESULT (type_2d)
-    CHARACTER, INTENT(in)                    :: type_1d
-    CHARACTER                                :: type_2d
+    INTEGER, INTENT(in)                      :: type_1d
+    INTEGER                                  :: type_2d
 
     CHARACTER(len=*), PARAMETER :: routineN = 'data_type_2d_from_1d', &
       routineP = moduleN//':'//routineN
@@ -149,8 +149,8 @@ CONTAINS
 
 ! Data type transformations
   FUNCTION data_type_1d_from_2d (type_2d) RESULT (type_1d)
-    CHARACTER, INTENT(IN)                    :: type_2d
-    CHARACTER                                :: type_1d
+    INTEGER, INTENT(IN)                      :: type_2d
+    INTEGER                                  :: type_1d
 
     CHARACTER(len=*), PARAMETER :: routineN = 'data_type_1d_from_2d', &
       routineP = moduleN//':'//routineN
@@ -195,7 +195,7 @@ CONTAINS
        special_memory, error)
     TYPE(dbcsr_data_area_type), &
       INTENT(INOUT)                          :: area
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: sizes
     LOGICAL, INTENT(IN)                      :: special_memory
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -282,7 +282,7 @@ CONTAINS
        special_memory, error)
     TYPE(dbcsr_data_area_type), &
       INTENT(INOUT)                          :: area
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     LOGICAL, INTENT(IN)                      :: special_memory
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -369,7 +369,7 @@ CONTAINS
   SUBROUTINE dbcsr_data_new (area, data_type, data_size, data_size2,&
        special_memory)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     INTEGER, INTENT(IN), OPTIONAL            :: data_size, data_size2
     LOGICAL, INTENT(IN), OPTIONAL            :: special_memory
 
@@ -563,7 +563,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_reset_type (area, new_type)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    CHARACTER, INTENT(IN)                    :: new_type
+    INTEGER, INTENT(IN)                      :: new_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_reset_type', &
       routineP = moduleN//':'//routineN
@@ -686,12 +686,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_data_area_area', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dt1, dt2
     COMPLEX(KIND=real_4), DIMENSION(:), &
       POINTER                                :: c_sp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
-    INTEGER                                  :: bp, nze
+    INTEGER                                  :: bp, dt1, dt2, nze
     LOGICAL                                  :: compatible, pointee_is_2d, rmp
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
@@ -954,8 +953,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_verify_bounds', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: data_type, error_handler
 
 !   ---------------------------------------------------------------------------
 
@@ -1081,12 +1079,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_set_2d_pointer', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dt1
     COMPLEX(KIND=real_4), DIMENSION(:), &
       POINTER                                :: c_sp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
-    INTEGER                                  :: bp, csize, nze
+    INTEGER                                  :: bp, csize, dt1, nze
     LOGICAL                                  :: compatible
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
@@ -1147,7 +1144,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_2d_pointer', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dt1
+    INTEGER                                  :: dt1
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -1439,7 +1436,7 @@ CONTAINS
 !> \result one                enpsulated value of one
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_one (data_type) RESULT (one)
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     TYPE(dbcsr_scalar_type)                  :: one
 
     one%data_type = data_type
@@ -1461,7 +1458,7 @@ CONTAINS
 !> \result one                enpsulated value of one
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_i (data_type) RESULT (i)
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     TYPE(dbcsr_scalar_type)                  :: i
 
     i%data_type = data_type
@@ -1483,7 +1480,7 @@ CONTAINS
 !> \result zero               enpsulated value of zero
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_zero (data_type) RESULT (zero)
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     TYPE(dbcsr_scalar_type)                  :: zero
 
     zero%data_type = data_type
@@ -1559,7 +1556,7 @@ CONTAINS
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_get_type (scalar) RESULT (data_type)
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: scalar
-    CHARACTER                                :: data_type
+    INTEGER                                  :: data_type
 
     data_type = scalar%data_type
   END FUNCTION dbcsr_scalar_get_type
@@ -1601,7 +1598,7 @@ CONTAINS
 !> \result Data type is 2-D.
 ! *****************************************************************************
   PURE FUNCTION dbcsr_type_is_2d (data_type)
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     LOGICAL                                  :: dbcsr_type_is_2d
 
     dbcsr_type_is_2d = data_type .EQ. dbcsr_type_real_4_2d .OR.&
@@ -1615,8 +1612,8 @@ CONTAINS
 !> \result 1-D data type
 ! *****************************************************************************
   PURE FUNCTION dbcsr_type_2d_to_1d (data_type)
-    CHARACTER, INTENT(IN)                    :: data_type
-    CHARACTER                                :: dbcsr_type_2d_to_1d
+    INTEGER, INTENT(IN)                      :: data_type
+    INTEGER                                  :: dbcsr_type_2d_to_1d
 
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4_2d)
@@ -1636,7 +1633,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        dbcsr_type_2d_to_1d = dbcsr_type_complex_8
     CASE default
-       dbcsr_type_2d_to_1d = '0'
+       dbcsr_type_2d_to_1d = -1
     END SELECT
   END FUNCTION dbcsr_type_2d_to_1d
 
@@ -1645,8 +1642,8 @@ CONTAINS
 !> \result 2-D data type
 ! *****************************************************************************
   PURE FUNCTION dbcsr_type_1d_to_2d (data_type)
-    CHARACTER, INTENT(IN)                    :: data_type
-    CHARACTER                                :: dbcsr_type_1d_to_2d
+    INTEGER, INTENT(IN)                      :: data_type
+    INTEGER                                  :: dbcsr_type_1d_to_2d
 
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
@@ -1666,7 +1663,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8_2d)
        dbcsr_type_1d_to_2d = dbcsr_type_complex_8_2d
     CASE default
-       dbcsr_type_1d_to_2d = '0'
+       dbcsr_type_1d_to_2d = -1
     END SELECT
   END FUNCTION dbcsr_type_1d_to_2d
 

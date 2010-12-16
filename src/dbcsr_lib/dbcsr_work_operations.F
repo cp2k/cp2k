@@ -157,8 +157,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
-    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -390,8 +389,7 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
-    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -399,10 +397,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_template', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: new_data_type, &
-                                                new_matrix_type, &
+    CHARACTER                                :: new_matrix_type, &
                                                 new_replication_type
     CHARACTER(len=default_string_length)     :: new_name
+    INTEGER                                  :: new_data_type
     LOGICAL                                  :: new_mutable_work, new_special
     TYPE(array_i1d_obj)                      :: new_col_blk_size, &
                                                 new_row_blk_size
@@ -476,7 +474,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, error)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 

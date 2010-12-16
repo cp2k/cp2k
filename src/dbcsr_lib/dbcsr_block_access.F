@@ -420,8 +420,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_area', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type_m
-    INTEGER                                  :: error_handle
+    INTEGER                                  :: data_type_m, error_handle
     LOGICAL                                  :: do_scale
     TYPE(dbcsr_error_type)                   :: error
 

@@ -1293,11 +1293,8 @@ CONTAINS
       routineN = 'dbcsr_scale_by_vector_anytype', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER                                  :: a_blk, a_col, a_col_size, &
-                                                a_nze, a_row, a_row_size, &
-                                                col_offset, error_handler, i, &
-                                                row_offset
+    INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
+      col_offset, data_type, error_handler, i, row_offset
     LOGICAL                                  :: right, tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
@@ -1308,8 +1305,7 @@ CONTAINS
 
 ! check that alpha and matrix have the same data type
     CALL dbcsr_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "wrong data type matrix_a="//&
-         dbcsr_get_data_type (matrix_a)//' alpha='//alpha%d%data_type,__LINE__,error)
+         dbcsr_wrong_args_error, routineN, "wrong data type matrix_a",__LINE__,error)
     !
     ! set vars
     right = .TRUE.
@@ -1428,8 +1424,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_conjg', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER                                  :: blk, col, error_handler, row
+    INTEGER                                  :: blk, col, data_type, &
+                                                error_handler, row
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
@@ -1478,9 +1474,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_anytype', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type_a, data_type_b
-    INTEGER                                  :: blk, col, error_handler, row, &
-                                                size_a, size_b
+    INTEGER                                  :: blk, col, data_type_a, &
+                                                data_type_b, error_handler, &
+                                                row, size_a, size_b
     LOGICAL                                  :: do_scale, tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -1584,8 +1580,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_reserved', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type_a, data_type_b
-    INTEGER                                  :: blk, col, error_handler, &
+    INTEGER                                  :: blk, col, data_type_a, &
+                                                data_type_b, error_handler, &
                                                 nblkrows, nblks, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: b_row_i
     LOGICAL                                  :: do_scale, tr
@@ -1807,9 +1803,10 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .TRUE.
     REAL(kind=dp), PARAMETER                 :: comp_eps = 1.0E-06_dp
 
-    CHARACTER                                :: data_type, red_type
-    INTEGER :: dst_p, error_handler, half_spread, most_spread, mp_group, &
-      my_norm_node, mynode, nsteps, numnodes, spread, src_p, step, tag
+    CHARACTER                                :: red_type
+    INTEGER :: data_type, dst_p, error_handler, half_spread, most_spread, &
+      mp_group, my_norm_node, mynode, nsteps, numnodes, spread, src_p, step, &
+      tag
     INTEGER, DIMENSION(2)                    :: get_sizes, my_sizes
     LOGICAL                                  :: i_recv, i_send
     REAL(kind=dp)                            :: cs1, cs2
@@ -1998,10 +1995,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
     INTEGER                                  :: blk, col, col_size, &
-                                                error_handler, nze, row, &
-                                                row_size
+                                                data_type, error_handler, &
+                                                nze, row, row_size
     LOGICAL                                  :: found, tr_a, tr_b
     TYPE(dbcsr_data_obj)                     :: a_data, b_data, c_data
     TYPE(dbcsr_iterator)                     :: iter
@@ -2342,8 +2338,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_anytype', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER                                  :: blk, col, error_handler, row, &
+    INTEGER                                  :: blk, col, data_type, &
+                                                error_handler, row, &
                                                 row_offset, row_size
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_a, diag_a
@@ -2399,9 +2395,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_anytype', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dt
-    INTEGER                                  :: blk, col, error_handler, row, &
-                                                row_offset, row_size
+    INTEGER                                  :: blk, col, dt, error_handler, &
+                                                row, row_offset, row_size
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_a, diag_a
     TYPE(dbcsr_iterator)                     :: iter
@@ -2465,8 +2460,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: new_type, repl_type
-    INTEGER                                  :: error_handler
+    CHARACTER                                :: repl_type
+    INTEGER                                  :: error_handler, new_type
     LOGICAL                                  :: keep_sparse, shallow
 
 !   ---------------------------------------------------------------------------
@@ -2564,10 +2559,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER                                  :: col_size, cs, dst_col, &
-                                                dst_row, error_handler, rel, &
-                                                row_size, rs, src_col, src_row
+    INTEGER                                  :: col_size, cs, data_type, &
+                                                dst_col, dst_row, &
+                                                error_handler, rel, row_size, &
+                                                rs, src_col, src_row
     LOGICAL                                  :: dst_tr, src_tr
     TYPE(dbcsr_data_obj)                     :: dst_data, src_data
     TYPE(dbcsr_iterator)                     :: dst_iter, src_iter
@@ -2668,9 +2663,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_columns', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER :: col_size, dst_col, dst_row, error_handler, first_col, &
-      last_col, num_col, rel, row_size, src_col, src_row
+    INTEGER :: col_size, data_type, dst_col, dst_row, error_handler, &
+      first_col, last_col, num_col, rel, row_size, src_col, src_row
     INTEGER, DIMENSION(:), POINTER           :: dst_col_offsets, &
                                                 dst_col_sizes, &
                                                 src_col_offsets, src_col_sizes
@@ -2839,9 +2833,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_submatrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: new_type, repl_type
+    CHARACTER                                :: repl_type
     INTEGER                                  :: blk_p, col, error_handler, &
-                                                nblocks, new_blk, old_blk, row
+                                                nblocks, new_blk, new_type, &
+                                                old_blk, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blkp_list, col_list, row_list
     LOGICAL                                  :: shallow, tr
     TYPE(dbcsr_data_obj)                     :: data_block

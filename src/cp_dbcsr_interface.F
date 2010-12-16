@@ -515,7 +515,7 @@ CONTAINS
 
   PURE FUNCTION cp_dbcsr_get_data_type (matrix) RESULT (data_type)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    CHARACTER                                :: data_type
+    INTEGER                                  :: data_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_data_type', &
       routineP = moduleN//':'//routineN
@@ -1686,7 +1686,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(OUT), OPTIONAL  :: name
     TYPE(dbcsr_data_obj), INTENT(OUT), &
       OPTIONAL                               :: data_area
-    CHARACTER, OPTIONAL                      :: matrix_type, data_type
+    CHARACTER, OPTIONAL                      :: matrix_type
+    INTEGER, OPTIONAL                        :: data_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_info', &
       routineP = moduleN//':'//routineN
@@ -2118,8 +2119,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
-    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2255,8 +2255,7 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
-    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2519,8 +2518,8 @@ CONTAINS
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//cp_dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//cp_dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
+    CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
+         //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
@@ -2671,8 +2670,8 @@ CONTAINS
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//cp_dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//cp_dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
+    CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
+         //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
@@ -2691,8 +2690,8 @@ CONTAINS
        WRITE(*,'(A,4(1X,E9.3))')routineN//" checksums", cs_c, cs_b,&
             cs_c-cs_b, ABS(cs_c-cs_b)/cs_b
        WRITE(*,*)routineN//" multiply type",&
-            trans_a//shape_a//cp_dbcsr_get_matrix_type(matrix_a)//'_'&
-            //trans_b//shape_b//cp_dbcsr_get_matrix_type(matrix_b)
+            trans_a//shape_a//'_'&
+            //trans_b//shape_b
        
        IF (ABS(cs_c-cs_b) .GT. 0.00001) STOP "Bad multiply"
     ENDIF
@@ -2742,8 +2741,8 @@ CONTAINS
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//cp_dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//cp_dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
+    CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
+         //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
@@ -2799,8 +2798,8 @@ CONTAINS
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//cp_dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//cp_dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
+    CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
+         //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&

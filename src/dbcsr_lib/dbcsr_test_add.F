@@ -198,13 +198,13 @@ CONTAINS
       , dbcsr_type_antihermitian    , dbcsr_type_antihermitian /), (/2,5/) )
     CHARACTER, DIMENSION(3), PARAMETER :: trans = (/dbcsr_no_transpose, &
       dbcsr_transpose, dbcsr_conjugate_transpose/)
-    CHARACTER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
+    INTEGER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
       dbcsr_type_real_8, dbcsr_type_complex_4, dbcsr_type_complex_8/)
 
-    CHARACTER                                :: a_symm, b_symm, TYPE
+    CHARACTER                                :: a_symm, b_symm
     INTEGER                                  :: a_c, a_r, b_c, b_r, &
                                                 error_handler, isymm, itype, &
-                                                mynode, numnodes
+                                                mynode, numnodes, TYPE
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes
     LOGICAL                                  :: do_complex
     TYPE(array_i1d_obj)                      :: my_sizes_m, my_sizes_n, &

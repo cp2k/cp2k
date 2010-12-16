@@ -198,18 +198,17 @@ CONTAINS
                                                 RC_C = 2, RC_R = 1
     LOGICAL, PARAMETER                       :: use_combined_types = .FALSE.
 
-    CHARACTER                                :: data_type
-    INTEGER :: error_handler, error_handler2, grp, i, left_col_image, &
-      left_col_mult, left_col_nimages, left_col_v_offset, left_dst_icol, &
-      left_dst_irow, left_dst_p, left_dst_pcol, left_dst_prow, &
+    INTEGER :: data_type, error_handler, error_handler2, grp, i, &
+      left_col_image, left_col_mult, left_col_nimages, left_col_v_offset, &
+      left_dst_icol, left_dst_irow, left_dst_p, left_dst_pcol, left_dst_prow, &
       left_dst_v_col, left_dst_v_row, left_max_nze, left_recv_icol, &
       left_recv_irow, left_recv_p, left_recv_pcol, left_recv_prow, &
       left_recv_v_col, left_recv_v_row, left_row_image, left_row_mult, &
       left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
       left_send_pcol, left_send_prow, left_send_v_col, left_send_v_row, &
       left_src_icol, left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
-      left_src_v_col, left_src_v_row, max_nblks
-    INTEGER :: max_nze, metronome, min_nimages, mp_group, mynode, &
+      left_src_v_col, left_src_v_row
+    INTEGER :: max_nblks, max_nze, metronome, min_nimages, mp_group, mynode, &
       nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
       output_unit, right_col_image, right_col_mult, right_col_nimages, &
       right_dst_icol, right_dst_irow, right_dst_p, right_dst_pcol, &
@@ -1364,19 +1363,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
     INTEGER :: a_blk, a_col_logical, a_col_size_logical, a_first_block, &
       a_last_block, a_row_l, a_row_logical, a_row_size_logical, b_blk, &
       b_col_logical, b_col_size_logical, b_first_block, b_last_block, &
       b_row_l, b_row_logical, b_row_size_logical, blk_end, blk_size, &
       blk_start, c_blk_pt, c_col_index, c_col_logical, c_col_size_logical, &
-      c_nze, c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
-      error_handler, first_k, first_mergeable, i, ithread, j, last_k, &
-      lastblk, new_blk, new_index_size, new_row_blks, nthreads, old_blk, &
-      old_row_begin_blk, old_size, product_ncols, row_begin_blk, &
-      size_c_blk_ps, stack_p, stack_p_a
-    INTEGER :: stack_p_b, stack_p_c, stat, submat_f_col, submat_f_row, &
-      submat_l_col, submat_l_row, this_right_limit
+      c_nze, c_row_logical, c_row_size_logical, clamp_k_len, data_type, &
+      datasize, error_handler, first_k, first_mergeable, i, ithread, j, &
+      last_k, lastblk, new_blk, new_index_size, new_row_blks, nthreads, &
+      old_blk, old_row_begin_blk, old_size, product_ncols, row_begin_blk, &
+      size_c_blk_ps, stack_p
+    INTEGER :: stack_p_a, stack_p_b, stack_p_c, stat, submat_f_col, &
+      submat_f_row, submat_l_col, submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
@@ -2371,9 +2369,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_insert_blocks', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type_b
-    INTEGER                                  :: blk, col, error_handler, &
-                                                nblkrows, nblks, row
+    INTEGER                                  :: blk, col, data_type_b, &
+                                                error_handler, nblkrows, &
+                                                nblks, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: b_row_i
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_block
@@ -2432,8 +2430,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
-    INTEGER                                  :: error_handle, nrows, row
+    INTEGER                                  :: data_type, error_handle, &
+                                                nrows, row
     INTEGER, DIMENSION(1), TARGET            :: tmp
     INTEGER, DIMENSION(:), POINTER           :: local_rows
 

@@ -324,11 +324,11 @@
 ! *****************************************************************************
   PURE FUNCTION query_type_[nametype1]_1d (data) RESULT (data_type)
     [type1], DIMENSION(:), INTENT(IN) :: data
-    CHARACTER                         :: data_type
+    INTEGER                           :: data_type
     data_type = [dkind1]
   END FUNCTION query_type_[nametype1]_1d
   PURE FUNCTION query_type_[nametype1]_2d (data) RESULT (data_type)
     [type1], DIMENSION(:,:), INTENT(IN) :: data
-    CHARACTER                           :: data_type
+    INTEGER                             :: data_type
     data_type = [dkind1]_2d
   END FUNCTION query_type_[nametype1]_2d

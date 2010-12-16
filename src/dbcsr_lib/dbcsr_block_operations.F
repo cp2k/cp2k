@@ -588,7 +588,7 @@ CONTAINS
             "Data areas must be setup.",__LINE__,error)
        CALL dbcsr_assert (dst%d%data_type .EQ. src%d%data_type, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN,&
-            "Data type must be the same: "//dst%d%data_type//src%d%data_type,__LINE__,error)
+            "Data type must be the same.",__LINE__,error)
        !CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
        !     .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
        !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
@@ -780,8 +780,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa2', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dst_dt, src_dt
-    INTEGER                                  :: dst_d, error_handler, src_d
+    INTEGER                                  :: dst_d, dst_dt, error_handler, &
+                                                src_d, src_dt
     INTEGER, DIMENSION(2)                    :: dst_ub, src_ub
 
 !   ---------------------------------------------------------------------------
@@ -1367,11 +1367,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_block2d_diagonal_a', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dt_block, dt_diag
     COMPLEX(kind=dp), DIMENSION(:, :), &
       POINTER                                :: c2_dp
     COMPLEX(kind=sp), DIMENSION(:, :), &
       POINTER                                :: c2_sp
+    INTEGER                                  :: dt_block, dt_diag
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: r2_dp
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: r2_sp
 
@@ -1424,13 +1424,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_block2d_diagonal_a', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: dt_block, dt_diag
     COMPLEX(kind=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(kind=dp), DIMENSION(:, :), &
       POINTER                                :: c2_dp
     COMPLEX(kind=sp), DIMENSION(:), POINTER  :: c_sp
     COMPLEX(kind=sp), DIMENSION(:, :), &
       POINTER                                :: c2_sp
+    INTEGER                                  :: dt_block, dt_diag
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: r2_dp
     REAL(kind=sp), DIMENSION(:), POINTER     :: r_sp

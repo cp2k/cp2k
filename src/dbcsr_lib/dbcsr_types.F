@@ -199,7 +199,7 @@ MODULE dbcsr_types
      REAL(KIND=real_8)    :: r_dp
      COMPLEX(KIND=real_4) :: c_sp
      COMPLEX(KIND=real_8) :: c_dp
-     CHARACTER            :: data_type
+     INTEGER              :: data_type
   END TYPE dbcsr_scalar_type
 
 
@@ -226,29 +226,29 @@ MODULE dbcsr_types
      INTEGER                                  :: ref_size
      INTEGER                                  :: refcount
      LOGICAL                                  :: special
-     CHARACTER                                :: data_type
+     INTEGER                                  :: data_type
   END TYPE dbcsr_data_area_type
 
   TYPE dbcsr_data_obj
      TYPE(dbcsr_data_area_type), POINTER           :: d
   END TYPE dbcsr_data_obj
 
-  CHARACTER, PARAMETER          :: dbcsr_type_real_4 = 'r'
-  CHARACTER, PARAMETER          :: dbcsr_type_real_8 = 'R'
-  CHARACTER, PARAMETER          :: dbcsr_type_complex_4 = 'c'
-  CHARACTER, PARAMETER          :: dbcsr_type_complex_8 = 'C'
+  INTEGER, PARAMETER          :: dbcsr_type_real_4 = 1
+  INTEGER, PARAMETER          :: dbcsr_type_real_8 = 2
+  INTEGER, PARAMETER          :: dbcsr_type_complex_4 = 4
+  INTEGER, PARAMETER          :: dbcsr_type_complex_8 = 8
 
-  CHARACTER, PARAMETER          :: dbcsr_type_real_4_2d = 'x'
-  CHARACTER, PARAMETER          :: dbcsr_type_real_8_2d = 'X'
-  CHARACTER, PARAMETER          :: dbcsr_type_complex_4_2d = 'y'
-  CHARACTER, PARAMETER          :: dbcsr_type_complex_8_2d = 'Y'
+  INTEGER, PARAMETER          :: dbcsr_type_real_4_2d = 16
+  INTEGER, PARAMETER          :: dbcsr_type_real_8_2d = 32
+  INTEGER, PARAMETER          :: dbcsr_type_complex_4_2d = 64
+  INTEGER, PARAMETER          :: dbcsr_type_complex_8_2d = 128
 
 #ifndef __SGL
-  CHARACTER, PARAMETER          :: dbcsr_type_real_default = 'R'
-  CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'C'
+  INTEGER, PARAMETER          :: dbcsr_type_real_default = dbcsr_type_real_8
+  INTEGER, PARAMETER          :: dbcsr_type_complex_default = dbcsr_type_complex_8
 #else
-  CHARACTER, PARAMETER          :: dbcsr_type_real_default = 'r'
-  CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'c'
+  INTEGER, PARAMETER          :: dbcsr_type_real_default = dbcsr_type_real_4
+  INTEGER, PARAMETER          :: dbcsr_type_complex_default = dbcsr_type_complex_4
 #endif
 
   ! Different method for dbcsr_filter
@@ -279,7 +279,7 @@ MODULE dbcsr_types
      INTEGER, DIMENSION(:,:), POINTER            :: rcb
      TYPE(dbcsr_data_obj)                        :: main
      TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: backing
-     CHARACTER                                   :: data_type
+     INTEGER                                     :: data_type
   END TYPE dbcsr_block_buffer_type
 
 ! *****************************************************************************
@@ -346,7 +346,7 @@ MODULE dbcsr_types
      TYPE(btree_2d_c)          :: btree_c
      TYPE(btree_2d_z)          :: btree_z
      INTEGER                   :: refcount
-     CHARACTER                 :: data_type
+     INTEGER                   :: data_type
   END TYPE dbcsr_mutable_type
 
 ! *****************************************************************************
@@ -458,7 +458,8 @@ MODULE dbcsr_types
      INTEGER                 :: nfullrows_total, nfullcols_total
      INTEGER                 :: nblkrows_local, nblkcols_local
      INTEGER                 :: nfullrows_local, nfullcols_local
-     CHARACTER               :: data_type, replication_type
+     INTEGER                 :: data_type 
+     CHARACTER               :: replication_type
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
      !LOGICAL                 :: transpose
      LOGICAL                 :: bcsc, local_indexing

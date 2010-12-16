@@ -324,11 +324,11 @@
 ! *****************************************************************************
   PURE FUNCTION query_type_d_1d (DATA) RESULT (data_type)
     REAL(kind=real_8), DIMENSION(:), INTENT(IN) :: DATA
-    CHARACTER                         :: data_type
+    INTEGER                           :: data_type
     data_type = dbcsr_type_real_8
   END FUNCTION query_type_d_1d
   PURE FUNCTION query_type_d_2d (DATA) RESULT (data_type)
     REAL(kind=real_8), DIMENSION(:,:), INTENT(IN) :: DATA
-    CHARACTER                           :: data_type
+    INTEGER                             :: data_type
     data_type = dbcsr_type_real_8_2d
   END FUNCTION query_type_d_2d

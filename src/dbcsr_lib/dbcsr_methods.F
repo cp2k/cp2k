@@ -1414,7 +1414,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(OUT), OPTIONAL  :: name
     TYPE(dbcsr_data_obj), INTENT(OUT), &
       OPTIONAL                               :: data_area
-    CHARACTER, OPTIONAL                      :: matrix_type, data_type
+    CHARACTER, OPTIONAL                      :: matrix_type
+    INTEGER, OPTIONAL                        :: data_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
       routineP = moduleN//':'//routineN
@@ -1674,7 +1675,7 @@ CONTAINS
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_data_type_obj (matrix) RESULT (data_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    CHARACTER                                :: data_type
+    INTEGER                                  :: data_type
 
     data_type = matrix%m%data_type
   END FUNCTION dbcsr_get_data_type_obj
@@ -1686,7 +1687,7 @@ CONTAINS
 ! *****************************************************************************
   PURE FUNCTION data_get_data_type (area) RESULT (data_type)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    CHARACTER                                :: data_type
+    INTEGER                                  :: data_type
 
     data_type = dbcsr_data_get_type (area)
   END FUNCTION data_get_data_type
@@ -1780,7 +1781,7 @@ CONTAINS
 ! *****************************************************************************
   PURE FUNCTION data_data_get_type (area) RESULT (data_type)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    CHARACTER                                :: data_type
+    INTEGER                                  :: data_type
 
     data_type = dbcsr_data_get_type (area)
   END FUNCTION data_data_get_type
@@ -2463,7 +2464,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_mutable_new (mutable, data_type)
     TYPE(dbcsr_mutable_obj), INTENT(INOUT)   :: mutable
-    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN)                      :: data_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_new', &
       routineP = moduleN//':'//routineN

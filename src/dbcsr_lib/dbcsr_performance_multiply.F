@@ -86,11 +86,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_perf_multiply', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: symmetries(3), trans(2), TYPE
-    INTEGER                                  :: i, iblk, istat, kblk_to_read, &
-                                                limits(6), matrix_sizes(3), &
-                                                mblk_to_read, nblk_to_read, &
-                                                nrep
+    CHARACTER                                :: symmetries(3), trans(2)
+    INTEGER :: i, iblk, istat, kblk_to_read, limits(6), matrix_sizes(3), &
+      mblk_to_read, nblk_to_read, nrep, TYPE
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bs_k, bs_m, bs_n
     LOGICAL                                  :: retain_sparsity
     REAL(real_8)                             :: alpha(2), beta(2), &
@@ -113,7 +111,7 @@ CONTAINS
      symmetries(1)   = args(10)
      symmetries(2)   = args(11)
      symmetries(3)   = args(12)
-     TYPE            = args(13)
+     TYPE            = atoi(args(13))
      alpha(1)        = ator(args(14))
      alpha(2)        = ator(args(15))
      beta(1)         = ator(args(16))
@@ -208,7 +206,7 @@ CONTAINS
     REAL(real_8), DIMENSION(3), INTENT(in)   :: sparsities
     CHARACTER, DIMENSION(2), INTENT(in)      :: trans
     CHARACTER, DIMENSION(3), INTENT(in)      :: symmetries
-    CHARACTER, INTENT(in)                    :: TYPE
+    INTEGER, INTENT(IN)                      :: TYPE
     REAL(real_8), DIMENSION(2), INTENT(in)   :: alpha_in, beta_in
     INTEGER, DIMENSION(6), INTENT(in)        :: limits
     LOGICAL, INTENT(in)                      :: retain_sparsity

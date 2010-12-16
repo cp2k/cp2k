@@ -231,15 +231,15 @@ CONTAINS
       , dbcsr_type_symmetric    , dbcsr_type_symmetric,&
       dbcsr_type_antisymmetric, dbcsr_type_antisymmetric,dbcsr_type_symmetric&
       /), (/3,12/) )
-    CHARACTER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
+    INTEGER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
       dbcsr_type_real_8, dbcsr_type_complex_4, dbcsr_type_complex_8/)
 
     CHARACTER                                :: a_symm, b_symm, c_symm, &
-                                                transa, transb, TYPE
+                                                transa, transb
     INTEGER                                  :: a_c, a_r, a_tr, b_c, b_r, &
                                                 b_tr, c_c, c_r, &
                                                 error_handler, isymm, itype, &
-                                                mynode, n_tr, numnodes
+                                                mynode, n_tr, numnodes, TYPE
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes
     LOGICAL                                  :: do_complex
     TYPE(array_i1d_obj)                      :: my_sizes_k, my_sizes_m, &

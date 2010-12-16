@@ -119,8 +119,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_impose_sparsity', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type, symm
-    INTEGER :: blk, col, col_offset, col_size, dense_col_size, &
+    CHARACTER                                :: symm
+    INTEGER :: blk, col, col_offset, col_size, data_type, dense_col_size, &
       dense_row_size, error_handler, row, row_offset, row_size
     LOGICAL                                  :: valid
     TYPE(dbcsr_data_obj)                     :: tmp
@@ -236,9 +236,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_to_dense_local', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type, symm
-    INTEGER :: col, col_offset, col_size, dense_col_size, dense_row_size, &
-      error_handler, row, row_offset, row_size
+    CHARACTER                                :: symm
+    INTEGER :: col, col_offset, col_size, data_type, dense_col_size, &
+      dense_row_size, error_handler, row, row_offset, row_size
     LOGICAL                                  :: tr, valid
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
@@ -347,14 +347,16 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: name
     REAL(kind=real_8), INTENT(in)            :: sparsity
     INTEGER, INTENT(in)                      :: mp_group
-    CHARACTER, INTENT(in), OPTIONAL          :: data_type, symmetry
+    INTEGER, INTENT(in), OPTIONAL            :: data_type
+    CHARACTER, INTENT(in), OPTIONAL          :: symmetry
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_random_matrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: my_data_type, my_symmetry
-    INTEGER                                  :: col, max_nze, nze, row
+    CHARACTER                                :: my_symmetry
+    INTEGER                                  :: col, max_nze, my_data_type, &
+                                                nze, row
     INTEGER, DIMENSION(4)                    :: iseed = (/4,3,2,1/)
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     REAL(kind=real_8)                        :: my_sparsity
