@@ -315,6 +315,7 @@ CONTAINS
     IF (.NOT. hijack) THEN
        CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, my_nze,&
             special_memory=matrix%m%special_memory)
+       CALL dbcsr_data_set_size_referenced (matrix%m%data_area, 0)
        IF (matrix%m%special_memory) THEN
           CALL mp_allocate(matrix%m%index, dbcsr_num_slots, stat=stat)
           CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
