@@ -74,7 +74,7 @@ MODULE dbcsr_index_operations
   PUBLIC :: dbcsr_index_checksum
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
-            dbcsr_repoint_index
+            dbcsr_repoint_index, dbcsr_make_index_exist
 
   INTERFACE dbcsr_count_row_index
      MODULE PROCEDURE dbcsr_count_row_index_copy,&
@@ -563,6 +563,45 @@ CONTAINS
        m%index(dbcsr_slot_nze) = m%nze
     ENDIF
   END SUBROUTINE dbcsr_repoint_index
+
+
+! *****************************************************************************
+!> \brief Creates an index for the matrix.
+
+!> \param[in,out] m           Create index for this matrix
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE dbcsr_make_index_exist(m, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: m
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_index_exist', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_assert (ASSOCIATED (m%index),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Index array does not yet exist.", __LINE__, error=error)
+    IF (.NOT. ASSOCIATED (m%row_p)) THEN
+       CALL dbcsr_addto_index_array (m, dbcsr_slot_row_p,&
+            reservation=m%nblkrows_total+1, error=error)
+       m%row_p(:) = 0
+    ENDIF
+    IF (.NOT. ASSOCIATED (m%col_i)) THEN
+       CALL dbcsr_addto_index_array (m, dbcsr_slot_col_i,&
+            reservation=0, error=error)
+    ENDIF
+    IF (.NOT. ASSOCIATED (m%blk_p)) THEN
+       CALL dbcsr_addto_index_array (m, dbcsr_slot_blk_p,&
+            reservation=0, error=error)
+    ENDIF
+    CALL dbcsr_repoint_index (m)
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_make_index_exist
 
 
 
