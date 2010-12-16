@@ -71,8 +71,7 @@ MODULE dbcsr_block_access
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
-                                             make_coordinate_tuple,&
+  USE dbcsr_util,                      ONLY: make_coordinate_tuple,&
                                              swap
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                              dbcsr_work_create
@@ -144,16 +143,8 @@ MODULE dbcsr_block_access
 
 
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
@@ -290,12 +281,16 @@ CONTAINS
        matrix%m%valid = .FALSE.
        ! update nze accordingly
        matrix%m%nze = matrix%m%nze - block_nze
-       CALL dbcsr_assert (matrix%m%nze, "GE", 0, dbcsr_failure_level,&
-            dbcsr_caller_error, routineN, "nze < 0!",__LINE__,error)
+       IF (debug_mod) THEN
+          CALL dbcsr_assert (matrix%m%nze, "GE", 0, dbcsr_failure_level,&
+             dbcsr_caller_error, routineN, "nze < 0!",__LINE__,error)
+       ENDIF
     ELSE
-       CALL dbcsr_assert (b, "NE", 0,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Block does not exist or is already deleted.",__LINE__,error)
+       IF (debug_mod) THEN
+          CALL dbcsr_assert (b, "NE", 0,&
+               dbcsr_warning_level, dbcsr_caller_error, routineN,&
+               "Block does not exist or is already deleted.",__LINE__,error)
+       ENDIF
     ENDIF
     IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_remove_block

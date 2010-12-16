@@ -61,7 +61,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                        :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
     COMPLEX(kind=real_8)                        :: tmp
 !   ---------------------------------------------------------------------------
@@ -74,7 +73,7 @@
           IF (PRESENT (lb)) l = lb
           u = UBOUND (area%d%c_dp, 1)
           IF (PRESENT (ub)) u = ub
-          IF (dbg) THEN
+          IF (debug_mod) THEN
              CALL dbcsr_assert (l .GE. LBOUND (area%d%c_dp, 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Out of bounds",__LINE__,error)
@@ -111,7 +110,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                        :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
@@ -121,7 +119,7 @@
           IF (PRESENT (lb)) l = lb
           u = UBOUND (area%d%c_dp, 1)
           IF (PRESENT (ub)) u = ub
-          IF (dbg) THEN
+          IF (debug_mod) THEN
              CALL dbcsr_assert (l .GE. LBOUND (area%d%c_dp, 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Out of bounds",__LINE__,error)
@@ -158,7 +156,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(2)          :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
@@ -168,7 +165,7 @@
           IF (PRESENT (lb)) l = lb
           u = UBOUND (area%d%c2_dp)
           IF (PRESENT (ub)) u = ub
-          IF (dbg) THEN
+          IF (debug_mod) THEN
              CALL dbcsr_assert (l(1) .GE. LBOUND (area%d%c2_dp, 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Out of bounds",__LINE__,error)
@@ -209,7 +206,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                        :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
@@ -219,7 +215,7 @@
           IF (PRESENT (lb)) l = lb
           u = UBOUND (area%d%c_dp, 1)
           IF (PRESENT (ub)) u = ub
-          IF (dbg) THEN
+          IF (debug_mod) THEN
              CALL dbcsr_assert (l, "GE", LBOUND (area%d%c_dp, 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Out of bounds",__LINE__,error)
@@ -253,7 +249,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(2)          :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
@@ -263,7 +258,7 @@
           IF (PRESENT (lb)) l = lb
           u = UBOUND (area%d%c2_dp)
           IF (PRESENT (ub)) u = ub
-          IF (dbg) THEN
+          IF (debug_mod) THEN
              CALL dbcsr_assert (l(1), "GE", LBOUND (area%d%c2_dp, 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Out of bounds",__LINE__,error)

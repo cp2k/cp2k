@@ -103,7 +103,6 @@ MODULE dbcsr_internal_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
-  LOGICAL, PARAMETER                   :: careful_mod = .TRUE.
 
 
 #if defined (__INTERNAL_GEMM)
@@ -125,15 +124,8 @@ MODULE dbcsr_internal_operations
 
 
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod  = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
@@ -276,9 +268,8 @@ CONTAINS
                                                 right_recv_subtypes, &
                                                 right_send_subtypes
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
@@ -580,7 +571,7 @@ CONTAINS
 !$omp          shared (product_matrix, left_max_nze, right_max_nze) &
 !$omp          shared (left_set, right_set, &
 !$omp                 left_col_nimages, right_row_nimages) &
-!$omp          shared (error, nthreads, keep_sparsity, dbg, mynode)
+!$omp          shared (error, nthreads, keep_sparsity, mynode)
     DO i = 1, nthreads
        IF (keep_sparsity) THEN
           size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
@@ -599,7 +590,7 @@ CONTAINS
           size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
           size8 = MAX(1_int_8,size8)
-          IF (dbg .AND. mynode .EQ. 0) THEN
+          IF (debug_mod .AND. mynode .EQ. 0) THEN
              WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
                   left_fill, right_fill
           ENDIF
@@ -608,13 +599,13 @@ CONTAINS
           IF (nthreads .GT. 1) THEN
              fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
           ENDIF
-          IF (dbg .AND. mynode .EQ. 0) THEN
+          IF (debug_mod.AND. mynode .EQ. 0) THEN
              WRITE(*,*)routineN//" fill guess=", fill_guess
           ENDIF
           size_guess = MAX(product_matrix%m%wms(i)%datasize,&
                INT(REAL(size8, KIND=real_8) * fill_guess, KIND=int_4))
        ENDIF
-       IF (dbg) &
+       IF (debug_mod) &
             WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" Using size guess",&
             LOG(REAL(size_guess))/LOG(10.0), LOG(REAL(size8))/LOG(10.0)
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
@@ -629,7 +620,7 @@ CONTAINS
     ENDDO
 !$omp end parallel do
     !
-    IF (dbg .AND. mynode .EQ. 0) THEN
+    IF (debug_mod .AND. mynode .EQ. 0) THEN
        WRITE(*,*)routineN//" All sizes"
        WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
     ENDIF
@@ -638,7 +629,7 @@ CONTAINS
     max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
     max_nze = MAXVAL (all_sizes(idata, :, :, :))
     !
-    IF (dbg .AND. mynode .EQ. 0) THEN
+    IF (debug_mod .AND. mynode .EQ. 0) THEN
        WRITE(*,*)routineN//" All sizes"
        WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
     ENDIF
@@ -706,7 +697,7 @@ CONTAINS
     ! sources. In the remaining iterations, the data are exchanged
     ! among neighbors.
     grouped_k_index: DO metronome = 1, nsteps_k
-       IF (dbg) WRITE(*,'(1X,A,3(1X,A,1X,I5))')routineN,&
+       IF (debug_mod) WRITE(*,'(1X,A,3(1X,A,1X,I5))')routineN,&
             "step",metronome,&
             "first k",metronome*min_nimages,&
             "last k",(metronome+1)*min_nimages-1
@@ -714,7 +705,7 @@ CONTAINS
        ! the first loop iteration.
        CALL dbcsr_error_set(routineN//"_wait_right", error_handler2, error)
        wait_right: IF (metronome .GT. 1) THEN
-          IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for right"
+          IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           CALL mp_waitall (right_data_sr)
           CALL mp_waitall (right_data_rr)
           IF (use_combined_types) THEN
@@ -836,7 +827,7 @@ CONTAINS
              !
              right_send_p = right_pgrid (right_send_prow, right_send_pcol)
              right_recv_p = right_pgrid (right_recv_prow, right_recv_pcol)
-             IF (dbg) THEN
+             IF (debug_mod) THEN
                 CALL all_print (right_send_p, "R SEND P", product_mp_obj)
                 CALL all_print (right_recv_p, "R RECV P", product_mp_obj)
                 CALL all_print (right_src_p, "R SRC P ", product_mp_obj)
@@ -856,7 +847,7 @@ CONTAINS
                      right_src_prow, right_src_irow,&
                      right_src_pcol, right_src_icol
              ENDIF
-             IF (dbg) &
+             IF (debug_mod) &
                   WRITE(*,fdata)"CALC RIGHT",right_dst_p,&
                   right_dst_prow, right_dst_irow,&
                   right_dst_pcol, right_dst_icol,&
@@ -910,7 +901,7 @@ CONTAINS
        ! the first loop iteration.
        CALL dbcsr_error_set(routineN//"_wait_left", error_handler2, error)
        wait_left: IF (metronome .GT. 1) THEN
-          IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for left"
+          IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
           CALL mp_waitall (left_data_rr)
           IF (use_combined_types) THEN
@@ -1034,7 +1025,7 @@ CONTAINS
              !
              left_send_p = left_pgrid (left_send_prow, left_send_pcol)
              left_recv_p = left_pgrid (left_recv_prow, left_recv_pcol)
-             IF (dbg) THEN
+             IF (debug_mod) THEN
                 CALL all_print (left_send_p, "L SEND P", product_mp_obj)
                 CALL all_print (left_recv_p, "L RECV P", product_mp_obj)
                 CALL all_print (left_src_p, "L SRC P ", product_mp_obj)
@@ -1054,7 +1045,7 @@ CONTAINS
                      left_src_prow, left_src_irow,&
                      left_src_pcol, left_src_icol
              ENDIF
-             IF (dbg) &
+             IF (debug_mod) &
                   WRITE(*,fdata)"CALC LEFT ",left_dst_p,&
                   left_dst_prow, left_dst_irow,&
                   left_dst_pcol, left_dst_icol,&
@@ -1105,7 +1096,7 @@ CONTAINS
              ENDDO
           ENDIF
           DO v_ki = 0, min_nimages-1
-             IF (dbg) THEN
+             IF (debug_mod) THEN
                 CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=error)
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
@@ -1240,7 +1231,7 @@ CONTAINS
     t_error = error
     CALL dbcsr_finalize(product_matrix, error=error)
     !
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        v_ki = 0
        DO i = 1, product_matrix%m%nblks
           v_ki = MAX(v_ki, ABS(product_matrix%m%blk_p(i)))
@@ -1249,7 +1240,7 @@ CONTAINS
             LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0),&
             LOG(REAL(v_ki))/LOG(10.0)
     ENDIF
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        checksum = dbcsr_checksum (product_matrix, error=error)
        IF ((output_unit>0)) THEN
           WRITE(output_unit,'(1X,A,1X,F9.4)')"Product Checksum=",checksum
@@ -1410,7 +1401,7 @@ CONTAINS
     TYPE(dgemm_join), &
       DIMENSION(dgemm_stack_size)            :: dgemm_joins
     REAL(kind=sp)                            :: a_norm, b_norm, a_row_eps
-    LOGICAL, PARAMETER :: dbg = .FALSE., local_cols = .TRUE.
+    LOGICAL, PARAMETER :: local_cols = .TRUE.
     TYPE(dbcsr_distribution_obj) :: dist
 
 !   ---------------------------------------------------------------------------
@@ -1437,9 +1428,6 @@ CONTAINS
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     epoch = m_walltime()
-    DBG "Doing NN matrix multiplication",left%name,' x ',right%name
-    DBG "Pre-mult blk sizes, data", product%wms(ithread+1)%lastblk,&
-         product%wms(ithread+1)%datasize
     left_row_blk_offset => array_data (left%row_blk_offset)
     left_col_blk_offset => array_data (left%col_blk_offset)
     right_col_blk_offset => array_data (right%col_blk_offset)
@@ -1490,7 +1478,6 @@ CONTAINS
        !write(*,*)routineN//" Limiting k", submatrix_box(5:6)
     ENDIF
     !
-    DBG 'A rows:',left%nblkrows_total
     old_size = product%wms(ithread+1)%lastblk
     mt_t_dgemm = 0.0_dp
     lflop = 0
@@ -1537,7 +1524,7 @@ CONTAINS
     DO a_row_l = 1, left%nblkrows_local
        a_row_logical = left_local_rows (a_row_l)
 !$     IF (product_thread_dist(a_row_logical) .ne. ithread) CYCLE
-       IF (dbg) WRITE(*,*)ithread,routineN//" A row", a_row_logical
+       IF (debug_mod) WRITE(*,*)ithread,routineN//" A row", a_row_logical
        blk_start = left_row_blk_offset(a_row_logical)
        blk_end = left_row_blk_offset(a_row_logical+1)-1
        blk_size = left_row_blk_offset(a_row_logical+1) - blk_start
@@ -1546,12 +1533,14 @@ CONTAINS
               left_row_blk_offset (a_row_logical+1)-1 .LT. submat_f_row) THEN
              CYCLE
           ELSE
-             CALL dbcsr_assert(&
-                   MAX(submat_f_row, blk_end)+1&
-                  -MIN(submat_l_row, blk_start)&
-                  .EQ. blk_size,&
-                  dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
-                  routineN, "Submatrix must encompass complete block rows",__LINE__,error)
+             IF (debug_mod) THEN
+                CALL dbcsr_assert(&
+                      MAX(submat_f_row, blk_end)+1&
+                     -MIN(submat_l_row, blk_start)&
+                     .EQ. blk_size,&
+                     dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+                     routineN, "Submatrix must encompass complete block rows",__LINE__,error)
+             ENDIF
           ENDIF
        ENDIF
        a_row_size_logical = blk_size ! stored
@@ -1579,12 +1568,12 @@ CONTAINS
        ENDIF
        size_c_blk_ps = 0
        ! Fill in the c_blk_ps array
-       IF (dbg) WRITE(*,*)ithread,routineN//" old_blk, old_size, old_row_begin_blk",&
+       IF (debug_mod) WRITE(*,*)ithread,routineN//" old_blk, old_size, old_row_begin_blk",&
             old_blk,old_size,old_row_begin_blk
        IF (old_blk .LE. old_size) THEN
           ! Old index
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LE. a_row_logical) ! EQ
-             IF (dbg) WRITE(*,*)ithread,routineN//" Adding c_blk_ps column",&
+             IF (debug_mod) WRITE(*,*)ithread,routineN//" Adding c_blk_ps column",&
                   product%wms(ithread+1)%col_i(old_blk),&
                   product%wms(ithread+1)%blk_p(old_blk)
              c_col_logical = product%wms(ithread+1)%col_i(old_blk)
@@ -1608,7 +1597,7 @@ CONTAINS
              ENDIF
           ENDDO
        ENDIF
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           WRITE(*,*)ithread,routineN//" c_blk_ps="
           WRITE(*,'(10(1X,I7))')c_blk_ps
        ENDIF
@@ -1630,7 +1619,7 @@ CONTAINS
           ENDIF
           old_blk = old_row_begin_blk
           a_col_logical = left%col_i(a_blk)
-          IF (dbg) WRITE(*,*)ithread,routineN//" A col", a_col_logical,";",a_row_logical
+          IF (debug_mod) WRITE(*,*)ithread,routineN//" A col", a_col_logical,";",a_row_logical
           blk_start = left_col_blk_offset (a_col_logical)
           blk_end = left_col_blk_offset (a_col_logical+1)-1
           IF (limit_k) THEN
@@ -1669,7 +1658,7 @@ CONTAINS
           IF (right%local_indexing) THEN
              b_row_l = k_blk_local(a_col_logical)
              IF (careful_mod) THEN
-                IF (dbg) THEN
+                IF (debug_mod) THEN
                    WRITE(*,*)"Got row ", b_row_logical, "->", b_row_l
                    !FLUSH(6)
                 ENDIF
@@ -1715,7 +1704,6 @@ CONTAINS
                    CYCLE
                 ENDIF
              ENDIF
-             !IF (dbg) WRITE(*,*)routineN//" B col", b_col_logical, ";",a_row_logical, a_col_logical
              blk_start = right_col_blk_offset (b_col_logical)
              blk_end = right_col_blk_offset (b_col_logical+1)-1
              IF (right_limit_cols) THEN
@@ -1790,8 +1778,6 @@ CONTAINS
                 new_index(2, new_blk) = c_col_logical
                 new_index(3, new_blk) = offset
                 new_row_blks = new_row_blks + 1
-                !DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
-                !write(*,*)'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
                 lastblk = lastblk + 1
@@ -1801,8 +1787,6 @@ CONTAINS
                 which_beta = beta_new
                 tr_p = offset .LT. 0
              ELSE
-                !DBG 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
-                !write(*,*) 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
                 which_beta = beta_add
              ENDIF
              stack_p_c = stack_p_c + 1
@@ -1849,8 +1833,6 @@ CONTAINS
                      first_mergeable,&
                      stack_p,&
                      stack_p_a, stack_p_b, stack_p_c, error)
-                !IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_p
-                !mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
                 CALL process_dgemm_stack(dgemm_joins,&
                      parameters_a, parameters_b, parameters_c,&
                      stack_p,&
@@ -1909,7 +1891,7 @@ CONTAINS
        ENDDO ! a_col
     ENDDO ! a_row
     IF (stack_p .GE. 1) THEN
-       IF (dbg) WRITE(*,*)routineN//" Final processing at", stack_p
+       IF (debug_mod) WRITE(*,*)routineN//" Final processing at", stack_p
        CALL merge_dgemm_stack(dgemm_joins,&
             parameters_a, parameters_b, parameters_c,&
             first_mergeable,&
@@ -1951,14 +1933,10 @@ CONTAINS
     CALL pointer_replace (product%wms(ithread+1)%col_i, new_col_i)
     CALL pointer_replace (product%wms(ithread+1)%blk_p, new_blk_p)
     DEALLOCATE (new_index)
-    ELSE
-       DBG 'One of the matrices is empty!'
     ENDIF
     IF (local_cols) THEN
        CALL array_release (right_col_map_obj)
     ENDIF
-    DBG "Post-mult blk sizes, data", product%wms(ithread+1)%lastblk,&
-         product%wms(ithread+1)%datasize
     IF (PRESENT (flop)) flop = lflop
     t_all = t_all + (m_walltime() - epoch)
     t_dgemm = t_dgemm + mt_t_dgemm
@@ -2017,28 +1995,14 @@ CONTAINS
                                                 sp_a, sp_b, sp_c
     LOGICAL                                  :: merge_this, remainder
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
 
     last = stack_size
     f = first_mergeable
-    !IF (dbg) THEN
-    !   WRITE(*,*)routineN//" merge attempt",f,"to",last,";",&
-    !        stack_size_a, stack_size_b, stack_size_c
-    !ENDIF
-    !call dbcsr_assert (last, "LE", size(params), dbcsr_fatal_level,&
-    !     cp_internal_error, routineN, "sp too large")
-    ! This is used to flag merging of blocks prior to stack.
     remainder = .FALSE.
     DO sp = last, f+1, -1
-       !IF (dbg) THEN
-       !   WRITE(*,*)routineN//" testing merge of", sp-1, sp
-       !   CALL print_dgemm_parameters(params(sp-1:sp),&
-       !        params_a, params_b, params_c)
-       !ENDIF
        sp_a = params(sp)%p_a
        sp_b = params(sp)%p_b
        sp_c = params(sp)%p_c
@@ -2068,7 +2032,6 @@ CONTAINS
                .AND. dbcsr_scalar_are_equal(params(sp-1)%alpha, params(sp)%alpha)
        ENDIF
        IF (merge_this) THEN
-          !IF (dbg) WRITE(*,*)routineN//" Merging into:"
           params(sp-1)%last_n = params(sp-1)%last_n + params(sp)%last_n
           params(sp)%last_k = -7
           params_b(sp_b-1)%logical_cols =&
@@ -2077,8 +2040,6 @@ CONTAINS
           params_c(sp_c-1)%logical_cols =&
                params_c(sp_c-1)%logical_cols + params_c(sp_c)%logical_cols
           params_c(sp_c-1)%nze = params_c(sp_c-1)%nze + params_c(sp_c)%nze
-          !IF (dbg) CALL print_dgemm_parameters(params(sp-1:sp-1),&
-          !     params_a, params_b, params_c)
           IF (.not.remainder) THEN
              stack_size = stack_size - 1
              stack_size_b = stack_size_b - 1
@@ -2089,15 +2050,9 @@ CONTAINS
           IF (sp .GE. first_mergeable) THEN
              first_mergeable = sp
           ENDIF
-          !IF (dbg) WRITE(*,*)routineN//" New first is ",first_mergeable
        ENDIF
     ENDDO
-    CALL dbcsr_error_stop(error_handler, error)
-    !IF (dbg) THEN
-    !   WRITE(*,*)routineN//" The new first and n are ",&
-    !        first_mergeable, stack_size,";",&
-    !        stack_size_a, stack_size_b, stack_size_c
-    !ENDIF
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE merge_dgemm_stack
 
 
@@ -2142,9 +2097,8 @@ CONTAINS
     INTEGER                                  :: error_handler, maxs, sp, sp_c
     LOGICAL                                  :: do_resize
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     !WRITE(*,*)routineN//"========== Multiplying"
     !CALL print_dgemm_parameters (params(1:stack_size),&
@@ -2186,7 +2140,7 @@ CONTAINS
        CALL dbcsr_data_set_size_referenced (product_data_area, maxs)
     ENDIF
     IF (do_resize) THEN
-       IF (dbg) &
+       IF (debug_mod) &
             WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor, error=error)

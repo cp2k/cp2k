@@ -488,7 +488,7 @@
     INTEGER                                  :: lb_s, ub, ub_s
     TYPE(dbcsr_error_type)                   :: error
 !   ---------------------------------------------------------------------------
-    IF (bcsr_debug) THEN
+    IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED (dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Target data area must be setup.",__LINE__,error)

@@ -40,8 +40,7 @@ MODULE dbcsr_index_operations
        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
-                                             joaat_hash,&
+  USE dbcsr_util,                      ONLY: joaat_hash,&
                                              sort,&
                                              swap
 
@@ -55,7 +54,6 @@ MODULE dbcsr_index_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
-  LOGICAL, PARAMETER                   :: careful_mod = .TRUE.
 
 
   ! Index transformations
@@ -86,17 +84,8 @@ MODULE dbcsr_index_operations
                       dbcsr_build_row_index_inplace
   END INTERFACE
 
-
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 CONTAINS
 
@@ -124,13 +113,13 @@ CONTAINS
     INTEGER                                  :: blk, col, nblks, row, &
                                                 stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_i
-    LOGICAL                                  :: dbg = .FALSE., tr
+    LOGICAL                                  :: tr
 
 !   ---------------------------------------------------------------------------
 
     nblks = SIZE(old_blk_p)
     ALLOCATE(row_i (nblks))
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)"old row_p", old_row_p
        WRITE(*,*)"old col_i", old_col_i
        WRITE(*,*)"old blk_p", old_blk_p
@@ -142,7 +131,7 @@ CONTAINS
           stored_col = col
           tr = .FALSE.
           CALL get_stored_canonical (matrix, stored_row, stored_col, tr)
-          IF (dbg) &
+          IF (debug_mod) &
                WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7,1X,L1)')&
                routineN//" X->",row,col,"->",&
                stored_row, stored_col,blk,tr
@@ -158,7 +147,7 @@ CONTAINS
     CALL dbcsr_sort_indices(nblks, row_i, new_col_i, blk_p=new_blk_p)
     ! Re-create the index
     CALL dbcsr_make_dbcsr_index (new_row_p, row_i, SIZE(new_row_p)-1, nblks)
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)"new row_p", new_row_p
        WRITE(*,*)"new row_i", row_i
        WRITE(*,*)"new col_i", new_col_i
@@ -191,13 +180,13 @@ CONTAINS
     INTEGER                                  :: blk, col, nblks, row, &
                                                 stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_i
-    LOGICAL                                  :: dbg = .FALSE., tr
+    LOGICAL                                  :: tr
 
 !   ---------------------------------------------------------------------------
 
     nblks = SIZE(old_blk_p)
     ALLOCATE(row_i (nblks))
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)"old row_p", old_row_p
        WRITE(*,*)"old col_i", old_col_i
        WRITE(*,*)"old blk_p", old_blk_p
@@ -213,7 +202,7 @@ CONTAINS
              CALL swap (stored_row, stored_col)
              tr = .NOT. tr
           ENDIF
-          IF (dbg) &
+          IF (debug_mod) &
                WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7,1X,L1)')&
                routineN//" X->",row,col,"->",&
                stored_row, stored_col,blk,tr
@@ -229,7 +218,7 @@ CONTAINS
     CALL dbcsr_sort_indices(nblks, row_i, new_col_i, blk_p=new_blk_p)
     ! Re-create the index
     CALL dbcsr_make_dbcsr_index (new_row_p, row_i, SIZE(new_row_p)-1, nblks)
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)"new row_p", new_row_p
        WRITE(*,*)"new row_i", row_i
        WRITE(*,*)"new col_i", new_col_i
@@ -397,23 +386,22 @@ CONTAINS
 
     INTEGER                                  :: deplus, error_handler, space, &
                                                 ub, ub_new
-    LOGICAL                                  :: dbg
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    dbg = .FALSE.
-    CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
-         dbcsr_internal_error, routineP,&
-         "Index must be preallocated.",__LINE__,error)
-    CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
-         dbcsr_failure_level, dbcsr_internal_error, routineP,&
-         "Actual index size less than declared size",__LINE__,error)
-    CALL dbcsr_assert(PRESENT(DATA), 'OR', PRESENT(reservation), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineP,&
-         'Either an array or its size must be specified.',__LINE__,error)
-    IF(dbg) WRITE(*,*)routineP//' index',&
-         matrix%index(:dbcsr_num_slots)
+    IF (debug_mod) THEN
+        CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
+             dbcsr_internal_error, routineP,&
+             "Index must be preallocated.",__LINE__,error)
+        CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
+             dbcsr_failure_level, dbcsr_internal_error, routineP,&
+             "Actual index size less than declared size",__LINE__,error)
+        CALL dbcsr_assert(PRESENT(DATA), 'OR', PRESENT(reservation), dbcsr_fatal_level,&
+             dbcsr_caller_error, routineP,&
+             'Either an array or its size must be specified.',__LINE__,error)
+        WRITE(*,*)routineP//' index', matrix%index(:dbcsr_num_slots)
+    ENDIF
     IF (PRESENT (reservation)) THEN
        space = reservation
     ELSE
@@ -428,7 +416,7 @@ CONTAINS
     !> The data area was not defined or the new area is greater than the old.
     IF (matrix%index(slot).EQ.0 .OR.&
          space.GT.matrix%index(slot+1)-matrix%index(slot)+1) THEN
-       IF(dbg) WRITE(*,*)routineP//' Slot',slot,'not filled, adding at',&
+       IF(debug_mod) WRITE(*,*)routineP//' Slot',slot,'not filled, adding at',&
             matrix%index(dbcsr_slot_size)+1,'sized',space
        matrix%index(slot) = matrix%index(dbcsr_slot_size)+1
        matrix%index(slot+1) = matrix%index(slot) + space - 1
@@ -436,21 +424,21 @@ CONTAINS
     ENDIF
     ! Shorten an index entry.
     IF (space .LT. matrix%index(slot+1) - matrix%index(slot)+1) THEN
-       IF(dbg) WRITE(*,*)routineP//' Shortening index'
+       IF(debug_mod) WRITE(*,*)routineP//' Shortening index'
        matrix%index(slot+1) = matrix%index(slot) + space -1
        CALL dbcsr_repoint_index(matrix, slot)
     ENDIF
     ub_new = matrix%index(slot+1) + deplus
-    IF(dbg) WRITE(*,*)routineP//' need',space,'at',matrix%index(slot),&
+    IF(debug_mod) WRITE(*,*)routineP//' need',space,'at',matrix%index(slot),&
          'to',matrix%index(slot+1),'(',ub_new,')','have',ub
     IF (ub_new .GT. ub) THEN
-       IF(dbg) WRITE(*,*)routineP//' Reallocating index to ubound', ub_new
+       IF(debug_mod) WRITE(*,*)routineP//' Reallocating index to ubound', ub_new
        !CALL reallocate(matrix%index, 1, ub_new)
        CALL ensure_array_size(matrix%index, 1, ub_new, factor=1.0,&
             nocopy=.FALSE., special=matrix%special_memory,error=error)
        CALL dbcsr_repoint_index(matrix)
     ENDIF
-    IF(dbg) WRITE(*,*)routineP//' Adding slot',slot,'at',&
+    IF(debug_mod) WRITE(*,*)routineP//' Adding slot',slot,'at',&
          matrix%index(slot),'sized',space
     CALL dbcsr_repoint_index(matrix, slot)
     IF (PRESENT(DATA)) &
@@ -469,7 +457,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_clearfrom_index_array', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: space
     INTEGER, DIMENSION(3)                    :: max_extents
@@ -483,7 +470,7 @@ CONTAINS
     CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
          dbcsr_failure_level, dbcsr_internal_error, routineP,&
          "Actual index size less than declared size",__LINE__,error)
-    IF(dbg) WRITE(*,*)routineP//' index',&
+    IF(debug_mod) WRITE(*,*)routineP//' index',&
          matrix%index(:dbcsr_num_slots)
     ! Clear index entry pointer
     matrix%index(slot) = 0
@@ -514,11 +501,8 @@ CONTAINS
     INTEGER                                  :: s
     LOGICAL                                  :: all
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    DBG 'Repointing index for matrix ',m%name,'with #blocks',&
-         m%nblks,m%index(dbcsr_slot_nblks)
+
     IF (m%nblks .NE. m%index(dbcsr_slot_nblks)) THEN
        m%nblks = m%index(dbcsr_slot_nblks)
        m%nze = m%index(dbcsr_slot_nze)
@@ -527,36 +511,24 @@ CONTAINS
     IF (PRESENT (slot)) THEN
        all = .FALSE.
        s = slot
-       DBG 'only slot',slot, m%index(slot)
     ELSE
        s = 0
     ENDIF
-    DBGV 'index',m%index(1:dbcsr_num_slots)
-    DBG 'all?',all,'s=',s
 
     IF (m%index(dbcsr_slot_row_p).GT.0.AND.all .OR.&
          s.EQ.dbcsr_slot_row_p) THEN
-       DBG ' setting pointer row_p'
        m%row_p => m%index(m%index(dbcsr_slot_row_p):&
             &                  m%index(dbcsr_slot_row_p+1))
-       DBG ' set pointer row_p, size',&
-            m%index(dbcsr_slot_row_p+1)-m%index(dbcsr_slot_row_p)+1
     ENDIF
     IF (m%index(dbcsr_slot_col_i).GT.0.AND.all .OR.&
          s.EQ.dbcsr_slot_col_i) THEN
-       DBG ' setting pointer col_i'
        m%col_i => m%index(m%index(dbcsr_slot_col_i):&
             &                  m%index(dbcsr_slot_col_i+1))
-       DBG ' set pointer col_i, size',&
-            m%index(dbcsr_slot_col_i+1)-m%index(dbcsr_slot_col_i)+1
     ENDIF
     IF (m%index(dbcsr_slot_blk_p).GT.0.AND.all .OR.&
          s.EQ.dbcsr_slot_blk_p) THEN
-       DBG ' setting pointer blk_p'
        m%blk_p => m%index(m%index(dbcsr_slot_blk_p):&
             &                  m%index(dbcsr_slot_blk_p+1))
-       DBG ' set pointer blk_p, size',&
-            m%index(dbcsr_slot_blk_p+1)-m%index(dbcsr_slot_blk_p)+1
     ENDIF
     IF (all) THEN
        m%index(dbcsr_slot_nblks) = m%nblks
@@ -596,9 +568,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buf, buf_d
     TYPE(dbcsr_error_type)                   :: error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     IF (SIZE (row_i) .EQ. 0) RETURN
     CALL dbcsr_assert(SIZE(row_i),'GE',n, dbcsr_failure_level,&
          dbcsr_caller_error, routineP, 'row_i too small',__LINE__,error)
@@ -628,7 +599,6 @@ CONTAINS
     sort_keys(:) = IOR (ISHFT(INT(row_i(:),int_8), 32), INT(col_i(:),int_8))
     IF (PRESENT (blk_p)) col_i(1:n) = (/ (i, i=1,n) /)
     !> Now do a nice quicksort.
-    DBG ' sort, row_i=',row_i
     CALL sort(sort_keys, n, col_i)
     ! Since blk_d is usually not present we can have two loops that
     ! are essentially the same.
@@ -649,9 +619,7 @@ CONTAINS
        row_i(i) = INT (ISHFT(sort_keys(i), -32), int_4)
     END FORALL
     DEALLOCATE (sort_keys)
-    DBG ' sort, row_i=',row_i
-    DBG ' sort, col_i=',col_i
-    IF(dbg.AND.bcsr_verbose.AND.PRESENT(blk_p))&
+    IF(debug_mod.AND.PRESENT(blk_p))&
          WRITE(*,*)routineP//' sort, blk_p =',blk_p
   END SUBROUTINE dbcsr_sort_indices
 
@@ -842,9 +810,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_p
     LOGICAL                                  :: column_le
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
 
 1323 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
     new_ncols = SIZE (new_col_p)-1
@@ -857,7 +823,7 @@ CONTAINS
        old_max_col = 0
     ENDIF
     mincol = old_max_col
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)'old index'
        WRITE(*,1323)old_row_p
        WRITE(*,1323)old_col_i
@@ -876,8 +842,7 @@ CONTAINS
     prev_col = 0
     curcol = 1
     DO WHILE (curcol .LE. new_ncols)
-       DBG 'curcol', curcol
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           WRITE(*,*)'rowp'
           WRITE(*,1323)row_p
        ENDIF
@@ -896,8 +861,6 @@ CONTAINS
           DO WHILE (column_le)
              IF (old_col_i(row_p(old_row)) .EQ. curcol) THEN
                 nblks = nblks + 1
-                DBG 'Adding block',nblks,'at old row/new col',old_row
-                !new_col_p(curcol+1) = i = new_col_p(curcol+1) + 1
                 new_row_i(nblks) = old_row
                 IF (PRESENT (new_blk_p) .AND. PRESENT (old_blk_p)) THEN
                    new_blk_p (nblks) = old_blk_p(row_p(old_row))
@@ -910,17 +873,9 @@ CONTAINS
           ENDDO
           IF (row_p(old_row) .LE. old_row_p(old_row+1)) THEN
              mincol = MIN (mincol, old_col_i(row_p(old_row)))
-             !DBG 'for row',old_row,'leftoff column is',old_col_i(row_p(old_row))
-          ELSE
-             !DBG 'for row',old_row,'forced column is ',old_col_i(MIN(row_p(old_row), old_max_col))
           ENDIF
        ENDDO
        !! Fill in missing indices.
-       DBG 'prev_col, curcol, mincol, nblks', prev_col, curcol, mincol, nblks
-       IF (prev_col+1 .LE. mincol) THEN
-          DBG 'Skipped!'
-       ENDIF
-       !new_col_p(prev_col+2:MIN(mincol+1,new_ncols+1)) = nblks
        new_col_p(prev_col+1:MIN(mincol+1,new_ncols+1)-1) = prev_nblks
        new_col_p(MIN(mincol+1,new_ncols+1)) = nblks
        prev_nblks = nblks
@@ -928,19 +883,9 @@ CONTAINS
        curcol = MAX (mincol, curcol+1)
        !curcol = mincol
        mincol = mincol+1
-       IF (.NOT. (prev_col .LT. curcol)) THEN
-          DBG 'BAD new state: prev_col, curcol, mincol',&
-               prev_col, curcol, mincol
-          STOP
-       ENDIF
-       !IF(curcol+2 .LE. mincol .AND. curcol+2 .LE. old_max_col+1) THEN
-       !   new_col_p(curcol+2:mincol) = new_col_p(curcol+1)
-       !END IF
-       !curcol = MAX(mincol,curcol+1)
-       !mincol = old_max_col
     ENDDO
     new_col_p(new_ncols+1) = nblks
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)'new index'
        WRITE(*,1323)new_col_p
        WRITE(*,1323)new_row_i
@@ -1026,7 +971,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_index', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: blk, c, col_l, mynblkcols, &
                                                 mynblkrows, nblks, nze, &
@@ -1075,7 +1019,7 @@ CONTAINS
             error=error)
        row_p(prev_row+1:nblkrows_total+1) = nblks
     ENDIF
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,*)routineN//" new index"
        WRITE(*,*)"row_p=",row_p
        WRITE(*,*)"col_i=",col_i
@@ -1208,9 +1152,8 @@ CONTAINS
                                                 old_blk
     LOGICAL                                  :: multidata
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
     CALL dbcsr_assert(old_size+add_size .EQ. new_size, &
          dbcsr_warning_level, dbcsr_internal_error ,"merge_arrays",&
@@ -1221,7 +1164,7 @@ CONTAINS
     CALL dbcsr_assert (PRESENT (added_sizes), "EQV", PRESENT (added_size),&
          dbcsr_fatal_level, dbcsr_wrong_args_error,&
          routineN, "Must specify a set of arguments", __LINE__, error=error)
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE (*,*) " Old array", old_size
        DO i = 1, old_size
           WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(i),old_col_i(i),old_blk_p(i)
@@ -1253,7 +1196,7 @@ CONTAINS
              IF (old_blk .LE. old_size .AND. add_blk .LE. add_size) THEN
                 IF (add_ip(1, add_blk) .EQ. old_row_i(old_blk)&
                      .AND.add_ip(2, add_blk) .EQ. old_col_i(old_blk)) THEN
-                   IF (dbg) THEN
+                   IF (debug_mod) THEN
                       WRITE(*,*)"Duplicate block! addblk",&
                            add_blk, "oldblk", old_blk
                    ENDIF
@@ -1272,7 +1215,7 @@ CONTAINS
                       merge_from_whom = 1
                    ELSE
                       ! Merge from old array and skip one in the new array
-                      IF (dbg) THEN
+                      IF (debug_mod) THEN
                          WRITE(*,*)"Duplicate, keeping old",&
                          add_ip(1, add_blk), add_ip(2, add_blk)
                       ENDIF
@@ -1326,7 +1269,7 @@ CONTAINS
        new_blk_p(1:old_size) = old_blk_p(1:old_size)
        IF (multidata) new_blk_d(1:old_size) = old_blk_d(1:old_size)
     ENDIF
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE (*,*) " New array"
        DO i = 1, new_size
           WRITE(*,'(4(2X,I7))')new_row_i(i),new_col_i(i),new_blk_p(i)

@@ -37,14 +37,10 @@
                                                  poff
     INTEGER                                   :: sp_c, sp_a, sp_b
     LOGICAL                                   :: my_use_plasma
-    LOGICAL, PARAMETER                        :: dbgv = .FALSE.
 
 #ifdef __PLASMA
     INCLUDE 'plasmaf.h'
 #endif
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
 
     my_use_plasma = .FALSE.
     IF (PRESENT(use_plasma)) my_use_plasma = use_plasma
@@ -102,7 +98,7 @@
        ldc = select_n_or_t (params_c(sp_c)%tr,&
             params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols)
        !write(*,*)"LDx", lda, ldb, ldc
-       IF (dbgv) THEN
+       IF (debug_mod) THEN
           write(*,*)"Multiplying left data", sp, params_a(sp_a)%offset,&
                params_a(sp_a)%nze
           write(*,'(10(1X,F9.3))')left_data_a(params_a(sp_a)%offset&
@@ -219,7 +215,7 @@
                INT(params_c(sp_c)%logical_cols, int_8) * &
                INT(params(sp)%last_k, int_8)
        ENDIF
-       IF (dbgv) THEN
+       IF (debug_mod) THEN
           write(*,*)"Resulting product data", poff,":",poff+params_c(sp_c)%nze-1,&
                size(product_data_a)
           write(*,'(10(1X,F9.3))')product_data_a(poff:&

@@ -104,17 +104,8 @@ MODULE dbcsr_data_methods
                       query_type_c_2d, query_type_z_2d
   END INTERFACE
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 CONTAINS
 
@@ -211,14 +202,13 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_allocate', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: d, error_handler, stat
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
-    IF (dbg) &
+    IF (debug_mod) &
          WRITE(*,*)routineN//" Setting to sizes", sizes
     IF (dbcsr_type_is_2d (data_type)) THEN
        CALL dbcsr_assert (SIZE(sizes), "EQ", 2, dbcsr_fatal_level,&
@@ -713,21 +703,26 @@ CONTAINS
     nze = rsize*csize
     dt1 = area%d%data_type
     dt2 = pointee%d%data_type
-    compatible = dt1 .EQ. dt2 .OR. dt1 .EQ. dbcsr_type_1d_to_2d (dt2)
-    CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN,&
-         "Can not point 1-d pointer to 2-d data",__LINE__,error)
+    IF (careful_mod) THEN 
+        compatible = dt1 .EQ. dt2 .OR. dt1 .EQ. dbcsr_type_1d_to_2d (dt2)
+        CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
+             dbcsr_wrong_args_error, routineN,&
+             "Can not point 1-d pointer to 2-d data",__LINE__,error)
+
+    ENDIF
     pointee_is_2d = dbcsr_type_is_2d (dt2)
-    CALL dbcsr_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Lower bound specification not possible with 2-d data",__LINE__,error)
-    ! Check if size is OK.
-    CALL dbcsr_assert (bp, "GE", 1,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Attempt to point out of bounds",__LINE__,error)
-    CALL dbcsr_assert (bp + nze - 1, "LE", dbcsr_data_get_size (pointee),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Attempt to point out of bounds",__LINE__,error)
+    IF (careful_mod) THEN 
+        CALL dbcsr_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
+             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+             "Lower bound specification not possible with 2-d data",__LINE__,error)
+        ! Check if size is OK.
+        CALL dbcsr_assert (bp, "GE", 1,&
+             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+             "Attempt to point out of bounds",__LINE__,error)
+        CALL dbcsr_assert (bp + nze - 1, "LE", dbcsr_data_get_size (pointee),&
+             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+             "Attempt to point out of bounds",__LINE__,error)
+    ENDIF
     ! There's a remap if the ranks are compatible but not equal.
     rmp = dt1 .NE. dt2
     IF (.NOT. dbcsr_ptr_remapping) &
@@ -780,9 +775,11 @@ CONTAINS
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
     CALL dbcsr_data_set_size_referenced (area, rsize*csize)
-    CALL dbcsr_assert (dbcsr_data_get_size_referenced (area), "EQ",&
-         dbcsr_data_get_size (area), dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Size mismatch", __LINE__, error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (dbcsr_data_get_size_referenced (area), "EQ",&
+            dbcsr_data_get_size (area), dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Size mismatch", __LINE__, error)
+    ENDIF
   END SUBROUTINE set_data_area_area
 
 
@@ -956,7 +953,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_verify_bounds', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = .TRUE., dbg = .TRUE.
 
     CHARACTER                                :: data_type
     INTEGER                                  :: error_handler
@@ -1399,7 +1395,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_resize', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: d, error_handler
     INTEGER, DIMENSION(2)                    :: old_sizes

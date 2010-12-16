@@ -38,7 +38,6 @@ MODULE dbcsr_dist_operations
                                              dbcsr_obj,&
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             dbcsr_set_debug,&
                                              gcd,&
                                              lcm
 
@@ -51,8 +50,6 @@ MODULE dbcsr_dist_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_operations'
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
-
-  LOGICAL, PARAMETER                   :: careful_mod = .FALSE.
 
 
   ! Queries
@@ -107,16 +104,8 @@ MODULE dbcsr_dist_operations
 
 
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 CONTAINS
 
@@ -252,9 +241,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (matrix%m%initialized,'EQ',dbcsr_magic_number,&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "matrix%m not associated",__LINE__,error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (matrix%m%initialized,'EQ',dbcsr_magic_number,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "matrix%m not associated",__LINE__,error)
+    ENDIF
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
     ELSE
@@ -596,7 +587,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rebin_distribution', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 2
 
     INTEGER                                  :: bin, i, old_nbins, virtual_bin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
@@ -671,14 +661,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reimage_distribution', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 2
 
     INTEGER                                  :: bin, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
 
 !   ---------------------------------------------------------------------------
-!CALL bcsr_assert (debug_level, SIZE(my_bins).EQ.SIZE(images),&
-!     routineN, "array sizes not equal")
 
     ALLOCATE (bin_multiplier(0:nbins-1))
     bin_multiplier(:) = 0
@@ -733,7 +720,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rebin_imaged_distribution', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 2
 
     INTEGER                                  :: i, virtual_bin
     TYPE(dbcsr_error_type)                   :: error
@@ -798,10 +784,8 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_mp_obj)                       :: other_mp_env
 
-    DEBUG_HEADER
-!
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_distribution_init (new_dist)
     CALL dbcsr_distribution_init (imgdist%main)
     CALL array_nullify (imgdist%col_image)
@@ -813,8 +797,6 @@ CONTAINS
     npcols = dbcsr_mp_npcols (other_mp_env)
     imgdist%col_decimation = lcm (nprows, npcols) / npcols
     imgdist%col_multiplicity = npcols / gcd (nprows, npcols)
-    DBG 'image col decimation, multiplicity',&
-         imgdist%col_decimation, imgdist%col_multiplicity
     imgdist%row_decimation = 1
     imgdist%row_multiplicity = 1
     ! Create the new column distribution and column image distribution
@@ -876,15 +858,12 @@ CONTAINS
     INTEGER                                  :: ncols, npcols, nprows, nrows
     INTEGER, DIMENSION(:), POINTER           :: col_dist_data, col_img_data, &
                                                 row_dist_data, row_img_data
-    LOGICAL                                  :: dbg
     TYPE(array_i1d_obj)                      :: col_dist, col_image, &
                                                 row_dist, row_image
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
 !   ---------------------------------------------------------------------------
-
-    dbg = .FALSE.
 
     CALL dbcsr_distribution_init (new_dist)
     CALL dbcsr_distribution_init (imgdist%main)
@@ -899,9 +878,9 @@ CONTAINS
     ! Create the new row distribution and row image distribution
     imgdist%row_decimation = lcm (nprows, match_row_nbins) / nprows
     imgdist%row_multiplicity = nprows / gcd (nprows, match_row_nbins)
-    IF (dbg) WRITE (*,*)routineN//'row decimation, multiplicity',&
+    IF (debug_mod) WRITE (*,*)routineN//'row decimation, multiplicity',&
          imgdist%row_decimation, imgdist%row_multiplicity
-    IF (dbg) WRITE(*,*)routineN//" nprows, match prows", nprows, match_row_nbins
+    IF (debug_mod) WRITE(*,*)routineN//" nprows, match prows", nprows, match_row_nbins
     IF (match_row_nbins .EQ. nprows .AND. .NOT. PRESENT (match_row_pdist)) THEN
        row_dist = dbcsr_distribution_row_dist (dist)
        CALL array_hold (row_dist)
@@ -937,9 +916,9 @@ CONTAINS
     ! Create the new column distribution and column image distribution
     imgdist%col_decimation = lcm (npcols, match_col_nbins) / npcols
     imgdist%col_multiplicity = npcols / gcd (npcols, match_col_nbins)
-    IF (dbg) WRITE (*,*)routineN//'col decimation, multiplicity',&
+    IF (debug_mod) WRITE (*,*)routineN//'col decimation, multiplicity',&
          imgdist%col_decimation, imgdist%col_multiplicity
-    IF (dbg) WRITE(*,*)routineN//" npcols, match pcols", npcols, match_col_nbins
+    IF (debug_mod) WRITE(*,*)routineN//" npcols, match pcols", npcols, match_col_nbins
     IF (match_col_nbins .EQ. npcols .AND. .NOT. PRESENT (match_col_pdist)) THEN
        col_dist = dbcsr_distribution_col_dist (dist)
        CALL array_hold (col_dist)
@@ -1149,9 +1128,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
     TYPE(dbcsr_error_type)                   :: error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL array_nullify (block_distribution)
     CALL array_nullify (block_size)
     ! Define the sizes on which we build the distribution.
@@ -1160,7 +1138,7 @@ CONTAINS
        nblocks = CEILING(REAL(nelements)/REAL(max_elements_per_block))
        max_blocks_per_bin = CEILING(REAL(nblocks)/REAL(nbins))
 
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
                " elements and",nbins," bins"
           WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
@@ -1190,13 +1168,12 @@ CONTAINS
                 nblks = nblks + 1
                 blk_dist(nblks) = bin
                 blk_sizes(nblks) = els
-                IF (dbg) WRITE(*,'(1X,A,I5,A,I5,A,I5)')routineP//" Assigning",&
+                IF (debug_mod) WRITE(*,'(1X,A,I5,A,I5,A,I5)')routineP//" Assigning",&
                      els," elements as block",nblks," to bin",bin
              ENDIF
           ENDDO
        ENDDO
        ! Create the output arrays.
-       DBG "Wound up with",nblks,'blocks instead of',estimated_blocks
        IF (nblks .EQ. estimated_blocks) THEN
           CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
           CALL array_new (block_size, blk_sizes, gift=.TRUE.)
@@ -1219,7 +1196,7 @@ CONTAINS
        CALL array_new (block_size, blk_sizes, gift=.TRUE.)
     ENDIF
 1579 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
-    IF (dbg) THEN
+    IF (debug_mod) THEN
        WRITE(*,'(1X,A,A)')routineP//" Distribution"
        WRITE(*,1579)array_data (block_distribution)
        WRITE(*,'(1X,A,A)')routineP//" Sizes"
@@ -1530,11 +1507,9 @@ CONTAINS
                                                 rd_data
     TYPE(array_i1d_obj)                      :: col_dist, row_dist
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+! Row sizes
 
-    ! Row sizes
     IF(nrow_block.EQ.0) THEN
        nblkrows = 0
        sz = 0
@@ -1564,7 +1539,7 @@ CONTAINS
     CALL array_new (row_blk_sizes, rbs_data, gift=.TRUE.)
     CALL array_new (col_blk_sizes, cbs_data, gift=.TRUE.)
     !
-    IF(dbg) THEN
+    IF(debug_mod) THEN
        WRITE(*,*)routineN//" nrows,nrow_block,nblkrows=",&
             nrows,nrow_block,nblkrows
        WRITE(*,*)routineN//" ncols,ncol_block,nblkcols=",&
@@ -1583,7 +1558,7 @@ CONTAINS
     END FORALL
     CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
-    IF(dbg) THEN
+    IF(debug_mod) THEN
        WRITE(*,*)routineN//" row_dist",&
             rd_data
        WRITE(*,*)routineN//" col_dist",&

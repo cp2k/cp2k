@@ -157,17 +157,7 @@ MODULE dbcsr_block_operations
   END INTERFACE
 
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
-  LOGICAL, PARAMETER :: debug_mod  =   .FALSE.
+  LOGICAL, PARAMETER :: debug_mod    = .FALSE.
   LOGICAL, PARAMETER :: careful_mod  = .FALSE.
 
 CONTAINS
@@ -208,7 +198,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    IF (bcsr_debug) THEN
+    IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d), 'AND', ASSOCIATED(src%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data areas must be setup.",__LINE__,error)
@@ -379,8 +369,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    IF (bcsr_debug) THEN
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data area must be setup.",__LINE__,error)
@@ -430,7 +420,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_scale
 
 ! *****************************************************************************
@@ -466,7 +456,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    IF (bcsr_debug) THEN
+    IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data area must be setup.",__LINE__,error)
@@ -585,7 +575,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
     INTEGER                                  :: lb2_s, lb_s, ub, ub2, ub2_s, &
                                                 ub_s
@@ -593,7 +582,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (bcsr_debug) THEN
+    IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d) .AND. ASSOCIATED(src%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data areas must be setup.",__LINE__,error)
@@ -607,7 +596,7 @@ CONTAINS
        !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
        !     "Incorrect data types: "//dst%d%data_type//", "//src%d%data_type)
     ENDIF
-    IF (PRESENT (scale)) THEN
+    IF (PRESENT (scale) .AND. careful_mod) THEN
        IF (dbcsr_type_is_2d(src%d%data_type)) THEN
           CALL dbcsr_assert (scale%data_type&
                .EQ. dbcsr_type_2d_to_1d (src%d%data_type),&
@@ -626,19 +615,22 @@ CONTAINS
        lb_s = lb
        ub_s = ub
     ENDIF
-    CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
-         .OR. PRESENT (lb2),&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Must specify lb2 for 2-D data area",__LINE__,error)
-    CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
-         .OR. PRESENT (data_size2),&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Must specify data_size2 for 2-D data area",__LINE__,error)
-    !write(*,*)routineN//" lb,ub D <- S",lb, ub, lb_s, ub_s
+    IF (careful_mod) THEN
+      CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
+           .OR. PRESENT (lb2),&
+           dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+           "Must specify lb2 for 2-D data area",__LINE__,error)
+      CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
+           .OR. PRESENT (data_size2),&
+           dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+           "Must specify data_size2 for 2-D data area",__LINE__,error)
+    ENDIF
     IF (PRESENT (lb2)) THEN
-       CALL dbcsr_assert (dbcsr_type_is_2d (src%d%data_type),&
-            dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Should not specify lb2 for 1-D data",__LINE__,error)
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (dbcsr_type_is_2d (src%d%data_type),&
+               dbcsr_warning_level, dbcsr_caller_error, routineN,&
+               "Should not specify lb2 for 1-D data",__LINE__,error)
+       ENDIF
        ub2 = lb2 + data_size2 - 1
        IF (PRESENT (source_lb2)) THEN
           lb2_s = source_lb2
@@ -651,7 +643,7 @@ CONTAINS
     ENDIF
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_4)
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           CALL dbcsr_assert(ASSOCIATED(dst%d%r_sp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(dst%d%r_sp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%r_sp),dbcsr_fatal_level,&
@@ -671,7 +663,7 @@ CONTAINS
           dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
        ENDIF
     CASE (dbcsr_type_real_8)
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           CALL dbcsr_assert(ASSOCIATED(dst%d%r_dp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(dst%d%r_dp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%r_dp),dbcsr_fatal_level,&
@@ -691,7 +683,7 @@ CONTAINS
           dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
        ENDIF
     CASE (dbcsr_type_complex_4)
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           CALL dbcsr_assert(ASSOCIATED(dst%d%c_sp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(dst%d%c_sp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%c_sp),dbcsr_fatal_level,&
@@ -711,7 +703,7 @@ CONTAINS
           dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)
        ENDIF
     CASE (dbcsr_type_complex_8)
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           CALL dbcsr_assert(ASSOCIATED(dst%d%c_dp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(dst%d%c_dp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%c_dp),dbcsr_fatal_level,&
@@ -787,7 +779,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa2', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = .TRUE., dbg = .TRUE.
 
     CHARACTER                                :: dst_dt, src_dt
     INTEGER                                  :: dst_d, error_handler, src_d
@@ -811,7 +802,7 @@ CONTAINS
     ENDIF
     src_ub(1:src_d) = src_lb(1:src_d) + src_sizes(1:src_d) - 1
     dst_ub(1:dst_d) = dst_lb(1:dst_d) + dst_sizes(1:dst_d) - 1
-    IF (careful) THEN
+    IF (careful_mod) THEN
        CALL dbcsr_assert (dbcsr_data_exists (dst, error), dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN, "Invalid target data area",&
             __LINE__, error=error)
@@ -852,7 +843,7 @@ CONTAINS
                dbcsr_wrong_args_error, routineN,&
                "size must be 1 for 1-d src_sizes", __LINE__, error=error)
        ENDIF
-       IF (dbg) THEN
+       IF (debug_mod) THEN
           CALL dbcsr_data_verify_bounds (dst, dst_lb(1:dst_d), dst_ub(1:dst_d),&
                error)
           CALL dbcsr_data_verify_bounds (src, src_lb(1:src_d), src_ub(1:src_d),&
