@@ -39,11 +39,14 @@ MODULE dbcsr_work_operations
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
   USE dbcsr_error_handling
-  USE dbcsr_index_operations,          ONLY: &
-       dbcsr_addto_index_array, dbcsr_build_row_index, &
-       dbcsr_clearfrom_index_array, dbcsr_count_row_index, &
-       dbcsr_index_prune_deleted, dbcsr_make_dbcsr_index, &
-       dbcsr_make_index_exist, dbcsr_repoint_index, dbcsr_sort_indices
+  USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
+                                             dbcsr_build_row_index,&
+                                             dbcsr_clearfrom_index_array,&
+                                             dbcsr_count_row_index,&
+                                             dbcsr_index_prune_deleted,&
+                                             dbcsr_make_dbcsr_index,&
+                                             dbcsr_repoint_index,&
+                                             dbcsr_sort_indices
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -372,8 +375,7 @@ CONTAINS
             error=error)
     ENDIF
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
-    CALL dbcsr_make_index_exist (matrix%m, error=error)
-    matrix%m%valid = .TRUE.
+    CALL dbcsr_finalize (matrix, reshuffle=.FALSE., error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_create_new
 
