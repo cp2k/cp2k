@@ -283,8 +283,8 @@ CONTAINS
                                                 nreplica, ns, pnt
     INTEGER, DIMENSION(:), POINTER           :: ipos
     LOGICAL                                  :: converged
-    REAL(KIND=dp)                            :: avg1, diff, ene, norm_dx, &
-                                                xx0, yy0, avg2
+    REAL(KIND=dp)                            :: avg1, avg2, diff, ene, &
+                                                norm_dx, xx0, yy0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: davg1, davg2, dxx, dyy, &
                                                 fes_rep, tang, xx, yy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dx, pos, pos_old
