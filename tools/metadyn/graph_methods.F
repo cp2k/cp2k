@@ -436,7 +436,7 @@ CONTAINS
        ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
        pnt = point_no_pbc(ipos,ngrid,ndim)
        fes_rep(irep) = -fes(pnt)
-       WRITE(10,*)irep, pos(:,irep), fes_rep(irep)
+       WRITE(10,*)irep, pos(:,nreplica-irep+1), fes_rep(nreplica-irep+1)
     END DO
     CLOSE(10)
 
