@@ -11,6 +11,7 @@
 !>     03.2006 created [tlaino]
 !>     teodoro.laino .at. gmail.com 
 !>     11.2007 - tlaino (University of Zurich): Periodic COLVAR - cleaning.
+!>     12.2010 - teodoro.laino@gmail.com: addition of the MEP for FES
 !>
 !> \par Note
 !>     Please report any bug to the author
@@ -278,20 +279,21 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndw
     TYPE(mep_input_data_type), INTENT(IN)    :: mep_input_data
 
-    INTEGER                                  :: i, id, irep, iter, nreplica, &
-                                                pnt
+    INTEGER                                  :: i, id, irep, iter, nf, &
+                                                nreplica, ns, pnt
     INTEGER, DIMENSION(:), POINTER           :: ipos
     LOGICAL                                  :: converged
-    REAL(KIND=dp)                            :: avg, diff, ene, norm_dx, xx0, &
-                                                yy0
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: davg, dxx, dyy, fes_rep, xx, &
-                                                yy
+    REAL(KIND=dp)                            :: avg1, diff, ene, norm_dx, &
+                                                xx0, yy0, avg2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: davg1, davg2, dxx, dyy, &
+                                                fes_rep, tang, xx, yy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dx, pos, pos_old
 
     IF (ndw/=ndim) STOP "Not implemented for projected FES!"
     nreplica = mep_input_data%nreplica
     ALLOCATE(xx(ndim),dx(ndim,nreplica),pos_old(ndim,nreplica),pos(ndim,nreplica),&
-             ipos(ndim),fes_rep(nreplica),dxx(ndim),dyy(ndim),yy(ndim),davg(ndim))
+             ipos(ndim),fes_rep(nreplica),dxx(ndim),dyy(ndim),yy(ndim),davg1(ndim),&
+             tang(ndim),davg2(ndim))
     ! Evaluate position and derivative
     id = 0
     DO i=ndim,ndim-ndw+1,-1
@@ -301,7 +303,7 @@ CONTAINS
     END DO
     
     ! Interpolate nreplica-2 points
-    xx=(pos(:,nreplica)-pos(:,1))/REAL(nreplica-1,KIND=dp)
+    xx=(pos(:,nreplica)-pos(:,1))/REAL(2*nreplica-1,KIND=dp)
     DO irep=2,nreplica-1
        pos(:,irep)=pos(:,1)+xx(:)*REAL(irep-1,KIND=dp)
     END DO
@@ -321,38 +323,88 @@ CONTAINS
     iter = 0
     DO WHILE ((.NOT.converged).AND.(iter<=mep_input_data%max_iter))
        iter=iter+1
-       ene=0.0_dp
-       avg=0.0_dp
-       ! compute average length
+       avg1=0.0_dp
+       ! compute average length (distance 1)
        DO irep=2,nreplica
           xx=pos(:,irep)-pos(:,irep-1)
-          avg=avg+SQRT(DOT_PRODUCT(xx,xx))
+          avg1=avg1+SQRT(DOT_PRODUCT(xx,xx))
        END DO
-       avg=avg/REAL(nreplica-1, KIND=dp)
+       avg1=avg1/REAL(nreplica-1, KIND=dp)
+       
+       avg2=0.0_dp
+       ! compute average length (distance 2)
+       DO irep=3,nreplica
+          xx=pos(:,irep)-pos(:,irep-2)
+          avg2=avg2+SQRT(DOT_PRODUCT(xx,xx))
+       END DO
+       avg2=avg2/REAL(nreplica-2, KIND=dp)
 
        ! compute energy and derivatives
+       dx = 0.0_dp
+       ene= 0.0_dp
+       ns=1
+       nf=nreplica
        DO irep=1,nreplica
-          ! compute energy and derivative for each single point of the replica
+          ! compute energy and map point replica irep
           ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
           pnt = point_no_pbc(ipos,ngrid,ndim)
-          dx(:,irep) = derivative (fes, ipos, iperd, ndim, ngrid, dp_grid)
           fes_rep(irep) = -fes(pnt)
           IF ((irep==1).OR.(irep==nreplica)) CYCLE
 
-          ! compute the elastic term
+          ! -------------------------------------------------------------
+          ! compute non-linear elastic terms : including only 2-d springs
+          ! -------------------------------------------------------------
+          davg2=0.0_dp
+          IF (irep<nf-1) THEN
+             xx  =pos(:,irep)-pos(:,irep+2)
+             xx0 =SQRT(DOT_PRODUCT(xx,xx))
+             dxx =1.0_dp/xx0*xx
+             ene=ene+0.25_dp*mep_input_data%kb*(xx0-avg2)**2
+             davg2=davg2+dxx
+          END IF
+
+          IF (irep>ns+1) THEN
+             xx  =pos(:,irep)-pos(:,irep-2)
+             yy0 =SQRT(DOT_PRODUCT(xx,xx))
+             dyy =1.0_dp/yy0*xx
+             davg2=davg2+dyy
+          END IF
+          davg2=davg2/REAL(nreplica-2, KIND=dp)
+          
+          IF (irep<nf-1) THEN
+             dx(:,irep)=dx(:,irep)+0.5_dp*mep_input_data%kb*(xx0-avg2)*(dxx-davg2)
+          END IF
+          IF (irep>ns+1) THEN
+             dx(:,irep)=dx(:,irep)+0.5_dp*mep_input_data%kb*(yy0-avg2)*(dyy-davg2)
+          END IF
+
+          ! -------------------------------------------------------------
+          ! Evaluation of the elastic term
+          ! -------------------------------------------------------------
+          xx  =pos(:,irep)-pos(:,irep+1)
+          yy0 =SQRT(DOT_PRODUCT(xx,xx))
+          dyy =1.0_dp/yy0*xx
+
           xx  =pos(:,irep)-pos(:,irep-1)
           xx0 =SQRT(DOT_PRODUCT(xx,xx))
           dxx = 1.0_dp/xx0*xx
+          davg1=(dxx+dyy)/REAL(nreplica-1, KIND=dp)
 
-          xx  =pos(:,irep+1)-pos(:,irep)
-          yy0 =SQRT(DOT_PRODUCT(xx,xx))
-          dyy =-1.0_dp/yy0*xx
+          ene=ene+0.5_dp*mep_input_data%kb*(xx0-avg1)**2
+          dx(:,irep)=dx(:,irep)+mep_input_data%kb*(xx0-avg1)*(dxx-davg1)+&
+                                mep_input_data%kb*(yy0-avg1)*(dyy-davg1)
 
-          davg=(dxx+dyy)/REAL(nreplica-1, KIND=dp)
+          ! Evaluate the tangent
+          xx=pos(:,irep+1)-pos(:,irep)
+          xx=xx/SQRT(DOT_PRODUCT(xx,xx))
+          yy=pos(:,irep)-pos(:,irep-1)
+          yy=yy/SQRT(DOT_PRODUCT(yy,yy))
+          tang=xx+yy
+          tang=tang/SQRT(DOT_PRODUCT(tang,tang))
 
-          ene=ene+0.5_dp*mep_input_data%kb*(xx0-avg)**2
-          dx(:,irep)=dx(:,irep)+mep_input_data%kb*(xx0-avg)*(dxx-davg)+&
-                                mep_input_data%kb*(yy0-avg)*(dyy-davg)
+          xx= derivative (fes, ipos, iperd, ndim, ngrid, dp_grid)
+          dx(:,irep) = DOT_PRODUCT(dx(:,irep),tang)*tang+&
+                       xx - DOT_PRODUCT(xx,tang)*tang
        END DO
        dx(:,1)=0.0_dp
        dx(:,nreplica)=0.0_dp
@@ -364,7 +416,9 @@ CONTAINS
           IF ((irep==1).OR.(irep==nreplica)) CYCLE
 
           norm_dx = SQRT(DOT_PRODUCT(dx(:,irep),dx(:,irep)))
-          pos(:,irep)  = pos(:,irep) - MIN(0.1_dp,norm_dx)*dx(:,irep)/norm_dx
+          IF (norm_dx/=0.0_dp) THEN
+            pos(:,irep)  = pos(:,irep) - MIN(0.1_dp,norm_dx)*dx(:,irep)/norm_dx
+          END IF
           xx=pos(:,irep)-pos_old(:,irep)
           diff=diff+DOT_PRODUCT(xx,xx)
        END DO
@@ -375,7 +429,8 @@ CONTAINS
        WRITE(*,*)"Iteration nr.",iter, SQRT(diff)
     END DO
 
-    WRITE(*,*)"MEP saved on fort.10 file."
+    WRITE(*,*)"MEP saved on <mep.data> file."
+    OPEN(10,FILE="mep.data",STATUS='unknown',FORM='formatted')
     DO irep=1,nreplica
        ! compute energy and derivative for each single point of the replica
        ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
@@ -383,8 +438,9 @@ CONTAINS
        fes_rep(irep) = -fes(pnt)
        WRITE(10,*)irep, pos(:,irep), fes_rep(irep)
     END DO
+    CLOSE(10)
 
-    DEALLOCATE(xx,dx,pos,fes_rep,ipos,pos_old,yy,dxx,davg)
+    DEALLOCATE(xx,dx,pos,fes_rep,ipos,pos_old,yy,dyy,dxx,davg1,tang,davg2)
   END SUBROUTINE fes_path
 
 END MODULE graph_methods
