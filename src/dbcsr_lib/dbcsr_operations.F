@@ -254,8 +254,6 @@ MODULE dbcsr_operations
 
   LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
 
-  INTEGER, PARAMETER :: dgemm_stack_size = 32
-
   TYPE block_parameters
      LOGICAL :: tr
      INTEGER :: logical_rows, logical_cols
