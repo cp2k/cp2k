@@ -303,7 +303,7 @@ CONTAINS
     END DO
     
     ! Interpolate nreplica-2 points
-    xx=(pos(:,nreplica)-pos(:,1))/REAL(2*nreplica-1,KIND=dp)
+    xx=(pos(:,nreplica)-pos(:,1))/REAL(nreplica-1,KIND=dp)
     DO irep=2,nreplica-1
        pos(:,irep)=pos(:,1)+xx(:)*REAL(irep-1,KIND=dp)
     END DO
