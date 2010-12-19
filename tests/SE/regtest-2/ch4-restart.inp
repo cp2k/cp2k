@@ -1,4 +1,4 @@
-
+#CPQA DEPENDS ch4.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

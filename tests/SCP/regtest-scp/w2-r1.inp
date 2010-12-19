@@ -1,3 +1,5 @@
+#CPQA DEPENDS w2.inp
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

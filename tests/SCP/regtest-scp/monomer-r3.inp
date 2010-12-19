@@ -1,3 +1,5 @@
+#CPQA DEPENDS monomer-r2.inp
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
