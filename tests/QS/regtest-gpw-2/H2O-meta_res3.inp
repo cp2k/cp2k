@@ -1,3 +1,5 @@
+#CPQA DEPENDS H2O-meta_res2.inp
+
 &FORCE_EVAL
   METHOD Quickstep
 
