@@ -1,3 +1,5 @@
+#CPQA DEPENDS CO.inp
+
 &GLOBAL
  PROJECT      co_tphh
  IOLEVEL      MEDIUM
@@ -11,6 +13,7 @@
     LSD
     BASIS_SET_FILE_NAME ../ALL_BASIS_SETS
     POTENTIAL_FILE_NAME ../POTENTIAL
+    RESTART_FILE_NAME   CO-RESTART
     &XC
       &XC_FUNCTIONAL PADE
       &END
@@ -45,7 +48,7 @@
         &TOTAL_DENSITIES MEDIUM
         &END
         &RESTART
-           FILENAME =RESTART
+           FILENAME =CO_xastphh-RESTART
         &END
       &END
 

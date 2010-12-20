@@ -1,3 +1,5 @@
+#CPQA DEPENDS ch4-gapw-1.inp
+
 &GLOBAL
   PROJECT ch4-gapw-restart-1
   PRINT_LEVEL LOW

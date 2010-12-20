@@ -1,3 +1,4 @@
+#CPQA DEPENDS He2_none_full_single.inp
 
 &FORCE_EVAL
   METHOD Quickstep

@@ -1,3 +1,4 @@
+#CPQA DEPENDS C2H4-init.inp
 
 &FORCE_EVAL
   METHOD Quickstep

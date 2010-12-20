@@ -1,3 +1,4 @@
+#CPQA DEPENDS He2-all.inp 
 
 &FORCE_EVAL
   METHOD Quickstep

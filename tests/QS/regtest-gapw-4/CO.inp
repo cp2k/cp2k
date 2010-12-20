@@ -1,5 +1,4 @@
 &GLOBAL
-
  PROJECT      co_lsd
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
@@ -43,7 +42,7 @@
         &TOTAL_DENSITIES MEDIUM
         &END
         &RESTART
-           FILENAME =RESTART
+           FILENAME =CO-RESTART
         &END
       &END
     &END SCF

@@ -55,7 +55,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT gapw_all_pade
+  PROJECT gapw_all_pade_ref0
   PRINT_LEVEL MEDIUM
 &END GLOBAL

@@ -1,3 +1,5 @@
+#CPQA DEPENDS wfn_mix_loc_mark-0.inp
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

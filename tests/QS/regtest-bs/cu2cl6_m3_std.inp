@@ -67,7 +67,7 @@
       ABC 8 8 8
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ./Cu2Cl6_45.xyz
+      COORD_FILE_NAME ../sample_xyz/Cu2Cl6_45.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

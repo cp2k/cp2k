@@ -1,3 +1,5 @@
+#CPQA DEPENDS c8_broy_gapw_all.inp
+
 &GLOBAL
   PROJECT  c8_broy_xashh_c
   PRINT_LEVEL MEDIUM
@@ -115,7 +117,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME ./C_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/C_8.xyz 
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

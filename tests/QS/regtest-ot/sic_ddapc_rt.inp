@@ -1,3 +1,4 @@
+#CPQA DEPENDS CH4-init.inp
 
 &FORCE_EVAL
   METHOD Quickstep

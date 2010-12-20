@@ -1,3 +1,4 @@
+#CPQA DEPENDS H2-pbe-restart-run.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

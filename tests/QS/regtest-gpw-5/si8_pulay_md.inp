@@ -1,3 +1,5 @@
+#CPQA DEPENDS si8_pulay.inp
+
 &GLOBAL
   PROJECT  si8_pulay
   PRINT_LEVEL MEDIUM
@@ -65,7 +67,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME ./SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

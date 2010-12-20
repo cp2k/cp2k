@@ -106,7 +106,7 @@
     &END
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ
-      COORD_FILE_NAME ch4-ch4-in.xyz
+      COORD_FILE_NAME ../sample_xyz/ch4-ch4-in.xyz
       &CENTER_COORDINATES
       &END
     &END TOPOLOGY

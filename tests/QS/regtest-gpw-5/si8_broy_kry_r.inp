@@ -1,3 +1,5 @@
+#CPQA DEPENDS si8_broy_kry.inp
+
 &GLOBAL
   PROJECT  si8_broy_kry
   PRINT_LEVEL MEDIUM
@@ -11,7 +13,6 @@
       OPTIMIZER BFGS
    &END
 &END
-
 
 &FORCE_EVAL
   METHOD QS
@@ -87,7 +88,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME ./SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

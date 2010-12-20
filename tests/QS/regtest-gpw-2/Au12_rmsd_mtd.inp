@@ -26,7 +26,6 @@
     POTENTIAL_FILE_NAME ${PPATH}/GTH_POTENTIALS
     BASIS_SET_FILE_NAME ${PPATH}/BASIS_MOLOPT
 
-    WFN_RESTART_FILE_NAME Au13-ico-RESTART.wfn
     !UKS
     CHARGE 0
     !MULTIPLICITY 2
@@ -84,7 +83,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME Au12.xyz
+      COORD_FILE_NAME ../sample_xyz/Au12.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY
@@ -92,10 +91,10 @@
    &COLVAR
      &RMSD
        &FRAME
-         COORD_FILE_NAME Au12-planar.xyz
+         COORD_FILE_NAME ../sample_xyz/Au12-planar.xyz
        &END
        &FRAME
-         COORD_FILE_NAME Au12-cage.xyz
+         COORD_FILE_NAME ../sample_xyz/Au12-cage.xyz
        &END
        SUBSET_TYPE LIST
        ATOMS 1 3 5 6 8 9

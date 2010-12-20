@@ -1,3 +1,5 @@
+#CPQA DEPENDS basis_none_1.inp
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

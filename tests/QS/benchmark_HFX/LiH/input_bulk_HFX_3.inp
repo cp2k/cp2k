@@ -1,3 +1,5 @@
+#CPQA DEPENDS input_bulk_B88_3.inp
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

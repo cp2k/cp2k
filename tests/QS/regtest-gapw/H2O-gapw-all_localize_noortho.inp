@@ -1,3 +1,4 @@
+#CPQA DEPENDS H2O-gapw-all_noortho.inp
 
 &FORCE_EVAL
   METHOD Quickstep

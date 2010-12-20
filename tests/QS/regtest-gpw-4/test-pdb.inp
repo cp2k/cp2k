@@ -13,7 +13,8 @@
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     CHARGE 0
     MULTIPLICITY 1
-    RESTART_FILE_NAME RESTART
+    ! Just to check that in case of failure ATOMIC is the preferred choice..
+    RESTART_FILE_NAME NULL_RESTART
     &MGRID
       CUTOFF 50
     &END MGRID

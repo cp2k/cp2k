@@ -317,3 +317,6 @@ H2S-gapw-gop.inp
 Na_atom.inp
 #  
 H2S-gapw-gop.inp
+# making some order in the regtests: getting ready for the new one
+H2O-gapw-all_localize_crazy.inp
+H2O-gapw-all_loc_list.inp

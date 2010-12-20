@@ -4,6 +4,7 @@
   &DFT
     BASIS_SET_FILE_NAME ../BASIS_SET
     POTENTIAL_FILE_NAME ../POTENTIAL
+    RESTART_FILE_NAME gapw_all_pade_ref0-RESTART.wfn
     &MGRID
       CUTOFF 150
       NGRIDS 1
@@ -65,6 +66,6 @@
 &END FORCE_EVAL
 &GLOBAL
 
-  PROJECT gapw_all_pade
+  PROJECT gapw_all_pade_localize
   PRINT_LEVEL MEDIUM
 &END GLOBAL
