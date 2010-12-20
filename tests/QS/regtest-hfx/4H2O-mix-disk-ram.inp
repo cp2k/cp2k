@@ -1,3 +1,4 @@
+#CPQA DEPENDS 4H2O-disk.inp
 
 &FORCE_EVAL
   METHOD Quickstep
