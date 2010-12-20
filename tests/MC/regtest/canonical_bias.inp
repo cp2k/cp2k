@@ -1,3 +1,4 @@
+#CPQA DEPENDS canonical.inp
 
 &FORCE_EVAL
   METHOD FIST

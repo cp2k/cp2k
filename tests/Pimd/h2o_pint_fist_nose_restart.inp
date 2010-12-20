@@ -1,3 +1,5 @@
+#CPQA DEPENDS h2o_pint_fist_nose.inp
+
 &GLOBAL
   PROJECT_NAME               h2o_pint_fist
   RUN_TYPE                   PINT

@@ -1,3 +1,5 @@
+#CPQA DEPENDS he32_only.inp
+
 &GLOBAL
   PROJECT_NAME               he32_only
   RUN_TYPE                   PINT

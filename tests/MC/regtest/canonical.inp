@@ -1,3 +1,4 @@
+#CPQA GEMC_swap_box1.inp
 
 &FORCE_EVAL
   METHOD FIST
