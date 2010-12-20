@@ -1,3 +1,5 @@
+#CPQA DEPENDS si8_lsd_broy_wc_list.inp
+
 &GLOBAL
   PROJECT  si8_lsd_broy_wc_list
   PRINT_LEVEL MEDIUM
