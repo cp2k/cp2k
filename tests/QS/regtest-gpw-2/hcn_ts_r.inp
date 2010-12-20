@@ -1,3 +1,5 @@
+#CPQA DEPENDS hcn_ts.inp
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT 
