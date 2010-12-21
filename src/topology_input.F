@@ -16,6 +16,7 @@ MODULE topology_input
   USE input_constants,                 ONLY: do_conn_generate,&
                                              do_conn_mol_set,&
                                              do_conn_off,&
+                                             do_conn_user,&
                                              do_constr_none,&
                                              do_coord_off
   USE input_section_types,             ONLY: section_vals_get,&
@@ -84,7 +85,7 @@ CPSourceFileRef,&
      END SELECT
      CALL section_vals_val_get(topology_section,"CONN_FILE_FORMAT",i_val=topology%conn_type,error=error)
      SELECT CASE(topology%conn_type)
-     CASE(do_conn_off,do_conn_generate,do_conn_mol_set)
+     CASE(do_conn_off,do_conn_generate,do_conn_mol_set,do_conn_user)
         ! Do Nothing
      CASE DEFAULT
         CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",c_val=topology%conn_file_name,error=error)

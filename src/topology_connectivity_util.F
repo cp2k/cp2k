@@ -15,6 +15,7 @@ MODULE topology_connectivity_util
   USE f77_blas
   USE input_constants,                 ONLY: do_conn_g87,&
                                              do_conn_g96,&
+                                             do_conn_user,&
                                              do_ff_charmm,&
                                              do_ff_harmonic
   USE input_section_types,             ONLY: section_vals_type,&
@@ -124,19 +125,23 @@ CONTAINS
     map_atom_mol(1)    = 1
     map_atom_type(1)   = 1
     DO i=1,natom-1
-       IF((atom_info%map_mol_typ(i+1)/=atom_info%map_mol_typ(i)) .OR. &
-            (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i)))&
-            topology%nmol_type = topology%nmol_type + 1
+       IF ((atom_info%map_mol_typ(i+1) /= atom_info%map_mol_typ(i)).OR.&
+           ((atom_info%map_mol_res(i+1) /= atom_info%map_mol_res(i)).AND.&
+            (.NOT.(topology%conn_type == do_conn_user)))) THEN
+          topology%nmol_type = topology%nmol_type + 1
+       END IF
        map_atom_type(i+1) = topology%nmol_type
-       IF((atom_info%map_mol_typ(i+1)/=atom_info%map_mol_typ(i)) .OR. &
-            (atom_info%map_mol_num(i+1)/=atom_info%map_mol_num(i)) .OR. &
-            (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i)))&
-            topology%nmol = topology%nmol + 1
-       map_atom_mol(i+1)  = topology%nmol
-       IF((atom_info%map_mol_typ(i+1)==atom_info%map_mol_typ(i)) .AND. &
-            (atom_info%map_mol_num(i+1)==atom_info%map_mol_num(i)) .AND. &
-            (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i))) &
-            topology%nmol_conn = topology%nmol_conn + 1
+       IF ((atom_info%map_mol_typ(i+1) /= atom_info%map_mol_typ(i)).OR.&
+           (atom_info%map_mol_num(i+1) /= atom_info%map_mol_num(i)).OR.&
+           (atom_info%map_mol_res(i+1) /= atom_info%map_mol_res(i))) THEN
+          topology%nmol = topology%nmol + 1
+       END IF
+       map_atom_mol(i+1) = topology%nmol
+       IF ((atom_info%map_mol_typ(i+1) == atom_info%map_mol_typ(i)).AND.&
+           (atom_info%map_mol_num(i+1) == atom_info%map_mol_num(i)).AND.&
+           (atom_info%map_mol_res(i+1) /= atom_info%map_mol_res(i))) THEN
+          topology%nmol_conn = topology%nmol_conn + 1
+       END IF
     END DO
     IF (iw>0) WRITE(iw,*)"topology%nmol ::",topology%nmol
     IF (iw>0) WRITE(iw,*)"topology%nmol_type ::",topology%nmol_type

@@ -26,8 +26,8 @@ MODULE topology
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
-       do_coord_cif, do_coord_crd, do_coord_g96, do_coord_off, do_coord_pdb, &
-       do_coord_xtl, do_coord_xyz
+       do_conn_user, do_coord_cif, do_coord_crd, do_coord_g96, do_coord_off, &
+       do_coord_pdb, do_coord_xtl, do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -35,6 +35,7 @@ MODULE topology
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE machine
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -286,7 +287,7 @@ CONTAINS
 
     ! 1. Read in the connectivity information (if this is the case) 
     SELECT CASE (topology%conn_type)
-    CASE (do_conn_generate, do_conn_off)
+    CASE (do_conn_generate, do_conn_off, do_conn_user)
        ! Do nothing for the time being.. after we check element and proceed with the workflow..
     CASE DEFAULT
        ! Prepare arrays
@@ -384,7 +385,7 @@ CONTAINS
        CALL topology_generate_dihe(topology,subsys_section,error)
        CALL topology_generate_impr(topology,subsys_section,error)
        CALL topology_generate_onfo(topology,subsys_section,error)
-    CASE (do_conn_off)
+    CASE (do_conn_off, do_conn_user)
        CALL topology_set_atm_mass(topology,subsys_section,error)
        CALL topology_generate_bend(topology,subsys_section,error)
        CALL topology_generate_ub(topology,subsys_section,error)

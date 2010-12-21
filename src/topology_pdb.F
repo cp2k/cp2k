@@ -44,6 +44,7 @@ MODULE topology_pdb
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
+  USE input_constants,                 ONLY: do_conn_user
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -51,7 +52,6 @@ MODULE topology_pdb
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE physcon,                         ONLY: angstrom
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
@@ -82,13 +82,12 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 10
-    REAL(KIND=dp), PARAMETER                 :: realloc_factor = 1.2_dp
+    INTEGER, PARAMETER                       :: nblock = 1000
 
     CHARACTER(LEN=default_path_length)       :: line
     CHARACTER(LEN=default_string_length)     :: record, root_mol_name, strtmp
-    INTEGER                                  :: handle, inum_mol, istat, iw, &
-                                                natom, newsize
+    INTEGER                                  :: handle, id0, inum_mol, istat, &
+                                                iw, natom, newsize
     LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -101,37 +100,43 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
-    CALL reallocate(atom_info%id_molname,1,nblock_atom)
-    CALL reallocate(atom_info%id_resname,1,nblock_atom)
-    CALL reallocate(atom_info%resid,1,nblock_atom)
-    CALL reallocate(atom_info%id_atmname,1,nblock_atom)
-    CALL reallocate(atom_info%r,1,3,1,nblock_atom)
-    CALL reallocate(atom_info%atm_mass,1,nblock_atom)
-    CALL reallocate(atom_info%atm_charge,1,nblock_atom)
-    CALL reallocate(atom_info%occup,1,nblock_atom)
-    CALL reallocate(atom_info%beta,1,nblock_atom)
-    CALL reallocate(atom_info%id_element,1,nblock_atom)
+    CALL reallocate(atom_info%id_molname,1,nblock)
+    CALL reallocate(atom_info%id_resname,1,nblock)
+    CALL reallocate(atom_info%resid,1,nblock)
+    CALL reallocate(atom_info%id_atmname,1,nblock)
+    CALL reallocate(atom_info%r,1,3,1,nblock)
+    CALL reallocate(atom_info%atm_mass,1,nblock)
+    CALL reallocate(atom_info%atm_charge,1,nblock)
+    CALL reallocate(atom_info%occup,1,nblock)
+    CALL reallocate(atom_info%beta,1,nblock)
+    CALL reallocate(atom_info%id_element,1,nblock)
 
-    IF (iw>0)  WRITE(iw,*) "    Reading in PDB file ",TRIM(topology%coord_file_name)
-    CALL parser_create(parser,topology%coord_file_name,&
-         para_env=para_env,error=error)  
+    IF (iw > 0) THEN
+       WRITE (UNIT=iw,FMT="(T2,A)")&
+        "BEGIN of PDB data read from file "//TRIM(topology%coord_file_name)
+    END IF
+
+    id0 = str2id(s2s(""))
+    topology%molname_generated = .FALSE.
+
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
 
     natom         = 0
     inum_mol      = 1
-    WRITE(root_mol_name,'(A3,I0)')"MOL",inum_mol
+    WRITE (root_mol_name,'(A3,I0)') "MOL",inum_mol
     DO
-       line = ''
+       line = ""
        CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
        IF(my_end) EXIT
        line   = parser%input_line(1:default_path_length)
        record = line(1:6)
        record = TRIM(record)
        
-       IF(record == "ATOM" .OR. record == "HETATM") THEN
+       IF ((record == "ATOM").OR.(record == "HETATM")) THEN
           natom = natom + 1
           topology%natoms = natom
-          IF(natom > SIZE(atom_info%id_atmname)) THEN
-             newsize=natom*realloc_factor+nblock_atom
+          IF (natom > SIZE(atom_info%id_atmname)) THEN
+             newsize = 2*natom
              CALL reallocate(atom_info%id_molname,1,newsize)
              CALL reallocate(atom_info%id_resname,1,newsize)
              CALL reallocate(atom_info%resid,1,newsize)
@@ -147,14 +152,14 @@ CONTAINS
        
        SELECT CASE (record)
        CASE ("ATOM","HETATM") 
-          atom_info%id_molname(natom) = str2id(s2s(root_mol_name))
-          READ(line(13:16),*) strtmp; atom_info%id_atmname(natom)=str2id(s2s(strtmp))
+          READ(line(13:16),*) strtmp
+          atom_info%id_atmname(natom) = str2id(s2s(strtmp))
           READ(line(18:20),*,IOSTAT=istat) strtmp
-          IF(istat==0) THEN
-               atom_info%id_resname(natom)=str2id(s2s(strtmp))
+          IF (istat == 0) THEN
+             atom_info%id_resname(natom) = str2id(s2s(strtmp))
           ELSE
-               atom_info%id_resname(natom)=str2id(s2s(""))
-          ENDIF
+             atom_info%id_resname(natom) = id0
+          END IF
           READ(line(23:26),*,IOSTAT=istat) atom_info%resid(natom)
           READ(line(31:38),*,IOSTAT=istat) atom_info%r(1,natom)
           READ(line(39:46),*,IOSTAT=istat) atom_info%r(2,natom)
@@ -162,15 +167,18 @@ CONTAINS
           READ(line(55:60),*,IOSTAT=istat) atom_info%occup(natom)
           READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
           READ(line(73:76),*,IOSTAT=istat) strtmp
-          IF(istat==0) THEN
-               atom_info%id_molname(natom)=str2id(s2s(strtmp))
-          ENDIF
-          READ(line(77:78),*,IOSTAT=istat) strtmp
-          IF(istat==0) THEN
-             atom_info%id_element(natom)=str2id(s2s(strtmp))
+          IF (istat == 0) THEN
+             atom_info%id_molname(natom) = str2id(s2s(strtmp))
           ELSE
-             atom_info%id_element(natom)=str2id(s2s(""))
-          ENDIF
+             atom_info%id_molname(natom) = str2id(s2s(root_mol_name))
+             topology%molname_generated = .TRUE.
+          END IF
+          READ(line(77:78),*,IOSTAT=istat) strtmp
+          IF (istat == 0) THEN
+             atom_info%id_element(natom) = str2id(s2s(strtmp))
+          ELSE
+             atom_info%id_element(natom) = id0
+          END IF
           atom_info%atm_mass(natom)  = 0.0_dp
           atom_info%atm_charge(natom)= -HUGE(0.0_dp)
           IF(topology%charge_occup) atom_info%atm_charge(natom) = atom_info%occup(natom)
@@ -179,34 +187,32 @@ CONTAINS
              READ(line(81:),*,IOSTAT=istat) atom_info%atm_charge(natom)
           END IF
 
-          IF (TRIM(id2str(atom_info%id_element(natom)))=="") THEN
+          IF (atom_info%id_element(natom) == id0) THEN
              ! Element is assigned on the basis of the atm_name
              topology%aa_element = .TRUE.
              atom_info%id_element(natom) = atom_info%id_atmname(natom)
           END IF
-          IF (TRIM(id2str(atom_info%id_molname(natom)))=="") THEN
-             ! If molname is missing (as in the PDB generated by VMD) let's
-             ! use the resname for the molname
-             atom_info%id_molname(natom) =  atom_info%id_resname(natom)
-          END IF          
 
-          IF(iw>0) WRITE(iw,*) natom,line(13:16),line(77:78)
-          IF(iw>0) WRITE(iw,'(5X,A4,5X,A2,3F8.3,A4,I4)') &
+          IF (iw > 0) THEN
+             WRITE (UNIT=iw,FMT="(A6,I5,T13,A4,T18,A3,T23,I4,T31,3F8.3,T73,A4,T77,A2)")&
+               record,natom,&
                TRIM(id2str(atom_info%id_atmname(natom))),&
-               TRIM(id2str(atom_info%id_element(natom))),&
+               TRIM(id2str(atom_info%id_resname(natom))),&
+               atom_info%resid(natom),&
                atom_info%r(1,natom),&
                atom_info%r(2,natom),&
                atom_info%r(3,natom),&
-               TRIM(id2str(atom_info%id_resname(natom))),&
-               atom_info%resid(natom)
+               ADJUSTL(TRIM(id2str(atom_info%id_molname(natom)))),&
+               ADJUSTR(TRIM(id2str(atom_info%id_element(natom))))
+          END IF
           atom_info%r(1,natom) = cp_unit_to_cp2k(atom_info%r(1,natom),"angstrom",error=error)
           atom_info%r(2,natom) = cp_unit_to_cp2k(atom_info%r(2,natom),"angstrom",error=error)
           atom_info%r(3,natom) = cp_unit_to_cp2k(atom_info%r(3,natom),"angstrom",error=error)
        CASE ("TER")
           inum_mol = inum_mol + 1
-          WRITE(root_mol_name,'(A3,I0)')"MOL",inum_mol
+          WRITE (root_mol_name,'(A3,I0)') "MOL",inum_mol
        CASE ("REMARK")
-          IF(iw>0) WRITE(iw,*) TRIM(line)
+          IF (iw > 0) WRITE(iw,*) TRIM(line)
        CASE ("END")
           EXIT
        CASE DEFAULT
@@ -224,9 +230,16 @@ CONTAINS
     CALL reallocate(atom_info%occup,1,natom)
     CALL reallocate(atom_info%beta,1,natom)
     CALL reallocate(atom_info%id_element,1,natom)
+
+    IF (topology%conn_type /= do_conn_user) THEN
+       IF (.NOT.topology%para_res) atom_info%resid(:) = 1
+    END IF
     
-    IF(.NOT.topology%para_res) atom_info%resid(:) = 1
-    
+    IF (iw > 0) THEN
+       WRITE (UNIT=iw,FMT="(T2,A)")&
+         "END of PDB data read from file "//TRIM(topology%coord_file_name)
+    END IF
+
     topology%natoms = natom
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
@@ -249,7 +262,6 @@ CONTAINS
                                                 my_tag3, my_tag4, record
     INTEGER                                  :: handle, i, id1, id2, idres, &
                                                 iw, natom
-    LOGICAL                                  :: ldum
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -284,10 +296,10 @@ CONTAINS
        END IF
 
        line = ""
-       my_tag1 = id2str(atom_info%id_atmname(i)); ldum=qmmm_ff_precond_only_qm(my_tag1)
-       my_tag2 = id2str(atom_info%id_resname(i)); ldum=qmmm_ff_precond_only_qm(my_tag2)
-       my_tag3 = id2str(atom_info%id_molname(i)); ldum=qmmm_ff_precond_only_qm(my_tag3)
-       my_tag4 = id2str(atom_info%id_element(i)); ldum=qmmm_ff_precond_only_qm(my_tag4)
+       my_tag1 = id2str(atom_info%id_atmname(i))
+       my_tag2 = id2str(atom_info%id_resname(i))
+       my_tag3 = id2str(atom_info%id_molname(i))
+       my_tag4 = id2str(atom_info%id_element(i))
        WRITE(line(1 : 6),'(A6)')"ATOM  "
        WRITE(line(7 :11),'(I5)')MOD(i,100000)
        WRITE(line(13:16),'(A4)')ADJUSTL(my_tag1(1:4))

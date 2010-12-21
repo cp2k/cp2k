@@ -69,7 +69,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_atoms_input', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: my_default_index, strtmp, &
@@ -183,7 +182,7 @@ CPSourceFileRef,&
           atom_info%resid(iatom) = 1
           atom_info%id_atmname(iatom) = str2id(s2s(""))
           atom_info%id_element(iatom) = str2id(s2s(""))
-          ! *** Read name and atomic coordinates ***
+          ! Read name and atomic coordinates
           start_c=1
           DO wrd=1,4
              DO j=start_c,LEN(line_att)
@@ -211,8 +210,8 @@ CPSourceFileRef,&
              start_c=end_c
           END DO
           ! For default, set atom name to residue name to molecule name
-          WRITE(my_default_index,'(I0)')iatom
-          atom_info%id_molname(iatom) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(iatom)))//TRIM(my_default_index))) !XXXXXXXXXX-fixme-XXXXXXXXXX
+          WRITE (my_default_index,'(I0)') iatom
+          atom_info%id_molname(iatom) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(iatom)))//TRIM(my_default_index)))
           atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
           atom_info%id_element(iatom) = atom_info%id_atmname(iatom)
           topology%molname_generated = .TRUE.
@@ -260,7 +259,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: name_kind, unit_str

@@ -48,7 +48,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 1000
 
     CHARACTER(LEN=default_string_length)     :: my_default_index, strtmp
     INTEGER                                  :: frame, handle, iw, j, natom
@@ -57,17 +56,22 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
-    NULLIFY(parser, logger)
+    CALL timeset(routineN,handle)
+
+    NULLIFY (parser,logger)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-         extension=".subsysLog",error=error)
-    CALL timeset(routineN,handle)
+                              extension=".subsysLog",error=error)
 
     atom_info => topology%atom_info
 
-    IF(iw>0) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
-    CALL parser_create(parser,topology%coord_file_name, para_env=para_env, &
+    IF (iw > 0) THEN
+       WRITE (UNIT=iw,FMT="(T2,A)")&
+        "BEGIN of XYZ data read from file "//TRIM(topology%coord_file_name)
+    END IF
+
+    CALL parser_create(parser,topology%coord_file_name, para_env=para_env,&
                        parse_white_lines=.TRUE.,error=error)
 
     ! Element is assigned on the basis of the atm_name
@@ -78,72 +82,80 @@ CONTAINS
     CALL parser_get_next_line(parser,1,error=error)
     Frames: DO
        ! Atom numbers
-       CALL parser_get_object  (parser,natom,error=error)
+       CALL parser_get_object(parser,natom,error=error)
        frame = frame + 1
        IF (frame == 1) THEN
-          CALL reallocate(atom_info%id_molname, 1,    natom)
-          CALL reallocate(atom_info%id_resname, 1,    natom)
-          CALL reallocate(atom_info%resid,   1,    natom)
-          CALL reallocate(atom_info%id_atmname, 1,    natom)
-          CALL reallocate(atom_info%r,             1,3,1,natom)
-          CALL reallocate(atom_info%atm_mass,      1,    natom)
-          CALL reallocate(atom_info%atm_charge,    1,    natom)
-          CALL reallocate(atom_info%occup,         1,    natom)
-          CALL reallocate(atom_info%beta,          1,    natom)
-          CALL reallocate(atom_info%id_element,       1,    natom)
-       ELSE IF(natom > SIZE(atom_info%id_atmname)) THEN
-          CALL stop_program (routineP,&
-               "Atom number differs in different frames!")
+          CALL reallocate(atom_info%id_molname,1,natom)
+          CALL reallocate(atom_info%id_resname,1,natom)
+          CALL reallocate(atom_info%resid,1,natom)
+          CALL reallocate(atom_info%id_atmname,1,natom)
+          CALL reallocate(atom_info%r,1,3,1,natom)
+          CALL reallocate(atom_info%atm_mass,1,natom)
+          CALL reallocate(atom_info%atm_charge,1,natom)
+          CALL reallocate(atom_info%occup,1,natom)
+          CALL reallocate(atom_info%beta,1,natom)
+          CALL reallocate(atom_info%id_element,1,natom)
+       ELSE IF (natom > SIZE(atom_info%id_atmname)) THEN
+          CALL stop_program (routineP,"Atom number differs in different frames!")
        END IF
        ! Dummy line
        CALL parser_get_next_line(parser,2,error=error)
-       DO j = 1, natom
+       DO j=1,natom
           ! Atom coordinates
-          READ(parser%input_line,*)strtmp,&
-                                   atom_info%r(1,j),&
-                                   atom_info%r(2,j),&
-                                   atom_info%r(3,j)
-          atom_info%id_atmname(j)=str2id(s2s(strtmp))
+          READ (parser%input_line,*) strtmp,&
+                                     atom_info%r(1,j),&
+                                     atom_info%r(2,j),&
+                                     atom_info%r(3,j)
+          atom_info%id_atmname(j) = str2id(s2s(strtmp))
           ! For default, set atom name to residue name to molecule name
-          WRITE(my_default_index,'(I0)')j   
-          atom_info%id_molname(j)   =  str2id(s2s(TRIM(id2str(atom_info%id_atmname(j)))//TRIM(my_default_index)))
-          atom_info%id_resname(j)   =  atom_info%id_molname(j)
-          atom_info%resid(j)     =  1
-          atom_info%id_element(j)         =  atom_info%id_atmname(j)
-          atom_info%atm_mass(j)        =  HUGE(0.0_dp)
-          atom_info%atm_charge(j)      = -HUGE(0.0_dp)
-          IF(iw>0) WRITE(iw,'(T2,"XYZ_INFO| ",A4,3F8.3,A4,I4)') &
+          WRITE (my_default_index,'(I0)') j
+          atom_info%id_molname(j) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(j)))//TRIM(my_default_index)))
+          atom_info%id_resname(j) = atom_info%id_molname(j)
+          atom_info%resid(j)      = 1
+          atom_info%id_element(j) = atom_info%id_atmname(j)
+          atom_info%atm_mass(j)   =  HUGE(0.0_dp)
+          atom_info%atm_charge(j) = -HUGE(0.0_dp)
+          IF (iw > 0) THEN
+             WRITE (UNIT=iw,FMT="(T2,A4,3F8.3,2X,A)")&
                TRIM(id2str(atom_info%id_atmname(j))),&
                atom_info%r(1,j),&
                atom_info%r(2,j),&
                atom_info%r(3,j),&
-               TRIM(id2str(atom_info%id_resname(j))),&
-               atom_info%resid(j)
+               ADJUSTL(TRIM(id2str(atom_info%id_molname(j))))
+          END IF
           atom_info%r(1,j) = cp_unit_to_cp2k(atom_info%r(1,j),"angstrom",error=error)
           atom_info%r(2,j) = cp_unit_to_cp2k(atom_info%r(2,j),"angstrom",error=error)
           atom_info%r(3,j) = cp_unit_to_cp2k(atom_info%r(3,j),"angstrom",error=error)
           ! If there's a white line or end of file exit.. otherwise read other available
           ! snapshots
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
-          my_end = my_end .OR. (LEN_TRIM(parser%input_line)==0)
+          my_end = my_end.OR.(LEN_TRIM(parser%input_line) == 0)
           IF (my_end) THEN 
              CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
                   "Number of lines in XYZ format not equal to the number of atoms."//&
                   " Error in XYZ format. Very probably the line with title is missing or is empty."//&
                   " Please check the XYZ file and rerun your job!"//&
 CPSourceFileRef,&
-             only_ionode=.TRUE.)
+                  only_ionode=.TRUE.)
              EXIT Frames
           END IF
        END DO
     END DO Frames
     CALL parser_release(parser,error=error)
 
-    topology%natoms            = natom
+    IF (iw > 0) THEN
+       WRITE (UNIT=iw,FMT="(T2,A)")&
+        "END of XYZ frame data read from file "//TRIM(topology%coord_file_name)
+    END IF
+
+    topology%natoms = natom
     topology%molname_generated = .TRUE.
-    CALL timestop(handle)
+
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/XYZ_INFO",error=error)
+                                      "PRINT%TOPOLOGY_INFO/XYZ_INFO",&
+                                      error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE read_coordinate_xyz
 

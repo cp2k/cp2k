@@ -1026,7 +1026,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_set_atm_mass', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock = 1000
 
     CHARACTER(LEN=2)                         :: upper_sym_1
     CHARACTER(LEN=default_string_length), &

@@ -319,6 +319,7 @@ MODULE input_constants
                                               do_conn_g87=6,&
                                               do_conn_g96=7,&
                                               do_conn_amb7=8,&
+                                              do_conn_user=9,&
                                               do_coord_off=0,&
                                               do_coord_pdb=1,&
                                               do_coord_xyz=2,&

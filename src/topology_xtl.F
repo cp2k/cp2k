@@ -73,9 +73,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xtl', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 10
-    REAL(KIND=dp), PARAMETER                 :: realloc_factor = 1.2_dp, &
-                                                threshold = 1.0E-6_dp
+    INTEGER, PARAMETER                       :: nblock = 1000
+    REAL(KIND=dp), PARAMETER                 :: threshold = 1.0E-6_dp
 
     CHARACTER(LEN=default_string_length)     :: strtmp
     INTEGER                                  :: dimensions, handle, icol, ii, &
@@ -103,16 +102,16 @@ CONTAINS
     topology%aa_element = .TRUE.
 
     atom_info => topology%atom_info
-    CALL reallocate(atom_info%id_molname,1,nblock_atom)
-    CALL reallocate(atom_info%id_resname,1,nblock_atom)
-    CALL reallocate(atom_info%resid,1,nblock_atom)
-    CALL reallocate(atom_info%id_atmname,1,nblock_atom)
-    CALL reallocate(atom_info%r,1,3,1,nblock_atom)
-    CALL reallocate(atom_info%atm_mass,1,nblock_atom)
-    CALL reallocate(atom_info%atm_charge,1,nblock_atom)
-    CALL reallocate(atom_info%occup,1,nblock_atom)
-    CALL reallocate(atom_info%beta,1,nblock_atom)
-    CALL reallocate(atom_info%id_element,1,nblock_atom)
+    CALL reallocate(atom_info%id_molname,1,nblock)
+    CALL reallocate(atom_info%id_resname,1,nblock)
+    CALL reallocate(atom_info%resid,1,nblock)
+    CALL reallocate(atom_info%id_atmname,1,nblock)
+    CALL reallocate(atom_info%r,1,3,1,nblock)
+    CALL reallocate(atom_info%atm_mass,1,nblock)
+    CALL reallocate(atom_info%atm_charge,1,nblock)
+    CALL reallocate(atom_info%occup,1,nblock)
+    CALL reallocate(atom_info%beta,1,nblock)
+    CALL reallocate(atom_info%id_element,1,nblock)
 
     IF (iw>0)  WRITE(iw,*) "    Reading in XTL file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)  
@@ -200,7 +199,7 @@ CPSourceFileRef)
        natom = natom + 1
        ! Resize in case needed
        IF (natom > SIZE(atom_info%id_molname)) THEN
-          newsize=natom*realloc_factor+nblock_atom
+          newsize = 2*natom
           CALL reallocate(atom_info%id_molname,1,newsize)
           CALL reallocate(atom_info%id_resname,1,newsize)
           CALL reallocate(atom_info%resid,1,newsize)
@@ -285,7 +284,7 @@ CPSourceFileRef,&
                 natom = natom + 1
                 ! Resize in case needed
                 IF (natom > SIZE(atom_info%id_molname)) THEN
-                   newsize=natom*realloc_factor+nblock_atom
+                   newsize = 2*natom
                    CALL reallocate(atom_info%id_molname,1,newsize)
                    CALL reallocate(atom_info%id_resname,1,newsize)
                    CALL reallocate(atom_info%resid,1,newsize)

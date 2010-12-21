@@ -634,13 +634,13 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 10000
+    INTEGER, PARAMETER                       :: nblock = 1000
 
     CHARACTER(LEN=default_string_length)     :: label, string, strtmp, strtmp2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(5)                           :: avail_section
     INTEGER                                  :: handle, istat, itemp, iw, &
-                                                natom
+                                                natom, newsize
     LOGICAL                                  :: failure, found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -665,16 +665,16 @@ CONTAINS
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
 
-    CALL reallocate(atom_info%id_molname,1,nblock_atom)
-    CALL reallocate(atom_info%id_resname,1,nblock_atom)
-    CALL reallocate(atom_info%resid,1,nblock_atom)
-    CALL reallocate(atom_info%id_atmname,1,nblock_atom)
-    CALL reallocate(atom_info%id_element,1,nblock_atom)
-    CALL reallocate(atom_info%r,1,3,1,nblock_atom)
-    CALL reallocate(atom_info%atm_mass,1,nblock_atom)
-    CALL reallocate(atom_info%atm_charge,1,nblock_atom)
-    CALL reallocate(atom_info%occup,1,nblock_atom)
-    CALL reallocate(atom_info%beta,1,nblock_atom)
+    CALL reallocate(atom_info%id_molname,1,nblock)
+    CALL reallocate(atom_info%id_resname,1,nblock)
+    CALL reallocate(atom_info%resid,1,nblock)
+    CALL reallocate(atom_info%id_atmname,1,nblock)
+    CALL reallocate(atom_info%id_element,1,nblock)
+    CALL reallocate(atom_info%r,1,3,1,nblock)
+    CALL reallocate(atom_info%atm_mass,1,nblock)
+    CALL reallocate(atom_info%atm_charge,1,nblock)
+    CALL reallocate(atom_info%occup,1,nblock)
+    CALL reallocate(atom_info%beta,1,nblock)
     ! TITLE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the TITLE section'
     CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
@@ -699,19 +699,20 @@ CONTAINS
        CALL parser_get_next_line(parser,1,error=error)
        CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
        DO
-          IF(string == TRIM("END")) EXIT
-          natom=natom+1
-          IF(natom>SIZE(atom_info%id_molname)) THEN
-             CALL reallocate(atom_info%id_molname,1,nblock_atom+natom)
-             CALL reallocate(atom_info%id_resname,1,nblock_atom+natom)
-             CALL reallocate(atom_info%resid,1,nblock_atom+natom)
-             CALL reallocate(atom_info%id_atmname,1,nblock_atom+natom)
-             CALL reallocate(atom_info%id_element,1,nblock_atom+natom)
-             CALL reallocate(atom_info%r,1,3,1,nblock_atom+natom)
-             CALL reallocate(atom_info%atm_mass,1,nblock_atom+natom)
-             CALL reallocate(atom_info%atm_charge,1,nblock_atom+natom)
-             CALL reallocate(atom_info%occup,1,nblock_atom+natom)
-             CALL reallocate(atom_info%beta,1,nblock_atom+natom)
+          IF (string == TRIM("END")) EXIT
+          natom = natom + 1
+          IF (natom > SIZE(atom_info%id_molname)) THEN
+             newsize = 2*natom
+             CALL reallocate(atom_info%id_molname,1,newsize)
+             CALL reallocate(atom_info%id_resname,1,newsize)
+             CALL reallocate(atom_info%resid,1,newsize)
+             CALL reallocate(atom_info%id_atmname,1,newsize)
+             CALL reallocate(atom_info%id_element,1,newsize)
+             CALL reallocate(atom_info%r,1,3,1,newsize)
+             CALL reallocate(atom_info%atm_mass,1,newsize)
+             CALL reallocate(atom_info%atm_charge,1,newsize)
+             CALL reallocate(atom_info%occup,1,newsize)
+             CALL reallocate(atom_info%beta,1,newsize)
           END IF
           READ (string,*) &
                atom_info%resid(natom),strtmp,strtmp2,&
