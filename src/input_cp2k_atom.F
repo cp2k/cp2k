@@ -274,6 +274,19 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"FIT_PSEUDO",&
+            description="Controls the printing of FIT PSEUDO task.",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"FIT_BASIS",&
+            description="Controls the printing of FIT BASIS task.",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
     END IF
   END SUBROUTINE create_atom_print_section
 

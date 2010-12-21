@@ -318,21 +318,32 @@ CONTAINS
           CALL calculate_atom(atom_refs(in,im)%atom,iw,error=error)
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
         END IF
-
       END DO
     END DO
 
-    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log",error=error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_PSEUDO",extension=".log",error=error)
     IF(iw > 0) THEN
         WRITE(iw,'(/," ",79("*"))') 
         WRITE(iw,'(" ",21("*"),A,21("*"))') " Optimize Pseudopotential Parameters "
         WRITE(iw,'(" ",79("*"))') 
-        CALL atom_print_potential(p_pot,iw,error)
-        powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-        CALL atom_fit_pseudo (atom_info,atom_refs,p_pot,iw,potential_section,powell_section,error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_PSEUDO",error=error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
+    IF (iw>0) THEN
         CALL atom_print_potential(p_pot,iw,error)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_PSEUDO",extension=".log",error=error)
+    IF (iw>0) THEN
+        powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
+        CALL atom_fit_pseudo (atom_info,atom_refs,p_pot,iw,potential_section,powell_section,error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_PSEUDO",error=error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
+    IF (iw>0) THEN
+        CALL atom_print_potential(p_pot,iw,error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
 
     ! clean up
     CALL atom_int_release(ae_int,error)

@@ -227,7 +227,7 @@ CONTAINS
 
     ! Start the Optimization
     powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-    iw = 6
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_BASIS",extension=".log",error=error)
     IF ( had_ae ) THEN
       pp_calc = .FALSE.
       CALL atom_fit_basis(atom_info,ae_basis,pp_calc,iw,powell_section,error)
@@ -236,6 +236,7 @@ CONTAINS
       pp_calc = .TRUE.
       CALL atom_fit_basis(atom_info,pp_basis,pp_calc,iw,powell_section,error)
     END IF
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_BASIS",error=error)
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%BASIS_SET",extension=".log",error=error)
     IF(iw > 0) THEN
       CALL atom_print_basis(ae_basis,iw," All Electron Basis",error)
