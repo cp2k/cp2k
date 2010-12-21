@@ -78,8 +78,6 @@
       ADDED_MOS     20
       &LOCALIZE
       &END
-##      RESTART
-##      WFN_RESTART_FILE_NAME ./co_tpxhh
       &PRINT
          &PROGRAM_RUN_INFO
          &END

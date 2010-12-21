@@ -1,4 +1,4 @@
-#CPQA DEPENDS CO.inp
+#CPQA DEPENDS CO_xastpxhh.inp
 
 &GLOBAL
  PROJECT     co_tpxhh_b
