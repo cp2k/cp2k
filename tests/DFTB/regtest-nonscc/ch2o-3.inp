@@ -22,7 +22,7 @@
       MAX_SCF  2
       &PRINT
         &RESTART
-          FILENAME =RESTART
+          FILENAME =RESTART-ch2o-3
         &END
       &END
     &END SCF

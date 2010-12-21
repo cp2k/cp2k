@@ -1,5 +1,8 @@
+#CPQA DEPENDS ch2o.inp
+
 &FORCE_EVAL
   &DFT
+    RESTART_FILE_NAME CH2O-5-RESTART.wfn
     &QS
       METHOD DFTB
       &DFTB
