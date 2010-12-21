@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -32,7 +31,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT ch4
+  PROJECT ch4-ot
   TRACE OFF
 &END GLOBAL
