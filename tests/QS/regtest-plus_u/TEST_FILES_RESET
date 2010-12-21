@@ -407,3 +407,5 @@ H2O-uks-otcg-mulliken.inp
 H2O-rks-otcg-lowdin.inp
 #  
 H2O-uks-otcg-lowdin.inp
+# fix a missing restart..
+H2O-rks-otcg-lowdin.inp

@@ -45,7 +45,7 @@
             QS_SCF 30
           &END
           ADD_LAST NUMERIC
-          FILENAME =RESTART
+          FILENAME =RESTART-rks-diag-mulliken
           BACKUP_COPIES 0
         &END RESTART
       &END PRINT

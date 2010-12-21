@@ -16,6 +16,7 @@
   &DFT
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    RESTART_FILE_NAME   RESTART-rks-diag-lowdin
     PLUS_U_METHOD Lowdin
     &MGRID
       CUTOFF 200
@@ -51,7 +52,7 @@
           BACKUP_COPIES 0
         &END RESTART
       &END PRINT
-      SCF_GUESS atomic
+      SCF_GUESS restart
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
