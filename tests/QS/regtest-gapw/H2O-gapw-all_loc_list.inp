@@ -1,4 +1,4 @@
-
+#CPQA DEPENDS H2O-gapw-all.inp
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
