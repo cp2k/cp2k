@@ -1185,6 +1185,7 @@ CONTAINS
               atom_info%id_atmname(first+loc_counter-1) ) THEN
              CALL stop_program ("topology_molecules_check",&
                   "different atom name for same molecule kind"//&
+                  " atom number    = "//cp_to_string(iatom)//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
                   " expected atom name="//TRIM(id2str(atom_info%id_atmname(first+loc_counter-1)))//&

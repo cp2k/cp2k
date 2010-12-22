@@ -702,7 +702,7 @@ CONTAINS
           IF (string == TRIM("END")) EXIT
           natom = natom + 1
           IF (natom > SIZE(atom_info%id_molname)) THEN
-             newsize = 2*natom
+             newsize = INT(1.2_dp*natom)
              CALL reallocate(atom_info%id_molname,1,newsize)
              CALL reallocate(atom_info%id_resname,1,newsize)
              CALL reallocate(atom_info%resid,1,newsize)
