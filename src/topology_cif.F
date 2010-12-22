@@ -32,7 +32,8 @@ MODULE topology_cif
                                              finalizef,&
                                              initf,&
                                              parsef
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_get_rval,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -97,6 +98,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: check, failure, found, &
                                                 my_end, orthorhombic
+    REAL(KIND=dp)                            :: pfactor
     REAL(KIND=dp), DIMENSION(3)              :: cell_angles, cell_lengths, r, &
                                                 r1, r2, s, s_tmp
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -110,6 +112,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/CIF_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,handle)
+    pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
 
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
@@ -243,7 +246,7 @@ CPSourceFileRef)
        natom = natom + 1
        ! Resize in case needed
        IF (natom > SIZE(atom_info%id_molname)) THEN
-          newsize = INT(1.2_dp*natom)
+          newsize = pfactor*natom
           CALL reallocate(atom_info%id_molname,1,newsize)
           CALL reallocate(atom_info%id_resname,1,newsize)
           CALL reallocate(atom_info%resid,1,newsize)
@@ -356,7 +359,7 @@ CPSourceFileRef,&
                 natom = natom + 1
                 ! Resize in case needed
                 IF (natom > SIZE(atom_info%id_molname)) THEN
-                   newsize = INT(1.2_dp*natom)
+                   newsize = pfactor*natom
                    CALL reallocate(atom_info%id_molname,1,newsize)
                    CALL reallocate(atom_info%id_resname,1,newsize)
                    CALL reallocate(atom_info%resid,1,newsize)

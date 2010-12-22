@@ -1633,6 +1633,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MEMORY_PROGRESSION_FACTOR",&
+            description="This keyword is quite technical and should normally not be changed by the user. It "//&
+            "affects the memory allocation during the construction of the topology. It does NOT affect the "//&
+            "memory used once the topology is built.",&
+            n_var=1,default_r_val=1.2_dp,repeats=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key,"DUMP_PDB",&
             description="controls the dumping of the PDB at the starting geometry",&
             print_level=debug_print_level, filename="dump",error=error)

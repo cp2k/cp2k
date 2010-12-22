@@ -17,7 +17,8 @@ MODULE topology_gromos
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_rval,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -642,6 +643,7 @@ CONTAINS
     INTEGER                                  :: handle, istat, itemp, iw, &
                                                 natom, newsize
     LOGICAL                                  :: failure, found
+    REAL(KIND=dp)                            :: pfactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -654,6 +656,7 @@ CONTAINS
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
 
+    pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
     atom_info => topology%atom_info
     IF (iw>0)  WRITE(iw,*) "    Reading in G96 file ",TRIM(topology%coord_file_name)
     avail_section( 1) = "TITLE"
@@ -702,7 +705,7 @@ CONTAINS
           IF (string == TRIM("END")) EXIT
           natom = natom + 1
           IF (natom > SIZE(atom_info%id_molname)) THEN
-             newsize = INT(1.2_dp*natom)
+             newsize = pfactor*natom
              CALL reallocate(atom_info%id_molname,1,newsize)
              CALL reallocate(atom_info%id_resname,1,newsize)
              CALL reallocate(atom_info%resid,1,newsize)
