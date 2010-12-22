@@ -5,23 +5,15 @@
 CC       = cc
 CPP      = 
 
-FC       = gfortran-4.4
-LD       = gfortran-4.4
+FC       = gfortran
+LD       = gfortran
 
 AR       = ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT
-FCFLAGS  = -O0 -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3
+FCFLAGS  = -O0 -ffree-form $(DFLAGS) 
 LDFLAGS  = $(FCFLAGS)
-LIBS     = $(GFORTRAN_LIB)/liblapack.a\
-           $(GFORTRAN_LIB)/libgoto.a\
-           $(GFORTRAN_LIB)/libfftw3.a\
-           $(GFORTRAN_LIB)/libderiv.a\
-           $(GFORTRAN_LIB)/libint.a\
-           $(GFORTRAN_LIB)/libint_wrapper.o\
-           -lpthread\
-           /usr/lib64/libstdc++.so.6
-
+LIBS     = -llapack -lblas -lfftw3
 
 OBJECTS_ARCHITECTURE = machine_gfortran.o
