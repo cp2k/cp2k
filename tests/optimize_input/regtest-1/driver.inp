@@ -1,4 +1,5 @@
 #CPQA DEPENDS argon-ref.inp
+#CPQA INCLUDE argon-fit.inp
 
 &GLOBAL
   PROGRAM OPTIMIZE_INPUT

@@ -1,3 +1,4 @@
+#CPQA INCLUDE H2O-sys.inp
 
 &FORCE_EVAL
   METHOD EP

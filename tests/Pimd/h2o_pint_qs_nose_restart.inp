@@ -1,4 +1,6 @@
 #CPQA DEPENDS h2o_pint_qs_nose.inp
+#CPQA INCLUDE BASIS_SET
+#CPQA INCLUDE POTENTIAL
 
 &GLOBAL
   PROJECT_NAME               h2o_pint_qs_nose
