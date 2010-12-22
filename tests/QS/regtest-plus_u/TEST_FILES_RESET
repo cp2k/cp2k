@@ -409,3 +409,6 @@ H2O-rks-otcg-lowdin.inp
 H2O-uks-otcg-lowdin.inp
 # fix a missing restart..
 H2O-rks-otcg-lowdin.inp
+# further test of the reset feature of the new regtest
+H2O-rks-otcg-lowdin.inp
+H2O-uks-otcg.inp

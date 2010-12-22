@@ -1,3 +1,8 @@
+#CPQA INCLUDE scf_param.inc
+#CPQA INCLUDE blank.inc
+#CPQA INCLUDE inc_inc.inc
+#CPQA INCLUDE empty.inc
+
 ! -*- cp2k -*-
  @SET VAL 4.0
  @SET inc empty

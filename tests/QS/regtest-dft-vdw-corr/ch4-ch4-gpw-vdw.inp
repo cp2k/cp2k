@@ -1,3 +1,8 @@
+#CPQA INCLUDE ch4-ch4-force-env.inc
+#CPQA INCLUDE ../BASIS_MOLOPT
+#CPQA INCLUDE ../POTENTIAL
+#CPQA INCLUDE ../sample_xyz/ch4-ch4-in.xyz
+
 ! -*- cp2k -*-
 &GLOBAL
   PROJECT ch4-ch4-vdw

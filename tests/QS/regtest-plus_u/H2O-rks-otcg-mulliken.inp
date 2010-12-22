@@ -1,3 +1,5 @@
+#CPQA DEPENDS H2O-rks-diag-mulliken.inp
+
 &GLOBAL
   PROJECT H2O-rks-otcg
   PRINT_LEVEL low

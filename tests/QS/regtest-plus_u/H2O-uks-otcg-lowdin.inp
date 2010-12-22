@@ -1,3 +1,5 @@
+#CPQA DEPENDS H2O-uks-diag-lowdin.inp
+
 &GLOBAL
   PROJECT H2O-uks-otcg
   PRINT_LEVEL low
