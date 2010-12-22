@@ -1,4 +1,4 @@
-46
+47
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -45,6 +45,7 @@ SUM OF CORE FORCES !8
 SUM OF SHELL FORCES !8
 PRM01!2
 Final value !6
+SUMMARY:: Number of molecule kinds found:!7
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value
