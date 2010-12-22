@@ -12,6 +12,6 @@ LIBS     = $(G95_LIB)/liblapack.a \
            $(G95_LIB)/libderiv.a \
            $(G95_LIB)/libint.a \
            $(G95_LIB)/libfftw3.a \
-           -lstdc++ -lpthread
+           /usr/lib64/libstdc++.so.6 -lpthread
 
 OBJECTS_ARCHITECTURE = machine_g95.o
