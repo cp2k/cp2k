@@ -1,4 +1,15 @@
 #CPQA DEPENDS ch2o.inp
+#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../scc/oo.spl
+#CPQA INCLUDE ../scc/oc.spl
+#CPQA INCLUDE ../scc/oh.spl
+#CPQA INCLUDE ../scc/co.spl
+#CPQA INCLUDE ../scc/cc.spl
+#CPQA INCLUDE ../scc/ch.spl
+#CPQA INCLUDE ../scc/ho.spl
+#CPQA INCLUDE ../scc/hc.spl
+#CPQA INCLUDE ../scc/hh.spl
 
 &FORCE_EVAL
   &DFT
@@ -39,4 +50,5 @@
   PROJECT CH2O
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
+
 &END GLOBAL

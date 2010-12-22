@@ -1,4 +1,7 @@
 
+#CPQA INCLUDE ../nonscc/nonscc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../nonscc/nn
 &FORCE_EVAL
   &DFT
     &QS

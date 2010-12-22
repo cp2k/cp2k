@@ -1,3 +1,10 @@
+
+#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../scc/oo.spl
+#CPQA INCLUDE ../scc/oh.spl
+#CPQA INCLUDE ../scc/ho.spl
+#CPQA INCLUDE ../scc/hh.spl
 &FORCE_EVAL
   &DFT
     &QS

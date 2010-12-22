@@ -1,3 +1,6 @@
+#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../scc/hh.spl
 &FORCE_EVAL
   &DFT
     CHARGE +1

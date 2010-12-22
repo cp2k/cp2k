@@ -1,3 +1,9 @@
+#CPQA INCLUDE ../nonscc/nonscc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../nonscc/mos
+#CPQA INCLUDE ../nonscc/momo
+#CPQA INCLUDE ../nonscc/smo
+#CPQA INCLUDE ../nonscc/ss
 &FORCE_EVAL
   &DFT
     &QS
