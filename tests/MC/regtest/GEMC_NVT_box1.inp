@@ -1,4 +1,9 @@
-#CPQA DEPENDS GEMC_NpT_box1.inp
+#CPQA INCLUDE GEMC_NVT_box2.inp
+#CPQA INCLUDE bias_template.inp
+#CPQA  DEPENDS GEMC_NpT_box1.inp
+#      this dependency rule is fake: the reason is that MC is the only module as of Today that writes
+#      hard-coded output files, which are then read in the subsequent steps. Once modernized, these
+#      dependencies for CPQA can be deleted.
 
 &FORCE_EVAL
   METHOD FIST

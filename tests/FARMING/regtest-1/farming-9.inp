@@ -1,3 +1,5 @@
+#CPQA INCLUDE dir-1/water.inp
+#CPQA INCLUDE dir-2/water.inp
 &GLOBAL
   PROGRAM FARMING
   RUN_TYPE NONE

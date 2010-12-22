@@ -1,3 +1,15 @@
+#CPQA INCLUDE dir-1/water.inp
+#CPQA INCLUDE dir-2/water.inp
+#CPQA INCLUDE dir-3/water.inp
+#CPQA INCLUDE dir-4/water.inp
+#CPQA INCLUDE dir-5/water.inp
+#CPQA INCLUDE dir-6/water.inp
+#CPQA INCLUDE dir-7/water.inp
+#CPQA INCLUDE dir-8/water.inp
+#CPQA INCLUDE dir-9/water.inp
+#CPQA INCLUDE ../water_1.pdb
+#CPQA INCLUDE ../water.pot
+
 &GLOBAL
   PROGRAM FARMING
   RUN_TYPE NONE
