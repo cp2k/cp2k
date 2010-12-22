@@ -160,40 +160,6 @@ CONTAINS
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
 
-    !   *** Print a list of all started processes ***
-    ALLOCATE (all_pid(para_env%num_pe),STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_pid",&
-            para_env%num_pe*int_size)
-    END IF
-    all_pid(:) = 0
-    all_pid(para_env%mepos+1) = r_pid
-    CALL mp_sum(all_pid,para_env%group)
-    ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
-            30*para_env%num_pe*int_size)
-    END IF
-    all_host(:,:) = 0
-    CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
-    CALL mp_sum(all_host,para_env%group)
-    IF (my_output_unit>0) THEN
-       DO ipe=1,para_env%num_pe
-          CALL ascii_to_string(all_host(:,ipe),string)
-          WRITE (UNIT=my_output_unit,FMT="(T2,A,T63,I8,T71,I10)")&
-               TRIM(r_user_name)//"@"//TRIM(string)//&
-               " has created process number",ipe-1,all_pid(ipe)
-       END DO
-    END IF
-    DEALLOCATE (all_pid,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
-    END IF
-    DEALLOCATE (all_host,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
-    END IF
-
     !   *** Initialize timing ***
     CALL timeset ("CP2K",globenv%handle)
 
@@ -228,6 +194,61 @@ CONTAINS
     END IF
 
   END SUBROUTINE cp2k_init
+
+! *****************************************************************************
+!> \brief echos the list of host names and pids
+! *****************************************************************************
+  SUBROUTINE echo_all_hosts(para_env,output_unit)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: output_unit
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_hosts', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: string
+    INTEGER                                  :: ipe, istat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_pid
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
+
+!   *** Print a list of all started processes ***
+
+    ALLOCATE (all_pid(para_env%num_pe),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_pid",&
+            para_env%num_pe*int_size)
+    END IF
+    all_pid(:) = 0
+    all_pid(para_env%mepos+1) = r_pid
+    CALL mp_sum(all_pid,para_env%group)
+    ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
+            30*para_env%num_pe*int_size)
+    END IF
+    all_host(:,:) = 0
+    CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
+    CALL mp_sum(all_host,para_env%group)
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(T2,A)") ""
+       DO ipe=1,para_env%num_pe
+          CALL ascii_to_string(all_host(:,ipe),string)
+          WRITE (UNIT=output_unit,FMT="(T2,A,T63,I8,T71,I10)")&
+               TRIM(r_user_name)//"@"//TRIM(string)//&
+               " has created process number",ipe-1,all_pid(ipe)
+       END DO
+       WRITE (UNIT=output_unit,FMT="(T2,A)") ""
+    END IF
+    DEALLOCATE (all_pid,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
+    END IF
+    DEALLOCATE (all_host,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
+    END IF
+
+  END SUBROUTINE echo_all_hosts
 
 ! *****************************************************************************
 !> \brief read part of cp2k_init
@@ -405,8 +426,9 @@ CONTAINS
       MemTotal_max, MemTotal_min, Slab, Slab_avr, Slab_max, Slab_min, &
       SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: ata, efl, explicit, failure, &
-                                                trace, trace_master
+    LOGICAL                                  :: ata, do_echo_all_hosts, efl, &
+                                                explicit, failure, trace, &
+                                                trace_master
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -439,6 +461,7 @@ CONTAINS
     CALL section_vals_val_get(global_section,"TRACE_MASTER",l_val=trace_MASTER,error=error)
     CALL section_vals_val_get(global_section,"TRACE_MAX",i_val=trace_max,error=error)
     CALL section_vals_val_get(global_section,"FLUSH_SHOULD_FLUSH",l_val=flush_should_flush,error=error)
+    CALL section_vals_val_get(global_section,"ECHO_ALL_HOSTS",l_val=do_echo_all_hosts,error=error)
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     logger=>cp_error_get_logger(error)
@@ -563,6 +586,8 @@ CONTAINS
     SReclaimable=SReclaimable/1024
     MemLikelyFree=MemLikelyFree/1024
 
+    !   *** Print a list of all started processes ***
+    IF (do_echo_all_hosts) CALL echo_all_hosts(para_env,output_unit)
 
     num_threads=1
 !$omp parallel

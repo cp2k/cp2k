@@ -452,6 +452,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="ECHO_ALL_HOSTS",&
+         description="Echo a list of hostname and pid for all MPI processes.",&
+         usage="ECHO_ALL_HOSTS NO",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="TRACE",&
          description="If a debug trace of the execution of the program should be written ",&
          usage="TRACE",&
