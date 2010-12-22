@@ -37,6 +37,7 @@ MODULE farming_types
      LOGICAL :: CYCLE
      LOGICAL :: master_slave
      INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
+     CHARACTER(LEN=default_path_length)                          :: restart_file_name ! restart file for farming
      CHARACTER(LEN=default_path_length)                          :: cwd        ! directory we started from
      INTEGER                                                     :: Njobs      ! how many jobs to run
      INTEGER                                                     :: restart_n  ! where to start

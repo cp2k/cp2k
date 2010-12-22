@@ -16,7 +16,6 @@ MODULE cp2k_runs
                                              cp2k_year,&
                                              enable_color_tags
   USE cp_files,                        ONLY: close_file,&
-                                             get_unit_number,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_print_key_finished_output,&
@@ -473,9 +472,9 @@ CONTAINS
     TYPE(section_type), POINTER              :: g_section
     TYPE(section_vals_type), POINTER         :: g_data
 
-! the primus of all slaves, talks to the master on topics concerning all slaves
 
     failure=.FALSE.
+    ! the primus of all slaves, talks to the master on topics concerning all slaves
     CALL timeset(routineN,handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
 
@@ -598,12 +597,13 @@ CONTAINS
     ENDIF
 
     ! and write the restart now, that's the point where the next job starts, even if this one is running
-    IF (para_env%ionode) THEN
-       iunit=get_unit_number()
-       OPEN(UNIT=iunit,FILE="RESTARTFARM")
+    iunit=cp_print_key_unit_nr(logger,root_section,"FARMING%RESTART",&
+         extension=".restart",error=error)    
+    IF (iunit>0) THEN
        WRITE(iunit,*) i_job_to_restart
-       CLOSE(UNIT=iunit)
     ENDIF
+    CALL cp_print_key_finished_output(iunit,logger,root_section,"FARMING%RESTART",error=error)
+
 
     ! this is the job range to be executed. 
     ijob_start=farming_env%restart_n
@@ -611,7 +611,7 @@ CONTAINS
     IF (output_unit>0 .AND. ijob_end-ijob_start<0) THEN
        WRITE(output_unit,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
        WRITE(output_unit,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
-       WRITE(output_unit,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
+       WRITE(output_unit,FMT="(T2,A)") "FARMING| or is a stray RESTART file present ?"
        WRITE(output_unit,FMT="(T2,A)") "FARMING| or is the group_size requested smaller than the number of CPUs?"
     ENDIF
 

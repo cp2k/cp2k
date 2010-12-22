@@ -38,6 +38,7 @@ MODULE input_cp2k
        section_vals_get_subs_vals, section_vals_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
@@ -1505,13 +1506,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="RESTART",&
-         description="restart a farming job (and should pick up where the previous left off)",&
-         usage="RESTART",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-         supported_feature=.TRUE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="MAX_JOBS_PER_GROUP",&
          variants=(/"MAX_JOBS"/),&
          description="maximum number of jobs executed per group",&
@@ -1587,6 +1581,28 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of FARMING specific output",&
          print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+         supported_feature=.TRUE.,error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL keyword_create(keyword, name="DO_RESTART",&
+         description="Restart a farming job (and should pick up where the previous left off)",&
+         usage="DO_RESTART",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+         supported_feature=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+         description="Name of the restart file to use for restarting a FARMING run. If not "//&
+         "specified the name is determined from PROJECT name.",&
+         usage="RESTART_FILE_NAME <FILENAME>", type_of_var=lchar_t,&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL cp_print_key_section_create(print_key,"RESTART",&
+         description="controls the printing of the restart for FARMING.",&
+         print_level=low_print_level,add_last=add_last_numeric,filename="FARMING",&
          supported_feature=.TRUE.,error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
