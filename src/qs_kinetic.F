@@ -211,7 +211,10 @@ CONTAINS
 
      ! check for symmetry
      CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,error,failure)
-     neighbor_list_set => sab_nl(1)%neighbor_list_set
+     DO i = 1, SIZE(sab_nl)
+        neighbor_list_set => sab_nl(i)%neighbor_list_set
+        IF (ASSOCIATED(neighbor_list_set)) EXIT
+     END DO
      CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,symmetric=do_symmetric)
 
      IF (allocate_matrix) THEN

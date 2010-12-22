@@ -50,3 +50,5 @@ vdW_PP_GRIMME_p1.inp 33
 vdW_PP_GRIMME_p2.inp 33
 # finer xc grids
 Ar-fine-1.inp 1
+# a basis none first kind
+H2O-none.inp 1
