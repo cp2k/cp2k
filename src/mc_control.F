@@ -97,7 +97,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=20)                        :: ensemble
-    CHARACTER(LEN=default_path_length)       :: name, restart_file_name
+    CHARACTER(LEN=default_string_length)     :: name 
+    CHARACTER(LEN=default_path_length)       :: restart_file_name
     INTEGER                                  :: handle, ichain, imol_type, &
                                                 iparticle, iunit, natom, &
                                                 nmol_types, nmolecule, &
