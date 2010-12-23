@@ -320,3 +320,5 @@ H2S-gapw-gop.inp
 # making some order in the regtests: getting ready for the new one
 H2O-gapw-all_localize_crazy.inp
 H2O-gapw-all_loc_list.inp
+# test new regtester reset feature
+H2O-gapw-all_localize_crazy.inp
