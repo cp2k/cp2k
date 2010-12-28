@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
    METHOD FIST
   &MM
@@ -53,7 +52,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT water_1
+  PROJECT H2O-meta-combine
   RUN_TYPE md
 &END GLOBAL
 &MOTION

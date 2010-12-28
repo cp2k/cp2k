@@ -1,4 +1,3 @@
-
 #CPQA INCLUDE ../nonscc/nonscc_parameter
 #CPQA INCLUDE ../uff_table
 #CPQA INCLUDE ../nonscc/hh
@@ -34,7 +33,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2-2
+  PROJECT h2-2
   RUN_TYPE ENERGY
   PRINT_LEVEL HIGH
 &END GLOBAL

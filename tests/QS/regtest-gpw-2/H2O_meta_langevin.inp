@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -59,7 +58,6 @@
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
-
 #### COLVARS ######################
    &COLVAR 
     &POPULATION
@@ -72,7 +70,6 @@
      SIGMA 0.15
     &END
   &END COLVAR
-
   &COLVAR
     &POPULATION
      ATOMS_FROM 1 
@@ -84,17 +81,13 @@
      SIGMA 0.15
     &END
    &END COLVAR   
-
-
-
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT H2O_meta_langevin
 # Rudolph set FFTSG let me test fftw3
 #  PREFERRED_FFT_LIBRARY FFTSG
   PREFERRED_FFT_LIBRARY FFTW
-
-  PROJECT H2O-TAMD
   RUN_TYPE MD
   PRINT_LEVEL MEDIUM
   WALLTIME 250000
@@ -120,8 +113,6 @@
     &END
    &END
   &END MD
-
-
   &FREE_ENERGY
    &METADYN
        LAGRANGE .TRUE.
@@ -131,7 +122,6 @@
        DO_HILLS
        NT_HILLS 2
        WW 1.0e-3
-
        &METAVAR
 ######### LAMBDA is in the order of dehydragenation( a.u (H)) 
         LAMBDA 0.1
@@ -141,8 +131,6 @@
         # THIS IS a.u. (a.u. --> fs 2.41888432649994E-02) 
         GAMMA [au_t^-1] 0.0001
        &END METAVAR
-
-
        &METAVAR
 ######### LAMBDA is in the order of dehydragenation( a.u (H)) 
         LAMBDA 0.1
@@ -152,7 +140,6 @@
         # THIS IS a.u. (a.u. --> fs 2.41888432649994E-02) 
         GAMMA [au_t^-1] 0.0001
        &END METAVAR
-
  
        &PRINT
         &COLVAR
@@ -163,7 +150,6 @@
        &END PRINT
    &END METADYN
   &END FREE_ENERGY
-
   &PRINT
     &TRAJECTORY
      &EACH
@@ -182,4 +168,3 @@
     &END
   &END
 &END MOTION
-

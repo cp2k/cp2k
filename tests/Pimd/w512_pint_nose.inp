@@ -1,9 +1,8 @@
 &GLOBAL
-  PROJECT_NAME               w512_pint_nose
+  PROJECT w512_pint_nose
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
-
 &MOTION
   &PINT
     P                        2
@@ -28,8 +27,6 @@
     &END INIT
   &END PINT
 &END MOTION
-
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -1598,5 +1595,3 @@
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
-
-

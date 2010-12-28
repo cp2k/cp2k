@@ -70,6 +70,6 @@
   &END
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O
+  PROJECT multipole_dipole_quadrupole
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL

@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -64,8 +63,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT water_3
+  PROJECT water_3_dist_g
   RUN_TYPE MD
 &END GLOBAL
 &MOTION

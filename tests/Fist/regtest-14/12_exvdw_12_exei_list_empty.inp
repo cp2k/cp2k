@@ -6,7 +6,6 @@
        &FF_INFO ON
        &END FF_INFO
     &END PRINT
-
     &FORCEFIELD
        &CHARGE   
           ATOM    Si 
@@ -99,7 +98,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT test 
+  PROJECT 12_exvdw_12_exei_list_empty
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -164,7 +163,6 @@
        MD 1000
      &END EACH
      &END RESTART
-
      &SHELL_TRAJECTORY
       &EACH
         MD 1
@@ -174,4 +172,3 @@
     &END
     &END PRINT
 &END MOTION
-

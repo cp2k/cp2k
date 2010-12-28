@@ -64,6 +64,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT ice-ewald
+  PROJECT ice-ewald-nomol
   RUN_TYPE ENERGY
 &END GLOBAL

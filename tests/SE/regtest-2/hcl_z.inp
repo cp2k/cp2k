@@ -6,7 +6,6 @@
       &SE
        STO_NG 6
       &END
-
     &END QS
     &SCF
       SCF_GUESS MOPAC
@@ -45,7 +44,7 @@
   &END
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT HCl
+  PROJECT hcl_z
   RUN_TYPE MD
 &END GLOBAL
 &MOTION

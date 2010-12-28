@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -30,8 +29,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PRINT_LEVEL LOW
   PROJECT uo2_shell_nve_zbl
+  PRINT_LEVEL LOW
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
@@ -47,7 +46,6 @@
       &END
     &END PRINT
   &END MD
-
   &SHELL_OPT
     OPTIMIZER CG
     MAX_DR 0.02
@@ -62,7 +60,6 @@
       &END
     &END
   &END
-
   &PRINT
     &TRAJECTORY
     &END

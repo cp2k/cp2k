@@ -73,7 +73,7 @@
   &END
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O
+  PROJECT multipole_dip_qu.dbg_f_rec
   RUN_TYPE DEBUG
 &END GLOBAL
 &DEBUG

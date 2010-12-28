@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -39,9 +38,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT h2o2_amber
   PRINT_LEVEL DEBUG
-
-  PROJECT mol
   RUN_TYPE md
 &END GLOBAL
 &MOTION
@@ -56,4 +54,3 @@
 # BOND    =        2.2271  ANGLE   =        0.3320  DIHED      =        0.6088
 # VDWAALS =       -0.0014  EEL     =       -0.0159  HBOND      =        0.0000
 # 1-4 VDW =        0.0000  1-4 EEL =       20.9514  RESTRAINT  =        0.0000
-

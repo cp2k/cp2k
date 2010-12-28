@@ -5,27 +5,21 @@
 ! dinamica di una particella di Au 13
 !
 @SET PPATH ../ 
-
 ! **** Global settings
 &GLOBAL
- PROJECT      ${PNAME}
+  PROJECT Au12_rmsd_mtd
  IOLEVEL      MEDIUM
  PREFERRED_FFT_LIBRARY FFTW
  RUN_TYPE     MD
  WALLTIME     10500
  FLUSH_SHOULD_FLUSH T
 &END
-
-
 &FORCE_EVAL
-
   METHOD      Quickstep
-
   &DFT
     ! ** PATH for potentials
     POTENTIAL_FILE_NAME ${PPATH}/GTH_POTENTIALS
     BASIS_SET_FILE_NAME ${PPATH}/BASIS_MOLOPT
-
     !UKS
     CHARGE 0
     !MULTIPLICITY 2
@@ -47,12 +41,10 @@
         ENERGY_GAP 0.001
       &END OT
     &END
-
     &XC
       &XC_FUNCTIONAL PBE
       &END
     &END
-
     &QS
       METHOD       GPW
       EPS_DEFAULT  1.0E-12
@@ -67,27 +59,22 @@
       CUTOFF       40
       NGRIDS        4
     &END
-
   &END SECTION DFT
-
   &SUBSYS
     &CELL
        ABC  8 8 8 
        PERIODIC NONE
     &END CELL
-
     &KIND  Au
       ELEMENT Au
       POTENTIAL GTH-PBE-q11
       BASIS_SET DZVP-MOLOPT-SR-GTH
     &END
-
     &TOPOLOGY
       COORD_FILE_NAME ../sample_xyz/Au12.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY
-
    &COLVAR
      &RMSD
        &FRAME
@@ -111,10 +98,8 @@
 !     &END 
 !   &END
   &END SUBSYS
-
 &END FORCE_EVAL
 &MOTION
-
  &FREE_ENERGY
    &METADYN
      DO_HILLS T
@@ -135,7 +120,6 @@
 !       !   &END
 !       ! &END
      &END
-
      &PRINT
        &COLVAR
           COMMON_ITERATION_LEVELS 3
@@ -152,14 +136,12 @@
      &END
    &END METADYN
  &END FREE_ENERGY
-
   &MD
     ENSEMBLE NVT
     STEPS  5
     TIMESTEP 1
     TEMPERATURE 300.0
 !    TEMP_TOL 150
-
     &THERMOSTAT
       TYPE NOSE
       &NOSE
@@ -169,7 +151,6 @@
         MTS 2
       &END NOSE
     &END THERMOSTAT
-
     &PRINT
       &ENERGY
         &EACH
@@ -179,7 +160,6 @@
       &END
     &END PRINT
   &END MD
-
   &PRINT
     &TRAJECTORY
       &EACH
@@ -192,6 +172,4 @@
       &END
     &END
   &END
-
 &END MOTION
-

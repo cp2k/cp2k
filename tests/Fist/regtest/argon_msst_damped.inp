@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -114,8 +113,7 @@
   STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT shock_plastic
+  PROJECT argon_msst_damped
   RUN_TYPE md
 &END GLOBAL
 &MOTION

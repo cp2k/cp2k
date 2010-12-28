@@ -1,10 +1,9 @@
 &GLOBAL
-  PROJECT  cu2cl6_45_m1_std
+  PROJECT cu2cl6_m1_std
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   FLUSH_SHOULD_FLUSH
 &END GLOBAL
-
 &FORCE_EVAL
   METHOD QS
   &PRINT
@@ -44,7 +43,6 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
-
   &SUBSYS
     &KIND  Cu1
       ELEMENT Cu
@@ -61,7 +59,6 @@
       POTENTIAL  GTH-BLYP-q7
       GPW_TYPE
     &END
-
     &CELL
       ABC 8 8 8
     &END CELL
@@ -72,4 +69,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

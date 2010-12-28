@@ -1,7 +1,6 @@
 #CPQA INCLUDE ../nonscc/nonscc_parameter
 #CPQA INCLUDE ../uff_table
 #CPQA INCLUDE ../nonscc/ss
-
 &FORCE_EVAL
   &DFT
     &QS
@@ -36,7 +35,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT S2
+  PROJECT s2
   RUN_TYPE GEO_OPT
   PRINT_LEVEL HIGH
 &END GLOBAL

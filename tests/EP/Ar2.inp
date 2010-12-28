@@ -1,7 +1,6 @@
-#CPQA INCLUDE subAr2.inp
+#CPQA INCLUDE subAr2.inc
 #CPQA INCLUDE BASIS_SET
 #CPQA INCLUDE POTENTIAL
-
 &FORCE_EVAL
   METHOD EP
   &DFT
@@ -46,15 +45,15 @@
     &END KIND
   &END SUBSYS
   &EP
-    comp_input subAr2.inp
+    comp_input subAr2.inc
     at_per_mol 1
     e0_only
   &END
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT Ar2
   PRINT_LEVEL MEDIUM 
   RUN_TYPE  DEBUG # ENERGY_FORCE # MD #
-  project Ar2
 &END GLOBAL
 &DEBUG
  DEBUG_STRESS_TENSOR F

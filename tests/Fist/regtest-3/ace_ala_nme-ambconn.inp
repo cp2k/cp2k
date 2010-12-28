@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -40,8 +39,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT ace_ala_nme-ambconn
   PRINT_LEVEL LOW
-  PROJECT ace_ala_nme
   RUN_TYPE GEO_OPT
 &END GLOBAL
 &MOTION

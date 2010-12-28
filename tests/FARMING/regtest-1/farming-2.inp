@@ -10,10 +10,10 @@
 #CPQA INCLUDE ../water_1.pdb
 #CPQA INCLUDE ../water.pot
 &GLOBAL
+  PROJECT farming-2
   PROGRAM FARMING
   RUN_TYPE NONE
 &END GLOBAL
-
 &FARMING
   NGROUP 3
   &JOB
@@ -53,4 +53,3 @@
     INPUT_FILE_NAME water.inp
   &END JOB
 &END FARMING
-

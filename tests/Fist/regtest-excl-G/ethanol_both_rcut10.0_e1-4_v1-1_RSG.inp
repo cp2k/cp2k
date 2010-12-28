@@ -1,7 +1,7 @@
 # The expected energy for this input is -0.0153653312844.
 &GLOBAL
+  PROJECT ethanol_both_rcut10.0_e1-4_v1-1_RSG
   PRINT_LEVEL MEDIUM
-  PROJECT_NAME ethanol_both_rcut10.0_e1-4_v1-1_RSG
   RUN_TYPE energy
 &END GLOBAL
 &FORCE_EVAL
@@ -173,7 +173,6 @@ VARIABLES r
        ALPHA 0.3
        GMAX 25
        O_SPLINE 6
-
      &END EWALD
     &END POISSON
     &PRINT
@@ -217,8 +216,6 @@ VARIABLES r
        &END GENERATE
        EXCLUDE_EI 1-4
        EXCLUDE_VDW 1-1
-
-
      &END TOPOLOGY
    &END SUBSYS
  &END FORCE_EVAL

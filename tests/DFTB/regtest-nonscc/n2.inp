@@ -1,4 +1,3 @@
-
 #CPQA INCLUDE ../nonscc/nonscc_parameter
 #CPQA INCLUDE ../uff_table
 #CPQA INCLUDE ../nonscc/nn
@@ -34,7 +33,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT N2
+  PROJECT n2
   RUN_TYPE GEO_OPT
   PRINT_LEVEL HIGH
 &END GLOBAL

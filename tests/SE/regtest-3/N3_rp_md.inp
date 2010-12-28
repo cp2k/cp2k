@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -142,9 +141,7 @@
   RUN_TYPE MD
   PRINT_LEVEL LOW
 &END GLOBAL
-
 &MOTION
-
  &FREE_ENERGY
    &METADYN
      DO_HILLS F
@@ -159,7 +156,6 @@
        MASS  10.0
        SCALE  0.03
      &END
-
      &PRINT
        &COLVAR
           COMMON_ITERATION_LEVELS 3
@@ -176,14 +172,12 @@
      &END
    &END METADYN
  &END FREE_ENERGY
-
   &MD
     ENSEMBLE NVT
     STEPS  20
     TIMESTEP 1
     TEMPERATURE 300.0
     TEMP_TOL 50
-
     &THERMOSTAT
       TYPE NOSE
       &NOSE
@@ -193,7 +187,6 @@
         MTS 2
       &END NOSE
     &END THERMOSTAT
-
     &PRINT
       &ENERGY
         &EACH
@@ -203,7 +196,6 @@
       &END
     &END PRINT
   &END MD
-
   &PRINT
     &TRAJECTORY
       &EACH
@@ -218,5 +210,4 @@
     &RESTART_HISTORY OFF
     &END
   &END
-
 &END MOTION

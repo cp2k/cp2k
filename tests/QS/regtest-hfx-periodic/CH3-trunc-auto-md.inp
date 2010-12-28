@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -57,7 +56,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT CH3_trunc_auto_md
+  PROJECT CH3-trunc-auto-md
   PRINT_LEVEL MEDIUM 
   RUN_TYPE MD
 &END GLOBAL

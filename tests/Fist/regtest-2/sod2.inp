@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -31,13 +30,11 @@
         ATOM O
         CHARGE -0.5
       &END CHARGE
-
       &SPLINE
         EMAX_SPLINE 1.0
         EMAX_ACCURACY 1.0
         R0_NB [bohr] 3.5
       &END SPLINE
-
       &NONBONDED
         &GENPOT
           ATOMS Si Si 
@@ -63,22 +60,18 @@
         &END GENPOT
       &END NONBONDED14
     &END FORCEFIELD
-
     
     &POISSON
       &EWALD
         EWALD_TYPE NONE
       &END EWALD
     &END POISSON
-
     &PRINT
       &SUBCELL
       &END SUBCELL
       &FF_INFO  DEBUG
       &END FF_INFO
     &END PRINT
-
-
   &END MM
   &SUBSYS
     &CELL
@@ -93,7 +86,6 @@
         #    CREATE_MOLECULES T
         #&END GENERATE
     &END TOPOLOGY
-
     &PRINT
         #&INTERATOMIC_DISTANCES
         #&END INTERATOMIC_DISTANCES
@@ -104,8 +96,6 @@
         #&KINDS
         #&END KINDS
     &END PRINT
-
-
   &END SUBSYS
   &PRINT
     &FORCES
@@ -116,12 +106,10 @@
   &END PRINT
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT sod
+  PROJECT sod2
   RUN_TYPE MD
   PRINT_LEVEL HIGH
 &END GLOBAL
-
-
 &MOTION
   &MD
     ENSEMBLE NVE
@@ -131,4 +119,3 @@
     TEMP_TOL 50
   &END MD
 &END
-

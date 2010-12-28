@@ -1,4 +1,3 @@
-
 #CPQA INCLUDE ../scc/scc_parameter
 #CPQA INCLUDE ../uff_table
 #CPQA INCLUDE ../scc/oo.spl
@@ -47,7 +46,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT CH2O
+  PROJECT ch2o-ot2
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL

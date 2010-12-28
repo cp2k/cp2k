@@ -1,4 +1,3 @@
-
 #CPQA INCLUDE ../nonscc/nonscc_parameter
 #CPQA INCLUDE ../uff_table
 #CPQA INCLUDE ../nonscc/hh
@@ -34,7 +33,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2-4
+  PROJECT h2-4
   RUN_TYPE MD
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -46,4 +45,3 @@
     TEMPERATURE 330.0
   &END MD
 &END MOTION
-

@@ -140,8 +140,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT ar108_nvt_nose
+  PROJECT argon-nose
   RUN_TYPE md
 &END GLOBAL
 &MOTION

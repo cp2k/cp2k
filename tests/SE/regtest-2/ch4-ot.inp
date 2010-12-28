@@ -6,7 +6,6 @@
       &SE
        
       &END
-
     &END QS
     &SCF
       EPS_SCF 1.0E-7

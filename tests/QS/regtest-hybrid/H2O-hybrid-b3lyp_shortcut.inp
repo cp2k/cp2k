@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -55,7 +54,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT H2O-hybrid-b3lyp_shortcut
 #  TRACE
-  PROJECT gapw_all_pade
   PRINT_LEVEL MEDIUM 
 &END GLOBAL

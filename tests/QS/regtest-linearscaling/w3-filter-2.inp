@@ -60,4 +60,3 @@
   RUN_TYPE energy
   PRINT_LEVEL LOW
 &END GLOBAL
-

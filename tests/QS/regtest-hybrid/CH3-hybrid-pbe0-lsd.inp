@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -61,7 +60,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT CH3-hybrid-pbe0-lsd
 #  TRACE
-  PROJECT gapw_all_pade
   PRINT_LEVEL MEDIUM 
 &END GLOBAL

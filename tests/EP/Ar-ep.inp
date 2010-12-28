@@ -1,7 +1,6 @@
-#CPQA INCLUDE Ar-sys.inp
+#CPQA INCLUDE Ar-sys.inc
 #CPQA INCLUDE BASIS_SET
 #CPQA INCLUDE POTENTIAL
-
 &FORCE_EVAL
   METHOD ep # qs #
   &DFT
@@ -47,15 +46,14 @@
     &END KIND
   &END SUBSYS
   &EP
-    comp_input Ar-sys.inp
+    comp_input Ar-sys.inc
     at_per_mol 1
   &END
 &END FORCE_EVAL
 &GLOBAL
-
+  PROJECT Ar-ep
   PRINT_LEVEL MEDIUM
   RUN_TYPE  ENERGY_FORCE # PINT # DEBUG #
-  project main
 &END GLOBAL
 &MOTION
   &MD

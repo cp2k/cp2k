@@ -1,5 +1,4 @@
-#CPQA INCLUDE H2O-sys.inp
-
+#CPQA INCLUDE H2O-sys.inc
 &FORCE_EVAL
   METHOD EP
   &DFT
@@ -51,12 +50,12 @@
     &END KIND
   &END SUBSYS
   &EP
-    comp_input H2O-sys.inp
+    comp_input H2O-sys.inc
     at_per_mol 3
   &END
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O
+  PROJECT 3H2O-ep
   RUN_TYPE MD # DEBUG #
   PRINT_LEVEL LOW
 &END GLOBAL

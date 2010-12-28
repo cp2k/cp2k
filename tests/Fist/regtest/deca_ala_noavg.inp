@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -26,8 +25,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT deca_ala_noavg
   PRINT_LEVEL LOW
-  PROJECT deca_ala
   RUN_TYPE md
 &END GLOBAL
 &MOTION

@@ -1,7 +1,7 @@
 # The real-space part of the electrostatic energy should be about -0.0357448368718 Hartree.
 &GLOBAL
+  PROJECT pc_.gcd
   PRINT_LEVEL MEDIUM
-  PROJECT_NAME pc_.gcd
   RUN_TYPE energy
 &END GLOBAL
 &FORCE_EVAL

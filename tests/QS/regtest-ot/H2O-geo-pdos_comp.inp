@@ -65,8 +65,7 @@
  &END
 &END
 &GLOBAL
-
-  PROJECT H2O_diag_pdosc
+  PROJECT H2O-geo-pdos_comp
   PRINT_LEVEL MEDIUM
   RUN_TYPE GEO_OPT
 &END GLOBAL

@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -82,8 +81,8 @@
   STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT uo2_shell_npe_6
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_npe
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
@@ -118,7 +117,6 @@
         &END
       &END
     &END
-
     &PRINT
       &ENERGY
       &END

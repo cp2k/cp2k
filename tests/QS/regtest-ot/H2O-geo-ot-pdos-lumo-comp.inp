@@ -64,8 +64,7 @@
  &END
 &END
 &GLOBAL
-
-  PROJECT H2O_ot_pdosc_lumo
+  PROJECT H2O-geo-ot-pdos-lumo-comp
   PRINT_LEVEL MEDIUM
   RUN_TYPE GEO_OPT
 &END GLOBAL

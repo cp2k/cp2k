@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -37,12 +36,10 @@
       CONNECTIVITY UPSF
       CONN_FILE_NAME  ../sample_psf/2gly.psf
     &END TOPOLOGY
-
     &COLVAR
        &DISTANCE_FROM_PATH
           LAMBDA 0.1
           DISTANCES_RMSD
-
           &FRAME
             COORD_FILE_NAME  ../sample_xyz/MOL.0.xyz
           &END
@@ -69,16 +66,14 @@
 #          &END
        &END
     &END
-
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT 2gly_mtd_dprmsd
   PRINT_LEVEL LOW
-  PROJECT  2gly_mtd_dprmsd_b
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
-
  &FREE_ENERGY
    &METADYN
      DO_HILLS F
@@ -93,7 +88,6 @@
        MASS   2.0
        SCALE  0.03
      &END
-
      &PRINT
        &COLVAR
           COMMON_ITERATION_LEVELS 3
@@ -110,14 +104,12 @@
      &END
    &END METADYN
  &END FREE_ENERGY
-
   &MD
     ENSEMBLE NVT
     STEPS  50
     TIMESTEP 1
     TEMPERATURE 300.0
     TEMP_TOL 50
-
     &THERMOSTAT
       TYPE NOSE
       &NOSE
@@ -127,7 +119,6 @@
         MTS 2
       &END NOSE
     &END THERMOSTAT
-
     &PRINT
       &ENERGY
         &EACH
@@ -137,7 +128,6 @@
       &END
     &END PRINT
   &END MD
-
   &PRINT
     &RESTART
        &EACH

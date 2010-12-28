@@ -1,7 +1,7 @@
 # The energy should be about -0.19106528961 Hartree.
 &GLOBAL
+  PROJECT pnt-gss
   PRINT_LEVEL MEDIUM
-  PROJECT_NAME pnt-gss
   RUN_TYPE energy
 &END GLOBAL
 &FORCE_EVAL

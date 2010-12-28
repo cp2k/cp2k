@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -7,7 +6,6 @@
       &SE
        ANALYTICAL_GRADIENTS F
       &END
-
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -26,7 +24,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT H2O
+  PROJECT h2o
   RUN_TYPE GEO_OPT
 &END GLOBAL

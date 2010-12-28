@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -54,8 +53,7 @@ H      1.000   1.000   1.000 WAT
   &END
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT water_2
+  PROJECT water_2_rescaleF
   RUN_TYPE md
 &END GLOBAL
 &MOTION

@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -80,8 +79,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT uo2_buckmorse_nve
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_nve
   RUN_TYPE MD
 &END GLOBAL
 &MOTION

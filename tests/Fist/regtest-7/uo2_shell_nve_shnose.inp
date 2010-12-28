@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Fist
   &MM
@@ -81,8 +80,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PRINT_LEVEL LOW
   PROJECT uo2_shell_nve_shnose
+  PRINT_LEVEL LOW
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
@@ -127,7 +126,6 @@
       &END
     &END
   &END
-
   &PRINT
     &TRAJECTORY
     &END

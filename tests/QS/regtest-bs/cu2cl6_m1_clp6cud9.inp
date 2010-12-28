@@ -1,10 +1,9 @@
 &GLOBAL
-  PROJECT  cu2cl6_m1_clp6cud9
+  PROJECT cu2cl6_m1_clp6cud9
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   FLUSH_SHOULD_FLUSH
 &END GLOBAL
-
 &FORCE_EVAL
   METHOD QS
   &PRINT
@@ -44,7 +43,6 @@
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
-
   &SUBSYS
     &KIND  Cu1
       ELEMENT Cu
@@ -79,7 +77,6 @@
           N    4   3
         &END
       &END
-
     &END
     &KIND  Cl
       BASIS_SET  DZVP-MOLOPT-GTH
@@ -96,7 +93,6 @@
           N   3
         &END
       &END
-
     &END
     &KIND  Cl1
       ELEMENT Cl
@@ -131,9 +127,7 @@
           N   3
         &END
       &END
-
     &END
-
     &CELL
       ABC 8 8 8
     &END CELL
@@ -144,4 +138,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

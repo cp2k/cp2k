@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -68,8 +67,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT ethene
+  PROJECT ethene_colv1_g
   RUN_TYPE md
 &END GLOBAL
 &MOTION

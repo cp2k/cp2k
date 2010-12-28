@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT extrap-1
+  PROJECT extrap-1-far
   RUN_TYPE MD
   PRINT_LEVEL MEDIUM
 trace f

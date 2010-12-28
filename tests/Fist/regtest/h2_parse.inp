@@ -26,7 +26,6 @@
         EWALD_TYPE NONE
       &END EWALD
     &END POISSON
-
   &END MM
   &SUBSYS
     &CELL
@@ -48,7 +47,6 @@
         GENERATE_INFO T
       &END
     &END
-
   &END SUBSYS
   &PRINT
    &FORCES
@@ -56,7 +54,7 @@
   &END PRINT
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT h2
+  PROJECT h2_parse
   RUN_TYPE GEO_OPT
 &END GLOBAL
 &MOTION
@@ -64,4 +62,3 @@
      MAX_ITER 1
   &END
 &END
-

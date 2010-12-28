@@ -1,20 +1,16 @@
 @SET MULTIPLICITY 1
 @SET BASIS_SET 6-31G**
-@SET PROJECT_NAME he-polar-1
 @SET BASIS_SET_FILE ../EMSL_BASIS_SETS
 @SET POTENTIAL_FILE ../POTENTIAL
-
 @SET LSD T
 @IF ${MULTIPLICITY}==1
 @SET LSD F
 @ENDIF
-
 &GLOBAL
-  PROJECT ${PROJECT_NAME}
+  PROJECT he-polar-1
   PRINT_LEVEL LOW
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
-
 &FORCE_EVAL
   &DFT
     LSD ${LSD}
@@ -60,10 +56,8 @@
           DO_FC F
           DO_SD F
           DO_PSO F
-
 #THIS IS A HACK SO FAR, compute polarizability for debugging only.
           DO_DSO T
-
        &END
     &END
   &END

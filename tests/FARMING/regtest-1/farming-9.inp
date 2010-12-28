@@ -1,10 +1,10 @@
 #CPQA INCLUDE dir-1/water.inp
 #CPQA INCLUDE dir-2/water.inp
 &GLOBAL
+  PROJECT farming-9
   PROGRAM FARMING
   RUN_TYPE NONE
 &END GLOBAL
-
 &FARMING
   NGROUPS 2
   &JOB
@@ -18,4 +18,3 @@
     OUTPUT_FILE_NAME bar.out
   &END JOB
 &END FARMING
-

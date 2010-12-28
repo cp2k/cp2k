@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -10,7 +9,6 @@
          MAX_MEMORY 20
        &END
       &END
-
     &END QS
     &SCF
       EPS_SCF 1.0E-5
@@ -30,6 +28,5 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT H2O
+  PROJECT H2O-MNDO-si-nc
 &END GLOBAL

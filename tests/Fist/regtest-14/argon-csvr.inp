@@ -140,8 +140,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT ar108_nvt_csvr
+  PROJECT argon-csvr
   RUN_TYPE md
 &END GLOBAL
 &MOTION

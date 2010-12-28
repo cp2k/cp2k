@@ -1,10 +1,9 @@
 &GLOBAL
+  PROJECT test-pdb
   PROGRAM_NAME CP2K
   PRINT_LEVEL LOW
-  PROJECT all-qm
   RUN_TYPE MD
 &END GLOBAL
-
 &FORCE_EVAL
   ! QM subsystem reference run
   METHOD QS
@@ -35,7 +34,6 @@
       &END
     &END XC
   &END DFT
-
   &SUBSYS
     &CELL
       ABC 10.0 12.0 12.0
@@ -61,11 +59,8 @@
       BASIS_SET SZV-GTH
       POTENTIAL GTH-PBE-q6
     &END KIND
-
   &END SUBSYS
-
 &END FORCE_EVAL
-
 &MOTION
   &MD
     ENSEMBLE NVT
@@ -93,4 +88,3 @@
     &END VELOCITIES
   &END PRINT
 &END MOTION
-

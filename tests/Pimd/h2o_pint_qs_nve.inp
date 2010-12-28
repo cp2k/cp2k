@@ -1,12 +1,10 @@
 #CPQA INCLUDE BASIS_SET
 #CPQA INCLUDE POTENTIAL
-
 &GLOBAL
-  PROJECT_NAME               h2o_pint_qs_nve
+  PROJECT h2o_pint_qs_nve
   RUN_TYPE                   PINT
   PRINT_LEVEL                LOW
 &END GLOBAL
-
 &MOTION
   &PINT
     P                        4
@@ -18,7 +16,6 @@
     TRANSFORMATION           NORMAL
   &END PINT
 &END MOTION
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT

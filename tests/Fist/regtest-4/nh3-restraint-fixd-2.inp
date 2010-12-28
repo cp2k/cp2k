@@ -1,4 +1,3 @@
-
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -36,8 +35,8 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
+  PROJECT nh3-restraint-fixd-2
   PRINT_LEVEL LOW
-  PROJECT nh3-restraint-fixd
   RUN_TYPE GEO_OPT
 &END GLOBAL
 &MOTION
