@@ -25,7 +25,10 @@ MODULE qmmm_main
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_type
   USE f77_blas
+  USE fist_environment_types,          ONLY: fist_env_get,&
+                                             fist_environment_type
   USE fist_main,                       ONLY: fist_create_force_env
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
@@ -113,6 +116,8 @@ CONTAINS
                                                 super_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
@@ -127,9 +132,9 @@ CONTAINS
 
     NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,   &
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
-         qs_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
+         qs_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm, fist_env,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
-         fist_scale_charge_link, print_section,  &
+         fist_scale_charge_link, print_section, fist_nonbond_env, &
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
@@ -209,7 +214,7 @@ CPSourceFileRef,&
             use_motion_section=use_motion_section,error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
-            cell=mm_cell,error=error)
+            cell=mm_cell,fist_env=fist_env,error=error)
 
        ! Set up QM/MM Options
        CALL setup_qmmm_vars_qm (qmmm_section,&
@@ -247,9 +252,9 @@ CPSourceFileRef,&
           CALL write_cell(qm_cell_small, subsys_section, error=error)
        END IF
        CALL get_cell(qm_cell_small, abc=abc)
-       !
+       
        ! Assign charges and mm_el_pot_radius from fist_topology
-       !
+       CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env, error=error)
        ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)),stat=stat)
@@ -261,6 +266,7 @@ CPSourceFileRef,&
        mm_el_pot_radius_corr = 0.0_dp
 
        CALL assign_mm_charges_and_radius(subsys=subsys_mm,&
+                                         charges=fist_nonbond_env%charges,&
                                          mm_atom_chrg=mm_atom_chrg,&
                                          mm_el_pot_radius=mm_el_pot_radius,&
                                          mm_el_pot_radius_corr=mm_el_pot_radius_corr,&

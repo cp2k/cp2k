@@ -15,16 +15,15 @@
     &END FORCEFIELD
     &POISSON
       &EWALD
-        EWALD_TYPE spme
+        EWALD_TYPE pme
         ALPHA .44
-        GMAX 24
-        O_SPLINE 6
+        NS_MAX 25
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
     &CELL
-      ABC 24.955 24.955 24.955
+      ABC 5. 5. 5.
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/water_1.pdb
@@ -33,7 +32,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT water_1
+  PROJECT water_charge_no_array_pme
   RUN_TYPE md
 &END GLOBAL
 &MOTION

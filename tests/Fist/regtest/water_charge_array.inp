@@ -1,17 +1,17 @@
+#CPQA DEPENDS water_charge_no_array.inp
+#CPQA TEST COMPARE-SINGLE-VALUE water_charge_no_array "POTENTIAL ENERGY" 3
+
 &FORCE_EVAL
   METHOD FIST
   &MM
     &FORCEFIELD
       parm_file_name ../sample_pot/water.pot
       parmtype CHM
-      &CHARGE
-        ATOM OT
-        CHARGE -0.8476
-      &END CHARGE
-      &CHARGE
-        ATOM HT
-        CHARGE 0.4238
-      &END CHARGE
+      &CHARGES
+        -0.8476
+         0.4238
+         0.4238
+      &END CHARGES
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -24,7 +24,7 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC 24.955 24.955 24.955
+      ABC 5. 5. 5.
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/water_1.pdb
@@ -33,7 +33,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT water_1
+  PROJECT water_charge_no_array
   RUN_TYPE md
 &END GLOBAL
 &MOTION

@@ -15,7 +15,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE force_fields_util
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
@@ -26,6 +25,7 @@ MODULE force_fields_util
                                              ewald_environment_type
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
+                                             fist_nonbond_env_set,&
                                              fist_nonbond_env_type
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
@@ -38,7 +38,8 @@ MODULE force_fields_util
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_charge, &
-       force_field_pack_damp, force_field_pack_eicut, force_field_pack_impr, &
+       force_field_pack_charges, force_field_pack_damp, &
+       force_field_pack_eicut, force_field_pack_impr, &
        force_field_pack_nonbond, force_field_pack_nonbond14, &
        force_field_pack_opbend, force_field_pack_pol, &
        force_field_pack_radius, force_field_pack_shell, &
@@ -47,7 +48,9 @@ MODULE force_fields_util
        force_field_unique_impr, force_field_unique_opbend, &
        force_field_unique_tors, force_field_unique_ub
   USE input_constants,                 ONLY: do_ff_undef
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -58,7 +61,8 @@ MODULE force_fields_util
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
        impr_type, molecule_kind_type, opbend_type, set_molecule_kind, &
        torsion_type, ub_type
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
@@ -118,9 +122,10 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
-    LOGICAL                                  :: do_zbl, failure, fatal, &
-                                                ignore_fatal, my_qmmm
+    LOGICAL                                  :: do_zbl, explicit, failure, &
+                                                fatal, ignore_fatal, my_qmmm
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -128,12 +133,13 @@ CONTAINS
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond, &
                                                 potparm_nonbond14
+    TYPE(section_vals_type), POINTER         :: charges_section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     fatal   = .FALSE.
     ignore_fatal = ff_type%ignore_missing_critical
-    NULLIFY(logger, Ainfo)
+    NULLIFY(logger, Ainfo, charges_section, charges)
     logger => cp_error_get_logger(error)
     ! Error unit
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -231,21 +237,34 @@ CONTAINS
     ! continue calculation..
     CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 13. Set up atomic_kind_set()%fist_potentail%[qeff] (PART 2) and shell
-    !      potential parameters
-    !-----------------------------------------------------------------------------
-    CALL force_field_pack_charge(atomic_kind_set, qmmm_env, fatal, iw, iw4,&
-         Ainfo, my_qmmm, inp_info, error)
-    ! Give information only if charge is missing and abort..
-    CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
+    charges_section => section_vals_get_subs_vals(mm_section,"FORCEFIELD%CHARGES",error=error)
+    CALL section_vals_get(charges_section, explicit=explicit, error=error)
+    IF (.NOT.explicit) THEN
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! 13.a Set up atomic_kind_set()%fist_potentail%[qeff] and shell
+       !      potential parameters
+       !-----------------------------------------------------------------------------
+       CALL force_field_pack_charge(atomic_kind_set, qmmm_env, fatal, iw, iw4,&
+            Ainfo, my_qmmm, inp_info, error)
+       ! Give information only if charge is missing and abort..
+       CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
+    ELSE
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! 13.b Setup a global array of classical charges - this avoids the packing and
+       !      allows the usage of different charges for same atomic types
+       !-----------------------------------------------------------------------------
+       CALL force_field_pack_charges(charges, charges_section, particle_set, my_qmmm,&
+            qmmm_env, inp_info, error)
+    END IF
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set up the radius of the electrostatic multipole in Fist
     !-----------------------------------------------------------------------------
     CALL force_field_pack_radius(atomic_kind_set, iw, subsys_section, error)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set up the polarizable FF parameters
@@ -301,6 +320,7 @@ CONTAINS
          potparm_nonbond14, potparm_nonbond, ff_type%do_nonbonded, &
          verlet_skin, ewald_rcut, ff_type%ei_scale14, &
          ff_type%vdw_scale14, ff_type%shift_cutoff, error)
+    CALL fist_nonbond_env_set(fist_nonbond_env, charges=charges, error=error)
     ! Compute the electrostatic interaction cutoffs.
     CALL force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, &
          ewald_env, error)
@@ -371,7 +391,7 @@ CONTAINS
 !> \brief Compute the total qeff charges for each molecule kind and total system
 ! *****************************************************************************
   SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,molecule_kind_set,&
-       molecule_set,mm_section,ff_type,error)
+       molecule_set,mm_section,ff_type,charges,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -383,13 +403,15 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname, molname
-    INTEGER                                  :: handle, iatom, imol, iw
+    INTEGER                                  :: first, handle, iatom, imol, &
+                                                iw, j, jatom
     LOGICAL                                  :: failure, shell_active
     REAL(KIND=dp)                            :: mass, mass_mol, mass_sum, &
                                                 qeff, qeff_mol, qeff_sum
@@ -397,6 +419,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
 
     CALL timeset(routineN,handle)
@@ -410,7 +433,7 @@ CONTAINS
     qeff_mol = 0.0_dp
     qeff_sum = 0.0_dp
     mass_sum = 0.0_dp
-
+    
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Sum of [qeff,mass] for each molecule_kind
@@ -419,6 +442,11 @@ CONTAINS
        qeff_mol=0.0_dp
        mass_mol=0.0_dp
        molecule_kind => molecule_kind_set(imol)
+
+       j=molecule_kind_set(imol)%molecule_list(1)
+       molecule => molecule_set(j)
+       CALL get_molecule(molecule=molecule, first_atom=first)
+
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             name=molname,atom_list=atom_list)
        DO iatom=1,SIZE(atom_list)
@@ -426,6 +454,10 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=atmname,qeff=qeff,mass=mass, shell_active=shell_active, shell=shell)
           IF(shell_active) qeff = shell%charge_core+shell%charge_shell
+          IF (ASSOCIATED(charges)) THEN
+             jatom=first-1+iatom
+             qeff=charges(jatom)
+          END IF
           IF(iw>0) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname)," charge = ",qeff
           qeff_mol = qeff_mol + qeff
           mass_mol = mass_mol + mass
@@ -443,6 +475,9 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
             name=atmname,qeff=qeff,mass=mass,shell_active=shell_active, shell=shell)
        IF(shell_active) qeff = shell%charge_core+shell%charge_shell
+       IF (ASSOCIATED(charges)) THEN
+          qeff=charges(iatom)
+       END IF
        IF(iw>0) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname),&
             " charge = ",qeff
        qeff_sum = qeff_sum + qeff

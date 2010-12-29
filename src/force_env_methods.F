@@ -62,9 +62,9 @@ MODULE force_env_methods
                                              ep_env_type
   USE external_potential_methods,      ONLY: add_external_potential
   USE f77_blas
-  USE fist_environment_types,          ONLY: fist_env_retain,&
-                                             fist_environment_type,&
-                                             get_fist_env
+  USE fist_environment_types,          ONLY: fist_env_get,&
+                                             fist_env_retain,&
+                                             fist_environment_type
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_get_pos, &
@@ -223,7 +223,7 @@ CONTAINS
           CASE ( use_fist_force )
              CALL fist_force_control( force_env%fist_env, virial, force_env%para_env, &
                   force_env_section=force_env%force_env_section, error=error)
-             CALL get_fist_env(fist_env=force_env%fist_env,results=results,error=error)
+             CALL fist_env_get(fist_env=force_env%fist_env,results=results,error=error)
           CASE (use_ep_force)
              CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
           CASE ( use_qs_force )
@@ -685,7 +685,7 @@ CONTAINS
        CALL cp_result_create(results=force_env%results,error=error)
        SELECT CASE(force_env%in_use)
        CASE(use_fist_force)
-          CALL get_fist_env (force_env%fist_env, subsys=force_env%subsys, error=error)
+          CALL fist_env_get (force_env%fist_env, subsys=force_env%subsys, error=error)
           CALL cp_subsys_retain (force_env%subsys, error=error)
        CASE(use_qs_force)
           CALL get_qs_env(force_env%qs_env, subsys=force_env%subsys,error=error)

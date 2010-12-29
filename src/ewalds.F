@@ -64,7 +64,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
-       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, error )
+       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -77,6 +77,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_g
     LOGICAL, INTENT(IN)                      :: use_virial
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_evaluate', &
@@ -88,6 +90,7 @@ CONTAINS
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
+    LOGICAL                                  :: use_charge_array
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
                                                 pref, q
@@ -104,6 +107,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     CALL cite_reference(Ewald1921)
+    use_charge_array=PRESENT(charges)
+    IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
 
     ! pointing
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
@@ -137,17 +142,28 @@ CONTAINS
     ! zero node count
     node = 0
     DO iparticle_kind = 1, nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
        nparticle_local = local_particles%n_el(iparticle_kind)
-       DO iparticle_local=1,nparticle_local
-          node = node + 1
-          charge ( node ) = q
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          CALL matvec_3x3 (vec, cell % h_inv, particle_set ( iparticle ) % r )
-          CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
-               exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
-       END DO
+       IF (use_charge_array) THEN
+          DO iparticle_local=1,nparticle_local
+             node = node + 1
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             charge(node) = charges(iparticle)
+             CALL matvec_3x3 (vec, cell % h_inv, particle_set ( iparticle ) % r )
+             CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
+                  exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
+          END DO
+       ELSE
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
+          DO iparticle_local=1,nparticle_local
+             node = node + 1
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             charge(node) = q
+             CALL matvec_3x3 (vec, cell % h_inv, particle_set ( iparticle ) % r )
+             CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
+                  exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
+          END DO
+       END IF
     END DO
 
     summe ( : ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
@@ -243,13 +259,14 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_self ( ewald_env, cell, atomic_kind_set, local_particles, e_self,&
-       e_neut, error)
+       e_neut, charges, error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_self', &
@@ -271,32 +288,47 @@ CONTAINS
     q_self = 0.0_dp
     q_sum = 0.0_dp
     nparticle_kind = SIZE ( atomic_kind_set )
-    DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius, &
-            qeff=q, shell_active=is_shell, shell=shell)
-       nparticle_local = local_particles%n_el(iparticle_kind)
-       IF(is_shell) THEN
-          CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
-          ! MI: the core-shell ES interaction, when core and shell belong to the same ion, is excluded
-          !     in the nonbond correction term. Therefore, here the self interaction is computed entirely
-          q_self = q_self + qcore*qcore*nparticle_local + qshell*qshell*nparticle_local
-          q_sum  = q_sum + qcore*nparticle_local + qshell*nparticle_local
-          IF (mm_radius > 0) THEN
-             ! the core is always a point charge
-             q_neutg = q_neutg + 2.0_dp*qshell*mm_radius**2
+    IF (ASSOCIATED(charges)) THEN
+       q_self = DOT_PRODUCT(charges,charges)
+       q_sum  = SUM(charges)
+       ! check and abort..
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius)
+          IF(mm_radius>0.0_dp)THEN
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                       message="Array of charges not implemented for mm_radius>0.0 !!",&
+                       error=error, error_level=cp_failure_level)
           END IF
-       ELSE
-          q_self = q_self + q*q*nparticle_local
-          q_sum  = q_sum + q*nparticle_local
-          IF (mm_radius > 0) THEN
-             q_neutg = q_neutg + 2.0_dp*q*mm_radius**2
+       END DO 
+    ELSE
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius, &
+               qeff=q, shell_active=is_shell, shell=shell)
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          IF(is_shell) THEN
+             CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
+             ! MI: the core-shell ES interaction, when core and shell belong to the same ion, is excluded
+             !     in the nonbond correction term. Therefore, here the self interaction is computed entirely
+             q_self = q_self + qcore*qcore*nparticle_local + qshell*qshell*nparticle_local
+             q_sum  = q_sum + qcore*nparticle_local + qshell*nparticle_local
+             IF (mm_radius > 0) THEN
+                ! the core is always a point charge
+                q_neutg = q_neutg + 2.0_dp*qshell*mm_radius**2
+             END IF
+          ELSE
+             q_self = q_self + q*q*nparticle_local
+             q_sum  = q_sum + q*nparticle_local
+             IF (mm_radius > 0) THEN
+                q_neutg = q_neutg + 2.0_dp*q*mm_radius**2
+             END IF
           END IF
-       END IF
-    END DO
+       END DO
 
-    CALL mp_sum ( q_self, group )
-    CALL mp_sum ( q_sum, group )
+       CALL mp_sum ( q_self, group )
+       CALL mp_sum ( q_sum, group )
+    END IF
 
     e_neut = 0.0_dp
     e_self = 0.0_dp

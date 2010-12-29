@@ -70,8 +70,8 @@ CONTAINS
 !> \author JGH (21-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
-       fg_coulomb, vg_coulomb, pv_g, shell_particle_set,&
-       core_particle_set, fgshell_coulomb, fgcore_coulomb, use_virial, error )
+       fg_coulomb, vg_coulomb, pv_g, shell_particle_set, core_particle_set,&
+       fgshell_coulomb, fgcore_coulomb, use_virial, charges, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -90,6 +90,8 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb, &
                                                 fgcore_coulomb
     LOGICAL, INTENT(IN)                      :: use_virial
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
@@ -171,7 +173,7 @@ CONTAINS
        IF(do_shell) CYCLE
        ! calculate function on small boxes
        CALL get_patch ( particle_set, box, green, npts, p1, rhos, is_core=.FALSE.,&
-            is_shell=.FALSE., unit_charge=.FALSE.)
+            is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
 
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
@@ -277,7 +279,7 @@ CONTAINS
        IF(do_shell) CYCLE
        ! calculate function on small boxes
        CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, is_core=.FALSE.,&
-            is_shell=.FALSE., unit_charge=.FALSE.)
+            is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
        
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
@@ -362,7 +364,8 @@ CONTAINS
 !>      none
 !> \author JGH (21-Mar-2001)
 ! *****************************************************************************
-  SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell, unit_charge )
+  SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell,&
+                         unit_charge, charges )
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
@@ -373,16 +376,21 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: rhos
     LOGICAL, INTENT(IN)                      :: is_core, is_shell, unit_charge
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_patch', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nbox
+    LOGICAL                                  :: use_charge_array
     REAL(KIND=dp)                            :: q
     REAL(KIND=dp), DIMENSION(3)              :: delta, r
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(shell)
+    use_charge_array=PRESENT(charges)
+    IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
     IF(is_core .AND. is_shell) THEN
        CALL stop_program(TRIM(routineP),"shell-model: cannot be core and shell simultaneously" )
     END IF
@@ -400,6 +408,7 @@ CONTAINS
        ELSE
           CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
        END IF
+       IF (use_charge_array) q=charges(p)
     END IF
     CALL get_delta ( box, r, npts, delta, nbox )
     CALL spme_get_patch ( rhos, nbox, delta, q, green % p3m_coeff )

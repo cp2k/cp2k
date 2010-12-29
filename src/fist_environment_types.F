@@ -111,9 +111,9 @@ MODULE fist_environment_types
             exclusion_type
 
 ! *** Public subroutines ***
-  PUBLIC :: get_fist_env,&
+  PUBLIC :: fist_env_get,&
             init_fist_env,&
-            set_fist_env,&
+            fist_env_set,&
             fist_env_create,&
             fist_env_release,&
             fist_env_retain
@@ -132,7 +132,7 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE get_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw,  &
+  SUBROUTINE fist_env_get( fist_env, atomic_kind_set, particle_set, ewald_pw,  &
        local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
        cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
        qmmm_env, input, shell_model, shell_model_ad, shell_particle_set,&
@@ -173,7 +173,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_get', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -221,7 +221,7 @@ CONTAINS
     IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
     IF (PRESENT(results)) results => fist_env%results
     IF (PRESENT(multipoles)) multipoles => fist_multipoles
-  END SUBROUTINE get_fist_env
+  END SUBROUTINE fist_env_get
 
 ! *****************************************************************************
 !> \brief Initialise the FIST environment.
@@ -267,7 +267,7 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE set_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw, &
+  SUBROUTINE fist_env_set( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
@@ -302,7 +302,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_set', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -410,7 +410,7 @@ CONTAINS
        fist_env%shell_model_ad = shell_model_ad
     END IF
 
-  END SUBROUTINE set_fist_env
+  END SUBROUTINE fist_env_set
 
 ! *****************************************************************************
 !> \brief allocates and intitializes a fist_env

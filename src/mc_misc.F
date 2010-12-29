@@ -26,8 +26,8 @@ MODULE mc_misc
                                              get_potential,&
                                              gth_potential_type
   USE f77_blas
-  USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             get_fist_env
+  USE fist_environment_types,          ONLY: fist_env_get,&
+                                             fist_environment_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -541,7 +541,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
          CALL force_env_get(force_env,fist_env=fist_env,subsys=subsys,error=error)
-         CALL get_fist_env(fist_env,cell=cell,ewald_env=ewald_env,&
+         CALL fist_env_get(fist_env,cell=cell,ewald_env=ewald_env,&
             input=input,atomic_kind_set=atomic_kind_set,&
             fist_nonbond_env=fist_nonbond_env,error=error)
          CALL ewald_env_get(ewald_env,&

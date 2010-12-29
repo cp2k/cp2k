@@ -93,10 +93,11 @@ CONTAINS
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
- SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,mm_el_pot_radius_corr,&
-                                         mm_atom_index, mm_link_atoms, mm_link_scale_factor,&
-                                         error)
+ SUBROUTINE assign_mm_charges_and_radius(subsys, charges, mm_atom_chrg,mm_el_pot_radius,&
+                                         mm_el_pot_radius_corr, mm_atom_index, mm_link_atoms,&
+                                         mm_link_scale_factor, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
@@ -124,6 +125,7 @@ CONTAINS
                            qeff=qi,&
                            qmmm_radius=ri,&
                            qmmm_corr_radius=rc)
+      IF (ASSOCIATED(charges)) qi=charges(IndMM)
       mm_atom_chrg(I)          = qi
       mm_el_pot_radius(I)      = ri
       mm_el_pot_radius_corr(I) = rc

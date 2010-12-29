@@ -10,13 +10,14 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE force_fields_all
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              set_atomic_kind
   USE atoms_input,                     ONLY: read_shell_coord_input
   USE cell_types,                      ONLY: cell_type
+  USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+                                             cp_sll_val_type
   USE damping_dipole_types,            ONLY: damping_p_create,&
                                              damping_p_type,&
                                              tang_toennies
@@ -42,8 +43,11 @@ MODULE force_fields_all
                                              do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_list_get,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE input_val_types,                 ONLY: val_get,&
+                                             val_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -103,6 +107,7 @@ MODULE force_fields_all
             force_field_pack_impr,&
             force_field_pack_opbend,&
             force_field_pack_charge,&
+            force_field_pack_charges,&
             force_field_pack_radius,&
             force_field_pack_pol, &
             force_field_pack_shell,&
@@ -1861,8 +1866,141 @@ CONTAINS
   END SUBROUTINE force_field_pack_opbend
 
 ! *****************************************************************************
-!> \brief Set up atomic_kind_set()%fist_potentail%[qeff] (PART 2) and shell
-!>      potential parameters
+!> \brief Set up array of full charges
+!> \author Teodoro Laino (teodoro.laino@gmail.com)
+!> \date 12.2010
+! *****************************************************************************
+  SUBROUTINE force_field_pack_charges(charges, charges_section, particle_set, &
+             my_qmmm, qmmm_env, inp_info, error)
+
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    TYPE(section_vals_type), POINTER         :: charges_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    LOGICAL                                  :: my_qmmm
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charges', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atmname
+    INTEGER                                  :: handle, iatom, ilink, iw4, j, &
+                                                nval, stat
+    LOGICAL                                  :: failure, found_p, &
+                                                is_link_atom, is_ok, &
+                                                only_manybody, only_qm
+    REAL(KIND=dp)                            :: charge, charge_tot, rval, &
+                                                scale_factor
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(fist_potential_type), POINTER       :: fist_potential
+    TYPE(val_type), POINTER                  :: val
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+    charge_tot = 0.0_dp
+    NULLIFY(list)
+
+    ! Not implemented for core-shell
+    IF(ASSOCIATED(inp_info%shell_list)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+                 message="Array of charges not implemented for CORE-SHELL model!!",&
+                 error=error, error_level=cp_failure_level)
+    END IF
+
+    ! Allocate array to particle_set size
+    CPPostcondition(.NOT.(ASSOCIATED(charges)),cp_failure_level,routineP,error,failure)
+    ALLOCATE(charges(SIZE(particle_set)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    ! Fill with input values
+    CALL section_vals_val_get(charges_section,"_DEFAULT_KEYWORD_",n_rep_val=nval,error=error)
+    CPPostcondition(nval==SIZE(charges),cp_failure_level,routineP,error,failure)
+    CALL section_vals_list_get(charges_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+    DO iatom=1,nval
+       ! we use only the first default_string_length characters of each line
+       is_ok=cp_sll_val_next(list,val,error=error)
+       CALL val_get(val,r_val=rval,error=error)
+       ! assign values
+       charges(iatom)=rval
+
+       ! Perform a post-processing
+       atomic_kind => particle_set(iatom)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            fist_potential=fist_potential,&
+                            name=atmname)
+       CALL get_potential(potential=fist_potential, qeff=charge)
+
+       only_qm  = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
+       CALL uppercase(atmname)
+       CALL cp_assert(charge==-HUGE(0.0_dp),cp_warning_level,cp_assertion_failed,routineP,&
+            "The charge for atom index ("//cp_to_string(iatom)//") and atom name ("//&
+            TRIM(atmname)//") was already defined. The charge associated to this kind"//&
+            " will be set to an uninitialized value and only the atom specific charge will be used! "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+       charge=-HUGE(0.0_dp)
+           
+       ! Check if the potential really requires the charge definition..
+       IF (ASSOCIATED(inp_info%nonbonded)) THEN
+          IF (ASSOCIATED(inp_info%nonbonded%pot)) THEN
+             ! Let's find the nonbonded potential where this atom is involved
+             only_manybody = .TRUE.
+             found_p       = .FALSE.
+             DO j = 1, SIZE(inp_info%nonbonded%pot)
+                IF ( atmname==inp_info%nonbonded%pot(j)%pot %at1.OR.&
+                     atmname==inp_info%nonbonded%pot(j)%pot %at2) THEN
+                   SELECT CASE(inp_info%nonbonded%pot(j)%pot%type(1))
+                   CASE (ea_type,tersoff_type)
+                      ! Charge is zero for EAM and TERSOFF type potential
+                      ! Do nothing..
+                   CASE DEFAULT
+                      only_manybody = .FALSE.
+                      EXIT
+                   END SELECT
+                   found_p = .TRUE.
+                END IF
+             END DO
+             IF (only_manybody.AND.found_p) THEN
+                charges(iatom)= 0.0_dp
+             END IF
+          END IF
+       END IF
+       !
+       ! QM/MM modifications
+       !
+       IF (only_qm.AND.my_qmmm) THEN
+          IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN
+             scale_factor = 0.0_dp
+             IF (is_link_atom) THEN
+                !
+                ! Find the scaling factor...
+                !
+                DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
+                   IF (iatom == qmmm_env%mm_link_atoms(ilink)) EXIT
+                END DO
+                CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
+                scale_factor = qmmm_env%fist_scale_charge_link(ilink)
+             END IF
+             charges(iatom) = charges(iatom) * scale_factor
+          END IF
+       END IF
+    END DO
+    ! Sum up total charges for IO
+    charge_tot = SUM(charges)
+    ! Print Total Charge of the system
+    IF (iw4>0) THEN
+       WRITE(iw4,FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)')charge_tot
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE force_field_pack_charges
+
+! *****************************************************************************
+!> \brief Set up atomic_kind_set()%fist_potentail%[qeff] 
+!>      and shell potential parameters
 ! *****************************************************************************
   SUBROUTINE force_field_pack_charge(atomic_kind_set, qmmm_env, fatal, iw, iw4,&
        Ainfo, my_qmmm, inp_info, error)

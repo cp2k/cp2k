@@ -415,11 +415,13 @@ CONTAINS
 !> \date    05.06.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
+  SUBROUTINE write_fist_particle_coordinates(particle_set,cell,subsys_section,&
+             charges, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -452,6 +454,7 @@ CONTAINS
                              name=name,&
                              mass=mass,&
                              qeff=qeff)
+        IF (ASSOCIATED(charges)) qeff=charges(iatom)
         WRITE (UNIT=iw,&
                FMT="(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,name,&

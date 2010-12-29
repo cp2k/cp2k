@@ -43,9 +43,9 @@ MODULE fist_environment
   USE f77_blas
   USE fist_energy_types,               ONLY: allocate_fist_energy,&
                                              fist_energy_type
-  USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             get_fist_env,&
-                                             set_fist_env
+  USE fist_environment_types,          ONLY: fist_env_get,&
+                                             fist_env_set,&
+                                             fist_environment_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_type
   USE force_fields,                    ONLY: force_field_control
@@ -153,7 +153,7 @@ CONTAINS
     poisson_section => section_vals_get_subs_vals(mm_section,"POISSON",error=error)
     ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
 
-    CALL set_fist_env(fist_env,input=force_env_section,error=error)
+    CALL fist_env_set(fist_env,input=force_env_section,error=error)
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
          extension=".mmLog",error=error)
@@ -179,14 +179,14 @@ CONTAINS
     CALL read_ewald_section ( ewald_env, ewald_section,error )
     CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
-    CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
+    CALL fist_env_get (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
     ! Topology
     CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
                             subsys%colvar_p, subsys%gci, root_section, para_env, qmmm=qmmm,&
                             qmmm_env=qmmm_env, force_env_section=force_env_section,&
                             subsys_section=subsys_section,use_motion_section=use_motion_section,&
                             exclusions=exclusions, error=error)
-    CALL set_fist_env(fist_env, exclusions=exclusions, error=error)
+    CALL fist_env_set(fist_env, exclusions=exclusions, error=error)
 
     CALL force_field_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
                                ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&
@@ -205,7 +205,7 @@ CONTAINS
     END IF
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              shell_present=shell_present, shell_adiabatic=shell_adiabatic)
-    CALL set_fist_env(fist_env, shell_model=shell_present, &
+    CALL fist_env_set(fist_env, shell_model=shell_present, &
                       shell_model_ad=shell_adiabatic, error=error)
     CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
     CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
@@ -286,7 +286,8 @@ CONTAINS
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
     
     ! Print the atomic coordinates
-    CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
+    CALL write_fist_particle_coordinates(particle_set,cell,subsys_section, &
+                                         fist_nonbond_env%charges, error)
     CALL write_particle_distances(particle_set,cell,subsys_section,error)
     CALL write_structure_data(particle_set, cell=cell, input_section=subsys_section, error=error)
 
@@ -316,8 +317,8 @@ CONTAINS
     CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
 
     ! Set the fist_env
-    CALL set_fist_env ( fist_env = fist_env, subsys = subsys, error = error )
-    CALL set_fist_env ( fist_env=fist_env,&
+    CALL fist_env_set ( fist_env = fist_env, subsys = subsys, error = error )
+    CALL fist_env_set ( fist_env=fist_env,&
                         cell=cell, cell_ref=cell_ref, &
                         local_molecules=local_molecules,&
                         local_particles=local_particles,&

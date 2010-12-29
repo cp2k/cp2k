@@ -347,6 +347,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_CHARGES_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_SHELL_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -899,6 +903,44 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_BOND_section
+
+! *****************************************************************************
+!> \brief This section specifies the charge of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_charges_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_charges_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="charges",&
+            description="Allow to specify an array of classical charges, thus avoiding the"//&
+            " packing and permitting the usage of different charges for same atomic types.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Value of the charge for the individual atom. Order MUST reflect"//&
+            " the one specified for the geometry.", repeats=.TRUE., usage="0.3", &
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_charges_section
 
 ! *****************************************************************************
 !> \brief This section specifies the charge of the MM atoms

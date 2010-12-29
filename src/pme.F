@@ -78,7 +78,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
        fg_coulomb, pv_g, shell_particle_set, core_particle_set,&
-       fgshell_coulomb, fgcore_coulomb, use_virial, error )
+       fgshell_coulomb, fgcore_coulomb, use_virial, charges, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
@@ -94,6 +94,8 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb, &
                                                 fgcore_coulomb
     LOGICAL, INTENT(IN)                      :: use_virial
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
@@ -187,7 +189,7 @@ CONTAINS
        IF(is1_core .OR. is2_core) THEN
           CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                rhos1, rhos2 , is1_core=is1_core, is2_core=is2_core, &
-               core_particle_set=core_particle_set, error=error )
+               core_particle_set=core_particle_set, charges=charges, error=error )
 
           ! add boxes to real space grid (big box)
           IF(is1_core) THEN
@@ -202,7 +204,7 @@ CONTAINS
           END IF
        ELSE
           CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-               rhos1, rhos2 ,  error=error )
+               rhos1, rhos2 , charges=charges,  error=error )
           ! add boxes to real space grid (big box)
           CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
           IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
@@ -217,7 +219,7 @@ CONTAINS
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
           ! calculate function on small boxes (we use double packing in FFT)
           CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-               rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. , error=error)
+               rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. , charges=charges, error=error)
           ! add boxes to real space grid (big box)
           CALL dg_sum_patch ( rden, rhos1, exp_igr % shell_centre ( :, p1 ) )
           IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % shell_centre ( :, p2 ) )
@@ -299,7 +301,7 @@ CONTAINS
           ! calculate function on small boxes (we use double packing in FFT)
 
           CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, &
-               is1_core = is1_core, is2_core=is2_core )
+               is1_core = is1_core, is2_core=is2_core , charges=charges)
 
           ! sum boxes on real space grids (big box)
           IF(is1_core ) THEN
@@ -347,7 +349,7 @@ CONTAINS
 
           ! calculate function on small boxes (we use double packing in FFT)
           CALL get_patch_again ( dg, shell_particle_set, exp_igr, p1, p2, rhos1, rhos2, &
-               is1_shell=.TRUE. , is2_shell = .TRUE.)
+               is1_shell=.TRUE. , is2_shell = .TRUE., charges=charges)
 
           ! sum boxes on real space grids (big box)
           CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % shell_centre ( :, p1 ), fat )
@@ -392,7 +394,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
        grid_b, grid_s, rhos1, rhos2 , is1_core, is2_core, is1_shell,&
-       is2_shell,core_particle_set, error)
+       is2_shell, core_particle_set, charges, error)
 
     TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
@@ -406,6 +408,8 @@ CONTAINS
                                                 is1_shell, is2_shell
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: core_particle_set
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch', &
@@ -415,7 +419,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
     LOGICAL                                  :: failure, my_is1_core, &
                                                 my_is1_shell, my_is2_core, &
-                                                my_is2_shell
+                                                my_is2_shell, use_charge_array
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -425,6 +429,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(shell)
+    use_charge_array=PRESENT(charges)
+    IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
     my_is1_core = .FALSE.
     my_is2_core = .FALSE.
     IF(PRESENT(is1_core)) my_is1_core = is1_core
@@ -458,6 +464,7 @@ CONTAINS
     ELSE
        CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q1)
     END IF
+    IF (use_charge_array) q1=charges(p1)
 
     IF(my_is1_shell) THEN
        center1 => exp_igr % shell_centre ( :, p1 )
@@ -495,6 +502,7 @@ CONTAINS
        ELSE
           CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q2)
        END IF
+       IF (use_charge_array) q2=charges(p2)
 
        IF(my_is2_shell) THEN
           center2 => exp_igr % shell_centre ( :, p2 )
@@ -519,15 +527,14 @@ CONTAINS
     IF ( p2 == 0 ) THEN
        CALL dg_get_patch ( rho0, rhos1, q1, ex1, ey1, ez1 )
     ELSE
-       CALL dg_get_patch ( rho0, rhos1, rhos2, q1, q2, &
-            ex1, ey1, ez1, ex2, ey2, ez2 )
+       CALL dg_get_patch ( rho0, rhos1, rhos2, q1, q2, ex1, ey1, ez1, ex2, ey2, ez2 )
     END IF
 
   END SUBROUTINE get_patch
 
 ! *****************************************************************************
   SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is1_core, &
-       is2_core, is1_shell, is2_shell )
+       is2_core, is1_shell, is2_shell, charges )
 
     TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
@@ -537,13 +544,16 @@ CONTAINS
     TYPE(pw_p_type)                          :: rhos1, rhos2
     LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
                                                 is1_shell, is2_shell
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch_again', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     LOGICAL                                  :: my_is1_core, my_is1_shell, &
-                                                my_is2_core, my_is2_shell
+                                                my_is2_core, my_is2_shell, &
+                                                use_charge_array
     REAL(KIND=dp)                            :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -551,6 +561,8 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(shell)
+    use_charge_array=PRESENT(charges)
+    IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
     my_is1_core = .FALSE.
     my_is2_core = .FALSE.
     IF(PRESENT(is1_core)) my_is1_core = is1_core
@@ -573,6 +585,7 @@ CONTAINS
     ELSE
        CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q1)
     END IF
+    IF (use_charge_array) q1=charges(p1)
     IF (my_is1_core) THEN
        ex1 => exp_igr % core_ex ( :, particle_set (p1)%shell_index )
        ey1 => exp_igr % core_ey ( :, particle_set (p1)%shell_index )
@@ -598,6 +611,7 @@ CONTAINS
        ELSE
           CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q2)
        END IF
+       IF (use_charge_array) q2=charges(p2)
        IF (my_is2_core) THEN
           ex2 => exp_igr % core_ex ( :, particle_set (p2)%shell_index )
           ey2 => exp_igr % core_ey ( :, particle_set (p2)%shell_index )

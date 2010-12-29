@@ -50,6 +50,7 @@ MODULE fist_nonbond_env_types
                                                    vdw_scale14
     REAL (KIND=dp)                              :: long_range_correction
     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cut, rlist_lowsq, ij_kind_full_fac
+    REAL (KIND=dp), DIMENSION ( : ), POINTER    :: charges
     TYPE(fist_neighbor_type), POINTER           :: nonbonded
     TYPE(pair_potential_pp_type), POINTER       :: potparm14, potparm
     TYPE(cell_type), POINTER                    :: cell_last_update
@@ -74,7 +75,8 @@ CONTAINS
        nonbonded, rlist_cut, rlist_lowsq, aup, lup, ei_scale14, vdw_scale14, &
        shift_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
        rcore_last_update_pbc, cell_last_update, num_update, last_update, &
-       counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, error)
+       counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, &
+       charges, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
@@ -99,37 +101,40 @@ CONTAINS
       OPTIONAL, POINTER                      :: ij_kind_full_fac
     TYPE(eam_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eam_data
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    IF ( PRESENT ( potparm14 ) ) potparm14 => fist_nonbond_env % potparm14
-    IF ( PRESENT ( eam_data ) ) eam_data => fist_nonbond_env % eam_data
-    IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env % potparm
-    IF ( PRESENT ( rlist_cut ) ) rlist_cut => fist_nonbond_env % rlist_cut
-    IF ( PRESENT ( rlist_lowsq ) ) rlist_lowsq => fist_nonbond_env % rlist_lowsq
-    IF ( PRESENT ( ij_kind_full_fac ) ) ij_kind_full_fac => fist_nonbond_env % ij_kind_full_fac
-    IF ( PRESENT ( nonbonded ) ) nonbonded => fist_nonbond_env % nonbonded
+    IF ( PRESENT ( charges ) ) charges => fist_nonbond_env%charges
+    IF ( PRESENT ( potparm14 ) ) potparm14 => fist_nonbond_env%potparm14
+    IF ( PRESENT ( eam_data ) ) eam_data => fist_nonbond_env%eam_data
+    IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env%potparm
+    IF ( PRESENT ( rlist_cut ) ) rlist_cut => fist_nonbond_env%rlist_cut
+    IF ( PRESENT ( rlist_lowsq ) ) rlist_lowsq => fist_nonbond_env%rlist_lowsq
+    IF ( PRESENT ( ij_kind_full_fac ) ) ij_kind_full_fac => fist_nonbond_env%ij_kind_full_fac
+    IF ( PRESENT ( nonbonded ) ) nonbonded => fist_nonbond_env%nonbonded
     IF ( PRESENT ( r_last_update ) ) &
-         r_last_update => fist_nonbond_env % r_last_update
+         r_last_update => fist_nonbond_env%r_last_update
     IF ( PRESENT ( r_last_update_pbc ) ) &
-         r_last_update_pbc => fist_nonbond_env % r_last_update_pbc
+         r_last_update_pbc => fist_nonbond_env%r_last_update_pbc
     IF ( PRESENT ( rshell_last_update_pbc ) ) &
-         rshell_last_update_pbc => fist_nonbond_env % rshell_last_update_pbc
+         rshell_last_update_pbc => fist_nonbond_env%rshell_last_update_pbc
     IF ( PRESENT ( rcore_last_update_pbc ) ) &
-         rcore_last_update_pbc => fist_nonbond_env % rcore_last_update_pbc
+         rcore_last_update_pbc => fist_nonbond_env%rcore_last_update_pbc
     IF ( PRESENT ( cell_last_update ) ) &
-         cell_last_update => fist_nonbond_env % cell_last_update
-    IF ( PRESENT ( lup ) ) lup = fist_nonbond_env % lup 
-    IF ( PRESENT ( aup ) ) aup = fist_nonbond_env % aup
-    IF ( PRESENT ( ei_scale14 ) ) ei_scale14 = fist_nonbond_env % ei_scale14
-    IF ( PRESENT ( vdw_scale14 ) ) vdw_scale14 = fist_nonbond_env % vdw_scale14
+         cell_last_update => fist_nonbond_env%cell_last_update
+    IF ( PRESENT ( lup ) ) lup = fist_nonbond_env%lup 
+    IF ( PRESENT ( aup ) ) aup = fist_nonbond_env%aup
+    IF ( PRESENT ( ei_scale14 ) ) ei_scale14 = fist_nonbond_env%ei_scale14
+    IF ( PRESENT ( vdw_scale14 ) ) vdw_scale14 = fist_nonbond_env%vdw_scale14
     IF ( PRESENT ( shift_cutoff ) ) &
-       shift_cutoff = fist_nonbond_env % shift_cutoff
-    IF ( PRESENT ( natom_types ) ) natom_types = fist_nonbond_env % natom_types
-    IF ( PRESENT ( counter ) ) counter = fist_nonbond_env % counter
-    IF ( PRESENT ( last_update ) ) last_update = fist_nonbond_env % last_update
-    IF ( PRESENT ( num_update ) ) num_update = fist_nonbond_env % num_update
+       shift_cutoff = fist_nonbond_env%shift_cutoff
+    IF ( PRESENT ( natom_types ) ) natom_types = fist_nonbond_env%natom_types
+    IF ( PRESENT ( counter ) ) counter = fist_nonbond_env%counter
+    IF ( PRESENT ( last_update ) ) last_update = fist_nonbond_env%last_update
+    IF ( PRESENT ( num_update ) ) num_update = fist_nonbond_env%num_update
     IF ( PRESENT ( long_range_correction ) ) &
-         long_range_correction = fist_nonbond_env % long_range_correction 
+         long_range_correction = fist_nonbond_env%long_range_correction 
   END SUBROUTINE fist_nonbond_env_get
 
 ! *****************************************************************************
@@ -145,7 +150,7 @@ CONTAINS
        rlist_cut, rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
        shift_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
        rcore_last_update_pbc, cell_last_update, num_update, last_update, &
-       counter, natom_types, long_range_correction, eam_data, error)
+       counter, natom_types, long_range_correction, eam_data, charges, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
@@ -168,36 +173,39 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
     TYPE(eam_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eam_data
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    IF ( PRESENT ( potparm14 ) ) fist_nonbond_env % potparm14 => potparm14
-    IF ( PRESENT ( eam_data ) ) fist_nonbond_env % eam_data => eam_data
-    IF ( PRESENT ( potparm ) ) fist_nonbond_env % potparm => potparm
-    IF ( PRESENT ( rlist_cut ) ) fist_nonbond_env % rlist_cut => rlist_cut
-    IF ( PRESENT ( rlist_lowsq ) ) fist_nonbond_env % rlist_lowsq => rlist_lowsq
-    IF ( PRESENT ( nonbonded ) ) fist_nonbond_env % nonbonded => nonbonded
+    IF ( PRESENT ( potparm14 ) ) fist_nonbond_env%potparm14 => potparm14
+    IF ( PRESENT ( eam_data ) ) fist_nonbond_env%eam_data => eam_data
+    IF ( PRESENT ( potparm ) ) fist_nonbond_env%potparm => potparm
+    IF ( PRESENT ( rlist_cut ) ) fist_nonbond_env%rlist_cut => rlist_cut
+    IF ( PRESENT ( charges ) ) fist_nonbond_env%charges => charges
+    IF ( PRESENT ( rlist_lowsq ) ) fist_nonbond_env%rlist_lowsq => rlist_lowsq
+    IF ( PRESENT ( nonbonded ) ) fist_nonbond_env%nonbonded => nonbonded
     IF ( PRESENT ( r_last_update ) ) &
-         fist_nonbond_env % r_last_update => r_last_update
+         fist_nonbond_env%r_last_update => r_last_update
     IF ( PRESENT ( r_last_update_pbc ) ) &
-         fist_nonbond_env % r_last_update_pbc => r_last_update_pbc
+         fist_nonbond_env%r_last_update_pbc => r_last_update_pbc
     IF ( PRESENT ( rshell_last_update_pbc ) ) &
-         fist_nonbond_env % rshell_last_update_pbc => rshell_last_update_pbc
+         fist_nonbond_env%rshell_last_update_pbc => rshell_last_update_pbc
     IF ( PRESENT ( rcore_last_update_pbc ) ) &
-         fist_nonbond_env % rcore_last_update_pbc => rcore_last_update_pbc
+         fist_nonbond_env%rcore_last_update_pbc => rcore_last_update_pbc
     IF ( PRESENT ( cell_last_update ) ) &
-         fist_nonbond_env % cell_last_update => cell_last_update
-    IF ( PRESENT ( lup ) ) fist_nonbond_env % lup = lup
-    IF ( PRESENT ( aup ) ) fist_nonbond_env % aup = aup
-    IF ( PRESENT ( ei_scale14 ) ) fist_nonbond_env % ei_scale14 = ei_scale14
-    IF ( PRESENT ( vdw_scale14 ) ) fist_nonbond_env % vdw_scale14 = vdw_scale14
+         fist_nonbond_env%cell_last_update => cell_last_update
+    IF ( PRESENT ( lup ) ) fist_nonbond_env%lup = lup
+    IF ( PRESENT ( aup ) ) fist_nonbond_env%aup = aup
+    IF ( PRESENT ( ei_scale14 ) ) fist_nonbond_env%ei_scale14 = ei_scale14
+    IF ( PRESENT ( vdw_scale14 ) ) fist_nonbond_env%vdw_scale14 = vdw_scale14
     IF ( PRESENT ( shift_cutoff ) ) &
-       fist_nonbond_env % shift_cutoff = shift_cutoff
-    IF ( PRESENT ( natom_types ) ) fist_nonbond_env % natom_types = natom_types
-    IF ( PRESENT ( counter ) ) fist_nonbond_env % counter = counter
-    IF ( PRESENT ( last_update ) ) fist_nonbond_env % last_update = last_update
-    IF ( PRESENT ( num_update ) ) fist_nonbond_env % num_update = num_update
+       fist_nonbond_env%shift_cutoff = shift_cutoff
+    IF ( PRESENT ( natom_types ) ) fist_nonbond_env%natom_types = natom_types
+    IF ( PRESENT ( counter ) ) fist_nonbond_env%counter = counter
+    IF ( PRESENT ( last_update ) ) fist_nonbond_env%last_update = last_update
+    IF ( PRESENT ( num_update ) ) fist_nonbond_env%num_update = num_update
     IF ( PRESENT ( long_range_correction ) ) &
-         fist_nonbond_env % long_range_correction = long_range_correction
+         fist_nonbond_env%long_range_correction = long_range_correction
   END SUBROUTINE fist_nonbond_env_set
 
 ! *****************************************************************************
@@ -244,6 +252,7 @@ CONTAINS
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
     NULLIFY(fist_nonbond_env%eam_data)
+    NULLIFY(fist_nonbond_env%charges)
     CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm14, &
          potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, vdw_scale14, &
          shift_cutoff, error)
@@ -291,17 +300,17 @@ CONTAINS
     NULLIFY (fist_nonbond_env%rlist_cut)
     NULLIFY (fist_nonbond_env%rlist_lowsq)
     NULLIFY (fist_nonbond_env%ij_kind_full_fac)
-    fist_nonbond_env % unit_type = "ANGSTROM"
-    fist_nonbond_env % do_nonbonded = do_nonbonded
-    fist_nonbond_env % lup = 0
-    fist_nonbond_env % aup = 0
-    fist_nonbond_env % ei_scale14 = ei_scale14
-    fist_nonbond_env % vdw_scale14 = vdw_scale14
-    fist_nonbond_env % shift_cutoff = shift_cutoff
-    fist_nonbond_env % counter = 0
-    fist_nonbond_env % last_update = 0
-    fist_nonbond_env % num_update = 0
-    fist_nonbond_env % long_range_correction = 0
+    fist_nonbond_env%unit_type = "ANGSTROM"
+    fist_nonbond_env%do_nonbonded = do_nonbonded
+    fist_nonbond_env%lup = 0
+    fist_nonbond_env%aup = 0
+    fist_nonbond_env%ei_scale14 = ei_scale14
+    fist_nonbond_env%vdw_scale14 = vdw_scale14
+    fist_nonbond_env%shift_cutoff = shift_cutoff
+    fist_nonbond_env%counter = 0
+    fist_nonbond_env%last_update = 0
+    fist_nonbond_env%num_update = 0
+    fist_nonbond_env%long_range_correction = 0
     fist_nonbond_env%ref_count=1
     fist_nonbond_env%id_nr=last_fist_nonbond_env_id_nr
     last_fist_nonbond_env_id_nr=last_fist_nonbond_env_id_nr+1
@@ -427,46 +436,50 @@ CONTAINS
        CPPrecondition(fist_nonbond_env%ref_count>0,cp_failure_level,routineP,error,failure)
        fist_nonbond_env%ref_count=fist_nonbond_env%ref_count-1
        IF (fist_nonbond_env%ref_count<1) THEN
-          IF (ASSOCIATED(fist_nonbond_env % nonbonded)) THEN
-             CALL fist_neighbor_deallocate (fist_nonbond_env % nonbonded, error )
+          IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
+             CALL fist_neighbor_deallocate (fist_nonbond_env%nonbonded, error )
           END IF
           ! Release potparm
-          CALL pair_potential_pp_release ( fist_nonbond_env % potparm, error )
+          CALL pair_potential_pp_release ( fist_nonbond_env%potparm, error )
           ! Release potparm14
-          CALL pair_potential_pp_release ( fist_nonbond_env % potparm14, error )
-          IF (ASSOCIATED(fist_nonbond_env % r_last_update)) THEN
-             DEALLOCATE (fist_nonbond_env % r_last_update,STAT=stat)
+          CALL pair_potential_pp_release ( fist_nonbond_env%potparm14, error )
+          IF (ASSOCIATED(fist_nonbond_env%r_last_update)) THEN
+             DEALLOCATE (fist_nonbond_env%r_last_update,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % r_last_update_pbc)) THEN
-             DEALLOCATE (fist_nonbond_env % r_last_update_pbc,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%r_last_update_pbc)) THEN
+             DEALLOCATE (fist_nonbond_env%r_last_update_pbc,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % eam_data)) THEN
-             DEALLOCATE (fist_nonbond_env % eam_data,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
+             DEALLOCATE (fist_nonbond_env%charges,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % rshell_last_update_pbc)) THEN
-             DEALLOCATE (fist_nonbond_env % rshell_last_update_pbc,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
+             DEALLOCATE (fist_nonbond_env%eam_data,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % rcore_last_update_pbc)) THEN
-             DEALLOCATE (fist_nonbond_env % rcore_last_update_pbc,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
+             DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % cell_last_update)) THEN
-             CALL cell_release(fist_nonbond_env % cell_last_update,error)
-          ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % ij_kind_full_fac)) THEN
-             DEALLOCATE (fist_nonbond_env % ij_kind_full_fac,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%rcore_last_update_pbc)) THEN
+             DEALLOCATE (fist_nonbond_env%rcore_last_update_pbc,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % rlist_cut)) THEN
-             DEALLOCATE (fist_nonbond_env % rlist_cut,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%cell_last_update)) THEN
+             CALL cell_release(fist_nonbond_env%cell_last_update,error)
+          ENDIF
+          IF (ASSOCIATED(fist_nonbond_env%ij_kind_full_fac)) THEN
+             DEALLOCATE (fist_nonbond_env%ij_kind_full_fac,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          IF (ASSOCIATED(fist_nonbond_env % rlist_lowsq)) THEN
-             DEALLOCATE (fist_nonbond_env % rlist_lowsq,STAT=stat)
+          IF (ASSOCIATED(fist_nonbond_env%rlist_cut)) THEN
+             DEALLOCATE (fist_nonbond_env%rlist_cut,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(fist_nonbond_env%rlist_lowsq)) THEN
+             DEALLOCATE (fist_nonbond_env%rlist_lowsq,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
           DEALLOCATE(fist_nonbond_env, STAT=stat)

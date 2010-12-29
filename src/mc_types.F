@@ -22,8 +22,8 @@ MODULE mc_types
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             get_fist_env
+  USE fist_environment_types,          ONLY: fist_env_get,&
+                                             fist_environment_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -1509,7 +1509,7 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 
       lterminate=.FALSE.
       CALL force_env_get(force_env,fist_env=fist_env,error=error)
-      CALL get_fist_env(fist_env,cell=cell,&
+      CALL fist_env_get(fist_env,cell=cell,&
          fist_nonbond_env=fist_nonbond_env,error=error)
       CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm,error=error)
       CALL get_cell(cell,abc=abc)

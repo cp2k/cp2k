@@ -36,10 +36,10 @@ MODULE force_env_types
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
-  USE fist_environment_types,          ONLY: fist_env_release,&
-                                             fist_environment_type,&
-                                             get_fist_env,&
-                                             set_fist_env
+  USE fist_environment_types,          ONLY: fist_env_get,&
+                                             fist_env_release,&
+                                             fist_env_set,&
+                                             fist_environment_type
   USE fp_types,                        ONLY: fp_env_release,&
                                              fp_env_retain,&
                                              fp_type
@@ -393,7 +393,7 @@ CONTAINS
           CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
           CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
-          CALL get_fist_env(force_env%fist_env,&
+          CALL fist_env_get(force_env%fist_env,&
                             thermo=thermo,&
                             cell=cell,&
                             cell_ref=cell_ref,&
@@ -833,9 +833,9 @@ CONTAINS
           CALL qs_ks_release ( new_ks_env ,error=error)
        CASE (use_fist_force)
           CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
-          CALL get_fist_env ( force_env%fist_env, ewald_pw = ewald_pw,  &
+          CALL fist_env_get ( force_env%fist_env, ewald_pw = ewald_pw,  &
                               ewald_env = ewald_env ,error=error)
-          CALL set_fist_env(force_env%fist_env, cell=cell, error=error)
+          CALL fist_env_set(force_env%fist_env, cell=cell, error=error)
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
        CASE (use_eip_force)
           CPAssert(.FALSE., cp_failure_level, routineP, error, failure)

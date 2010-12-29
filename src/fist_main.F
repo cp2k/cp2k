@@ -17,8 +17,8 @@ MODULE fist_main
   USE fist_environment,                ONLY: fist_init
   USE fist_environment_types,          ONLY: fist_env_create,&
                                              fist_env_release,&
-                                             fist_environment_type,&
-                                             set_fist_env
+                                             fist_env_set,&
+                                             fist_environment_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -82,9 +82,9 @@ CONTAINS
 
     CALL fist_env_create( fist_env, para_env = para_env ,error=error)
     IF (PRESENT(qmmm_env)) THEN
-       CALL set_fist_env (fist_env, qmmm=myqmmm, qmmm_env=qmmm_env, error=error)
+       CALL fist_env_set (fist_env, qmmm=myqmmm, qmmm_env=qmmm_env, error=error)
     ELSE
-       CALL set_fist_env (fist_env, qmmm=myqmmm, error=error)
+       CALL fist_env_set (fist_env, qmmm=myqmmm, error=error)
     END IF    
     ! *** Read the input and the database files and perform further  ***
     ! *** initializations for the setup of the FIST environment ***

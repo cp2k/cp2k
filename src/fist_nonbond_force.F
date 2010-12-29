@@ -201,6 +201,7 @@ CONTAINS
                                      qeff=qeff_a,&
                                      mm_radius=mm_radius_a,&
                                      shell=shell_kind)
+                IF (ASSOCIATED(fist_nonbond_env%charges)) qeff_a=fist_nonbond_env%charges(atom_a)
                 IF (ASSOCIATED(shell_kind)) THEN
                    CALL get_shell(shell=shell_kind,&
                                   charge_core=qcore_a,&
@@ -218,6 +219,7 @@ CONTAINS
                                      qeff=qeff_b,&
                                      mm_radius=mm_radius_b,&
                                      shell=shell_kind)
+                IF (ASSOCIATED(fist_nonbond_env%charges)) qeff_b=fist_nonbond_env%charges(atom_b)
                 IF (ASSOCIATED(shell_kind)) THEN
                    CALL get_shell(shell=shell_kind,&
                                   charge_core=qcore_b,&
@@ -631,6 +633,7 @@ CONTAINS
              ! Parameters for kind a
              atomic_kind => atomic_kind_set(kind_a)
              CALL get_atomic_kind(atomic_kind, qeff=qeff_a, shell=shell_kind)
+             IF (ASSOCIATED(fist_nonbond_env%charges)) qeff_a=fist_nonbond_env%charges(atom_a)
              a_is_shell = ASSOCIATED(shell_kind)
              IF (a_is_shell) THEN
                 CALL get_shell(shell=shell_kind, charge_core=qcore_a, &
@@ -649,6 +652,7 @@ CONTAINS
              ! Parameters for kind b
              atomic_kind => atomic_kind_set(kind_b)
              CALL get_atomic_kind(atomic_kind, qeff=qeff_b, shell=shell_kind)
+             IF (ASSOCIATED(fist_nonbond_env%charges)) qeff_b=fist_nonbond_env%charges(atom_b)
              b_is_shell = ASSOCIATED(shell_kind)
              IF (b_is_shell) THEN
                 CALL get_shell(shell=shell_kind, charge_core=qcore_b, &
