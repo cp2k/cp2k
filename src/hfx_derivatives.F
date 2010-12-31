@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2010  CP2K developers group                          !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -2087,8 +2087,6 @@ MODULE hfx_derivatives
     tmp_virial(i,j) = tmp_virial(i,j) - temp4
   END SUBROUTINE update_virial
 
-
-
-#include "hfx_get_pmax_val.h"
+#include "hfx_get_pmax_val.f90"
 
 END MODULE hfx_derivatives

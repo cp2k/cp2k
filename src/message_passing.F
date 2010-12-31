@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2010  CP2K developers group                          !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -2400,11 +2400,11 @@ CONTAINS
   END SUBROUTINE mp_bcast_zv_t3e
 
 
-#include "message_i_passing.F"
-#include "message_l_passing.F"
-#include "message_r_passing.F"
-#include "message_d_passing.F"
-#include "message_c_passing.F"
-#include "message_z_passing.F"
+#include "message_i_passing.f90"
+#include "message_l_passing.f90"
+#include "message_r_passing.f90"
+#include "message_d_passing.f90"
+#include "message_c_passing.f90"
+#include "message_z_passing.f90"
 
 END MODULE message_passing

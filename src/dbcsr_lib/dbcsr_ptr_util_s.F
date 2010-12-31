@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer

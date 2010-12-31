@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 !> \brief Gets a 2-d block from a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix

@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
   SUBROUTINE dbcsr_buffers_set_p_2d_z (pointer_2d,&
        row, col, rsize, csize, main_tr, base_offset, buffers, buff_tr, error)
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER      :: pointer_2d

@@ -1,6 +1,7 @@
 [
 {
         'nametype1':  'i',
+        'ext':        '.f90',
         'type1':      'INTEGER(KIND=int_4)',
 	'mpi_type1':  'MPI_INTEGER',
 	'mpi_2type1': 'MPI_2INTEGER',
@@ -11,6 +12,7 @@
 },
 {
         'nametype1':  'l',
+        'ext':        '.f90',
         'type1':      'INTEGER(KIND=int_8)',
 	'mpi_type1':  'MPI_INTEGER8',
 	'mpi_2type1': 'MPI_INTEGER8',
@@ -21,6 +23,7 @@
 },
 {
         'nametype1':  'd',
+        'ext':        '.f90',
         'type1':      'real(kind=real_8)',
 	'mpi_type1':  'MPI_DOUBLE_PRECISION',
 	'mpi_2type1': 'MPI_2DOUBLE_PRECISION',
@@ -31,6 +34,7 @@
 },
 {
         'nametype1':  'r',
+        'ext':        '.f90',
         'type1':      'real(kind=real_4)',
 	'mpi_type1':  'MPI_REAL',
 	'mpi_2type1': 'MPI_2REAL',
@@ -41,6 +45,7 @@
 },
 {
         'nametype1':  'z',
+        'ext':        '.f90',
         'type1':      'complex(kind=real_8)',
 	'mpi_type1':  'MPI_DOUBLE_COMPLEX',
 	'mpi_2type1': 'MPI_2DOUBLE_COMPLEX',
@@ -51,6 +56,7 @@
 },
 {
         'nametype1':  'c',
+        'ext':        '.f90',
         'type1':      'complex(kind=real_4)',
 	'mpi_type1':  'MPI_COMPLEX',
 	'mpi_2type1': 'MPI_2COMPLEX',

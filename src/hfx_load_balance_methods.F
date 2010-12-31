@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2010  CP2K developers group                          !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -1940,6 +1940,6 @@ MODULE hfx_load_balance_methods
 
   END SUBROUTINE
 
-#include "hfx_get_pmax_val.h"
+#include "hfx_get_pmax_val.f90"
 
 END MODULE hfx_load_balance_methods

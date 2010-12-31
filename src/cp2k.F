@@ -1,39 +1,40 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2010  CP2K developers group                          !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief starts the program
 !> \par Copyright
-!>    CP2K: A general program to perform molecular dynamics simulations         !
-!>    Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !
-!>    Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !
-!>    Copyright (C) 2008, 2009, 2010        CP2K developers group               !
+!>    CP2K: A general program to perform molecular dynamics simulations
+!>    Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group
+!>    Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group
+!>    Copyright (C) 2008, 2009, 2010, 2011  CP2K developers group
+!>    Copyright (C)                         CP2K developers group
 !> \par
-!>    This program is free software; you can redistribute it and/or modify      !
-!>    it under the terms of the GNU General Public License as published by      !
-!>    the Free Software Foundation; either version 2 of the License, or         !
-!>    (at your option) any later version.                                       !
+!>    This program is free software; you can redistribute it and/or modify
+!>    it under the terms of the GNU General Public License as published by
+!>    the Free Software Foundation; either version 2 of the License, or
+!>    (at your option) any later version.
 !> \par
-!>    This program is distributed in the hope that it will be useful,           !
-!>    but WITHOUT ANY WARRANTY; without even the implied warranty of            !
-!>    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             !
-!>    GNU General Public License for more details.                              !
+!>    This program is distributed in the hope that it will be useful,
+!>    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!>    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!>    GNU General Public License for more details.
 !> \par
-!>    You should have received a copy of the GNU General Public License         !
-!>    along with this program; if not, write to the Free Software               !
-!>    Foundation, Inc., 51 Franklin Street, Fifth Floor,                        !
-!>    Boston, MA  02110-1301, USA.                                              !
+!>    You should have received a copy of the GNU General Public License
+!>    along with this program; if not, write to the Free Software
+!>    Foundation, Inc., 51 Franklin Street, Fifth Floor,
+!>    Boston, MA  02110-1301, USA.
 !> \par
-!>    See also http://www.fsf.org/licensing/licenses/gpl.html                   !
+!>    See also http://www.fsf.org/licensing/licenses/gpl.html
 !> \par
-!>    CP2K, including its sources and pointers to the authors                   !
-!>    can be found at  http://cp2k.berlios.de/                                  !
+!>    CP2K, including its sources and pointers to the authors
+!>    can be found at  http://cp2k.berlios.de/ 
 !> \note
 !>       should be kept as lean as possible.
-!>       see cp2k_run for more comments    
-!> \author Joost VandeVondele    !
+!>       see cp2k_run for more comments
+!> \author Joost VandeVondele
 ! *****************************************************************************
 PROGRAM cp2k
   USE cp2k_info,         ONLY : print_cp2k_license,&

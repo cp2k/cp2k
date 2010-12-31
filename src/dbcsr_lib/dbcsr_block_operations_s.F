@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 !> \brief Sets the diagonal of a square data block represented as a 1-D array
 !>        to a single value.
