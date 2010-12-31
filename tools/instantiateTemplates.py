@@ -94,10 +94,16 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
           logFile.write("ERROR opening template '"+inName+"'\n")
           raise
         outName=instantiationFile[:-len(extension)]
+        id_ext=0
         for token in substitution.keys():
+          if token=="ext" :
+            id_ext=1
           outName=re.sub("(?<![a-zA-Z0-9])_"+token+"_(?![a-zA-Z0-9])",
                          substitution[token],outName)
-        outName=outName+".F"
+        tmpName=outName+".F"
+        if id_ext==1 :
+          tmpName=outName+substitution["ext"]
+        outName=tmpName
         if outDir:
           outName=os.path.join(outDir,os.path.basename(outName))
         try: outfile=open(outName,'w')
