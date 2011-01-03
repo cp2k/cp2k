@@ -51,6 +51,7 @@ MODULE dbcsr_internal_operations
                                              real_8,&
                                              sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
+                                             m_flush,&
                                              m_walltime
   USE dbcsr_message_passing,           ONLY: mp_allgather,&
                                              mp_irecv,&
@@ -196,31 +197,34 @@ CONTAINS
     INTEGER, PARAMETER                       :: idata = 1, imeta = 2, &
                                                 M_L = 2, M_P = 1, M_R = 3, &
                                                 RC_C = 2, RC_R = 1
-    LOGICAL, PARAMETER                       :: use_combined_types = .FALSE.
+    LOGICAL, PARAMETER                       :: excessive_output = .FALSE., &
+                                                use_combined_types = .FALSE.
 
-    INTEGER :: data_type, error_handler, error_handler2, grp, i, &
-      left_col_image, left_col_mult, left_col_nimages, left_col_v_offset, &
-      left_dst_icol, left_dst_irow, left_dst_p, left_dst_pcol, left_dst_prow, &
-      left_dst_v_col, left_dst_v_row, left_max_nze, left_recv_icol, &
-      left_recv_irow, left_recv_p, left_recv_pcol, left_recv_prow, &
-      left_recv_v_col, left_recv_v_row, left_row_image, left_row_mult, &
-      left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
-      left_send_pcol, left_send_prow, left_send_v_col, left_send_v_row, &
-      left_src_icol, left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
-      left_src_v_col, left_src_v_row
-    INTEGER :: max_nblks, max_nze, metronome, min_nimages, mp_group, mynode, &
+    INTEGER :: data_type, error_handler, error_handler2, flop_metronome, grp, &
+      i, left_col_image, left_col_mult, left_col_nimages, left_col_v_offset, &
+      left_data_send_size, left_dst_icol, left_dst_irow, left_dst_p, &
+      left_dst_pcol, left_dst_prow, left_dst_v_col, left_dst_v_row, &
+      left_index_send_size, left_max_nze, left_recv_icol, left_recv_irow, &
+      left_recv_p, left_recv_pcol, left_recv_prow, left_recv_v_col, &
+      left_recv_v_row, left_row_image, left_row_mult, left_row_nimages, &
+      left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
+      left_send_prow, left_send_v_col, left_send_v_row, left_src_icol, &
+      left_src_irow, left_src_p
+    INTEGER :: left_src_pcol, left_src_prow, left_src_v_col, left_src_v_row, &
+      max_nblks, max_nze, metronome, min_nimages, mp_group, mynode, &
       nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
       output_unit, right_col_image, right_col_mult, right_col_nimages, &
-      right_dst_icol, right_dst_irow, right_dst_p, right_dst_pcol, &
-      right_dst_prow, right_dst_v_col, right_dst_v_row, right_max_nze, &
-      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
-      right_recv_prow, right_recv_v_col, right_recv_v_row, right_row_image, &
-      right_row_mult, right_row_nimages, right_row_v_offset, right_send_icol, &
-      right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
-      right_send_v_col
-    INTEGER :: right_send_v_row, right_src_icol, right_src_irow, right_src_p, &
-      right_src_pcol, right_src_prow, right_src_v_col, right_src_v_row, row, &
-      size_guess, stat, v_k, v_ki
+      right_data_send_size, right_dst_icol, right_dst_irow, right_dst_p, &
+      right_dst_pcol, right_dst_prow, right_dst_v_col, right_dst_v_row, &
+      right_index_send_size, right_max_nze, right_recv_icol, right_recv_irow, &
+      right_recv_p, right_recv_pcol, right_recv_prow, right_recv_v_col, &
+      right_recv_v_row, right_row_image, right_row_mult, right_row_nimages, &
+      right_row_v_offset
+    INTEGER :: right_send_icol, right_send_irow, right_send_p, &
+      right_send_pcol, right_send_prow, right_send_v_col, right_send_v_row, &
+      right_src_icol, right_src_irow, right_src_p, right_src_pcol, &
+      right_src_prow, right_src_v_col, right_src_v_row, row, size_guess, &
+      stat, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
@@ -236,6 +240,7 @@ CONTAINS
                                                 right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
+    INTEGER, SAVE                            :: mult_id = 0
     LOGICAL                                  :: keep_sparsity, my_use_plasma, &
                                                 otf_filtering
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
@@ -272,6 +277,7 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
+    mult_id=mult_id+1
 
     my_use_plasma = .FALSE.
     IF(PRESENT(use_plasma)) my_use_plasma = use_plasma
@@ -298,6 +304,11 @@ CONTAINS
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
+    flop_metronome=0
+    left_index_send_size=0
+    right_index_send_size=0
+    left_data_send_size=0
+    right_data_send_size=0
     trun_t = m_walltime ()
     ! Set up variables
     data_type = dbcsr_get_data_type (product_matrix)
@@ -702,7 +713,7 @@ CONTAINS
             "last k",(metronome+1)*min_nimages-1
        ! Wait for right matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_wait_right", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           CALL mp_waitall (right_data_sr)
@@ -860,7 +871,7 @@ CONTAINS
                 grp = dbcsr_mp_group (right_mp_obj)
              ENDIF
              !
-             CALL dbcsr_error_set(routineN//"_isend_right", error_handler2, error)
+             CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
              IF (use_combined_types) THEN
                 right_send_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_sp)
                 right_send_subtypes(2) = mp_type_make (right_index_sp)
@@ -873,12 +884,14 @@ CONTAINS
                 CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              ELSE
+                right_data_send_size=right_data_send_size+SIZE(right_data_sp%d%r_dp)
                 CALL dbcsr_isend_any (right_data_sp, right_send_p,&
                      grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row,&
                      error=error)
                 CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row,&
                      error=error)
+                right_index_send_size=right_index_send_size+SIZE(right_index_sp)
                 CALL mp_isend (right_index_sp, right_send_p,&
                      grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_index_rp, right_recv_p,&
@@ -898,7 +911,7 @@ CONTAINS
        !
        ! Wait for left matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_wait_left", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
@@ -1058,7 +1071,7 @@ CONTAINS
                 grp = dbcsr_mp_group (left_mp_obj)
              ENDIF
              !
-             CALL dbcsr_error_set(routineN//"_isend_left", error_handler2, error)
+             CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
              IF (use_combined_types) THEN
                 left_send_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_sp)
                 left_send_subtypes(2) = mp_type_make (left_index_sp)
@@ -1071,12 +1084,14 @@ CONTAINS
                 CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              ELSE
+                left_data_send_size=left_data_send_size+SIZE(left_data_sp%d%r_dp)
                 CALL dbcsr_isend_any (left_data_sp, left_send_p,&
                      grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col,&
                      error=error)
                 CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_v_col,&
                      error=error)
+                left_index_send_size=left_index_send_size+SIZE(left_index_sp)
                 CALL mp_isend (left_index_sp, left_send_p,&
                      grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_index_rp, left_recv_p,&
@@ -1153,6 +1168,7 @@ CONTAINS
 
 !$omp end parallel
              flop_total = flop_total + flop_single
+             flop_metronome=flop_metronome+flop_single
              tstop = m_walltime ()
              IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
              IF ((output_unit>0) .AND. detailed_timing) THEN
@@ -1163,6 +1179,18 @@ CONTAINS
              ENDIF
              trun = trun + (tstop - tstart)
           ENDDO
+
+          IF (excessive_output) THEN
+             WRITE(1000000+mynode,*) mult_id, metronome,flop_metronome, &
+                                     left_index_send_size,right_index_send_size, &
+                                     left_data_send_size,right_data_send_size
+          ENDIF
+          flop_metronome=0
+          left_index_send_size=0
+          right_index_send_size=0
+          left_data_send_size=0
+          right_data_send_size=0
+
        ENDIF calc_case_left
        IF (metronome .EQ. 1) THEN
           left_buffer_calc => left_buffer_1
@@ -1172,6 +1200,7 @@ CONTAINS
        CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
     ENDDO grouped_k_index
     trun_t = m_walltime () - trun_t
+    IF (excessive_output) CALL m_flush(1000000+mynode)
     IF (trun_t .EQ. 0) trun_t = 0.000001_dp
     IF (trun .EQ. 0) trun = 0.000001_dp
     IF ((output_unit>0) .AND. detailed_timing) THEN
