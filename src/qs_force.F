@@ -232,20 +232,6 @@ CONTAINS
          mo_derivs=mo_derivs,&
          rho=rho,error=error)
 
-    IF (.NOT.has_unit_metric) THEN
-       nspin = SIZE(matrix_w)
-       DO ispin=1,nspin
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
-             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
-                  extension=".Log",error=error)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                  "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
-          END IF
-       END DO
-    ENDIF
-
     IF (qs_env%run_rtp) THEN
        CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
        DO ispin=1,dft_control%nspins
@@ -259,6 +245,20 @@ CONTAINS
 
        CALL calc_c_mat_force(qs_env,dp_imag,error)
     END IF
+
+    IF (.NOT.has_unit_metric) THEN
+       nspin = SIZE(matrix_w)
+       DO ispin=1,nspin
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+               qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
+                  extension=".Log",error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+                  "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
+          END IF
+       END DO
+    ENDIF
 
     ! from an eventual Mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
