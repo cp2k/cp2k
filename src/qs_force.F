@@ -220,7 +220,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          matrix_s=matrix_s,&
          has_unit_metric=has_unit_metric,&
-         mos=mos, error=error)
+         error=error)
 
     CALL qs_energies(qs_env,globenv,calc_forces=.TRUE.,error=error)
 
@@ -230,11 +230,10 @@ CONTAINS
          matrix_s=matrix_s,&
          matrix_w=matrix_w,&
          mo_derivs=mo_derivs,&
-         mos=mos,&
          rho=rho,error=error)
 
     IF (.NOT.has_unit_metric) THEN
-       nspin = SIZE(mos)
+       nspin = SIZE(matrix_w)
        DO ispin=1,nspin
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN

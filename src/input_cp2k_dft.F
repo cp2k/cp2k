@@ -373,6 +373,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_ls_scf_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_scp_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -2142,6 +2146,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="LS_SCF",&
+            description="Perform a linear scaling SCF",&
+            usage="LS_SCF",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAP_CONSISTENT",&
             description="Compute the exact derivative (Hks) of the energy with respect to the density matrix. "//&
                         "This is slightly more expensive than using an approximate computation, "//&
@@ -3661,7 +3672,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"scf",&
             description="parameters needed perform an scf run",&
-            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY (subsection)
@@ -3959,6 +3970,110 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_scf_section
+
+! *****************************************************************************
+!> \brief creates the linear scaling scf section
+!> \author Joost VandeVondele [2010-10]
+! *****************************************************************************
+  SUBROUTINE create_ls_scf_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ls_scf_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"LS_SCF",&
+            description="Specifies the parameters of the linear scaling SCF routines",&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY (keyword)
+
+       CALL keyword_create(keyword, name="MAX_SCF",&
+            description="Maximum number of SCF iteration to be performed for one optimization",&
+            usage="MAX_SCF 200", default_i_val=20,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_SCF",&
+            description="target accuracy for the scf convergence. Change of the total energy per electron",&
+            usage="EPS_SCF 1.e-6", default_r_val=1.e-7_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MIXING_FRACTION",&
+            description="Mixing density matrices uses the specified fraction in the SCF procedure.",&
+            usage="MIXING_FRACTION 0.4", default_r_val=0.45_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_FILTER",&
+            description="Threshold used for filtering matrix operations.",&
+            usage="EPS_FILTER 1.0E-7", default_r_val=1.0E-6_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MU",&
+            description="Value (or initial guess) for the chemical potential,"//&
+                        " i.e. some suitable energy between HOMO and LUMO energy.",&
+            usage="MU 0.0", default_r_val=-0.1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FIXED_MU",&
+            description="Should the calculation be performed at fixed chemical potential,"//&
+                        " or should it be found fixing the number of electrons",&
+            usage="FIXED_MU .TRUE.", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,  error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="S_PRECONDITIONER",&
+            description="Preconditions S with some appropriate form.",&
+            usage="S_PRECONDITIONER MOLECULAR",&
+            default_i_val=ls_s_preconditioner_atomic,&
+            enum_c_vals=s2a( "NONE", "ATOMIC", "MOLECULAR"),&
+            enum_desc=s2a("No preconditioner",&
+                          "Using atomic blocks",&
+                          "Using molecular sub-blocks. Recommended if molecules are defined and not too large."),&
+            enum_i_vals=(/ls_s_preconditioner_none, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="S_INVERSION",&
+            description="Method used to compute the inverse of S.",&
+            usage="S_PRECONDITIONER MOLECULAR",&
+            default_i_val=ls_s_inversion_sign_sqrt,&
+            enum_c_vals=s2a("SIGN_SQRT","HOTELLING"),&
+            enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.",&
+                          "Using the Hotellign iteration."),&
+            enum_i_vals=(/ls_s_inversion_sign_sqrt,ls_s_inversion_hotelling/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="REPORT_ALL_SPARSITIES",&
+            description="Run the sparsity report at the end of the SCF",&
+            usage="REPORT_ALL_SPARSITIES", default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PERFORM_MU_SCAN",&
+            description="Do a scan of the chemical potential after the SCF",&
+            usage="PERFORM_MU_SCAN", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_ls_scf_section
 
 ! *****************************************************************************
 !> \brief creates the structure of the section with scf parameters

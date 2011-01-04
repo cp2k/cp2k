@@ -21,6 +21,7 @@ MODULE qs_energy
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dm_ls_scf,                       ONLY: ls_scf
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
@@ -220,47 +221,51 @@ CONTAINS
     ENDIF
 
     ! *** Perform a SCF run ***
-    CALL scf(qs_env=qs_env,  error=error)
+    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+      CALL ls_scf(qs_env=qs_env, error=error)
+    ELSE
+      CALL scf(qs_env=qs_env, error=error)
  
-    ! if calculate forces, time to compute the w matrix
-    CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric,error=error)
-    IF (calc_forces.AND..NOT.has_unit_metric) THEN
-       CALL get_qs_env(qs_env=qs_env,&
-            ks_env=ks_env,&
-            matrix_ks=matrix_ks,&
-            matrix_s=matrix_s,&
-            mo_derivs=mo_derivs,&
-            scf_control=scf_control,&
-            mos=mos,&
-            rho=rho,error=error)
-       nspin = SIZE(mos)
-       DO ispin=1,nspin
-          mo_set => mos(ispin)%mo_set
-          IF (qs_env%dft_control%roks) THEN
-             IF (scf_control%use_ot) THEN
-                IF (ispin > 1) THEN
-                   ! not very elegant, indeed ...
-                   CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
-                ELSE
-                   CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
-                        matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-                END IF
-             ELSE
-                CALL calculate_w_matrix(mo_set=mo_set,&
-                     matrix_ks=matrix_ks(ispin)%matrix,&
-                     matrix_p=rho%rho_ao(ispin)%matrix,&
-                     matrix_w=matrix_w(ispin)%matrix,&
-                     error=error)
-             END IF
-          ELSE
-             IF (scf_control%use_ot) THEN
-                CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
-                     matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-             ELSE
-                CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
-             END IF
-          END IF
-       END DO
+      ! if calculate forces, time to compute the w matrix
+      CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric,error=error)
+      IF (calc_forces.AND..NOT.has_unit_metric) THEN
+         CALL get_qs_env(qs_env=qs_env,&
+              ks_env=ks_env,&
+              matrix_ks=matrix_ks,&
+              matrix_s=matrix_s,&
+              mo_derivs=mo_derivs,&
+              scf_control=scf_control,&
+              mos=mos,&
+              rho=rho,error=error)
+         nspin = SIZE(mos)
+         DO ispin=1,nspin
+            mo_set => mos(ispin)%mo_set
+            IF (qs_env%dft_control%roks) THEN
+               IF (scf_control%use_ot) THEN
+                  IF (ispin > 1) THEN
+                     ! not very elegant, indeed ...
+                     CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+                  ELSE
+                     CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
+                          matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                  END IF
+               ELSE
+                  CALL calculate_w_matrix(mo_set=mo_set,&
+                       matrix_ks=matrix_ks(ispin)%matrix,&
+                       matrix_p=rho%rho_ao(ispin)%matrix,&
+                       matrix_w=matrix_w(ispin)%matrix,&
+                       error=error)
+               END IF
+            ELSE
+               IF (scf_control%use_ot) THEN
+                  CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
+                       matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+               ELSE
+                  CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
+               END IF
+            END IF
+         END DO
+      END IF
     END IF
 
     IF (PRESENT(consistent_energies)) THEN

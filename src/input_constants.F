@@ -852,4 +852,12 @@ MODULE input_constants
                                               do_fist_pol_sc = 2, &
                                               do_fist_pol_cg = 3
 
+  ! some dm_ls_scf parameters
+  INTEGER, PARAMETER, PUBLIC               :: ls_s_preconditioner_none=7, &
+                                              ls_s_preconditioner_atomic=13,&
+                                              ls_s_preconditioner_molecular=17
+
+  INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
+                                              ls_s_inversion_sign_sqrt=5
+
 END MODULE input_constants

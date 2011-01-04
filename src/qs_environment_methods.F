@@ -167,11 +167,14 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        ! rebuilds fm_pools 
 
-       CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
-              blacs_env=qs_env%blacs_env, para_env=para_env,&
-              nrow_block=scf_control%nrow_block,&
-              ncol_block=scf_control%ncol_block,&
-              error=error)
+       ! XXXX should get rid of the mpools
+       IF (ASSOCIATED(qs_env%mos)) THEN
+           CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
+                  blacs_env=qs_env%blacs_env, para_env=para_env,&
+                  nrow_block=scf_control%nrow_block,&
+                  ncol_block=scf_control%ncol_block,&
+                  error=error)
+       ENDIF
        
        ! If we use auxiliary density matrix methods rebuild fm_pools
        IF( qs_env%dft_control%do_admm ) THEN

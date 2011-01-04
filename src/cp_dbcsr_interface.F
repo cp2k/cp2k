@@ -2138,6 +2138,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset (routineN, handle)
+
     IF (PRESENT (round_blk_size_up)) THEN
        round_up = round_blk_size_up
     ELSE
@@ -2527,6 +2528,8 @@ CONTAINS
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
+
+    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_s
 
@@ -2571,6 +2574,7 @@ CONTAINS
     buffers = matrix_b%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     CALL cluster_buffer_flush (matrix_c%buffers, error=error)
+
     !
     IF (.FALSE.) THEN
        IF (prnt) &
@@ -2685,6 +2689,9 @@ CONTAINS
     ENDIF
     IF (verify) cs_b = cp_dbcsr_checksum (matrix_c, error=error)
     CALL timestop(timing_handle_detail)
+
+    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
+
     CALL timestop(timing_handle)
     IF (verify) THEN
        WRITE(*,'(A,4(1X,E9.3))')routineN//" checksums", cs_c, cs_b,&
@@ -2702,6 +2709,7 @@ CONTAINS
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, left_set, right_set, error,&
        filter_eps, flop)
+
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(real_4), INTENT(IN)              :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -2750,6 +2758,7 @@ CONTAINS
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
+    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_c
 
@@ -2807,6 +2816,7 @@ CONTAINS
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
+    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_z
 

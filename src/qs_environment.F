@@ -675,10 +675,14 @@ CONTAINS
 
     ! decide what conditions need mo_derivs
     ! right now, this only appears to be OT
-    IF (scf_control%use_ot) THEN
-       CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.,error=error)
+    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
     ELSE
-       CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
+      IF (scf_control%use_ot) THEN
+         CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.,error=error)
+      ELSE
+         CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
+      ENDIF
     ENDIF
 
     ! XXXXXXX this is backwards XXXXXXXX
@@ -999,11 +1003,6 @@ CONTAINS
        END IF
     END IF
 
-    ALLOCATE (mos(dft_control%nspins),STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "mos",dft_control%nspins*int_size)
-    END IF
 
     ! in principle the restricted calculation could be performed
     ! using just one set of MOs and special casing most of the code
@@ -1018,17 +1017,28 @@ CONTAINS
        WRITE(output_unit,*) " **************************************"
     ENDIF
 
-    DO ispin=1,dft_control%nspins
-       NULLIFY (mos(ispin)%mo_set)
-       CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
-                            nao=n_ao,&
-                            nmo=n_mo(ispin),&
-                            nelectron=nelectron_spin(ispin),&
-                            maxocc=maxocc,&
-                            error=error)
-    END DO
+    ! no point in allocating these things here ?
+    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+      NULLIFY(mos)
+    ELSE
+      ALLOCATE (mos(dft_control%nspins),STAT=istat)
+      IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,&
+              "mos",dft_control%nspins*int_size)
+      END IF
+       DO ispin=1,dft_control%nspins
+          NULLIFY (mos(ispin)%mo_set)
+          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
+                               nao=n_ao,&
+                               nmo=n_mo(ispin),&
+                               nelectron=nelectron_spin(ispin),&
+                               maxocc=maxocc,&
+                               error=error)
+       END DO
+    ENDIF
 
     CALL set_qs_env(qs_env,mos=mos,error=error)
+
     ! If we use auxiliary density matrix methods , set mo_set_aux_fit
     IF( dft_control%do_admm ) THEN
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -1099,7 +1109,9 @@ CONTAINS
     CALL write_symmetry(particle_set,cell,subsys_section,error)
 
     ! Print the SCF parameters
-    CALL scf_c_write_parameters(scf_control,dft_section,error=error)
+    IF (.NOT. qs_env%dft_control%qs_control%do_ls_scf) THEN
+       CALL scf_c_write_parameters(scf_control,dft_section,error=error)
+    ENDIF
 
     ! Sets up pw_env, qs_charges, mpools ...
     CALL qs_env_setup(qs_env,error)
