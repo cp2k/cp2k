@@ -884,14 +884,14 @@ CONTAINS
                 CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              ELSE
-                right_data_send_size=right_data_send_size+SIZE(right_data_sp%d%r_dp)
+                IF (excessive_output) right_data_send_size=right_data_send_size+SIZE(right_data_sp%d%r_dp)
                 CALL dbcsr_isend_any (right_data_sp, right_send_p,&
                      grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row,&
                      error=error)
                 CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row,&
                      error=error)
-                right_index_send_size=right_index_send_size+SIZE(right_index_sp)
+                IF (excessive_output) right_index_send_size=right_index_send_size+SIZE(right_index_sp)
                 CALL mp_isend (right_index_sp, right_send_p,&
                      grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_index_rp, right_recv_p,&
@@ -1084,14 +1084,14 @@ CONTAINS
                 CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              ELSE
-                left_data_send_size=left_data_send_size+SIZE(left_data_sp%d%r_dp)
+                IF (excessive_output) left_data_send_size=left_data_send_size+SIZE(left_data_sp%d%r_dp)
                 CALL dbcsr_isend_any (left_data_sp, left_send_p,&
                      grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col,&
                      error=error)
                 CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_v_col,&
                      error=error)
-                left_index_send_size=left_index_send_size+SIZE(left_index_sp)
+                IF (excessive_output) left_index_send_size=left_index_send_size+SIZE(left_index_sp)
                 CALL mp_isend (left_index_sp, left_send_p,&
                      grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_index_rp, left_recv_p,&
