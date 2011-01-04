@@ -1115,8 +1115,7 @@ CONTAINS
       jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, M_dim, maxl, &
       ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
+                                                npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found, &
                                                 my_minimum_image, my_soft, &
@@ -1151,7 +1150,7 @@ CONTAINS
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (mab, op_dip, work)
-    NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
+    NULLIFY (la_max, la_min, lb_max,  npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
@@ -1227,7 +1226,6 @@ CONTAINS
        ! basis jkind
        first_sgfb   =>  basis_set_b%first_sgf
        lb_max       =>  basis_set_b%lmax
-       lb_min       =>  basis_set_b%lmin
        npgfb        =>  basis_set_b%npgf
        nsetb        =   basis_set_b%nset
        nsgfb        =>  basis_set_b%nsgf_set

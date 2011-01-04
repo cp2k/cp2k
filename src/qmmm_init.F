@@ -372,7 +372,6 @@ CONTAINS
                             potentials=qmmm_env_qm%potentials,&
                             pgfs=qmmm_env_qm%pgfs,&
                             mm_cell=mm_cell,&
-                            para_env=para_env,&
                             compatibility=qmmm_env_qm%compatibility,&
                             print_section=print_section,&
                             error=error)
@@ -384,7 +383,6 @@ CONTAINS
                                potentials=added_charges%potentials,&
                                pgfs=added_charges%pgfs,&
                                mm_cell=mm_cell,&
-                               para_env=para_env,&
                                compatibility=qmmm_env_qm%compatibility,&
                                print_section=print_section,&
                                error=error)

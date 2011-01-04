@@ -1085,7 +1085,7 @@ MODULE hfx_energy_potential
     shm_atomic_pair_list => actual_x_data%atomic_pair_list
     IF( geometry_did_change) THEN
       CALL build_atomic_pair_list(natom, shm_atomic_pair_list, kind_of,basis_parameter,particle_set, &
-                                  do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
+                                  do_periodic,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
                                   actual_x_data%blocks)
     END IF
 

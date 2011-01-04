@@ -294,7 +294,7 @@ CPSourceFileRef,&
           ELSE IF (thermostats%thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Barostat
              work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
-             CALL initialize_csvr_baro(simpar, para_env, thermostats%thermostat_baro%csvr,&
+             CALL initialize_csvr_baro(simpar, thermostats%thermostat_baro%csvr,&
                   csvr_section=work_section, error=error)
           END IF
           CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&

@@ -922,12 +922,12 @@ CONTAINS
     ENDIF
 
     CALL report_matrix_sparsity(ls_scf_env%matrix_s,unit_nr,"overlap matrix (S)", &
-                                ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+                                ls_scf_env%eps_filter,error)
 
     DO ispin=1,nspin
        WRITE(title,'(A,I3)') "Kohn-Sham matrix (H) for spin ",ispin
        CALL report_matrix_sparsity(ls_scf_env%matrix_ks(ispin),unit_nr,title, &
-                                   ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+                                   ls_scf_env%eps_filter,error)
     ENDDO
 
     CALL cp_dbcsr_init(matrix_tmp1,error=error)
@@ -938,38 +938,38 @@ CONTAINS
     DO ispin=1,nspin
        WRITE(title,'(A,I3)') "Density matrix (P) for spin ",ispin
        CALL report_matrix_sparsity(ls_scf_env%matrix_p(ispin),unit_nr,title, &
-                                   ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+                                   ls_scf_env%eps_filter,error)
 
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s, ls_scf_env%matrix_p(ispin), &
                               0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
 
        WRITE(title,'(A,I3,A)') "S * P(",ispin,")"
-       CALL report_matrix_sparsity(matrix_tmp1,unit_nr,title, ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+       CALL report_matrix_sparsity(matrix_tmp1,unit_nr,title, ls_scf_env%eps_filter,error)
 
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s, &
                               0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter, error=error)
        WRITE(title,'(A,I3,A)') "S * P(",ispin,") * S"
-       CALL report_matrix_sparsity(matrix_tmp2,unit_nr,title, ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+       CALL report_matrix_sparsity(matrix_tmp2,unit_nr,title, ls_scf_env%eps_filter,error)
     ENDDO
 
     IF (ls_scf_env%needs_s_inv) THEN
        CALL report_matrix_sparsity(ls_scf_env%matrix_s_inv,unit_nr,"inv(S)", &
-                                   ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+                                   ls_scf_env%eps_filter,error)
        DO ispin=1,nspin
           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_inv, ls_scf_env%matrix_ks(ispin), &
                                  0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
 
           WRITE(title,'(A,I3,A)') "inv(S) * H(",ispin,")"
-          CALL report_matrix_sparsity(matrix_tmp1,unit_nr,title, ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+          CALL report_matrix_sparsity(matrix_tmp1,unit_nr,title, ls_scf_env%eps_filter,error)
        ENDDO
     ENDIF
 
     IF (ls_scf_env%use_s_sqrt) THEN
 
        CALL report_matrix_sparsity(ls_scf_env%matrix_s_sqrt,unit_nr,"sqrt(S)", &
-                                   ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+                                   ls_scf_env%eps_filter,error)
        CALL report_matrix_sparsity(ls_scf_env%matrix_s_sqrt_inv,unit_nr,"inv(sqrt(S))", &
-                                   ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+                                   ls_scf_env%eps_filter,error)
 
        DO ispin=1,nspin
           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_ks(ispin), &
@@ -977,7 +977,7 @@ CONTAINS
           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
                                  0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter,error=error)
           WRITE(title,'(A,I3,A)') "inv(sqrt(S)) * H(",ispin,") * inv(sqrt(S))"
-          CALL report_matrix_sparsity(matrix_tmp2,unit_nr,title, ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+          CALL report_matrix_sparsity(matrix_tmp2,unit_nr,title, ls_scf_env%eps_filter,error)
        ENDDO
 
        DO ispin=1,nspin
@@ -986,7 +986,7 @@ CONTAINS
           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt, &
                                  0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter,error=error)
           WRITE(title,'(A,I3,A)') "sqrt(S) * P(",ispin,") * sqrt(S)"
-          CALL report_matrix_sparsity(matrix_tmp2,unit_nr,title, ls_scf_env%eps_filter,ls_scf_env%para_env,error)
+          CALL report_matrix_sparsity(matrix_tmp2,unit_nr,title, ls_scf_env%eps_filter,error)
        ENDDO
 
     ENDIF
@@ -1005,12 +1005,11 @@ CONTAINS
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE report_matrix_sparsity(matrix,unit_nr,title,eps,para_env,error)
+  SUBROUTINE report_matrix_sparsity(matrix,unit_nr,title,eps,error)
     TYPE(cp_dbcsr_type)                      :: matrix
     INTEGER                                  :: unit_nr
     CHARACTER(LEN=*)                         :: title
     REAL(KIND=dp)                            :: eps
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'report_matrix_sparsity', &
@@ -1024,9 +1023,6 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_tmp,error=error)
     CALL cp_dbcsr_create(matrix_tmp,template=matrix,name=TRIM(title),error=error)
     CALL cp_dbcsr_copy(matrix_tmp,matrix,name=TRIM(title),error=error)
-
-    ! CALL cp_dbcsr_write_matrix_dist(matrix,unit_nr,para_env,error)
-
 
     IF (unit_nr>0) THEN
         WRITE(unit_nr,'(T2,A)') "Sparsity for : "//TRIM(title)

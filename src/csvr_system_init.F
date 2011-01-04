@@ -41,10 +41,9 @@ CONTAINS
 !> \brief fire up the thermostats, if NPT
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE initialize_csvr_baro ( simpar, para_env, csvr, csvr_section, error )
+  SUBROUTINE initialize_csvr_baro ( simpar, csvr, csvr_section, error )
 
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(cp_error_type), INTENT(inout)       :: error

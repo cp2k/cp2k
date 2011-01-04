@@ -55,7 +55,6 @@ MODULE qs_pdos
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -99,7 +98,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_projected_dos(mo_set,atomic_kind_set,particle_set,qs_env,&
-                                 scf_env,dft_section,ispin,error)
+                                 dft_section,ispin,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -107,7 +106,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: dft_section
     INTEGER, INTENT(IN), OPTIONAL            :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error

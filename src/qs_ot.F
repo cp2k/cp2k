@@ -926,7 +926,7 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                     :: iter
     COMPLEX(dp), DIMENSION(:,:), POINTER :: data_z
     INTEGER::row, col, blk,row_offset, col_offset,row_size, col_size
-    LOGICAL::tr_z,tr_d,found
+    LOGICAL::found
 
     CALL timeset(routineN,handle)
 

@@ -14,7 +14,6 @@ MODULE qmmm_elpot
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
@@ -51,7 +50,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
-    pgfs, mm_cell, para_env, compatibility, print_section,&
+    pgfs, mm_cell, compatibility, print_section,&
     error)
     INTEGER, INTENT(IN)                      :: qmmm_coupl_type
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
@@ -60,7 +59,6 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error

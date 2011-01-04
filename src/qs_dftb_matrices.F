@@ -725,7 +725,7 @@ CONTAINS
          DEALLOCATE(charges,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-         CALL build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
+         CALL build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
 
          DEALLOCATE(mcharge,STAT=istat)

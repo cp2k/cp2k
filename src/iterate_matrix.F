@@ -14,8 +14,7 @@ MODULE iterate_matrix
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -57,7 +56,6 @@ CONTAINS
                                                 frob_matrix_base, &
                                                 gershgorin_norm, occ_matrix, &
                                                 t1, t2
-    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -160,7 +158,6 @@ CONTAINS
                                                 frob_matrix_base, &
                                                 gersh_matrix, occ_matrix, t1, &
                                                 t2
-    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
 

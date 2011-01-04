@@ -25,7 +25,6 @@ MODULE qs_energy
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_diag,&
                                              ehrenfest
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -97,10 +96,9 @@ CONTAINS
 !>            SCF or RTP (fschiff 02.09)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
+  SUBROUTINE qs_energies (qs_env, consistent_energies, calc_forces, &
                           error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
                                                 calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -112,9 +110,9 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp,error=error)
     IF(run_rtp)THEN
-       CALL qs_energies_rtp(qs_env,globenv,error=error)
+       CALL qs_energies_rtp(qs_env,error=error)
     ELSE
-       CALL qs_energies_scf(qs_env, globenv, consistent_energies, calc_forces, &
+       CALL qs_energies_scf(qs_env, consistent_energies, calc_forces, &
                           error)
     END IF
 
@@ -129,10 +127,9 @@ CONTAINS
 !>          - consistent_energies option added (25.08.2005, TdK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_energies_scf (qs_env, globenv, consistent_energies, calc_forces, &
+  SUBROUTINE qs_energies_scf (qs_env, consistent_energies, calc_forces, &
                           error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies
     LOGICAL, INTENT(IN)                      :: calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -335,10 +332,9 @@ CONTAINS
 !> \date    02.2009
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_energies_rtp(qs_env,globenv,error)
+  SUBROUTINE qs_energies_rtp(qs_env,error)
     
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
@@ -362,7 +358,7 @@ CONTAINS
        CALL init_emd_propagators(qs_env,error)
     ELSE
        IF(qs_env%rtp%iter==1)THEN
-          CALL update_core_and_matrices(qs_env,globenv,error)
+          CALL update_core_and_matrices(qs_env,error)
           CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
           CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
           CALL external_e_potential(qs_env,error=error)

@@ -222,7 +222,7 @@ CONTAINS
          has_unit_metric=has_unit_metric,&
          error=error)
 
-    CALL qs_energies(qs_env,globenv,calc_forces=.TRUE.,error=error)
+    CALL qs_energies(qs_env,calc_forces=.TRUE.,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
          ks_env=ks_env,&

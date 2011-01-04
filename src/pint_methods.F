@@ -319,7 +319,7 @@ CONTAINS
           transform_section => section_vals_get_subs_vals(input,&
              "MOTION%PINT%STAGING",error=error)
           CALL staging_env_create(pint_env%staging_env,transform_section,&
-             p=pint_env%p,ndim=pint_env%ndim,kT=pint_env%kT, error=error)
+             p=pint_env%p,kT=pint_env%kT, error=error)
        ELSE
           transform_section => section_vals_get_subs_vals(input,&
              "MOTION%PINT%NORMALMODE",error=error)

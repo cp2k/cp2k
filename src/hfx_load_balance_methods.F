@@ -465,7 +465,7 @@ MODULE hfx_load_balance_methods
 
     atomic_pair_list => x_data%atomic_pair_list
     CALL build_atomic_pair_list(natom, atomic_pair_list, kind_of,basis_parameter,particle_set, &
-                                do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
+                                do_periodic,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
                                 x_data%blocks)
 
 !$OMP END MASTER

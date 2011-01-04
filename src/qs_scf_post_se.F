@@ -194,7 +194,7 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
+       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, error)
 
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
@@ -560,7 +560,7 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -569,7 +569,6 @@ CPSourceFileRef,&
       POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &

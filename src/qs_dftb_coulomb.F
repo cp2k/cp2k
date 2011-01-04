@@ -67,7 +67,6 @@ MODULE qs_dftb_coulomb
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -97,10 +96,9 @@ MODULE qs_dftb_coulomb
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
+  SUBROUTINE build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix

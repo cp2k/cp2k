@@ -1351,7 +1351,6 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(cp_dbcsr_type), POINTER             :: ks_scp, mo_coeff_b, &
                                                 orthogonality_metric, pscp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1371,8 +1370,6 @@ END SUBROUTINE qs_scf_print_summary
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    NULLIFY(para_env)
-    para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&

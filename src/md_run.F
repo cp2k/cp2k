@@ -237,8 +237,7 @@ CONTAINS
          globenv, global_section, error )
 
     ! If requested setup Barostat
-    CALL create_barostat_type(barostat, md_section, force_env, simpar, para_env,&
-         globenv, error )
+    CALL create_barostat_type(barostat, md_section, force_env, simpar, globenv, error )
 
     ! If requested setup different thermal regions
     CALL create_thermal_regions(thermal_regions,  md_section, simpar, force_env, error )

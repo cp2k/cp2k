@@ -423,7 +423,7 @@ MODULE hfx_pair_list_methods
   END SUBROUTINE build_pair_list
 
   SUBROUTINE build_atomic_pair_list(natom, atomic_pair_list, kind_of,basis_parameter,particle_set, &
-                                   do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
+                                   do_periodic,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
                                    blocks)
     INTEGER, INTENT(IN)                      :: natom
     LOGICAL, DIMENSION(natom, natom)         :: atomic_pair_list
@@ -433,8 +433,6 @@ MODULE hfx_pair_list_methods
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     LOGICAL, INTENT(IN)                      :: do_periodic
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :)                        :: coeffs_kind
     REAL(KIND=dp), INTENT(IN)                :: coeffs_kind_max0, &

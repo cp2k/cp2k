@@ -228,8 +228,7 @@ CONTAINS
              CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
           CASE ( use_qs_force )
              IF (.NOT.calculate_forces) THEN
-                CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
-                     consistent_energies=energy_consistency, calc_forces=calculate_forces, &
+                CALL qs_energies(qs_env=force_env%qs_env, consistent_energies=energy_consistency, calc_forces=calculate_forces, &
                      error=error)
              ELSE
                 CALL qs_forces(force_env%qs_env,force_env%globenv, error=error)

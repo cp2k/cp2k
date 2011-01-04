@@ -113,7 +113,7 @@ CONTAINS
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
 
     CASE(use_restart_wfn,use_rt_restart)
-       CALL update_core_and_matrices(qs_env,globenv,error)       
+       CALL update_core_and_matrices(qs_env,error)       
        DO ispin=1,SIZE(qs_env%mos)
           CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN

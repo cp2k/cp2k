@@ -39,10 +39,10 @@ CONTAINS
   !>        see module cp_error_handling
   !> \author fawzi
   ! ***************************************************************************
-  SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
+  SUBROUTINE staging_env_create(staging_env,staging_section,p,kT,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     TYPE(section_vals_type), POINTER         :: staging_section
-    INTEGER, INTENT(in)                      :: p, ndim
+    INTEGER, INTENT(in)                      :: p
     REAL(kind=dp), INTENT(in)                :: kT
     TYPE(cp_error_type), INTENT(inout)       :: error
 

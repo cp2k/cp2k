@@ -366,7 +366,7 @@ CONTAINS
     INTEGER                                  :: cholesky_flag, handle, ialgo
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: do_mixing, failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: roks_parameter
     TYPE(section_vals_type), POINTER         :: mixing_section, &
                                                 outer_scf_section, &
                                                 scf_section, smear_section
@@ -374,7 +374,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (r_vals)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition((scf_control%ref_count > 0),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN

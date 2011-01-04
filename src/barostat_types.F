@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE barostat_types
   USE cell_types,                      ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_init,            ONLY: initialize_npt
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
@@ -60,13 +59,12 @@ CONTAINS
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_barostat_type( barostat, md_section, force_env, simpar, para_env,&
+  SUBROUTINE create_barostat_type( barostat, md_section, force_env, simpar, &
        globenv, error )
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
