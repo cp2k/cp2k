@@ -6,28 +6,23 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
 !
 ! cmat(i,j,k) <- za * cmat(i,j,k) + ex(i) * ey(j) * ez(k)
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-  
+  USE lib_kinds,                        ONLY: wp
+
   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
-  COMPLEX ( dbl ), INTENT ( IN ) :: za, zb
-  COMPLEX ( dbl ), INTENT ( IN ) :: ex ( * )
-  COMPLEX ( dbl ), INTENT ( IN ) :: ey ( * )
-  COMPLEX ( dbl ), INTENT ( IN ) :: ez ( * )
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: cmat ( * )
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: scr ( * )
+  COMPLEX ( wp ), INTENT ( IN ) :: za, zb
+  COMPLEX ( wp ), INTENT ( IN ) :: ex ( * )
+  COMPLEX ( wp ), INTENT ( IN ) :: ey ( * )
+  COMPLEX ( wp ), INTENT ( IN ) :: ez ( * )
+  COMPLEX ( wp ), INTENT ( INOUT ) :: cmat ( * )
+  COMPLEX ( wp ), INTENT ( INOUT ) :: scr ( * )
 
   INTEGER :: n2, n3
-  COMPLEX ( dbl ) :: cone
+  COMPLEX ( wp ) :: cone
   
-  cone = CMPLX ( 1._dbl, KIND = dbl )
+  cone = CMPLX ( 1._wp, KIND = wp )
   n2 = n ( 1 ) * n ( 2 )
   n3 = n2 * n ( 3 )
-  scr ( 1:n2 ) = CMPLX ( 0._dbl, KIND = dbl )
+  scr ( 1:n2 ) = CMPLX ( 0._wp, KIND = wp )
 #if defined (__SGL) 
   CALL cgeru ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
   CALL cscal ( n3, za, cmat, 1 )
@@ -47,19 +42,14 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
 !
 ! cden(i) <- cden(i) * cden2(i)
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( IN ) :: cvec2 (2,*)
-  REAL ( dbl ), INTENT ( INOUT ) :: cvec (2,*)
+  REAL ( wp ), INTENT ( IN ) :: cvec2 (2,*)
+  REAL ( wp ), INTENT ( INOUT ) :: cvec (2,*)
 
   INTEGER :: i
-  REAL ( dbl ) :: re_c, im_c, re_c2, im_c2
+  REAL ( wp ) :: re_c, im_c, re_c2, im_c2
 
 !$OMP PARALLEL DO
   DO i = 1, n
@@ -80,16 +70,11 @@ SUBROUTINE vr_x_vc ( n, rvec, cvec )
 !
 ! cden(i) <- cden(i) * rden(i)
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( IN ) :: rvec (*)
-  REAL ( dbl ), INTENT ( INOUT ) :: cvec (2,*)
+  REAL ( wp ), INTENT ( IN ) :: rvec (*)
+  REAL ( wp ), INTENT ( INOUT ) :: cvec (2,*)
 
   INTEGER :: i
 
@@ -109,16 +94,11 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 ! r1 = real ( z )
 ! r2 = imag ( z )
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( OUT ) :: r1(*), r2(*)
-  REAL ( dbl ), INTENT ( IN ) :: z(2,*)
+  REAL ( wp ), INTENT ( OUT ) :: r1(*), r2(*)
+  REAL ( wp ), INTENT ( IN ) :: z(2,*)
 
   INTEGER :: i
 
@@ -134,16 +114,11 @@ END SUBROUTINE copy_cri
 ! *****************************************************************************
 SUBROUTINE copy_cc ( n, in, out )
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( IN ) :: in(n)
-  REAL ( dbl ), INTENT ( OUT ) :: out(n)
+  REAL ( wp ), INTENT ( IN ) :: in(n)
+  REAL ( wp ), INTENT ( OUT ) :: out(n)
   INTEGER :: i
 !$OMP PARALLEL DO
   DO i=1,n
@@ -159,16 +134,11 @@ SUBROUTINE copy_cr ( n, z, r1 )
 !
 ! r1 = real ( z )
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( OUT ) :: r1(n)
-  REAL ( dbl ), INTENT ( IN ) :: z(2,n)
+  REAL ( wp ), INTENT ( OUT ) :: r1(n)
+  REAL ( wp ), INTENT ( IN ) :: z(2,n)
   INTEGER :: i
 
 !$OMP PARALLEL DO
@@ -185,21 +155,16 @@ SUBROUTINE copy_rc ( n, r1, z )
 !
 ! z = r1
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( IN ) :: r1(n)
-  REAL ( dbl ), INTENT ( OUT ) :: z(2,n)
+  REAL ( wp ), INTENT ( IN ) :: r1(n)
+  REAL ( wp ), INTENT ( OUT ) :: z(2,n)
   INTEGER :: i
 !$OMP PARALLEL DO
   DO i=1,n
        z(1,i)=r1(i)
-       z(2,i)=0._dbl
+       z(2,i)=0._wp
   ENDDO
 
 END SUBROUTINE copy_rc
@@ -211,18 +176,11 @@ SUBROUTINE copy_cz ( n, c, z )
 !
 ! z = c
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-  INTEGER, PARAMETER :: sgl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-  INTEGER, PARAMETER :: sgl = KIND(0.0)
-#endif
+  USE lib_kinds,                        ONLY: dp, sp
 
   INTEGER, INTENT ( IN ) :: n
-  COMPLEX ( sgl ), INTENT ( IN ) :: c(n)
-  COMPLEX ( dbl ), INTENT ( OUT ) :: z(n)
+  COMPLEX ( sp ), INTENT ( IN ) :: c(n)
+  COMPLEX ( dp ), INTENT ( OUT ) :: z(n)
   INTEGER :: i
 !$OMP PARALLEL DO
   DO i=1,n
@@ -235,18 +193,11 @@ SUBROUTINE copy_zc ( n, z, c )
 !
 ! c = z
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-  INTEGER, PARAMETER :: sgl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-  INTEGER, PARAMETER :: sgl = KIND(0.0)
-#endif
+  USE lib_kinds,                        ONLY: dp, sp
 
   INTEGER, INTENT ( IN ) :: n
-  COMPLEX ( dbl ), INTENT ( IN ) :: z(n)
-  COMPLEX ( sgl ), INTENT ( OUT ) :: c(n)
+  COMPLEX ( dp ), INTENT ( IN ) :: z(n)
+  COMPLEX ( sp ), INTENT ( OUT ) :: c(n)
   INTEGER :: i
 !$OMP PARALLEL DO
   DO i=1,n
@@ -259,16 +210,11 @@ SUBROUTINE copy_zz ( n, c, z )
 !
 ! z = c
 !
-  IMPLICIT NONE
-#if defined(__SGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE lib_kinds,                        ONLY: wp
 
   INTEGER, INTENT ( IN ) :: n
-  COMPLEX ( dbl ), INTENT ( IN ) :: c(n)
-  COMPLEX ( dbl ), INTENT ( OUT ) :: z(n)
+  COMPLEX ( wp ), INTENT ( IN ) :: c(n)
+  COMPLEX ( wp ), INTENT ( OUT ) :: z(n)
   INTEGER :: i
 !$OMP PARALLEL DO
   DO i=1,n

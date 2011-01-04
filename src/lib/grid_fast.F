@@ -4,24 +4,18 @@
 
 ! *****************************************************************************
   SUBROUTINE collocate_gf_npbc(grid,xdat,ydat,zdat,bo1,bo2,zlb,zub,ylb,yub,xlb,xub)
-    IMPLICIT NONE
-    ! Arguments
-#if defined(__SGL)
-  INTEGER, PARAMETER :: wp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-    INTEGER, INTENT(IN)     :: bo1(2,3), bo2(2,3)
-    INTEGER, INTENT(IN)     :: zlb,zub,ylb,yub,xlb,xub
-    REAL(wp), INTENT(INOUT) :: grid(bo1(1,1):bo1(2,1),&
-                                    bo1(1,2):bo1(2,2),&
-                                    bo1(1,3):bo1(2,3))
-    REAL(wp), INTENT(IN)    :: xdat(bo2(1,1):bo2(2,1)),&
-                               ydat(bo2(1,2):bo2(2,2)),&
-                               zdat(bo2(1,3):bo2(2,3))
-    ! Local Variables
-    INTEGER :: iz, iy, ix
-    REAL(wp):: tmp1
+    USE lib_kinds,                        ONLY: wp 
+    INTEGER, INTENT(IN)                      :: bo1(2,3)
+    REAL(wp), INTENT(INOUT) :: &
+      grid(bo1(1,1):bo1(2,1),bo1(1,2):bo1(2,2),bo1(1,3):bo1(2,3))
+    INTEGER, INTENT(IN)                      :: bo2(2,3)
+    REAL(wp), INTENT(IN)                     :: zdat(bo2(1,3):bo2(2,3)), &
+                                                ydat(bo2(1,2):bo2(2,2)), &
+                                                xdat(bo2(1,1):bo2(2,1))
+    INTEGER, INTENT(IN)                      :: zlb, zub, ylb, yub, xlb, xub
+
+    INTEGER                                  :: ix, iy, iz
+    REAL(wp)                                 :: tmp1
 
     DO iz=zlb,zub
        DO iy=ylb,yub
@@ -36,25 +30,19 @@
 
 ! *****************************************************************************
   SUBROUTINE integrate_gf_npbc(grid,xdat,ydat,zdat,bo,zlb,zub,ylb,yub,xlb,xub,force)
-    IMPLICIT NONE
-    ! Arguments
-#if defined(__SGL)
-  INTEGER, PARAMETER :: wp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-    INTEGER, INTENT(IN)     :: bo(2,3)
-    INTEGER, INTENT(IN)     :: zlb,zub,ylb,yub,xlb,xub
-    REAL(wp), INTENT(INOUT) :: grid(bo(1,1):bo(2,1),&
-                                    bo(1,2):bo(2,2),&
-                                    bo(1,3):bo(2,3))
-    REAL(wp), INTENT(IN)    :: xdat(2,bo(1,1):bo(2,1)),&
-                               ydat(2,bo(1,2):bo(2,2)),&
-                               zdat(2,bo(1,3):bo(2,3))
-    REAL(wp), INTENT(INOUT) :: force(3)
-    ! Local Variables
-    INTEGER :: iz, iy, ix, iy2
-    REAL(wp):: fx1,fyz1,fx2,fyz2,g1,g2,x1,x2
+    USE lib_kinds,                        ONLY: wp 
+    INTEGER, INTENT(IN)                      :: bo(2,3)
+    REAL(wp), INTENT(IN)                     :: zdat(2,bo(1,3):bo(2,3)), &
+                                                ydat(2,bo(1,2):bo(2,2)), &
+                                                xdat(2,bo(1,1):bo(2,1))
+    REAL(wp), INTENT(INOUT) :: &
+      grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))
+    INTEGER, INTENT(IN)                      :: zlb, zub, ylb, yub, xlb, xub
+    REAL(wp), INTENT(INOUT)                  :: force(3)
+
+    INTEGER                                  :: ix, iy, iy2, iz
+    REAL(wp)                                 :: fx1, fx2, fyz1, fyz2, g1, g2, &
+                                                x1, x2
 
     DO iz=zlb,zub
        iy2=HUGE(0)
