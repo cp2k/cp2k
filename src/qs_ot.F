@@ -1034,7 +1034,7 @@ CONTAINS
     qs_ot_env % do_taylor = .FALSE.
     N=0
     num_error=qs_ot_env % largest_eval_upper_bound / ( 2.0_dp )
-    DO WHILE (num_error > qs_ot_env % settings % eps_taylor .AND. N < 1000)
+    DO WHILE (num_error > qs_ot_env % settings % eps_taylor .AND. N <= qs_ot_env % settings % max_taylor)
        N=N+1
        num_error=num_error * qs_ot_env % largest_eval_upper_bound / REAL(( 2*N+1 )*(2*N+2),KIND=dp)
     END DO
