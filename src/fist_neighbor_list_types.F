@@ -14,7 +14,6 @@ MODULE fist_neighbor_list_types
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -255,16 +254,14 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
-       particle_set, rab, check_spline, id_kind, is_full, skip, cell, &
+       rab, check_spline, id_kind, skip, cell, &
        ei_scale14, vdw_scale14, exclusions, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: check_spline
     INTEGER, INTENT(IN)                      :: id_kind
-    LOGICAL, INTENT(IN)                      :: is_full, skip
+    LOGICAL, INTENT(IN)                      :: skip
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
     TYPE(exclusion_type), DIMENSION(:), &

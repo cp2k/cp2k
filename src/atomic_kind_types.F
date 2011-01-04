@@ -1335,11 +1335,10 @@ CONTAINS
 !> \author Creation (11.01.2002,MK)
 !>                20.09.2002 adapted for pol/kg use, gtb
 ! *****************************************************************************
-  SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,method,error)
+  SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atomic_kind', &
@@ -1393,13 +1392,12 @@ CONTAINS
 !> \author - Creation (17.01.2002,MK)
 !>      - 20.09.2002 para_env passed (gt)
 ! *****************************************************************************
-  SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,method,error)
+  SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atomic_kind_set', &
@@ -1415,7 +1413,7 @@ CONTAINS
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL init_atomic_kind(atomic_kind,para_env,force_env_section=force_env_section,&
-               method=method,error=error)
+               error=error)
        END DO
 
     ELSE
@@ -2221,8 +2219,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_active, no_optimize
     TYPE(qs_atom_dispersion_type), &
       OPTIONAL, POINTER                      :: dispersion
-    TYPE(damping_p_type), INTENT(IN), &
-      OPTIONAL, POINTER                      :: damping
+    TYPE(damping_p_type), OPTIONAL, POINTER  :: damping
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

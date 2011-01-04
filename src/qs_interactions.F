@@ -23,7 +23,6 @@ MODULE qs_interactions
                                              gto_basis_set_type,&
                                              set_geminal_basis_set,&
                                              set_gto_basis_set
-  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: qs_control_type,&
                                              semi_empirical_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -74,11 +73,10 @@ CONTAINS
 !> \date    24.09.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,&
+  SUBROUTINE init_interaction_radii(qs_control,atomic_kind_set,&
        subsys_section,error)
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -490,25 +488,24 @@ CONTAINS
       END IF
     END DO  ! ikind
 
-    IF (p_orb)  CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,subsys_section,error)
-    IF (p_gem)  CALL write_geminal_radii(cell,atomic_kind_set,subsys_section,error)
-    IF (p_aux)  CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,subsys_section,error)
-    IF (p_ccr)  CALL write_core_charge_radii(cell,atomic_kind_set,subsys_section,error)
-    IF (p_ppl)  CALL write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
-    IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
-    IF (p_paw)  CALL write_paw_radii(cell,atomic_kind_set,subsys_section,error)
+    IF (p_orb)  CALL write_pgf_orb_radii("orb",atomic_kind_set,subsys_section,error)
+    IF (p_gem)  CALL write_geminal_radii(atomic_kind_set,subsys_section,error)
+    IF (p_aux)  CALL write_pgf_orb_radii("aux",atomic_kind_set,subsys_section,error)
+    IF (p_ccr)  CALL write_core_charge_radii(atomic_kind_set,subsys_section,error)
+    IF (p_ppl)  CALL write_ppl_radii(atomic_kind_set,subsys_section,error)
+    IF (p_ppnl) CALL write_ppnl_radii(atomic_kind_set,subsys_section,error)
+    IF (p_paw)  CALL write_paw_radii(atomic_kind_set,subsys_section,error)
 
     CALL timestop(handle)
 
   END SUBROUTINE init_interaction_radii
 
 ! *****************************************************************************
-  SUBROUTINE init_se_nlradius(se_control,cell,atomic_kind_set,&
+  SUBROUTINE init_se_nlradius(se_control,atomic_kind_set,&
                    subsys_section,error)
 
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -547,14 +544,13 @@ CONTAINS
 
     END DO
 
-    CALL write_kind_radii(cell,atomic_kind_set,subsys_section,error)
+    CALL write_kind_radii(atomic_kind_set,subsys_section,error)
 
   END SUBROUTINE init_se_nlradius
 
 ! *****************************************************************************
-  SUBROUTINE write_kind_radii(cell,atomic_kind_set,subsys_section,error)
+  SUBROUTINE write_kind_radii(atomic_kind_set,subsys_section,error)
 
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -611,8 +607,7 @@ CONTAINS
 !> \date    15.09.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,subsys_section,error)
-    TYPE(cell_type), POINTER                 :: cell
+  SUBROUTINE write_core_charge_radii(atomic_kind_set,subsys_section,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -666,10 +661,9 @@ CONTAINS
 !> \date    05.06.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,subsys_section,error)
+  SUBROUTINE write_pgf_orb_radii(basis,atomic_kind_set,subsys_section,error)
 
     CHARACTER(len=*)                         :: basis
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -842,9 +836,8 @@ CONTAINS
 !> \date    18.08.2009
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_geminal_radii(cell,atomic_kind_set,subsys_section,error)
+  SUBROUTINE write_geminal_radii(atomic_kind_set,subsys_section,error)
 
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -962,9 +955,8 @@ CONTAINS
 !> \date    06.10.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
+  SUBROUTINE write_ppl_radii(atomic_kind_set,subsys_section,error)
 
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -1013,9 +1005,8 @@ CONTAINS
 !> \date    06.10.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
+  SUBROUTINE write_ppnl_radii(atomic_kind_set,subsys_section,error)
 
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -1060,9 +1051,8 @@ CONTAINS
 !> \brief   Write the radii of the one center projector 
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_paw_radii(cell,atomic_kind_set,subsys_section,error)
+  SUBROUTINE write_paw_radii(atomic_kind_set,subsys_section,error)
 
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section

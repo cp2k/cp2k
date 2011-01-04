@@ -286,7 +286,7 @@ CONTAINS
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
     
     ! Print the atomic coordinates
-    CALL write_fist_particle_coordinates(particle_set,cell,subsys_section, &
+    CALL write_fist_particle_coordinates(particle_set,subsys_section, &
                                          fist_nonbond_env%charges, error)
     CALL write_particle_distances(particle_set,cell,subsys_section,error)
     CALL write_structure_data(particle_set, cell=cell, input_section=subsys_section, error=error)

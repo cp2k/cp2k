@@ -461,7 +461,7 @@ CONTAINS
             CALL read_dft_control(dft_control,dft_section,error=error)
 
     IF (dft_control % do_tddfpt_calculation) THEN
-       CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, &
+       CALL read_tddfpt_control(dft_control%tddfpt_control, &
             dft_section,error)
     END IF
 
@@ -585,7 +585,7 @@ CONTAINS
     CALL init_md_ftable(maxl)
 
     !   *** Initialize the atomic interaction radii ***
-    CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,&
          subsys_section,error)
 
     !   *** Distribute molecules and atoms using the new data structures ***
@@ -714,7 +714,7 @@ CONTAINS
              do_method_pm6,do_method_mndod,do_method_pnnl)
           ! Neighbor lists have to be MAX(interaction range, orbital range)
           ! set new kind radius
-          CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
+          CALL init_se_nlradius(se_control,atomic_kind_set,subsys_section,error)
        END SELECT
        ! Initialize to zero the max multipole to treat in the EWALD scheme..
        se_control%max_multipole = do_multipole_none
@@ -1097,7 +1097,7 @@ CONTAINS
     CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
 
     ! Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,label="QUICKSTEP",error=error)
+    CALL write_qs_particle_coordinates(particle_set,subsys_section,label="QUICKSTEP",error=error)
 
     ! Print the interatomic distances
     CALL write_particle_distances(particle_set,cell,subsys_section,error)

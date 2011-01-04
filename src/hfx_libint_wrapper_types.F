@@ -26,7 +26,6 @@ MODULE hfx_libint_wrapper_types
 #endif 
 
   USE kinds,                           ONLY: dp, int_8
-  USE orbital_pointers,                ONLY: nco
  
   IMPLICIT NONE
   PRIVATE

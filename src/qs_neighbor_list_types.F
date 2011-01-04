@@ -419,8 +419,6 @@ CONTAINS
     INTEGER                                  :: last, me
     TYPE(neighbor_list_iterator_type), &
       POINTER                                :: iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: nl
 
     IF(PRESENT(mepos)) THEN
       me=mepos
@@ -436,7 +434,6 @@ CONTAINS
       iterator_set(me)%neighbor_list_iterator = iterator_set(last)%neighbor_list_iterator
     END IF
     iterator => iterator_set(me)%neighbor_list_iterator
-    nl => iterator%nl
 
     IF (ASSOCIATED(iterator%neighbor_list)) THEN
        IF (iterator%inode >= iterator%nnode) THEN

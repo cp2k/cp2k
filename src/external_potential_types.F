@@ -1666,11 +1666,9 @@ CONTAINS
 !> \author  Toon.Verstraelen@gmail.com
 !> \date    05.03.2010
 ! *****************************************************************************
-  SUBROUTINE set_fist_potential(potential, name, apol, cpol, qeff, mm_radius, &
+  SUBROUTINE set_fist_potential(potential, apol, cpol, qeff, mm_radius, &
         qmmm_corr_radius, qmmm_radius)
     TYPE(fist_potential_type), POINTER       :: potential
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN), OPTIONAL                   :: name
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: apol, cpol, qeff, mm_radius, &
                                                 qmmm_corr_radius, qmmm_radius
 

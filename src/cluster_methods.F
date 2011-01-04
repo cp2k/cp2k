@@ -415,13 +415,11 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: xyz, xyz_tmp
     REAL(dp), DIMENSION(3)                   :: abc, cell_center, dbox, lbox
     REAL(dp), DIMENSION(3, 3)                :: g, h, h_inv, u
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
     natms = SIZE(particle_set,1)
     !
     !

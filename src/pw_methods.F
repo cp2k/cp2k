@@ -1862,10 +1862,9 @@ CONTAINS
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! *****************************************************************************
-  FUNCTION pw_integral_ab ( pw1, pw2, flag, error) RESULT ( integral_value )
+  FUNCTION pw_integral_ab ( pw1, pw2, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    INTEGER, INTENT(IN), OPTIONAL            :: flag
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: integral_value
 

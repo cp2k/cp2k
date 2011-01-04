@@ -155,7 +155,7 @@ CONTAINS
        work_section => section_vals_get_subs_vals(section_vals=subsys_section,&
             subsection_name="RNG_INIT", error=error)
        CALL init_local_particle_set(distribution_1d=local_particles,&
-            nparticle_kind=nparticle_kind, nparticle=nparticle,&
+            nparticle_kind=nparticle_kind, &
             work_section=work_section,error=error)
     END IF
 

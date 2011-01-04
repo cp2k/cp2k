@@ -557,12 +557,11 @@ CONTAINS
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE topology_generate_bond(topology,para_env,subsys_section,&
-       force_env_section,error)
+       error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &

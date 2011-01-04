@@ -821,9 +821,8 @@ CPSourceFileRef,&
   END SUBROUTINE read_qs_section
 
 ! *****************************************************************************
-  SUBROUTINE read_tddfpt_control(t_control,nspins,dft_section,error)
+  SUBROUTINE read_tddfpt_control(t_control,dft_section,error)
     TYPE(tddfpt_control_type)                :: t_control
-    INTEGER, INTENT(IN)                      :: nspins
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

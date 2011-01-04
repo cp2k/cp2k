@@ -927,7 +927,7 @@ CONTAINS
        !
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
                                                             extension=".Log",error=error)
-       CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
+       CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_set,&
                                      molecule_kind_set,molecule_set,output_unit, error=error)
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
                                              "PRINT%DISTRIBUTION",error=error)
@@ -1124,13 +1124,11 @@ CONTAINS
 !> \par History
 !>      04.2007 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
+  SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_set,&
                                       molecule_kind_set,molecule_set,output_unit, error)
 
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: cost_ele_pair
     TYPE(section_vals_type), POINTER         :: distribution_section
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: particle_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(molecule_kind_type), DIMENSION(:), &

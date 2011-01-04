@@ -25,7 +25,7 @@ MODULE hfx_libint_wrapper
 #endif
 #endif 
 
-  USE kinds,                           ONLY: dp, int_8
+  USE kinds,                           ONLY: dp
   USE mathconstants
   USE hfx_libint_wrapper_types
   USE orbital_pointers

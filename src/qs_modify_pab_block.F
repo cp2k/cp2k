@@ -704,13 +704,12 @@ CONTAINS
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>    pgf_a (r-Rb)_{ir} pgf_b = pgf_a * pgf_b{+1ir}
 ! *****************************************************************************
-  SUBROUTINE prepare_arb(pab_local,pab,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+  SUBROUTINE prepare_arb(pab_local,pab,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2)
 
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     INTEGER, INTENT(IN)                      :: ir, lxa, lya, lza, lxb, lyb, &
                                                 lzb, o1, o2
-    REAL(dp), INTENT(IN)                     :: zeta, zetb
 
     INTEGER                                  :: ico, ico_l, jco, jco_l
 

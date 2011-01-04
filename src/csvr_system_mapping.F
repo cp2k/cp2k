@@ -50,10 +50,9 @@ CONTAINS
 !> \brief Creates the thermostatting for the barostat
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE csvr_to_barostat_mapping ( simpar, csvr, para_env, error )
+  SUBROUTINE csvr_to_barostat_mapping ( simpar, csvr, error )
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(csvr_system_type), POINTER          :: csvr
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_barostat_mapping', &

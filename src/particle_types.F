@@ -415,11 +415,10 @@ CONTAINS
 !> \date    05.06.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_fist_particle_coordinates(particle_set,cell,subsys_section,&
+  SUBROUTINE write_fist_particle_coordinates(particle_set,subsys_section,&
              charges, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -474,11 +473,10 @@ CONTAINS
 !> \date    05.06.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,subsys_section,label,error)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,subsys_section,label,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(INOUT)       :: error

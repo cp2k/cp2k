@@ -2224,7 +2224,7 @@ CONTAINS
               DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
               DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
                  ! this element of pab results in 4 elements of pab_local
-                 CALL prepare_arb(pab_local,pab,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+                 CALL prepare_arb(pab_local,pab,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2)
               END DO
               END DO
            END DO

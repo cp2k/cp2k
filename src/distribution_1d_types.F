@@ -36,7 +36,6 @@ MODULE distribution_1d_types
                                              read_rng_stream,&
                                              rng_record_length,&
                                              rng_stream_p_type
-  USE string_utilities,                ONLY: ascii_to_string
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
@@ -103,7 +102,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a local list
-!> CALL ascii_to_string(ascii(:,iparticle),string)
 !> \param distribution_ 1d: the lists to create
 !> \param n_lists number of lists to create (defaults to 1, or size(n_el))
 !> \param para_env parallel environement to be used
@@ -284,10 +282,10 @@ END SUBROUTINE distribution_1d_release
 
 ! *****************************************************************************
   SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,&
-                                     nparticle,work_section,error)
+                                     work_section,error)
 
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    INTEGER, INTENT(in)                      :: nparticle_kind, nparticle
+    INTEGER, INTENT(in)                      :: nparticle_kind
     TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

@@ -234,7 +234,7 @@ CONTAINS
 
     CHARACTER(LEN=20)                        :: mytag
     CHARACTER(LEN=40)                        :: sformat
-    CHARACTER(LEN=400)                       :: line, line2, mystring
+    CHARACTER(LEN=400)                       :: line, mystring
     INTEGER                                  :: i, stack_size
     INTEGER(KIND=int_8)                      :: mem
     TYPE(timer_env_type), POINTER            :: timer_env
@@ -350,8 +350,8 @@ CONTAINS
     INTEGER                                  :: handle
 
     CHARACTER(LEN=40)                        :: sformat
-    CHARACTER(LEN=400)                       :: line, line2, mystring
-    INTEGER                                  :: handle_up,i
+    CHARACTER(LEN=400)                       :: line, mystring
+    INTEGER                                  :: handle_up
     INTEGER(KIND=int_8)                      :: mem
     REAL(KIND=dp)                            :: elapsed_wt, wt_now
     TYPE(timer_env_type), POINTER            :: timer_env

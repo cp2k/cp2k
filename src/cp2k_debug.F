@@ -186,7 +186,7 @@ CPSourceFileRef,&
           ! Debug Forces (numerical Vs Analytical)
           CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
           particles => subsys%particles%els
-          CALL write_qs_particle_coordinates(particles,cell,subsys_section,"DEBUG",error)
+          CALL write_qs_particle_coordinates(particles,subsys_section,"DEBUG",error)
           !
           ! First evaluate energy and forces...
           !
@@ -218,7 +218,7 @@ CPSourceFileRef,&
                 std_value = particles(ip)%r(k)
                 DO j = 1, 2
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j * Dx
-                   CALL write_qs_particle_coordinates(particles,cell,subsys_section,"DEBUG",error)
+                   CALL write_qs_particle_coordinates(particles,subsys_section,"DEBUG",error)
                    ! Compute forces..
                    CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                         consistent_energies=(.NOT.harris_flag), error=error)

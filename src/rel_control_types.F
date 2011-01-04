@@ -28,8 +28,6 @@ MODULE rel_control_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rel_control_types'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
-  INTEGER, SAVE :: last_rel_c_id_nr = 0
-
   ! Public data types
 
   PUBLIC :: rel_control_type 

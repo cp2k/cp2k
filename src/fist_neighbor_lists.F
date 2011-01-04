@@ -111,8 +111,10 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path, &
                                                 unit_str
-    INTEGER :: atom_a, handle, iatom_local, ikind, iw, maxatom, &
-      maxatom_local, natom_local_a, nkind, output_unit, stat
+    INTEGER                                  :: atom_a, handle, iatom_local, &
+                                                ikind, iw, maxatom, &
+                                                natom_local_a, nkind, &
+                                                output_unit, stat
     LOGICAL                                  :: failure, &
                                                 present_local_particles, &
                                                 print_subcell_grid
@@ -159,7 +161,6 @@ CONTAINS
        my_full_nl = .FALSE.
     END IF
     ! Initialize the local data structures
-    maxatom_local = 0
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
        NULLIFY (atom(ikind)%list)
@@ -173,7 +174,6 @@ CONTAINS
        ELSE
           natom_local_a = SIZE(atom(ikind)%list)
        END IF
-       maxatom_local = MAX(maxatom_local,natom_local_a)
        IF (natom_local_a > 0) THEN
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -198,7 +198,7 @@ CONTAINS
 
     ! Build the nonbonded neighbor lists
     CALL build_neighbor_lists(nonbonded, particle_set, atom, cell, &
-         maxatom_local, print_subcell_grid, output_unit, r_max, r_minsq, &
+         print_subcell_grid, output_unit, r_max, r_minsq, &
          ei_scale14, vdw_scale14, geo_check,"NONBONDED", skip_kind, &
          my_full_nl, exclusions, error)
 
@@ -266,7 +266,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(nonbonded, particle_set, atom,cell, &
-        maxatom_local, print_subcell_grid, output_unit, r_max, r_minsq, &
+        print_subcell_grid, output_unit, r_max, r_minsq, &
         ei_scale14, vdw_scale14, geo_check, name, skip_kind, full_nl, exclusions, error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
@@ -275,7 +275,6 @@ CONTAINS
     TYPE(local_atoms_type), DIMENSION(:), &
       INTENT(IN)                             :: atom
     TYPE(cell_type), POINTER                 :: cell
-    INTEGER, INTENT(IN)                      :: maxatom_local
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
@@ -588,9 +587,8 @@ CONTAINS
                    id_kind = nkind00-(j1*(j1+1)/2)+i1
                    ! Store the pair
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
-                        particle_set=particle_set, rab=rab, &
+                        rab=rab, &
                         check_spline=check_spline, id_kind=id_kind, &
-                        is_full=is_full, &
                         skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                         cell=cell, ei_scale14=ei_scale14, &
                         vdw_scale14=vdw_scale14, exclusions=exclusions, error=error)
@@ -600,9 +598,8 @@ CONTAINS
                       inv_neighbor_kind_pair => nonbonded%neighbor_kind_pairs(invcellmap)
                       rab = rab - 2.0_dp * cell_v
                       CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b, &
-                           particle_set=particle_set, rab=rab, &
+                           rab=rab, &
                            check_spline=check_spline, id_kind=id_kind, &
-                           is_full=is_full, &
                            skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                            cell=cell, ei_scale14=ei_scale14, &
                            vdw_scale14=vdw_scale14, exclusions=exclusions, error=error)

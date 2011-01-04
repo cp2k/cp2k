@@ -370,7 +370,7 @@ CONTAINS
     SELECT CASE (topology%conn_type)
     CASE (do_conn_generate)
        CALL topology_set_atm_mass(topology,subsys_section,error)
-       CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
+       CALL topology_generate_bond(topology,para_env,subsys_section,error)
        IF(topology%reorder_atom) THEN
           ! If we generate connectivity we can save memory reordering the molecules
           ! in this case once a first connectivity has been created we match according
@@ -378,7 +378,7 @@ CONTAINS
           CALL topology_reorder_atoms(topology,qmmm,qmmm_env,subsys_section,&
                                       force_env_section,error=error)
           CALL topology_set_atm_mass(topology,subsys_section,error)
-          CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
+          CALL topology_generate_bond(topology,para_env,subsys_section,error)
        END IF
        CALL topology_generate_bend(topology,subsys_section,error)
        CALL topology_generate_ub(topology,subsys_section,error)
