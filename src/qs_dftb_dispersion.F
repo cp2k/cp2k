@@ -60,7 +60,7 @@ CONTAINS
                                                 iatom, ikind, istat, jatom, &
                                                 jkind, natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, use_virial
+    LOGICAL                                  :: failure, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: define_kind
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rc_kind
     REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, &

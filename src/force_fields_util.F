@@ -390,19 +390,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Compute the total qeff charges for each molecule kind and total system
 ! *****************************************************************************
-  SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,molecule_kind_set,&
-       molecule_set,mm_section,ff_type,charges,error)
+  SUBROUTINE force_field_qeff_output (particle_set,molecule_kind_set,&
+       molecule_set,mm_section,charges,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -744,15 +744,13 @@ MODULE hfx_energy_potential
     IF( .NOT. treat_lsd_in_core .OR. nspins == 1 ) THEN
       CALL timeset(routineN//"_getP",handle_getP)
       CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
-                            shm_is_assoc_atomic_block, &
-                            shm_master_x_data%block_offset, natom, last_sgf_global, &
+                            shm_master_x_data%block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)   
 
       IF(nspins == 2) THEN
         ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
         CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
-                              shm_is_assoc_atomic_block, & 
-                              shm_master_x_data%block_offset, natom, last_sgf_global, &
+                              shm_master_x_data%block_offset, natom,  &
                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
       END IF
       CALL timestop(handle_getP)
@@ -772,15 +770,14 @@ MODULE hfx_energy_potential
                                shm_pmax_atom,&
                                full_density,full_density_beta,&
                                natom, kind_of, basis_parameter, &
-                               last_sgf_global, nkind, shm_master_x_data%is_assoc_atomic_block)
+                               nkind, shm_master_x_data%is_assoc_atomic_block)
         END IF
       END IF
     ELSE
       IF( do_p_screening ) THEN
         CALL timeset(routineN//"_getP",handle_getP)
         CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
-                              shm_is_assoc_atomic_block, &
-                              shm_master_x_data%block_offset, natom, last_sgf_global, &
+                              shm_master_x_data%block_offset, natom,  &
                               kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
                               rho_beta=rho_ao(2)%matrix, error=error)   
         CALL timestop(handle_getP)
@@ -799,13 +796,12 @@ MODULE hfx_energy_potential
                                shm_pmax_atom,&
                                full_density,full_density_beta,&
                                natom, kind_of, basis_parameter, &
-                               last_sgf_global, nkind, shm_master_x_data%is_assoc_atomic_block)
+                               nkind, shm_master_x_data%is_assoc_atomic_block)
         END IF
       END IF
       ! ** Now get the density(ispin)
       CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
-                            shm_is_assoc_atomic_block, &
-                            shm_master_x_data%block_offset, natom, last_sgf_global, &
+                            shm_master_x_data%block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     END IF
 
@@ -1861,8 +1857,7 @@ MODULE hfx_energy_potential
       !! Distribute the current KS-matrix to all the processes
       CALL timeset(routineN//"_dist_KS",handle_dist_ks)
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(ispin)%matrix, shm_number_of_p_entries, &
-                                shm_is_assoc_atomic_block,&
-                                shm_block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                                shm_block_offset, natom, kind_of, basis_parameter, &
                                 off_diag_fac=0.5_dp,error=error)
 
       NULLIFY(full_ks)
@@ -1871,8 +1866,7 @@ MODULE hfx_energy_potential
       IF( .NOT. treat_lsd_in_core ) THEN
         IF(nspins == 2) THEN
           CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, shm_number_of_p_entries, &
-                                    shm_is_assoc_atomic_block,&
-                                    shm_block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                                    shm_block_offset, natom, kind_of, basis_parameter, &
                                     off_diag_fac=0.5_dp, error=error)
           NULLIFY(full_ks_beta)
           DEALLOCATE(shm_master_x_data%full_ks_beta, STAT=stat)

@@ -55,12 +55,12 @@ MODULE atom_kind_orbitals
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,nspin,confine,error)
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,confine,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pmat
-    INTEGER, INTENT(IN)                      :: ispin, nspin
+    INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: confine
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

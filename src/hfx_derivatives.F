@@ -487,15 +487,13 @@ MODULE hfx_derivatives
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
-                          shm_is_assoc_atomic_block, &
-                          shm_block_offset, natom, last_sgf_global, &
+                          shm_block_offset, natom, &
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     IF(nspins == 2) THEN
       ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
-                            shm_is_assoc_atomic_block, &
-                            shm_block_offset, natom, last_sgf_global, &
+                            shm_block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     END IF
     CALL timestop(handle_getP)
@@ -519,7 +517,7 @@ MODULE hfx_derivatives
                              shm_pmax_atom,&
                              full_density,full_density_beta,&
                              natom, kind_of, basis_parameter, &
-                             last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
+                             nkind, actual_x_data%is_assoc_atomic_block)
       END IF
     END IF 
 

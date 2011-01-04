@@ -56,11 +56,10 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE efield_potential(qs_env,v_efield_rspace,calculate_forces,error)
+  SUBROUTINE efield_potential(qs_env,v_efield_rspace,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type)                          :: v_efield_rspace
-    LOGICAL                                  :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_potential', &

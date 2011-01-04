@@ -198,7 +198,7 @@ CONTAINS
          my_spin = 1
        END IF
 
-       CALL generate_virtual_mo(qs_env,scf_env,mo_set, evals_virt, mo_virt, nvirt, ispin=my_spin, error=error )
+       CALL generate_virtual_mo(qs_env,mo_set, evals_virt, mo_virt, nvirt, ispin=my_spin, error=error )
     ELSE
        NULLIFY (evals_virt,mo_virt)
        nvirt = 0
@@ -618,11 +618,10 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   
-  SUBROUTINE generate_virtual_mo (qs_env, scf_env, mo_set, evals_virt, mo_virt, &
+  SUBROUTINE generate_virtual_mo (qs_env, mo_set, evals_virt, mo_virt, &
              nvirt, ispin, error )
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), DIMENSION(:), POINTER     :: evals_virt
     TYPE(cp_fm_type), POINTER                :: mo_virt

@@ -848,8 +848,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -861,7 +860,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
-    NULLIFY (cell, particle_set, orb_basis_set)
+    NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (difab, op_dip, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
@@ -1137,8 +1136,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -1150,7 +1148,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
-    NULLIFY (cell, particle_set, orb_basis_set)
+    NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (mab, op_dip, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)

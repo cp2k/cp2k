@@ -13,7 +13,6 @@ MODULE qs_rho0_methods
                                              set_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -337,12 +336,11 @@ MODULE qs_rho0_methods
   END SUBROUTINE calculate_rho0_atom
 
 ! *****************************************************************************
-  SUBROUTINE init_rho0(qs_env, gapw_control, cell, &
+  SUBROUTINE init_rho0(qs_env, gapw_control, &
                        tddft, tddft_local_rho_set, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(local_rho_type), OPTIONAL, POINTER  :: tddft_local_rho_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -517,7 +515,7 @@ MODULE qs_rho0_methods
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                            grid_atom=grid_atom)
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
-      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,max_rpgf0_s)
+      CALL interaction_radii_g0(rho0_mpole,ikind,eps_Vrho0,max_rpgf0_s)
     END DO
     rho0_mpole%max_rpgf0_s = max_rpgf0_s
 
@@ -561,10 +559,9 @@ MODULE qs_rho0_methods
     END SUBROUTINE init_rho0
 
 ! *****************************************************************************
-  SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,eps_Vrho0,max_rpgf0_s)
+  SUBROUTINE interaction_radii_g0(rho0_mpole,ik,eps_Vrho0,max_rpgf0_s)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(grid_atom_type), POINTER            :: grid_atom
     INTEGER, INTENT(IN)                      :: ik
     REAL(dp), INTENT(IN)                     :: eps_Vrho0
     REAL(dp), INTENT(INOUT)                  :: max_rpgf0_s

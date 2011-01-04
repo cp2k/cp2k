@@ -785,7 +785,7 @@ CONTAINS
     END TYPE local_lists
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, maxat, mol_a, mol_b, nkind, otype, stat, nsub, natom
+      kcell, maxat, mol_a, mol_b, nkind, otype, stat, natom
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: index_list
@@ -793,7 +793,7 @@ CONTAINS
                                                 my_molecular, my_symmetric
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: pres_a, pres_b
     REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
-    REAL(dp), DIMENSION(3)                   :: r, rab, ra, rb, s, sab_max, sb, &
+    REAL(dp), DIMENSION(3)                   :: r, rab, ra, rb,sab_max, sb, &
                                                 sb_pbc, sb_min, sb_max, rab_pbc, pd, sab_max_guard
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nlista, nlistb
     TYPE(local_lists), DIMENSION(:), POINTER :: lista, listb

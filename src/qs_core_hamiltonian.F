@@ -72,8 +72,6 @@
 ! *****************************************************************************
 MODULE qs_core_hamiltonian
 
-  USE ai_kinetic,                      ONLY: kinetic
-  USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE core_ae,                         ONLY: build_core_ae
@@ -144,7 +142,6 @@ CONTAINS
       routineN = 'build_core_hamiltonian_matrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: name
     INTEGER                                  :: handle, maxder, natom, nder, &
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
@@ -426,7 +423,7 @@ CONTAINS
     
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
-         oce, qs_env, calculate_forces, para_env, error)
+         qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
     
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -435,11 +432,10 @@ CONTAINS
 !> \brief Possibly prints matrices after the construction of the Core 
 !>     Hamiltonian Matrix
 ! *****************************************************************************
-  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, &
+  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, qs_env, &
        calculate_forces, para_env, error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_t, matrix_h
-    TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_para_env_type), POINTER          :: para_env

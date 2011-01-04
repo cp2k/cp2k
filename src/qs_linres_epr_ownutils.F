@@ -254,7 +254,7 @@ CONTAINS
        CALL calculate_ecore(h=kinetic(1)%matrix,&
                             p=rho%rho_ao(ispin)%matrix,&
                             ecore=epr_g_zke_temp(ispin),&
-                            para_env=para_env,error=error)
+                            error=error)
     END DO
 
     epr_env%g_zke = epr_env%g_zke_factor * ( epr_g_zke_temp(1) - epr_g_zke_temp(2) )
@@ -813,7 +813,7 @@ CONTAINS
                                                 shift_pw_rspace
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
-    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_gspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -823,7 +823,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
-         rho_gspace, rho_rspace, pw_pools, particle_set)
+         rho_gspace, pw_pools, particle_set)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
                     particle_set=particle_set,error=error)
@@ -874,7 +874,6 @@ CONTAINS
        ENDDO
        !
        DO idir = 1,3
-          rho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
           rho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z

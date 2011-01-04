@@ -103,14 +103,14 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: epr_section, lr_section
+    TYPE(section_vals_type), POINTER         :: lr_section
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
-    NULLIFY(logger, mos, mpools, epr_section, particle_set)
+    NULLIFY(logger, mos, mpools, particle_set)
     NULLIFY(auxbas_pw_pool, pw_env)
     NULLIFY(nablavks_atom_set)
 
@@ -135,12 +135,7 @@ CONTAINS
     ENDIF
 
     CALL epr_env_create(epr_env,error=error)
-    !
-    ! If surrent_density or full_epr different allocations are required
-    epr_section => section_vals_get_subs_vals(qs_env%input, &
-         &                                    "PROPERTIES%LINRES%EPR",error=error)
 
-    !CALL section_vals_val_get(epr_section,"RESTART_EPR",l_val=epr_env%restart_epr,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
          &          atomic_kind_set=atomic_kind_set,&

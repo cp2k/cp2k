@@ -542,7 +542,7 @@ CONTAINS
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
       found, h_duplicated, had_thread_dist, has_dv, map_consistent, &
       my_compute_tau, my_gapw, new_set_pair_coming, p_duplicated, &
-      pab_required, scatter, tr, use_subpatch, use_virial
+      pab_required, scatter, use_subpatch, use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
@@ -806,7 +806,7 @@ CONTAINS
 !$omp private(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
 !$omp private(brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
 !$omp private(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
-!$omp private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,tr,found,error,atom_a,atom_b), &
+!$omp private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found,error,atom_a,atom_b), &
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
 !$omp private(dv_block,p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &

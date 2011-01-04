@@ -118,7 +118,7 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
                              pmax_atom, full_density, full_density_beta, natom, &
-                             kind_of,basis_parameter, last_sgf_global,&
+                             kind_of,basis_parameter, &
                              nkind, is_assoc_atomic_block)
 
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
@@ -132,8 +132,7 @@ MODULE hfx_screening_methods
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    INTEGER                                  :: last_sgf_global(0:natom), &
-                                                nkind
+    INTEGER                                  :: nkind
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
@@ -679,7 +678,6 @@ MODULE hfx_screening_methods
     LOGICAL                                  :: failure
     REAL(dp) :: cutoff, ff, max_contraction_a, max_contraction_b, prefactor, &
       R1, R_max, ra(3), rab(3), rab2, radius, rap(3), rb(3), rp(3), x(2), zetp
-    REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
     REAL(dp), SAVE                           :: DATA(2,0:100)
@@ -733,7 +731,6 @@ MODULE hfx_screening_methods
       npgfa => basis_parameter(ikind)%npgf
       nseta = basis_parameter(ikind)%nset
       zeta => basis_parameter(ikind)%zet
-      set_radius_a => basis_parameter(ikind)%set_radius
       first_sgfa => basis_parameter(ikind)%first_sgf
       sphi_a => basis_parameter(ikind)%sphi
       nsgfa => basis_parameter(ikind)%nsgf
@@ -751,7 +748,6 @@ MODULE hfx_screening_methods
         npgfb => basis_parameter(jkind)%npgf
         nsetb = basis_parameter(jkind)%nset
         zetb => basis_parameter(jkind)%zet
-        set_radius_b => basis_parameter(jkind)%set_radius
         first_sgfb => basis_parameter(jkind)%first_sgf
         sphi_b => basis_parameter(jkind)%sphi
         nsgfb => basis_parameter(jkind)%nsgf

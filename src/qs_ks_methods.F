@@ -529,7 +529,7 @@ CONTAINS
        IF(dft_control%apply_efield_field)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,v_efield_rspace%pw,&
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
-          CALL efield_potential(qs_env,v_efield_rspace,calculate_forces,error)
+          CALL efield_potential(qs_env,v_efield_rspace,error)
           CALL pw_scale(v_efield_rspace%pw, v_efield_rspace%pw%pw_grid%dvol, error=error)
        END IF
 
@@ -2485,7 +2485,6 @@ CONTAINS
              CALL calculate_ecore(h=matrix_h(1)%matrix,&
                   p=rho%rho_ao(ispin)%matrix,&
                   ecore=ecore,&
-                  para_env=para_env,&
                   error=error)
              energy%core=energy%core+ecore
           END DO

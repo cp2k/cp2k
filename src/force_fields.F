@@ -179,8 +179,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 7. Output total system charge assigned to qeff
     !-----------------------------------------------------------------------------
-    CALL force_field_qeff_output (particle_set,atomic_kind_set, molecule_kind_set,&
-         molecule_set, mm_section, ff_type, fist_nonbond_env%charges, error)
+    CALL force_field_qeff_output (particle_set, molecule_kind_set,&
+         molecule_set, mm_section, fist_nonbond_env%charges, error)
 
     !-----------------------------------------------------------------------------
     ! 8. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds

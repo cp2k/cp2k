@@ -10,7 +10,6 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE admm_types
-  USE ai_overlap_new,                  ONLY: overlap
   USE bibliography,                    ONLY: Guidon2010,&
                                              cite_reference
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

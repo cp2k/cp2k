@@ -75,19 +75,17 @@ MODULE hfx_communication
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
-                              block_offset, natom, last_sgf_global, kind_of, &
+  SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
+                              block_offset, natom,  kind_of, &
                               basis_parameter, get_max_vals_spin, rho_beta, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:), POINTER          :: full_density
     TYPE(cp_dbcsr_type), POINTER             :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
-    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
     INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
-    INTEGER                                  :: last_sgf_global(0:natom), &
-                                                kind_of(*)
+    INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     LOGICAL, INTENT(IN)                      :: get_max_vals_spin
@@ -211,19 +209,17 @@ MODULE hfx_communication
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, is_assoc_atomic_block,&
-                                  block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+  SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
+                                  block_offset, natom, kind_of, basis_parameter, &
                                   off_diag_fac, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:)                   :: full_ks
     TYPE(cp_dbcsr_type), POINTER             :: ks_matrix
     INTEGER, INTENT(IN)                      :: number_of_p_entries
-    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
     INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
-    INTEGER                                  :: last_sgf_global(0:natom), &
-                                                kind_of(*)
+    INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac
@@ -393,8 +389,7 @@ MODULE hfx_communication
        full_ks = full_ks * scaling_factor
     END IF
     CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%is_assoc_atomic_block, &
-                              actual_x_data%block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                              actual_x_data%block_offset, natom, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp,error=error)
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -405,8 +400,7 @@ MODULE hfx_communication
          full_ks = full_ks * scaling_factor
       END IF
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%is_assoc_atomic_block, &
-                              actual_x_data%block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                              actual_x_data%block_offset, natom, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp,error=error)
 
       DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)

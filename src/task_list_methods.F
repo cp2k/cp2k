@@ -450,7 +450,7 @@ CONTAINS
                 igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                 CALL compute_pgf_properties(cube_center,lb_cube,ub_cube,radius,&
-                           cell,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                            ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
@@ -489,11 +489,10 @@ CONTAINS
 !>      10.2008 refactored [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, &
-               cell,rs_grid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
+               rs_grid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
 
     INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center, lb_cube, ub_cube
     REAL(KIND=dp), INTENT(OUT)               :: radius
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     INTEGER, INTENT(IN)                      :: la_max
@@ -2065,7 +2064,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
                                                 send_disps, send_sizes, &
                                                 send_pair_count,recv_pair_count, &
                                                 send_pair_disps,recv_pair_disps
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -2142,7 +2141,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
 !$omp             shared(last_row,first_row,last_col,first_col),&
 !$omp             shared(pmat,send_buf_r,send_disps,send_sizes),&
 !$omp             shared(atom_pair_send),&
-!$omp             private(i,pair,arow,acol,nrow,ncol,p_block,tr),&
+!$omp             private(i,pair,arow,acol,nrow,ncol,p_block),&
 !$omp             private(found,k,j)
   DO l =1, rs%desc%group_size
     DO i = 1, send_pair_count(l)
@@ -2214,7 +2213,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
 !$omp          shared(last_col, first_col,hmat,scatter,recv_sizes),&
 !$omp          shared(recv_disps,locks,nblkrows_total),&
 !$omp          private(error,i,pair,arow,acol,nrow,ncol,p_block),&
-!$omp          private(tr,found,h_block,j,k,nthread)
+!$omp          private(found,h_block,j,k,nthread)
   nthread = 1
 !$ nthread = omp_get_num_threads()
 

@@ -69,11 +69,10 @@ CONTAINS
 !>         - simplified using DBCSR trace function (21.07.2010, jhu)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_ecore(h,p,ecore,para_env,error)
+  SUBROUTINE calculate_ecore(h,p,ecore,error)
 
     TYPE(cp_dbcsr_type), POINTER             :: h, p
     REAL(KIND=dp), INTENT(OUT)               :: ecore
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore', &
@@ -123,12 +122,11 @@ CONTAINS
     REAL(KIND=dp)                            :: aab, dab, eab, ecore_overlap, &
                                                 f, fab, rab2, rootaab, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
-    REAL(KIND=dp), DIMENSION(3)              :: deab, r, rab
+    REAL(KIND=dp), DIMENSION(3)              :: deab, rab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -141,8 +139,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
 
     CALL timeset(routineN,handle)
 

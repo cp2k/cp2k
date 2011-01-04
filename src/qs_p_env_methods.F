@@ -262,10 +262,9 @@ CONTAINS
           CALL local_rho_set_create(p_env%local_rho_set,error=error)
           CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set,error=error)
           CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
-                         qs_env%cell, .TRUE., p_env%local_rho_set, error)
+                         .TRUE., p_env%local_rho_set, error)
           CALL hartree_local_create(p_env%hartree_local,error=error)
-          CALL init_coulomb_local(qs_env,qs_env%dft_control%qs_control%gapw_control, &
-                                  .TRUE., p_env,error=error)
+          CALL init_coulomb_local(qs_env, .TRUE., p_env,error=error)
        END IF
 
        !------------------------!

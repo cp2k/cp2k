@@ -113,8 +113,7 @@ CONTAINS
       jatom, jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, ncob, &
       nkind, nm, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
+                                                npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: dab, rab2
@@ -136,8 +135,7 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -152,7 +150,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY (atomic_kind_set,cell,particle_set,sab_orb)
-    NULLIFY (orb_basis_set, matrix_s)
+    NULLIFY (matrix_s)
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
@@ -228,7 +226,6 @@ CONTAINS
        ! basis jkind
        first_sgfb   =>  basis_set_b%first_sgf
        lb_max       =>  basis_set_b%lmax
-       lb_min       =>  basis_set_b%lmin
        npgfb        =>  basis_set_b%npgf
        nsetb        =   basis_set_b%nset
        nsgfb        =>  basis_set_b%nsgf_set

@@ -570,7 +570,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           DO ikind=1,SIZE(atomic_kind_set)
             atomic_kind => atomic_kind_set(ikind)
             NULLIFY(pmat(ikind)%mat)
-            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin,nspin=nspin,error=error)
+            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin,error=error)
             NULLIFY(atomic_kind)
           END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -959,7 +959,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           "Guess for atomic kind: "//TRIM(atomic_kind%name)
       END IF
       CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
-                                     ispin=ispin,nspin=nspin,error=error)
+                                     ispin=ispin,error=error)
     END DO
 
     scale = 1.0_dp

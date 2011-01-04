@@ -281,7 +281,6 @@ CONTAINS
              CALL calculate_ecore(h=kinetic_m(1)%matrix,&
                   p=rho%rho_ao(ispin)%matrix,&
                   ecore=e_kinAtt,&
-                  para_env=para_env,&
                   error=error)
              e_kin=e_kin+e_kinAtt
           END DO

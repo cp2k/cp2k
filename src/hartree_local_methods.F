@@ -11,8 +11,7 @@ MODULE  hartree_local_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             gapw_control_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
                                              ecoul_1center_type,&
@@ -69,10 +68,9 @@ MODULE  hartree_local_methods
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE init_coulomb_local(qs_env,gapw_control,tddft,p_env,error)
+  SUBROUTINE init_coulomb_local(qs_env,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(gapw_control_type), POINTER         :: gapw_control
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
