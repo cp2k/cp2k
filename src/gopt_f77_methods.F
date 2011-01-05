@@ -19,8 +19,6 @@
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
 
-    USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                               get_atomic_kind
     USE averages_types,                  ONLY: average_quantities_type,&
                                                create_averages,&
                                                release_averages
@@ -63,7 +61,6 @@
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
     USE particle_types,                  ONLY: write_structure_data
-    USE shell_potential_types,           ONLY: shell_kind_type
     USE timings,                         ONLY: timeset,&
                                                timestop
     USE virial_methods,                  ONLY: virial_update
@@ -86,12 +83,11 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ensemble, handle, i, idg, idir, ip, shell_index, stat
-    LOGICAL                                  :: failure, explicit, is_shell
-    REAL(KIND=dp)                            :: f_ts, mass, potential_energy
+    LOGICAL                                  :: failure, explicit
+    REAL(KIND=dp)                            :: f_ts, potential_energy
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient_ts
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -102,7 +98,6 @@
     CHARACTER(LEN=default_string_length)     :: project_name
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(section_vals_type), POINTER         :: work, avgs_section
-    TYPE(shell_kind_type), POINTER           :: shell
 
     failure = .FALSE.
 
