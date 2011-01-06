@@ -8,23 +8,15 @@
 
 ! *****************************************************************************
 SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
-
-  IMPLICIT NONE
-
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
+  USE fft_kinds, ONLY                      : dp
   INTEGER, INTENT ( IN ) :: n
   INTEGER, INTENT ( IN ) :: isign
   INTEGER, INTENT ( OUT ) :: ic
   INTEGER, DIMENSION ( 7 ), INTENT ( OUT ) :: after, before, now
-  REAL ( dbl ) , DIMENSION ( 2, 1024 ), INTENT ( OUT ) :: trig
+  REAL ( dp ) , DIMENSION ( 2, 1024 ), INTENT ( OUT ) :: trig
 
   INTEGER :: i, j, itt
-  REAL ( dbl ) :: twopi, angle
+  REAL ( dp ) :: twopi, angle
   INTEGER, PARAMETER :: nt = 82
   INTEGER, DIMENSION ( 7, nt ), PARAMETER :: idata = RESHAPE ((/ &
             3,   3, 1, 1, 1, 1, 1,       4,   4, 1, 1, 1, 1, 1,      5,   5, 1, 1, 1, 1, 1,       6,   6, 1, 1, 1, 1, 1, &
@@ -49,7 +41,6 @@ SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
           864,   8, 4, 3, 3, 3, 1,     900,   5, 5, 4, 3, 3, 1,    960,   5, 4, 4, 4, 3, 1,     972,   4, 3, 3, 3, 3, 3, &
          1000,   8, 5, 5, 5, 1, 1,    1024,   4, 4, 4, 4, 4, 1  /),(/7,nt/))
 
-!-----------------------------------------------------------------------------!
 
   mloop: DO i = 1, nt
     IF ( n == idata ( 1, i ) ) THEN
@@ -80,17 +71,13 @@ SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
     before ( ic - i + 1 ) = before ( ic - i + 2 ) * now ( ic - i + 2 )
   END DO
 
-  twopi = 8._dbl * ATAN ( 1._dbl )
-  angle = isign * twopi / REAL ( n, dbl )
-  trig ( 1, 1 ) = 1._dbl
-  trig ( 2, 1 ) = 0._dbl
+  twopi = 8._dp * ATAN ( 1._dp )
+  angle = isign * twopi / REAL ( n, dp )
+  trig ( 1, 1 ) = 1._dp
+  trig ( 2, 1 ) = 0._dp
   DO i = 1, n - 1
-    trig ( 1, i + 1 ) = COS ( REAL ( i, dbl ) * angle )
-    trig ( 2, i + 1 ) = SIN ( REAL ( i, dbl ) * angle )
+    trig ( 1, i + 1 ) = COS ( REAL ( i, dp ) * angle )
+    trig ( 2, i + 1 ) = SIN ( REAL ( i, dp ) * angle )
   END DO
 
-!-----------------------------------------------------------------------------!
-
   END SUBROUTINE ctrig
-
-!-----------------------------------------------------------------------------!

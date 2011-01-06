@@ -5,37 +5,28 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
-                    trig, now, after, before, isign )
+SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout,  trig, now, after, before, isign )
 
-  IMPLICIT NONE
-
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dbl = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
-! Arguments
+  USE fft_kinds, ONLY     : dp
   INTEGER, INTENT ( IN ) :: mm, nfft, m, nn, n, now, after, before, isign
-  REAL ( dbl ), DIMENSION ( 2, 1024 ), INTENT ( IN ) :: trig
-  REAL ( dbl ), DIMENSION ( 2, mm, m ), INTENT ( IN ) :: zin
-  REAL ( dbl ), DIMENSION ( 2, n, nn ), INTENT ( INOUT ) :: zout
+  REAL ( dp ), DIMENSION ( 2, 1024 ), INTENT ( IN ) :: trig
+  REAL ( dp ), DIMENSION ( 2, mm, m ), INTENT ( IN ) :: zin
+  REAL ( dp ), DIMENSION ( 2, n, nn ), INTENT ( INOUT ) :: zout
 
   INTEGER :: atn, atb, ia, ib, nin1, nin2, nin3, nin4, nin5, nin6, nin7, nin8
   INTEGER :: nout1, nout2, nout3, nout4, nout5, nout6, nout7, nout8, &
              j, ias, itt, itrig
-  REAL ( dbl ) :: s, s1, s2, s3, s4, s5, s6, s7, s8, &
+  REAL ( dp ) :: s, s1, s2, s3, s4, s5, s6, s7, s8, &
                   r, r1, r2, r3, r4, r5, r6, r7, r8, cr2, cr3, cr4, cr5, &
                   ci2, ci3, ci4, ci5, ur1, ur2, ur3, ui1, ui2, ui3, &
-                  vr1, vr2, vr3, vi1, vi2, vi3, cm, cp, dm, dp, &
+                  vr1, vr2, vr3, vi1, vi2, vi3, cm, cp, dm, dbl, &
                   am, ap, bm, bp, bbs, s25, s34, r34, r25, sin2, sin4
-  REAL ( dbl ), PARAMETER :: rt2i = 0.7071067811865475_dbl  ! sqrt(0.5)
-  REAL ( dbl ), PARAMETER :: bb = 0.8660254037844387_dbl  ! sqrt(3)/2
-  REAL ( dbl ), PARAMETER :: cos2 = 0.3090169943749474_dbl ! cos(2*pi/5)
-  REAL ( dbl ), PARAMETER :: cos4 = - 0.8090169943749474_dbl !  cos(4*pi/5)
-  REAL ( dbl ), PARAMETER :: sin2p = 0.9510565162951536_dbl ! sin(2*pi/5)
-  REAL ( dbl ), PARAMETER :: sin4p = 0.5877852522924731_dbl ! sin(4*pi/5)
+  REAL ( dp ), PARAMETER :: rt2i = 0.7071067811865475_dp  ! sqrt(0.5)
+  REAL ( dp ), PARAMETER :: bb = 0.8660254037844387_dp  ! sqrt(3)/2
+  REAL ( dp ), PARAMETER :: cos2 = 0.3090169943749474_dp ! cos(2*pi/5)
+  REAL ( dp ), PARAMETER :: cos4 = - 0.8090169943749474_dp !  cos(4*pi/5)
+  REAL ( dp ), PARAMETER :: sin2p = 0.9510565162951536_dp ! sin(2*pi/5)
+  REAL ( dp ), PARAMETER :: sin4p = 0.5877852522924731_dp ! sin(4*pi/5)
 
 !-----------------------------------------------------------------------------!
 
@@ -381,12 +372,12 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
           cm = r - s
           r = s2 + s6
           s = s4 + s8
-          dp = r + s
+          dbl = r + s
           dm = r - s
           zout ( 1, nout1, j ) = ap + bp
-          zout ( 2, nout1, j ) = cp + dp
+          zout ( 2, nout1, j ) = cp + dbl
           zout ( 1, nout5, j ) = ap - bp
-          zout ( 2, nout5, j ) = cp - dp
+          zout ( 2, nout5, j ) = cp - dbl
           zout ( 1, nout3, j ) = am + dm
           zout ( 2, nout3, j ) = cm - bm
           zout ( 1, nout7, j ) = am - dm
@@ -405,20 +396,20 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
           cm = r - s
           r = s2 - s6
           s = r4 - r8
-          dp = r + s
+          dbl = r + s
           dm = r - s
           r = ( cp + dm ) * rt2i
           s = (-cp + dm ) * rt2i
-          cp = ( cm + dp ) * rt2i
-          dp = ( cm - dp ) * rt2i
+          cp = ( cm + dbl ) * rt2i
+          dbl = ( cm - dbl ) * rt2i
           zout ( 1, nout2, j ) = ap + r
           zout ( 2, nout2, j ) = bm + s
           zout ( 1, nout6, j ) = ap - r
           zout ( 2, nout6, j ) = bm - s
           zout ( 1, nout4, j ) = am + cp
-          zout ( 2, nout4, j ) = bp + dp
+          zout ( 2, nout4, j ) = bp + dbl
           zout ( 1, nout8, j ) = am - cp
-          zout ( 2, nout8, j ) = bp - dp
+          zout ( 2, nout8, j ) = bp - dbl
         END DO
       END DO
     ELSE
@@ -473,12 +464,12 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
           cm = r - s
           r = s2 + s6
           s = s4 + s8
-          dp = r + s
+          dbl = r + s
           dm = r - s
           zout ( 1, nout1, j ) = ap + bp
-          zout ( 2, nout1, j ) = cp + dp
+          zout ( 2, nout1, j ) = cp + dbl
           zout ( 1, nout5, j ) = ap - bp
-          zout ( 2, nout5, j ) = cp - dp
+          zout ( 2, nout5, j ) = cp - dbl
           zout ( 1, nout3, j ) = am - dm
           zout ( 2, nout3, j ) = cm + bm
           zout ( 1, nout7, j ) = am + dm
@@ -497,20 +488,20 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
           cm = r - s
           r = -s2 + s6
           s = r4 - r8
-          dp = r + s
+          dbl = r + s
           dm = r - s
           r = ( cp + dm ) * rt2i
           s = ( cp - dm ) * rt2i
-          cp = ( cm + dp ) * rt2i
-          dp = (-cm + dp ) * rt2i
+          cp = ( cm + dbl ) * rt2i
+          dbl = (-cm + dbl ) * rt2i
           zout ( 1, nout2, j ) = ap + r
           zout ( 2, nout2, j ) = bm + s
           zout ( 1, nout6, j ) = ap - r
           zout ( 2, nout6, j ) = bm - s
           zout ( 1, nout4, j ) = am + cp
-          zout ( 2, nout4, j ) = bp + dp
+          zout ( 2, nout4, j ) = bp + dbl
           zout ( 1, nout8, j ) = am - cp
-          zout ( 2, nout8, j ) = bp - dp
+          zout ( 2, nout8, j ) = bp - dbl
         END DO
       END DO
     END IF
@@ -537,8 +528,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
         s = s2 + s3
         zout ( 1, nout1, j ) = r + r1
         zout ( 2, nout1, j ) = s + s1
-        r1 = r1 - 0.5_dbl * r
-        s1 = s1 - 0.5_dbl * s
+        r1 = r1 - 0.5_dp * r
+        s1 = s1 - 0.5_dp * s
         r2 = bbs * ( r2 - r3 )
         s2 = bbs * ( s2 - s3 )
         zout ( 1, nout2, j ) = r1 - s2
@@ -571,8 +562,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
               s = s2 + s3
               zout ( 1, nout1, j ) = r + r1
               zout ( 2, nout1, j ) = s + s1
-              r1 = r1 - 0.5_dbl * r
-              s1 = s1 - 0.5_dbl * s
+              r1 = r1 - 0.5_dp * r
+              s1 = s1 - 0.5_dp * s
               r2 = bbs*(r2-r3)
               s2 = bbs*(s2-s3)
               zout ( 1, nout2, j ) = r1 - s2
@@ -602,8 +593,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
               s = s2 + s3
               zout ( 1, nout1, j ) = r + r1
               zout ( 2, nout1, j ) = s + s1
-              r1 = r1 - 0.5_dbl * r
-              s1 = s1 - 0.5_dbl * s
+              r1 = r1 - 0.5_dp * r
+              s1 = s1 - 0.5_dp * s
               r2 = bbs * ( r2 - r3 )
               s2 = bbs * ( s2 - s3 )
               zout ( 1, nout2, j ) = r1 - s2
@@ -637,8 +628,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
               s = s2 + s3
               zout ( 1, nout1, j ) = r + r1
               zout ( 2, nout1, j ) = s + s1
-              r1 = r1 - 0.5_dbl * r
-              s1 = s1 - 0.5_dbl * s
+              r1 = r1 - 0.5_dp * r
+              s1 = s1 - 0.5_dp * s
               r2 = bbs * ( r2 - r3 )
               s2 = bbs * ( s2 - s3 )
               zout ( 1, nout2, j ) = r1 - s2
@@ -670,8 +661,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
               s = s2 + s3
               zout ( 1, nout1, j ) = r + r1
               zout ( 2, nout1, j ) = s + s1
-              r1 = r1 - 0.5_dbl * r
-              s1 = s1 - 0.5_dbl * s
+              r1 = r1 - 0.5_dp * r
+              s1 = s1 - 0.5_dp * s
               r2 = bbs * ( r2 - r3 )
               s2 = bbs * ( s2 - s3 )
               zout ( 1, nout2, j ) = r1 - s2
@@ -713,8 +704,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
             s = s2 + s3
             zout ( 1, nout1, j ) = r + r1
             zout ( 2, nout1, j ) = s + s1
-            r1 = r1 - 0.5_dbl * r
-            s1 = s1 - 0.5_dbl * s
+            r1 = r1 - 0.5_dp * r
+            s1 = s1 - 0.5_dp * s
             r2 = bbs * ( r2 - r3 )
             s2 = bbs * ( s2 - s3 )
             zout ( 1, nout2, j ) = r1 - s2
@@ -1005,8 +996,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
         s1 = zin ( 2, j, nin1 )
         ur1 = r + r1
         ui1 = s + s1
-        r1 = r1 - 0.5_dbl * r
-        s1 = s1 - 0.5_dbl * s
+        r1 = r1 - 0.5_dp * r
+        s1 = s1 - 0.5_dp * s
         r = r2 - r3
         s = s2 - s3
         ur2 = r1 - s * bbs
@@ -1024,8 +1015,8 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
         s1 = zin ( 2, j, nin4 )
         vr1 = r + r1
         vi1 = s + s1
-        r1 = r1 - 0.5_dbl * r
-        s1 = s1 - 0.5_dbl * s
+        r1 = r1 - 0.5_dp * r
+        s1 = s1 - 0.5_dp * s
         r = r2 - r3
         s = s2 - s3
         vr2 = r1 - s * bbs

@@ -31,8 +31,6 @@ SUBROUTINE fftessl_get_lengths ( DATA, max_length )
 
  INTEGER                                   :: ndata
 
-!------------------------------------------------------------------------------
-
   ndata = MIN ( rlen, max_length )
   DATA(1:ndata) = RADIX(1:ndata)
   max_length = ndata
@@ -42,13 +40,7 @@ END SUBROUTINE fftessl_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
+  USE fft_kinds, ONLY                                   : dp
   LOGICAL, INTENT(IN)                                  :: fft_in_place
   INTEGER, INTENT(INOUT)                               :: fsign
   REAL(KIND=dp), INTENT(IN)                            :: scale
@@ -59,8 +51,6 @@ SUBROUTINE fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
   COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)          :: aux
   INTEGER                                              :: naux, nx, ny, nz
   INTEGER                                              :: na1, na2
-
-!------------------------------------------------------------------------------
 
   nx = n ( 1 )
   ny = n ( 2 )
@@ -124,13 +114,7 @@ END SUBROUTINE fftessl3d
 ! *****************************************************************************
 SUBROUTINE fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
+  USE fft_kinds, ONLY                                 : dp
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
   INTEGER, INTENT ( IN )                             :: n, m
@@ -141,8 +125,6 @@ SUBROUTINE fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
   COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: aux1, aux2
   INTEGER                                            :: naux1, naux2, init
   INTEGER                                            :: inc1x, inc2x, inc1y, inc2y
-
-!------------------------------------------------------------------------------
 
   IF( n < 2048 ) THEN
      naux1 = 20000

@@ -97,7 +97,8 @@ END SUBROUTINE fftw2_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftw2_create_plan_3d ( plan, plan_style )
 
-  USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
   IMPLICIT NONE
 
@@ -184,7 +185,8 @@ END SUBROUTINE fftw2_create_plan_3d
 
 SUBROUTINE fftw23d ( plan, scale, zin, zout, stat )
 
-  USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
   IMPLICIT NONE
 
@@ -231,7 +233,8 @@ END SUBROUTINE fftw23d
 ! *****************************************************************************
 SUBROUTINE fftw2_create_plan_1dm ( plan, plan_style )
 
-  USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
   IMPLICIT NONE
 
@@ -311,7 +314,8 @@ END SUBROUTINE fftw2_destroy_plan
 
 SUBROUTINE fftw21dm ( plan, zin, zout, scale, stat )
 
-  USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
   IMPLICIT NONE
 

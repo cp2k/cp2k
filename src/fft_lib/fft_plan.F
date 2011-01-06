@@ -14,25 +14,13 @@
 ! *****************************************************************************
 
 MODULE fft_plan
+  USE fft_kinds,                       ONLY: integer8_kind
 
   IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
 
-#if defined (__NAG)
-  INTEGER*8          :: dummy_64_bit
-  INTEGER, PARAMETER :: integer8_kind = KIND(dummy_64_bit)
-#else
-  INTEGER, PARAMETER :: integer8_kind = 8
-#endif
-
-  PUBLIC :: fft_plan_type, dp
+  PUBLIC :: fft_plan_type
 
   TYPE fft_plan_type
-
     INTEGER                             :: fft_type
     INTEGER                             :: fsign
     LOGICAL                             :: trans, fft_in_place, valid
@@ -43,8 +31,6 @@ MODULE fft_plan
 !$  INTEGER (KIND=integer8_kind)        :: alt_fftw_plan
 !$  LOGICAL                             :: need_alt_plan
 !$  INTEGER                             :: num_threads_needed, num_rows, alt_num_rows
-
   END TYPE fft_plan_type
-
 
 END MODULE fft_plan

@@ -101,31 +101,17 @@ SUBROUTINE fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
 #if defined ( __FFTMKL )
   USE MKL_DFTI
 #endif
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE fft_kinds, ONLY                                   : dp,&
+                                                          dft_prec
   LOGICAL, INTENT(IN)                                  :: fft_in_place
   INTEGER, INTENT(INOUT)                               :: fsign
   REAL(KIND=dp), INTENT(IN)                            :: scale
   INTEGER, DIMENSION(*), INTENT(IN)                    :: n
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
-
+  INTEGER                                              :: status
 #if defined ( __FFTMKL )
   TYPE(DFTI_DESCRIPTOR), POINTER                       :: desc
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dft_prec = DFTi_SINGLE
-#else
-  INTEGER, PARAMETER :: dft_prec = DFTi_DOUBLE
-#endif
-#endif
-  INTEGER                                              :: status
-!------------------------------------------------------------------------------
-
-#if defined ( __FFTMKL )
 
   status = DftiCreateDescriptor( desc, dft_prec, DFTI_COMPLEX, 3, n )
   IF (fsign == +1) THEN
@@ -167,34 +153,18 @@ SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
 #if defined ( __FFTMKL )
   USE MKL_DFTI
 #endif
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
-! Arguments
+  USE fft_kinds, ONLY                                   : dp,&
+                                                          dft_prec
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
   INTEGER, INTENT ( IN )                             :: n, m
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
+  INTEGER                                            :: status
+  INTEGER                                            :: ii(3),di,io(3),DO
 #if defined ( __FFTMKL )
   TYPE(DFTI_DESCRIPTOR), POINTER                       :: desc
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dft_prec = DFTi_SINGLE
-#else
-  INTEGER, PARAMETER :: dft_prec = DFTi_DOUBLE
-#endif
-#endif
-  INTEGER                                              :: status
-  INTEGER                                            :: ii(3),di,io(3),DO
-
-!------------------------------------------------------------------------------
-
-#if defined ( __FFTMKL )
 
   ii(1) = 0
   ii(2) = 1

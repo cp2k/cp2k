@@ -99,7 +99,8 @@ END SUBROUTINE fftw3_get_lengths
 
 SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
 
-  USE fft_plan,                           ONLY : fft_plan_type, dp
+  USE fft_plan,                           ONLY : fft_plan_type
+  USE fft_kinds,                          ONLY : dp
 
   IMPLICIT NONE
 
@@ -162,7 +163,8 @@ END SUBROUTINE fftw3_create_plan_3d
 
 SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 
-  USE fft_plan,                           ONLY : fft_plan_type, dp
+  USE fft_plan,                           ONLY : fft_plan_type
+  USE fft_kinds,                          ONLY : dp
 
   IMPLICIT NONE
 
@@ -225,7 +227,8 @@ END SUBROUTINE fftw33d
 
 SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 
-  USE fft_plan,                           ONLY : fft_plan_type, dp
+  USE fft_plan,                           ONLY : fft_plan_type
+  USE fft_kinds,                          ONLY : dp
 
   IMPLICIT NONE
 
@@ -366,7 +369,8 @@ END SUBROUTINE fftw3_destroy_plan
 
 SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
 
-  USE fft_plan,                 ONLY : fft_plan_type, dp
+  USE fft_plan,                 ONLY : fft_plan_type
+  USE fft_kinds,                          ONLY : dp
 
   IMPLICIT NONE
 #if defined (__NAG)

@@ -36,12 +36,7 @@ END SUBROUTINE fftsg_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE fft_kinds, ONLY                                   : dp
   LOGICAL, INTENT(IN)                                  :: fft_in_place
   INTEGER, INTENT(INOUT)                               :: fsign
   REAL(KIND=dp), INTENT(IN)                            :: scale
@@ -99,14 +94,7 @@ END SUBROUTINE fftsg3d
 ! *****************************************************************************
 SUBROUTINE fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
   
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
-! Arguments
+  USE fft_kinds, ONLY                                   : dp
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
   INTEGER, INTENT ( IN )                             :: n, m

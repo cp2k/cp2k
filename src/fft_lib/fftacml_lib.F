@@ -23,8 +23,6 @@ SUBROUTINE fftacml_get_lengths ( DATA, max_length )
                                               maxn_threes, maxn_twos, &
                                               ndata, nmax, number
 
-!------------------------------------------------------------------------------
-
   maxn_twos = 15
   maxn_threes = 3
   maxn_fives = 2
@@ -91,12 +89,7 @@ END SUBROUTINE fftacml_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE fft_kinds, ONLY                                   : dp
   LOGICAL, INTENT(IN)                                  :: fft_in_place
   INTEGER, INTENT(INOUT)                               :: fsign
   REAL(KIND=dp), INTENT(IN)                            :: scale
@@ -106,8 +99,6 @@ SUBROUTINE fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
 
   INTEGER                                              :: n1, n2, n3, ll, info
   COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE          :: comm
-
-!------------------------------------------------------------------------------
 
   n1 = n(1)
   n2 = n(2)
@@ -141,14 +132,7 @@ END SUBROUTINE fftacml3d
 ! *****************************************************************************
 SUBROUTINE fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
-! Arguments
+  USE fft_kinds, ONLY                                   : dp
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
   INTEGER, INTENT ( IN )                             :: n, m
@@ -159,8 +143,6 @@ SUBROUTINE fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
   INTEGER                                     :: info, ll
   INTEGER                                     :: incx1, incx2, incy1, incy2
   COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE :: comm
-
-!------------------------------------------------------------------------------
 
   incx1 = 1
   incx2 = n

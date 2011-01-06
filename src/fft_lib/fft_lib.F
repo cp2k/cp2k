@@ -72,7 +72,8 @@ END SUBROUTINE fft_get_lengths
 
 SUBROUTINE fft_create_plan_3d ( plan, fft_type, fft_in_place, fsign, n, zin, zout, plan_style, aligned )
 
-USE fft_plan,                           ONLY: fft_plan_type, dp
+USE fft_plan,                           ONLY: fft_plan_type
+USE fft_kinds,                          ONLY: dp
 
 IMPLICIT NONE
 
@@ -109,7 +110,8 @@ END SUBROUTINE fft_create_plan_3d
 !
 SUBROUTINE fft_3d ( plan, scale, zin, zout, stat )
 
-  USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
   IMPLICIT NONE
 
@@ -156,7 +158,8 @@ END SUBROUTINE fft_3d
 
 SUBROUTINE fft_create_plan_1dm ( plan, fft_type, fsign, trans, n, m, zin, zout, plan_style, aligned )
 
-USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
 IMPLICIT NONE
 
@@ -191,7 +194,8 @@ END SUBROUTINE fft_create_plan_1dm
 
 SUBROUTINE fft_destroy_plan ( plan )
 
-USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
 
   IMPLICIT NONE
 
@@ -212,7 +216,8 @@ END SUBROUTINE
 
 SUBROUTINE fft_1dm ( plan, zin, zout, scale, stat)
 
-USE fft_plan,                           ONLY: fft_plan_type, dp
+  USE fft_plan,                           ONLY: fft_plan_type
+  USE fft_kinds,                          ONLY: dp
   
   IMPLICIT NONE
 

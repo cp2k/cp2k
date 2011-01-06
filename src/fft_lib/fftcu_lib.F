@@ -11,12 +11,12 @@
 !>  corresponding include directory
 !>  add this to the path to the -I flags of the CPP
 !> \author JGH
+! *****************************************************************************
+
 !#if defined ( __FFTCU ) || defined ( __CUDA )
 !#include "mkl_dfti.f90"
-
 !#endif
 
-! *****************************************************************************
 SUBROUTINE fftcu_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
@@ -28,8 +28,6 @@ SUBROUTINE fftcu_get_lengths ( DATA, max_length )
   INTEGER                                  :: h, i, j, k, m, maxn, &
                                               maxn_fac, &
                                               ndata, nmax, number
-
-!------------------------------------------------------------------------------
 
   maxn_fac = 15
   maxn = 37748736
@@ -103,12 +101,7 @@ END SUBROUTINE fftcu_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE fft_kinds, ONLY                                   : dp
   LOGICAL, INTENT(IN)                                  :: fft_in_place
   INTEGER, INTENT(INOUT)                               :: fsign
   REAL(KIND=dp), INTENT(IN)                            :: scale
@@ -120,7 +113,6 @@ SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
 
   REAL(KIND=dp), POINTER                               :: ptr
   INTEGER                                              :: status, lmem
-!------------------------------------------------------------------------------
 
 #if defined ( __FFTCU )  || defined ( __CUDA )
 #if defined(__SGL) || defined(__FFTSGL)
@@ -146,14 +138,7 @@ END SUBROUTINE fftcu3d
 ! *****************************************************************************
 SUBROUTINE fftcu1dm ( fsign, trans, n, m, zin, zout, scale )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
-! Arguments
+  USE fft_kinds, ONLY                                   : dp
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
   INTEGER, INTENT ( IN )                             :: n, m
@@ -163,7 +148,6 @@ SUBROUTINE fftcu1dm ( fsign, trans, n, m, zin, zout, scale )
   INTEGER                                              :: status, itrans
   INTEGER                                            :: ii(3),di,io(3),DO
 
-!------------------------------------------------------------------------------
 
 #if defined ( __FFTCU ) || defined ( __CUDA )
 #if defined(__SGL) || defined(__FFTSGL)

@@ -22,12 +22,7 @@ END SUBROUTINE fftsci_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftsci3d ( fft_in_place, fsign, scale, n, zin, zout )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+  USE fft_kinds, ONLY                                   : dp
   LOGICAL, INTENT(IN)                                  :: fft_in_place
   INTEGER, INTENT(INOUT)                               :: fsign
   REAL(KIND=dp), INTENT(IN)                            :: scale
@@ -52,13 +47,7 @@ END SUBROUTINE fftsci3d
 ! *****************************************************************************
 SUBROUTINE fftsci1dm ( fsign, trans, n, m, zin, zout, scale )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-
+  USE fft_kinds, ONLY                                   : dp
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
   INTEGER, INTENT ( IN )                             :: n, m
