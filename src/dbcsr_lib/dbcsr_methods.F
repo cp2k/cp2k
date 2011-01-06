@@ -1210,9 +1210,9 @@ CONTAINS
     CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
 
     td => array_data (dist%d%thread_dist)
-    FORALL (t = 1:nrows)
+    DO t = 1, nrows
        td(t) = MOD(t-1, nthreads)
-    END FORALL
+    END DO
 !$OMP END SINGLE
   END SUBROUTINE make_threads
 
