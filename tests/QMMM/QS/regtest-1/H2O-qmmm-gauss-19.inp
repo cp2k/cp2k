@@ -1,5 +1,5 @@
 #CPQA DEPENDS H2O-qmmm-gauss-18.inp
-#CPQA TEST COMPARE-SINGLE-VALUE H2O-qmmm-gauss-18 "Total Energy               =" 3
+#CPQA TEST COMPARE-SCALAR H2O-qmmm-gauss-18 "Total Energy               =" 3
 
 &FORCE_EVAL
   METHOD QMMM

@@ -1,5 +1,5 @@
 #CPQA DEPENDS water_charge_no_array_pme.inp
-#CPQA TEST COMPARE-SINGLE-VALUE water_charge_no_array_pme "POTENTIAL ENERGY" 3
+#CPQA TEST COMPARE-SCALAR water_charge_no_array_pme "POTENTIAL ENERGY" 3
 
 &FORCE_EVAL
   METHOD FIST
