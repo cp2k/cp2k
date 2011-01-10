@@ -2529,7 +2529,6 @@ CONTAINS
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
 
-    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_s
 
@@ -2690,8 +2689,6 @@ CONTAINS
     IF (verify) cs_b = cp_dbcsr_checksum (matrix_c, error=error)
     CALL timestop(timing_handle_detail)
 
-    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
-
     CALL timestop(timing_handle)
     IF (verify) THEN
        WRITE(*,'(A,4(1X,E9.3))')routineN//" checksums", cs_c, cs_b,&
@@ -2758,7 +2755,6 @@ CONTAINS
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
-    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_c
 
@@ -2816,7 +2812,6 @@ CONTAINS
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
-    CALL cp_dbcsr_untranspose_blocks(matrix_c,error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_z
 

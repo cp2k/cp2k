@@ -28,8 +28,7 @@ MODULE dbcsr_internal_operations
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, &
        dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
        dbcsr_scalar_zero
-  USE dbcsr_dist_operations,           ONLY: checker_tr,&
-                                             dbcsr_get_col_map,&
+  USE dbcsr_dist_operations,           ONLY: dbcsr_get_col_map,&
                                              dbcsr_get_local_rows,&
                                              dbcsr_get_row_map
   USE dbcsr_error_handling
@@ -1725,7 +1724,7 @@ CONTAINS
              ! Don't calculate symmetric blocks.
              IF (product_is_symmetric) THEN
                 IF (c_row_logical .NE. c_col_logical&
-                     .AND. checker_tr (c_row_logical, c_col_logical)) THEN
+                     .AND. my_checker_tr (c_row_logical, c_col_logical)) THEN
                    !write(*,*)"Skipping symmetric block!", c_row_logical,&
                    !     c_col_logical
                    CYCLE
@@ -1781,8 +1780,8 @@ CONTAINS
                 ! CP2K can't handle transposed blocks. Blocks that are
                 ! canonically under the diagonal should therefore be
                 ! set at transposed.
-                IF (product_is_symmetric&
-                     .AND. c_row_logical .GT. c_col_logical) THEN
+                IF (product_is_symmetric .AND.&
+                     c_row_logical .GE. c_col_logical) THEN
                    offset = -offset
                 ENDIF
                 new_blk = new_blk+1
@@ -2380,6 +2379,21 @@ CONTAINS
        val = n2
     ENDIF
   END FUNCTION select_n_or_t
+
+! *****************************************************************************
+!> \brief Determines whether a transpose must be applied
+!> \par Source
+!> This function is copied from dbcsr_dist_operations for speed reasons.
+!> \param[in] row   The absolute matrix row.
+!> \param[in] column          The absolute matrix column.
+! *****************************************************************************
+  ELEMENTAL FUNCTION my_checker_tr(row, column) RESULT(transpose)
+    INTEGER, INTENT(IN)                      :: row, column
+    LOGICAL                                  :: transpose
+
+    transpose = BTEST(column+row, 0) .EQV. column.GT.row
+
+  END FUNCTION my_checker_tr
 
 
 ! *****************************************************************************
