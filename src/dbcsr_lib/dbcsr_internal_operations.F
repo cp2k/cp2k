@@ -1700,6 +1700,12 @@ CONTAINS
              b_last_block = right%row_p(b_row_logical+1)
           ENDIF
           DO b_blk = b_first_block, b_last_block
+             IF (otf_filtering) THEN
+                b_norm = right_norms(b_blk)
+                IF (a_norm * b_norm .LT. a_row_eps) THEN
+                   CYCLE
+                ENDIF
+             ENDIF
              IF (right%blk_p(b_blk) .EQ. 0) THEN
                 CYCLE
              ENDIF
@@ -1711,12 +1717,6 @@ CONTAINS
                 c_col_index = c_col_logical
              ENDIF
              block_exists = c_blk_ps(c_col_index) .NE. 0
-             IF (otf_filtering) THEN
-                b_norm = right_norms(b_blk)
-                IF (a_norm * b_norm .LT. a_row_eps) THEN
-                   CYCLE
-                ENDIF
-             ENDIF
              sparsity_enforcement: IF &
                   (keep_sparsity .AND. .NOT. block_exists) THEN
                 CYCLE
