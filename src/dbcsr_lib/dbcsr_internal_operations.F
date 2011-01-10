@@ -1781,7 +1781,7 @@ CONTAINS
                 ! canonically under the diagonal should therefore be
                 ! set at transposed.
                 IF (product_is_symmetric .AND.&
-                     c_row_logical .GE. c_col_logical) THEN
+                     c_row_logical .GT. c_col_logical) THEN
                    offset = -offset
                 ENDIF
                 new_blk = new_blk+1
@@ -2391,7 +2391,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: row, column
     LOGICAL                                  :: transpose
 
-    transpose = BTEST(column+row, 0) .EQV. column.GT.row
+    transpose = BTEST(column+row, 0) .EQV. column.GE.row
 
   END FUNCTION my_checker_tr
 

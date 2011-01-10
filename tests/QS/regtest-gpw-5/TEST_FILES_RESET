@@ -358,3 +358,11 @@ si8_broy_kry_r.inp
 # regtester reset
 si8_broy_lsd.inp
 
+# DBCSR Numerics 
+si8_broy_kry.inp
+# DBCSR Numerics 
+si8_broy_kry_r.inp
+# DBCSR Numerics 
+si8_broy_wc.inp
+# DBCSR Numerics 
+si8_broy_wc_crazy.inp

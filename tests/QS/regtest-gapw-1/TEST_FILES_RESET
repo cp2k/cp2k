@@ -86,3 +86,5 @@ c8_pmix_gapw_all_xashh.inp
 c8_broy_gapw_all_xashh.inp
 # making some order in the regtests: getting ready for the new one
 CO_xastpfh.inp
+# DBCSR Numerics 
+c8_broy_gapw_all_xashh.inp

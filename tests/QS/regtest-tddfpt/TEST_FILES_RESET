@@ -102,3 +102,5 @@ NO_tddfpt-t-1.inp
 # reset after merge of qs refactoring branch merge 
 NO_tddfpt-t-3.inp
 H2O_tddfpt-t-1.inp
+# DBCSR Numerics 
+H2O_tddfpt-t-1.inp

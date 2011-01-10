@@ -321,3 +321,17 @@ si8_lsd_broy_wc_list_rst.inp
 c8_broy_gop.inp
 # Numerics introduced by major QS refactoring 
 c8_broy_gapw_gop.inp
+# DBCSR Numerics 
+si8_noort_broy_wc_direct_ene.inp
+# DBCSR Numerics 
+si8_lsd_broy_wc_ene.inp
+# DBCSR Numerics 
+si8_lsd_broy_wc.inp
+# DBCSR Numerics 
+si8_lsd_broy_wc_rst.inp
+# DBCSR Numerics 
+si8_lsd_broy_wc_list.inp
+# DBCSR Numerics 
+si8_lsd_broy_wc_list_rst.inp
+# DBCSR Numerics 
+c8_broy_gapw_gop.inp

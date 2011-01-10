@@ -120,7 +120,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: row, column
     LOGICAL                                  :: transpose
 
-    transpose = BTEST(column+row, 0) .EQV. column.GT.row
+    transpose = BTEST(column+row, 0) .EQV. column.GE.row
 
   END FUNCTION checker_tr
 
