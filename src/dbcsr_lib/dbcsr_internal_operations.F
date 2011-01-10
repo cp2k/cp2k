@@ -1439,6 +1439,21 @@ CONTAINS
     CALL dbcsr_assert ("NOT", right%bcsc,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Wrong routine for BCSC matrices.", __LINE__, error=error)
+    IF (local_cols) THEN
+       CALL dbcsr_assert (left%local_indexing,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Wrong left format for local_cols.", __LINE__, error=error)
+       CALL dbcsr_assert (right%local_indexing,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Wrong right format for local_cols.", __LINE__, error=error)
+    ELSE
+       CALL dbcsr_assert ("NOT",left%local_indexing,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Wrong left format for not local_cols.", __LINE__, error=error)
+       CALL dbcsr_assert ("NOT",right%local_indexing,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Wrong right format for not local_cols.", __LINE__, error=error)
+    ENDIF
     data_type = product%data_type
     my_alpha = dbcsr_scalar_one (data_type)
     IF (PRESENT (alpha)) my_alpha = alpha
@@ -1547,16 +1562,19 @@ CONTAINS
     first_mergeable = 1
     stack_p = 0 ; stack_p_a = 0 ; stack_p_b = 0 ; stack_p_c = 0
     new_blk = 0
+
+
     DO a_row_l = 1, left%nblkrows_local
+
        a_row_logical = left_local_rows (a_row_l)
 !$     IF (product_thread_dist(a_row_logical) .ne. ithread) CYCLE
-       IF (debug_mod) WRITE(*,*)ithread,routineN//" A row", a_row_logical
+
        blk_start = left_row_blk_offset(a_row_logical)
-       blk_end = left_row_blk_offset(a_row_logical+1)-1
-       blk_size = left_row_blk_offset(a_row_logical+1) - blk_start
+       blk_end   = left_row_blk_offset(a_row_logical+1)-1
+       blk_size  = blk_end - blk_start + 1
+
        IF (left_limit_rows) THEN
-          IF (left_row_blk_offset (a_row_logical) .GT. submat_l_row .OR.&
-              left_row_blk_offset (a_row_logical+1)-1 .LT. submat_f_row) THEN
+          IF (blk_start .GT. submat_l_row .OR. blk_end .LT. submat_f_row) THEN
              CYCLE
           ELSE
              IF (debug_mod) THEN
@@ -1569,8 +1587,10 @@ CONTAINS
              ENDIF
           ENDIF
        ENDIF
+
        a_row_size_logical = blk_size ! stored
        c_row_size_logical = blk_size
+
        row_begin_blk = new_blk+1
        IF (old_blk .LE. old_size) THEN
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LT. a_row_logical)
@@ -1582,20 +1602,17 @@ CONTAINS
           ENDDO
        ENDIF
        old_row_begin_blk = old_blk
+
        ! Clear the c_blk_ps array
-       IF (local_cols) THEN
-          DO i = 1, size_c_blk_ps
-             c_blk_ps(c_blk_ps_p(i)) = 0
-          ENDDO
-       ELSE
-          DO i = 1, size_c_blk_ps
-             c_blk_ps(c_blk_ps_p(i)) = 0
-          ENDDO
-       ENDIF
+       DO i = 1, size_c_blk_ps
+          c_blk_ps(c_blk_ps_p(i)) = 0
+       ENDDO
        size_c_blk_ps = 0
+
        ! Fill in the c_blk_ps array
        IF (debug_mod) WRITE(*,*)ithread,routineN//" old_blk, old_size, old_row_begin_blk",&
             old_blk,old_size,old_row_begin_blk
+
        IF (old_blk .LE. old_size) THEN
           ! Old index
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LE. a_row_logical) ! EQ
@@ -1608,8 +1625,7 @@ CONTAINS
              ELSE
                 c_col_index = c_col_logical
              ENDIF
-             c_blk_ps(c_col_index)&
-                  = product%wms(ithread+1)%blk_p(old_blk)
+             c_blk_ps(c_col_index) = product%wms(ithread+1)%blk_p(old_blk)
              size_c_blk_ps = size_c_blk_ps + 1
              IF (local_cols) THEN
                 c_blk_ps_p(size_c_blk_ps) = right_col_map (product%wms(ithread+1)%col_i(old_blk))
@@ -1623,82 +1639,67 @@ CONTAINS
              ENDIF
           ENDDO
        ENDIF
+
        IF (debug_mod) THEN
           WRITE(*,*)ithread,routineN//" c_blk_ps="
           WRITE(*,'(10(1X,I7))')c_blk_ps
        ENDIF
-       IF (otf_filtering) THEN
-          a_row_eps = k_block_epss (a_row_logical)
-       ENDIF
+
+       IF (otf_filtering) a_row_eps = k_block_epss (a_row_logical)
+
        c_row_logical = a_row_logical
        new_row_blks = 0
-       IF (left%local_indexing) THEN
+       IF (local_cols) THEN
           a_first_block = left%row_p(a_row_l)+1
           a_last_block = left%row_p(a_row_l+1)
        ELSE
           a_first_block = left%row_p(a_row_logical)+1
           a_last_block = left%row_p(a_row_logical+1)
        ENDIF
+
        DO a_blk = a_first_block, a_last_block
-          IF (left%blk_p(a_blk) .EQ. 0) THEN
-             CYCLE
-          ENDIF
+          IF (left%blk_p(a_blk) .EQ. 0) CYCLE
+
           old_blk = old_row_begin_blk
           a_col_logical = left%col_i(a_blk)
+
           IF (debug_mod) WRITE(*,*)ithread,routineN//" A col", a_col_logical,";",a_row_logical
+
           blk_start = left_col_blk_offset (a_col_logical)
-          blk_end = left_col_blk_offset (a_col_logical+1)-1
+          blk_end   = left_col_blk_offset (a_col_logical+1)-1
+          a_col_size_logical = blk_end - blk_start + 1
+
           IF (limit_k) THEN
              IF (blk_start .GT. last_k .OR.&
                  blk_end .LT. first_k) THEN
-                !write(*,'(A,I5,"(",I5,"-",I5,") not in ",I5,"-",I5)')&
-                !     routineN//"Skipping a col", a_col,&
-                !     left_col_blk_start (a_col), left_col_blk_end (a_col),&
-                !     first_k, last_k
                 CYCLE
              ELSE
-                !i = MAX (first_k, left_col_blk_start (a_col_logical))
                 i = blk_start
                 j = MIN (last_k, blk_end)
-                !clamp_k_offset = i - left_col_blk_start (a_col_logical)
                 clamp_k_len = j - i + 1
-                !write(*,'(A,I5,"(",I5,"-",I5,") not in ",I5,"-",I5)')&
-                !     routineN//"Not skipping a col", a_col,&
-                !     left_col_blk_start (a_col), left_col_blk_end (a_col),&
-                !     first_k, last_k
-                !write(*,*)routineN//" Clamping", clamp_k_offset, clamp_k_len
              ENDIF
           ENDIF
-          IF (otf_filtering) &
-               a_norm = left_norms(a_blk)
-          a_col_size_logical = left_col_blk_offset (a_col_logical+1) - blk_start
+
+          IF (otf_filtering) a_norm = left_norms(a_blk)
+
           stack_p_a = stack_p_a + 1
           parameters_a(stack_p_a)%offset = ABS(left%blk_p(a_blk))
           parameters_a(stack_p_a)%tr = left%blk_p(a_blk) .LT. 0
           parameters_a(stack_p_a)%logical_rows = a_row_size_logical
           parameters_a(stack_p_a)%logical_cols = a_col_size_logical
           parameters_a(stack_p_a)%nze = a_row_size_logical*a_col_size_logical
-          !
-          b_row_logical = a_col_logical
+
+          b_row_logical      = a_col_logical
           b_row_size_logical = a_col_size_logical
-          IF (right%local_indexing) THEN
+          IF (local_cols) THEN
              b_row_l = k_blk_local(a_col_logical)
-             IF (careful_mod) THEN
-                IF (debug_mod) THEN
-                   WRITE(*,*)"Got row ", b_row_logical, "->", b_row_l
-                   !FLUSH(6)
-                ENDIF
-                CALL dbcsr_assert (b_row_l, "NE", 0,&
-                     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                     "Invalid local row", __LINE__, error=error)
-             ENDIF
              b_first_block = right%row_p(b_row_l)+1
              b_last_block = right%row_p(b_row_l+1)
           ELSE
-             WRITE(*,*)routineN//" No local indexing"
              b_first_block = right%row_p(b_row_logical)+1
              b_last_block = right%row_p(b_row_logical+1)
           ENDIF
+
           DO b_blk = b_first_block, b_last_block
              IF (otf_filtering) THEN
                 b_norm = right_norms(b_blk)
@@ -1709,6 +1710,7 @@ CONTAINS
              IF (right%blk_p(b_blk) .EQ. 0) THEN
                 CYCLE
              ENDIF
+
              b_col_logical = right%col_i(b_blk)
              c_col_logical = b_col_logical
              IF (local_cols) THEN
@@ -1717,10 +1719,12 @@ CONTAINS
                 c_col_index = c_col_logical
              ENDIF
              block_exists = c_blk_ps(c_col_index) .NE. 0
+
              sparsity_enforcement: IF &
                   (keep_sparsity .AND. .NOT. block_exists) THEN
                 CYCLE
              ENDIF sparsity_enforcement
+
              ! Don't calculate symmetric blocks.
              IF (product_is_symmetric) THEN
                 IF (c_row_logical .NE. c_col_logical&
@@ -1730,17 +1734,14 @@ CONTAINS
                    CYCLE
                 ENDIF
              ENDIF
+
              blk_start = right_col_blk_offset (b_col_logical)
              blk_end = right_col_blk_offset (b_col_logical+1)-1
              IF (right_limit_cols) THEN
-                !IF (right_col_blk_start (b_col_logical) .GT. submat_l_col .OR.&
-                !    right_col_blk_end (b_col_logical) .LT. submat_f_col) THEN
                 IF (blk_start .GT. submat_l_col) THEN
-                   !WRITE(*,*)"Skipping column", b_col
                    CYCLE
                 ELSEIF (blk_end .GT. submat_l_col) THEN
-                   this_right_limit =&
-                        submat_l_col - blk_start + 1
+                   this_right_limit = submat_l_col - blk_start + 1
                 ELSE
                    this_right_limit = 0
                 ENDIF
@@ -1754,11 +1755,11 @@ CONTAINS
                    CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
                         routineN, "none maching first column/block NYI", __LINE__, error)
                 ENDIF
-
              ELSE
                 this_right_limit = 0
              ENDIF
-             b_col_size_logical = right_col_blk_offset(b_col_logical+1) - blk_start
+
+             b_col_size_logical = blk_end - blk_start + 1
              offset = ABS(c_blk_ps(c_col_index))
              tr_p = c_blk_ps(c_col_index) .LT. 0
              stack_p_b = stack_p_b + 1
@@ -1773,7 +1774,8 @@ CONTAINS
                   product_col_blk_offset (c_col_logical+1) -&
                   product_col_blk_offset (c_col_logical)
              c_nze = c_row_size_logical * c_col_size_logical
-             !
+
+
              !
              IF (.NOT. block_exists) THEN
                 offset = c_blk_pt
