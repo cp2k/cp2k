@@ -2177,10 +2177,9 @@ CONTAINS
                           "Use GROMOS G87 topology file.",&
                           "Use GROMOS G96 topology file.",&
                           "Use AMBER topology file for reading connectivity (compatible starting from AMBER V.7)",&
-                          "Definition of molecules based on the 5th column of the COORD section or the "//&
-                          "molecule name (or residue name, if PARA_RES is ON) is used in the case of a PDB file. "//&
-                          "This option is handy for the definition of molecules with QS or to save memory "//&
-                          "in the case of very large systems which do not need an explicit connectivity."),&
+                          "Allows the definition of molecules and residues based on the 5th and 6th column of "//&
+                          "the COORD section. This option can be handy for the definition of molecules with QS "//&
+                          "or to save memory in the case of very large systems (use PARA_RES off)."),&
             default_i_val=default,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

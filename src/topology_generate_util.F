@@ -223,11 +223,6 @@ CONTAINS
     ALLOCATE (atom_info%map_mol_res(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.ASSOCIATED(atom_info%resid)) THEN
-      ALLOCATE (atom_info%resid(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
     ! Initialisation
     atom_info%map_mol_typ(:) =  0
     atom_info%map_mol_num(:) = -1
@@ -249,8 +244,7 @@ CONTAINS
           ! or residue name in the case of PDB files
           IF (atom_info%id_molname(iatom) == atom_info%id_molname(iatom-1)) THEN
              atom_info%map_mol_typ(iatom) = atom_info%map_mol_typ(iatom-1)
-             IF ((atom_info%id_resname(iatom) == atom_info%id_resname(iatom-1)).AND.&
-                 (atom_info%resid(iatom) == atom_info%resid(iatom-1))) THEN
+             IF (atom_info%id_resname(iatom) == atom_info%id_resname(iatom-1)) THEN
                 atom_info%map_mol_res(iatom) = atom_info%map_mol_res(iatom-1)
              ELSE
                 resid = resid + 1
@@ -358,7 +352,7 @@ CONTAINS
        DO iatom=2,natom
           IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom-1)) THEN
              mol_num = 1
-          ELSE IF (atom_info%resid(iatom) /= atom_info%resid(iatom-1)) THEN
+          ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom-1)) THEN
              mol_num = mol_num + 1
           END IF
           atom_info%map_mol_num(iatom) = mol_num
@@ -392,7 +386,7 @@ CONTAINS
              IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom-1)) THEN
                 ntype = ntype + 1
                 mol_num = 1
-             ELSE IF (atom_info%resid(iatom) /= atom_info%resid(iatom-1)) THEN
+             ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom-1)) THEN
                 mol_num = mol_num + 1
              END IF
              atom_info%map_mol_typ(iatom) = ntype

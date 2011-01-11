@@ -52,12 +52,13 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 5.0 5.0 5.0
+      ABC 5.0 10.0/2.0 5.0
     &END CELL
     &COORD
     O   0.000000    0.000000   -0.065587
     H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+  # H   0.000000    0.757136    0.520545 this line should be ignored
+    H   0.000000    1.514272/2  0.520545
     &END COORD
     &KIND H
       BASIS_SET DZV-GTH-PADE

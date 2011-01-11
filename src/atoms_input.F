@@ -23,6 +23,7 @@ MODULE atoms_input
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_parser_methods,               ONLY: read_float_object
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
@@ -71,10 +72,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=2*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: my_default_index, strtmp, &
+    CHARACTER(len=default_string_length)     :: error_message, &
+                                                my_default_index, strtmp, &
                                                 unit_str
-    INTEGER                                  :: end_c, handle, iatom, ILEN, &
-                                                j, natom, output_unit, &
+    INTEGER                                  :: default_id, end_c, handle, &
+                                                iatom, j, natom, output_unit, &
                                                 start_c, wrd
     LOGICAL                                  :: explicit, failure, is_ok, &
                                                 my_overwrite, my_save_mem, &
@@ -90,6 +92,7 @@ CONTAINS
     failure=.FALSE.
     my_overwrite = .FALSE.
     my_save_mem = .FALSE.
+    error_message = ""
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -127,10 +130,9 @@ CPSourceFileRef,&
           only_ionode=.TRUE.)
        CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
        DO iatom=1,natom
-          ! we use only the first default_string_length characters of each line
           is_ok=cp_sll_val_next(list,val,error=error)
           CALL val_get(val,c_val=line_att,error=error)
-          ! *** Read name and atomic coordinates ***
+          ! Read name and atomic coordinates
           start_c=1
           DO wrd=1,4
              DO j=start_c,LEN(line_att)
@@ -176,15 +178,16 @@ CPSourceFileRef,&
           ! we use only the first default_string_length characters of each line
           is_ok=cp_sll_val_next(list,val,error=error)
           CALL val_get(val,c_val=line_att,error=error)
-          ILEN = default_string_length
-          atom_info%id_molname(iatom) = str2id(s2s(""))
-          atom_info%id_resname(iatom) = str2id(s2s(""))
+          default_id = str2id(s2s(""))
+          atom_info%id_molname(iatom) = default_id
+          atom_info%id_resname(iatom) = default_id
           atom_info%resid(iatom) = 1
-          atom_info%id_atmname(iatom) = str2id(s2s(""))
-          atom_info%id_element(iatom) = str2id(s2s(""))
+          atom_info%id_atmname(iatom) = default_id
+          atom_info%id_element(iatom) = default_id
+          topology%molname_generated = .TRUE.
           ! Read name and atomic coordinates
           start_c=1
-          DO wrd=1,4
+          DO wrd=1,6
              DO j=start_c,LEN(line_att)
                 IF (line_att(j:j)/=' ') THEN
                    start_c=j
@@ -198,28 +201,43 @@ CPSourceFileRef,&
                    EXIT
                 END IF
              END DO
-             CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
-                  cp_assertion_failed,routineP,&
-                  "incorrectly formatted line in coord section'"//line_att//"'",&
-                  error,failure)
-             IF (wrd==1) THEN
-                atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
-             ELSE
-                READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
-             END IF
-             start_c=end_c
+             CALL cp_assert((LEN_TRIM(line_att(start_c:end_c-1)) /= 0),cp_failure_level,&
+                            cp_assertion_failed,routineP,&
+                            "Incorrectly formatted input line for atom "//&
+                            TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                            " found in COORD section. Input line: <"//&
+                            TRIM(line_att)//"> ",error,failure)
+             SELECT CASE (wrd)
+             CASE (1)
+                atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
+             CASE (2:4)
+                CALL read_float_object(line_att(start_c:end_c-1),&
+                                       atom_info%r(wrd-1,iatom),error_message)
+                CALL cp_assert((LEN_TRIM(error_message) == 0),cp_failure_level,&
+                               cp_assertion_failed,routineP,&
+                               "Incorrectly formatted input line for atom "//&
+                               TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                               " found in COORD section. "//TRIM(error_message)//&
+                               " Input line: <"//TRIM(line_att)//"> ",error,failure)
+             CASE (5)
+                READ (line_att(start_c:end_c-1),*) strtmp
+                atom_info%id_molname(iatom) = str2id(strtmp)
+                atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
+                topology%molname_generated = .FALSE.
+             CASE (6)
+                READ (line_att(start_c:end_c-1),*) strtmp
+                atom_info%id_resname(iatom) = str2id(strtmp)
+             END SELECT
+             start_c = end_c
+             IF (start_c > LEN_TRIM(line_att)) EXIT
           END DO
-          ! For default, set atom name to residue name to molecule name
-          WRITE (my_default_index,'(I0)') iatom
-          atom_info%id_molname(iatom) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(iatom)))//TRIM(my_default_index)))
-          atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
-          atom_info%id_element(iatom) = atom_info%id_atmname(iatom)
-          topology%molname_generated = .TRUE.
-          IF (start_c<=LEN_TRIM(line_att)) THEN
-             READ(line_att(start_c:LEN_TRIM(line_att)),*) strtmp; atom_info%id_molname(iatom)=str2id(strtmp)
+          IF (topology%molname_generated) THEN
+             ! Use defaults, if no molname was specified
+             WRITE (my_default_index,'(I0)') iatom
+             atom_info%id_molname(iatom) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(iatom)))//TRIM(my_default_index)))
              atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
-             topology%molname_generated = .FALSE.
           END IF
+          atom_info%id_element(iatom) = atom_info%id_atmname(iatom)
           atom_info%atm_mass(iatom)   = 0.0_dp 
           atom_info%atm_charge(iatom) = -HUGE(0.0_dp)
        END DO

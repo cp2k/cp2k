@@ -43,9 +43,8 @@ MODULE cp_parser_methods
 
   PUBLIC :: parser_test_next_token, parser_get_object, parser_location,&
             parser_search_string,parser_get_next_line, parser_skip_space,&
-            parser_read_line
+            parser_read_line, read_float_object
 
-  ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_methods'
 
   INTERFACE parser_get_object
@@ -1110,10 +1109,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_real', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=max_line_length)           :: string(2)
-    INTEGER                                  :: islash, istat, iz, nline, nz
+    CHARACTER(LEN=max_line_length)           :: error_message
+    INTEGER                                  :: nline
     LOGICAL                                  :: failure, my_at_end
-    REAL(KIND=dp)                            :: z(2)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
@@ -1151,36 +1149,13 @@ CONTAINS
        END IF
 
        ! Possibility to have real numbers described in the input as division between two numbers
-       islash = parser%icol1 + INDEX(parser%input_line(parser%icol1:parser%icol2),"/") - 1
-       IF (islash > parser%icol1) THEN
-          nz = 2
-          string(1) = parser%input_line(parser%icol1:islash-1)
-          string(2) = parser%input_line(islash+1:parser%icol2)
-       ELSE
-          nz = 1
-          string(1) = parser%input_line(parser%icol1:parser%icol2)
-          z(2) = 1.0_dp
+       CALL read_float_object(parser%input_line(parser%icol1:parser%icol2),object,error_message)
+       IF (LEN_TRIM(error_message) > 0) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                         TRIM(error_message)//" "//TRIM(parser_location(parser,error=error)),&
+                         error,failure)
        END IF
 
-       DO iz=1,nz
-          IF (LEN_TRIM(string(iz)) == 0) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP, "A real type object was expected, found white spaces! "//&
-                  TRIM(parser_location(parser,error=error)),error,failure)
-             RETURN
-          END IF
-
-          READ(UNIT=string(iz),FMT=*,IOSTAT=istat) z(iz)
-
-          IF (istat /= 0) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP, "A real type object was expected, found <"//&
-                  TRIM(string(iz))//">"//TRIM(parser_location(parser,error=error)),&
-                  error,failure)
-             RETURN
-          END IF
-       END DO
-       object = z(1)/z(2)
     END IF
 
   END SUBROUTINE parser_get_real
@@ -1258,5 +1233,51 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE parser_get_string
+
+! *****************************************************************************
+!> \brief   Returns a floating point number read from a string.
+!> \author  Matthias Krack 
+!> \date    11.01.2011 (MK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE read_float_object(string,object,error_message)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    REAL(KIND=dp), INTENT(OUT)               :: object
+    CHARACTER(LEN=*), INTENT(OUT)            :: error_message
+
+    CHARACTER(LEN=LEN(string)), DIMENSION(2) :: substring
+    INTEGER                                  :: islash, istat, iz, nz
+    REAL(KIND=dp), DIMENSION(2)              :: z
+
+    error_message = ""
+    substring(:) = ""
+
+    islash = INDEX(string,"/")
+
+    IF (islash > 0) THEN
+       nz = 2
+       substring(1) = string(:islash-1)
+       substring(2) = string(islash+1:)
+     ELSE
+       nz = 1
+       substring(1) = string
+       z(2) = 1.0_dp
+    END IF
+
+    DO iz=1,nz
+       IF (LEN_TRIM(substring(iz)) == 0) THEN
+          error_message = "A real type object was expected, found white spaces!"
+          RETURN
+       END IF
+       READ (UNIT=substring(iz),FMT=*,IOSTAT=istat) z(iz)
+       IF (istat /= 0) THEN
+          error_message = "A real type object was expected, found <"//TRIM(substring(iz))//">!"
+          RETURN
+       END IF
+    END DO
+    object = z(1)/z(2)
+
+  END SUBROUTINE read_float_object
 
 END MODULE cp_parser_methods
