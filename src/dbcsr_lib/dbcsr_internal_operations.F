@@ -1490,7 +1490,9 @@ CONTAINS
        CALL dbcsr_get_col_map(dist,&
             right_col_map_obj,&
             error=error)
+       !$OMP CRITICAL (critical_right_col_map)
        CALL array_hold (right_col_map_obj)
+       !$OMP END CRITICAL (critical_right_col_map)
        right_col_map => array_data (right_col_map_obj)
     ENDIF
     ! Submatrix handling
@@ -1963,7 +1965,9 @@ CONTAINS
     DEALLOCATE (new_index)
     ENDIF
     IF (local_cols) THEN
+       !$OMP CRITICAL (critical_right_col_map)
        CALL array_release (right_col_map_obj)
+       !$OMP END CRITICAL (critical_right_col_map)
     ENDIF
     IF (PRESENT (flop)) flop = lflop
     t_all = t_all + (m_walltime() - epoch)
