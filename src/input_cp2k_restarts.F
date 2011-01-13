@@ -2198,8 +2198,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2*default_string_length)   :: line
-    CHARACTER(LEN=default_string_length)     :: icval, my_tag, name, rcval
-    INTEGER                                  :: handle, ik, imol, irk, k, &
+    CHARACTER(LEN=default_string_length)     :: my_tag, name
+    INTEGER                                  :: handle, ik, imol, irk, &
                                                 last_atom, Nlist
     LOGICAL                                  :: failure, ldum, &
                                                 molname_generated, my_shell
@@ -2236,8 +2236,7 @@ CONTAINS
     last_atom=0
     DO irk=1,particles%n_els
        CALL get_atomic_kind(particles%els(irk)%atomic_kind,name=name)
-       IF(my_shell) THEN
-         line = TRIM(name)
+       IF (my_shell) THEN
          s = particles%els(irk)%r
          IF (scale) THEN
             r = s   
@@ -2245,12 +2244,8 @@ CONTAINS
          ELSE
             s = s*conv_factor
          END IF
-         DO k = 1, 3
-            WRITE(rcval,"(ES25.16)") s(k)
-            line = TRIM(line)//" "//TRIM(rcval)
-         END DO
-         WRITE(icval,"(I10)") particles%els(irk)%atom_index
-         line = TRIM(line)//" "//TRIM(icval)
+         WRITE (UNIT=line,FMT="(A,3(1X,ES25.16),1X,I0)")&
+           TRIM(name),s(1:3),particles%els(irk)%atom_index
          CALL val_create(my_val,lc_val=line,error=error)
          IF (Nlist /= 0) THEN
             IF (irk==1) THEN
@@ -2284,7 +2279,6 @@ CONTAINS
          END IF
          ldum = qmmm_ff_precond_only_qm(my_tag)
          ldum = qmmm_ff_precond_only_qm(name)
-         line = TRIM(name)
          s = particles%els(irk)%r
          IF (scale) THEN
             r = s   
@@ -2292,11 +2286,13 @@ CONTAINS
          ELSE
             s = s*conv_factor
          END IF
-         DO k = 1, 3
-            WRITE(rcval,"(ES25.16)") s(k)
-            line = TRIM(line)//" "//TRIM(rcval)
-         END DO
-         line = TRIM(line)//" "//TRIM(my_tag)
+         IF (LEN_TRIM(my_tag) > 0) THEN
+            WRITE (UNIT=line,FMT="(A,3(1X,ES25.16),1X,A,1X,I0)")&
+              TRIM(name),s(1:3),TRIM(my_tag),imol
+         ELSE
+            WRITE (UNIT=line,FMT="(A,3(1X,ES25.16))")&
+              TRIM(name),s(1:3)
+         END IF
          CALL val_create(my_val,lc_val=line,error=error)
 
          IF (Nlist /= 0) THEN
