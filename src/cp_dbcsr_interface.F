@@ -314,20 +314,6 @@ CONTAINS
     NULLIFY (saved_ao_map)
   END SUBROUTINE trash_map
 
-  FUNCTION okay_size (matrix)
-    TYPE(cp_dbcsr_type), INTENT(in)          :: matrix
-    LOGICAL                                  :: okay_size
-
-!okay_size = (cp_dbcsr_nblkrows_total (matrix) .eq. map_size .and.&
-!     cp_dbcsr_nblkcols_total (matrix) .eq. map_size)
-
-    IF (okay_size) &
-         WRITE(*,*)"Testing", map_size,&
-         cp_dbcsr_nblkrows_total (matrix),&
-         cp_dbcsr_nblkcols_total (matrix)
-    okay_size = .TRUE.
-  END FUNCTION okay_size
-
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.
 !>     The cp2k error is passed as an argument.
