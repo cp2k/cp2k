@@ -26,8 +26,8 @@ MODULE topology
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
-       do_conn_user, do_coord_cif, do_coord_crd, do_coord_g96, do_coord_off, &
-       do_coord_pdb, do_coord_xtl, do_coord_xyz
+       do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
+       do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -58,6 +58,7 @@ MODULE topology
                                              topology_connectivity_pack
   USE topology_constraint_util,        ONLY: topology_constraint_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
+  USE topology_cp2k,                   ONLY: read_coordinate_cp2k
   USE topology_generate_util,          ONLY: topology_generate_bend,&
                                              topology_generate_bond,&
                                              topology_generate_dihe,&
@@ -557,14 +558,18 @@ CPSourceFileRef,&
        CALL read_coordinate_cif (topology,para_env,subsys_section,error)
     CASE (do_coord_xtl)
        CALL read_coordinate_xtl (topology,para_env,subsys_section,error)
+    CASE (do_coord_cp2k)
+       CALL read_coordinate_cp2k(topology,para_env,subsys_section,error)
     CASE DEFAULT
        ! We should never reach this point..
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)   
     END SELECT
 
-    ! Parse &COORD section and in case overwrite..
-    CALL read_atoms_input ( topology, overwrite=(topology%coord_type/=do_coord_off),&
-         subsys_section=subsys_section,save_mem=save_mem,error=error)
+    ! Parse &COORD section and in case overwrite
+    IF (topology%coord_type /= do_coord_cp2k) THEN
+       CALL read_atoms_input(topology,overwrite=(topology%coord_type /= do_coord_off),&
+                             subsys_section=subsys_section,save_mem=save_mem,error=error)
+    END IF
     CALL timestop(handle2)
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&

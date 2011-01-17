@@ -106,7 +106,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 1. get cell and topolgoy%atom_info
+    ! 1. get cell and topology%atom_info
     !-----------------------------------------------------------------------------
     atom_info => topology%atom_info
     cell => topology%cell_muc

@@ -104,8 +104,9 @@ CONTAINS
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
     INTEGER, DIMENSION(:, :), POINTER        :: pairs
-    LOGICAL :: autogen, check, do_center, explicit, failure, found, my_qmmm, &
-      present_12_excl_ei_list, present_12_excl_vdw_list
+    LOGICAL :: autogen, check, disable_exclusion_lists, do_center, explicit, &
+      failure, found, my_qmmm, present_12_excl_ei_list, &
+      present_12_excl_vdw_list
     REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
@@ -389,7 +390,9 @@ CPSourceFileRef,&
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
-    IF (method_name_id == do_fist) THEN
+    CALL section_vals_val_get(subsys_section,"TOPOLOGY%DISABLE_EXCLUSION_LISTS",&
+                              l_val=disable_exclusion_lists,error=error)
+    IF ((method_name_id == do_fist).AND.(.NOT.disable_exclusion_lists)) THEN
        CPPostcondition(PRESENT(exclusions),cp_failure_level,routineP,error,failure)
        natom=topology%natoms
        ! allocate exclusions. Most likely they would only be needed for the local_particles

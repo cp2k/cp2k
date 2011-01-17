@@ -213,9 +213,15 @@ CONTAINS
 
     IF(fist_nonbond_env%do_nonbonded)THEN
        ! First check with list_control to update neighbor lists
-       CALL list_control(atomic_kind_set, particle_set, local_particles, &
-            cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
-            core_particle_set, exclusions=exclusions, error=error)
+       IF (ASSOCIATED(exclusions)) THEN
+          CALL list_control(atomic_kind_set, particle_set, local_particles, &
+               cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
+               core_particle_set, exclusions=exclusions, error=error)
+       ELSE
+          CALL list_control(atomic_kind_set, particle_set, local_particles, &
+               cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
+               core_particle_set, error=error)
+       END IF
     END IF
 
     ! Initialize force, energy and pressure tensor arrays

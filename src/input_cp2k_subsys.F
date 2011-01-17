@@ -1570,10 +1570,10 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE_FORMAT",&
             variants=s2a("COORDINATE"),&
             description="Set up the way in which coordinates will be read.",&
-            usage="COORD_FILE_FORMAT (OFF|PDB|XYZ|G96|CRD|CIF|XTL)", &
-            enum_c_vals=s2a( "OFF","PDB","XYZ","G96","CRD","CIF","XTL"),&
+            usage="COORD_FILE_FORMAT (OFF|PDB|XYZ|G96|CRD|CIF|XTL|CP2K)", &
+            enum_c_vals=s2a( "OFF","PDB","XYZ","G96","CRD","CIF","XTL","CP2K"),&
             enum_i_vals=(/do_coord_off, do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_crd,&
-            do_coord_cif,do_coord_xtl/),&
+            do_coord_cif,do_coord_xtl,do_coord_cp2k/),&
             enum_desc=s2a(&
             "Coordinates read in the &COORD section of the input file",&
             "Coordinates provided through a PDB file format",&
@@ -1581,12 +1581,20 @@ CONTAINS
             "Coordinates provided through a GROMOS96 file format",&
             "Coordinates provided through an AMBER file format",&
             "Coordinates provided through a CIF (Crystallographic Information File) file format",&
-            "Coordinates provided through a XTL (MSI native) file format"),&
+            "Coordinates provided through a XTL (MSI native) file format",&
+            "Read the coordinates in CP2K &COORD section format from an external file."),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL connectivity_framework(section, do_conn_generate, error)
+
+       CALL keyword_create(keyword, name="DISABLE_EXCLUSION_LISTS",&
+            description="Do not build any exclusion lists.",&
+            usage="DISABLE_EXCLUSION_LISTS",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EXCLUDE_VDW",&
             description="Specifies which kind of Van der Waals interaction to skip.",&

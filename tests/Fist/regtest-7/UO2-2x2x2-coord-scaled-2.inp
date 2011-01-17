@@ -1,0 +1,89 @@
+&GLOBAL
+  PROJECT UO2-2x2x2-coord-scaled-2
+ FLUSH_SHOULD_FLUSH
+ PRINT_LEVEL low
+ RUN_TYPE energy
+&END GLOBAL
+&FORCE_EVAL
+ METHOD Fist
+ STRESS_TENSOR ANALYTICAL
+ &MM
+  &FORCEFIELD
+   &CHARGE
+    ATOM U
+    CHARGE +3.227252
+   &END CHARGE
+   &CHARGE
+    ATOM O
+    CHARGE -1.613626
+   &END CHARGE
+   &NONBONDED
+    &BUCK4RANGES
+     ATOMS O O
+     A [eV] 11272.6
+     B [angstrom^-1] 1/0.1363
+     C [eV*angstrom^6] 134.0
+     R1 [angstrom] 1.2
+     R2 [angstrom] 2.1
+     R3 [angstrom] 2.6
+     RCUT [angstrom] 5.2
+    &END BUCK4RANGES
+    &WILLIAMS
+     ATOMS O U
+     A [eV] 566.498
+     B [angstrom^-1] 1/0.42056
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 5.2
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS U U
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 5.2
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX 16 16 16
+    &RS_GRID
+     DISTRIBUTION_TYPE replicated
+    &END RS_GRID
+   &END EWALD
+  &END POISSON
+ &END MM
+ &SUBSYS
+  &CELL
+   ABC 10.8949 10.8949 10.8949
+  &END CELL
+  &COORD
+   SCALED
+   # the coordinates are read from an external file
+  &END COORD
+  &PRINT
+   &CELL
+   &END CELL
+   &KINDS
+   &END KINDS
+   &TOPOLOGY_INFO
+    UTIL_INFO
+    XYZ_INFO
+   &END TOPOLOGY_INFO
+  &END PRINT
+  &TOPOLOGY
+   CONNECTIVITY user
+   COORD_FILE_FORMAT cp2k
+   COORD_FILE_NAME ../sample_cp2k/UO2-2x2x2-coord-scaled-2.xyz
+   PARA_RES off
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL
