@@ -61,6 +61,7 @@ UO2-4x4x4-autofit.inp          11
 UO2-2x2x2-conn_user.inp        47
 UO2-2x2x2-conn_user_nvt.inp     2
 # Read CP2K COORD section from an external file, optionally disable all exclusion lists
+UO2-2x2x2-coord-0.inp           2
 UO2-2x2x2-coord-1.inp           2
 UO2-2x2x2-coord-2.inp           2
 UO2-2x2x2-coord-3.inp           2
