@@ -354,12 +354,14 @@ MODULE command_line_tools
     CHARACTER(LEN=200) :: cube_name_in
     CHARACTER(LEN=200) :: cube_name_out
     CHARACTER(LEN=200) :: cube_name_subtract
+    CHARACTER(LEN=200) :: cube_name_espot
     CHARACTER(LEN=200) :: xyz_name
     LOGICAL :: do_xyz, do_center, do_fold, do_foldsmart,do_center_atom,do_center_geo, do_center_point
     LOGICAL :: have_input, have_output, write_help, write_version, do_subtract
-    LOGICAL :: do_iso, do_slice, do_1d_profile
+    LOGICAL :: do_iso, do_slice, do_1d_profile, espot_over_iso, iso_current, have_espot_cube
     INTEGER :: atom_center, stride, cube, index_profile
-    REAL    :: center_point(3), slice(3), iso_level(3), iso_hmin, iso_hmax, delta_profile, mult_fact
+    REAL    :: center_point(3), slice(3), iso_level(3), iso_hmin, iso_hmax, delta_profile,&
+                mult_fact, iso_delta_grid, bwidth
   END TYPE
 CONTAINS
 !-------------------------------------------------------------------------------
@@ -380,6 +382,10 @@ CONTAINS
     input%do_iso=.FALSE.
     input%iso_hmin=-1.0
     input%iso_hmax=-1.0
+    input%iso_delta_grid=0.5D0
+    input%iso_current = .FALSE.
+    input%bwidth=2.0D0
+    input%espot_over_iso = .FALSE.
     input%index_profile=0
     input%delta_profile=0.0D0
     input%do_1d_profile=.FALSE.
@@ -392,6 +398,7 @@ CONTAINS
     input%mult_fact=1.0D0
     input%have_input=.FALSE.
     input%have_output=.FALSE.
+    input%have_espot_cube=.FALSE.
   END SUBROUTINE init_input
 !-------------------------------------------------------------------------------
 !  just write an informational message to the output
@@ -426,6 +433,14 @@ CONTAINS
       write(6,'(A80)') " -iso l1 l2 l3           : compute the isosurface at level l#, recording height"
       write(6,'(A80)') "                           along the axis #, if l#/=0,                         "
       write(6,'(A80)') "                           reads three reals, takes the first /=0              "
+      write(6,'(A80)') " -iso_delta_grid  delta  : step of the regular grid to output the iso-surface  " 
+      write(6,'(A80)') " -isocurrent W           : correct the iso-density surface to approximate the  "
+      write(6,'(A80)') "                           iso-current surface, where                          "
+      write(6,'(A80)') "                           I(z) \propto rho(z)*exp(alpha*W*sqrt(ES-pot(z)))   "
+      write(6,'(A80)') "                           The ES-pot cube must be loaded                      "            
+      write(6,'(A80)') " -espot                  : assign ES-pot values to the calculated iso-surface  "            
+      write(6,'(A80)') "                           The ES-pot cube must be loaded                      "            
+      write(6,'(A80)') " -espot_cube             : name cube file of the electrostatic potential       " 
       write(6,'(A80)') " -help                   : print this message                                  "
       write(6,'(A80)') " -v                      : print a version string                              "
       write(6,'(A80)') ""
@@ -499,11 +514,28 @@ CONTAINS
         READ(nextarg,*) input%iso_level(2)
         CALL getarg(I+3,nextarg)
         READ(nextarg,*) input%iso_level(3)
+        WRITE(6,'(A,3(1PE12.4))') "Calculate an iso-surface from cube, at value ",input%iso_level
       CASE("-isorange")
         CALL getarg(I+1,nextarg)
         READ(nextarg,*) input%iso_hmin
         CALL getarg(I+2,nextarg)
         READ(nextarg,*) input%iso_hmax
+      CASE("-isocurrent")
+        input%iso_current = .TRUE.
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%bwidth
+        WRITE(6,'(A,f10.5))') "Correct the iso-density surface to a better approx. of iso-current, W= ",input%bwidth
+      CASE("-espot")
+        input%espot_over_iso=.TRUE.
+        WRITE(6,'(A))') "Assign the ES-pot values to the iso-surface"
+      CASE("-espot_cube")
+        input%have_espot_cube=.TRUE.
+        CALL getarg(I+1,input%cube_name_espot)
+        WRITE(6,*) "Load electrostatic potential cube file ",TRIM(input%cube_name_espot)
+      CASE("-iso_delta_grid")
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%iso_delta_grid
+        WRITE(6,*) " Integration parameter to generate the 2D grid", input%iso_delta_grid
       CASE("-1d_profile")
         input%do_1d_profile=.TRUE.
         CALL getarg(I+1,nextarg)
@@ -543,6 +575,7 @@ MODULE cube_post_process
   IMPLICIT NONE
 !  REAL, PARAMETER :: a2au = 1.0/0.5291772083D0 ! multiply angstrom by a2au to get bohr
   REAL, PARAMETER :: au2a = 0.5291772083D0 ! multiply bohr by au2a to get angstrom 
+  REAL, PARAMETER :: au2eV = 27.211384D0
 
 CONTAINS
 
@@ -555,7 +588,7 @@ CONTAINS
    CHARACTER(LEN=80) :: filename
    INTEGER :: i, ip_low, ip_up,j,k, ncount, np, npp
    REAL,DIMENSION(:), ALLOCATABLE :: pos, av_val
-   REAL :: length, p, val
+   REAL :: length, p, val, dh1, dh2
 
    ALLOCATE(pos(cube%npoints(index)))
    ALLOCATE(av_val(cube%npoints(index)))
@@ -569,14 +602,21 @@ CONTAINS
       STOP
      END IF
      ncount = cube%npoints(1)*cube%npoints(2)
+!dbg
+!     dh1=sqrt(cube%dh(1,1)*cube%dh(1,1)*au2a*au2a+cube%dh(2,1)*cube%dh(2,1)*au2a*au2a)
+!     dh2=sqrt(cube%dh(1,2)*cube%dh(1,2)*au2a*au2a+cube%dh(2,2)*cube%dh(2,2)*au2a*au2a)
+!     dh1=cube%dh(1,1)*au2a
+!     dh2=cube%dh(2,2)*au2a
+!  write(*,*) ' dh ', dh1, dh2, dh1*dh2,ncount,cube%dh(1,1)*cube%dh(2,2)*au2a*au2a
+!dbg
      DO i=1,cube%npoints(3)
        val = 0.0D0
        DO j=1,cube%npoints(2)
          DO k=1,cube%npoints(1)
-           val =val + cube%grid(k,j,i)
+           val =val + cube%grid(k,j,i)! *dh1*dh2
          END DO
        END DO
-       av_val(i) = val/REAL(ncount)
+       av_val(i) = val /REAL(ncount)
      END DO
 
    ELSE IF(index==1) THEN
@@ -707,17 +747,23 @@ CONTAINS
    CLOSE(101)
   END SUBROUTINE compute_slice
 
-  SUBROUTINE compute_iso_surf(cube,dir,iso_val,h_min, h_max)
+  SUBROUTINE compute_iso_surf(cube,dir,iso_val_inp,h_min, h_max, grid_delta, &
+                   use_espot, iso_current, bwidth, cube_espot)
 
    TYPE(cube_type), POINTER :: cube
    INTEGER, INTENT(IN) ::dir
-   REAL, INTENT(IN) :: iso_val, h_min, h_max
+   REAL, INTENT(IN) :: iso_val_inp, h_min, h_max, grid_delta
+   LOGICAL :: use_espot, iso_current
+   REAL, INTENT(IN), OPTIONAL ::  bwidth 
+   TYPE(cube_type), OPTIONAL, POINTER :: cube_espot
 
    CHARACTER(LEN=80) :: filename
-   LOGICAL :: found_val
+   LOGICAL :: check_atom_from_down, found_val
    INTEGER ::  d1,d2, iold, jold, kold
-   INTEGER :: i, ipoint, j,k, index_min, index_max
-   REAL :: fac1, fac2, r, r1, r2 , val1, val2
+   INTEGER :: i, iat, ipoint, j,k, kval, index_min, index_max
+   REAL :: d12, iso_val
+   REAL :: alpha, fac1, fac2, r, r1, r2 , val1, val2, val1_e, val2_e
+   REAL, ALLOCATABLE, DIMENSION(:,:) :: ah
    REAL, ALLOCATABLE, DIMENSION(:,:,:) :: data_grid
    REAL :: delta, det, height, L1, L2, r1_shift, r2_shift, tmp
    INTEGER :: ii, jj, im, ip, jm, jp, np1, np2 
@@ -730,6 +776,11 @@ CONTAINS
    END IF
 
    allocate(data_grid(3,cube%npoints(d1),cube%npoints(d2)))
+   data_grid = 0.0D0
+   iold = 1
+   jold = 1
+   kold = 1
+
    !Find starting plane
    IF(h_min<-10000.0D0) THEN
      index_min = 1
@@ -762,16 +813,102 @@ CONTAINS
    END IF
    IF(index_max==cube%npoints(dir)) index_max = index_max-1
 
+   IF(iso_current) THEN
+     alpha = 2.D0*0.5123D0*bwidth*sqrt(au2ev)
+     i = cube%npoints(d1)/2
+     j = cube%npoints(d2)/2
+     DO k = index_min, index_max
+       IF(dir==3)THEN
+         val1 = cube%grid(i,j,k)
+         val2 = cube%grid(i,j,k+1)
+       ELSEIF(dir==2)THEN
+         val1 = cube%grid(i,k,j)
+         val2 = cube%grid(i,k+1,j)
+       ELSEIF(dir==1)THEN
+         val1 = cube%grid(k,i,j)
+         val2 = cube%grid(k+1,i,j)
+       END IF
+       IF(val1<val2) THEN
+           IF(iso_val_inp<val2 .AND. iso_val_inp>val1) THEN
+             found_val = .TRUE.
+             fac1 = (iso_val_inp-val1)/(val2-val1)
+             fac2 = (val2-iso_val_inp)/(val2-val1)
+           END IF
+       ELSE
+           IF(iso_val_inp<val1 .AND. iso_val_inp>val2) THEN
+             found_val = .TRUE.
+             fac2 = (iso_val_inp-val2)/(val1-val2)
+             fac1 = (val1-iso_val_inp)/(val1-val2)
+           END IF
+       END IF
+       IF(found_val) THEN
+         IF(dir==3)THEN
+           val1_e = cube_espot%grid(i,j,k) 
+           val2_e = cube_espot%grid(i,j,k+1)
+         ELSEIF(dir==2) THEN
+           val1_e = cube_espot%grid(i,k,j) 
+           val2_e = cube_espot%grid(i,k+1,j)
+         ELSEIF(dir==1) THEN
+           val1_e = cube_espot%grid(k,i,j) 
+           val2_e = cube_espot%grid(k+1,i,j)
+         END IF 
+         iso_val = fac1*(val1*exp(alpha*sqrt(val1_e))) + &
+                   fac2*(val2*exp(alpha*sqrt(val2_e)))
+         EXIT
+       END IF
+     END DO
+     IF(.NOT. found_val) THEN
+!     iso_val = 
+       stop ' reference value for correction not found '
+     END IF
+   ELSE
+     iso_val = iso_val_inp
+   END IF
+
+
    write(*,*) ' Start search for iso surface at value ', iso_val, ' in the height range between ', h_min, ' and ', h_max
    write(*,*) ' Number of considered planes ', index_max-index_min + 1
 
-   WRITE(filename,'(A6,I1,A2,F10.8,A4)')  'isosurf_',dir,'_v',iso_val,'.dat'
-   OPEN(101,FILE=TRIM(filename))
+   check_atom_from_down = .true.
+   IF(check_atom_from_down) THEN
+     allocate(ah(cube%npoints(d1),cube%npoints(d2)))
+     ah=h_max/au2a
+!dbg
+         DO iat = 1,cube%natom
+           if(cube%coords(dir,iat)*au2a<h_max) THEN
+    write(*,*) iat, cube%coords(dir,iat)*au2a, h_max
+           endif
+       enddo
+! stop
+!dbg
+     DO i = 1,cube%npoints(d1)
+       DO j = 1,cube%npoints(d2)
+         r1 = real(i-1)*cube%dh(1,d1)+cube%origin(1)+real(j-1)*cube%dh(1,d2)
+         r2 = real(i-1)*cube%dh(2,d1)+real(j-1)*cube%dh(2,d2)+cube%origin(2)
+         DO iat = 1,cube%natom
+           if(cube%coords(dir,iat)*au2a<h_max) THEN
+             d12=sqrt((cube%coords(d1,iat)-r1)**2+(cube%coords(d2,iat)-r2)**2)
+! write(*,*) i,j,iat,r1,r2,cube%coords(d1,iat),cube%coords(d2,iat),d12
+             if(d12<2.D0 .AND. cube%coords(dir,iat)<ah(i,j)) THEN
+               ah(i,j) = cube%coords(dir,iat)
+!dbg
+!   write(*,*) ' For grid point ', i, j, r1*au2a,r2*au2a, ' found an atom below hmax, atom ', iat, &
+!              cube%coords(d1,iat)*au2a, cube%coords(d2,iat)*au2a, cube%coords(dir,iat)*au2a,&
+!                 ', isosurf limit ', ah(i,j)*au2a 
+!dbg
+             end if
+           end if
+         END DO
+       END DO
+     END DO
+   END IF
 
    jold = 1
    kold = index_min
    DO i = 1,cube%npoints(d1)
+!   DO i = cube%npoints(d1),1,-1 !cube%npoints(d1)
      DO j = 1,cube%npoints(d2)
+!     DO j = cube%npoints(d2),1,-1 !cube%npoints(d2)
        found_val = .FALSE. 
        DO k = index_min, index_max
          IF(dir==3)THEN
@@ -784,6 +921,21 @@ CONTAINS
            val1 = cube%grid(k,i,j)
            val2 = cube%grid(k+1,i,j)
          END IF
+         IF(iso_current) THEN
+           IF(dir==3)THEN
+             val1_e = cube_espot%grid(i,j,k) 
+             val2_e = cube_espot%grid(i,j,k+1)
+           ELSEIF(dir==2) THEN
+             val1_e = cube_espot%grid(i,k,j) 
+             val2_e = cube_espot%grid(i,k+1,j)
+           ELSEIF(dir==1) THEN
+             val1_e = cube_espot%grid(k,i,j) 
+             val2_e = cube_espot%grid(k+1,i,j)
+           END IF 
+           val1 = (val1*exp(alpha*sqrt(val1_e)))
+           val2 = (val2*exp(alpha*sqrt(val2_e)))
+         END IF
+
          IF(val1<val2) THEN 
              IF(iso_val<val2 .AND. iso_val>val1) THEN
                found_val = .TRUE.
@@ -800,17 +952,41 @@ CONTAINS
          IF(found_val) THEN
              r  = cube%origin(dir) + real(i-1)*cube%dh(dir,d1)+real(j-1)*cube%dh(dir,d2)&
                +real(k-1)*cube%dh(dir,dir)*fac1+real(k)*cube%dh(dir,dir)*fac2
+             IF(check_atom_from_down) THEN
+                 if(r>ah(i,j)) THEN
+                   write(*,'(A,2F10.5,A,F16.8,A, F16.8)') ' At ', r1*au2a, r2*au2a, 'tip goes behind atoms, position moved from ', &
+                                                        r*au2a, ' to ', (ah(i,j)-0.5D0)*au2a
+!                   r=ah(i,j)-0.1D0
+                   r=data_grid(3,iold,jold)
+                   kval = NINT((ah(i,j)-2.2D0-cube%origin(dir))/cube%dh(dir,dir))+1
+                   kval = kold
+                 else
+                   kval=k
+                 endif
+             ELSE
+               kval = k
+             END IF
              r1 = cube%origin(d1) + real(i-1)*cube%dh(d1,d1) +real(j-1)*cube%dh(d1,d2) &
                 +real(k-1)*cube%dh(d1,dir) *fac1+real(k)*cube%dh(d1,dir)*fac2
              r2 = cube%origin(d2) + real(i-1)*cube%dh(d2,d1) +real(j-1)*cube%dh(d2,d2) &
-                +real(k-1)*cube%dh(d2,dir) *fac1+real(k)*cube%dh(d2,dir)*fac2
+                +real(kval-1)*cube%dh(d2,dir) *fac1+real(kval)*cube%dh(d2,dir)*fac2
              data_grid(1,i,j) = r1
              data_grid(2,i,j) = r2
-             data_grid(3,i,j) = r
+             IF(use_espot) THEN
+               IF(dir==3)THEN
+                 data_grid(3,i,j) = (cube_espot%grid(i,j,kval)*fac1+cube_espot%grid(i,j,kval+1)*fac2)!/2.0D0
+               ELSEIF(dir==2)THEN
+                 data_grid(3,i,j) = (cube_espot%grid(i,kval,j)+cube_espot%grid(i,kval+1,j))/2.0D0
+               ELSEIF(dir==1) THEN
+                 data_grid(3,i,j) = (cube_espot%grid(kval,i,j)+cube_espot%grid(kval+1,i,j))/2.0D0
+               END IF
+             ELSE
+               data_grid(3,i,j) = r
+             END IF
             
              jold = j
              iold = i
-             kold = k
+             kold = kval
              EXIT
          END IF 
        END DO ! k
@@ -825,31 +1001,42 @@ CONTAINS
           data_grid(3,i,j) = r
           jold = j
           iold = i
-         write(*,'(A,2F10.5,A,F12.8,A, F16.8)') ' At grid point ', r1*au2a, r2*au2a, ' no value close to ', iso_val, &
+         write(*,'(A,2F10.5,A,F16.8,A, F16.8)') ' At grid point ', r1*au2a, r2*au2a, ' no value close to ', iso_val, &
                     ' has been found; assigned : ',r
-       ELSE
-         WRITE(101,*) r1*au2a, r2*au2a, r*au2a
        END IF
      END DO ! j
    END DO  ! i
 
-   CLOSE(101)
 
    OPEN(102,FILE="gird_data_index.dat")
      
    DO i = 1,cube%npoints(d1)
      DO j = 1,cube%npoints(d2)
-       write(102,*) i, j, data_grid(3,i,j)*au2a 
+       IF(use_espot) THEN
+         write(102,*) i, j, data_grid(3,i,j)*au2eV
+       ELSE
+         write(102,*) i, j, data_grid(3,i,j)*au2a 
+       END IF
      END DO
      write(102,*) " "
    END DO
    CLOSE(102)
 
-   OPEN(103,FILE="grid_data_pos.dat")
+   IF (use_espot .AND. iso_current) THEN
+     WRITE(filename,'(A12,I1,A2,F10.8,A8)')  'es_on_iso_I_',dir,'_v',iso_val,'_gnu.dat'
+   ELSE IF(use_espot) THEN
+     WRITE(filename,'(A14,I1,A2,F10.8,A8)')  'es_on_iso_rho_',dir,'_v',iso_val,'_gnu.dat'
+   ELSEIF(iso_current) THEN
+     WRITE(filename,'(A8,I1,A2,F10.8,A8)')  'h_iso_I_',dir,'_v',iso_val,'_gnu.dat'
+   ELSE
+     WRITE(filename,'(A10,I1,A2,F10.8,A8)')  'h_iso_rho_',dir,'_v',iso_val,'_gnu.dat'
+   END IF
+   OPEN(103,FILE=TRIM(filename))
+
    L1 = cube%dh(d1,d1) * (cube%npoints(d1)-1) + cube%dh(d1,d2) * (cube%npoints(d2)-1)
    L2 = cube%dh(d2,d1) * (cube%npoints(d1)-1) + cube%dh(d2,d2) * (cube%npoints(d2)-1)
 
-   delta = 0.5D0
+   delta = grid_delta
 
    np1 = INT(L1/delta) + 1
    np2 = INT(L2/delta) + 1
@@ -880,60 +1067,49 @@ CONTAINS
         j = int(tmp)+1
        END IF
 
+       IF(j<1) THEN
+
+       ELSEIF(j>cube%npoints(d2)) THEN
+       END IF
+
        im = i 
        ip = i
        jm = j 
        jp = j
-       IF(i>1) im = i-1
-       IF(j>1) jm = j-1
-       IF(i<cube%npoints(d1)) ip = i+1
-       IF(j<cube%npoints(d2)) jp = j+1
+       IF(i>1) THEN
+           im = i-1
+       ELSEIF(i==1) THEN
+           im = cube%npoints(d1)
+       END IF
+
+       IF(j>1) THEN
+           jm = j-1
+       ELSE IF (j==1) THEN
+           jm = cube%npoints(d2)
+       END IF
+
+       IF(i<cube%npoints(d1)) THEN
+               ip = i+1
+       ELSEIF(i==cube%npoints(d1)) THEN
+             ip = 1
+       END IF
+
+       IF(j<cube%npoints(d2)) THEN
+           jp = j+1
+       ELSEIF(j==cube%npoints(d2))THEN
+           jp = 1
+       END IF
        height = (data_grid(3,i,j)+data_grid(3,im,j)+data_grid(3,ip,j)+&
                  data_grid(3,i,jm)+data_grid(3,i,jp))/5.D0
-       write(103,'(3f16.8)') (r1+cube%origin(d1))*au2a, (r2+cube%origin(d2))*au2a,height*au2a 
+       IF(use_espot) THEN
+         write(103,'(3f16.8)') (r1+cube%origin(d1))*au2a, (r2+cube%origin(d2))*au2a,height*au2eV
+       ELSE
+         write(103,'(3f16.8)') (r1+cube%origin(d1))*au2a, (r2+cube%origin(d2))*au2a,height*au2a 
+       END IF
      END DO
      write(103,*) " "
    END DO
    CLOSE(103)
-
-   OPEN(104,FILE="grid_data_pos_b.dat")
-   DO ipoint = 1,np1*np2
-     jj = int(real(ipoint)/real(np1))+1
-     ii = ipoint-(jj-1)*np1
-
-     r1 = delta*real(ii-1)
-     r2 = delta*real(jj-1)
-     i=int((cube%dh(d2,d2)*r1-cube%dh(d1,d2)*r2)*det) + 1
-     j=int((cube%dh(d1,d1)*r2-cube%dh(d2,d1)*r1)*det) + 1
-     IF(i<1) THEN
-        r1_shift = r1+cube%npoints(d1)*cube%dh(d1,d1)
-        r2_shift = r2+cube%npoints(d1)*cube%dh(d2,d1)
-        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
-        i = int(tmp)+1
-        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
-        j = int(tmp)+1
-     ELSEIF(i>cube%npoints(d1)) THEN
-        r1_shift = r1-cube%npoints(d1)*cube%dh(d1,d1)
-        r2_shift = r2-cube%npoints(d1)*cube%dh(d2,d1)
-        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
-        i = int(tmp)+1
-        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
-        j = int(tmp)+1
-     END IF
-
-     im = i
-     ip = i
-     jm = j
-     jp = j
-     IF(i>1) im = i-1
-     IF(j>1) jm = j-1
-     IF(i<cube%npoints(d1)) ip = i+1
-     IF(j<cube%npoints(d2)) jp = j+1
-     height = (data_grid(3,i,j)+data_grid(3,im,j)+data_grid(3,ip,j)+&
-               data_grid(3,i,jm)+data_grid(3,i,jp))/5.D0
-     write(104,'(3f16.8)') (r1+cube%origin(d1))*au2a, (r2+cube%origin(d2))*au2a,height*au2a
-   END DO
-   CLOSE(104)
 
    DEALLOCATE(data_grid)
 
@@ -950,7 +1126,7 @@ PROGRAM main
    USE cube_post_process
    IMPLICIT NONE
 
-   TYPE(cube_type), POINTER :: cube,cube_subtract
+   TYPE(cube_type), POINTER :: cube,cube_subtract, cube_espot
 
    INTEGER :: iunit_cube_in,iunit_cube_out,iunit_xyz,narg
    INTEGER :: dir
@@ -1009,6 +1185,20 @@ PROGRAM main
         CALL subtract_cubes(cube,cube_subtract)
         CALL deallocate_cube(cube_subtract)
      ENDIF
+
+     IF (input%espot_over_iso .OR. input%iso_current) THEN
+       IF(.NOT. input%have_espot_cube) THEN
+         STOP " Name of ES-pot cube file needed "
+       END IF
+               ! read cube
+        ALLOCATE(cube_espot)
+        CALL init_cube(cube_espot)
+        write(6,FMT='(A)',ADVANCE="No") "Reading cube with espot ... "
+        OPEN(iunit_cube_in,FILE=TRIM(input%cube_name_espot))
+        CALL read_cube(cube_espot,iunit_cube_in)
+        CLOSE(iunit_cube_in)
+        write(6,*) "Done"
+     END IF
 
      IF (input%do_xyz) THEN  
         ! read xyz
@@ -1084,12 +1274,22 @@ PROGRAM main
            dir = 3
            iso_val = input%iso_level(3)
         END IF
-        write(6,FMT='(A, I4, A, F10.4)') "Calculation of a iso surface, recording the height along direction",&
+        write(6,FMT='(A, I4, A, 1PE20.4)') "Calculation of a iso surface, recording the height along direction",&
                 dir, ' at level ', iso_val 
-        CALL compute_iso_surf(cube, dir, iso_val, input%iso_hmin ,input%iso_hmax)
+        IF(input%espot_over_iso .OR. input%iso_current ) THEN
+            CALL compute_iso_surf(cube, dir, iso_val, input%iso_hmin ,input%iso_hmax, input%iso_delta_grid,&
+                  input%espot_over_iso,  input%iso_current, input%bwidth,  cube_espot)
+        ELSE
+            CALL compute_iso_surf(cube, dir, iso_val, input%iso_hmin ,input%iso_hmax, input%iso_delta_grid, &
+                use_espot=.FALSE., iso_current=.FALSE.)
+        END IF
         write(6,*) "Done"
      END IF
 
+
+     IF (ASSOCIATED(cube_espot)) THEN
+        CALL deallocate_cube(cube_espot)
+     END IF
 
      ! final out
      write(6,FMT='(A)',ADVANCE="No") "Writing cube ... "
