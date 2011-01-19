@@ -308,6 +308,9 @@ CONTAINS
           IF (.NOT.ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
           CALL get_alist(oce%intac(iac), alist_ac, iatom, error)
           CALL get_alist(oce%intac(ibc), alist_bc, jatom, error)
+          IF (.NOT.ASSOCIATED(alist_ac)) CYCLE
+          IF (.NOT.ASSOCIATED(alist_bc)) CYCLE
+
           DO kac=1,alist_ac%nclist
              DO kbc=1,alist_bc%nclist
                 IF(alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
