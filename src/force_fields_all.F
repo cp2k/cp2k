@@ -1501,7 +1501,7 @@ CONTAINS
                 CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
                                           atm2=TRIM(name_atm_b),&
                                           atm3=TRIM(name_atm_c),&
-                                          atm4=TRIM(name_atm_c),&
+                                          atm4=TRIM(name_atm_d),&
                                           type_name="Torsion",&
                                           array=Ainfo,&
                                           error=error)
