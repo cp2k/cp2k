@@ -346,7 +346,7 @@ PROGRAM cp2k_shell
         IF (failure) GOTO 10
         ALLOCATE(pos(3*n_atom),stat=stat)
         IF (stat/=0) CALL mp_abort(cmd//' failed alloc')
-        CALL get_force(env_id, force=pos, n_el=3*n_atom, ierr=ierr)
+        CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
         CALL my_assert(ierr==0,'get_force error',failure)
         pos=pos*(e_fact/pos_fact)
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
@@ -376,7 +376,7 @@ PROGRAM cp2k_shell
         IF (failure) GOTO 10
         ALLOCATE(pos(3*n_atom),stat=stat)
         IF (stat/=0) CALL mp_abort(cmd//' failed alloc')
-        CALL get_force(env_id, force=pos, n_el=3*n_atom, ierr=ierr)
+        CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
         CALL my_assert(ierr==0,'get_force error',failure)
         pos=pos*(e_fact/pos_fact)
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
