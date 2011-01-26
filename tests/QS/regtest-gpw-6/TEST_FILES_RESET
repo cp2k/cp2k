@@ -335,3 +335,6 @@ si8_lsd_broy_wc_list.inp
 si8_lsd_broy_wc_list_rst.inp
 # DBCSR Numerics 
 c8_broy_gapw_gop.inp
+si8_noort_broy_wc_jacobi_all.inp
+si8_noort_broy_wc_jacobi_ene1.inp
+c8_broy_gop.inp
