@@ -1994,9 +1994,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: handle, stat
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure, scale, use_ref_cell
+    LOGICAL                                  :: failure, scale
     REAL(KIND=dp)                            :: conv_factor
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(multipole_type), POINTER            :: multipoles
@@ -2006,10 +2006,10 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(work_section, core_particles, particles, shell_particles, &
-         subsys, cell, cell_ref, multipoles)
+         subsys, cell, multipoles)
     CALL timeset(routineN,handle)
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref,&
-         use_ref_cell=use_ref_cell, error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, &
+         error=error)
 
     CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
          shell_particles=shell_particles, core_particles=core_particles,&

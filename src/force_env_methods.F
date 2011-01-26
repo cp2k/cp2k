@@ -382,7 +382,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: s
     REAL(KIND=dp), DIMENSION(3, 3)           :: numer_stress = 0.0_dp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pos_ref
-    TYPE(cell_type), POINTER                 :: cell, cell_local, cell_ref
+    TYPE(cell_type), POINTER                 :: cell, cell_local
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_environment_type), POINTER   :: globenv
@@ -414,7 +414,7 @@ CONTAINS
           iseq = iseq + 1
           pos_ref(iseq,:) = particles(ip)%r
        END DO
-       CALL force_env_get(force_env,cell=cell,cell_ref=cell_ref,&
+       CALL force_env_get(force_env,cell=cell,&
                           virial=virial, error=error)
        CALL cell_create(cell_local,error=error)
        CALL cell_clone(cell,cell_local,error=error)

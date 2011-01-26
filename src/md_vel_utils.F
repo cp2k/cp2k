@@ -1497,7 +1497,7 @@ CONTAINS
     LOGICAL                                  :: apply_cns0, failure, &
                                                 shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
@@ -1512,7 +1512,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(atomic_kinds,cell,cell_ref,para_env,subsys,molecule_kinds_new,core_particles,particles)
+    NULLIFY(atomic_kinds,cell,para_env,subsys,molecule_kinds_new,core_particles,particles)
     NULLIFY(shell_particles,core_particle_set,particle_set,shell_particle_set,force_env_section,print_section,subsys_section)
     print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
     apply_cns0 = .FALSE.
@@ -1520,7 +1520,7 @@ CONTAINS
        CALL section_vals_val_get(constraint_section,"CONSTRAINT_INIT",l_val=apply_cns0,error=error)
     END IF
     ! Always initialize velocities and possibly restart them
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref, para_env=para_env,&
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env,&
          force_env_section=force_env_section, error=error )
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 

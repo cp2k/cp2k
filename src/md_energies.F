@@ -196,18 +196,17 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simpar_type), POINTER               :: simpar
 
-    NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, force_env,&
+    NULLIFY(atomic_kinds, atomic_kind_set, force_env,&
             particles, subsys, simpar)
     CALL get_md_env(md_env=md_env, force_env=force_env, &
          simpar=simpar, error=error)
 
-    CALL force_env_get(force_env, cell_ref=cell_ref, &
+    CALL force_env_get(force_env, &
          potential_energy=md_ener%epot, subsys=subsys,  error=error)
     
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
