@@ -236,8 +236,7 @@ CONTAINS
           CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,matrix_orthogonal_space, &
                              0.0_dp,matrix_s_ortho,last_column=ortho_space_k,error=error)
           CALL cp_dbcsr_multiply('T','N',rone,matrix_s_ortho, matrix_s_ortho, &
-              rzero,matrix_os_ortho,last_row=ortho_space_k,last_column=ortho_space_k,&
-              last_k=n,error=error)
+              rzero,matrix_os_ortho,error=error)
 
           CALL cp_dbcsr_cholesky_decompose(matrix_os_ortho,&
                para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
@@ -246,19 +245,16 @@ CONTAINS
                upper_to_full=.TRUE.,error=error)
 
           CALL cp_dbcsr_multiply('T','N',rone,matrix_s_ortho,matrix_c, &
-               rzero,matrix_buf1_ortho,last_row=ortho_space_k,last_column=k,last_k=n,&
-               error=error)
+               rzero,matrix_buf1_ortho, error=error)
           CALL cp_dbcsr_multiply('N','N',rone,matrix_os_ortho,matrix_buf1_ortho, &
-               rzero,matrix_buf2_ortho,last_row=ortho_space_k,last_column=k,last_k=ortho_space_k,&
-               error=error)
+               rzero,matrix_buf2_ortho,error=error)
           CALL cp_dbcsr_multiply('N','N',-rone,matrix_s_ortho, matrix_buf2_ortho, &
-               rone,matrix_c,last_row=n,last_column=k,last_k=ortho_space_k,&
-               error=error)
+               rone,matrix_c, error=error)
 
           ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
           CALL cp_dbcsr_copy(qs_ot_env(1)%matrix_c0,matrix_c,error=error)
           CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_c0, &
-               0.0_dp,matrix_c,last_column=k,error=error)
+               0.0_dp,matrix_c,error=error)
 
           CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c, &
                qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env, &

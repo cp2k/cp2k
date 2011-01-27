@@ -1089,7 +1089,7 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, col_offset, col_size, &
-                                                handle, i, j, k, n, row, &
+                                                handle, i, j, row, &
                                                 row_offset, row_size
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
@@ -1098,13 +1098,10 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
 
   CALL timeset(routineN,handle)
 
-  CALL cp_dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=k)
-
   CALL cp_dbcsr_init(matrix_tmp,error=error)
   CALL cp_dbcsr_copy(matrix_tmp,matrix_in,name="apply_full_all",error=error)
   CALL cp_dbcsr_multiply('T','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
-                  matrix_in,0.0_dp,matrix_tmp,&
-                  last_row=n,last_column=k,last_k=n,error=error)
+                  matrix_in,0.0_dp,matrix_tmp,error=error)
   ! do the right scaling
   CALL cp_dbcsr_iterator_start(iter, matrix_tmp)
   DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
@@ -1123,8 +1120,7 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
   CALL cp_dbcsr_iterator_stop(iter)
   ! mult back
   CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
-                  matrix_tmp,0.0_dp,matrix_out,&
-                  last_row=n,last_column=k,last_k=n,error=error)
+                  matrix_tmp,0.0_dp,matrix_out,error=error)
   CALL cp_dbcsr_release(matrix_tmp, error=error)
   CALL timestop(handle)
 
