@@ -231,24 +231,30 @@ CONTAINS
        ! Threshold is needed to ensure a preference for alpha occupation in the case
        ! of degeneracy
        IF ((eigval_a(lumo_a) - threshold) < eigval_b(lumo_b)) THEN
-          IF (lumo_a > mo_set_a%nmo) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                            "All alpha MOs are occupied. Add more alpha MOs to "//&
-                            "allow for a higher multiplicity",only_ionode=.TRUE.,&
-                            error=error)
-             lumo_b = lumo_b + 1
-          ELSE
-             lumo_a = lumo_a + 1
-          END IF
+          lumo_a = lumo_a + 1
         ELSE
-          IF (lumo_b > mo_set_b%nmo) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                            "All beta MOs are occupied. Add more beta MOs to "//&
-                            "allow for a lower multiplicity",only_ionode=.TRUE.,&
-                            error=error)
-             lumo_a = lumo_a + 1
-          ELSE
+          lumo_b = lumo_b + 1
+       END IF
+       IF (lumo_a > mo_set_a%nmo) THEN
+          CALL cp_assert((i == nelec),&
+                         cp_warning_level,cp_assertion_failed,routineP,&
+                         "All alpha MOs are occupied. Add more alpha MOs to "//&
+                         "allow for a higher multiplicity",only_ionode=.TRUE.,&
+                         error=error)
+          IF (i < nelec) THEN
+             lumo_a = lumo_a - 1
              lumo_b = lumo_b + 1
+          END IF
+       END IF
+       IF (lumo_b > mo_set_b%nmo) THEN
+          CALL cp_assert((lumo_b >= lumo_a),&
+                         cp_warning_level,cp_assertion_failed,routineP,&
+                         "All beta MOs are occupied. Add more beta MOs to "//&
+                         "allow for a lower multiplicity",only_ionode=.TRUE.,&
+                         error=error)
+          IF (i < nelec) THEN
+             lumo_a = lumo_a + 1
+             lumo_b = lumo_b - 1
           END IF
        END IF
     END DO
