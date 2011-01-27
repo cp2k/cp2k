@@ -69,7 +69,6 @@ MODULE qs_mo_methods
             calculate_orthonormality, calculate_magnitude
 
   INTERFACE calculate_density_matrix
-    MODULE PROCEDURE calculate_density_matrix_blacs
     MODULE PROCEDURE calculate_dm_sparse
   END INTERFACE
 
@@ -389,42 +388,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE make_basis_simple
-
-! *****************************************************************************
-!> \brief  Calculate the density matrix from the MO coeff and the
-!>         MO occupation numbers. 
-!> \author  MK
-!> \date    01.05.2001
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,error)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: density_matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'calculate_density_matrix_blacs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, imo
-
-    CALL timeset(routineN,handle)
-
-    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%mo_coeff,&
-                    1,1,0.0_dp,density_matrix,error=error)
-
-!   *** Add the density contribution from the fractional occupied MOs ***
-
-    DO imo=mo_set%lfomo,mo_set%homo
-      CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%mo_coeff,1,imo,1.0_dp,density_matrix,error=error)
-
-    END DO
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calculate_density_matrix_blacs
 
 ! *****************************************************************************
 !> \brief   Calculate the density matrix
