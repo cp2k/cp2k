@@ -108,6 +108,7 @@ MODULE qs_mo_types
     REAL(KIND=dp)                             :: kTS
     ! Fermi energy level
     REAL(KIND=dp)                             :: mu
+    LOGICAL                                   :: flexible_electron_count
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -126,16 +127,20 @@ MODULE qs_mo_types
             read_mo_set,&
             read_mos_restart_low,&
             set_mo_occupation,&
-            set_mo_occupation_old,&
             set_mo_set, &
             write_mo_set, &
             write_mo_set_low,&
             mo_set_restrict,&
             write_rt_mos_to_restart,&
-            read_rt_mos_from_restart, duplicate_mo_set
+            read_rt_mos_from_restart,&
+            duplicate_mo_set
 
   INTERFACE read_mo_set
     MODULE PROCEDURE read_mo_set_from_restart
+  END INTERFACE
+
+  INTERFACE set_mo_occupation
+    MODULE PROCEDURE set_mo_occupation_1,set_mo_occupation_2
   END INTERFACE
 
   INTERFACE write_mo_set
@@ -143,6 +148,148 @@ MODULE qs_mo_types
   END INTERFACE
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief   Prepare an occupation of alpha and beta MOs following an Aufbau
+!>          principle, i.e. allowing a change in multiplicity.
+!> \author  Matthias Krack (MK)
+!> \date    25.01.2010 (MK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE set_mo_occupation_2(mo_array,smear,eval_deriv,error)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(smear_type), POINTER                :: smear
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eval_deriv
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: threshold = 1.0E-6_dp
+
+    INTEGER                                  :: handle, i, lumo_a, lumo_b, &
+                                                multiplicity_new, &
+                                                multiplicity_old, nelec
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
+    TYPE(mo_set_type), POINTER               :: mo_set_a, mo_set_b
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
+    mo_set_a => mo_array(1)%mo_set
+    CPPrecondition(ASSOCIATED(mo_set_a),cp_failure_level,routineP,error,failure)
+    ! Fall back for the case that we have only one MO set
+    IF (SIZE(mo_array) == 1) THEN
+       IF (PRESENT(eval_deriv)) THEN
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
+       ELSE
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
+       END IF
+       RETURN
+    END IF
+    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
+    mo_set_b => mo_array(2)%mo_set
+    IF (.NOT.(mo_set_a%flexible_electron_count.AND.mo_set_b%flexible_electron_count)) THEN
+       IF (PRESENT(eval_deriv)) THEN
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
+          CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv,error=error)
+       ELSE
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
+          CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+       END IF
+       RETURN
+    END IF
+
+    CALL timeset(routineN,handle)
+
+    nelec = mo_set_a%nelectron + mo_set_b%nelectron
+
+    multiplicity_old = mo_set_a%nelectron - mo_set_b%nelectron + 1
+
+    CALL cp_assert((mo_set_a%nelectron < mo_set_a%nmo),&
+                   cp_warning_level,cp_assertion_failed,routineP,&
+                   "All alpha MOs are occupied. Add more alpha MOs to "//&
+                   "allow for a higher multiplicity",only_ionode=.TRUE.,&
+                   error=error)
+    CALL cp_assert(((mo_set_b%nelectron < mo_set_b%nmo).OR.&
+                    (mo_set_b%nelectron == mo_set_a%nelectron)),&
+                   cp_warning_level,cp_assertion_failed,routineP,&
+                   "All beta MOs are occupied. Add more beta MOs to "//&
+                   "allow for a lower multiplicity",only_ionode=.TRUE.,&
+                   error=error)
+
+    eigval_a => mo_set_a%eigenvalues
+    eigval_b => mo_set_b%eigenvalues
+
+    lumo_a = 1
+    lumo_b = 1
+
+    ! Apply Aufbau principle
+    DO i=1,nelec
+       ! Threshold is needed to ensure a preference for alpha occupation in the case
+       ! of degeneracy
+       IF ((eigval_a(lumo_a) - threshold) < eigval_b(lumo_b)) THEN
+          IF (lumo_a > mo_set_a%nmo) THEN
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                            "All alpha MOs are occupied. Add more alpha MOs to "//&
+                            "allow for a higher multiplicity",only_ionode=.TRUE.,&
+                            error=error)
+             lumo_b = lumo_b + 1
+          ELSE
+             lumo_a = lumo_a + 1
+          END IF
+        ELSE
+          IF (lumo_b > mo_set_b%nmo) THEN
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                            "All beta MOs are occupied. Add more beta MOs to "//&
+                            "allow for a lower multiplicity",only_ionode=.TRUE.,&
+                            error=error)
+             lumo_a = lumo_a + 1
+          ELSE
+             lumo_b = lumo_b + 1
+          END IF
+       END IF
+    END DO
+
+    mo_set_a%homo = lumo_a - 1
+    mo_set_b%homo = lumo_b - 1
+
+    IF (mo_set_b%homo > mo_set_a%homo) THEN
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                      "More beta ("//&
+                      TRIM(ADJUSTL(cp_to_string(mo_set_b%homo)))//&
+                      ") than alpha ("//&
+                      TRIM(ADJUSTL(cp_to_string(mo_set_a%homo)))//&
+                      ") MOs are occupied. Resorting to low spin state",&
+                      only_ionode=.TRUE.,error=error)
+       mo_set_a%homo = nelec/2 + MODULO(nelec,2)
+       mo_set_b%homo = nelec/2
+    END IF
+
+    mo_set_a%nelectron = mo_set_a%homo
+    mo_set_b%nelectron = mo_set_b%homo
+    multiplicity_new = mo_set_a%nelectron - mo_set_b%nelectron + 1
+
+    CALL cp_assert((multiplicity_new == multiplicity_old),&
+                   cp_note_level,cp_assertion_failed,routineP,&
+                   "Multiplicity changed from "//&
+                   TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "//&
+                   TRIM(ADJUSTL(cp_to_string(multiplicity_new))),&
+                   only_ionode=.TRUE.,error=error,failure=failure)
+
+    IF (PRESENT(eval_deriv)) THEN
+       CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
+       CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv,error=error)
+    ELSE
+       CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
+       CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE set_mo_occupation_2
 
 ! *****************************************************************************
 !> \brief allocate a new mo_set, and copy the old data
@@ -174,6 +321,7 @@ CONTAINS
     mo_set_new%uniform_occupation = mo_set_old%uniform_occupation
     mo_set_new%kTS = mo_set_old%kTS
     mo_set_new%mu = mo_set_old%mu
+    mo_set_new%flexible_electron_count = mo_set_old%flexible_electron_count
 
     nmo = mo_set_new%nmo
 
@@ -199,14 +347,15 @@ CONTAINS
   END SUBROUTINE duplicate_mo_set
 
 ! *****************************************************************************
-!> \brief allocate a mo set and partially initializes it (nao,nmo,nelectron
-!>      are vaild).
-!>      For the full initialization you need to call init_mo_set
+!> \brief Allocates a mo set and partially initializes it (nao,nmo,nelectron,
+!>        and flexible_electron_count are vaild).
+!>        For the full initialization you need to call init_mo_set
 !> \param mo_set the mo_set to allocate
 !> \param nao number of atom orbitals
 !> \param nmo number of molecular orbitals
-!> \param nelectrons number of electrons
+!> \param nelectron number of electrons
 !> \param maxocc maximum occupation of an orbital (LDA: 2, LSD:1)
+!> \param flexible_electron_count the number of electrons can be changed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -214,12 +363,14 @@ CONTAINS
 !> \author Matthias Krack
 !> \date 15.05.2001
 ! *****************************************************************************
-  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,error)
+  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,&
+                             flexible_electron_count,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
     REAL(KIND=dp), INTENT(IN)                :: maxocc
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN)                      :: flexible_electron_count
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
       routineP = moduleN//':'//routineN
@@ -243,6 +394,7 @@ CONTAINS
     mo_set%uniform_occupation = .TRUE.
     mo_set%kTS = 0.0_dp
     mo_set%mu = 0.0_dp
+    mo_set%flexible_electron_count = flexible_electron_count
 
     NULLIFY (mo_set%eigenvalues)
     NULLIFY (mo_set%occupation_numbers)
@@ -296,7 +448,7 @@ CONTAINS
 
     ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
     CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure) 
-    CALL set_mo_occupation(mo_set=mo_set,error=error)
+    CALL set_mo_occupation_1(mo_set=mo_set,error=error)
 
   END SUBROUTINE init_mo_set
 
@@ -414,7 +566,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,mo_coeff_b,&
-                        uniform_occupation,kTS,mu)
+                        uniform_occupation,kTS,mu,flexible_electron_count)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
@@ -427,6 +579,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: mo_coeff_b
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS, mu
+    LOGICAL, INTENT(OUT), OPTIONAL           :: flexible_electron_count
 
     IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
     IF (PRESENT(homo)) homo = mo_set%homo
@@ -443,6 +596,7 @@ CONTAINS
     IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
     IF (PRESENT(kTS)) kTS = mo_set%kTS
     IF (PRESENT(mu)) mu = mo_set%mu
+    IF (PRESENT(flexible_electron_count)) flexible_electron_count = mo_set%flexible_electron_count
 
   END SUBROUTINE get_mo_set
 
@@ -456,7 +610,7 @@ CONTAINS
 !> \param   eval_deriv on entry the derivative of the KS energy wrt to the occupation number
 !>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue 
 ! *****************************************************************************
-  SUBROUTINE set_mo_occupation(mo_set,smear,eval_deriv,xas_env, error)
+  SUBROUTINE set_mo_occupation_1(mo_set,smear,eval_deriv,xas_env, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(smear_type), OPTIONAL, POINTER      :: smear
@@ -466,7 +620,7 @@ CONTAINS
       POINTER                                :: xas_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, i_first, imo, nmo, &
@@ -694,7 +848,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE set_mo_occupation
+  END SUBROUTINE set_mo_occupation_1
 
 ! *****************************************************************************
 !> \brief   Set the components of a MO set data structure.
@@ -704,7 +858,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,uniform_occupation,&
-                        kTS,mu,error)
+                        kTS,mu,flexible_electron_count,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -715,7 +869,8 @@ CONTAINS
                                                 occupation_numbers
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS, mu
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: flexible_electron_count
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
       routineP = moduleN//':'//routineN
@@ -746,6 +901,7 @@ CONTAINS
     IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation = uniform_occupation
     IF(PRESENT(kTS)) mo_set%kTS = kTS
     IF(PRESENT(mu)) mo_set%mu = mu
+    IF(PRESENT(flexible_electron_count)) mo_set%flexible_electron_count = flexible_electron_count
 
   END SUBROUTINE set_mo_set
 
@@ -1945,101 +2101,5 @@ CPSourceFileRef,&
          error=error)
 
   END SUBROUTINE write_mo_set_to_output_unit
-
-! *****************************************************************************
-!MK Just kept for a while to allow a smooth transition to the new routine
-! *****************************************************************************
-  SUBROUTINE set_mo_occupation_old(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
-       uocc,smear,error)
-
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
-    INTEGER, INTENT(OUT)                     :: homo, lfomo
-    REAL(KIND=dp), INTENT(IN)                :: maxocc
-    INTEGER, INTENT(IN)                      :: nelectron
-    LOGICAL, INTENT(INOUT)                   :: uocc
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_occupation_old', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: imo, nmo, nomo, output_unit
-    REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
-                                                my_smear, nelec
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    logger =>cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger)
-
-    my_smear = 0.0_dp
-    IF(PRESENT(smear)) my_smear = smear
-
-    nomo = NINT(nelectron/maxocc)
-    nmo  = SIZE(eigenvalues)
-
-    occupation(:) = 0.0_dp
-    occupation(1:nomo) =  maxocc
-
-    homo = nomo
-    lfomo = nomo + 1
-
-    perform_smear: IF (my_smear /= 0.0_dp) THEN
-
-       !     *** Define the energy window for the eigenvalues ***
-
-       e1 = eigenvalues(nomo) - 0.5_dp*smear
-       e2 = eigenvalues(nomo) + 0.5_dp*smear
-
-       !     *** Find the lowest fractional occupied MO ***
-
-       DO imo=1,nomo
-          IF (eigenvalues(imo) > e1) THEN
-             lfomo = imo
-             EXIT
-          END IF
-       END DO
-
-       !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
-       IF(e2 > eigenvalues(nmo)) THEN
-          IF(output_unit>0) THEN
-            WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
-          END IF
-       END IF
-       DO imo=nmo,nomo,-1
-          IF (eigenvalues(imo) < e2) THEN
-             homo = imo
-             EXIT
-          END IF
-       END DO
-
-       !     *** Get the number of electrons to be smeared ***
-
-       edist = 0.0_dp
-       nelec = 0.0_dp
-
-       DO imo=lfomo,homo
-          nelec = nelec + occupation(imo)
-          edist = edist + ABS(e2 - eigenvalues(imo))
-       END DO
-
-       !     *** Smear electrons inside the window ***
-
-       DO imo=lfomo,homo
-          edelta = ABS(e2 - eigenvalues(imo))
-          occupation(imo) = MIN(maxocc,nelec*edelta/edist)
-          nelec = nelec - occupation(imo)
-          edist = edist - edelta
-       END DO
-
-       !     *** Check, if the smearing involves more than one MO ***
-
-       IF (lfomo == homo) THEN
-          homo = nomo
-          lfomo = nomo + 1
-       END IF
-       uocc = .FALSE.
-    END IF perform_smear
-
-  END SUBROUTINE set_mo_occupation_old
 
 END MODULE qs_mo_types

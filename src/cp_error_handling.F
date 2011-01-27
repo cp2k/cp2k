@@ -441,8 +441,10 @@ CONTAINS
     INTEGER                                  :: unit_nr
 
     unit_nr = cp_logger_get_default_unit_nr()
-    CALL print_message("ERROR in "//TRIM(fromWhere)//" "//TRIM(message),unit_nr,2,2,0)
+    CALL print_message("ERROR in "//TRIM(ADJUSTL(fromWhere))//&
+                       TRIM(ADJUSTL(message)),unit_nr,2,2,2)
     CALL mp_abort()
+    
   END SUBROUTINE cp_error_common_stop
 
 ! *****************************************************************************
@@ -468,18 +470,24 @@ CONTAINS
     logger => cp_error_get_logger(error)
     IF (debug_this_module) PRINT *, "entred in cp_error_handle_error"
 
-    IF (ionode .AND. error%level < error%stop_level) THEN    
-       CALL cp_error_message(error%level, fromWhere, &
-            'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
+    IF (ionode.AND.(error%level < error%stop_level)) THEN
+       CALL cp_error_message(error%level,fromWhere,' '//TRIM(ADJUSTL(message)),error)
+!MK No need to frighten anybody with an error code when printing an informal note
+!MK       CALL cp_error_message(error%level,fromWhere,&
+!MK                             'err='//TRIM(ADJUSTL(cp_to_string(error%error_nr)))//&
+!MK                             ' '//TRIM(ADJUSTL(message)),error)
     END IF
+
     IF (error%level >= error%stop_level) THEN
        mepos=logger%para_env%mepos
-       CALL cp_error_message(error%level, fromWhere//' processor '//&
-            cp_to_string(mepos)//' ', &
-            'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
+       CALL cp_error_message(error%level,fromWhere//' processor '//&
+                             TRIM(ADJUSTL(cp_to_string(mepos)))//' ',&
+                             'err='//TRIM(ADJUSTL(cp_to_string(error%error_nr)))//&
+                             ' '//TRIM(ADJUSTL(message)),error)
        CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        CALL mp_abort(message)
     END IF
+
   END SUBROUTINE cp_error_handle_error
 
 ! *****************************************************************************
@@ -732,7 +740,7 @@ CONTAINS
 
     CALL cp_assert(condition,level=level,error_nr=cp_assertion_failed,&
          fromWhere=fromWhere,&
-         message="condition FAILED at line "//ADJUSTL(cp_to_string(lineNr)),&
+         message="condition FAILED at line "//TRIM(ADJUSTL(cp_to_string(lineNr))),&
          error=error, failure=failure)
   END SUBROUTINE cp_a_l
 

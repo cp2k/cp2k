@@ -344,7 +344,8 @@ MODULE cp_control_types
                                           eval_external_potential,&
                                           do_admm,&
                                           smear,&
-                                          low_spin_roks
+                                          low_spin_roks,&
+                                          relax_multiplicity
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

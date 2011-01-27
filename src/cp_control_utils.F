@@ -51,8 +51,6 @@ MODULE cp_control_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_utils'
 
-! *** Public subroutines ***
-
   PUBLIC :: read_dft_control,&
             read_mgrid_section,&
             read_qs_section,&
@@ -186,7 +184,7 @@ CPSourceFileRef,&
         CALL section_vals_val_get(admm_block_section,"PURIFICATION",i_val=method_id,error=error)
         dft_control%admm_control%block_purification_method = method_id
       END IF
-      ! ** Some algorithms are not implemented yet
+      ! Some algorithms are not implemented yet
       IF( dft_control%admm_control%method_id == do_admm_block_density_matrix ) THEN
         IF( dft_control%admm_control%block_projection_method == do_admm_block_aux_basis_on ) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -230,6 +228,13 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control%charge,error=error)
     CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=dft_control%multiplicity,error=error)
+    CALL section_vals_val_get(dft_section,"RELAX_MULTIPLICITY",l_val=dft_control%relax_multiplicity,error=error)
+    IF (dft_control%relax_multiplicity) THEN
+       CALL cp_assert(dft_control%uks,&
+                      cp_failure_level,cp_assertion_failed,routineP,&
+                      "The option RELAX_MULTIPLICITY is only valid for unrestricted Kohn-Sham (UKS) calculations",&
+                      only_ionode=.TRUE.)
+    END IF
 
     ! check for the presence of the low spin roks section
     tmp_section => section_vals_get_subs_vals(dft_section,"LOW_SPIN_ROKS",error=error)
@@ -240,12 +245,12 @@ CPSourceFileRef,&
     dft_control%sic_scaling_b = 1.0_dp
 
     ! DFT+U
-    dft_control%dft_plus_u    = .FALSE.
+    dft_control%dft_plus_u = .FALSE.
     CALL section_vals_val_get(dft_section,"PLUS_U_METHOD",i_val=method_id,error=error)
     dft_control%plus_u_method_id = method_id
 
-    ! smearing in use
-    dft_control%smear         = .FALSE.
+    ! Smearing in use
+    dft_control%smear = .FALSE.
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
@@ -254,7 +259,7 @@ CPSourceFileRef,&
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name , error=error)
 
-!   *** Read the input section ***
+    ! Read the input section
     tmp_section => section_vals_get_subs_vals(dft_section,"sic",error=error)
     CALL section_vals_val_get(tmp_section,"SIC_METHOD",&
          i_val=dft_control%sic_method_id,error=error)
@@ -265,7 +270,7 @@ CPSourceFileRef,&
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
          r_val=dft_control%sic_scaling_b,error=error)
 
-!   *** Determine if this is a  TDDFPT  run *** 
+    ! Determine if this is a TDDFPT run
     CALL section_vals_val_get(dft_section,"EXCITATIONS",i_val=excitations,error=error)
     dft_control%do_tddfpt_calculation = (excitations==tddfpt_excitations)
     IF (dft_control%do_tddfpt_calculation) THEN
@@ -278,7 +283,7 @@ CPSourceFileRef,&
        CALL read_rtp_section(dft_control,tmp_section,error)
     END IF
 
-    !   *** Read the input section ***
+    ! Read the input section
     tmp_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%do_xas_calculation,error=error)
     IF (dft_control%do_xas_calculation) THEN
@@ -291,7 +296,7 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    !   *** Read the finite field input section ***
+    ! Read the finite field input section
     tmp_section => section_vals_get_subs_vals(dft_section,"EFIELD",error=error)
     CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=dft_control%apply_efield_field,error=error)
     IF (dft_control%apply_efield_field) THEN
@@ -302,7 +307,7 @@ CPSourceFileRef,&
        END DO
     END IF
 
-    !   *** Read the external potential input section ***
+    ! Read the external potential input section
     tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_POTENTIAL",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_potential,error=error)
 

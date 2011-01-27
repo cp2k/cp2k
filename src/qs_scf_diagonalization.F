@@ -108,7 +108,6 @@ MODULE qs_scf_diagonalization
 CONTAINS
 
 ! *****************************************************************************
-! *****************************************************************************
 !> \brief the inner loop of scf, specific to diagonalization with S matrix
 !>       basically, in goes the ks matrix out goes a new p matrix
 !> \par History
@@ -131,11 +130,13 @@ CONTAINS
       POINTER                                :: xas_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: ispin, nspin
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_diis
 
-    DO ispin=1,SIZE(matrix_ks)
+    nspin = SIZE(matrix_ks)
+
+    DO ispin=1,nspin
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
                          scf_env%scf_work1(ispin)%matrix,&
                          error=error)
@@ -195,7 +196,7 @@ CONTAINS
       END IF
     END IF
 
-    DO ispin=1,SIZE(matrix_ks)
+    DO ispin=1,nspin
       CALL eigensolver(matrix_ks=scf_env%scf_work1(ispin)%matrix,&
                        mo_set=mos(ispin)%mo_set,&
                        ortho=scf_env%ortho,&
@@ -206,23 +207,30 @@ CONTAINS
                        use_jacobi=use_jacobi,&
                        jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                        error=error)
+    END DO
 
-      IF(PRESENT(xas_env) .AND. ispin ==1) THEN
-        CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
-        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                               smear=xas_env%smear,&
-                               xas_env=xas_env,error=error)
-      ELSE
-        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+    IF (PRESENT(xas_env)) THEN
+      CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
+      CALL set_mo_occupation(mo_set=mos(1)%mo_set,&
+                             smear=xas_env%smear,&
+                             xas_env=xas_env,&
+                             error=error)
+      DO ispin=2,nspin
+         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                                smear=scf_control%smear,&
+                                error=error)
+      END DO
+    ELSE
+      CALL set_mo_occupation(mo_array=mos,&
                              smear=scf_control%smear,&
                              error=error)
-      END IF
+    END IF
 
-
+    DO ispin=1,nspin
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
-    END DO ! ispin
+    END DO
 
   END SUBROUTINE do_general_diag
 
@@ -530,11 +538,13 @@ END SUBROUTINE diag_subspace_allocate
     LOGICAL, INTENT(INOUT)                   :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: ispin, nspin
     LOGICAL                                  :: do_level_shift, use_jacobi
     REAL(kind=dp)                            :: diis_error
 
-    DO ispin=1,SIZE(matrix_ks)
+    nspin = SIZE(matrix_ks)
+
+    DO ispin=1,nspin
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
     END DO
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
@@ -581,7 +591,7 @@ END SUBROUTINE diag_subspace_allocate
     END IF
     scf_env%iter_delta = 0.0_dp
 
-    DO ispin=1,SIZE(matrix_ks)
+    DO ispin=1,nspin
       CALL simple_eigensolver(matrix_ks=scf_env%scf_work1(ispin)%matrix,&
                               mo_set=mos(ispin)%mo_set,&
                               work=scf_env%scf_work2,&
@@ -590,14 +600,17 @@ END SUBROUTINE diag_subspace_allocate
                               use_jacobi=use_jacobi,&
                               jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                               error=error)
-      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                             smear=scf_control%smear,&
-                             error=error)
+    END DO
+
+    CALL set_mo_occupation(mo_array=mos,&
+                           smear=scf_control%smear,&
+                           error=error)
+
+    DO ispin=1,nspin
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
-
-    END DO ! ispin
+    END DO
 
   END SUBROUTINE do_special_diag
 

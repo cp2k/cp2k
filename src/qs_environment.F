@@ -916,8 +916,8 @@ CONTAINS
        ELSE
           maxocc=1.0_dp
 
-          !    *** the simplist spin distribution is written here. Special cases will
-          !    *** need additional user input
+          ! The simplist spin distribution is written here. Special cases will
+          ! need additional user input
           IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "LSD: try to use a different multiplicity.")
@@ -1026,16 +1026,17 @@ CONTAINS
          CALL stop_memory(routineN,moduleN,__LINE__,&
               "mos",dft_control%nspins*int_size)
       END IF
-       DO ispin=1,dft_control%nspins
-          NULLIFY (mos(ispin)%mo_set)
-          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
-                               nao=n_ao,&
-                               nmo=n_mo(ispin),&
-                               nelectron=nelectron_spin(ispin),&
-                               maxocc=maxocc,&
-                               error=error)
-       END DO
-    ENDIF
+      DO ispin=1,dft_control%nspins
+         NULLIFY (mos(ispin)%mo_set)
+         CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
+                              nao=n_ao,&
+                              nmo=n_mo(ispin),&
+                              nelectron=nelectron_spin(ispin),&
+                              maxocc=maxocc,&
+                              flexible_electron_count=dft_control%relax_multiplicity,&
+                              error=error)
+      END DO
+    END IF
 
     CALL set_qs_env(qs_env,mos=mos,error=error)
 
@@ -1058,6 +1059,7 @@ CONTAINS
                               nmo=n_mo(ispin),&
                               nelectron=nelectron_spin(ispin),&
                               maxocc=maxocc,&
+                              flexible_electron_count=dft_control%relax_multiplicity,&
                               error=error)
       END DO
       CALL set_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)

@@ -361,6 +361,21 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword,&
+                        name="RELAX_MULTIPLICITY",&
+                        variants=(/"RELAX_MULTIP"/),&
+                        description="Do not enforce the occupation of alpha and beta MOs due to the initially "//&
+                                    "defined multiplicity, but rather follow an Aufbau principle. This option "//&
+                                    "is only valid for unrestricted (i.e. spin polarised) Kohn-Sham (UKS) calculations.",&
+                        usage="RELAX_MULTIPLICITY yes",&
+                        required=.FALSE.,&
+                        repeats=.FALSE.,&
+                        default_l_val=.FALSE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="SUBCELLS",&
          description="Read the grid size for subcell generation in the construction of "//&
          "neighbor lists.", usage="SUBCELLS 1.5",&

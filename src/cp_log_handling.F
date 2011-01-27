@@ -586,22 +586,21 @@ CONTAINS
     IF (cp_logger_would_log(lggr,level)) THEN
        SELECT CASE (level)
        CASE (cp_fatal_level)
-          label='ERRORL3'
+          label = 'ERRORL3'
        CASE (cp_failure_level)
-          label='ERRORL2'
+          label = 'ERRORL2'
        CASE (cp_warning_level)
-          label='WARNING'
+          label = 'WARNING'
        CASE (cp_note_level)
-          label='NOTE'
+          label = 'NOTE'
        CASE default
-          label='L'//ADJUSTL(cp_int_to_string(level))
+          label = 'L'//ADJUSTL(cp_int_to_string(level))
        END SELECT
        IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
-          unitNr=cp_logger_get_unit_nr(lggr,local=loc)
+          unitNr = cp_logger_get_unit_nr(lggr,local=loc)
           CALL m_datum(datx)
-          CALL print_message(datx(12:19)//' '//label//' in '//&
-               fromWhere//' '//message,unitNr,&
-               level,0,0)
+          CALL print_message(datx(12:19)//' '//TRIM(ADJUSTL(label))//' in '//&
+                             fromWhere//' '//TRIM(ADJUSTL(message)),unitNr,level,1,1)
           CALL m_flush(unitNr)
        END IF
     END IF
@@ -693,7 +692,7 @@ CONTAINS
     IF (PRESENT(local)) loc=local
     IF (PRESENT(skip_not_ionode)) skip=skip_not_ionode
     IF (.NOT.loc) THEN
-       IF (lggr%default_global_unit_nr<=0) THEN
+       IF (lggr%default_global_unit_nr <= 0) THEN
           IF (lggr%para_env%mepos==lggr%para_env%source) THEN
              CALL cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
                   ".out",local=.FALSE.)
@@ -709,13 +708,14 @@ CONTAINS
           END IF
        END IF
        IF ((lggr%para_env%mepos/=lggr%para_env%source).AND.(.NOT.skip)) THEN
-          WRITE (unit=lggr%default_global_unit_nr,fmt='(a)',iostat=iostat)&
-               ' WARNING non ionode asked for global logger'
+          WRITE (UNIT=lggr%default_global_unit_nr,FMT='(/,T2,A)',IOSTAT=iostat)&
+               ' *** WARNING non ionode asked for global logger ***'
           IF (iostat /= 0) THEN
-             PRINT *," Error trying to WRITE to the local logger."
-             PRINT *," mpi_id=",lggr%para_env%mepos,&
-                  " mpi_communicator=",lggr%para_env%group,&
-                  " pid=",r_pid,'host=',r_host_name
+             PRINT*," *** Error trying to WRITE to the local logger ***"
+             PRINT*," *** MPI_id           = ",lggr%para_env%mepos
+             PRINT*," *** MPI_Communicator = ",lggr%para_env%group
+             PRINT*," *** PID              = ",r_pid
+             PRINT*," *** Hostname         = "//TRIM(r_host_name)
              CALL print_stack(6)
           ELSE
              CALL print_stack(lggr%default_global_unit_nr)
@@ -730,23 +730,21 @@ CONTAINS
                file_action="WRITE",&
                file_position="APPEND",& 
                unit_number=lggr%default_local_unit_nr)
-          WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,i8)',iostat=iostat)&
-               ' **** Local logger file of mpi task',lggr%para_env%mepos,&
-               ' in communicator',lggr%para_env%group
-          IF (iostat==0) THEN
-             WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,a)',iostat=iostat)&
-                  ' **** pid=',r_pid,' host=',r_host_name
-             WRITE (unit=lggr%default_local_unit_nr,fmt='(a)',iostat=iostat)&
-                  ' **** file created by ****'
+          WRITE (UNIT=lggr%default_local_unit_nr,FMT='(/,T2,A,I0,A,I0,A)',IOSTAT=iostat)&
+               '*** Local logger file of MPI task ',lggr%para_env%mepos,&
+               ' in communicator ',lggr%para_env%group,' ***'
+          IF (iostat == 0) THEN
+             WRITE (UNIT=lggr%default_local_unit_nr,FMT='(T2,A,I0)',IOSTAT=iostat)&
+                  '*** PID      = ',r_pid,&
+                  '*** Hostname = '//r_host_name
              CALL print_stack(lggr%default_local_unit_nr)
-             WRITE (unit=lggr%default_local_unit_nr,fmt='(a)',iostat=iostat)&
-                  ' **** file created by ****'
           END IF
           IF (iostat /= 0) THEN
-             PRINT *," Error trying to WRITE to the local logger."
-             PRINT *," mpi_id=",lggr%para_env%mepos,&
-                  " mpi_communicator=",lggr%para_env%group,&
-                  " pid=",r_pid,'host=',r_host_name
+             PRINT*," *** Error trying to WRITE to the local logger ***"
+             PRINT*," *** MPI_id           = ",lggr%para_env%mepos
+             PRINT*," *** MPI_Communicator = ",lggr%para_env%group
+             PRINT*," *** PID              = ",r_pid
+             PRINT*," *** Hostname         = "//TRIM(r_host_name)
              CALL print_stack(6)
           END IF
 
@@ -921,6 +919,8 @@ CONTAINS
   END FUNCTION cp_logical_to_string
 
 ! *****************************************************************************
+!> \brief Perform a basic blocking of the text in message and print it
+!>        optionally decorated with a frame of stars as defined by declev. 
 !> \note
 !>       after      : Number of empty lines after the message.
 !>       before     : Number of empty lines before the message.
@@ -931,7 +931,8 @@ CONTAINS
 !>      - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
 !>      - CP2K by JH 21.08.2000
 !>      - Bugs in the dynamic format generation removed (09.02.2001, MK)
-!> \author Matthias Krack
+!>      - Revised (26.01.2011,MK)
+!> \author Matthias Krack (MK)
 !> \date 28.08.1996
 ! *****************************************************************************
   SUBROUTINE print_message(message,output_unit,declev,before,after)
@@ -940,11 +941,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     INTEGER, INTENT(IN), OPTIONAL            :: declev, before, after
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'print_message', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=15)                        :: fmtstr1
-    CHARACTER(LEN=25)                        :: fmtstr2
     INTEGER :: blank_lines_after, blank_lines_before, decoration_level, i, &
       ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
 
@@ -974,21 +970,21 @@ CONTAINS
 
     msglen = LEN_TRIM(message)
 
-    !   *** Calculate number of rows ***
+    ! Calculate number of rows
 
     nrow = msglen/(rowlen + 1) + 1
 
-    !   *** Calculate appropriate row length ***
+    ! Calculate appropriate row length
 
     rowlen = MIN(msglen,rowlen)
 
-    !   *** Generate the blank lines before the message ***
+    ! Generate the blank lines before the message
 
     DO i=1,blank_lines_before
        WRITE (UNIT=output_unit,FMT="(A)") ""
     END DO
 
-    !   *** Scan for the longest row ***
+    ! Scan for the longest row
 
     ipos1 = 1
     ipos2 = rowlen
@@ -996,7 +992,7 @@ CONTAINS
 
     DO
        IF (ipos2 < msglen) THEN
-          i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+          i = INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
           IF (i == 0) THEN
              ibreak = ipos2
           ELSE
@@ -1011,33 +1007,28 @@ CONTAINS
        ipos1 = ibreak + 2
        ipos2 = MIN(msglen,ipos1 + rowlen - 1)
 
-       !     *** When the last row is processed, exit loop ***
+       ! When the last row is processed, exit loop
 
        IF (ipos1 > msglen) EXIT
 
     END DO
 
-    !   *** Generate the first set of star rows ***
+    ! Generate the first set of star rows
 
     IF (decoration_level > 1) THEN
-       fmtstr1 = "(/,T2,  (""*""))"
-       WRITE (UNIT=fmtstr1(5:6),FMT="(I2)") maxrowlen + 8
-       fmtstr1 = "(T2,  (""*""))"
        DO i=1,decoration_level-1
-          WRITE (UNIT=output_unit,FMT=fmtstr1)
+          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",maxrowlen+8)
        END DO
-    ELSE IF (decoration_level == 1) THEN
-       WRITE (UNIT=output_unit,FMT='(A)')""
     END IF
 
-    !   *** Break long messages ***
+    ! Break long messages
 
     ipos1 = 1
     ipos2 = rowlen
 
     DO
        IF (ipos2 < msglen) THEN
-          i=INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+          i = INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
           IF (i == 0) THEN
              ibreak = ipos2
           ELSE
@@ -1048,38 +1039,33 @@ CONTAINS
        END IF
 
        IF (decoration_level == 0) THEN
-          fmtstr2 = "(T2,A)"
-          IF (ipos1==1) fmtstr2 = "(/T2,A)"
-          WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
+          WRITE (UNIT=output_unit,FMT="(T2,A)") message(ipos1:ibreak)
        ELSE IF (decoration_level > 0) THEN
-          fmtstr2 = "(T2,""*** "",A,  X,"" ***"")"
-          WRITE (UNIT=fmtstr2(14:15),FMT="(I2)") ipos1 + maxrowlen - ibreak
-          WRITE (UNIT=output_unit,FMT=fmtstr2) message(ipos1:ibreak)
+          WRITE (UNIT=output_unit,FMT="(T2,A)")&
+            "*** "//message(ipos1:ibreak)//REPEAT(" ",ipos1+maxrowlen-ibreak)//"***"
        END IF
 
        ipos1 = ibreak + 2
        ipos2 = MIN(msglen,ipos1 + rowlen - 1)
 
-       !     *** When the last row is processed, exit loop ***
+       ! When the last row is processed, exit loop
 
        IF (ipos1 > msglen) EXIT
     END DO
 
-    !   *** Generate the second set star rows ***
+    ! Generate the second set star rows
 
     IF (decoration_level > 1) THEN
        DO i=1,decoration_level-1
-          WRITE (UNIT=output_unit,FMT=fmtstr1)
+          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",maxrowlen+8)
        END DO
     END IF
 
-    !   *** Generate the blank lines after the message ***
+    ! Generate the blank lines after the message
 
     DO i=1,blank_lines_after
        WRITE (UNIT=output_unit,FMT="(A)") ""
     END DO
-
-    CALL m_flush(output_unit)
 
   END SUBROUTINE print_message
 
