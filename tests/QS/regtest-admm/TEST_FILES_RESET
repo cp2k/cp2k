@@ -121,3 +121,16 @@ CH4-BP-NONE.inp
 CH4-BP-CAUCHY_SUBSPACE.inp
 #  
 CH4-BP-CAUCHY.inp
+# numerical
+C_fermi.inp
+si8_broy_stm.inp
+si8_pulay_reduce.inp
+si8_pulay_restore.inp
+si8_pulay_inverse.inp
+si8_pulay.inp
+CH3-BP-CAUCHY_SUBSPACE.inp
+CH4-BP-CAUCHY_SUBSPACE.inp
+CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp
+CH3-BP-MO_NO_DIAG.inp
+c8_kerker_gapw.inp
+c8_broy.inp
