@@ -280,7 +280,7 @@ CONTAINS
              ENDIF
              CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
-                  0.0_dp,mo_derivs(ispin)%matrix, last_column=ncol_global,error=error)
+                  0.0_dp,mo_derivs(ispin)%matrix, error=error)
           ENDDO
        ENDIF
 

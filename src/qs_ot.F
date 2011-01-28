@@ -573,7 +573,7 @@ CONTAINS
     !
     ! compute SC = S*C
     IF(ASSOCIATED(S)) THEN
-       CALL cp_dbcsr_multiply('N','N',1.0_dp,S,C_OLD,0.0_dp,SC,last_column=k,error=error)
+       CALL cp_dbcsr_multiply('N','N',1.0_dp,S,C_OLD,0.0_dp,SC,error=error)
        occ_in = cp_dbcsr_get_occupation(sc)
        CALL cp_dbcsr_filter(sc,qs_ot_env1%settings%eps_irac_filter_matrix,error=error)
        occ_out = cp_dbcsr_get_occupation(sc)

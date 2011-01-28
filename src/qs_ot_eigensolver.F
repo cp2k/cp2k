@@ -15,10 +15,9 @@ MODULE qs_ot_eigensolver
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_get_info, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_copy_columns_hack
@@ -234,7 +233,7 @@ CONTAINS
          CALL array_release(row_blk_size); CALL array_release(col_blk_size)
 
           CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,matrix_orthogonal_space, &
-                             0.0_dp,matrix_s_ortho,last_column=ortho_space_k,error=error)
+                             0.0_dp,matrix_s_ortho,error=error)
           CALL cp_dbcsr_multiply('T','N',rone,matrix_s_ortho, matrix_s_ortho, &
               rzero,matrix_os_ortho,error=error)
 
@@ -276,10 +275,9 @@ CONTAINS
       ELSE
 
          ! set c0,sc0
-         CALL cp_dbcsr_get_info(matrix_c,nfullcols_total=k)
          CALL cp_dbcsr_copy(qs_ot_env(1)%matrix_c0,matrix_c,error=error)
          CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_c0, &
-           0.0_dp,qs_ot_env(1)%matrix_sc0,last_column=k,error=error)
+           0.0_dp,qs_ot_env(1)%matrix_sc0,error=error)
 
          CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0, &
                qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env, &
@@ -311,7 +309,6 @@ CONTAINS
       ENDIF
 
 !     *** Eigensolver loop ***
-      CALL cp_dbcsr_get_info(matrix_c,nfullcols_total=k)
       ieigensolver = 0
       eigensolver_loop: DO
 
@@ -320,7 +317,7 @@ CONTAINS
 
         ! the energy is cHc, the gradient is 2*H*c
         CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_h,matrix_c, &
-            0.0_dp,matrix_hc(1)%matrix,last_column=k,error=error)
+            0.0_dp,matrix_hc(1)%matrix,error=error)
         CALL cp_dbcsr_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
         IF (.NOT. energy_only) THEN
            CALL cp_dbcsr_scale(matrix_hc(1)%matrix,2.0_dp,error=error)
@@ -332,7 +329,7 @@ CONTAINS
         energy_only     =qs_ot_env(1)%energy_only
 
         CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_x, &
-             0.0_dp, qs_ot_env(1)%matrix_sx, last_column=k,error=error)
+             0.0_dp, qs_ot_env(1)%matrix_sx, error=error)
 
         CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
         CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),error=error)

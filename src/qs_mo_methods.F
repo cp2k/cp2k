@@ -705,7 +705,7 @@ CONTAINS
 
         ! h subblock and diag
         CALL cp_dbcsr_multiply('N','N',1.0_dp,ks_matrix,orbitals,&
-             0.0_dp,weighted_vectors,last_column=ncol_global,error=error)
+             0.0_dp,weighted_vectors,error=error)
         !CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
 
         CALL cp_dbcsr_multiply('T','N',1.0_dp,orbitals,weighted_vectors,0.0_dp,h_block,error=error)

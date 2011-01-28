@@ -295,7 +295,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ikind, irep, &
-      ispin, k, n, n_rep_hf, nspins, output_unit, stat
+      ispin, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
       gapw_xc, hfx_treat_lsd_in_core, ionode, my_print, scp_dft, &
@@ -1250,11 +1250,9 @@ CONTAINS
           DO ispin=1,SIZE(mo_derivs)
 
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
-                  mo_coeff_b=mo_coeff_b, &
-                  occupation_numbers=occupation_numbers )
-             CALL cp_dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
+                  mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers )
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
-                   0.0_dp,mo_derivs(ispin)%matrix, last_column=k, error=error)
+                   0.0_dp,mo_derivs(ispin)%matrix, error=error)
 
              IF( dft_control%do_admm) THEN
                CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)
@@ -1284,9 +1282,8 @@ CONTAINS
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
                  CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
-                 CALL cp_dbcsr_get_info(mo_coeff_b,nfullcols_total=k)
                  CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
-                            1.0_dp, mo_derivs(1)%matrix, last_column=k,error=error)
+                            1.0_dp, mo_derivs(1)%matrix, error=error)
              ENDIF
 
           ENDDO

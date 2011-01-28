@@ -24,7 +24,6 @@ MODULE qs_dftb_matrices
                                              cp_dbcsr_create,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_info,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_multiply
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
@@ -641,9 +640,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                ispin, istat, natom, &
-                                                ncol_global, nkind, nspins, &
-                                                output_unit
+                                                ispin, istat, natom, nkind, &
+                                                nspins, output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
@@ -760,9 +758,8 @@ CONTAINS
              IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              ENDIF
-             CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
-                  0.0_dp,mo_derivs(ispin)%matrix, last_column=ncol_global,error=error)
+                  0.0_dp,mo_derivs(ispin)%matrix, error=error)
           ENDDO
        ENDIF
 
