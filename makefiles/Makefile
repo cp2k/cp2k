@@ -195,7 +195,7 @@ endif
 # this is obviously not correct (i.e. can lead to a miscompiled CP2K), 
 # but if you know what you are doing (i.e. you are sure that only information private to this module will be changed) might be useful nevertheless.
 #
-all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
+all.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
 ifeq ($(HACKDEP),yes)
 	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
@@ -255,9 +255,6 @@ LIB_OBJECTS = $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 else
 LIB_OBJECTS =
 endif
-
-$(OBJECTS): $(LIB_OBJECTS)
-
 
 $(LIB_CP2K_ARCHIVE): $(OBJECTS)
 	$(AR) $(LIB_CP2K_ARCHIVE) $?
