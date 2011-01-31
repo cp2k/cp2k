@@ -62,3 +62,4 @@ NO2-lowdin.inp 41
 # Test the new option relax_multiplicity
 O2-UKS-GPW-relax_multip.inp  1
 H2O-UKS-GPW-relax_multip.inp 1
+O2-UKS-OTdiag-relax_multip.inp 1

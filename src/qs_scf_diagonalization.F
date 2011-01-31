@@ -636,16 +636,23 @@ END SUBROUTINE diag_subspace_allocate
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, ispin, nmo
+    INTEGER                                  :: homo, ispin, nmo, nspin
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_iter
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-    DO ispin=1,SIZE(matrix_ks)
-      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
+    NULLIFY (eigenvalues)
+
+    nspin = SIZE(matrix_ks)
+
+    DO ispin=1,nspin
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
+                            scf_env%scf_work1(ispin)%matrix,&
+                            error=error)
     END DO
 
-    IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
+    IF ((scf_env%iter_count > 1).AND.(.NOT.scf_env%skip_diis)) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
@@ -663,9 +670,10 @@ END SUBROUTINE diag_subspace_allocate
     IF (diis_step) THEN
       scf_env%iter_param = diis_error
       scf_env%iter_method = "DIIS/OTdiag"
-      DO ispin=1,SIZE(matrix_ks)
+      DO ispin=1,nspin
          CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-              matrix_ks(ispin)%matrix,keep_sparsity=.TRUE., error=error)
+                               matrix_ks(ispin)%matrix,keep_sparsity=.TRUE.,&
+                               error=error)
       END DO
       eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
     ELSE
@@ -676,36 +684,46 @@ END SUBROUTINE diag_subspace_allocate
         scf_env%iter_param = scf_env%mixing_store%alpha
         scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/OTdiag."
       END IF
-
     END IF
 
     scf_env%iter_delta = 0.0_dp
 
-    DO ispin=1,SIZE(matrix_ks)
-       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo,homo=homo)
-       CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
-                           matrix_s=matrix_s(1)%matrix,&
-                           matrix_c_fm=mo_coeff,&
-                           preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
-                           eps_gradient=eps_iter,&
-                           iter_max=scf_control%diagonalization%max_iter,&
-                           silent=.TRUE.,&
-                           ot_settings=scf_control%diagonalization%ot_settings,&
+    DO ispin=1,nspin
+      CALL get_mo_set(mos(ispin)%mo_set,&
+                      mo_coeff=mo_coeff,&
+                      eigenvalues=eigenvalues,&
+                      nmo=nmo,&
+                      homo=homo)
+      CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
+                          matrix_s=matrix_s(1)%matrix,&
+                          matrix_c_fm=mo_coeff,&
+                          preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
+                          eps_gradient=eps_iter,&
+                          iter_max=scf_control%diagonalization%max_iter,&
+                          silent=.TRUE.,&
+                          ot_settings=scf_control%diagonalization%ot_settings,&
+                          error=error)
+      CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                                          evals_arg=eigenvalues,&
+                                          do_rotation=.TRUE.,&
+                                          error=error)
+      !MK WRITE(*,*) routinen//' copy_dbcsr_to_fm'
+      CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
+                            mos(ispin)%mo_set%mo_coeff_b,&
+                            error=error)!fm->dbcsr
+    END DO
+
+    CALL set_mo_occupation(mo_array=mos,&
+                           smear=scf_control%smear,&
                            error=error)
 
-       CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-              do_rotation = .TRUE., error=error)
-
-WRITE(*,*) routinen//' copy_dbcsr_to_fm'
-CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
-     mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
-
-       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
-       CALL calculate_density_matrix(mos(ispin)%mo_set,scf_env%p_mix_new(ispin)%matrix,error=error)
+    DO ispin=1,nspin
+      CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                    scf_env%p_mix_new(ispin)%matrix,&
+                                    error=error)
     END DO
 
   END SUBROUTINE do_ot_diag
-
 
 ! *****************************************************************************
 !> \brief Solve a set restricted open Kohn-Sham (ROKS) equations based on the

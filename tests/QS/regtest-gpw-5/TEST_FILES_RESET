@@ -380,3 +380,5 @@ CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp
 CH3-BP-MO_NO_DIAG.inp
 c8_kerker_gapw.inp
 c8_broy.inp
+# Bug fix for OTdiag with smear
+si8_pmix_otdiag.inp

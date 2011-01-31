@@ -85,7 +85,7 @@ MODULE qs_mo_types
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
     TYPE(cp_fm_type), POINTER                 :: mo_coeff
-    TYPE(cp_dbcsr_type), POINTER                  :: mo_coeff_b
+    TYPE(cp_dbcsr_type), POINTER              :: mo_coeff_b
     ! we are using the dbcsr mo_coeff_b
     LOGICAL                                   :: use_mo_coeff_b
     ! number of molecular orbitals (# cols in mo_coeff)
