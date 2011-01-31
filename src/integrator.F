@@ -25,6 +25,7 @@ MODULE integrator
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE barostat_types,                  ONLY: barostat_type
   USE cell_types,                      ONLY: cell_type,&
                                              init_cell,&
                                              parse_cell_line
@@ -1930,6 +1931,7 @@ CPSourceFileRef,&
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(barostat_type), POINTER             :: barostat
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1961,25 +1963,24 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
-    NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt)
+    NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt,barostat)
     NULLIFY(core_particles,particles,shell_particles,tmp,old)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
     NULLIFY(simpar,virial)
     
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
-         thermostat_part=thermostat_part,&
-         thermostat_baro=thermostat_baro, thermostat_shell=thermostat_shell,&
-         npt=npt, first_time=first_time, para_env=para_env, error=error)
+         thermostat_part=thermostat_part, thermostat_baro=thermostat_baro,&
+         thermostat_shell=thermostat_shell, npt=npt, first_time=first_time,&
+         para_env=para_env, barostat=barostat, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
-    CALL force_env_get(force_env, subsys=subsys,virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, virial=virial, cell=cell ,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
-    CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,&
-         local_particles=local_particles,&
+    CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds, local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
          gci=gci,molecule_kinds_new=molecule_kinds ,error=error)
 
@@ -2017,7 +2018,7 @@ CPSourceFileRef,&
     CALL allocate_tmp(md_env, tmp,nparticle, nshell, shell_adiabatic, error=error)
 
     ! Apply Thermostat to Barostat
-    CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
+    CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group, error)
 
     ! Apply Thermostat over the full set of particles
     IF(simpar% ensemble /= npe_f_ensemble) THEN
@@ -2063,7 +2064,8 @@ CPSourceFileRef,&
        CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
             local_particles, kin, pv_kin, virial, para_env%group )
-       CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
+       CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree,&
+                          virial_components=barostat%virial_components)
 
        trvg = npt ( 1, 1 )%v  + npt ( 2, 2 )%v + npt ( 3, 3 )%v
        !
@@ -2158,8 +2160,8 @@ CPSourceFileRef,&
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
             local_particles, kin, pv_kin, virial, para_env%group )
-       CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
-
+       CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree,&
+                          virial_components=barostat%virial_components)
     END DO RR
 
     ! Apply Thermostat over the full set of particles
@@ -2260,19 +2262,18 @@ CPSourceFileRef,&
       POINTER                                :: particle_set, &
                                                 particle_set_respa
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
 
     NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa, gci, force_env, atomic_kinds)
-    NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set,virial)
+    NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set)
     NULLIFY (local_molecules,molecule_kinds, molecules,molecule_kind_set, local_particles)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, para_env=para_env, error=error)
     dt = simpar%dt
 
     n_time_steps=simpar%n_time_steps
 
-    CALL force_env_get(force_env,subsys=subsys, virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
     CALL force_env_get(force_env%sub_force_env(1)%force_env,subsys=subsys_respa,error=error)
 
     ! Do some checks on coordinates and box
@@ -2377,13 +2378,6 @@ CPSourceFileRef,&
             simpar%dump_lm, cell, para_env%group,local_particles, error )
 
        IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
-
-       !     *** Update virial ***
-       IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
-            molecule_set, molecule_kind_set, particle_set, virial, para_env%group )
-
-       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-            local_particles, virial, para_env%group , error=error )
     END DO
     DEALLOCATE (pos,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

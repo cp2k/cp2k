@@ -11,7 +11,6 @@
 !>                                       (patch by Marcel Baer)
 ! *****************************************************************************
 MODULE integrator_utils
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
@@ -24,7 +23,8 @@ MODULE integrator_utils
                                              npt_info_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       isokin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       do_clv_x, do_clv_xy, do_clv_xyz, do_clv_xz, do_clv_y, do_clv_yz, &
+       do_clv_z, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE kinds,                           ONLY: dp
@@ -889,7 +889,7 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
+  SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree, virial_components )
 
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(npt_info_type), DIMENSION(:, :), &
@@ -900,6 +900,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: kin
     TYPE(virial_type), INTENT(INOUT)         :: virial
     REAL(KIND=dp), INTENT(IN)                :: infree
+    INTEGER, INTENT(IN), OPTIONAL            :: virial_components
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
@@ -964,6 +965,98 @@ CONTAINS
     ! update barostat velocities
     npt ( :, : ) % v = npt ( :, : ) % v + &
          0.5_dp * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
+
+    ! Screen the dynamics of the barostat according user request
+    IF (PRESENT(virial_components)) THEN
+       SELECT CASE(virial_components)
+       CASE(do_clv_xyz)
+          ! Do nothing.. 
+       CASE(do_clv_x)
+          npt(1,2)%v=0.0_dp
+          npt(1,3)%v=0.0_dp
+          npt(1,2)%f=0.0_dp
+          npt(1,3)%f=0.0_dp
+          npt(2,1)%v=0.0_dp
+          npt(2,2)%v=0.0_dp
+          npt(2,3)%v=0.0_dp
+          npt(2,1)%f=0.0_dp
+          npt(2,2)%f=0.0_dp
+          npt(2,3)%f=0.0_dp
+          npt(3,1)%v=0.0_dp
+          npt(3,2)%v=0.0_dp
+          npt(3,3)%v=0.0_dp
+          npt(3,1)%f=0.0_dp
+          npt(3,2)%f=0.0_dp
+          npt(3,3)%f=0.0_dp
+       CASE(do_clv_y)
+          npt(1,1)%v=0.0_dp
+          npt(1,2)%v=0.0_dp
+          npt(1,3)%v=0.0_dp
+          npt(1,1)%f=0.0_dp
+          npt(1,2)%f=0.0_dp
+          npt(1,3)%f=0.0_dp
+          npt(2,1)%v=0.0_dp
+          npt(2,3)%v=0.0_dp
+          npt(2,1)%f=0.0_dp
+          npt(2,3)%f=0.0_dp
+          npt(3,1)%v=0.0_dp
+          npt(3,2)%v=0.0_dp
+          npt(3,3)%v=0.0_dp
+          npt(3,1)%f=0.0_dp
+          npt(3,2)%f=0.0_dp
+          npt(3,3)%f=0.0_dp
+       CASE(do_clv_z)
+          npt(1,1)%v=0.0_dp
+          npt(1,2)%v=0.0_dp
+          npt(1,3)%v=0.0_dp
+          npt(1,1)%f=0.0_dp
+          npt(1,2)%f=0.0_dp
+          npt(1,3)%f=0.0_dp
+          npt(2,1)%v=0.0_dp
+          npt(2,2)%v=0.0_dp
+          npt(2,3)%v=0.0_dp
+          npt(2,1)%f=0.0_dp
+          npt(2,2)%f=0.0_dp
+          npt(2,3)%f=0.0_dp
+          npt(3,1)%v=0.0_dp
+          npt(3,2)%v=0.0_dp
+          npt(3,1)%f=0.0_dp
+          npt(3,2)%f=0.0_dp
+       CASE(do_clv_xy)
+          npt(1,3)%v=0.0_dp
+          npt(1,3)%f=0.0_dp
+          npt(2,3)%v=0.0_dp
+          npt(2,3)%f=0.0_dp
+          npt(3,1)%v=0.0_dp
+          npt(3,2)%v=0.0_dp
+          npt(3,3)%v=0.0_dp
+          npt(3,1)%f=0.0_dp
+          npt(3,2)%f=0.0_dp
+          npt(3,3)%f=0.0_dp
+       CASE(do_clv_xz)
+          npt(1,2)%v=0.0_dp
+          npt(1,2)%f=0.0_dp
+          npt(2,1)%v=0.0_dp
+          npt(2,2)%v=0.0_dp
+          npt(2,3)%v=0.0_dp
+          npt(2,1)%f=0.0_dp
+          npt(2,2)%f=0.0_dp
+          npt(2,3)%f=0.0_dp
+          npt(3,2)%v=0.0_dp
+          npt(3,2)%f=0.0_dp
+       CASE(do_clv_yz)
+          npt(1,1)%v=0.0_dp
+          npt(1,2)%v=0.0_dp
+          npt(1,3)%v=0.0_dp
+          npt(1,1)%f=0.0_dp
+          npt(1,2)%f=0.0_dp
+          npt(1,3)%f=0.0_dp
+          npt(2,1)%v=0.0_dp
+          npt(2,1)%f=0.0_dp
+          npt(3,1)%v=0.0_dp
+          npt(3,1)%f=0.0_dp
+       END SELECT
+    END IF
 
   END SUBROUTINE update_veps
 

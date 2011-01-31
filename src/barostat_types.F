@@ -15,7 +15,8 @@ MODULE barostat_types
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: npe_f_ensemble,&
+  USE input_constants,                 ONLY: do_clv_xyz,&
+                                             npe_f_ensemble,&
                                              npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
@@ -39,7 +40,8 @@ MODULE barostat_types
 
 ! *****************************************************************************
   TYPE barostat_type
-     INTEGER :: id_nr, ref_count, type_of_barostat
+     INTEGER                          :: id_nr, ref_count
+     INTEGER                          :: type_of_barostat, virial_components
      REAL(KIND=dp)                    :: temp_ext
      TYPE ( npt_info_type ), POINTER  :: npt (:,:)
      TYPE(section_vals_type), POINTER :: section
@@ -107,6 +109,20 @@ CONTAINS
        IF(.NOT.ASSOCIATED(barostat%npt)) THEN
           CALL  release_barostat_type(barostat, error)
        END IF
+
+       ! User defined virial screening
+       CALL section_vals_val_get(barostat_section,"VIRIAL",i_val=barostat%virial_components,error=error)
+       check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
+       CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+          "The screening of the components of the virial is available only with the NPT_F ensemble!"//&
+CPSourceFileRef,&
+          only_ionode=.TRUE.)     
+    ELSE
+       CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
+          "A barostat has been defined with an MD ensemble which does not support barostat! "//&
+          "It's definition will be ignored!"//&
+CPSourceFileRef,&
+          only_ionode=.TRUE.)     
     END IF
     
   END SUBROUTINE create_barostat_type

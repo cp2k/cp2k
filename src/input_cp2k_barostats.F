@@ -26,6 +26,7 @@ MODULE input_cp2k_barostats
                                              section_type
   USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,7 +73,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
-        CALL keyword_create(keyword, name="TIMECON",&
+       CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
             usage="TIMECON real",&
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
@@ -80,19 +81,29 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
-      CALL keyword_create(keyword, name="TEMPERATURE",&
+       CALL keyword_create(keyword, name="TEMPERATURE",&
             description="Barostat initial temperature. If not set, the ensemble temperature is used instead.",&
             usage="TEMPERATURE real",type_of_var=real_t,&
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
-      CALL keyword_create(keyword, name="TEMP_TOL",&
+       CALL keyword_create(keyword, name="TEMP_TOL",&
             description="Maximum oscillation of the Barostat temperature imposed by recaling.",&
             usage="TEMP_TOL real",default_r_val=0._dp, &
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
+
+       CALL keyword_create(keyword, name="VIRIAL",&
+            description="For NPT_F only: allows the screening of one or more components of the virial in order"//&
+            " to relax the cell only along specific cartesian axis",&
+            usage="VIRIAL (XYZ | X | Y | Z | XY| XZ | YZ)",&
+            enum_c_vals=s2a( "XYZ","X", "Y", "Z", "XY", "XZ", "YZ"),&
+            enum_i_vals=(/ do_clv_xyz, do_clv_x, do_clv_y,do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/),&
+            default_i_val=do_clv_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL create_velocity_section(subsection,"BAROSTAT",error=error)
        CALL section_add_subsection(section,subsection,error=error)

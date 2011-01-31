@@ -64,6 +64,7 @@ argon_opt_cell_md.inp     7
 Si_tersoff.inp            7
 #initial orthorombic cells under npt_f dynamics
 nptf_ortho.inp            2
+nptf_ortho_screen.inp     2
 # morse and cubic bonded potentials
 bonded-1.inp              2
 bonded-2.inp              2
