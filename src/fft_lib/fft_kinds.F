@@ -7,7 +7,12 @@
 !> \brief Defines the basic variable types
 !> \author Teodoro Laino - 01.2011
 ! *****************************************************************************
+#if defined ( __FFTMKL )
+#include 'mkl_dfti.f90'
+#endif
+ 
 MODULE fft_kinds
+
 #if defined ( __FFTMKL )
   USE MKL_DFTI
 #endif
