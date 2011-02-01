@@ -72,15 +72,15 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 
 ### Master rules ###
 build: dirs deptool
-	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
-	$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
-	$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) dbcsr.dep
-	$(MAKE) -C $(SRCDIR)/fft_lib -f $(MAKEFILE) fft.dep
-	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
+	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
+	+$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
+	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) dbcsr.dep
+	+$(MAKE) -C $(SRCDIR)/fft_lib -f $(MAKEFILE) fft.dep
+	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 fes: dirs deptool
-	$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
-	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) HACKLIBDEP=yes VERSION=$(VERSION) $(FES) 
+	+$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
+	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) HACKLIBDEP=yes VERSION=$(VERSION) $(FES) 
 
 dirs:
 	@mkdir -p $(EXEDIR)
@@ -92,34 +92,34 @@ dirs:
 realpretty: prettyclean pretty
 
 pretty: dirs
-	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
-	$(MAKE) -C $(SRCDIR)/lib       -f $(MAKEFILE) _pretty_lib1
-	$(MAKE) -C $(SRCDIR)/fft_lib   -f $(MAKEFILE) _pretty_lib2
-	$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
+	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
+	+$(MAKE) -C $(SRCDIR)/lib       -f $(MAKEFILE) _pretty_lib1
+	+$(MAKE) -C $(SRCDIR)/fft_lib   -f $(MAKEFILE) _pretty_lib2
+	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
 
 deptool: dirs
-	$(MAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
+	+$(MAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
 
 libs:
-	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
 all:
-	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
 progr:
-	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
 cpshell:
-	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
 
 #
 # on a parallel build only one task should go a build the deptool
 #
 $(VERSION_TARGETS): dirs deptool
-	$(MAKE) -f $(MAKEFILE) VERSION=$@ build
+	+$(MAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
-	$(MAKE) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(@D) $(@F)
 
 $(ALL_TARGETS) $(LIB_TARGETS):
-	$(MAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
 
 #
 # here we try to include all the objects that might need considering
@@ -268,13 +268,13 @@ ifneq ($(NVCC),)
 endif
 
 $(PROG): $(ALL_LIB) cp2k.o
-	$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(ALL_LIB) $(LIBS)
+	+$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(ALL_LIB) $(LIBS)
 
 $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
-	$(LD) $(LDFLAGS) -o $(CP2KSHELL) cp2k_shell.o $(ALL_LIB) $(LIBS)
+	+$(LD) $(LDFLAGS) -o $(CP2KSHELL) cp2k_shell.o $(ALL_LIB) $(LIBS)
 
 $(FES): $(FESOBJS) graph.o 
-	$(LD) $(LDFLAGS) -o $(FES) graph.o $(FESOBJS)
+	+$(LD) $(LDFLAGS) -o $(FES) graph.o $(FESOBJS)
 
 #
 # these are tools, but their integration in the build is ugly at least (e.g. see dependencies).
