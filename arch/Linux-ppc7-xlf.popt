@@ -1,0 +1,21 @@
+CC       = gcc
+CPP      = 
+FC       = mpfort -qsuffix=f=F
+LD       = mpfort 
+AR       = ar -r
+DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel,-D__BLACS,-D__SCALAPACK
+CPPFLAGS = -C $(DFLAGS) -P -traditional
+FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr7 -qcache=auto -qmaxmem=-1 -qtune=pwr7 $(DFLAGS)
+FCFLAGS2 = -O0 -qstrict -q64 -qarch=pwr7 -qcache=auto -qmaxmem=-1 -qtune=pwr7 $(DFLAGS)
+LDFLAGS  = $(FCFLAGS) -L/sp/LIB/LINUX64/ -L/sp/LIB/LINUX64/SCALAPACK/LIB/
+
+LIBS     = -lscalapack\
+	   /sp/LIB/LINUX64/BLACS/LIB/blacsF77init_MPI-PWR7_64-0.a\
+	   /sp/LIB/LINUX64/BLACS/LIB/blacs_MPI-PWR7_64-0.a\
+           -llapack330_pwr7_64 -lessl -L/opt/ibmcmp/xlmass/6.1/lib64/ -lmass_64
+
+CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
+
+
+OBJECTS_ARCHITECTURE = machine_aix.o
+
