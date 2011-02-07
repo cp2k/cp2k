@@ -2023,11 +2023,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: dr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
                                                 occupation_numbers
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
+      POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
+                                                matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2066,7 +2068,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
+            rho=rho,matrix_ks=ks_rmpv,matrix_ks_aux_fit=ks_rmpv_aux_fit,admm_env=admm_env,&
+            scf_control=scf_control,matrix_s=matrix_s,&
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -2087,6 +2090,13 @@ CONTAINS
           IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS",&
                error=error),cp_p_file) ) THEN
              DO ispin = 1,dft_control%nspins
+
+                ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+                IF( dft_control%do_admm ) THEN
+                  CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                                    ks_rmpv_aux_fit(ispin)%matrix, error)
+                END IF
+
                 IF (scf_env%method == ot_method_nr) THEN
                    CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                         eigenvalues=mo_eigenvalues)
@@ -2109,6 +2119,13 @@ CONTAINS
                    CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
                         particle_set,qs_env,dft_section,error=error)
                 END IF
+
+                ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+                IF( dft_control%do_admm ) THEN
+                  CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                                      ks_rmpv_aux_fit(ispin)%matrix, error)
+                END IF
+
              END DO
           ENDIF
        END IF
