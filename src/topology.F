@@ -31,7 +31,8 @@ MODULE topology
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -570,6 +571,8 @@ CPSourceFileRef,&
        CALL read_atoms_input(topology,overwrite=(topology%coord_type /= do_coord_off),&
                              subsys_section=subsys_section,save_mem=save_mem,error=error)
     END IF
+    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",&
+                              i_val=topology%natoms,error=error)
     CALL timestop(handle2)
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&

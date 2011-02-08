@@ -18,6 +18,8 @@ MODULE input_cp2k_restarts
                                              compile_date,&
                                              compile_host,&
                                              compile_lastcvs
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_get_length,&
                                              cp_sll_val_type
@@ -42,7 +44,7 @@ MODULE input_cp2k_restarts
   USE gle_system_types,                ONLY: gle_type
   USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: &
-       do_band_collective, do_thermo_csvr, do_thermo_gle, &
+       do_band_collective, do_coord_cp2k, do_thermo_csvr, do_thermo_gle, &
        do_thermo_no_communication, do_thermo_nose, ehrenfest, mol_dyn_run, &
        mon_car_run, pint_run, use_rt_restart
   USE input_section_types,             ONLY: &
@@ -1991,12 +1993,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER                                  :: handle, stat
+    CHARACTER(LEN=default_string_length)     :: coord_file_name, unit_str
+    INTEGER                                  :: coord_file_format, handle, &
+                                                output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     LOGICAL                                  :: failure, scale
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(multipole_type), POINTER            :: multipoles
@@ -2005,11 +2009,11 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    NULLIFY(work_section, core_particles, particles, shell_particles, &
-         subsys, cell, multipoles)
+    NULLIFY (work_section, core_particles, particles, shell_particles, &
+             subsys, cell, para_env, multipoles)
     CALL timeset(routineN,handle)
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, &
-         error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env, &
+                       error=error)
 
     CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
          shell_particles=shell_particles, core_particles=core_particles,&
@@ -2028,42 +2032,67 @@ CONTAINS
     CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
     CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
     conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-    !    Coordinates and Velocities
-    CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-           cell, error=error)
-
+    CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_FORMAT",&
+                              i_val=coord_file_format,&
+                              error=error)
+    IF (coord_file_format == do_coord_cp2k) THEN
+       CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
+                                 c_val=coord_file_name,&
+                                 error=error)
+       output_unit = 0
+       IF (para_env%ionode) THEN
+          CALL open_file(file_name=TRIM(ADJUSTL(coord_file_name)),&
+                         file_action="WRITE",&
+                         file_form="FORMATTED",&
+                         file_position="REWIND",&
+                         file_status="UNKNOWN",&
+                         unit_number=output_unit)
+         CALL dump_coordinates_cp2k(particles,molecules,cell,conv_factor,&
+                                    output_unit=output_unit,&
+                                    core_or_shell=.FALSE.,&
+                                    scaled_coordinates=scale,&
+                                    error=error)
+       END IF
+    ELSE
+       CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
+                                  cell, error=error)
+    END IF
+    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=particles%n_els,error=error)
     work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     IF (.NOT.skip_vel_section) THEN
       CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
     ELSE
        CALL section_vals_remove_values(work_section, error)
     END IF
-    ! write restart input for shell-model
-    IF(ASSOCIATED(shell_particles)) THEN
+
+    ! Write restart input for core-shell model
+    IF (ASSOCIATED(shell_particles)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
        CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
        CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
        conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        CALL section_coord_val_set(work_section, shell_particles, molecules, &
-              conv_factor, scale, cell, shell=.TRUE., error=error)
+                                  conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
           CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
        END IF
-    ENDIF
-    IF(ASSOCIATED(core_particles)) THEN
+    END IF
+    IF (ASSOCIATED(core_particles)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
        CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
        CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
        conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-       CALL section_coord_val_set(work_section, core_particles, molecules, &
-              conv_factor, scale, cell, shell=.TRUE., error=error)
+        CALL section_coord_val_set(work_section, core_particles, molecules, &
+                                   conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
           CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
        END IF
-    ENDIF
-    
+    END IF
+
+    IF (coord_file_format == do_coord_cp2k) CALL close_file(unit_number=output_unit)
+
     ! Updating cell info
     CALL update_cell_section(force_env, subsys_section, error)
     ! Updating multipoles
@@ -2963,5 +2992,90 @@ CONTAINS
     invdt_section%values(ik,1)%list => vals
   END SUBROUTINE meta_hills_val_set_dt
 
-END MODULE input_cp2k_restarts
+! *****************************************************************************
+!> \brief   Dump atomic, core, or shell coordinates to a file in CP2K &COORD
+!>          section format
+!> \author  Matthias Krack (MK)
+!> \version 1.0 
+!> \par History
+!>      07.02.2011 (Creation, MK)
+! *****************************************************************************
+  SUBROUTINE dump_coordinates_cp2k(particles,molecules,cell,conv_factor,&
+                                   output_unit,core_or_shell,&
+                                   scaled_coordinates,error)
 
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(IN)                :: conv_factor
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(IN)                      :: core_or_shell, &
+                                                scaled_coordinates
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dump_coordinates_cp2k', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: kind_name, tag
+    INTEGER                                  :: handle, imolecule, iparticle, &
+                                                last_atom
+    LOGICAL                                  :: failure, ldum, &
+                                                molname_generated
+    REAL(KIND=dp), DIMENSION(3)              :: r, s
+    TYPE(molecule_type), POINTER             :: molecule
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
+    IF (.NOT.core_or_shell) THEN
+       CPPrecondition(ASSOCIATED(molecules),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (scaled_coordinates) THEN
+       CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    END IF
+
+    kind_name = ""
+    tag = ""
+    imolecule = 0
+    last_atom = 0
+    DO iparticle=1,particles%n_els
+       CALL get_atomic_kind(particles%els(iparticle)%atomic_kind,name=kind_name)
+       IF (.NOT.core_or_shell) THEN
+          IF (iparticle > last_atom) THEN
+             imolecule = imolecule + 1
+             molecule => molecules%els(imolecule)
+             CALL get_molecule(molecule,last_atom=last_atom)
+             CALL get_molecule_kind(molecule%molecule_kind,&
+                                    molname_generated=molname_generated,&
+                                    name=tag)
+             IF (molname_generated) tag = ""
+          END IF
+          ldum = qmmm_ff_precond_only_qm(tag)
+          ldum = qmmm_ff_precond_only_qm(kind_name)
+       END IF
+       IF (scaled_coordinates) THEN
+          s(1:3) = particles%els(iparticle)%r(1:3)
+          CALL real_to_scaled(s,r,cell)
+       ELSE
+          r(1:3) = particles%els(iparticle)%r(1:3)*conv_factor
+       END IF
+       IF (core_or_shell) THEN
+          WRITE (UNIT=output_unit,FMT="(A,3(1X,ES25.16),1X,I0)")&
+            TRIM(ADJUSTL(kind_name)),r(1:3),particles%els(iparticle)%atom_index
+       ELSE
+          IF (LEN_TRIM(tag) > 0) THEN
+             WRITE (UNIT=output_unit,FMT="(A,3(1X,ES25.16),1X,A,1X,I0)")&
+               TRIM(ADJUSTL(kind_name)),r(1:3),TRIM(tag),imolecule
+          ELSE
+             WRITE (UNIT=output_unit,FMT="(A,3(1X,ES25.16))")&
+               TRIM(ADJUSTL(kind_name)),r(1:3)
+          END IF
+       END IF
+    END DO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE dump_coordinates_cp2k
+
+END MODULE input_cp2k_restarts

@@ -17,11 +17,13 @@ MODULE topology_cp2k
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_section_types,             ONLY: section_get_rval,&
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_rval,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -44,10 +46,10 @@ MODULE topology_cp2k
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   Read the CP2K COORD section from an external file, i.e. read
+!> \brief   Read the CP2K &COORD section from an external file, i.e. read
 !>          atomic coordinates and molecule/residue information in CP2K format.
-!> \author  Matthias Krack
-!> \date    17.01.2011 (MK)
+!> \author  Matthias Krack (MK)
+!> \date    17.01.2011 (Creation, MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_coordinate_cp2k(topology,para_env,subsys_section,error)
@@ -59,10 +61,10 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_coordinate_cp2k', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock = 1000
 
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: handle, i, iw, natom, newsize
+    INTEGER                                  :: handle, i, iw, natom, &
+                                                newsize, number_of_atoms
     LOGICAL                                  :: eof, explicit, failure, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: pfactor, unit_conv
@@ -105,16 +107,23 @@ CONTAINS
     END IF
 
     pfactor = section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
-    CALL reallocate(atom_info%id_molname,1,nblock)
-    CALL reallocate(atom_info%id_resname,1,nblock)
-    CALL reallocate(atom_info%resid,1,nblock)
-    CALL reallocate(atom_info%id_atmname,1,nblock)
-    CALL reallocate(atom_info%r,1,3,1,nblock)
-    CALL reallocate(atom_info%atm_mass,1,nblock)
-    CALL reallocate(atom_info%atm_charge,1,nblock)
-    CALL reallocate(atom_info%occup,1,nblock)
-    CALL reallocate(atom_info%beta,1,nblock)
-    CALL reallocate(atom_info%id_element,1,nblock)
+    number_of_atoms = section_get_ival(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",error)
+    IF (number_of_atoms < 1) THEN
+       newsize = 1000
+    ELSE
+       newsize = number_of_atoms
+    END IF
+
+    CALL reallocate(atom_info%id_molname,1,newsize)
+    CALL reallocate(atom_info%id_resname,1,newsize)
+    CALL reallocate(atom_info%resid,1,newsize)
+    CALL reallocate(atom_info%id_atmname,1,newsize)
+    CALL reallocate(atom_info%r,1,3,1,newsize)
+    CALL reallocate(atom_info%atm_mass,1,newsize)
+    CALL reallocate(atom_info%atm_charge,1,newsize)
+    CALL reallocate(atom_info%occup,1,newsize)
+    CALL reallocate(atom_info%beta,1,newsize)
+    CALL reallocate(atom_info%id_element,1,newsize)
 
     topology%molname_generated = .FALSE.
     ! Element is assigned on the basis of the atm_name
@@ -176,6 +185,7 @@ CONTAINS
             ADJUSTL(TRIM(id2str(atom_info%id_molname(natom)))),&
             ADJUSTL(TRIM(id2str(atom_info%id_resname(natom))))
        END IF
+       IF (natom == number_of_atoms) EXIT
     END DO
 
     CALL parser_release(parser,error=error)
@@ -191,6 +201,8 @@ CONTAINS
     CALL reallocate(atom_info%occup,1,natom)
     CALL reallocate(atom_info%beta,1,natom)
     CALL reallocate(atom_info%id_element,1,natom)
+
+    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=natom,error=error)
 
     IF (iw > 0) THEN
        WRITE (UNIT=iw,FMT="(T2,A)")&

@@ -1582,8 +1582,23 @@ CONTAINS
             "Coordinates provided through an AMBER file format",&
             "Coordinates provided through a CIF (Crystallographic Information File) file format",&
             "Coordinates provided through a XTL (MSI native) file format",&
-            "Read the coordinates in CP2K &COORD section format from an external file."),&
+            "Read the coordinates in CP2K &COORD section format from an external file. "//&
+            "NOTE: This file will be overwritten with the latest coordinates."),&
             default_i_val=do_coord_off,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUMBER_OF_ATOMS",&
+                           variants=s2a("NATOMS","NATOM"),&
+                           description="Optionally define the number of atoms read from an external file "//&
+                                       "(see COORD_FILE_NAME) if the COORD_FILE_FORMAT CP2K is used",&
+                           required=.FALSE.,&
+                           repeats=.FALSE.,&
+                           n_var=1,&
+                           type_of_var=integer_t,&
+                           default_i_val=-1,&
+                           usage="NATOMS 768000",&
+                           error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
