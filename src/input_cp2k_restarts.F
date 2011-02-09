@@ -3055,8 +3055,8 @@ CONTAINS
           ldum = qmmm_ff_precond_only_qm(kind_name)
        END IF
        IF (scaled_coordinates) THEN
-          s(1:3) = particles%els(iparticle)%r(1:3)
-          CALL real_to_scaled(s,r,cell)
+          CALL real_to_scaled(s,particles%els(iparticle)%r,cell)
+          r(1:3) = s(1:3)
        ELSE
           r(1:3) = particles%els(iparticle)%r(1:3)*conv_factor
        END IF
