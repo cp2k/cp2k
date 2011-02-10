@@ -52,9 +52,6 @@ MODULE qs_efield_berry
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE qs_period_efield_types,          ONLY: efield_berry_type,&
-                                             init_efield_matrices,&
-                                             set_efield_matrices
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
@@ -77,6 +74,9 @@ MODULE qs_efield_berry
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
+  USE qs_period_efield_types,          ONLY: efield_berry_type,&
+                                             init_efield_matrices,&
+                                             set_efield_matrices
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -213,8 +213,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, col_indices, &
                                                 row_indices
     LOGICAL                                  :: failure, uniform
-    REAL(dp) :: charge, ci(3), dd, ener_field, fieldfac(3), fieldpol(3), &
-      myfac, occ 
+    REAL(dp)                                 :: charge, ci(3), dd, &
+                                                ener_field, fieldfac(3), &
+                                                fieldpol(3), myfac, occ
     REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -231,7 +232,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: inv_work, op_fm_set, opvec
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: ao_work, ao_work1, dcos_full, &
+    TYPE(cp_fm_type), POINTER                :: ao_work, dcos_full, &
                                                 dsin_full, mo_coeff, tmp_im, &
                                                 tmp_re
     TYPE(cp_para_env_type), POINTER          :: para_env

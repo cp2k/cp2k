@@ -13,20 +13,15 @@
 
 MODULE qs_period_efield_types
 
-  USE cp_dbcsr_operations,                   ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                                   cp_dbcsr_deallocate_matrix
-  USE dbcsr_types,                           ONLY: dbcsr_type_antisymmetric
-  USE cp_dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                                   cp_dbcsr_p_type,&
-                                                   cp_dbcsr_type
-
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'efield_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_period_efield_types'
 
   PUBLIC:: efield_berry_type, efield_berry_release, init_efield_matrices, &
            set_efield_matrices,deriv_p_type
@@ -52,7 +47,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_efield_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -69,16 +64,14 @@ CONTAINS
 
   SUBROUTINE set_efield_matrices(efield,sinmat,cosmat,dsinmat,dcosmat,fielddir)
 
-     TYPE(efield_berry_type), POINTER         :: efield
-     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER,OPTIONAL           :: cosmat
-     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER,OPTIONAL           :: sinmat
-     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER,OPTIONAL           :: dcosmat
-     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER,OPTIONAL           :: dsinmat
-     INTEGER,OPTIONAL                                                :: fielddir
+    TYPE(efield_berry_type), POINTER         :: efield
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sinmat, cosmat, dsinmat, &
+                                                dcosmat
+    INTEGER, OPTIONAL                        :: fielddir
 
-     CHARACTER(len=*), PARAMETER :: routineN = 'set_efield_matrices', &
-       routineP = moduleN//':'//routineN
-
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_efield_matrices', &
+      routineP = moduleN//':'//routineN
 
      IF(PRESENT(cosmat))efield%cosmat=>cosmat
      IF(PRESENT(sinmat))efield%sinmat=>sinmat
@@ -95,8 +88,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_berry_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    INTEGER                                  :: i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure =.FALSE.
