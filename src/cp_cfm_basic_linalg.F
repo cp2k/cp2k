@@ -218,7 +218,7 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: counter, handle, i, info, &
-                                                lda, n
+                                                lda, n, nrow_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(9)                    :: desca
     INTEGER, DIMENSION(:), POINTER           :: row_indices
@@ -230,15 +230,17 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
     ALLOCATE(ipivot(n))
-    CALL cp_cfm_get_info(matrix_a,row_indices=row_indices,error=error)
+    CALL cp_cfm_get_info(matrix_a,row_indices=row_indices,nrow_local=nrow_local,error=error)
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pzgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
     ALLOCATE(diag(n))
     diag(:)=CMPLX(0.0_dp,0.0_dp,dp)
     counter=0
-    DO i=1,n
+    DO i=1,nrow_local
        IF(ipivot(i).ne.row_indices(i))counter=counter+1
+    END DO
+    DO i=1,n
        CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
     determinant=CMPLX(1.0_dp,0.0_dp,dp)
