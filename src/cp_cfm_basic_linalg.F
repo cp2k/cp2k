@@ -387,7 +387,7 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, a_general
     INTEGER                                  :: counter, handle, i, info, &
-                                                lda, ldb, n
+                                                lda, ldb, n, nrow_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(9)                    :: desca, descb
     INTEGER, DIMENSION(:), POINTER           :: row_indices
@@ -399,7 +399,7 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     a_general => general_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    CALL cp_cfm_get_info(matrix_a,row_indices=row_indices,error=error)
+    CALL cp_cfm_get_info(matrix_a,row_indices=row_indices,nrow_local=nrow_local,error=error)
     ALLOCATE(ipivot(n))
 
 #if defined(__SCALAPACK)
