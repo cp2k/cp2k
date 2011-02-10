@@ -317,7 +317,6 @@ OBJECTS_GENERIC =\
  library_tests.o\
  linear_systems.o\
  machine.o\
- machine_gfortran.o\
  manybody_eam.o\
  manybody_potential.o\
  manybody_tersoff.o\
