@@ -410,8 +410,10 @@ CPSourceFileRef,&
        ALLOCATE(diag(n))
        diag(:)=CMPLX(0.0_dp,0.0_dp,dp)
        counter=0
+       DO i=1,nrow_local
+          IF(ipivot(i).ne.row_indices(i))counter=counter+1
+       END DO   
        DO i=1,n
-          IF(ipivot(i).NE.row_indices(i))counter=counter+1
           CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
        ENDDO
        determinant=CMPLX(1.0_dp,0.0_dp,dp)
