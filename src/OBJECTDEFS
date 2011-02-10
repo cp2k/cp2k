@@ -317,6 +317,7 @@ OBJECTS_GENERIC =\
  library_tests.o\
  linear_systems.o\
  machine.o\
+ machine_gfortran.o\
  manybody_eam.o\
  manybody_potential.o\
  manybody_tersoff.o\
@@ -450,6 +451,8 @@ OBJECTS_GENERIC =\
  qs_dispersion_pairpot.o\
  qs_dispersion_types.o\
  qs_elec_field.o\
+ qs_efield_berry.o\
+ qs_period_efield_types.o\
  qs_electric_field_gradient.o\
  qs_energy.o\
  qs_energy_types.o\
