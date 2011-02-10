@@ -106,43 +106,66 @@ CONTAINS
   END SUBROUTINE contract_cossin
 
 ! *****************************************************************************
-  SUBROUTINE cossin(la_max,npgfa,zeta,rpgfa,la_min,&
+  SUBROUTINE cossin(la_max_set,npgfa,zeta,rpgfa,la_min_set,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
-                    rac,rbc,kvec,cosab,sinab)
+                    rac,rbc,kvec,cosab,sinab,dcosab,dsinab)
 
-    INTEGER, INTENT(IN)                      :: la_max, npgfa
+    INTEGER, INTENT(IN)                      :: la_max_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
+    INTEGER, INTENT(IN)                      :: la_min_set, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc, kvec
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: cosab, sinab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: dcosab, dsinab
 
-    INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
-                                                ipgf, j, jpgf, la, la_start, &
-                                                lb, na, nb
-    REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, k2, kdp, rab2, s, zetp
+    INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coamx, &
+      coamy, coamz, coapx, coapy, coapz, cob, da, da_max, dax, day, daz, i, &
+      ipgf, j, jpgf, k, la, la_max, la_min, la_start, lb, lb_start, na, nb
+    REAL(KIND=dp)                            :: dab, dsc, dss, f0, f1, f2, &
+                                                f3, fax, fay, faz, ftz, fx, &
+                                                fy, fz, k2, kdp, rab2, s, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rab, rap, rbp
-    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lb_max))                        :: sc, ss
+    REAL(KIND=dp), DIMENSION(ncoset(&
+      la_max_set), ncoset(lb_max), 3)        :: dscos, dssin
+    REAL(KIND=dp), DIMENSION(ncoset(&
+      la_max_set+1), ncoset(lb_max))         :: sc, ss
 
     rab = rbc - rac
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
     k2  = kvec(1)*kvec(1) + kvec(2)*kvec(2) + kvec(3)*kvec(3)
 
+    IF (PRESENT(dcosab)) THEN
+        da_max = 1
+        la_max = la_max_set + 1
+        la_min = MAX(0,la_min_set-1)
+        dscos=0.0_dp
+        dssin=0.0_dp
+    ELSE
+      da_max = 0
+      la_max = la_max_set
+      la_min = la_min_set
+    END IF
+
     ! initialize all matrix elements to zero
-    na = ncoset(la_max)*npgfa
+    IF(PRESENT(dcosab)) THEN
+       na = ncoset(la_max-1)*npgfa
+    ELSE
+       na = ncoset(la_max)*npgfa
+    END IF
     nb = ncoset(lb_max)*npgfb
     cosab(1:na,1:nb) = 0.0_dp
     sinab(1:na,1:nb) = 0.0_dp
-
+    IF(PRESENT(dcosab))THEN
+       dcosab(1:na,1:nb,:) = 0.0_dp
+       dsinab(1:na,1:nb,:) = 0.0_dp
+    END IF
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
-
     DO ipgf=1,npgfa
 
       nb = 0
@@ -246,7 +269,7 @@ CONTAINS
               END DO
             END DO
 
-          END DO
+         END DO
 
 !         *** Recurrence steps: [a|O|s] -> [a|O|b] ***
 
@@ -546,12 +569,12 @@ CONTAINS
                        f2 *   kvec(1)*sc(coset(ax,ay,az),coset(bx-1,by,bz))
                       END DO
                     END DO
-                  END IF
+                 END IF
 
-                END DO
-              END DO
+               END DO
+             END DO
 
-            END DO
+           END DO
 
           END IF
 
@@ -631,22 +654,99 @@ CONTAINS
 
           END IF
 
-        END IF
+       END IF
 
        DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-         DO i=ncoset(la_min-1)+1,ncoset(la_max)
+         DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
             cosab(na+i,nb+j) = sc(i,j)
             sinab(na+i,nb+j) = ss(i,j)
           END DO
         END DO
 
+        IF (PRESENT(dcosab)) THEN
+          la_start = 0
+          lb_start = 0
+        ELSE
+          la_start = la_min
+          lb_start = lb_min
+        END IF
+
+        DO da=0,da_max-1
+          ftz = 2.0_dp*zeta(ipgf)
+          DO dax=0,da
+            DO day=0,da-dax
+              daz = da - dax - day
+              cda = coset(dax,day,daz)-1
+              cdax = coset(dax+1,day,daz)-1
+              cday = coset(dax,day+1,daz)-1
+              cdaz = coset(dax,day,daz+1)-1
+!             *** [da/dAi|b] = 2*zeta*[a+1i|b] - Ni(a)[a-1i|b] + [a|dO|b]  ***
+
+              DO la=la_start,la_max-da-1
+                DO ax=0,la
+                  fax = REAL(ax,dp)
+                  DO ay=0,la-ax
+                    fay = REAL(ay,dp)
+                    az = la - ax - ay
+                    faz = REAL(az,dp)
+                    coa = coset(ax,ay,az)
+                    coamx = coset(ax-1,ay,az)
+                    coamy = coset(ax,ay-1,az)
+                    coamz = coset(ax,ay,az-1)
+                    coapx = coset(ax+1,ay,az)
+                    coapy = coset(ax,ay+1,az)
+                    coapz = coset(ax,ay,az+1)
+                    DO lb=lb_start,lb_max
+                      DO bx=0,lb
+                        DO by=0,lb-bx
+                          bz = lb - bx - by
+                          cob = coset(bx,by,bz)
+                          dss=2.0*zeta(ipgf)*f2 *ss(coa,cob)
+                          dsc=2.0*zeta(ipgf)*f2* sc(coa,cob)
+                          dscos(coa,cob,cdax) = ftz*sc(coapx,cob) -&
+                                            fax*sc(coamx,cob)-kvec(1)*dss
+                          dscos(coa,cob,cday) = ftz*sc(coapy,cob) -&
+                                            fay*sc(coamy,cob)-kvec(2)*dss
+                          dscos(coa,cob,cdaz) = ftz*sc(coapz,cob) -&
+                                            faz*sc(coamz,cob)-kvec(3)*dss
+                          dssin(coa,cob,cdax) = ftz*ss(coapx,cob) -&
+                                            fax*ss(coamx,cob)+kvec(1)*dsc
+                          dssin(coa,cob,cday) = ftz*ss(coapy,cob) -&
+                                            fay*ss(coamy,cob)+ kvec(2)*dsc
+                          dssin(coa,cob,cdaz) = ftz*ss(coapz,cob) -&
+                                            faz*ss(coamz,cob)+ kvec(3)*dsc
+                        END DO
+                      END DO
+                    END DO
+                 END DO
+                END DO
+             END DO
+
+           END DO
+        END DO
+     END DO
+     
+     IF (PRESENT(dcosab)) THEN
+        DO k=1,3
+           DO j=1,ncoset(lb_max)
+              DO i=1,ncoset(la_max_set)
+                 dcosab(na+i,nb+j,k) = dscos(i,j,k)
+                 dsinab(na+i,nb+j,k) = dssin(i,j,k)
+                
+              END DO
+           END DO
+        END DO
+
+     END IF
+     
+
         nb = nb + ncoset(lb_max)
 
-      END DO
+     END DO
 
-      na = na + ncoset(la_max)
+      na = na + ncoset(la_max_set)
 
-    END DO
+   END DO
 
   END SUBROUTINE cossin
 

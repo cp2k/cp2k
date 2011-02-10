@@ -134,6 +134,8 @@ MODULE qs_environment_types
                                              neighbor_list_set_p_type
   USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                              oce_matrix_type
+  USE qs_period_efield_types,          ONLY: efield_berry_release,&
+                                             efield_berry_type
   USE qs_rho0_types,                   ONLY: rho0_atom_type,&
                                              rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
@@ -391,6 +393,7 @@ MODULE qs_environment_types
     TYPE(nddo_mpole_type), POINTER                        :: se_nddo_mpole
     TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
     TYPE(rt_prop_type),POINTER                            :: rtp
+    TYPE(efield_berry_type),POINTER                       :: efield
     ! a history for the broyden ot 
     REAL(KIND = dp)                                       :: broyden_adaptive_sigma
   END TYPE qs_environment_type
@@ -425,7 +428,7 @@ CONTAINS
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,&
+       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
@@ -526,6 +529,8 @@ CONTAINS
       POINTER                                :: tddfpt_control
     INTEGER, OPTIONAL                        :: nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
+    TYPE(efield_berry_type), OPTIONAL, &
+      POINTER                                :: efield
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
@@ -711,6 +716,7 @@ CONTAINS
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
     IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
+    IF (PRESENT(efield)) efield => qs_env%efield
 
     IF (PRESENT(results)) results => qs_env%results
     IF (PRESENT(task_list)) task_list => qs_env%task_list
@@ -814,6 +820,7 @@ CONTAINS
     NULLIFY (qs_env%se_nddo_mpole)
     NULLIFY (qs_env%se_nonbond_env)
     NULLIFY (qs_env%admm_env)
+    NULLIFY (qs_env%efield)
     NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
@@ -870,7 +877,7 @@ CONTAINS
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,dbcsr_dist,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin,&
+       mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin, efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
@@ -951,6 +958,8 @@ CONTAINS
                                                 mo_loc_history
     INTEGER, OPTIONAL                        :: nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
+    TYPE(efield_berry_type), OPTIONAL, &
+      POINTER                                :: efield
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
@@ -1065,6 +1074,7 @@ CONTAINS
     IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
     IF (PRESENT(rtp)) qs_env%rtp=rtp
+    IF (PRESENT(efield)) qs_env%efield=>efield
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
@@ -1615,6 +1625,7 @@ CONTAINS
           CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
           CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
           CALL ep_qs_release(qs_env%ep_qs_env,error=error)
+          CALL efield_berry_release(qs_env%efield,error=error)
           CALL cp_result_release(qs_env%results,error=error)
           IF(ASSOCIATED(qs_env%x_data)) THEN
              CALL hfx_release(qs_env%x_data, error=error)

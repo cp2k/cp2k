@@ -235,7 +235,7 @@ CONTAINS
        CALL cp_cfm_add(one,M1,-one,M_inverse,error)
        CALL cp_cfm_add(one,M2,one,M_inverse,error)
        
-       CALL cp_cfm_solve(M2,M1,error)
+       CALL cp_cfm_solve(M2,M1,error=error)
        
        !now M2 is temporary
        

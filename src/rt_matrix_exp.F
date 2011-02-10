@@ -553,7 +553,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL cp_cfm_solve(Dpq,Npq,error)
+    CALL cp_cfm_solve(Dpq,Npq,error=error)
 
     mult_p(2)%matrix=>Npq
     mult_p(1)%matrix=>Tres
@@ -687,7 +687,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL cp_cfm_solve(Dpq,Npq,error)
+    CALL cp_cfm_solve(Dpq,Npq,error=error)
 
     cmult_p(2)%matrix=>Npq
     cmult_p(1)%matrix=>T1

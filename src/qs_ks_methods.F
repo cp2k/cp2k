@@ -118,6 +118,7 @@ MODULE qs_ks_methods
                                              calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
+  USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -1155,10 +1156,10 @@ CONTAINS
        IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_restraint)&
            CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,&
                                         error=error)
-       IF(dft_control%apply_efield_field)&
+       IF(dft_control%apply_efield_field)THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_efield_rspace%pw,&
                                         error=error)   
-        
+       END IF
        IF(gapw) THEN
           ! Integrals of the Hartree potential with g0_soft
           CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
@@ -1304,12 +1305,11 @@ CONTAINS
        ! deal with sic on explicit orbitals
        CALL sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
                                   calculate_forces,auxbas_pw_pool,error)
-
+       CALL qs_efield_berry_phase(ks_env,qs_env,calculate_forces,error)
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
             mo_array,energy,calculate_forces, just_energy,error)
-
-
+        
        IF ( do_ppl ) THEN
          ! update core energy for grid based local pseudopotential
          ecore_ppl = 0._dp

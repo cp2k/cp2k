@@ -432,6 +432,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_per_efield_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_ext_pot_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -4952,10 +4956,58 @@ CONTAINS
   END SUBROUTINE create_ext_pot_section
 
 ! *****************************************************************************
-!> \brief creates the section for finite fields
+!> \brief creates the section for static periodic fields
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author JGH
+!> \author Florian Schiffmann
+! *****************************************************************************
+  SUBROUTINE create_per_efield_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_per_efield_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"PERIODIC_EFIELD",&
+            description="parameters for finite periodic electric field computed using "//&
+            "the Berry phase approach. IMPORTANT: Can only be used in combination "//&
+            " with OT. Can not be used in combination with RTP or EMD.",&
+            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="INTENSITY",&
+            description="Intensity of the electric field in a.u",&
+            usage="INTENSITY  0.001",&
+            default_r_val=0._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="POLARISATION",&
+            description="Polarisation vector of electric field",&
+            usage="POLARISIATION  0.0 0.0 1.0",&
+            repeats=.FALSE.,required=.FALSE.,n_var=3,&
+            type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_per_efield_section 
+! *****************************************************************************
+!> \brief creates the section for time dependent nonperiodic fields
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Florian Schiffmann
 ! *****************************************************************************
   SUBROUTINE create_efield_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -4973,23 +5025,23 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"EFIELD",&
-            description="parameters for finite electric fields",&
+            description="parameters for finite, time dependent, nonperiodic electric fields",&
             n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="INTENSITY",&
-            description="Intensity of the electric field in W*cm-2 "//&
-            "which corresponds to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16))",&
-            usage="EFIELD_STRENGTH  1.0E15",&
+            description="Intensity of the electric field in W*cm-2 which corresponds "//&
+            "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16))",&
+            usage="INTENSITY  0.001",&
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="POLARISATION",&
-            description="Polarisation vector of efield field",&
-            usage="EFIELD_POLARISIATION  0.0 0.0 1.0",&
+            description="Polarisation vector of electric field",&
+            usage="POLARISIATION  0.0 0.0 1.0",&
             repeats=.FALSE.,required=.FALSE.,n_var=3,&
             type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
             error=error)
@@ -5034,12 +5086,6 @@ CONTAINS
        CALL create_gaussian_env_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-
-       CALL keyword_create(keyword, name="BERRY_PHASE",&
-            description="Berry phase not yet implemented",&
-            usage="BERRY_PHASE ON/OFF", default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_efield_section

@@ -80,6 +80,7 @@ CONTAINS
                                                 l_param, not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
     TYPE(section_vals_type), POINTER         :: admm_block_section, &
                                                 scf_section, scp_section, &
                                                 tmp_section, xc_fun_section, &
@@ -305,6 +306,19 @@ CPSourceFileRef,&
        DO i=1,nrep
           CALL read_efield_sections(dft_control,tmp_section,error)
        END DO
+    END IF
+
+    ! Read the finite field input section
+    tmp_section => section_vals_get_subs_vals(dft_section,"PERIODIC_EFIELD",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%apply_period_efield,error=error)
+    IF (dft_control%apply_period_efield) THEN
+       ALLOCATE(dft_control%period_efield,stat=stat)
+       ALLOCATE(dft_control%period_efield%polarisation(3),stat=stat) 
+       CALL section_vals_val_get(tmp_section,"POLARISATION", &
+            r_vals=pol,error=error)
+            dft_control%period_efield%polarisation=pol
+       CALL section_vals_val_get(tmp_section,"INTENSITY", &
+            r_val=dft_control%period_efield%strength,error=error)
     END IF
 
     ! Read the external potential input section
@@ -1556,7 +1570,6 @@ CPSourceFileRef,&
        ALLOCATE(efield%polarisation(SIZE(tmp_vals)),stat=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        efield%polarisation = tmp_vals
-
        CALL section_vals_val_get(efield_section,"PHASE",i_rep_section=i, &
             r_val=efield%phase_offset,error=error) 
        CALL section_vals_val_get(efield_section,"ENVELOP",i_rep_section=i, &
@@ -1568,31 +1581,31 @@ CPSourceFileRef,&
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i,error=error)
           CALL section_vals_val_get(tmp_section,"START_STEP", &
-            i_val=efield%envelop_i_vars(1),error=error)
+               i_val=efield%envelop_i_vars(1),error=error)
           CALL section_vals_val_get(tmp_section,"END_STEP", &
-            i_val=efield%envelop_i_vars(2),error=error)
+               i_val=efield%envelop_i_vars(2),error=error)
        END IF
        IF(efield%envelop_id==gaussian_env)THEN
           ALLOCATE(efield%envelop_r_vars(2),stat=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           tmp_section => section_vals_get_subs_vals(efield_section,"GAUSSIAN_ENV",i_rep_section=i,error=error)
           CALL section_vals_val_get(tmp_section,"T0", &
-            r_val=efield%envelop_r_vars(1),error=error)
+               r_val=efield%envelop_r_vars(1),error=error)
           CALL section_vals_val_get(tmp_section,"SIGMA", &
-            r_val=efield%envelop_r_vars(2),error=error)
+               r_val=efield%envelop_r_vars(2),error=error)
        END IF
        IF(efield%envelop_id==ramp_env)THEN
           ALLOCATE(efield%envelop_i_vars(4),stat=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i,error=error)
           CALL section_vals_val_get(tmp_section,"START_STEP_IN", &
-            i_val=efield%envelop_i_vars(1),error=error)
+               i_val=efield%envelop_i_vars(1),error=error)
           CALL section_vals_val_get(tmp_section,"END_STEP_IN", &
-            i_val=efield%envelop_i_vars(2),error=error)
+               i_val=efield%envelop_i_vars(2),error=error)
           CALL section_vals_val_get(tmp_section,"START_STEP_OUT", &
-            i_val=efield%envelop_i_vars(3),error=error)
+               i_val=efield%envelop_i_vars(3),error=error)
           CALL section_vals_val_get(tmp_section,"END_STEP_OUT", &
-            i_val=efield%envelop_i_vars(4),error=error)
+               i_val=efield%envelop_i_vars(4),error=error)
        END IF
     END DO
   END SUBROUTINE read_efield_sections

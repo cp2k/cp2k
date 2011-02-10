@@ -200,6 +200,8 @@ CPSourceFileRef,&
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
+    
+    
     ALLOCATE(diag(n))
     diag(:)=0.0_dp
     DO i=1,n

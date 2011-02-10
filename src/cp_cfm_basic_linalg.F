@@ -17,6 +17,7 @@ MODULE cp_cfm_basic_linalg
                                              cp_cfm_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -204,9 +205,10 @@ CPSourceFileRef,&
 !> \date    11.06.2001
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_lu_decompose(matrix_a,almost_determinant)
+  SUBROUTINE cp_cfm_lu_decompose(matrix_a,almost_determinant,error)
     TYPE(cp_cfm_type), POINTER               :: matrix_a
     COMPLEX(KIND=dp), INTENT(OUT)            :: almost_determinant
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose', &
       routineP = moduleN//':'//routineN
@@ -215,9 +217,11 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: handle, i, info, lda, n
+    INTEGER                                  :: counter, handle, i, info, &
+                                                lda, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(9)                    :: desca
+    INTEGER, DIMENSION(:), POINTER           :: row_indices
 
 ! *** locals ***
 
@@ -226,27 +230,34 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
     ALLOCATE(ipivot(n))
-
+    CALL cp_cfm_get_info(matrix_a,row_indices=row_indices,error=error)
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pzgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
     ALLOCATE(diag(n))
     diag(:)=CMPLX(0.0_dp,0.0_dp,dp)
+    counter=0
     DO i=1,n
+       IF(ipivot(i).ne.row_indices(i))counter=counter+1
        CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
     determinant=CMPLX(1.0_dp,0.0_dp,dp)
     DO i=1,n
        determinant=determinant*diag(i)
     ENDDO
+    CALL mp_sum(counter,matrix_a%matrix_struct%para_env%group)
+    IF(MOD(counter,2)==1)determinant=-1.0_dp*determinant
     DEALLOCATE(diag)
 #else
     lda=SIZE(a,1)
     CALL zgetrf(n,n,a(1,1),lda,ipivot,info)
+    counter=0
     determinant=CMPLX(1.0_dp,0.0_dp,dp)
     DO i=1,n
+       IF(ipivot(i).NE.i)counter=counter+1
        determinant=determinant*a(i,i)
     ENDDO
+    IF(MOD(counter,2)==1)determinant=-1.0_dp*determinant
 #endif
     ! info is allowed to be zero
     ! this does just signal a zero diagonal element
@@ -360,8 +371,9 @@ CPSourceFileRef,&
 !>        pay attention, both matrices are overwritten, a_general contais the result    
 !> \author Florian Schiffmann
 ! *****************************************************************************  
-  SUBROUTINE cp_cfm_solve(matrix_a,general_a,error)
+  SUBROUTINE cp_cfm_solve(matrix_a,general_a,determinant,error)
     TYPE(cp_cfm_type), POINTER               :: matrix_a, general_a
+    COMPLEX(KIND=dp), OPTIONAL               :: determinant
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_solve', &
@@ -369,11 +381,14 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, a_general
-    INTEGER                                  :: handle, info, lda, ldb, n
+    INTEGER                                  :: counter, handle, i, info, &
+                                                lda, ldb, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(9)                    :: desca, descb
+    INTEGER, DIMENSION(:), POINTER           :: row_indices
 
 ! *** locals ***
 
@@ -382,12 +397,29 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     a_general => general_a%local_data
     n = matrix_a%matrix_struct%nrow_global
+    CALL cp_cfm_get_info(matrix_a,row_indices=row_indices,error=error)
     ALLOCATE(ipivot(n))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     descb(:) = general_a%matrix_struct%descriptor(:)
     CALL pzgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
+    IF(PRESENT(determinant))THEN
+       ALLOCATE(diag(n))
+       diag(:)=CMPLX(0.0_dp,0.0_dp,dp)
+       counter=0
+       DO i=1,n
+          IF(ipivot(i).NE.row_indices(i))counter=counter+1
+          CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
+       ENDDO
+       determinant=CMPLX(1.0_dp,0.0_dp,dp)
+       DO i=1,n
+          determinant=determinant*diag(i)
+       ENDDO
+       CALL mp_sum(counter,matrix_a%matrix_struct%para_env%group)
+       IF(MOD(counter,2)==1)determinant=-1.0_dp*determinant
+       DEALLOCATE(diag)   
+    END IF
     CALL pzgetrs("N" , n , n , a(1,1), 1, 1, desca ,ipivot, a_general(1,1) ,&
                  1, 1, descb, info )
 
@@ -395,6 +427,15 @@ CPSourceFileRef,&
     lda=SIZE(a,1)
     ldb=SIZE(a_general,1)
     CALL zgetrf(n,n,a(1,1),lda,ipivot,info)
+    IF(PRESENT(determinant))THEN
+       counter=0
+       determinant=CMPLX(1.0_dp,0.0_dp,dp)
+       DO i=1,n
+          IF(ipivot(i).NE.i)counter=counter+1
+          determinant=determinant*a(i,i)
+       ENDDO
+       IF(MOD(counter,2)==1)determinant=-1.0_dp*determinant
+    END IF
     CALL zgetrs("N",n,n,a(1,1),lda,ipivot,a_general,ldb,info)
 
 #endif
@@ -402,7 +443,7 @@ CPSourceFileRef,&
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     CALL timestop(handle)
-  END SUBROUTINE
+  END SUBROUTINE cp_cfm_solve
 ! *****************************************************************************
 !> \brief used to replace a symmetric positive def. matrix M with its cholesky
 !>      decomposition U: M = U^T * U, with U upper triangular

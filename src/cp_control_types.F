@@ -129,10 +129,9 @@ MODULE cp_control_types
   END TYPE gapw_control_type
 
 ! *****************************************************************************
-! \brief parameters for calculations involving a efield field
+! \brief parameters for calculations involving a time dependent electric field
 ! *****************************************************************************
   TYPE efield_type
-     LOGICAL                         :: berry_phase
      REAL(KIND = dp)                 :: actual_time
      REAL(KIND = dp), DIMENSION(:),POINTER :: polarisation
      INTEGER                         :: envelop_id
@@ -148,6 +147,14 @@ MODULE cp_control_types
   TYPE efield_p_type
      TYPE(efield_type),POINTER       :: efield
   END TYPE efield_p_type
+! *****************************************************************************
+! \brief parameters for calculations involving a time dependent electric field
+! *****************************************************************************
+  TYPE period_efield_type
+     REAL(KIND = dp), DIMENSION(:),POINTER :: polarisation
+     REAL(kind=dp)                   :: strength
+  END TYPE period_efield_type
+
 ! *****************************************************************************
 ! \brief some parameters useful for mulliken_restraints
 ! *****************************************************************************
@@ -319,6 +326,7 @@ MODULE cp_control_types
                                        :: admm_control
      TYPE(efield_p_type),POINTER,&
                         DIMENSION(:)   :: efield_fields
+     TYPE(period_efield_type),POINTER  :: period_efield
      INTEGER                           :: nspins,&
                                           charge,&
                                           multiplicity,&
@@ -340,6 +348,7 @@ MODULE cp_control_types
                                           dft_plus_u,&
                                           scp,&
                                           apply_efield_field,&
+                                          apply_period_efield,&
                                           apply_external_potential,&
                                           eval_external_potential,&
                                           do_admm,&
@@ -358,6 +367,7 @@ MODULE cp_control_types
             gapw_control_type,&
             tddfpt_control_type,&
             efield_type,&
+            period_efield_type,&
             efield_p_type,&
             pw_grid_option,&
             mulliken_restraint_type,&
@@ -737,6 +747,7 @@ CONTAINS
        NULLIFY(dft_control%qs_control)
        NULLIFY(dft_control%tddfpt_control)
        NULLIFY(dft_control%efield_fields)
+       NULLIFY(dft_control%period_efield)
        NULLIFY(dft_control%admm_control)
        NULLIFY(dft_control%rtp_control)
        CALL qs_control_create(dft_control%qs_control, error=error)       
@@ -791,6 +802,12 @@ CONTAINS
           CALL scp_control_release(dft_control%scp_control, error=error)
           CALL admm_control_release(dft_control%admm_control, error=error)
           CALL efield_fields_release(dft_control%efield_fields, error=error)
+          IF (ASSOCIATED(dft_control%period_efield))THEN
+             DEALLOCATE(dft_control%period_efield%polarisation,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             DEALLOCATE(dft_control%period_efield,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
           IF (ASSOCIATED(dft_control%rtp_control)) THEN
              DEALLOCATE(dft_control%rtp_control,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -788,7 +788,7 @@ CONTAINS
                           CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
                                  -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
                   END DO
-                  CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta )
+                  CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
                   zdet = zdet * zdeta
                 END DO
                 zi(i) = zdet
@@ -816,7 +816,7 @@ CONTAINS
                           CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
                                  -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
                     END DO
-                    CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta )
+                    CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
                     zdet = zdet * zdeta
                   END DO
                   zij(i,j) = zdet*xphase(i)*xphase(j)
