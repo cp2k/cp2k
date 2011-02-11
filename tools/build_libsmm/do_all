@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "using the following settings"
+
+cat config.in
+
+echo "Starting lib generation in 3 stages"
+
+bash ./do_generate_tiny
+
+bash ./do_generate_small
+
+bash ./do_generate_lib

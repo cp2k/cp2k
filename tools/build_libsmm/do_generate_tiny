@@ -1,0 +1,91 @@
+#!/bin/bash
+
+#
+# load parameters
+#
+source config.in
+
+#
+# compile the generator of tiny mults
+#
+${host_compile}  -c mults.f90 
+${host_compile}  mults.o tiny_gen.f90 -o tiny_gen.x
+
+#
+# generate list of loop bounds to generate for the tiny library
+#
+postfixes=""
+for m in ${dims_tiny}  ; do
+for n in ${dims_tiny}  ; do
+for k in ${dims_tiny}  ; do
+ postfixes="$postfixes ${m}_${n}_${k}"
+done
+done
+done
+
+#
+# for easy parallelism go via a Makefile
+#
+rm -f Makefile.tiny
+
+(
+#
+# a two stage approach, first compile in parallel, once done,
+# execute in parallel
+#
+printf "all: bench \n\n"
+
+printf "compile: "
+for pf in $postfixes ; do
+    printf "comp_${pf} "
+done
+printf "\n\n"
+
+#
+# all compile rules
+#
+for m in ${dims_tiny}  ; do
+for n in ${dims_tiny}  ; do
+for k in ${dims_tiny}  ; do
+    printf "comp_${m}_${n}_${k}:\n"
+    printf "\t mkdir -p run_tiny_${m}_${n}_${k}\n"
+    printf "\t ./tiny_gen.x ${m} ${n} ${k} ${transpose_flavor} > run_tiny_${m}_${n}_${k}/tiny_find.f90\n"
+    printf "\t cd run_tiny_${m}_${n}_${k} ; ${target_compile} tiny_find.f90 -o tiny_find.x  \n\n"
+done ; done ; done
+
+printf "bench: "
+for pf in $postfixes ; do
+    printf "bench_${pf} "
+done
+printf "\n\n"
+
+#
+# all execute rules
+#
+for m in ${dims_tiny}  ; do
+for n in ${dims_tiny}  ; do
+for k in ${dims_tiny}  ; do
+    printf "bench_${m}_${n}_${k}: compile\n"
+    printf "\t cd run_tiny_${m}_${n}_${k} ; ./tiny_find.x > tiny_find.out \n\n"
+done ; done ; done
+
+) > Makefile.tiny
+
+#
+# execute makefile compiling all variants and executing them
+#
+
+make -j $tasks -f Makefile.tiny all
+
+#
+# analyse results finding optimal tiny mults
+#
+(
+for m in ${dims_tiny}  ; do
+for n in ${dims_tiny}  ; do
+for k in ${dims_tiny}  ; do
+    file=run_tiny_${m}_${n}_${k}/tiny_find.out
+    res=`tail -n 1 $file`
+    echo "$m $n $k $res"
+done ; done ; done
+) > tiny_gen_optimal.out

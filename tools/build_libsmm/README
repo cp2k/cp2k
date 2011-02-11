@@ -1,0 +1,47 @@
+libsmm: a library for small matrix multiplies.
+
+in order to deal efficiently with small matrix multiplies,
+often involving 'special' matrix dimensions such as 5,13,17,22, 
+a dedicated matrix library can be generated that outperforms (or matches) general purpose (optimized) blas libraries.
+
+Generation requires extensive compilation and timing runs, and is machine specific, 
+i.e. the library should be constructed on the architecture it is supposed to run.
+Using an 8 core machine, generation takes approx. 4 hours.
+
+How to generate the library (on a computer that allows for both execution and compilation)
+
+1) Modify config.in to set options such as compiler, compilation flags, blas library,
+   matrix sizes, and the number of available cores.
+
+2) Run the master script ./do_all
+
+3) the library is generated, check test_smm_*.out for performance, and correctness.
+
+4) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
+
+The following copyright covers code and generated library
+!====================================================================================================================
+! * Copyright (c) 2011 Joost VandeVondele
+! * All rights reserved.
+! *
+! * Redistribution and use in source and binary forms, with or without
+! * modification, are permitted provided that the following conditions are met:
+! *     * Redistributions of source code must retain the above copyright
+! *       notice, this list of conditions and the following disclaimer.
+! *     * Redistributions in binary form must reproduce the above copyright
+! *       notice, this list of conditions and the following disclaimer in the
+! *       documentation and/or other materials provided with the distribution.
+! *
+! * THIS SOFTWARE IS PROVIDED BY Joost VandeVondele ''AS IS'' AND ANY
+! * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+! * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! * DISCLAIMED. IN NO EVENT SHALL Joost VandeVondele BE LIABLE FOR ANY
+! * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+! * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+! * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+! * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! *
+!====================================================================================================================
+

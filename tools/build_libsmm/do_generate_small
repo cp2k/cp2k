@@ -1,0 +1,94 @@
+#!/bin/bash
+
+#
+# load parameters
+#
+source config.in
+
+#
+# compile the generator of small mults
+#
+${host_compile}  -c mults.f90 
+${host_compile}  -c multrec_gen.f90 
+${host_compile}  mults.o multrec_gen.o small_gen.f90 -o small_gen.x
+
+
+
+#
+# generate list of loop bounds to generate for the small library
+#
+postfixes=""
+for m in ${dims_small}  ; do
+for n in ${dims_small}  ; do
+for k in ${dims_small}  ; do
+ postfixes="$postfixes ${m}_${n}_${k}"
+done
+done
+done
+
+#
+# for easy parallelism go via a Makefile
+#
+rm -f Makefile.small
+
+(
+#
+# a two stage approach, first compile in parallel, once done,
+# execute in parallel
+#
+printf "all: bench \n\n"
+
+printf "compile: "
+for pf in $postfixes ; do
+    printf "comp_${pf} "
+done
+printf "\n\n"
+
+#
+# all compile rules
+#
+for m in ${dims_small}  ; do
+for n in ${dims_small}  ; do
+for k in ${dims_small}  ; do
+    printf "comp_${m}_${n}_${k}:\n"
+    printf "\t mkdir -p run_small_${m}_${n}_${k}\n"
+    printf "\t ./small_gen.x ${m} ${n} ${k} ${transpose_flavor} > run_small_${m}_${n}_${k}/small_find.f90\n"
+    printf "\t cd run_small_${m}_${n}_${k} ; ${target_compile} small_find.f90 -o small_find.x ${blas_linking} \n\n"
+done ; done ; done
+
+printf "bench: "
+for pf in $postfixes ; do
+    printf "bench_${pf} "
+done
+printf "\n\n"
+
+#
+# all execute rules
+#
+for m in ${dims_small}  ; do
+for n in ${dims_small}  ; do
+for k in ${dims_small}  ; do
+    printf "bench_${m}_${n}_${k}: compile\n"
+    printf "\t cd run_small_${m}_${n}_${k} ; ./small_find.x > small_find.out \n\n"
+done ; done ; done
+
+) > Makefile.small
+
+#
+# execute makefile compiling all variants and executing them
+#
+
+make -j $tasks -f Makefile.small all
+
+#
+# analyse results finding optimal small mults
+#
+(
+for m in ${dims_small}  ; do
+for n in ${dims_small}  ; do
+for k in ${dims_small}  ; do
+    file=run_small_${m}_${n}_${k}/small_find.out
+    res=`tail -n 1 $file`
+    echo "$m $n $k $res"
+done ; done ; done
+) > small_gen_optimal.out
