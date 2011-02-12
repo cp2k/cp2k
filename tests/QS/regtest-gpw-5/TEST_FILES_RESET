@@ -382,3 +382,6 @@ c8_kerker_gapw.inp
 c8_broy.inp
 # Bug fix for OTdiag with smear
 si8_pmix_otdiag.inp
+# numerics for g95 sopt
+si8_pulay_off.inp
+c8_kerker.inp

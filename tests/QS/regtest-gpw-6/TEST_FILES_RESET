@@ -351,3 +351,6 @@ CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp
 CH3-BP-MO_NO_DIAG.inp
 c8_kerker_gapw.inp
 c8_broy.inp
+# numerics for g95 sopt
+si8_pulay_off.inp
+c8_kerker.inp
