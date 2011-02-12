@@ -35,13 +35,13 @@ MODULE f77_interface
   USE f77_blas
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: ep_create_force_env,&
-                                             force_env_calc_energy_force,&
-                                             force_env_shake
+                                             force_env_calc_energy_force
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_frc, force_env_get_natom, &
        force_env_get_nparticle, force_env_get_pos, force_env_get_vel, &
        force_env_release, force_env_retain, force_env_set, &
        force_env_set_cell, force_env_type, multiple_fe_list
+  USE force_env_utils,                 ONLY: force_env_shake
   USE fp_types,                        ONLY: fp_env_create,&
                                              fp_env_read,&
                                              fp_env_release,&

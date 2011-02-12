@@ -215,6 +215,7 @@ OBJECTS_GENERIC =\
  fist_pol_scf.o\
  force_env_methods.o\
  force_env_types.o\
+ force_env_utils.o\
  force_field_types.o\
  force_fields.o\
  force_fields_all.o\
@@ -346,6 +347,7 @@ OBJECTS_GENERIC =\
  metadynamics_utils.o\
  mixed_energy_types.o\
  mixed_environment.o\
+ mixed_environment_utils.o\
  mixed_environment_types.o\
  mixed_main.o\
  mm_collocate_potential.o\

@@ -271,6 +271,7 @@ MODULE colvar_types
 
 ! *****************************************************************************
   TYPE u_colvar_type
+     TYPE(section_vals_type), POINTER         :: mixed_energy_section
      INTEGER       :: natom
   END TYPE u_colvar_type
 
@@ -433,6 +434,7 @@ CONTAINS
        CASE(u_colvar_id)
           ALLOCATE(colvar%u_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          NULLIFY(colvar%u_param%mixed_energy_section)
        CASE(hydronium_colvar_id)
           ALLOCATE(colvar%hydronium_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -1131,6 +1133,7 @@ CPSourceFileRef)
        DEALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (u_colvar_id)
+       NULLIFY(colvar%u_param%mixed_energy_section)
        DEALLOCATE(colvar%u_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (hydronium_colvar_id)

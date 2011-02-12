@@ -28,11 +28,11 @@ MODULE md_vel_utils
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_rattle,&
-                                             force_env_shake
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE force_env_utils,                 ONLY: force_env_rattle,&
+                                             force_env_shake
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &

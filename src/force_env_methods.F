@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE force_env_methods
 
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
@@ -23,22 +22,16 @@ MODULE force_env_methods
                                              init_cell,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE constraint,                      ONLY: rattle_control,&
-                                             shake_control
   USE constraint_fxd,                  ONLY: fix_atom_control
-  USE constraint_util,                 ONLY: getold
   USE constraint_vsite,                ONLY: vsite_force_control
   USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              cp_results_mp_bcast,&
-                                             get_results,&
-                                             put_results
+                                             get_results
   USE cp_result_types,                 ONLY: cp_result_copy,&
                                              cp_result_create,&
                                              cp_result_p_type,&
@@ -49,7 +42,6 @@ MODULE force_env_methods
                                              cp_subsys_retain,&
                                              cp_subsys_type
   USE cpot_types,                      ONLY: cpot_calc
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_retain,&
                                              eip_environment_type
@@ -71,6 +63,9 @@ MODULE force_env_methods
        force_env_p_type, force_env_set, force_env_set_cell, force_env_type, &
        use_eip_force, use_ep_force, use_fist_force, use_mixed_force, &
        use_prog_name, use_qmmm, use_qs_force
+  USE force_env_utils,                 ONLY: rescale_forces,&
+                                             write_forces,&
+                                             write_stress_tensor
   USE force_fields_util,               ONLY: get_generic_info
   USE fp_methods,                      ONLY: fp_eval
   USE fparser,                         ONLY: EvalErrType,&
@@ -86,16 +81,13 @@ MODULE force_env_methods
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
        mix_restrained, use_bazant_eip, use_lenosky_eip
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE mathlib,                         ONLY: det_3x3,&
-                                             jacobi
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -105,15 +97,12 @@ MODULE force_env_methods
   USE mixed_environment_types,         ONLY: get_mixed_env,&
                                              mixed_env_retain,&
                                              mixed_environment_type
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE molecule_types_new,              ONLY: global_constraint_type
+  USE mixed_environment_utils,         ONLY: get_subsys_map_index,&
+                                             mixed_map_forces
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             update_particle_set
-  USE physcon,                         ONLY: debye,&
-                                             pascal
+  USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: debye
   USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
   USE qmmm_gpw_forces,                 ONLY: qmmm_forces
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
@@ -135,8 +124,6 @@ MODULE force_env_methods
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
   USE restraint,                       ONLY: restraint_control
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: &
        cp_virial, sym_virial, virial_create, virial_p_type, virial_release, &
        virial_retain, virial_set, virial_type, zero_virial
@@ -151,9 +138,7 @@ MODULE force_env_methods
   PUBLIC :: force_env_create,&
             ep_create_force_env,&
             force_env_calc_energy_force,&
-            force_env_calc_num_pressure,&
-            force_env_shake,&
-            force_env_rattle
+            force_env_calc_num_pressure
 
   INTEGER, SAVE, PRIVATE :: last_force_env_id=0
 
@@ -1220,722 +1205,5 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,mixed_section,"PRINT%DIPOLE",error=error)
   END SUBROUTINE mixed_energy_forces
-
-! *****************************************************************************
-!> \brief Maps forces between the different force_eval sections/environments
-!> \param force_env the force env to shake
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
-! *****************************************************************************
-  SUBROUTINE mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces,&
-      virials, results, factor, iforce_eval, nforce_eval, map_index, mixed_section,&
-      mapping_section, overwrite, error)
-
-    TYPE(particle_list_type), POINTER        :: particles_mix
-    TYPE(virial_type), POINTER               :: virial_mix
-    TYPE(cp_result_type), POINTER            :: results_mix
-    TYPE(mixed_force_type), DIMENSION(:), &
-      POINTER                                :: global_forces
-    TYPE(virial_p_type), DIMENSION(:), &
-      POINTER                                :: virials
-    TYPE(cp_result_p_type), DIMENSION(:), &
-      POINTER                                :: results
-    REAL(KIND=dp), INTENT(IN)                :: factor
-    INTEGER, INTENT(IN)                      :: iforce_eval, nforce_eval
-    INTEGER, DIMENSION(:), POINTER           :: map_index
-    TYPE(section_vals_type), POINTER         :: mixed_section, mapping_section
-    LOGICAL, INTENT(IN)                      :: overwrite
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_map_forces', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: description
-    INTEGER                                  :: iparticle, jparticle, natom, &
-                                                nres, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: dip_mix, dip_tmp
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
-
-    failure = .FALSE.
-    NULLIFY(logger, print_key)
-    logger => cp_error_get_logger(error)
-    ! Get Mapping index array
-    natom = SIZE(global_forces(iforce_eval)%forces,2)
-    CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
-    DO iparticle = 1, natom
-       jparticle = map_index(iparticle)
-       IF (overwrite) THEN
-          particles_mix%els(jparticle)%f(:)= factor* global_forces(iforce_eval)%forces(:,iparticle)
-       ELSE
-          particles_mix%els(jparticle)%f(:)= particles_mix%els(jparticle)%f(:) + &
-               factor* global_forces(iforce_eval)%forces(:,iparticle)
-       END IF
-    END DO
-    ! Mixing Virial
-    IF (virial_mix%pv_availability) THEN
-       IF (overwrite) CALL zero_virial(virial_mix,reset=.FALSE.)
-       virial_mix%pv_total      = virial_mix%pv_total + factor*virials(iforce_eval)%virial%pv_total
-       virial_mix%pv_kinetic    = virial_mix%pv_kinetic + factor*virials(iforce_eval)%virial%pv_kinetic
-       virial_mix%pv_virial     = virial_mix%pv_virial + factor*virials(iforce_eval)%virial%pv_virial
-       virial_mix%pv_xc         = virial_mix%pv_xc + factor*virials(iforce_eval)%virial%pv_xc
-       virial_mix%pv_fock_4c    = virial_mix%pv_fock_4c + factor*virials(iforce_eval)%virial%pv_fock_4c
-       virial_mix%pv_constraint = virial_mix%pv_constraint + factor*virials(iforce_eval)%virial%pv_constraint
-    END IF
-    ! Deallocate map_index array
-    IF (ASSOCIATED(map_index)) THEN
-       DEALLOCATE(map_index, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    ! Collect Requested Results info
-    print_key => section_vals_get_subs_vals(mixed_section,"PRINT%DIPOLE",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
-         cp_p_file)) THEN
-       description ='[DIPOLE]'
-       IF (overwrite) CALL cp_results_erase(results_mix, error=error)
-       CALL get_results(results=results_mix,description=description,n_rep=nres,error=error)
-       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
-       dip_mix = 0.0_dp
-       IF (nres==1) CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
-       CALL get_results(results=results(iforce_eval)%results,description=description,n_rep=nres,error=error)
-       CALL get_results(results=results(iforce_eval)%results,description=description,&
-            values=dip_tmp,nval=nres,error=error)
-       dip_mix = dip_mix + factor*dip_tmp
-       CALL cp_results_erase(results=results_mix,description=description,error=error)
-       CALL put_results(results=results_mix,description=description,values=dip_mix,error=error)
-    END IF
-
-  END SUBROUTINE mixed_map_forces
-
-! *****************************************************************************
-!> \brief performs mapping of the subsystems of different force_eval
-!> \param force_env the force env to shake
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
-! *****************************************************************************
-  SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
-
-    TYPE(section_vals_type), POINTER         :: mapping_section
-    INTEGER, INTENT(IN)                      :: natom, iforce_eval, &
-                                                nforce_eval
-    INTEGER, DIMENSION(:), POINTER           :: map_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_subsys_map_index', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iatom, ival, j, jval, k, &
-                                                n_rep, n_rep_loc, n_rep_map, &
-                                                n_rep_sys, stat, tmp
-    INTEGER, DIMENSION(:), POINTER           :: index_glo, index_loc, list
-    LOGICAL                                  :: check, explicit, failure
-    TYPE(section_vals_type), POINTER         :: fragments_loc, fragments_sys, &
-                                                map_force_ev, map_full_sys
-
-    failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(map_index),cp_failure_level,routineP,error,failure)
-    ALLOCATE(map_index(natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL section_vals_get(mapping_section, explicit=explicit, error=error)
-    IF (.NOT.explicit) THEN
-       ! Standard Mapping.. subsys are assumed to have the same structure
-       DO i = 1, natom
-          map_index(i) = i
-       END DO
-    ELSE
-       ! Mapping systems with different structures
-       map_full_sys => section_vals_get_subs_vals(mapping_section,"FORCE_EVAL_MIXED",error=error)
-       map_force_ev => section_vals_get_subs_vals(mapping_section,"FORCE_EVAL",error=error)
-       CALL section_vals_get(map_full_sys, explicit=explicit, error=error)
-       CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
-       CALL section_vals_get(map_force_ev, explicit=explicit, n_repetition=n_rep, error=error)
-       CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
-       CPPrecondition(n_rep==nforce_eval,cp_failure_level,routineP,error,failure)
-       DO i = 1, n_rep
-          CALL section_vals_val_get(map_force_ev,"_SECTION_PARAMETERS_",i_rep_section=i,i_val=ival,error=error)
-          IF (ival==iforce_eval) EXIT
-       END DO
-       CPPrecondition(i<=nforce_eval,cp_failure_level,routineP,error,failure)
-       fragments_sys => section_vals_get_subs_vals(map_full_sys,"FRAGMENT",error=error)
-       fragments_loc => section_vals_get_subs_vals(map_force_ev,"FRAGMENT",i_rep_section=i,error=error)
-       !Perform few check on the structure of the input mapping section. as provided by the user
-       CALL section_vals_get(fragments_loc, n_repetition=n_rep_loc, error=error)
-       CALL section_vals_get(fragments_sys, explicit=explicit, n_repetition=n_rep_sys, error=error)
-       CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
-       CPPrecondition(n_rep_sys>=n_rep_loc,cp_failure_level,routineP,error,failure)
-       IF (n_rep_loc==0) THEN
-          NULLIFY(list)
-          ! We expect an easier syntax in this case..
-          CALL section_vals_val_get(map_force_ev,"DEFINE_FRAGMENTS",i_rep_section=i,n_rep_val=n_rep_map,&
-               error=error)
-          check = (n_rep_map/=0)
-          CPPrecondition(check,cp_failure_level,routineP,error,failure)
-          CALL section_vals_val_get(map_force_ev,"DEFINE_FRAGMENTS",i_rep_section=i,i_vals=list,&
-               error=error)
-          CPPrecondition(SIZE(list)>0,cp_failure_level,routineP,error,failure)
-          iatom = 0
-          DO i = 1, SIZE(list)
-             jval = list(i)
-             DO j = 1, n_rep_sys
-                CALL section_vals_val_get(fragments_sys,"_SECTION_PARAMETERS_",i_rep_section=j,i_val=tmp,error=error)
-                IF (tmp==jval) EXIT
-             END DO
-             CALL section_vals_val_get(fragments_sys,"_DEFAULT_KEYWORD_",i_rep_section=j,i_vals=index_glo,error=error)
-             DO k = 0, index_glo(2)-index_glo(1)
-                iatom = iatom + 1
- CPPrecondition(iatom<=natom,cp_failure_level,routineP,error,failure)
-                map_index(iatom) = index_glo(1)+k
-             END DO
-          END DO
-          check = (iatom==natom)
-          CPPrecondition(check,cp_failure_level,routineP,error,failure)
-       ELSE
-          ! General syntax..
-          !Loop over the fragment of the force_eval
-          DO i = 1, n_rep_loc
-             CALL section_vals_val_get(fragments_loc,"_SECTION_PARAMETERS_",i_rep_section=i,i_val=ival,error=error)
-             CALL section_vals_val_get(fragments_loc,"MAP",i_rep_section=i,i_val=jval,error=error)
-             ! Index corresponding to the mixed_force_eval fragment
-             DO j = 1, n_rep_sys
-                CALL section_vals_val_get(fragments_sys,"_SECTION_PARAMETERS_",i_rep_section=j,i_val=tmp,error=error)
-                IF (tmp==jval) EXIT
-             END DO
-             CPPrecondition(j<=n_rep_sys,cp_failure_level,routineP,error,failure)
-             CALL section_vals_val_get(fragments_loc,"_DEFAULT_KEYWORD_",i_rep_section=i,i_vals=index_loc,error=error)
-             CALL section_vals_val_get(fragments_sys,"_DEFAULT_KEYWORD_",i_rep_section=j,i_vals=index_glo,error=error)
-             check = ((index_loc(2)-index_loc(1))==(index_glo(2)-index_glo(1)))
-             CPPrecondition(check,cp_failure_level,routineP,error,failure)
-             ! Now let's build the real mapping
-             DO k = 0, index_loc(2)-index_loc(1)
-                map_index(index_loc(1)+k) = index_glo(1)+k
-             END DO
-          END DO
-       END IF
-    END IF
-
-  END SUBROUTINE get_subsys_map_index
-
-! *****************************************************************************
-!> \brief perform shake (enforcing of constraints)
-!> \param force_env the force env to shake
-!> \param dt the dt for shake (if you are not interested in the velocities
-!>        it can be any positive number)
-!> \param shake_tol the tolerance for shake
-!> \param log_unit if >0 then some information on the shake is printed,
-!>        defaults to -1
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
-       pos,vel,compold,reset,error)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(kind=dp), INTENT(IN), OPTIONAL      :: dt
-    REAL(kind=dp), INTENT(IN)                :: shake_tol
-    INTEGER, INTENT(in), OPTIONAL            :: log_unit, lagrange_mult
-    LOGICAL, INTENT(IN), OPTIONAL            :: dump_lm
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL, TARGET        :: pos, vel
-    LOGICAL, INTENT(IN), OPTIONAL            :: compold, reset
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_shake', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local, stat
-    LOGICAL                                  :: failure, has_pos, has_vel, &
-                                                my_dump_lm
-    REAL(KIND=dp)                            :: mydt
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_pos, my_vel
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-    CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       my_log_unit=-1
-       IF (PRESENT(log_unit)) my_log_unit=log_unit
-       my_lagrange_mult=-1
-       IF (PRESENT(lagrange_mult)) my_lagrange_mult=lagrange_mult
-       my_dump_lm = .FALSE.
-       IF (PRESENT(dump_lm)) my_dump_lm = dump_lm
-       NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
-            my_pos,my_vel,gci)
-       IF (PRESENT(pos)) my_pos => pos
-       IF (PRESENT(vel)) my_vel => vel
-       mydt = 0.1_dp
-       IF (PRESENT(dt)) mydt = dt
-       CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-       CALL cp_subsys_get(subsys, &
-            atomic_kinds=atomic_kinds,&
-            local_molecules_new=local_molecules,&
-            local_particles=local_particles,&
-            molecules_new=molecules,&
-            molecule_kinds_new=molecule_kinds,&
-            particles=particles,&
-            gci=gci,&
-            error=error)
-       nparticle_kind = atomic_kinds%n_els
-       IF (PRESENT(compold)) THEN
-          IF (compold) THEN
-             CALL getold( gci, local_molecules, molecules%els, molecule_kinds%els,&
-                  particles%els, cell, error)
-          END IF
-       END IF
-       has_pos=.FALSE.
-       IF (.NOT.ASSOCIATED(my_pos)) THEN
-          has_pos=.TRUE.
-          ALLOCATE(my_pos(3,particles%n_els),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          my_pos = 0.0_dp
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = local_particles%n_el(iparticle_kind)
-             DO iparticle_local=1,nparticle_local
-                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                my_pos (:,iparticle) = particles%els(iparticle)%r(:)
-             END DO
-          END DO
-       END IF
-       has_vel=.FALSE.
-       IF (.NOT.ASSOCIATED(my_vel)) THEN
-          has_vel=.TRUE.
-          ALLOCATE(my_vel(3,particles%n_els),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          my_vel = 0.0_dp
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = local_particles%n_el(iparticle_kind)
-             DO iparticle_local=1,nparticle_local
-                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                my_vel (:,iparticle) = particles%els(iparticle)%v(:)
-             END DO
-          END DO
-       END IF
-
-       CALL shake_control( gci=gci, local_molecules=local_molecules,&
-            molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
-            particle_set=particles%els, pos=my_pos, vel=my_vel, dt=mydt,&
-            shake_tol=shake_tol, log_unit=my_log_unit, lagrange_mult=my_lagrange_mult,&
-            dump_lm= my_dump_lm, cell=cell,group=force_env%para_env%group,&
-            local_particles=local_particles, error=error )
-
-       ! Possibly reset the lagrange multipliers
-       IF (PRESENT(reset)) THEN
-          IF (reset) THEN
-             ! Reset Intramolecular constraints
-             DO i = 1,SIZE(molecules%els)
-                IF (ASSOCIATED(molecules%els(i)%lci%lcolv)) THEN
-                   DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
-                      ! Reset langrange multiplier
-                      molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(molecules%els(i)%lci%lg3x3)) THEN
-                   DO j = 1, SIZE(molecules%els(i)%lci%lg3x3)
-                      ! Reset langrange multiplier
-                      molecules%els(i)%lci%lg3x3(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(molecules%els(i)%lci%lg4x6)) THEN
-                   DO j = 1, SIZE(molecules%els(i)%lci%lg4x6)
-                      ! Reset langrange multiplier
-                      molecules%els(i)%lci%lg4x6(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-             END DO
-             ! Reset Intermolecular constraints
-             IF (ASSOCIATED(gci)) THEN
-                IF (ASSOCIATED(gci%lcolv)) THEN
-                   DO j = 1, SIZE(gci%lcolv)
-                      ! Reset langrange multiplier
-                      gci%lcolv(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(gci%lg3x3)) THEN
-                   DO j = 1, SIZE(gci%lg3x3)
-                      ! Reset langrange multiplier
-                      gci%lg3x3(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(gci%lg4x6)) THEN
-                   DO j = 1, SIZE(gci%lg4x6)
-                      ! Reset langrange multiplier
-                      gci%lg4x6(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-             END IF
-          END IF
-       END IF
-
-       IF (has_pos) THEN
-          CALL update_particle_set ( particles%els, force_env%para_env%group, pos=my_pos,&
-               error=error)
-          DEALLOCATE(my_pos,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (has_vel) THEN
-          CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel,&
-               error=error)
-          DEALLOCATE(my_vel,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE force_env_shake
-
-! *****************************************************************************
-!> \brief perform rattle (enforcing of constraints on velocities)
-!>      This routine can be easily adapted to performe rattle on whatever
-!>      other vector different from forces..
-!> \param force_env the force env to shake
-!> \param dt the dt for shake (if you are not interested in the velocities
-!>        it can be any positive number)
-!> \param shake_tol the tolerance for shake
-!> \param log_unit if >0 then some information on the shake is printed,
-!>        defaults to -1
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author tlaino
-! *****************************************************************************
-  SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
-       vel,reset,error)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: dt
-    REAL(kind=dp), INTENT(in)                :: shake_tol
-    INTEGER, INTENT(in), OPTIONAL            :: log_unit, lagrange_mult
-    LOGICAL, INTENT(IN), OPTIONAL            :: dump_lm
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL, TARGET        :: vel
-    LOGICAL, INTENT(IN), OPTIONAL            :: reset
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_rattle', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local, stat
-    LOGICAL                                  :: failure, has_vel, my_dump_lm
-    REAL(KIND=dp)                            :: mydt
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
-
-    CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       my_log_unit=-1
-       IF (PRESENT(log_unit)) my_log_unit=log_unit
-       my_lagrange_mult=-1
-       IF (PRESENT(lagrange_mult)) my_lagrange_mult=lagrange_mult
-       my_dump_lm = .FALSE.
-       IF (PRESENT(dump_lm)) my_dump_lm = dump_lm
-       NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
-            my_vel)
-       IF (PRESENT(vel)) my_vel => vel
-       mydt = 0.1_dp
-       IF (PRESENT(dt)) mydt = dt
-       CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-       CALL cp_subsys_get(subsys, &
-            atomic_kinds=atomic_kinds,&
-            local_molecules_new=local_molecules,&
-            local_particles=local_particles,&
-            molecules_new=molecules,&
-            molecule_kinds_new=molecule_kinds,&
-            particles=particles,&
-            gci=gci,&
-            error=error)
-       nparticle_kind = atomic_kinds%n_els
-       has_vel=.FALSE.
-       IF (.NOT.ASSOCIATED(my_vel)) THEN
-          has_vel=.TRUE.
-          ALLOCATE(my_vel(3,particles%n_els),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          my_vel = 0.0_dp
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = local_particles%n_el(iparticle_kind)
-             DO iparticle_local=1,nparticle_local
-                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                my_vel (:,iparticle) = particles%els(iparticle)%v(:)
-             END DO
-          END DO
-       END IF
-
-       CALL rattle_control( gci=gci, local_molecules=local_molecules,&
-            molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
-            particle_set=particles%els, vel=my_vel, dt=mydt,&
-            rattle_tol=shake_tol, log_unit=my_log_unit, lagrange_mult=my_lagrange_mult,&
-            dump_lm=my_dump_lm, cell=cell, group=force_env%para_env%group,&
-            local_particles=local_particles, error=error )
-
-       ! Possibly reset the lagrange multipliers
-       IF (PRESENT(reset)) THEN
-          IF (reset) THEN
-             ! Reset Intramolecular constraints
-             DO i = 1,SIZE(molecules%els)
-                IF (ASSOCIATED(molecules%els(i)%lci%lcolv)) THEN
-                   DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
-                      ! Reset langrange multiplier
-                      molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(molecules%els(i)%lci%lg3x3)) THEN
-                   DO j = 1, SIZE(molecules%els(i)%lci%lg3x3)
-                      ! Reset langrange multiplier
-                      molecules%els(i)%lci%lg3x3(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(molecules%els(i)%lci%lg4x6)) THEN
-                   DO j = 1, SIZE(molecules%els(i)%lci%lg4x6)
-                      ! Reset langrange multiplier
-                      molecules%els(i)%lci%lg4x6(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-             END DO
-             ! Reset Intermolecular constraints
-             IF (ASSOCIATED(gci)) THEN
-                IF (ASSOCIATED(gci%lcolv)) THEN
-                   DO j = 1, SIZE(gci%lcolv)
-                      ! Reset langrange multiplier
-                      gci%lcolv(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(gci%lg3x3)) THEN
-                   DO j = 1, SIZE(gci%lg3x3)
-                      ! Reset langrange multiplier
-                      gci%lg3x3(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-                IF (ASSOCIATED(gci%lg4x6)) THEN
-                   DO j = 1, SIZE(gci%lg4x6)
-                      ! Reset langrange multiplier
-                      gci%lg4x6(j)%lambda = 0.0_dp
-                   END DO
-                END IF
-             END IF
-          END IF
-       END IF
-
-       IF (has_vel) THEN
-          CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel,&
-               error=error)
-       END IF
-       DEALLOCATE(my_vel,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE force_env_rattle
-
-! *****************************************************************************
-!> \brief Rescale forces if requested
-!> \param force_env the force env to shake
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author tlaino
-! *****************************************************************************
-  SUBROUTINE rescale_forces (force_env, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rescale_forces', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iparticle
-    LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp)                            :: force(3), max_value, mod_force
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: rescale_force_section
-
-    failure=.FALSE.
-    CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    rescale_force_section => section_vals_get_subs_vals(force_env%force_env_section,"RESCALE_FORCES",error=error)
-    CALL section_vals_get(rescale_force_section, explicit=explicit, error=error)
-    IF (.NOT.failure.AND.explicit) THEN
-       CALL section_vals_val_get(rescale_force_section,"MAX_FORCE",r_val=max_value,error=error)
-       CALL force_env_get(force_env,subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
-       DO iparticle = 1, SIZE(particles%els)
-          force = particles%els(iparticle)%f(:)
-          mod_force = SQRT(DOT_PRODUCT(force,force))
-          IF ((mod_force > max_value).AND.(mod_force /= 0.0_dp)) THEN
-             force = force / mod_force * max_value
-             particles%els(iparticle)%f(:) = force
-          END IF
-       END DO
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE rescale_forces
-
-! *****************************************************************************
-!> \brief Variable precision output of the stress tensor
-!>
-!> \author MK (26.08.2010)
-! *****************************************************************************
-  SUBROUTINE write_stress_tensor(pv_virial,output_unit,cell,ndigits,numerical,&
-                                 error)
-
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: pv_virial
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER, INTENT(IN)                      :: ndigits
-    LOGICAL, INTENT(IN)                      :: numerical
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=15)                        :: fmtstr3
-    CHARACTER(LEN=16)                        :: fmtstr4
-    CHARACTER(LEN=22)                        :: fmtstr2
-    CHARACTER(LEN=27)                        :: fmtstr5
-    CHARACTER(LEN=31)                        :: fmtstr1
-    INTEGER                                  :: n
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: eigval
-    REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
-
-    failure = .FALSE.
-
-    IF (output_unit > 0) THEN
-      CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-      stress_tensor(:,:) = pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
-      n = MIN(MAX(1,ndigits),20)
-      fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
-      WRITE (UNIT=fmtstr1(22:23),FMT="(I2)") n + 7
-      fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
-      WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") n + 7
-      WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") n
-      fmtstr3 = "(/,T3,A,F  .  )"
-      WRITE (UNIT=fmtstr3(10:11),FMT="(I2)") n + 8
-      WRITE (UNIT=fmtstr3(13:14),FMT="(I2)") n
-      IF (numerical) THEN
-        WRITE (UNIT=output_unit,FMT=fmtstr1)&
-          "NUMERICAL STRESS TENSOR [GPa]","X","Y","Z"
-      ELSE
-        WRITE (UNIT=output_unit,FMT=fmtstr1)&
-          "STRESS TENSOR [GPa]","X","Y","Z"
-      END IF
-      WRITE (UNIT=output_unit,FMT=fmtstr2) "X",stress_tensor(1,1:3)
-      WRITE (UNIT=output_unit,FMT=fmtstr2) "Y",stress_tensor(2,1:3)
-      WRITE (UNIT=output_unit,FMT=fmtstr2) "Z",stress_tensor(3,1:3)
-      fmtstr4 = "(/,T3,A,ES  .  )"
-      WRITE (UNIT=fmtstr4(11:12),FMT="(I2)") n + 8
-      WRITE (UNIT=fmtstr4(14:15),FMT="(I2)") n
-      WRITE (UNIT=output_unit,FMT=fmtstr4)&
-        "1/3 Trace(stress tensor): ",(stress_tensor(1,1) +&
-                                      stress_tensor(2,2) +&
-                                      stress_tensor(3,3))/3.0_dp,&
-        "Det(stress tensor)      : ",det_3x3(stress_tensor(:,1),&
-                                             stress_tensor(:,2),&
-                                             stress_tensor(:,3))
-      eigval(:) = 0.0_dp
-      eigvec(:,:) = 0.0_dp
-      CALL jacobi(stress_tensor,eigval,eigvec)
-      fmtstr5 = "(/,/,T2,A,/,/,T5,3F  .  ,/)"
-      WRITE (UNIT=fmtstr5(20:21),FMT="(I2)") n + 8
-      WRITE (UNIT=fmtstr5(23:24),FMT="(I2)") n
-      WRITE (UNIT=output_unit,FMT=fmtstr5)&
-        "EIGENVECTORS AND EIGENVALUES OF THE STRESS TENSOR",&
-        eigval(1:3)
-      WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(1,1:3)
-      WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(2,1:3)
-      WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(3,1:3)
-    END IF
-
-  END SUBROUTINE write_stress_tensor
-
-! *****************************************************************************
-!> \brief Write forces
-!>
-!> \author MK (06.09.2010)
-! *****************************************************************************
-  SUBROUTINE write_forces(particles,output_unit,label,ndigits,total_force,&
-                          grand_total_force,error)
-
-    TYPE(particle_list_type), POINTER        :: particles
-    INTEGER, INTENT(IN)                      :: output_unit
-    CHARACTER(LEN=*), INTENT(IN)             :: label
-    INTEGER, INTENT(IN)                      :: ndigits
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: total_force
-    REAL(KIND=dp), DIMENSION(3), &
-      INTENT(INOUT), OPTIONAL                :: grand_total_force
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_forces', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=23)                        :: fmtstr3
-    CHARACTER(LEN=36)                        :: fmtstr2
-    CHARACTER(LEN=46)                        :: fmtstr1
-    INTEGER                                  :: i, ikind, iparticle, n
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-    IF (output_unit > 0) THEN
-      CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
-      n = MIN(MAX(1,ndigits),20)
-      fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
-      WRITE (UNIT=fmtstr1(39:40),FMT="(I2)") n + 6
-      fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,3(1X,F  .  ))"
-      WRITE (UNIT=fmtstr2(33:34),FMT="(I2)") n
-      WRITE (UNIT=fmtstr2(30:31),FMT="(I2)") n + 6
-      fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
-      WRITE (UNIT=fmtstr3(20:21),FMT="(I2)") n
-      WRITE (UNIT=fmtstr3(17:18),FMT="(I2)") n + 6
-      WRITE (UNIT=output_unit,FMT=fmtstr1)&
-        label//" FORCES in [a.u.]","# Atom","Kind","Element","X","Y","Z"
-      total_force(1:3) = 0.0_dp
-      DO iparticle=1,particles%n_els
-        ikind = particles%els(iparticle)%atomic_kind%kind_number
-        IF (particles%els(iparticle)%atom_index /= 0) THEN
-          i = particles%els(iparticle)%atom_index
-        ELSE
-          i = iparticle
-        END IF
-        WRITE (UNIT=output_unit,FMT=fmtstr2)&
-          i,ikind,particles%els(iparticle)%atomic_kind%element_symbol,&
-          particles%els(iparticle)%f(1:3)
-        total_force(1:3) = total_force(1:3) + particles%els(iparticle)%f(1:3)
-      END DO
-      WRITE (UNIT=output_unit,FMT=fmtstr3)&
-        "SUM OF "//label//" FORCES",total_force(1:3),SQRT(SUM(total_force(:)**2))
-    END IF
-
-    IF (PRESENT(grand_total_force)) THEN
-      grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
-      WRITE (UNIT=output_unit,FMT="(A)") ""
-      WRITE (UNIT=output_unit,FMT=fmtstr3)&
-        "GRAND TOTAL FORCE",grand_total_force(1:3),SQRT(SUM(grand_total_force(:)**2))
-    END IF
-
-  END SUBROUTINE write_forces
 
 END MODULE force_env_methods

@@ -3,6 +3,7 @@
 # in case a new directory is added just drop it at the end of the list..
 # the order will be regularly checked and modified...
 Fist/regtest-7
+QS/regtest-meta
 QS/regtest-admm
 SE/regtest-3
 QS/regtest-gpw-2

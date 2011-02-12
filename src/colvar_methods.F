@@ -33,13 +33,16 @@ MODULE colvar_methods
                                              parser_create,&
                                              parser_release
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_p_type,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_get_natom,&
-                                             force_env_type
-  USE fparser,                         ONLY: evalf,&
+                                             force_env_type,&
+                                             use_mixed_force
+  USE force_fields_util,               ONLY: get_generic_info
+  USE fparser,                         ONLY: EvalErrType,&
+                                             evalf,&
                                              evalfd,&
                                              finalizef,&
                                              initf,&
@@ -68,8 +71,13 @@ MODULE colvar_methods
                                              maxfac,&
                                              pi
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_sync
+  USE mixed_energy_types,              ONLY: mixed_force_type
+  USE mixed_environment_utils,         ONLY: get_subsys_map_index
   USE molecule_kind_types,             ONLY: fixd_constraint_type
-  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_list_types,             ONLY: particle_list_p_type,&
+                                             particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE rmsd,                            ONLY: rmsd3
   USE spherical_harmonics,             ONLY: dlegendre,&
@@ -127,7 +135,8 @@ CONTAINS
       iw, iw1, j, k, kk, n_var, n_var_k, ncol, ndim, nr_frame, stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check, failure, &
+                                                use_mixed_energy
     LOGICAL, DIMENSION(19)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
@@ -925,6 +934,9 @@ CPSourceFileRef)
        ! Energy
        wrk_section => u_section
        CALL colvar_create(colvar, u_colvar_id, error)
+       colvar%u_param%mixed_energy_section => section_vals_get_subs_vals(wrk_section,"MIXED",error=error)
+       CALL section_vals_get(colvar%u_param%mixed_energy_section,explicit=use_mixed_energy,error=error)
+       IF (.NOT.use_mixed_energy) NULLIFY(colvar%u_param%mixed_energy_section)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -1261,7 +1273,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: colvar_ok, failure
-    REAL(KIND=dp)                            :: potential_energy
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1314,9 +1325,7 @@ CPSourceFileRef)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (u_colvar_id)
-          CALL force_env_get(force_env,potential_energy=potential_energy,error=error)
-          CALL u_colvar(colvar,force_env=force_env,&
-               potential_energy=potential_energy,error=error)
+          CALL u_colvar(colvar,force_env=force_env,subsys=subsys,error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1613,45 +1622,191 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the energy as collective variable
 !> \author Sebastiano Caravati
+!> \par History Modified to allow functions of energy in a mixed_env environment
+!>              Teodoro Laino [tlaino] - 02.2011
 ! *****************************************************************************
-  SUBROUTINE u_colvar(colvar,force_env,potential_energy,error)
+  SUBROUTINE u_colvar(colvar,force_env,subsys,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: potential_energy
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'u_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, iatyp, ityp, natom
+    CHARACTER(LEN=default_path_length)       :: coupling_function
+    CHARACTER(LEN=default_string_length)     :: def_error, this_error
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: parameters
+    INTEGER                                  :: iatom, iforce_eval, &
+                                                iparticle, jparticle, natom, &
+                                                natom_iforce, nforce_eval, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: fi(3)
+    REAL(dp)                                 :: dedf, dx, err, fi(3), lerr, &
+                                                potential_energy
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: values
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: subsystems
+    TYPE(cp_subsys_type), POINTER            :: subsys_main
+    TYPE(mixed_force_type), DIMENSION(:), &
+      POINTER                                :: global_forces
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles
+    TYPE(particle_list_type), POINTER        :: particles_main
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                mapping_section, wrk_section
 
     failure = .FALSE.
-    natom = force_env_get_natom(force_env,error)
-
-    IF (PRESENT(force_env) .AND. PRESENT(potential_energy)) THEN
+    IF (PRESENT(force_env)) THEN
+       NULLIFY(particles_main, subsys_main)
+       CALL force_env_get(force_env=force_env,subsys=subsys_main, error=error)
+       CALL cp_subsys_get(subsys=subsys_main, particles=particles_main,error=error)
+       natom = SIZE(particles_main%els)
        colvar%n_atom_s      = natom
        colvar%u_param%natom = natom
-       colvar%ss            = potential_energy
-
        CALL reallocate(colvar%i_atom,  1,natom)
        CALL reallocate(colvar%dsdr,1,3,1,natom)
-       iatom=0
-       DO ityp=1,SIZE(force_env%qs_env%force)
-          DO iatyp=1,SIZE(force_env%qs_env%force(ityp)%total)/3
-             fi(:)=force_env%qs_env%force(ityp)%total(:,iatyp)
-             iatom=iatom+1
-             colvar%i_atom(iatom)=iatom
+       DO iatom=1,natom
+          colvar%i_atom(iatom)=iatom
+       ENDDO
+
+       IF (.NOT.ASSOCIATED(colvar%u_param%mixed_energy_section)) THEN
+          CALL force_env_get(force_env,potential_energy=potential_energy,error=error)
+          colvar%ss            = potential_energy
+
+          DO iatom=1,natom
+             ! store derivative
+             fi(:)=-particles_main%els(iatom)%f
              CALL put_derivative(colvar, iatom, fi)
           ENDDO
-       ENDDO
-       CPPostcondition(iatom==natom,cp_fatal_level,routineP,error,failure)
+       ELSE
+          CALL cp_assert(force_env%in_use==use_mixed_force,cp_fatal_level,-300,routineP,&
+               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+               ' A combination of mixed force_eval energies has been requested as '//&
+               ' collective variable, but the MIXED env is not in use! Aborting.',&
+               error=error,only_ionode=.TRUE.)
+          CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
+          mapping_section => section_vals_get_subs_vals(force_env_section,"MIXED%MAPPING",error=error)
+          NULLIFY(values, parameters, subsystems, particles, global_forces, map_index, glob_natoms)
+          nforce_eval = SIZE(force_env%sub_force_env)
+          ALLOCATE(glob_natoms(nforce_eval), stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(subsystems(nforce_eval), stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(particles(nforce_eval), stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! Local Info to sync
+          ALLOCATE(global_forces(nforce_eval), stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+          glob_natoms=0
+          DO iforce_eval = 1, nforce_eval
+             NULLIFY(subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
+             IF (.NOT.ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+             ! Get all available subsys
+             CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
+                                subsys=subsystems(iforce_eval)%subsys,error=error)
+             ! Get available particles
+             CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys,&
+                                particles=particles(iforce_eval)%list,error=error)
+
+             ! Get Mapping index array
+             natom_iforce = SIZE(particles(iforce_eval)%list%els)
+
+             ! Only the rank 0 process collect info for each computation
+             IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
+                  force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+                glob_natoms(iforce_eval) = natom_iforce
+             END IF
+          END DO
+
+          ! Handling Parallel execution
+          CALL mp_sync(force_env%para_env%group)
+          CALL mp_sum(glob_natoms, force_env%para_env%group)
+
+          ! Transfer forces
+          DO iforce_eval = 1, nforce_eval
+             ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             global_forces(iforce_eval)%forces = 0.0_dp
+             IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
+                IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
+                     force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+                   ! Forces
+                   DO iparticle = 1, glob_natoms(iforce_eval)
+                      global_forces(iforce_eval)%forces(:,iparticle) = &
+                           particles(iforce_eval)%list%els(iparticle)%f
+                   END DO
+                END IF
+             END IF
+             CALL mp_sum(global_forces(iforce_eval)%forces, force_env%para_env%group)
+          END DO
+
+          wrk_section => colvar%u_param%mixed_energy_section
+          ! Support any number of force_eval sections
+          CALL get_generic_info(wrk_section, "ENERGY_FUNCTION", coupling_function, parameters,&
+               values, force_env%mixed_env%energies, error=error)
+          CALL initf(1)
+          CALL parsef(1,TRIM(coupling_function),parameters)
+          ! Store the value of the COLVAR
+          colvar%ss = evalf(1,values)
+          CPPrecondition(EvalErrType<=0,cp_failure_level,routineP,error,failure)
+
+          DO iforce_eval = 1, nforce_eval
+             CALL section_vals_val_get(wrk_section,"DX",r_val=dx,error=error)
+             CALL section_vals_val_get(wrk_section,"ERROR_LIMIT",r_val=lerr,error=error)
+             dedf = evalfd(1,iforce_eval,values,dx,err)
+             IF (ABS(err)>lerr) THEN
+                WRITE(this_error,"(A,G12.6,A)")"(",err,")"
+                WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
+                CALL compress(this_error,.TRUE.)
+                CALL compress(def_error,.TRUE.)
+                CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                     'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+                     ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
+                     TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
+             END IF
+             ! General Mapping of forces...
+             ! First: Get Mapping index array
+             CALL get_subsys_map_index(mapping_section, glob_natoms(iforce_eval), iforce_eval,&
+                                       nforce_eval, map_index, error)
+
+             ! Second: store derivatives
+             DO iparticle = 1, glob_natoms(iforce_eval)
+                jparticle = map_index(iparticle)
+                fi= - dedf * global_forces(iforce_eval)%forces(:,iparticle)
+                CALL put_derivative(colvar, jparticle, fi)
+             END DO
+             ! Deallocate map_index array
+             IF (ASSOCIATED(map_index)) THEN
+                DEALLOCATE(map_index, stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+          END DO
+          CALL finalizef()
+          DO iforce_eval = 1, nforce_eval
+             DEALLOCATE(global_forces(iforce_eval)%forces,stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          END DO
+          DEALLOCATE(glob_natoms, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(values, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(parameters, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(global_forces, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(subsystems, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(particles, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     ELSE
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="need force_env!", error=error, error_level=cp_failure_level)
     ENDIF
-
   END SUBROUTINE u_colvar
 
 ! *****************************************************************************

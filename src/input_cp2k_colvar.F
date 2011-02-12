@@ -967,6 +967,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -977,6 +979,58 @@ CONTAINS
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
+       NULLIFY(subsection, keyword)
+       CALL section_create(subsection,name="MIXED",&
+            description="This section allows to use any function of the energy subsystems "//&
+                        " in a mixed_env calculation as a collective variable.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="ENERGY_FUNCTION",&
+            description="Specifies the functional form of the collective variable in mathematical notation.",&
+            usage="ENERGY_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=lchar_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VARIABLES",&
+            description="Defines the variables of the functional form. To allow an efficient"//&
+            " mapping the order of the energy variables will be considered identical to the"//&
+            " order of the force_eval in the force_eval_order list.",&
+            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PARAMETERS",&
+            description="Defines the parameters of the functional form",&
+            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, repeats=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VALUES",&
+            description="Defines the values of  parameter of the functional form",&
+            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DX",&
+            description="Parameter used for computing the derivative with the Ridders method.",&
+            usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ERROR_LIMIT",&
+            description="Checks that the error in computing the derivative is not larger than "//&
+            "the value set. In case prints a warning message.",&
+            usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_colvar_u_section
