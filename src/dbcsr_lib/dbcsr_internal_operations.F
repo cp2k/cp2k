@@ -1487,10 +1487,10 @@ CONTAINS
     ! Global -> local mapping for product & right matrix columns.
     IF (local_cols) THEN
        dist = right%dist
+       !$OMP CRITICAL (critical_right_col_map)
        CALL dbcsr_get_col_map(dist,&
             right_col_map_obj,&
             error=error)
-       !$OMP CRITICAL (critical_right_col_map)
        CALL array_hold (right_col_map_obj)
        !$OMP END CRITICAL (critical_right_col_map)
        right_col_map => array_data (right_col_map_obj)
