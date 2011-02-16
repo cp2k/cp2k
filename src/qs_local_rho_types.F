@@ -151,18 +151,18 @@ MODULE qs_local_rho_types
     DO ikind = 1,nkind
       DEALLOCATE(rhoz_set(ikind)%r_coef,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "rhoz_set%r_coef")
+                                       "rhoz_set%r_coef")
       DEALLOCATE(rhoz_set(ikind)%dr_coef,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "rhoz_set%dr_coef")
+                                       "rhoz_set%dr_coef")
       DEALLOCATE(rhoz_set(ikind)%vr_coef,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "rhoz_set%vr_coef")
+                                       "rhoz_set%vr_coef")
     END DO
 
     DEALLOCATE(rhoz_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                     "rhoz_set")
+                                     "rhoz_set")
 
   END SUBROUTINE  deallocate_rhoz
 

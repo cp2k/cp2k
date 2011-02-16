@@ -24,7 +24,8 @@ MODULE qs_rho0_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
   USE memory_utilities,                ONLY: reallocate
@@ -636,19 +637,23 @@ MODULE qs_rho0_methods
                         zet0_h=z0_h, norm_g0l_h=ng0_h,&
                         max_rpgf0_s=rp0)
 
-    ALLOCATE(vv(ncoset(maxlgto),ncoset(maxlgto),ncoset(lmax_0),&
-         maxlgto+maxlgto+lmax_0+1),STAT=istat)
+    ALLOCATE (vv(ncoset(maxlgto),ncoset(maxlgto),ncoset(lmax_0),&
+              maxlgto+maxlgto+lmax_0+1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "vv")
-    ALLOCATE(ff(0:maxlgto+maxlgto+lmax_0),STAT=istat)
+                                     "vv",&
+                                     dp_size*ncoset(maxlgto)*ncoset(maxlgto)*&
+                                     ncoset(lmax_0)*(maxlgto+maxlgto+lmax_0+1))
+    ALLOCATE (ff(0:maxlgto+maxlgto+lmax_0),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "ff")
+                                     "ff",&
+                                     dp_size*(maxlgto+maxlgto+lmax_0+1))
 
     nco0 = ncoset(lmax_0)
     nso0 = nsoset(lmax_0)
-    ALLOCATE(Qlm(nco0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Qlm")
-    Qlm= 0.0_dp
+    ALLOCATE (Qlm(nco0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "Qlm",dp_size*nco0)
+    Qlm = 0.0_dp
 
     orb_rad => rho0_mpole%orb_radius_3c
     set_rad => rho0_mpole%set_radius_3c
@@ -676,15 +681,17 @@ MODULE qs_rho0_methods
                              zet=zeta)
       orb_rad(ikind) = 0.0_dp
       set_rad(:,ikind) = 0.0_dp
-      ALLOCATE(r_cut_set(nseta),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"r_cut_set")
+      ALLOCATE (r_cut_set(nseta),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "r_cut_set",dp_size*nseta)
       r_cut_set = 0.0_dp
 
       DO iset = 1,nseta
 
         ncoa = npgfa(iset)*ncoset(la_max(iset))
         ALLOCATE(int_tmp(ncoa,ncoa,nco0),int_abc(ncoa,2,nco0),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"int_tmp")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "int_tmp")
         int_abc = 0.0_dp
 
         ALLOCATE(vabc(ncoa,ncoa),STAT=istat)

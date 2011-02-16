@@ -16,7 +16,8 @@
 MODULE cube_utils
 
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE mathlib,                         ONLY: matvec_3x3
   USE realspace_grid_types,            ONLY: realspace_grid_type
   USE termination,                     ONLY: stop_memory,&
@@ -161,24 +162,29 @@ CONTAINS
   SUBROUTINE destroy_cube_info(info)
     TYPE(cube_info_type)                     :: info
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'destroy_cube_info', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_cube_info', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat
 
     IF (info%orthorhombic) THEN
         DEALLOCATE (info%lb_cube,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"info%lb_cube")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "info%lb_cube")
         DEALLOCATE (info%ub_cube,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"info%ub_cube")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "info%ub_cube")
         DEALLOCATE (info%sphere_bounds_count,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds_count")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "info%sphere_bounds_count")
         DO i=1,info%max_radius
           DEALLOCATE (info%sphere_bounds(i)%p,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds(i)%p")
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "info%sphere_bounds(i)%p")
         END DO
         DEALLOCATE (info%sphere_bounds,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "info%sphere_bounds")
     ELSE
         ! no info to be deallocated
     ENDIF
@@ -193,7 +199,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: ortho
     REAL(KIND=dp), INTENT(IN)                :: max_radius
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_cube_info', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cube_info', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: check_1, check_2, handle, i, &
@@ -260,7 +266,9 @@ CONTAINS
           ENDDO
           info%sphere_bounds_count(i)=k-1
           ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds(i)%p",0)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "info%sphere_bounds(i)%p",&
+                                           int_size*info%sphere_bounds_count(i))
         ENDDO
 
 !       init sphere_bounds array

@@ -13,7 +13,8 @@ MODULE qs_energy_types
 
   USE f77_blas
   USE kinds,                           ONLY: dp,&
-                                             dp_size
+                                             dp_size,&
+                                             int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -91,7 +92,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     IF (.NOT.ASSOCIATED(qs_energy)) THEN
       ALLOCATE (qs_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"qs_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "qs_energy",int_size)
       NULLIFY (qs_energy%ddapc_restraint)
     END IF
 
@@ -117,10 +119,11 @@ CONTAINS
     IF (ASSOCIATED(qs_energy)) THEN
       IF (ASSOCIATED(qs_energy%ddapc_restraint)) THEN
         DEALLOCATE (qs_energy%ddapc_restraint,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"qs_energy%ddapc_restraint")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "qs_energy%ddapc_restraint")
       END IF
       DEALLOCATE (qs_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"qs_energy")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qs_energy")
     ELSE
       CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
                                  "and cannot be deallocated")
@@ -173,7 +176,8 @@ CONTAINS
       IF (.NOT.ASSOCIATED(qs_energy%ddapc_restraint)) THEN
         ALLOCATE (qs_energy%ddapc_restraint(1),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routineP,"qs_energy%ddapc_restraint",dp_size)
+          CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "qs_energy%ddapc_restraint",dp_size)
         END IF
       END IF
       qs_energy%ddapc_restraint(:) = 0.0_dp
@@ -254,11 +258,13 @@ CONTAINS
       qs_energy_out%total           = qs_energy_in%total
       IF (SIZE(qs_energy_in%ddapc_restraint) /= 1) THEN
         DEALLOCATE (qs_energy_out%ddapc_restraint,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"qs_energy%ddapc_restraint")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "qs_energy%ddapc_restraint")
         ALLOCATE (qs_energy_out%ddapc_restraint(SIZE(qs_energy_in%ddapc_restraint)),&
                   STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routineP,"qs_energy%ddapc_restraint",&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "qs_energy%ddapc_restraint",&
                            SIZE(qs_energy_in%ddapc_restraint)*dp_size)
         END IF
       END IF

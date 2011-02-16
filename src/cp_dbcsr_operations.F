@@ -81,6 +81,7 @@ MODULE cp_dbcsr_operations
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp,&
+                                             int_size,&
                                              sp
   USE message_passing,                 ONLY: mp_bcast
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -164,7 +165,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy_columns_hack', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_copy_columns_hack', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nfullcols_total, &
@@ -275,7 +276,7 @@ CONTAINS
       routineN = 'cp_dbcsr_alloc_block_from_nbl', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=1)                         :: symmetry
+    CHARACTER(LEN=1)                         :: symmetry
     INTEGER                                  :: blk_cnt, handle, iatom, icol, &
                                                 inode, irow, jatom, last_jatom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows, tmp
@@ -363,7 +364,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: pkd
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_vec', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, nblkcols_total, node, &
@@ -427,7 +428,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd_c
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mult_pack_vec_local', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_mult_pack_vec_local', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: b_col_size, blk, c_offset, &
@@ -497,7 +498,7 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, my_ncol, row, &
@@ -575,7 +576,7 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha, beta
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_sm_fm_multiply', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_sm_fm_multiply', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k_in, k_out, timing_handle, &
@@ -696,7 +697,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_plus_fm_fm_t_native', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_plus_fm_fm_t_native', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k, nao, timing_handle
@@ -844,7 +845,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: what
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_pack_vec', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_pack_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, col_size, &
@@ -931,7 +932,7 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: do_sum
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_unpack_vec', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_unpack_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: col, col_size, mynode, nblkcols_total, nblkrows_total, node, &
@@ -1013,7 +1014,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: side
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_scale', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_scale', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iblk, k, m, n, offset
@@ -1070,7 +1071,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v, pkd_u
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_bif_tech', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_bif_tech', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, col, col_size, k_row, k_row_size, offset, row, row_size, &
@@ -1163,7 +1164,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: vec_blk_size
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_build_u', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_build_u', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, i_blk_size, k_blk_size, &
@@ -1204,7 +1205,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_bif_tech2', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_bif_tech2', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, col_size, k_row, &
@@ -1278,7 +1279,7 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_alltoall', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_alltoall', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: inode, irow, mp_group, &
@@ -1367,7 +1368,7 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_bcast', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_bcast', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icol, inode, irow, mp_group, &
@@ -1460,7 +1461,7 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_reduce', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_reduce', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icol, irow, mp_group, mynode, &
@@ -1534,7 +1535,7 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: do_summation
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_add', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_add', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_offset, a_offset_last, &
@@ -1596,11 +1597,11 @@ CONTAINS
   SUBROUTINE cp_dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
-    CHARACTER(len=*), INTENT(in)             :: what
+    CHARACTER(LEN=*), INTENT(in)             :: what
     INTEGER, INTENT(IN)                      :: ivec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy_vec', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_copy_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, row, timing_handle
@@ -1656,7 +1657,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_block_node', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_add_block_node', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c, ithread, p, r
@@ -1713,7 +1714,7 @@ FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_id_nr', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_get_id_nr', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -1737,7 +1738,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_deallocate_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_deallocate_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
@@ -1775,14 +1776,15 @@ END FUNCTION cp_dbcsr_get_id_nr
     INTEGER, INTENT(IN)                      :: nmatrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat
 
     IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
     ALLOCATE (matrix_set(nmatrix),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "matrix_set",int_size*nmatrix)
     DO imatrix=1,nmatrix
        NULLIFY (matrix_set(imatrix)%matrix)
        !ALLOCATE (matrix_set(imatrix)%matrix)
@@ -1804,14 +1806,15 @@ END FUNCTION cp_dbcsr_get_id_nr
     INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat, jmatrix
 
     IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
     ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "matrix_set",int_size*nmatrix*mmatrix)
     DO jmatrix=1,mmatrix
       DO imatrix=1,nmatrix
          NULLIFY (matrix_set(imatrix,jmatrix)%matrix)
@@ -1835,7 +1838,7 @@ END FUNCTION cp_dbcsr_get_id_nr
       POINTER                                :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat, timing_handle
@@ -1847,7 +1850,7 @@ END FUNCTION cp_dbcsr_get_id_nr
         CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"matrix_set")
     END IF
 
     CALL timestop(timing_handle)
@@ -1867,7 +1870,7 @@ END FUNCTION cp_dbcsr_get_id_nr
       POINTER                                :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
+    CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'deallocate_dbcsr_matrix_set_2d', &
       routineP = moduleN//':'//routineN
 
@@ -1880,7 +1883,7 @@ END FUNCTION cp_dbcsr_get_id_nr
         END DO
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"matrix_set")
     END IF
   END SUBROUTINE deallocate_dbcsr_matrix_set_2d
 
@@ -1893,7 +1896,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CHARACTER, INTENT(OUT)                   :: dbcsr_matrix_type
     CHARACTER(LEN=*), INTENT(IN)             :: sm_symmetry
 
-    CHARACTER(len=*), PARAMETER :: &
+    CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'cp_dbcsr_type_from_sm_symmetry', &
       routineP = moduleN//':'//routineN
 
@@ -1932,7 +1935,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_from_fm', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_from_fm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle

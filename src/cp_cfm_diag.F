@@ -13,7 +13,9 @@
 MODULE cp_cfm_diag
   USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -28,6 +30,11 @@ PUBLIC :: cp_cfm_heevd
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief Perform a diagonalisation of a complex matrix
+!> \par History
+!>      - (De)Allocation checks updated (15.02.2011,MK)
+!> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE cp_cfm_heevd(matrix,eigenvectors,eigenvalues,error)
 
@@ -55,9 +62,13 @@ CONTAINS
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
-    ALLOCATE(iwork(1),work(1),rwork(1),STAT=istat)
-    IF (istat.NE.0) CALL stop_memory(routineN,"iwork")
-! work space query
+    ALLOCATE (iwork(1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork",int_size)
+    ALLOCATE (rwork(1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork",dp_size)
+    ALLOCATE (work(1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work",2*dp_size)
+    ! work space query
     lwork  = -1
     lrwork = -1
     liwork = -1
@@ -66,33 +77,54 @@ CONTAINS
     v => eigenvectors%local_data
     descm(:) = matrix%matrix_struct%descriptor(:)
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
-    CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+    CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv,&
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    lwork=work(1)
-    lrwork=rwork(1)+1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
-    liwork=iwork(1)
-    DEALLOCATE(work,iwork,rwork)
-    ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
-    IF (istat.NE.0) CALL stop_memory(routineN,"work")
-    iwork=0;work=CMPLX(0._dp,0._dp,dp);rwork=0._dp;
-    CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+    lwork  = work(1)
+    lrwork = rwork(1) + 1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
+    liwork = iwork(1)
+#else
+    CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1),&
+                work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+    lwork  = work(1)
+    lrwork = rwork(1)
+    liwork = iwork(1)
+#endif
+
+    DEALLOCATE (iwork,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
+    DEALLOCATE (rwork,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork")
+    DEALLOCATE (work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    ALLOCATE (iwork(liwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork",int_size*liwork)
+    iwork(:) = 0
+    ALLOCATE (rwork(lrwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork",dp_size*lrwork)
+    rwork(:) = 0.0_dp
+    ALLOCATE (work(lwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work",2*dp_size*lwork)
+    work(:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+
+#if defined(__SCALAPACK)
+    CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv,&
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
 #else
     CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
-                  work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    lwork=work(1)
-    lrwork=rwork(1)
-    liwork=iwork(1)
-    DEALLOCATE(work,iwork,rwork)
-    ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
-    IF (istat.NE.0) CALL stop_memory(routineN,"work")
-    CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
-                  work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    eigenvectors%local_data=matrix%local_data
+                work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+    eigenvectors%local_data = matrix%local_data
 #endif
 
-    IF (info.NE.0) CALL stop_program("cp_cfm_heevd","unable to diagonalize matrix")
-    DEALLOCATE(work,iwork,rwork)
+    IF (info /= 0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"Diagonalisation complex matrix failed")
+    END IF
+    DEALLOCATE (iwork,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
+    DEALLOCATE (rwork,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork")
+    DEALLOCATE (work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+
     CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_heevd

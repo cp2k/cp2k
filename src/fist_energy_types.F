@@ -56,7 +56,8 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(fist_energy)) THEN
       ALLOCATE (fist_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"fist_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "fist_energy",8*dp_size)
     END IF
 
     CALL init_fist_energy(fist_energy)
@@ -79,10 +80,11 @@ CONTAINS
 
     IF (ASSOCIATED(fist_energy)) THEN
       DEALLOCATE (fist_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"fist_energy")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fist_energy")
     ELSE
-      CALL stop_program(routineP,"The fist_energy pointer is not associated "//&
-                                "and cannot be deallocated")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The fist_energy pointer is not associated "//&
+                        "and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_fist_energy
@@ -110,8 +112,9 @@ CONTAINS
       fist_energy%kin_shell = 0.0_dp
       fist_energy%harm_shell = 0.0_dp
     ELSE
-      CALL stop_program(routineP,"The fist_energy pointer is not associated "//&
-                                "and cannot be initialised")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The fist_energy pointer is not associated "//&
+                        "and cannot be initialised")
     END IF
 
   END SUBROUTINE init_fist_energy

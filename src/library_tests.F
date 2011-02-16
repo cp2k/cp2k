@@ -61,7 +61,8 @@ MODULE library_tests
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -127,7 +128,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'lib_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lib_test', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
@@ -233,7 +234,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'test_input', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'test_input', &
       routineP = moduleN//':'//routineN
 
     TYPE(section_vals_type), POINTER         :: test_section
@@ -270,7 +271,7 @@ CONTAINS
     INTEGER                                  :: iw
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
-    CHARACTER(len=*), PARAMETER :: routineN = 'copy_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_test', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: perf, t, tend, tstart
@@ -312,9 +313,9 @@ CONTAINS
        END IF
 
        DEALLOCATE ( ca , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ca")
        DEALLOCATE ( cb , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cb")
     END DO
     CALL mp_sync(para_env%group)
   END SUBROUTINE copy_test
@@ -331,7 +332,7 @@ CONTAINS
     INTEGER                                  :: iw
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
-    CHARACTER(len=*), PARAMETER :: routineN = 'matmul_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'matmul_test', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
@@ -427,11 +428,11 @@ CONTAINS
        END IF
 
        DEALLOCATE ( ma , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ma" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
        DEALLOCATE ( mb , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mb" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
        DEALLOCATE ( mc , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
     END DO
 
     ! test for matrix multpies
@@ -524,13 +525,15 @@ CONTAINS
        END IF
 
        DEALLOCATE ( ma , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ma" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
        DEALLOCATE ( mb , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mb" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
        DEALLOCATE ( mc , STAT = ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
     END DO
+
     CALL mp_sync(para_env%group)
+
   END SUBROUTINE matmul_test
 
 ! *****************************************************************************
@@ -550,7 +553,7 @@ CONTAINS
                                                 ndate( 3 ) = (/ 12, 48, 96 /),&
                                                 ntim, radix_in, radix_out, &
                                                 siz, stat
-    CHARACTER(len=*), PARAMETER :: routineN = 'fft_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_test', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
@@ -623,9 +626,13 @@ CONTAINS
              n = len
              IF ( 16.0_dp * REAL ( len*len*len,KIND=dp) > max_memory * 0.5_dp ) EXIT
              ALLOCATE ( ra ( len, len, len ), STAT = ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
+             IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                             "ra",dp_size*len*len*len)
              ALLOCATE ( ca ( len, len, len ), STAT = ierr )
-             IF ( ierr == 0 ) THEN
+             IF (ierr /= 0) THEN
+                CALL stop_memory(routineN,moduleN,__LINE__,&
+                                 "ca",2*dp_size*len*len*len)
+             ELSE
                 CALL RANDOM_NUMBER ( ra )
                 ca = ra
                 CALL RANDOM_NUMBER ( ra )
@@ -653,9 +660,9 @@ CONTAINS
                         ADJUSTR(method)," test (in-place)    Size = ",len, perf," Mflop/s"
                 END IF
                 DEALLOCATE ( ca , STAT = ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+                IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ca")
                 DEALLOCATE ( ra , STAT = ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
+                IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ra")
              END IF
           END DO
           IF ( para_env%ionode ) WRITE ( iw, * )
@@ -663,14 +670,17 @@ CONTAINS
           len = 24
           n = len
           ALLOCATE ( ra ( len, len, len ), STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "ra",dp_size*len*len*len)
           ALLOCATE ( ca ( len, len, len ), STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca", len*len*len )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "ca",2*dp_size*len*len*len)
           ALLOCATE ( cb ( len, len, len ), STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb", len*len*len )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "cb",2*dp_size*len*len*len)
           ALLOCATE ( cc ( len, len, len ), STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc", len*len*len )
-
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "cc",2*dp_size*len*len*len)
           CALL RANDOM_NUMBER ( ra )
           ca = ra
           CALL RANDOM_NUMBER ( ra )
@@ -702,13 +712,13 @@ CONTAINS
           IF ( para_env%ionode ) WRITE ( iw, * )
 
           DEALLOCATE ( ra , STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ra")
           DEALLOCATE ( ca , STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ca")
           DEALLOCATE ( cb , STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cb")
           DEALLOCATE ( cc , STAT = ierr )
-          IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc" )
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cc")
        END IF
     END DO
 
@@ -728,7 +738,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: rs_pw_transfer_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, halo_size, handle, &
@@ -842,7 +852,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: pw_transfer_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_fft_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_fft_test', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
@@ -1064,7 +1074,7 @@ CONTAINS
 
     INTEGER                                  :: comm
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mpi_perf_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mpi_perf_test', &
       routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
@@ -1433,7 +1443,7 @@ CONTAINS
     REAL(KIND=KIND(0.0E0_dp))                :: buf1(*), buf2(*)
     INTEGER                                  :: N
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'simple_copy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'simple_copy', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I
@@ -1454,7 +1464,7 @@ CONTAINS
     INTEGER                                  :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rng_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_test', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
@@ -1566,7 +1576,7 @@ CONTAINS
     LOGICAL                                  :: blacs_repeatable
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'eigensolver_test', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: diag_method, group, i, i_loop, i_rep, init_method, j, n, &
@@ -1804,7 +1814,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_gemm_test', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_gemm_test', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: transa, transb
@@ -1947,7 +1957,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_tests', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_tests', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: transa, transb

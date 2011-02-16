@@ -68,6 +68,7 @@ MODULE qs_integrate_potential
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
+                                             dp_size,&
                                              int_8
   USE mathconstants,                   ONLY: fac
   USE memory_utilities,                ONLY: reallocate
@@ -381,8 +382,12 @@ CONTAINS
       
     IF(.NOT. skip_fcore) THEN 
         NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
-        ALLOCATE(hab(1,1),pab(1,1),STAT=stat)
-        IF(stat/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
+        ALLOCATE (hab(1,1),STAT=stat)
+        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "hab",dp_size)
+        ALLOCATE (pab(1,1),STAT=stat)
+        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "pab",dp_size)
      
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
@@ -478,10 +483,17 @@ CONTAINS
      
         CALL rs_grid_release(rs_v, error=error)
      
-        DEALLOCATE(hab,pab,cores,STAT=stat)
-        IF(stat /= 0) CALL stop_memory("integrate_v_core_rspace",&
-                      "hab,pab,cores")
+        DEALLOCATE (hab,STAT=stat)
+        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hab")
+
+        DEALLOCATE (pab,STAT=stat)
+        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+
+        DEALLOCATE (cores,STAT=stat)
+        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
+
     END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE integrate_v_core_rspace

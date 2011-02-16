@@ -1024,7 +1024,7 @@ CONTAINS
       ALLOCATE (mos(dft_control%nspins),STAT=istat)
       IF (istat /= 0) THEN
          CALL stop_memory(routineN,moduleN,__LINE__,&
-              "mos",dft_control%nspins*int_size)
+                          "mos",dft_control%nspins*int_size)
       END IF
       DO ispin=1,dft_control%nspins
          NULLIFY (mos(ispin)%mo_set)
@@ -1049,7 +1049,7 @@ CONTAINS
       ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
       IF (istat /= 0) THEN
          CALL stop_memory(routineN,moduleN,__LINE__,&
-              "mos_aux_fit",dft_control%nspins*int_size)
+                          "mos_aux_fit",dft_control%nspins*int_size)
       END IF
 
       DO ispin=1,dft_control%nspins

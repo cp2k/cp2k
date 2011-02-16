@@ -87,7 +87,7 @@ CONTAINS
     IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set,error=error)
 
     ALLOCATE (oce_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"oce_set",0)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"oce_set",0)
 
     NULLIFY(oce_set%intac)
 
@@ -113,7 +113,8 @@ CONTAINS
     IF(ASSOCIATED(oce_set%intac)) CALL release_sap_int(oce_set%intac,error=error)
 
     DEALLOCATE (oce_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"deallocate_oce_set",0)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "deallocate_oce_set",0)
 
   END SUBROUTINE deallocate_oce_set
 

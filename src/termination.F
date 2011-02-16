@@ -21,10 +21,10 @@ MODULE termination
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
-  USE machine,                         ONLY: default_output_unit,&
-                                             m_flush_internal,&
+  USE machine,                         ONLY: m_flush_internal,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
@@ -38,8 +38,6 @@ MODULE termination
 
   PRIVATE
 
-! *** Global parameters ***
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
 
   INTEGER :: error_unit
@@ -50,12 +48,11 @@ MODULE termination
             stop_program
 
   INTERFACE stop_memory
-     MODULE PROCEDURE stop_allocate,stop_allocate_new,&
-                      stop_deallocate,stop_deallocate_new
+    MODULE PROCEDURE stop_allocate,stop_deallocate
   END INTERFACE
 
   INTERFACE stop_program
-     MODULE PROCEDURE stop_program_new,stop_program_old
+    MODULE PROCEDURE stop_program_new,stop_program_old
   END INTERFACE
 
 CONTAINS
@@ -69,7 +66,7 @@ CONTAINS
   SUBROUTINE set_error_unit(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_error_unit', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_error_unit', &
       routineP = moduleN//':'//routineN
 
     error_unit = lunit
@@ -87,59 +84,27 @@ CONTAINS
 !>      CP2K by JGH 21.08.2000
 !> \author Matthias Krack (12.10.1999)
 ! *****************************************************************************
-  SUBROUTINE stop_allocate(routine,array,memory)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routine, array
-    INTEGER, INTENT(IN)                      :: memory
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'stop_allocate', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=240)                       :: message
-
-! just in case there is not enough memory do even trim... and fail with
-! with a mystery core dump
-
-    WRITE(default_output_unit,*) "Out of memory ..."
-    CALL m_flush_internal(default_output_unit)
-    IF (memory == 0) THEN
-      WRITE (message,"(A)")&
-        "The memory allocation for the data object <"//TRIM(array)//"> failed"
-    ELSE
-      WRITE (message,"(A,I12,A)")&
-        "The memory allocation for the data object <"//TRIM(array)//&
-        "> failed. The requested memory size is ",memory/1024," Kbytes"
-    END IF
-
-    CALL compress(message)
-
-    CALL stop_program(routine,message)
-
-  END SUBROUTINE stop_allocate
-
-! *****************************************************************************
-  SUBROUTINE stop_allocate_new(routineN,moduleN,line_number,object,memory)
+  SUBROUTINE stop_allocate(routineN,moduleN,line_number,object,memory)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
     INTEGER, INTENT(IN)                      :: memory
 
-    CHARACTER(LEN=240)                       :: message
+    CHARACTER(LEN=default_path_length)       :: message
 
     IF (memory == 0) THEN
       message = "The memory allocation for the data object <"//TRIM(object)//&
                 "> failed"
     ELSE
-      WRITE (message,"(A,I12,A)")&
+      WRITE (message,"(A,I0,A)")&
         "The memory allocation for the data object <"//TRIM(object)//&
-        "> failed. The requested memory size is ",memory/1024," Kbytes"
-      CALL compress(message)
+        "> failed. The requested memory size is ",memory/1024," KB"
     END IF
 
-    CALL stop_program(routineN,moduleN,line_number,message)
+    CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
 
-  END SUBROUTINE stop_allocate_new
+  END SUBROUTINE stop_allocate
 
 ! *****************************************************************************
 !> \brief The memory deallocation for an array failed. Print an error message and
@@ -151,37 +116,20 @@ CONTAINS
 !>      CP2K by JGH 21.08.2000
 !> \author Matthias Krack (20.10.1999)
 ! *****************************************************************************
-  SUBROUTINE stop_deallocate(routine,array)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routine, array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'stop_deallocate', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=240)                       :: message
-
-    WRITE (message,"(A)")&
-      "The memory deallocation for the data object <"//TRIM(array)//"> failed"
-
-    CALL stop_program(routine,message)
-
-  END SUBROUTINE stop_deallocate
-
-! *****************************************************************************
-  SUBROUTINE stop_deallocate_new(routineN,moduleN,line_number,object)
+  SUBROUTINE stop_deallocate(routineN,moduleN,line_number,object)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
 
-    CHARACTER(LEN=240)                       :: message
+    CHARACTER(LEN=default_path_length)       :: message
 
     message = "The memory deallocation for the data object <"//TRIM(object)//&
               "> failed"
 
     CALL stop_program(routineN,moduleN,line_number,message)
 
-  END SUBROUTINE stop_deallocate_new
+  END SUBROUTINE stop_deallocate
 
 ! *****************************************************************************
 !> \brief Stop the program run and write an error message.
@@ -197,7 +145,7 @@ CONTAINS
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'stop_program_old', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_program_old', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: ionode
@@ -208,10 +156,10 @@ CONTAINS
       ionode = .TRUE.
     END IF
 
-!   *** Print the error message ***
+    ! Print the error message
 
     IF (ionode) THEN
-      CALL print_message("ERROR in "//TRIM(routine),error_unit,2,2,0)
+      CALL print_message("ERROR in "//TRIM(ADJUSTL(routine)),error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,1)
       CALL print_stack(error_unit)
       CALL m_flush_internal(error_unit)
@@ -229,7 +177,7 @@ CONTAINS
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
 
-    CHARACTER(LEN=80)                        :: message
+    CHARACTER(LEN=2*default_path_length)     :: message
     LOGICAL                                  :: ionode
 
     IF (PRESENT(para_env)) THEN
@@ -238,7 +186,7 @@ CONTAINS
       ionode = .TRUE.
     END IF
 
-!   *** Print the error message ***
+    ! Print the error message
 
     IF (ionode) THEN
       message = "ERROR in "//TRIM(routineN)//&

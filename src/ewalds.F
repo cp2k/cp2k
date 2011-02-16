@@ -25,7 +25,8 @@ MODULE ewalds
                                              ewald_pw_type
   USE f77_blas
   USE input_constants,                 ONLY: do_ewald_none
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi,&
                                              pi
@@ -81,7 +82,7 @@ CONTAINS
       POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_evaluate', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_evaluate', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -127,11 +128,13 @@ CONTAINS
 
     CALL structure_factor_allocate ( pw_grid % bounds, nnodes, exp_igr)
 
-    ALLOCATE ( summe ( 1:pw_grid % ngpts_cut ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe', 0 )
+    ALLOCATE (summe(1:pw_grid%ngpts_cut),STAT=isos)
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "summe",2*dp_size*INT(pw_grid%ngpts_cut))
 
-    ALLOCATE ( charge ( 1:nnodes ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'charge', 0 )
+    ALLOCATE (charge(1:nnodes),STAT=isos)
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "charge",dp_size*nnodes)
 
     ! Initializing vg_coulomb and fg_coulomb
     vg_coulomb = 0.0_dp
@@ -241,11 +244,11 @@ CONTAINS
     CALL structure_factor_deallocate ( exp_igr )
 
     DEALLOCATE ( charge, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'charge' )
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"charge")
     NULLIFY ( charge )
 
     DEALLOCATE ( summe, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe' )
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"summe")
 
     CALL timestop(handle)
 
@@ -269,7 +272,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_self', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, group, &
@@ -352,7 +355,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: e_cutoff_coul
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_correction', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_correction', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
@@ -382,7 +385,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: pot_nonbond, e_gspace, &
                                                 e_self, e_neut, e_bonded
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_print', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_print', &
       routineP = moduleN//':'//routineN
 
     IF (iw>0) THEN

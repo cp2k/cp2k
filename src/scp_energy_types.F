@@ -5,8 +5,7 @@
 ! *****************************************************************************
 MODULE scp_energy_types
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -45,7 +44,8 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(scp_energy)) THEN
       ALLOCATE (scp_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"scp_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "scp_energy",0)
     END IF
 
     CALL init_scp_energy(scp_energy)
@@ -64,7 +64,7 @@ CONTAINS
 
     IF (ASSOCIATED(scp_energy)) THEN
       DEALLOCATE (scp_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"scp_energy")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"scp_energy")
     ELSE
       CALL stop_program(routineP,"The scp_energy pointer is not associated "//&
                                 "and cannot be deallocated")

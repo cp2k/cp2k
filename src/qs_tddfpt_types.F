@@ -15,7 +15,9 @@ MODULE qs_tddfpt_types
                                              cp_fm_p_type,&
                                              cp_fm_release
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -63,11 +65,13 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools,error=error)
 
-    ALLOCATE(t_env%evals(n_ev), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_env%evals", n_ev)
+    ALLOCATE (t_env%evals(n_ev),STAT=stat)
+    IF (stat /=0 ) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "t_env%evals",dp_size*n_ev)
 
-    ALLOCATE(t_env%evecs(n_ev, n_spins), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_env%evecs", n_ev*n_spins)
+    ALLOCATE (t_env%evecs(n_ev,n_spins),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "t_env%evecs",dp_size*n_ev*n_spins)
     DO spin=1,n_spins
        DO i=1, n_ev
           CALL fm_pool_create_fm(t_env%ao_mo_fm_pools(spin)%pool, &
@@ -78,8 +82,9 @@ CONTAINS
     !-------------------------------------------------!
     ! allocate memory for the inverse of the S matrix !
     !-------------------------------------------------!
-    ALLOCATE(t_env%invS(n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS", n_spins)
+    ALLOCATE (t_env%invS(n_spins),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "t_env%invS",int_size*n_spins)
     DO spin=1, n_spins
        NULLIFY(fm_struct)
        CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
@@ -112,10 +117,11 @@ CONTAINS
        IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
             CALL cp_fm_release(t_env%invS(spin)%matrix,error=error)
     END DO
-    DEALLOCATE (t_env%invS, t_env%evecs, t_env%evals, stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS, t_env%evecs, t_env%evals")
+    DEALLOCATE (t_env%invS,t_env%evecs,t_env%evals,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "t_env%invS,t_env%evecs,t_env%evals")
 
-    NULLIFY(t_env%invS)
+    NULLIFY (t_env%invS)
 
   END SUBROUTINE tddfpt_env_deallocate
 

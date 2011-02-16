@@ -23,7 +23,8 @@
 MODULE spherical_harmonics
 
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              maxfac,&
@@ -200,7 +201,7 @@ CONTAINS
 
      IF ( ALLOCATED ( cg_table ) ) THEN
         DEALLOCATE ( cg_table, STAT=ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_deallocate","cg_table")
+        IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cg_table")
      END IF
     CALL timestop(handle)
 
@@ -225,13 +226,14 @@ CONTAINS
      IF ( l < 0 ) CALL stop_program("clebsch_gordon_init","l < 0")
      IF ( ALLOCATED ( cg_table ) ) THEN
         DEALLOCATE ( cg_table, STAT=ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_init","cg_table")
+        IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cg_table")
      END IF
      ! maximum size of table
      n = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8
      m = l+1
      ALLOCATE ( cg_table(n,m,2), STAT=ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_init","cg_table",2*n*m)
+     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "cg_table",dp_size*2*n*m)
      lmax = l
 
      DO l1=0,lmax

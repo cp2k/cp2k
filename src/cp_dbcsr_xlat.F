@@ -322,8 +322,8 @@ CONTAINS
     IF (cp_dbcsr_mapping_defined (mapping)) THEN
        np = cluster_get_nparticles (mapping%clusters)
        ncl = cluster_get_nclusters (mapping%clusters)
-       ALLOCATE (cl_s (ncl), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineN, "cl_s", int_size*ncl)
+       ALLOCATE (cl_s(ncl),stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cl_s",int_size*ncl)
        CALL array_new (cluster_sizes, cl_s, gift=.TRUE.)
        blk_s => array_data (block_sizes)
        cl_s(:) = 0
@@ -362,8 +362,8 @@ CONTAINS
     IF (cp_dbcsr_mapping_defined (mapping)) THEN
        np = cluster_get_nparticles (mapping%clusters)
        ncl = cluster_get_nclusters (mapping%clusters)
-       ALLOCATE (cl_s (ncl), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineN, "cl_s", int_size*ncl)
+       ALLOCATE (cl_s(ncl),stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cl_s",int_size*ncl)
        CALL array_new (cluster_sizes, cl_s, gift=.TRUE.)
        blk_s => array_data (block_sizes)
        cl_s(:) = 0
@@ -407,8 +407,8 @@ CONTAINS
     IF (cp_dbcsr_mapping_defined (row_mapping)) THEN
        np_row = cluster_get_nparticles (row_mapping%clusters)
        ncl_row = cluster_get_nclusters (row_mapping%clusters)
-       ALLOCATE (cl_row_dist (ncl_row), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineN, "cl_row_dist", int_size*ncl_row)
+       ALLOCATE (cl_row_dist(ncl_row),stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cl_row_dist",int_size*ncl_row)
        blk_row_dist => array_data(dbcsr_distribution_row_dist (block_dist))
        !
        DO cl = 1, ncl_row
@@ -428,8 +428,8 @@ CONTAINS
     IF (cp_dbcsr_mapping_defined (col_mapping)) THEN
        np_col = cluster_get_nparticles (col_mapping%clusters)
        ncl_col = cluster_get_nclusters (col_mapping%clusters)
-       ALLOCATE (cl_col_dist (ncl_col), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineN, "cl_col_dist", int_size*ncl_col)
+       ALLOCATE (cl_col_dist(ncl_col),stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cl_col_dist",int_size*ncl_col)
        blk_col_dist => array_data(dbcsr_distribution_col_dist (block_dist))
        DO cl = 1, ncl_col
           members => cluster_member_particles (col_mapping%clusters, cl, error)

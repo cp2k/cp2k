@@ -36,7 +36,9 @@ MODULE molecular_states
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
-                                             dp
+                                             dp,&
+                                             dp_size,&
+                                             int_size
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
   USE molecule_types_new,              ONLY: molecule_type
@@ -95,7 +97,7 @@ CONTAINS
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER :: handle, i, imol, iproc, isos, k, n_rep, ncol_global, nproc, &
-      nrow_global, ns, output_unit, stat, unit_nr, unit_report
+      nrow_global, ns, output_unit, unit_nr, unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind, mark_list
     INTEGER, DIMENSION(:, :), POINTER        :: mark_states
     INTEGER, POINTER                         :: nstates(:), states(:)
@@ -142,11 +144,13 @@ CONTAINS
     CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%MARK_STATES", &
              n_rep_val=n_rep, error=error)
     IF(n_rep.GT.0)THEN
-       ALLOCATE(mark_states(2,n_rep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF(.NOT.ASSOCIATED(marked_states))THEN
-          ALLOCATE(marked_states(n_rep),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (mark_states(2,n_rep),STAT=isos)
+       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "mark_states",int_size*2*n_rep)
+       IF (.NOT.ASSOCIATED(marked_states)) THEN
+          ALLOCATE (marked_states(n_rep),stat=isos)
+          IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "mark_states",int_size*n_rep)
        END IF
        DO i=1,n_rep
           CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%MARK_STATES",&
@@ -185,8 +189,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 4.
     !-----------------------------------------------------------------------------
-    ALLOCATE(nstates(2),STAT=isos)
-    IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
+    ALLOCATE (nstates(2),STAT=isos)
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "nstates",int_size*2)
 
     CALL cp_fm_create(storage,mo_localized%matrix_struct,name='storage',error=error)
 
@@ -203,7 +208,8 @@ CONTAINS
        IF (nstates(1)==0) CYCLE
        NULLIFY(states)
        ALLOCATE(states(nstates(1)),STAT=isos)
-       IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "states",int_size*nstates(1))
        states(:) = 0
 
        iproc=nstates(2)
@@ -216,8 +222,8 @@ CONTAINS
        ns = nstates(1)
        ind => states( : )
        ALLOCATE ( evals ( ns ), STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
-            "eval", ns )
+       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "evals",dp_size*ns)
 
        NULLIFY(b,c,d,fm_struct_tmp,e_vectors,rot_e_vectors)
 
@@ -331,30 +337,29 @@ CONTAINS
           END DO
        ENDIF
 
-       DEALLOCATE ( evals,  STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
-            "eval", ns )
+       DEALLOCATE (evals,STAT=isos)
+       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eval")
        CALL cp_fm_release ( b ,error=error)
        CALL cp_fm_release ( c ,error=error)
        CALL cp_fm_release ( d ,error=error)
        CALL cp_fm_release ( e_vectors ,error=error)
        CALL cp_fm_release ( rot_e_vectors ,error=error)
 
-       DEALLOCATE(states,STAT=isos)
-       IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+       DEALLOCATE (states,STAT=isos)
+       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"states")
 
     END DO
     CALL cp_fm_release(smo,error=error)
     CALL cp_fm_to_fm(storage,mo_localized,error)
     CALL cp_fm_release(storage,error)
-    IF(ASSOCIATED(mark_states))THEN
-       DEALLOCATE(mark_states,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    IF (ASSOCIATED(mark_states))THEN
+       DEALLOCATE (mark_states,stat=isos)
+       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mark_states")
     END IF
-    DEALLOCATE(nstates,STAT=isos)
-    IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
+    DEALLOCATE (nstates,STAT=isos)
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nstates")
     CALL cp_print_key_finished_output(unit_report,logger,localization_section,&
-         "MOLECULAR_STATES",error=error)
+                                      "MOLECULAR_STATES",error=error)
     !------------------------------------------------------------------------------
 
     IF (.NOT.explicit) THEN
@@ -364,8 +369,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE construct_molecular_states
-
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
 
 END MODULE molecular_states

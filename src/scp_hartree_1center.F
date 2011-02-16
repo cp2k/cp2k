@@ -150,21 +150,21 @@ CONTAINS
     !   Allocate the work array for the orbitals
     ALLOCATE(work(maxco_global,maxsgf_set),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "work",maxco_global*maxsgf_set)
+                                     "work",dp_size*maxco_global*maxsgf_set)
 
     !   Allocate gccc array
     ALLOCATE (gccc(maxco_global,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "gccc",maxco_global*1*dp_size)
+                                     "gccc",dp_size*maxco_global)
     gccc = 0._dp
     !   Allocate work_scp array
     ALLOCATE (work_scp (maxco_global,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "work_scp",maxco_global*1*dp_size)
+                                     "work_scp",dp_size*maxco_global)
     !   Allocate fcoeff array
     ALLOCATE (fcoeff (maxco_global,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "fcoeff",maxco_global*1*dp_size)
+                                     "fcoeff",dp_size*maxco_global)
 
     NULLIFY(CPC_ab,hab)
     ALLOCATE(CPC_ab(1,1,nspins),STAT=istat)
@@ -504,46 +504,39 @@ CONTAINS
 
     IF(ASSOCIATED(Int_ab_sum)) THEN
        DEALLOCATE(Int_ab_sum,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "Int_ab_sum")
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Int_ab_sum")
 
     END IF
 
     IF(ASSOCIATED(Int_abc)) THEN
        DEALLOCATE(Int_abc,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "Int_abc")
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Int_abc")
 
     END IF
 
     IF(ASSOCIATED(hab)) THEN
        DEALLOCATE(hab, STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "hab")
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hab")
     END IF
 
     IF(ASSOCIATED(CPC_ab)) THEN
        DEALLOCATE(CPC_ab, STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "CPC_ab")
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"CPC_ab")
     END IF
 
     DEALLOCATE(work,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "work")
+       CALL stop_memory(routineN,moduleN,__LINE__,"work")
     END IF
 
     DEALLOCATE(work_scp, gccc, fcoeff, STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "work_scp, gccc, fcoeff")
+       CALL stop_memory(routineN,moduleN,__LINE__,"work_scp, gccc, fcoeff")
     END IF
 
     DEALLOCATE(int_tmp,vv,ff,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "int_tmp,vv,ff")
+       CALL stop_memory(routineN,moduleN,__LINE__,"int_tmp,vv,ff")
     END IF
 
     CALL cp_dbcsr_deallocate_matrix_set( diagmat_ks, error )
@@ -924,23 +917,17 @@ CONTAINS
     energy % e_scp_core = e_scp
 
     DEALLOCATE (zetcore,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "zetcore")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zetcore")
     DEALLOCATE (rpgfcore,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "rpgfcore")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rpgfcore")
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "work")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
     DEALLOCATE (gcca,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "gcca")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"gcca")
     DEALLOCATE (fcoeff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "fcoeff")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fcoeff")
     DEALLOCATE(vab,vv,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vab.vv.ff")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vab.vv.ff")
     CALL timestop(handle)
 
   END SUBROUTINE integrate_vhscp_gcore

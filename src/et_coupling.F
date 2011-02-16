@@ -35,6 +35,7 @@ MODULE et_coupling
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
+                                             dp_size,&
                                              int_size
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
@@ -296,8 +297,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_restraint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ip, j, &
-                                                jatom, k, np(3)
+    INTEGER                                  :: handle, i, iatom, ip, istat, &
+                                                j, jatom, k, np(3)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: catom
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
@@ -317,9 +318,9 @@ CONTAINS
     failure=.FALSE.
       CALL timeset(routineN,handle)
 
-    IF(qs_env%dft_control%qs_control%becke_restraint)THEN
+    IF (qs_env%dft_control%qs_control%becke_restraint) THEN
 
-          target_val=qs_env%dft_control%qs_control%becke_control%TARGET
+          target_val=qs_env%dft_control%qs_control%becke_control%target
           strength=qs_env%dft_control%qs_control%becke_control%strength
           dvol = becke_const%pw%pw_grid%dvol
           IF(calc_pot)THEN
@@ -330,7 +331,10 @@ CONTAINS
           
           CALL get_qs_env(qs_env,cell=cell,error=error)
           
-          ALLOCATE(catom(qs_env%dft_control%qs_control%becke_control%natoms))
+          ALLOCATE (catom(qs_env%dft_control%qs_control%becke_control%natoms),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "catom",int_size*&
+                                           qs_env%dft_control%qs_control%becke_control%natoms)
           DO i=1,qs_env%dft_control%qs_control%becke_control%natoms
              catom(i)=qs_env%dft_control%qs_control%becke_control%atoms(i)
           ENDDO
@@ -342,14 +346,19 @@ CONTAINS
           np= becke_const%pw%pw_grid%npts
           shift=-REAL(MODULO(np,2),dp)*dr/2.0_dp
           coeff => qs_env%dft_control%qs_control%becke_control%coeff
-          ALLOCATE(cell_functions(particles%n_els))
+          ALLOCATE (cell_functions(particles%n_els),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "cell_functions",dp_size*particles%n_els)
           !calculate distances from target atom (only implemented for a diatomic system)
           
           DO i=1,3
              cell_v(i)=cell%hmat(i,i)
           END DO
           
-          ALLOCATE(R12(particles%n_els,particles%n_els))
+          ALLOCATE (R12(particles%n_els,particles%n_els),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "R12",dp_size*particles%n_els**2)
+
           DO iatom=1,particles%n_els-1
              DO jatom=iatom+1,particles%n_els
                 r=particles%els(iatom)%r
@@ -419,10 +428,14 @@ CONTAINS
              END DO
           END DO
 
-          DEALLOCATE(catom)
-          DEALLOCATE(R12)
-          DEALLOCATE(cell_functions)
-       ENDIF
+          DEALLOCATE(catom,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"catom")
+          DEALLOCATE(R12,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"R12")
+          DEALLOCATE(cell_functions,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cell_functions")
+
+       END IF
        
        dE=0.0_dp
        DO i=1 , qs_env%dft_control%nspins
@@ -494,9 +507,15 @@ CONTAINS
                        particle_set=particle_set,&
                        cell=cell,rho=rho,force=force,error=error)
        
-       ALLOCATE(catom(qs_env%dft_control%qs_control%becke_control%natoms))
-       ALLOCATE(is_constraint(particles%n_els))
-       ALLOCATE(coefficients(particles%n_els))
+       ALLOCATE (catom(qs_env%dft_control%qs_control%becke_control%natoms),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "catom",dp_size*qs_env%dft_control%qs_control%becke_control%natoms)
+       ALLOCATE (is_constraint(particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "is_constraint",dp_size*particles%n_els)
+       ALLOCATE (coefficients(particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "coefficients",dp_size*particles%n_els)
 
        is_constraint=.FALSE.
        DO i=1,qs_env%dft_control%qs_control%becke_control%natoms
@@ -507,10 +526,12 @@ CONTAINS
 
        natom = SIZE(particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "atom_of_kind",natom*int_size)
        
        ALLOCATE (kind_of(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"kind_of",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "kind_of",natom*int_size)
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind,&
@@ -528,16 +549,36 @@ CONTAINS
           cell_v(i)=cell%hmat(i,i)
        END DO
        
-       ALLOCATE(R12(particles%n_els,particles%n_els))
-       ALLOCATE(s_my_ij(particles%n_els,particles%n_els))
-       ALLOCATE(ds_dR(3,particles%n_els,particles%n_els))
-       ALLOCATE(P_i(particles%n_els)) 
-       ALLOCATE(dw_dR(3,particles%n_els))
-       ALLOCATE(integrated(3,particles%n_els))
-       ALLOCATE(d_sum_Pm_dR(3,particles%n_els))
-       ALLOCATE(d_sum_const_dR(3,particles%n_els))
-       ALLOCATE(dP_i_dRj(3,particles%n_els,particles%n_els))
-       ALLOCATE(dP_i_dRi(3,particles%n_els))
+       ALLOCATE (R12(particles%n_els,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "R12",dp_size*particles%n_els**2)
+       ALLOCATE (s_my_ij(particles%n_els,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "s_my_ij",dp_size*particles%n_els**2)
+       ALLOCATE (ds_dR(3,particles%n_els,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "ds_dR",dp_size*3*particles%n_els**2)
+       ALLOCATE (P_i(particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "P_i",dp_size*particles%n_els)
+       ALLOCATE (dw_dR(3,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "dw_dR",dp_size*3*particles%n_els)
+       ALLOCATE (integrated(3,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "integrated",dp_size*3*particles%n_els)
+       ALLOCATE (d_sum_Pm_dR(3,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "d_sum_Pm_dR",dp_size*3*particles%n_els)
+       ALLOCATE (d_sum_const_dR(3,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "d_sum_const_dR",dp_size*3*particles%n_els)
+       ALLOCATE (dP_i_dRj(3,particles%n_els,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "dP_i_dRj",dp_size*3*particles%n_els**2)
+       ALLOCATE (dP_i_dRi(3,particles%n_els),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "dP_i_dRi",dp_size*3*particles%n_els)
        
        DO iatom=1,particles%n_els-1
           DO jatom=iatom+1,particles%n_els
@@ -674,18 +715,30 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE(catom)
-       DEALLOCATE(R12)
-       DEALLOCATE(s_my_ij)
-       DEALLOCATE(ds_dR)
-       DEALLOCATE(P_i) 
-       DEALLOCATE(dw_dR)
-       DEALLOCATE(is_constraint)
-       DEALLOCATE(d_sum_Pm_dR)
-       DEALLOCATE(d_sum_const_dR)
-       DEALLOCATE(dP_i_dRi)
-       DEALLOCATE(dP_i_dRj)
-       DEALLOCATE(coefficients)
+       DEALLOCATE (catom,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"catom")
+       DEALLOCATE (R12,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"R12")
+       DEALLOCATE (s_my_ij,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"s_my_ij")
+       DEALLOCATE (ds_dR,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ds_dR")
+       DEALLOCATE (P_i,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"P_i")
+       DEALLOCATE (dw_dR,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dw_dR")
+       DEALLOCATE (is_constraint,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_constraint")
+       DEALLOCATE (d_sum_Pm_dR,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"d_sum")
+       DEALLOCATE (d_sum_const_dR,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"d_sum_const")
+       DEALLOCATE (dP_i_dRi,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dP_i_dRj")
+       DEALLOCATE (dP_i_dRj,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dP_i_dRj")
+       DEALLOCATE (coefficients,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"coefficients")
        CALL mp_sum(integrated,qs_env%para_env%group)
 
        DO iatom=1,natom
@@ -695,11 +748,18 @@ CONTAINS
                force(ikind)%rho_elec(:,i) + integrated(:,iatom)*strength          
        END DO
    
-       DEALLOCATE(integrated)
-       DEALLOCATE (atom_of_kind)
-       DEALLOCATE (kind_of)     
+       DEALLOCATE (integrated,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"integrated")
+       DEALLOCATE (atom_of_kind,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_of_kind")
+       DEALLOCATE (kind_of,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"kind_of")
+
      END IF
+
      CALL timestop(handle)
+
   END SUBROUTINE becke_force
+
 END MODULE et_coupling
 

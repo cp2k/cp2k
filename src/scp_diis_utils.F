@@ -8,7 +8,8 @@ MODULE scp_diis_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE linear_systems,                  ONLY: solve_system
   USE message_passing,                 ONLY: mp_max
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
@@ -53,8 +54,9 @@ CONTAINS
     TYPE(cp_error_type)                      :: error
 
     CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
-    ALLOCATE(diis_info,stat=stat)
-    IF(stat/=0) CALL stop_memory(routineP,"diis_info")
+    ALLOCATE (diis_info,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "diis_info",0)
     diis_info%nhist=nhist
     diis_info%ihist=0
     ncoef=0
@@ -68,16 +70,19 @@ CONTAINS
       END IF
     END DO
     IF (.not.ASSOCIATED(diis_info%c_hist)) THEN
-      ALLOCATE (diis_info% c_hist (nhist,ncoef), STAT=stat )
-      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'c_hist', ncoef*nhist)
+      ALLOCATE (diis_info% c_hist(nhist,ncoef),STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "diis_info%c_hist",dp_size*ncoef*nhist)
     END IF
     IF (.not.ASSOCIATED(diis_info%e_hist)) THEN
-      ALLOCATE (diis_info% e_hist (nhist,ncoef), STAT=stat )
-      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'e_hist', ncoef*nhist)
+      ALLOCATE (diis_info% e_hist(nhist,ncoef),STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "diis_info%e_hist",dp_size*ncoef*nhist)
     END IF
     IF (.not.ASSOCIATED(diis_info%hess)) THEN
-      ALLOCATE (diis_info% hess (ncoef), STAT=stat )
-      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'hess', ncoef)
+      ALLOCATE (diis_info%hess(ncoef),STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "diis_info%hess",dp_size*ncoef)
     END IF
     diis_info%c_hist(:,:)=0.0_dp
     diis_info%e_hist(:,:)=0.0_dp
@@ -97,19 +102,19 @@ CONTAINS
 
     IF (ASSOCIATED(diis_info)) THEN
       IF (ASSOCIATED(diis_info%c_hist)) THEN
-        DEALLOCATE (diis_info% c_hist, STAT=stat )
-        IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'c_hist')
+        DEALLOCATE (diis_info% c_hist,STAT=stat)
+        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"diis_info%c_hist")
       END IF
       IF (ASSOCIATED(diis_info%e_hist)) THEN
-        DEALLOCATE (diis_info% e_hist, STAT=stat )
-        IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'e_hist')
+        DEALLOCATE (diis_info%e_hist,STAT=stat)
+        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"diis_info%e_hist")
       END IF
       IF (ASSOCIATED(diis_info%hess)) THEN
-        DEALLOCATE (diis_info% hess, STAT=stat )
-        IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'hess')
+        DEALLOCATE (diis_info%hess,STAT=stat)
+        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"diis_info%hess")
       END IF
-      DEALLOCATE (diis_info, STAT=stat )
-      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'diis_info')
+      DEALLOCATE (diis_info,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"diis_info")
     END IF
     NULLIFY(diis_info)
 
@@ -157,14 +162,18 @@ CONTAINS
   END DO
  IF (ncoef/=0) THEN
 ! allocating the arrays
-  ALLOCATE(cg(ncoef), STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'cg', ncoef)
-  ALLOCATE(eg(ncoef), STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'eg', ncoef)
-  ALLOCATE(c_forces(ncoef), STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'c_forces', ncoef)
-  ALLOCATE(dcg(nhist+1), STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'dcg', ncoef)
+  ALLOCATE (cg(ncoef),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "cg",dp_size*ncoef)
+  ALLOCATE (eg(ncoef),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "eg",dp_size*ncoef)
+  ALLOCATE (c_forces(ncoef),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "c_forces",dp_size*ncoef)
+  ALLOCATE (dcg(nhist+1),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "dcg",dp_size*(nhist+1))
 
 ! increment the counters for the histories and the iterations
   diis_info%ihist=diis_info%ihist+1
@@ -236,16 +245,16 @@ CONTAINS
     END IF
   ENDDO
 ! deallocating the arrays
-  DEALLOCATE(cg,STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall cg' )
-  DEALLOCATE(c_forces,STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall c_forces' )
-  DEALLOCATE(eg,STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eg' )
-  DEALLOCATE(dcg,STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall dcg' )
+  DEALLOCATE (cg,STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cg")
+  DEALLOCATE (c_forces,STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_forces")
+  DEALLOCATE (eg,STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eg")
+  DEALLOCATE (dcg,STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dcg")
   END IF
-  RETURN
+
   END SUBROUTINE do_diis_step
 !------------------------------------------------------------------------------!
 ! *****************************************************************************
@@ -285,7 +294,7 @@ CONTAINS
     c_hist (ihist,icoef) = cg (icoef)
     e_hist (ihist,icoef) =  c_forces (icoef) / hess(icoef)
   ENDDO
-  RETURN
+
   END SUBROUTINE store_hist
 !------------------------------------------------------------------------------!
 ! *****************************************************************************
@@ -311,10 +320,12 @@ CONTAINS
   dcg(ihist+1)=-1.0_dp
 
 ! constructing the overlap matrix
-  ALLOCATE (bcg(ihist+1,ihist+1), STAT = stat)
-  IF ( stat /= 0 )  CALL stop_memory ( 'diis', 'bcg', ihist +1 )
-  ALLOCATE (eigenvec(ihist+1,1), STAT = stat)
-  IF ( stat /= 0 )  CALL stop_memory ( 'diis', 'eigenvec', ihist +1 )
+  ALLOCATE (bcg(ihist+1,ihist+1),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "bcg",dp_size*(ihist+1)**2)
+  ALLOCATE (eigenvec(ihist+1,1),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "eigenvec",dp_size*(ihist+1))
 
   bcg=0.0_dp
   DO j=1,ihist
@@ -343,11 +354,11 @@ CONTAINS
      dcg(j) =  eigenvec(j,1)
   END DO
 
-  DEALLOCATE(bcg,STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall bcg' )
-  DEALLOCATE(eigenvec,STAT=stat)
-  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eigenvec' )
-  RETURN
+  DEALLOCATE (bcg,STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"bcg")
+  DEALLOCATE (eigenvec,STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvec")
+
   END SUBROUTINE solve
 
 END MODULE scp_diis_utils

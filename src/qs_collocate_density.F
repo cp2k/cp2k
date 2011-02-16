@@ -68,7 +68,8 @@ MODULE qs_collocate_density
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_8
+                                             int_8,&
+                                             int_size
   USE lgrid_types,                     ONLY: lgrid_type
   USE mathconstants,                   ONLY: fac,&
                                              pi,&
@@ -413,18 +414,21 @@ CONTAINS
                               error=error)
 
     ! *** set up the rs multi-grids *** !
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineP,"rs_rho")
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "rs_rho",int_size*gridlevel_info%ngrid_levels)
     DO igrid_level = 1,gridlevel_info%ngrid_levels
       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=maxco)
-    ALLOCATE(pab(maxco,1), STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN, "pab", maxco*1*dp_size)
-    ALLOCATE(work(maxco,1), STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN, "work", maxco*1*dp_size)
+    ALLOCATE (pab(maxco,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",maxco*dp_size)
+    ALLOCATE (work(maxco,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "work",maxco*dp_size)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -472,17 +476,17 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(pab, stat=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN, "pab")
+    DEALLOCATE (pab,STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
-    DEALLOCATE(work, stat=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN, "work")
+    DEALLOCATE (work,STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
       CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw,error=error)
       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-      DEALLOCATE(rs_rho, stat=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
+      DEALLOCATE (rs_rho,STAT=ierr)
+      IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
       CALL pw_transfer(qs_env%rho%rho_r(1)%pw, qs_env%rho%rho_g(1)%pw,error=error)
       IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
         CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw,error=error)
@@ -493,8 +497,8 @@ CONTAINS
                             pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw, error=error)
          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
       END DO
-      DEALLOCATE(rs_rho, stat=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
+      DEALLOCATE (rs_rho,STAT=ierr)
+      IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
       CALL pw_zero(qs_env%rho%rho_g(1)%pw,error=error)
       DO igrid_level=1, gridlevel_info%ngrid_levels
@@ -566,9 +570,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
-    ALLOCATE(pab(1,1),STAT=ierr)
-    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab", 1 )
-
+    ALLOCATE (pab(1,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",dp_size)
 
     my_only_nopaw = .FALSE.
     IF(PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
@@ -643,10 +647,10 @@ CONTAINS
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=ierr)
-      IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "cores" )
+      IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
     END IF
-    DEALLOCATE ( pab, STAT=ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab" )
+    DEALLOCATE (pab,STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE, error=error)
@@ -867,8 +871,9 @@ CONTAINS
     CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "rs_rho",dp_size*gridlevel_info%ngrid_levels)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
@@ -878,15 +883,17 @@ CONTAINS
     END DO
 
     IF ( nthread > 1 ) THEN
-      ALLOCATE(lgrid,STAT=stat)
-      IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrid")
+      ALLOCATE (lgrid,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "lgrid",int_size)
       n = 0
       DO igrid_level = 1,gridlevel_info%ngrid_levels
         n = MAX(n,rs_rho(igrid_level)%rs_grid%ngpts_local)
       END DO
       NULLIFY(lgrid%r)
-      ALLOCATE(lgrid%r(1:n*nthread),STAT=stat)
-      IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrid", n*nthread )
+      ALLOCATE (lgrid%r(1:n*nthread),STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "lgrid",dp_size*n*nthread)
       lgrid%ldim = n
     END IF
 
@@ -1170,10 +1177,10 @@ CONTAINS
 !$omp end parallel
 
     IF (nthread > 1) THEN
-      DEALLOCATE(lgrid%r,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineP,"lgrid%r")
-      DEALLOCATE(lgrid,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineP,"lgrid")
+      DEALLOCATE (lgrid%r,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"lgrid%r")
+      DEALLOCATE (lgrid,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"lgrid")
     END IF
 
     !   *** Release work storage ***
@@ -1182,8 +1189,10 @@ CONTAINS
        CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
     ENDIF
 
-    DEALLOCATE (pabt,workt,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"pabt,workt")
+    DEALLOCATE (pabt,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pabt")
+    DEALLOCATE (workt,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"workt")
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
@@ -1368,7 +1377,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
     ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho") 
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "rs_rho",int_size*gridlevel_info%ngrid_levels) 
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
       distributed_rs_grids=rs_rho(igrid_level)%rs_grid%desc%distributed
@@ -1595,14 +1605,16 @@ CONTAINS
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
       END DO
       DEALLOCATE (rs_rho,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
     END IF
     IF (distributed_rs_grids) THEN
       CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
     ENDIF
 
-    DEALLOCATE (pabt,workt,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"pabt,workt")
+    DEALLOCATE (pabt,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pabt")
+    DEALLOCATE (workt,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"workt")
 
     CALL timestop(handle)
 
@@ -1720,9 +1732,11 @@ CONTAINS
                              basis_set_id=my_basis_set_id)
 
     ALLOCATE (pab(maxco,1),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,"pab",maxco*1*dp_size)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",maxco*dp_size)
     ALLOCATE (work(maxco,1),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,"work",maxco*1*dp_size)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "work",maxco*dp_size)
 
     offset=0
     group=mgrid_rspace(1)%pw%pw_grid%para%group
@@ -1824,7 +1838,7 @@ CONTAINS
        CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
     ENDDO
     DEALLOCATE (rs_rho,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
     CALL pw_zero(rho_gspace%pw,error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1836,16 +1850,17 @@ CONTAINS
 
     CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
 
-!   *** Release work storage ***
-    DEALLOCATE(eigenvector)
+    ! Release work storage
+    DEALLOCATE (eigenvector,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvector")
 
     DEALLOCATE (pab,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,"pab")
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
     DEALLOCATE (work,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,"work")
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
-    ! *** give back the pw multi-grids
+    ! give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
     CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
@@ -3128,8 +3143,14 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE (cubeaxis,g,rag,rbg,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,"cubeaxis,g,rag,rbg")
+    DEALLOCATE (cubeaxis,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cubeaxis")
+    DEALLOCATE (g,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"g")
+    DEALLOCATE (rag,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rag")
+    DEALLOCATE (rbg,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbg")
 
     CALL timestop(handle)
 
@@ -3190,8 +3211,8 @@ CONTAINS
    IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-       DEALLOCATE(rs_rho,STAT=ierr)
-       IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
+       DEALLOCATE (rs_rho,STAT=ierr)
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
        CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
           CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
@@ -3202,8 +3223,8 @@ CONTAINS
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
           CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
        ENDDO
-       DEALLOCATE(rs_rho,STAT=ierr)
-       IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
+       DEALLOCATE (rs_rho,STAT=ierr)
+       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
        ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
        SELECT CASE(interp_kind)

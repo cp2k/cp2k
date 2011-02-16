@@ -985,11 +985,13 @@ CONTAINS
     DO iparticle_kind=1,nparticle_kind
       n = nparticle_local_row(iparticle_kind)
       ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__, "local_particle_row(iparticle_kind)%array", n*int_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "local_particle_row(iparticle_kind)%array",n*int_size)
 
       n = nparticle_local_col(iparticle_kind)
       ALLOCATE (local_particle_col(iparticle_kind)%array(n),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__, "local_particle_col(iparticle_kind)%array", n*int_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "local_particle_col(iparticle_kind)%array",n*int_size)
     ENDDO
 
     ! store

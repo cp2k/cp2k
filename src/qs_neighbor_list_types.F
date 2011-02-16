@@ -12,7 +12,8 @@
 ! *****************************************************************************
 MODULE qs_neighbor_list_types
 
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: locate,&
@@ -160,11 +161,13 @@ CONTAINS
     IF(PRESENT(nthread)) mthread=nthread
 
     ALLOCATE(iterator_set(0:mthread-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator_set",0)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "iterator_set",int_size*mthread)
 
     DO il=0,mthread-1
-       ALLOCATE(iterator_set(il)%neighbor_list_iterator,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list_iterator",0)
+       ALLOCATE (iterator_set(il)%neighbor_list_iterator,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "neighbor_list_iterator",0)
 
        iterator => iterator_set(il)%neighbor_list_iterator
        
@@ -192,14 +195,21 @@ CONTAINS
     IF (PRESENT(search)) THEN
       IF (search) THEN
          ALLOCATE(list_search(SIZE(nl)),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"list_search",0)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "list_search",0)
          DO il=1,SIZE(nl)
            IF (ASSOCIATED(nl(il)%neighbor_list_set)) THEN
               CALL get_neighbor_list_set(neighbor_list_set=nl(il)%neighbor_list_set,nlist=nlist)
               list_search(il)%nlist = nlist
-              ALLOCATE(list_search(il)%atom_list(nlist),list_search(il)%atom_index(nlist),&
-                       list_search(il)%neighbor_list(nlist),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"list_search",nlist)
+              ALLOCATE (list_search(il)%atom_list(nlist),STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                               "list_search(il)%atom_list",int_size*nlist)
+              ALLOCATE (list_search(il)%atom_index(nlist),STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                               "list_search(il)%atom_index",int_size*nlist)
+              ALLOCATE (list_search(il)%neighbor_list(nlist),STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                               "list_search(il)%neighbor_list",int_size*nlist)
 
               NULLIFY ( neighbor_list )
               DO ilist=1,nlist
@@ -246,22 +256,28 @@ CONTAINS
     IF (ASSOCIATED(iterator%list_search)) THEN
        DO il=1,SIZE(iterator%list_search)
           IF (iterator%list_search(il)%nlist >= 0) THEN
-             DEALLOCATE(iterator%list_search(il)%atom_list,iterator%list_search(il)%atom_index,&
-                        iterator%list_search(il)%neighbor_list,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator%list_search")
+             DEALLOCATE (iterator%list_search(il)%atom_list,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                              "iterator%list_search(il)%atom_list")
+             DEALLOCATE (iterator%list_search(il)%atom_index,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                              "iterator%list_search(il)%atom_index")
+             DEALLOCATE (iterator%list_search(il)%neighbor_list,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                              "iterator%list_search(il)%neighbor_list")
           END IF
        END DO
-       DEALLOCATE(iterator%list_search,STAT=istat)
+       DEALLOCATE (iterator%list_search,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator%list_search")
     END IF
 
     mthread = SIZE(iterator_set)
     DO il=0,mthread-1
-       DEALLOCATE(iterator_set(il)%neighbor_list_iterator,STAT=istat)
+       DEALLOCATE (iterator_set(il)%neighbor_list_iterator,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list_iterator")
     END DO
-    DEALLOCATE(iterator_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator_set",0)
+    DEALLOCATE (iterator_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator_set")
 
   END SUBROUTINE neighbor_list_iterator_release
 

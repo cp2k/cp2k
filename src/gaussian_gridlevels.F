@@ -112,7 +112,8 @@ CONTAINS
     END IF
 
     DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"gridlevel_info%cutoff")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "gridlevel_info%cutoff")
 
     CALL cp_print_key_finished_output(output_unit,logger,gridlevel_info%print_section,&
          "", error=error)
@@ -120,7 +121,9 @@ CONTAINS
     CALL section_vals_release(gridlevel_info%print_section,error=error)
 
     DEALLOCATE (gridlevel_info%count,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"gridlevel_info%count")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "gridlevel_info%count")
+
   END SUBROUTINE destroy_gaussian_gridlevel
 
 ! *****************************************************************************

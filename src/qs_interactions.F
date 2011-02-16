@@ -36,7 +36,9 @@ MODULE qs_interactions
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             dp_size,&
+                                             int_size
   USE orbital_pointers,                ONLY: coset
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type,&
@@ -153,10 +155,10 @@ CONTAINS
                            geminal_basis_set=geminal_basis_set,&
                            paw_atom=paw_atom)
 
-!     *** Calculate the orbital basis function radii ***
-!         For ALL electron this has to come before the calculation of the 
-!         radii used to calculate the 3c lists. 
-!         Indeed, there the radii of the GTO primitives are needed
+      ! Calculate the orbital basis function radii ***
+      ! For ALL electron this has to come before the calculation of the 
+      ! radii used to calculate the 3c lists. 
+      ! Indeed, there the radii of the GTO primitives are needed
       IF (ASSOCIATED(orb_basis_set)) THEN
 
         p_orb = .TRUE.
@@ -210,7 +212,7 @@ CONTAINS
                            alpha_core_charge=alpha_core_charge,&
                            ccore_charge=ccore_charge)
 
-!       *** Calculate the radius of the core charge distribution ***
+        ! Calculate the radius of the core charge distribution
 
         core_charge_radius = exp_radius(0,alpha_core_charge,&
                                         qs_control%eps_core_charge,&
@@ -220,9 +222,11 @@ CONTAINS
                            core_charge_radius=core_charge_radius)
 
         ALLOCATE(all_potential%orb_radius_3c(nkind),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "orb_radius_3c",int_size*nkind)
         ALLOCATE(all_potential%set_radius_3c(maxnset,nkind),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "orb_radius_3c,set_radius_3c")
+                                         "set_radius_3c",dp_size*maxnset*nkind)
 
       ELSE IF (ASSOCIATED(gth_potential)) THEN
 
@@ -240,15 +244,13 @@ CONTAINS
                            nprj_ppnl=nprj_ppnl,&
                            cprj_ppnl=cprj_ppnl)
 
-!       *** Calculate the radius of the core charge distribution ***
-
+        ! Calculate the radius of the core charge distribution
         core_charge_radius = exp_radius(0,alpha_core_charge,&
                                         qs_control%eps_core_charge,&
                                         ccore_charge)
 
-!       *** Calculate the radii of the local part  ***
-!       *** of the Goedecker pseudopotential (GTH) ***
-
+        ! Calculate the radii of the local part
+        ! of the Goedecker pseudopotential (GTH)
         ppl_radius = exp_radius(0,alpha_ppl,qs_control%eps_ppl,cerf_ppl)
 
         DO iexp_ppl=1,nexp_ppl
@@ -259,8 +261,8 @@ CONTAINS
                                       cexp_ppl(iexp_ppl)))
         END DO
 
-!       *** Calculate the radii of the non-local part ***
-!       *** of the Goedecker pseudopotential (GTH)    ***
+        ! Calculate the radii of the non-local part
+        ! of the Goedecker pseudopotential (GTH)
 
         ppnl_radius = 0.0_dp
 
@@ -283,7 +285,7 @@ CONTAINS
 
       END IF
 
-!     *** Calculate the aux fit orbital basis function radii ***
+      ! Calculate the aux fit orbital basis function radii
 
       IF (ASSOCIATED(aux_fit_basis_set)) THEN
 
@@ -331,8 +333,7 @@ CONTAINS
 
       END IF
 
-
-!     *** Calculate the aux orbital basis function radii ***
+     ! Calculate the aux orbital basis function radii
 
       IF (ASSOCIATED(aux_basis_set)) THEN
 
@@ -373,7 +374,7 @@ CONTAINS
 
       END IF
 
-!     *** Calculate the geminal basis function radii ***
+     ! Calculate the geminal basis function radii
 
       IF (ASSOCIATED(geminal_basis_set)) THEN
 
@@ -416,7 +417,7 @@ CONTAINS
 
       END IF
 
-!     *** Calculate the soft orbital basis function radii ***
+      ! Calculate the soft orbital basis function radii
 
       IF (ASSOCIATED(soft_basis)) THEN
 
@@ -460,7 +461,7 @@ CONTAINS
         END IF
       END IF
 
-!     *** Calculate the paw projector basis function radii ***
+      ! Calculate the paw projector basis function radii
 
       IF (ASSOCIATED(paw_proj_set)) THEN
     
@@ -861,7 +862,7 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
-!   *** Print the kind radii ***
+    ! Print the kind radii
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/KIND_RADII",extension=".Log",error=error)
     CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
@@ -889,7 +890,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%RADII/KIND_RADII",error=error)
 
-!   *** Print the shell set radii ***
+    ! Print the shell set radii
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/SET_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
@@ -915,7 +916,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%RADII/SET_RADII",error=error)
-!   *** Print the primitive Gaussian function radii ***
+    ! Print the primitive Gaussian function radii
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/PGF_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN

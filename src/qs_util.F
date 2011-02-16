@@ -12,7 +12,8 @@
 MODULE qs_util
 
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: &
        dfac, fac, fourpi, oorootpi, rootpi, sqrt105, sqrt15, sqrt2, sqrt21, &
        sqrt3, sqrt35, sqrt5, sqrt7, sqrthalf
@@ -427,7 +428,7 @@ CONTAINS
     ALLOCATE (work(ncoset(maxl),nsoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,&
-            "work",ncoset(maxl)*nsoset(maxl))
+                        "work",dp_size*ncoset(maxl)*nsoset(maxl))
     END IF
     CPC_so = 0.0_dp
     work   = 0.0_dp
@@ -506,8 +507,7 @@ CONTAINS
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "work")
+       CALL stop_memory(routineN,moduleN,__LINE__,"work")
     END IF
 
   END SUBROUTINE transform_c2s
@@ -529,7 +529,7 @@ CONTAINS
     ALLOCATE (work(ncoset(maxl),ncoset(maxl),1),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,&
-            "work",ncoset(maxl)*nsoset(maxl))
+                        "work",dp_size*ncoset(maxl)*nsoset(maxl))
     END IF
     ldc = ncoset(maxl)
     lds = nsoset(maxl)
@@ -546,8 +546,7 @@ CONTAINS
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "work")
+       CALL stop_memory(routineN,moduleN,__LINE__,"work")
     END IF
 
   END SUBROUTINE transform_c2s_new
@@ -624,8 +623,7 @@ CONTAINS
 
     DEALLOCATE (matsc,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "matsc")
+       CALL stop_memory(routineN,moduleN,__LINE__,"matsc")
     END IF
 
   END SUBROUTINE transform_s2c

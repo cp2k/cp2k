@@ -28,7 +28,8 @@ MODULE ewald_pw_methods
                                              do_ewald_pme,&
                                              do_ewald_spme
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change
   USE pw_poisson_methods,              ONLY: pw_poisson_set
@@ -44,7 +45,9 @@ MODULE ewald_pw_methods
   IMPLICIT NONE
 
   PRIVATE
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_methods'
+
   PUBLIC :: ewald_pw_grid_change
 
 !-----------------------------------------------------------------------------!
@@ -147,6 +150,8 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_rho0_setup'
+
     INTEGER                                  :: ewald_type, grid_index, isos
     REAL(dp)                                 :: alpha
     REAL(dp), POINTER                        :: gcc( : ), zet( : )
@@ -161,7 +166,8 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
 
   IF ( .NOT. ASSOCIATED ( zet ) ) THEN
     ALLOCATE ( zet ( 1 ) , STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ('ewald_pw_rho0_setup', 'zet', 0 )
+    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "zet",dp_size)
   ENDIF
 
 ! No contracted Gaussians are used here

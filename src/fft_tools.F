@@ -30,6 +30,7 @@ MODULE fft_tools
   USE f77_blas
   USE fft_plan,                        ONLY: fft_plan_type
   USE kinds,                           ONLY: dp,&
+                                             int_size,&
                                              sp
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
@@ -562,7 +563,8 @@ CONTAINS
     lmax = MAX ( lg, (nx*ny*nz)/mmax + 1 )
 
     ALLOCATE ( p2p ( 0 : numtask - 1 ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "p2p", numtask )
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "p2p",int_size*numtask)
 
     CALL mp_rank_compare ( gs_group, rs_group, p2p )
 
@@ -980,7 +982,7 @@ CONTAINS
     ENDIF
 
     DEALLOCATE ( p2p, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "p2p" )
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p2p")
 
     IF ( PRESENT ( status ) ) THEN
        status = stat

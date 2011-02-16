@@ -80,6 +80,8 @@ MODULE preconditioner
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
        ot_precond_sparse_kinetic_sainv
   USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size,&
                                              sp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max
@@ -558,6 +560,8 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     INTEGER                                  :: TYPE
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'make_local_block'
+
     INTEGER                                  :: i, info, istat, liwork, &
                                                 lwork, n
     INTEGER, DIMENSION(:), POINTER           :: iwork
@@ -573,10 +577,11 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
   ALLOCATE(block_buf1(n,n))
   ALLOCATE(evals(n))
   ALLOCATE(work(lwork),STAT=istat)
-  IF (istat.NE.0) CALL stop_memory("use preconditioner","work")
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                   "work",dp_size*lwork)
   ALLOCATE(iwork(liwork),STAT=istat)
-  IF (istat.NE.0) CALL stop_memory("use preconditioner","iwork")
-
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                   "iwork",int_size*liwork)
   block_pre(:,:)=0.0_dp
   SELECT CASE (TYPE)
   CASE(1)
@@ -668,12 +673,18 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
 
   END SELECT
 
-  DEALLOCATE(iwork)
-  DEALLOCATE(work)
-  DEALLOCATE(block_chol)
-  DEALLOCATE(block_evec)
-  DEALLOCATE(block_buf1)
-  DEALLOCATE(evals)
+  DEALLOCATE (iwork,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
+  DEALLOCATE (work,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+  DEALLOCATE (block_chol,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"block_chol")
+  DEALLOCATE (block_evec,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"block_evec")
+  DEALLOCATE (block_buf1,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"block_buf1")
+  DEALLOCATE (evals,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"evals")
 
 END SUBROUTINE make_local_block
 ! different types of preconditioner come here
@@ -1749,8 +1760,12 @@ END SUBROUTINE make_full_all_ortho
           ALLOCATE(block_pre(n,n),block_evec(n,n),block_buf1(n,n),evals(n))
           lwork=1+6*n+2*n**2+50
           liwork=5*n+3
-          ALLOCATE(work(lwork),iwork(liwork),STAT=istat)
-          IF (istat.NE.0) CALL stop_memory("use preconditioner","work")
+          ALLOCATE (work(lwork),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "work",dp_size*lwork)
+          ALLOCATE (iwork(liwork),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "iwork",int_size*liwork)
           !
           ! A simple block diagonal preconditoner
           block_evec(:,:) = block_h(:,:)

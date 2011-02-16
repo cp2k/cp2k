@@ -851,8 +851,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 ! single component systems
       WRITE(unit,10000) '    &COORD'
       IF(MOD(natoms_tot,natoms) .NE. 0) THEN
-         CALL stop_program("mc_make_dat_file",&
-              "Not a single component system?")
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Not a single component system?")
       ENDIF
       nchains=natoms_tot/natoms
 

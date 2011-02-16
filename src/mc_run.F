@@ -49,7 +49,8 @@ MODULE mc_run
                                              section_vals_release,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
   USE mc_ensembles,                    ONLY: mc_compute_virial,&
@@ -177,7 +178,7 @@ CONTAINS
 ! now we create the various pointers that contain information for all boxes
       ALLOCATE (force_env(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "force_env",nboxes)
+                                       "force_env",int_size*nboxes)
       SELECT CASE(ensemble)
       CASE("TRADITIONAL","VIRIAL")
          force_env(1)%force_env => force_env_1
@@ -187,9 +188,10 @@ CONTAINS
       END SELECT      
       ALLOCATE (mc_par(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par",nboxes)
-      ALLOCATE(mc_env(1:nboxes),STAT=isos)
-      IF ( isos /= 0 ) CALL stop_memory('allocstruc','mc_env',nboxes)
+                                       "mc_par",int_size*nboxes)
+      ALLOCATE (mc_env(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "mc_env",int_size*nboxes)
 
 ! now we need the molecule information
 ! determine the total number of molecules and atoms

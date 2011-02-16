@@ -276,16 +276,16 @@ CONTAINS
 
     ALLOCATE(v_hartree_gspace,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_hartree_gspace",0)
+                                     "v_hartree_gspace",0)
     ALLOCATE(v_hartree_gtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_hartree_gtemp",0)
+                                     "v_hartree_gtemp",0)
     ALLOCATE(v_hartree_rtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_hartree_rtemp",0)
+                                     "v_hartree_rtemp",0)
     ALLOCATE(rho_tot_gspace,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "rho_tot_gspace",0)
+                                     "rho_tot_gspace",0)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw, &
                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
@@ -473,16 +473,16 @@ CONTAINS
 
     DEALLOCATE(v_hartree_gspace,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_hartree_gspace",0)
+                                     "v_hartree_gspace")
     DEALLOCATE(v_hartree_gtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_hartree_gtemp",0)
+                                     "v_hartree_gtemp")
     DEALLOCATE(v_hartree_rtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_hartree_rtemp",0)
+                                     "v_hartree_rtemp")
     DEALLOCATE(rho_tot_gspace,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "rho_tot_gspace",0)
+                                     "rho_tot_gspace")
 
 !   -------------------------------------
 !   Add Coulomb potential
@@ -532,13 +532,13 @@ CONTAINS
 
              ALLOCATE(v_coulomb_gspace,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                     "v_coulomb_gspace",0)
+                                              "v_coulomb_gspace",0)
              ALLOCATE(v_coulomb_gtemp,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                     "v_coulomb_gtemp",0)
+                                              "v_coulomb_gtemp",0)
              ALLOCATE(v_coulomb_rtemp,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                     "v_coulomb_rtemp",0)
+                                              "v_coulomb_rtemp",0)
                 
              CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
                                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
@@ -650,13 +650,13 @@ CONTAINS
 
              DEALLOCATE(v_coulomb_gspace,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                     "v_coulomb_gspace",0)
+                                              "v_coulomb_gspace")
              DEALLOCATE(v_coulomb_gtemp,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                     "v_coulomb_gtemp",0)
+                                              "v_coulomb_gtemp")
              DEALLOCATE(v_coulomb_rtemp,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                     "v_coulomb_rtemp",0)
+                                              "v_coulomb_rtemp")
           ELSE
 
              ! Attic of the atomic parallellisation
@@ -896,10 +896,10 @@ CONTAINS
 
     ALLOCATE(v_xc_gtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_xc_gtemp",0)
+                                     "v_xc_gtemp",0)
     ALLOCATE(v_xc_rtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_xc_rtemp",0)
+                                     "v_xc_rtemp",0)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_gtemp%pw, &
                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
@@ -940,7 +940,7 @@ CONTAINS
 
        DEALLOCATE(v_rspace_new,stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "v_rspace_new",0)
+                                        "v_rspace_new")
     END IF
 
     IF (ASSOCIATED(v_tau_rspace)) THEN
@@ -969,7 +969,7 @@ CONTAINS
 
        DEALLOCATE(v_tau_rspace,stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "v_tau_rspace",0)
+                                        "v_tau_rspace")
     END IF
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_gtemp%pw,error=error)
@@ -977,10 +977,10 @@ CONTAINS
 
     DEALLOCATE(v_xc_gtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_xc_gtemp",0)
+                                     "v_xc_gtemp")
     DEALLOCATE(v_xc_rtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "v_xc_rtemp",0)
+                                     "v_xc_rtemp")
 
     IF (gapw .OR. gapw_xc) THEN
        CALL calculate_vxc_atom(qs_env=qs_env,energy_only=.FALSE.,&
@@ -996,7 +996,7 @@ CONTAINS
                   "EPR%PRINT%NABLAVKS_CUBES",error=error),cp_p_file)) THEN
        ALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "wf_r",0)
+                                        "wf_r",0)
        CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
@@ -1019,7 +1019,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
        DEALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "wf_r",0)
+                                        "wf_r")
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&

@@ -20,7 +20,8 @@ MODULE dgs
                                              FFT_RADIX_NEXT_ODD,&
                                              fft3d,&
                                              fft_radix_operations
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
@@ -39,6 +40,9 @@ MODULE dgs
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dgs'
+
   PUBLIC :: dg_get_patch, dg_get_delta
   PUBLIC :: dg_pme_grid_setup, dg_find_max_cutoff,  &
        dg_sum_patch, dg_sum_patch_force_3d, dg_sum_patch_force_1d,  &
@@ -768,6 +772,8 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: ex1, ey1, ez1
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'dg_get_patch_1'
+
     COMPLEX(KIND=dp)                         :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: zs
@@ -792,11 +798,13 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 !    ENDIF
 !  ENDIF
 !  IF ( .NOT. ALLOCATED ( cd ) ) THEN
-    ALLOCATE ( zs ( nd ( 1 ) * nd ( 2 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
+    ALLOCATE (zs(nd(1)*nd(2)),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "zs",2*dp_size*nd(1)*nd(2))
     zs=0.0_dp
-    ALLOCATE ( cd ( nd ( 1 ), nd ( 2 ), nd ( 3 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch", "cd", n )
+    ALLOCATE (cd(nd(1),nd(2),nd(3)),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "cd",2*dp_size*nd(1)*nd(2)*nd(3))
     cd=0.0_dp
 !  ENDIF
 
@@ -810,10 +818,10 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cr ( n, cd, rhos1 % pw % cr3d )
 
-  DEALLOCATE(zs, stat=ierr)
-  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
-  DEALLOCATE(cd, stat=ierr)
-  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
+  DEALLOCATE (zs,STAT=ierr)
+  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zs")
+  DEALLOCATE (cd,STAT=ierr)
+  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cd")
 
 END SUBROUTINE dg_get_patch_1
 
@@ -826,6 +834,8 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
     REAL(KIND=dp), INTENT(IN)                :: charge1, charge2
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: ex1, ey1, ez1, ex2, ey2, ez2
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'dg_get_patch_2'
 
     COMPLEX(KIND=dp)                         :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -851,11 +861,13 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
 !    ENDIF
 !  ENDIF
  ! IF ( .NOT. ALLOCATED ( cd ) ) THEN
-    ALLOCATE ( zs ( nd(1)*nd(2) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","allocate :: zs",nd(1)*nd(2))
+    ALLOCATE (zs(nd(1)*nd(2)),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "zs",2*dp_size*nd(1)*nd(2))
     zs=0.0_dp
-    ALLOCATE ( cd ( nd(1),nd(2),nd(3) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","allocate :: cd",n)
+    ALLOCATE (cd(nd(1),nd(2),nd(3)),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "cd",2*dp_size*nd(1)*nd(2)*nd(3))
     cd=0.0_dp
 !  ENDIF
 
@@ -872,10 +884,10 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cri ( n, cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
 
-  DEALLOCATE(zs, stat=ierr)
-  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
-  DEALLOCATE(cd, stat=ierr)
-  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
+  DEALLOCATE (zs,stat=ierr)
+  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zs")
+  DEALLOCATE (cd,stat=ierr)
+  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cd")
 
 END SUBROUTINE dg_get_patch_2
 
@@ -1048,4 +1060,3 @@ SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
 END SUBROUTINE dg_int_patch_folded_1d
 
 END MODULE dgs
-

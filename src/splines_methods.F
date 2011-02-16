@@ -12,7 +12,8 @@
 MODULE splines_methods
 
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type,&
                                              spline_factor_type
@@ -47,27 +48,31 @@ CONTAINS
     TYPE(spline_data_type), POINTER          :: spl
     INTEGER, INTENT(IN)                      :: nn
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_splinexy'
+
     INTEGER                                  :: err
 
     spl % n = nn
 
     IF ( ASSOCIATED ( spl % y ) ) THEN
        DEALLOCATE ( spl % y, STAT = err )
-       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y')
+       IF (err /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"spl%y")
        NULLIFY ( spl % y )
     END IF
 
     IF ( ASSOCIATED ( spl % y2 ) ) THEN
        DEALLOCATE ( spl % y2, STAT = err )
-       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y2')
+       IF (err /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"spl%y2")
        NULLIFY ( spl % y2 )
     END IF
 
     ALLOCATE ( spl % y ( 1:nn ), STAT = err )
-    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y', nn)
+    IF (err /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                   "spl%y",dp_size*nn)
 
     ALLOCATE ( spl % y2 ( 1:nn ), STAT = err )
-    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y2', nn )
+    IF (err /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                   "spl%y2",dp_size*nn)
 
   END SUBROUTINE init_splinexy
 
@@ -105,6 +110,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: dx
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_spline'
+
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s
     REAL(KIND=dp), POINTER                   :: ww( : )
@@ -115,7 +122,8 @@ CONTAINS
     spl%invh = 1.0_dp/dx
     spl%h26  = dx**2 / 6.0_dp
     ALLOCATE (ww(1:n),STAT=err)
-    IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl%n )
+    IF (err /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                   "ww",dp_size*n)
     IF (PRESENT(y1a)) THEN
        spl%y2(1) = -0.5_dp
        ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
@@ -140,7 +148,7 @@ CONTAINS
        spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
     END DO
     DEALLOCATE (ww,STAT=err)
-    IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
+    IF (err /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ww")
 
   END SUBROUTINE init_spline
 

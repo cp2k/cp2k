@@ -17,6 +17,7 @@ MODULE qs_rho0_ggrid
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp,&
+                                             dp_size,&
                                              int_8
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
@@ -154,23 +155,28 @@ MODULE qs_rho0_ggrid
     CPPrecondition(ASSOCIATED(desc),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
-    IF(igrid /= auxbas_grid)  THEN
-      ALLOCATE(coeff_rspace,coeff_gspace ,stat=istat)
-      IF(istat /= 0) CALL stop_memory("put_rho0_on_grid","coeff_rspace,coeff_gspace")
+    IF (igrid /= auxbas_grid) THEN
+      ALLOCATE (coeff_rspace,STAT=istat)
+      IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "coeff_rspace",0)
+      ALLOCATE (coeff_gspace,STAT=istat)
+      IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "coeff_gspace",0)
 
       CALL pw_pool_create_pw(pw_pool,coeff_rspace%pw,use_data=REALDATA3D,&
-                              in_space=REALSPACE,error=error)
+                             in_space=REALSPACE,error=error)
       CALL pw_pool_create_pw(pw_pool,coeff_gspace%pw,&
-                              use_data = COMPLEXDATA1D,&
-                              in_space = RECIPROCALSPACE, error=error)
+                             use_data = COMPLEXDATA1D,&
+                             in_space = RECIPROCALSPACE, error=error)
     END IF
     CALL rs_grid_create(rs_grid, desc, error=error)
     CALL rs_grid_zero(rs_grid)
 
     nch_max  = ncoset(lmax0)
 
-    ALLOCATE(pab(nch_max,1), STAT=istat)
-    IF(istat /= 0) CALL stop_memory("put_rho0_on_grid","pab",nch_max)
+    ALLOCATE (pab(nch_max,1),STAT=istat)
+    IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",dp_size*nch_max)
 
     nkind=SIZE(atom_set,1)
 

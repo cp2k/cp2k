@@ -67,7 +67,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'clustering_particles', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'clustering_particles', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, &
@@ -132,7 +132,7 @@ CONTAINS
     TYPE(box_type)                           :: boxes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_box', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_box', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ibox, jbox, kbox, &
@@ -190,7 +190,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: max_blk_size_to_be_small
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_smallest_on_larger', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_smallest_on_larger', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
@@ -345,7 +345,7 @@ CONTAINS
     TYPE(box_type)                           :: boxes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_none', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_none', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ibox, jbox, kbox, &
@@ -399,7 +399,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: box_size_guess
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'boxing_particles', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'boxing_particles', &
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: box_secure = 0.0_dp
 
@@ -581,7 +581,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: npart
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'box_allocate', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'box_allocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
@@ -602,7 +602,7 @@ CONTAINS
     TYPE(box_type)                           :: boxes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'box_deallocate', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'box_deallocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
@@ -627,7 +627,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: nclusters, nparticles
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_allocate', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_allocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
@@ -637,18 +637,22 @@ CONTAINS
 
     clusters%nclusters = nclusters
     clusters%nparticles = nparticles
-    ALLOCATE(clusters%cluster_ptr(nclusters+1), clusters%particle_idx(nparticles),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (clusters%particle_to_cluster(nparticles), STAT=istat)
-    IF (istat /= 0) CALL stop_memory (routineN, moduleN, __LINE__,&
-         "clusters%particle_to_clusteR", int_size*nparticles)
+    ALLOCATE (clusters%cluster_ptr(nclusters+1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "clusters%cluster_ptr",int_size*(nclusters+1))
+    ALLOCATE (clusters%particle_idx(nparticles),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "clusters%particle_idx",int_size*nparticles)
+    ALLOCATE (clusters%particle_to_cluster(nparticles),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "clusters%particle_to_cluster",int_size*nparticles)
   END SUBROUTINE cluster_allocate
 
   SUBROUTINE cluster_deallocate(clusters, error)
     TYPE(cluster_type)                       :: clusters
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_deallocate', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_deallocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
@@ -656,17 +660,19 @@ CONTAINS
 
     failure = .FALSE.
 
-    DEALLOCATE(clusters%cluster_ptr, clusters%particle_idx,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(clusters%particle_to_cluster, STAT=istat)
-    IF (istat /= 0) CALL stop_memory (routineP, "cluster%particle_to_cluster")
+    DEALLOCATE (clusters%cluster_ptr,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"clusters%cluster_ptr")
+    DEALLOCATE (clusters%particle_idx,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"clusters%particle_idx")
+    DEALLOCATE(clusters%particle_to_cluster,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"clusters%particle_to_cluster")
   END SUBROUTINE cluster_deallocate
 
   SUBROUTINE cluster_check(clusters, error)
     TYPE(cluster_type)                       :: clusters
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_check', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_check', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icluster, ip, iparticle, istat
@@ -710,7 +716,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_print', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_print', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
@@ -773,7 +779,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: cluster
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_part2cluster', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_part2cluster', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
@@ -811,7 +817,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, DIMENSION(:), POINTER           :: members
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_member_particles', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cluster_member_particles', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle

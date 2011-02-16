@@ -189,10 +189,12 @@ CONTAINS
     gapw = (dft_control%qs_control%method=="GAPW")
      
     ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "atom_of_kind",natom*int_size)
 
     ALLOCATE (kind_of(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"kind_of",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "kind_of",natom*int_size)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          atom_of_kind=atom_of_kind,&
@@ -441,10 +443,10 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_of_kind")
 
     DEALLOCATE (kind_of,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"kind_of")
 
     CALL timestop(handle)
 
@@ -490,14 +492,16 @@ CONTAINS
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom=natom)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "atom_of_kind",natom*int_size)
        ALLOCATE (kind_of(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"kind_of",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "kind_of",natom*int_size)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind,&
             kind_of=kind_of)
 
-       !   *** Variable precision output of the forces ***
+       ! Variable precision output of the forces
        CALL section_vals_val_get(print_section,"NDIGITS",&
             i_val=ndigits,error=error)
 
@@ -631,11 +635,12 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
 
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
-
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_of_kind")
        DEALLOCATE (kind_of,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"kind_of")
+
     END IF
+
   END SUBROUTINE write_forces
 
 END MODULE qs_force
