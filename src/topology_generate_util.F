@@ -67,6 +67,8 @@ MODULE topology_generate_util
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_generate_util'
 
   PRIVATE
+  LOGICAL, PARAMETER                   :: debug_this_module=.FALSE.
+
   PUBLIC :: topology_generate_bend,&
             topology_generate_bond,&
             topology_generate_dihe,&
@@ -97,7 +99,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: molname
     INTEGER                                  :: i, N, nmol, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, check
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
 
@@ -116,6 +118,8 @@ CONTAINS
                            conn_info%bond_b(nbond_prev+1:)-natom_prev, N, error)
     
     nmol=0
+    check=ALL(id_molname==str2id(s2s("__UNDEF__"))).OR.ALL(id_molname/=str2id(s2s("__UNDEF__")))
+    CPPostcondition(check,cp_failure_level,routineP,error,failure)
     DO i = 1, natom
        IF (id2str(id_molname(i))=="__UNDEF__") THEN
           molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
@@ -148,14 +152,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j
+    INTEGER                                  :: j,k
+    LOGICAL :: failure
 
+    failure = .FALSE.
+    IF (debug_this_module) THEN
+       WRITE(*,*)"Entered with :",i
+       WRITE(*,*)TRIM(molname)//": entering with i:",i," full series to test:: ",atom_bond_list(i)%array1
+       IF ((TRIM(id2str(id_molname(i)))/="__UNDEF__").AND.&
+           (TRIM(id2str(id_molname(i)))/=TRIM(molname))) THEN
+          WRITE(*,*)"Atom (",i,") has already a molecular name assigned ! ("//TRIM(id2str(id_molname(i)))//")."
+          WRITE(*,*)"New molecular name would be: ("//TRIM(molname)//")."
+          WRITE(*,*)"Detecting something wrong in the molecular setup!"
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
     id_molname(i) = str2id(molname)
     DO j = 1, SIZE(atom_bond_list(i)%array1)
-       IF (atom_bond_list(i)%array1(j)<=i) CYCLE
-       CALL generate_molname_low(atom_bond_list(i)%array1(j), atom_bond_list, molname,&
-                                 id_molname, error)
+       k=atom_bond_list(i)%array1(j)
+       IF (debug_this_module) WRITE(*,*)"entering with i:",i,"testing :",k
+       IF (k==-1) CYCLE
        atom_bond_list(i)%array1(j)=-1
+       WHERE (atom_bond_list(k)%array1==i) atom_bond_list(k)%array1=-1
+       CALL generate_molname_low(k, atom_bond_list, molname, id_molname, error)
     END DO
   END SUBROUTINE generate_molname_low
 
@@ -311,6 +330,13 @@ CONTAINS
     ALLOCATE(wrk2(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     wrk1 = atom_info%map_mol_num
+
+    IF (debug_this_module) THEN
+       do i=1,natom
+        write(*,'(2I10)')i, atom_info%map_mol_num(i)
+       end do
+    END IF
+
     CALL sort(wrk1,natom,wrk2)
     istart  = 1
     mol_typ = wrk1(istart)
@@ -321,12 +347,17 @@ CONTAINS
           last  = MAXVAL(wrk2(istart:iend))
           nlocl = last-first+1
           IF (iend-istart+1 /= nlocl) THEN
+             IF (debug_this_module) WRITE(*,*)iend, istart, iend-istart+1, first, last, nlocl
              CALL stop_program ("topology_generate_molecule",&
-                  "Detected a non contiguous molecule!! "//&
+                  "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "//&
+                  "In particular a molecule defined from index ("//cp_to_string(first)//") to ("//&
+                  cp_to_string(last)//") contains other molecules, not connected! "//&
                   "Too late at this stage everything should be already ordered! "//&
-                  "Try with the keyword reordering.. It may help!")
+                  "If you have not yet employed the REORDERING keyword, please do so."//&
+                  "It may help to fix this issue.")
           END IF
           istart = i
+          mol_typ = wrk1(istart)
        END IF
     END DO
     iend  = i-1
@@ -334,10 +365,14 @@ CONTAINS
     last  = MAXVAL(wrk2(istart:iend))
     nlocl = last-first+1
     IF (iend-istart+1 /= nlocl) THEN
+       IF (debug_this_module) WRITE(*,*)iend, istart, iend-istart+1, first, last, nlocl
        CALL stop_program ("topology_generate_molecule",&
-            "Detected a non contiguous molecule!! "//&
+            "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "//&
+            "In particular a molecule defined from index ("//cp_to_string(first)//") to ("//&
+            cp_to_string(last)//") contains other molecules, not connected! "//&
             "Too late at this stage everything should be already ordered! "//&
-            "Try with the keyword reordering.. It may help!")
+            "If you have not yet employed the REORDERING keyword, please do so."//&
+            "It may help to fix this issue.")
     END IF
     DEALLOCATE(wrk1, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
