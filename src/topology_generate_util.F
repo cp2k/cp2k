@@ -99,7 +99,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: molname
     INTEGER                                  :: i, N, nmol, stat
-    LOGICAL                                  :: failure, check
+    LOGICAL                                  :: check, failure
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
 
@@ -152,8 +152,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j,k
-    LOGICAL :: failure
+    INTEGER                                  :: j, k
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (debug_this_module) THEN
@@ -332,9 +332,9 @@ CONTAINS
     wrk1 = atom_info%map_mol_num
 
     IF (debug_this_module) THEN
-       do i=1,natom
-        write(*,'(2I10)')i, atom_info%map_mol_num(i)
-       end do
+       DO i=1,natom
+        WRITE(*,'(2I10)')i, atom_info%map_mol_num(i)
+       END DO
     END IF
 
     CALL sort(wrk1,natom,wrk2)
