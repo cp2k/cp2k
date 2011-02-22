@@ -105,6 +105,9 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_link_scale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_mm_charges_and_radius', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: I, ilink, IndMM
     REAL(dp)                                 :: qi, rc, ri
     TYPE(atomic_kind_type), POINTER          :: my_kind
@@ -113,33 +116,33 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-   NULLIFY(particle_set, my_kind)
-   CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
-   particle_set => particles%els
+    NULLIFY(particle_set, my_kind)
+    CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
+    particle_set => particles%els
 
-   DO I = 1, SIZE(mm_atom_index)
-      IndMM = mm_atom_index(I)
-      my_kind => particle_set(IndMM)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=my_kind, fist_potential=my_potential)
-      CALL get_potential  (potential=my_potential,&
-                           qeff=qi,&
-                           qmmm_radius=ri,&
-                           qmmm_corr_radius=rc)
-      IF (ASSOCIATED(charges)) qi=charges(IndMM)
-      mm_atom_chrg(I)          = qi
-      mm_el_pot_radius(I)      = ri
-      mm_el_pot_radius_corr(I) = rc
-   END DO
+    DO I = 1, SIZE(mm_atom_index)
+       IndMM = mm_atom_index(I)
+       my_kind => particle_set(IndMM)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=my_kind, fist_potential=my_potential)
+       CALL get_potential  (potential=my_potential,&
+                            qeff=qi,&
+                            qmmm_radius=ri,&
+                            qmmm_corr_radius=rc)
+       IF (ASSOCIATED(charges)) qi=charges(IndMM)
+       mm_atom_chrg(I)          = qi
+       mm_el_pot_radius(I)      = ri
+       mm_el_pot_radius_corr(I) = rc
+    END DO
 
-   IF (ASSOCIATED(mm_link_atoms)) THEN
-      DO ilink = 1, SIZE(mm_link_atoms)
-         DO i = 1, SIZE(mm_atom_index)
-            IF (mm_atom_index(i) == mm_link_atoms(ilink)) EXIT
-         END DO
-         IndMM = mm_atom_index(I)
-         mm_atom_chrg(i) = mm_atom_chrg(i) * mm_link_scale_factor(ilink)
-      END DO
-   END IF
+    IF (ASSOCIATED(mm_link_atoms)) THEN
+       DO ilink = 1, SIZE(mm_link_atoms)
+          DO i = 1, SIZE(mm_atom_index)
+             IF (mm_atom_index(i) == mm_link_atoms(ilink)) EXIT
+          END DO
+          IndMM = mm_atom_index(I)
+          mm_atom_chrg(i) = mm_atom_chrg(i) * mm_link_scale_factor(ilink)
+       END DO
+    END IF
 
  END SUBROUTINE assign_mm_charges_and_radius
 
@@ -162,6 +165,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(IN)                      :: nocompatibility
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_qmmm_charges', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, ind1, ind2, IndMM, iw
     REAL(KIND=dp)                            :: qi, qtot, rc, ri
@@ -231,6 +237,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_qmmm_links', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iw, mm_index, qm_index
     REAL(KIND=dp)                            :: alpha
@@ -367,26 +376,29 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-   CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                            mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
-                            potentials=qmmm_env_qm%potentials,&
-                            pgfs=qmmm_env_qm%pgfs,&
-                            mm_cell=mm_cell,&
-                            compatibility=qmmm_env_qm%compatibility,&
-                            print_section=print_section,&
-                            error=error)
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_potential', &
+      routineP = moduleN//':'//routineN
 
-   IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
+    CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                             mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
+                             potentials=qmmm_env_qm%potentials,&
+                             pgfs=qmmm_env_qm%pgfs,&
+                             mm_cell=mm_cell,&
+                             compatibility=qmmm_env_qm%compatibility,&
+                             print_section=print_section,&
+                             error=error)
 
-      CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                               mm_el_pot_radius=added_charges%mm_el_pot_radius,&
-                               potentials=added_charges%potentials,&
-                               pgfs=added_charges%pgfs,&
-                               mm_cell=mm_cell,&
-                               compatibility=qmmm_env_qm%compatibility,&
-                               print_section=print_section,&
-                               error=error)
-   END IF
+    IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
+
+       CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                                mm_el_pot_radius=added_charges%mm_el_pot_radius,&
+                                potentials=added_charges%potentials,&
+                                pgfs=added_charges%pgfs,&
+                                mm_cell=mm_cell,&
+                                compatibility=qmmm_env_qm%compatibility,&
+                                print_section=print_section,&
+                                error=error)
+    END IF
 
  END SUBROUTINE qmmm_init_potential
 
@@ -408,9 +420,21 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_periodic_potential', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: maxchrg
 
    IF (.NOT.qmmm_env_qm%periodic) RETURN
+   check=(qs_env%dft_control%qs_control%semi_empirical.OR.&
+          qs_env%dft_control%qs_control%dftb)
+
+   CALL cp_assert(.NOT.check,cp_failure_level,cp_assertion_failed,routineP,&
+           " QM/MM periodic calculations possible only with GPW. Not yet implemented for "//&
+           " semiempirical or DFTB calculations!"//&
+           CPSourceFileRef,&
+           only_ionode=.TRUE.)
 
    maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
    IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
@@ -683,6 +707,9 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: qmmm_ff_section
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_qmmm_ff_section', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_gd, n_gp, n_lj, n_wl, np
     LOGICAL                                  :: failure
