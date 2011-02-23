@@ -747,7 +747,7 @@ CONTAINS
           !
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
           CALL section_vals_release(restart_file,error=error)
-          CALL release_restart_info(restarted_infos, r_file_path, TRIM(binary_restart_file),&
+          CALL release_restart_info(restarted_infos, r_file_path, binary_restart_file,&
                                     output_unit, error)
        END IF
     END IF
