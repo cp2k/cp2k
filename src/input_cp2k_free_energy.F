@@ -135,8 +135,18 @@ CONTAINS
         
        NULLIFY(subsection,keyword,print_key)
 
+       CALL keyword_create(keyword, name="MIN_NT_HILLS",&
+            description="Specify the minimum MD step interval between spawning "//&
+            "two hills. If specified, it must be >= than NT_HILLS. In case MIN_DISP "//&
+            "is used, if MIN_DISP is satisfied before MIN_NT_HILLS MD steps have been "//&
+            "performed, the MD will continue without any spawning until MIN_NT_HILLS is "//&
+            "reached. The default value has the net effect of skipping this check.",&
+            usage="MIN_NT_HILLS {integer}",default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="NT_HILLS",&
-            description="Specify the time step interval between spawning "//&
+            description="Specify the maximum MD step interval between spawning "//&
             "two hills. When negative, no new hills are spawned and only "//&
             "the hills read from SPAWNED_HILLS_* are in effect. The latter"//&
             "is useful when one wants to add a custom constant bias potential.",&

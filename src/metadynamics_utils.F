@@ -116,6 +116,17 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
        CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
        CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
+       CALL section_vals_val_get(metadyn_section,"MIN_NT_HILLS",i_val=meta_env%hills_env%min_nt_hills,error=error)
+       IF (meta_env%hills_env%nt_hills<=0) THEN
+          meta_env%hills_env%min_nt_hills=meta_env%hills_env%nt_hills
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "NT_HILLS has a value <= 0; Setting MIN_NT_HILLS to the same value! Overriding input specification!",&
+                only_ionode=.TRUE.)
+       END IF
+       check=meta_env%hills_env%nt_hills>=meta_env%hills_env%min_nt_hills
+       CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
+             "MIN_NT_HILLS must have a value smaller or equal to NT_HILLS! Cross check with the input reference!",&
+             only_ionode=.TRUE.)
        !RG Adaptive hills
        CALL section_vals_val_get(metadyn_section,"MIN_DISP",r_val=meta_env%hills_env%min_disp,error=error)
        CALL section_vals_val_get(metadyn_section,"OLD_HILL_NUMBER",i_val=meta_env%hills_env%old_hill_number,&

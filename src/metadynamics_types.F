@@ -45,7 +45,7 @@ MODULE metadynamics_types
      LOGICAL                                   :: restart, wtcontrol
      !RG Adaptive hills
      REAL(KIND=dp)                             :: ww, min_disp, energy
-     INTEGER                                   :: n_hills, nt_hills 
+     INTEGER                                   :: n_hills, nt_hills, min_nt_hills
      INTEGER                                   :: old_hill_number, old_hill_step      
      !RG Adaptive hills
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: ss_history

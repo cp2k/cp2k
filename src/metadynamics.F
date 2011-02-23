@@ -590,7 +590,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_hills, ih, iter_nr, iw, &
+    INTEGER                                  :: i, i_hills, ih, &
+                                                intermeta_steps, iter_nr, iw, &
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
     LOGICAL                                  :: failure, force_gauss
@@ -631,8 +632,10 @@ CONTAINS
 
  
     ! Proceed with normal calculation
+    intermeta_steps=n_step-hills_env%old_hill_step
     force_gauss=.FALSE.
-    IF ((hills_env%min_disp > 0.0_dp).AND.hills_env%old_hill_number> 0) THEN
+    IF ((hills_env%min_disp > 0.0_dp).AND.(hills_env%old_hill_number> 0).AND.&
+        (MODULO(intermeta_steps,hills_env%min_nt_hills)==0)) THEN
        ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        ALLOCATE(local_last_hills(meta_env%n_colvar), stat=stat)
@@ -660,7 +663,7 @@ CONTAINS
     END IF
 
     !RG keep into account adaptive hills
-    IF (((MODULO(n_step-hills_env%old_hill_step,hills_env%nt_hills)==0).OR.force_gauss)&
+    IF (((MODULO(intermeta_steps,hills_env%nt_hills)==0).OR.force_gauss)&
         .AND.(.NOT.meta_env%restart).AND.(hills_env%nt_hills>0)) THEN
        IF (meta_env%do_multiple_walkers) multiple_walkers => meta_env%multiple_walkers
 
