@@ -9,6 +9,7 @@
 ! *****************************************************************************
 MODULE rt_propagation
   USE cp_control_types,                ONLY: rtp_control_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
@@ -55,7 +56,6 @@ MODULE rt_propagation
                                              rtp_history_create
   USE rt_propagation_utils,            ONLY: get_restart_wfn
   USE rt_propagator_init,              ONLY: init_propagators
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

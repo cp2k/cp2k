@@ -37,18 +37,20 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 PROGRAM cp2k
-  USE cp2k_info,         ONLY : print_cp2k_license,&
-                                cp2k_version,&
-                                id_cp2k_version, get_runtime_info
-  USE cp2k_runs,         ONLY : write_cp2k_html_manual, &
-                                write_xml_file, run_input
-  USE input_constants,   ONLY : id_development_version
-  USE machine,           ONLY : m_iargc,m_getarg, default_output_unit
-  USE message_passing,   ONLY : mp_sync, mp_abort
-  USE kinds,             ONLY : default_path_length,&
-                                default_string_length
-  USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
-                                check_input, default_para_env
+
+  USE cp_files,        ONLY: init_preconnection_list
+  USE cp2k_info,       ONLY: print_cp2k_license,&
+                             cp2k_version,&
+                             id_cp2k_version, get_runtime_info
+  USE cp2k_runs,       ONLY: write_cp2k_html_manual, &
+                             write_xml_file, run_input
+  USE input_constants, ONLY: id_development_version
+  USE machine,         ONLY: m_iargc,m_getarg, default_output_unit
+  USE message_passing, ONLY: mp_sync, mp_abort
+  USE kinds,           ONLY: default_path_length,&
+                             default_string_length
+  USE f77_interface,   ONLY: init_cp2k, finalize_cp2k, &
+                             check_input, default_para_env
   USE f77_blas
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -67,6 +69,9 @@ PROGRAM cp2k
 
   ! output goes to the screen by default
   output_unit=default_output_unit
+
+  ! Initialise preconnection list
+  CALL init_preconnection_list()
 
   ! get runtime information
   CALL get_runtime_info

@@ -1274,6 +1274,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="BINARY_RESTART_FILE_NAME",&
+                           variants=(/"BINARY_RESTART_FILE"/),&
+                           description="Specifies the name of an additional restart file "//&
+                           "from which selected input sections are read in binary format "//&
+                           "(see SPLIT_RESTART_FILE).",&
+                           default_lc_val="",&
+                           supported_feature=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RESTART_DEFAULT",&
             description="This keyword controls the default value for all possible "//&
             " restartable keywords, unless explicitly defined. For example setting"//&
@@ -1457,6 +1468,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_ext_restart_section
 
 ! *****************************************************************************

@@ -12,6 +12,7 @@
 MODULE bsse
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -42,7 +43,6 @@ MODULE bsse
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: external_control
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

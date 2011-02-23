@@ -41,6 +41,7 @@ MODULE force_fields_all
                                              do_ff_g96,&
                                              do_ff_undef,&
                                              do_qmmm_none
+  USE input_cp2k_binary_restarts,      ONLY: read_binary_cs_coordinates
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -2414,8 +2415,9 @@ CPSourceFileRef,&
                                                 last_shell, n, natom, nmol, &
                                                 nshell_tot, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, shell_list_tmp
-    LOGICAL :: failure, found_shell, is_a_shell, is_link_atom, null_massfrac, &
-      only_qm, save_mem, shell_adiabatic
+    LOGICAL :: core_coord_read, failure, found_shell, is_a_shell, &
+      is_link_atom, null_massfrac, only_qm, save_mem, shell_adiabatic, &
+      shell_coord_read
     REAL(KIND=dp)                            :: atmmass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2509,14 +2511,25 @@ CPSourceFileRef,&
        END DO
        CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
 
-      ! Initialize the shells coordinates
-       IF(shell_adiabatic) THEN
-          CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-               subsys_section, core_particle_set, save_mem=save_mem,&
-               error=error)
+      ! Initialise the shell (and core) coordinates
+       IF (shell_adiabatic) THEN
+          ! Note: the order matters
+          CALL read_binary_cs_coordinates("SHELL",shell_particle_set,root_section,&
+                                          subsys_section,shell_coord_read,error)
+          CALL read_binary_cs_coordinates("CORE",core_particle_set,root_section,&
+                                          subsys_section,core_coord_read,error)
+          IF (.NOT.(core_coord_read.AND.shell_coord_read)) THEN
+             CALL read_shell_coord_input(particle_set,shell_particle_set,cell,&
+                                         subsys_section,core_particle_set,&
+                                         save_mem=save_mem,error=error)
+          END IF
        ELSE
-          CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-               subsys_section,save_mem=save_mem, error=error)
+          CALL read_binary_cs_coordinates("SHELL",shell_particle_set,root_section,&
+                                          subsys_section,shell_coord_read,error)
+          IF (.NOT.shell_coord_read) THEN
+             CALL read_shell_coord_input(particle_set,shell_particle_set,cell,&
+                                         subsys_section,save_mem=save_mem,error=error)
+          END IF
        END IF
 
        ! Determine the number of shells per molecule kind

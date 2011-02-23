@@ -28,6 +28,7 @@ MODULE topology
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
        do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
        do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz
+  USE input_cp2k_binary_restarts,      ONLY: read_binary_coordinates
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -131,11 +132,12 @@ CONTAINS
       OPTIONAL, POINTER                      :: exclusions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, iw2
-    LOGICAL                                  :: failure, my_qmmm
+    LOGICAL                                  :: binary_coord_read, failure, &
+                                                my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: cell_section, &
                                                 constraint_section, &
@@ -174,7 +176,11 @@ CONTAINS
     CALL read_constraints_section(topology,colvar_p,constraint_section,error)
 
     ! 5. Read in the coordinates
-    CALL coordinate_control(topology,root_section,para_env,subsys_section,error)
+    CALL read_binary_coordinates(topology,root_section,para_env,subsys_section,&
+                                 binary_coord_read,error)
+    IF (.NOT.binary_coord_read) THEN
+       CALL coordinate_control(topology,root_section,para_env,subsys_section,error)
+    END IF
 
     ! 6. Read in or generate the molecular connectivity
     CALL connectivity_control(topology,para_env,my_qmmm, qmmm_env,subsys_section,&

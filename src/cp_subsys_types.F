@@ -404,7 +404,7 @@ CONTAINS
                            local_particles, molecules_new, molecule_kinds_new,&
                            local_molecules_new, para_env, colvar_p,&
                            shell_particles, core_particles, gci, multipoles,&
-                           natom, nparticle, nshell, error)
+                           natom, nparticle, ncore, nshell, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -429,7 +429,8 @@ CONTAINS
     TYPE(global_constraint_type), OPTIONAL, &
       POINTER                                :: gci
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
-    INTEGER, INTENT(out), OPTIONAL           :: natom, nparticle, nshell
+    INTEGER, INTENT(out), OPTIONAL           :: natom, nparticle, ncore, &
+                                                nshell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_subsys_get', &
@@ -481,6 +482,7 @@ CONTAINS
           END IF
           IF (PRESENT(natom)) natom = n_atom
           IF (PRESENT(nparticle)) nparticle = n_atom + n_shell
+          IF (PRESENT(ncore)) ncore = n_core
           IF (PRESENT(nshell)) nshell = n_shell
        END IF
     END IF

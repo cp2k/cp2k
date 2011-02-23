@@ -27,6 +27,7 @@ MODULE qs_localization_methods
                                              cp_cfm_set_all,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                              cp_fm_gemm,&
                                              cp_fm_scale,&
@@ -57,7 +58,6 @@ MODULE qs_localization_methods
                                              mp_sync
   USE rt_matrix_exp,                   ONLY: exp_pade_real,&
                                              get_nsquare_norder
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

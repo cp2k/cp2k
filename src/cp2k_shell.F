@@ -34,7 +34,8 @@ PROGRAM cp2k_shell
                                              cp2k_version,&
                                              id_cp2k_version,&
                                              print_cp2k_license
-  USE cp_files,                        ONLY: get_eof_stat
+  USE cp_files,                        ONLY: close_file,&
+                                             get_unit_number
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface
   USE input_constants,                 ONLY: id_development_version
@@ -69,6 +70,9 @@ PROGRAM cp2k_shell
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
   REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
+
+  LOGICAL, SAVE                            :: did_init = .FALSE.
+  INTEGER, SAVE                            :: eof_stat
   
   CHARACTER(len=80), DIMENSION(35) :: helpMsg
   
@@ -537,4 +541,36 @@ CONTAINS
  END SUBROUTINE
 
 ! *****************************************************************************
+!> \brief returns the number returned by iostat on eof
+! *****************************************************************************
+  FUNCTION get_eof_stat() RESULT(res)
+    INTEGER                                  :: res
+
+    CHARACTER(LEN=5)                         :: rdBuf
+    INTEGER                                  :: stat_n, unit
+
+    IF (.NOT.did_init) THEN
+       unit=get_unit_number()
+       OPEN (UNIT=unit, FILE='.tmp_eof_code',FORM='FORMATTED', STATUS='NEW') 
+
+       WRITE(unit,fmt=*)'z'
+       REWIND(unit)
+
+       eof_stat=0
+       stat_n=0
+       DO
+          READ (unit,'(a1)', iostat=stat_n)rdBuf
+          IF (stat_n/=0) EXIT
+       END DO
+       eof_stat=stat_n
+       IF (eof_stat >= 0) THEN
+          STOP 'ERROR,cp_files:get_eof_stat failed identification of EOF IOSTAT'
+          eof_stat=-1
+       END IF
+       CALL close_file(unit,'delete')
+       did_init=.TRUE.
+    END IF
+    res=eof_stat
+  END FUNCTION get_eof_stat
+
 END PROGRAM cp2k_shell

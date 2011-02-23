@@ -59,6 +59,7 @@ MODULE input_parsing
                                              dp,&
                                              max_line_length
   USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: print_message
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

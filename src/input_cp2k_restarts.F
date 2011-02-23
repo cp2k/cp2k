@@ -56,8 +56,11 @@ MODULE input_cp2k_restarts
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp,&
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_datum,&
                                              m_getcwd
   USE md_environment_types,            ONLY: get_md_env,&
@@ -68,6 +71,7 @@ MODULE input_cp2k_restarts
                                              mp_gather,&
                                              mp_sum
   USE metadynamics_types,              ONLY: meta_env_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -88,6 +92,8 @@ MODULE input_cp2k_restarts
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_write
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: communication_thermo_low2,&
                                              get_kin_energies
@@ -134,10 +140,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=30), DIMENSION(2) :: &
-      keys = (/"PRINT%RESTART_HISTORY", "PRINT%RESTART        "/)
+      keys = (/"PRINT%RESTART_HISTORY","PRINT%RESTART        "/)
     INTEGER                                  :: handle, ikey, ires, &
                                                 nforce_eval
-    LOGICAL                                  :: failure, save_mem
+    LOGICAL                                  :: failure, save_mem, &
+                                                write_binary_restart_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section, &
                                                 motion_section, sections
@@ -153,35 +160,56 @@ CONTAINS
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         motion_section,keys(1),error=error),cp_p_file) .OR.  &
-         BTEST(cp_print_key_should_output(logger%iter_info,&
-         motion_section,keys(2),error=error),cp_p_file) ) THEN
+              motion_section,keys(1),error=error),cp_p_file).OR. &
+        BTEST(cp_print_key_should_output(logger%iter_info,&
+              motion_section,keys(2),error=error),cp_p_file)) THEN
 
        sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
+       CALL section_vals_val_get(motion_section,"PRINT%RESTART%SPLIT_RESTART_FILE",&
+                                 l_val=write_binary_restart_file,error=error)
 
-       CALL update_input(md_env,force_env,root_section,coords,vels,pint_env,&
-            helium_env,save_mem=save_mem,error=error)
+       IF (write_binary_restart_file) THEN
+          DO ikey=1,SIZE(keys)
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+                       motion_section,keys(ikey),error=error),cp_p_file)) THEN
+                ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
+                                            extension=".restart.bin",&
+                                            file_action="READWRITE",&
+                                            file_form="UNFORMATTED",&
+                                            file_position="REWIND",&
+                                            file_status="UNKNOWN",&
+                                            do_backup=(ikey==2),&
+                                            error=error)
+                CALL write_binary_restart(ires,root_section,md_env,force_env,error=error)
+                CALL cp_print_key_finished_output(ires,logger,motion_section,&
+                                                  TRIM(keys(ikey)),error=error)
+             END IF
+          END DO
+       END IF
+
+       CALL update_input(md_env,force_env,root_section,coords,vels,pint_env,helium_env,&
+                         save_mem=save_mem,&
+                         write_binary_restart_file=write_binary_restart_file,&
+                         error=error)
 
        DO ikey=1,SIZE(keys)
-
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               motion_section,keys(ikey),error=error),cp_p_file)) THEN
-
-             ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)), extension=".restart",&
-                                         file_position="REWIND", do_backup=(ikey==2), error=error)
-
-             IF (ires>0) THEN
+                    motion_section,keys(ikey),error=error),cp_p_file)) THEN
+             ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
+                                         extension=".restart",&
+                                         file_position="REWIND",&
+                                         do_backup=(ikey==2),&
+                                         error=error)
+             IF (ires > 0) THEN
                 CALL write_restart_header(ires, error)
-                CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE., error=error)
-             ENDIF
+                CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE.,error=error)
+             END IF
+             CALL cp_print_key_finished_output(ires,logger,motion_section,TRIM(keys(ikey)),error=error)
+          END IF
+       END DO
 
-             CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                  TRIM(keys(ikey)), error=error)
-          ENDIF
-       ENDDO
-
-       IF(save_mem) THEN
+       IF (save_mem) THEN
           CALL update_subsys_release(md_env,force_env,root_section,error)
           CALL update_motion_release(motion_section,error)
        END IF
@@ -426,7 +454,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_input(md_env,force_env,root_section,coords,vels,pint_env, &
-             helium_env,save_mem,error)
+                          helium_env,save_mem,write_binary_restart_file,error)
+
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -435,14 +464,16 @@ CONTAINS
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
     TYPE(helium_solvent_type), OPTIONAL, &
       POINTER                                :: helium_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
+    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem, &
+                                                write_binary_restart_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, lcond, my_save_mem
+    LOGICAL                                  :: failure, lcond, my_save_mem, &
+                                                my_write_binary_restart_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(section_vals_type), POINTER         :: motion_section
@@ -450,14 +481,24 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
+    
     NULLIFY(logger,motion_section,my_force_env)
-    my_save_mem = .FALSE.
-    IF(PRESENT(save_mem)) my_save_mem=save_mem
+
+    IF (PRESENT(save_mem)) THEN
+       my_save_mem = save_mem
+    ELSE
+       my_save_mem = .FALSE.
+    END IF
+
+    IF (PRESENT(write_binary_restart_file)) THEN
+       my_write_binary_restart_file = write_binary_restart_file
+    ELSE
+       my_write_binary_restart_file = .FALSE.
+    END IF
 
     logger => cp_error_get_logger(error)
-    !
+
     ! Can handle md_env or force_env
-    !
     lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(pint_env).OR.PRESENT(helium_env)
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
@@ -465,23 +506,23 @@ CONTAINS
        ELSE IF (PRESENT(force_env)) THEN 
           my_force_env => force_env
        END IF
-       !
        ! The real restart setting...
-       !
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        CALL update_motion(motion_section,md_env=md_env,force_env=my_force_env,&
             logger=logger,coords=coords,vels=vels,&
             pint_env=pint_env,helium_env=helium_env,save_mem=my_save_mem,error=error)
-       !
        ! Update one force_env_section per time..
-       !
-       IF (ASSOCIATED(my_force_env)) &
-            CALL update_force_eval(force_env=my_force_env,logger=logger,&
-            root_section=root_section,error=error)
-       
+       IF (ASSOCIATED(my_force_env)) THEN
+          CALL update_force_eval(force_env=my_force_env,&
+                                 logger=logger,&
+                                 root_section=root_section,&
+                                 write_binary_restart_file=my_write_binary_restart_file,&
+                                 error=error)
+       END IF
     END IF
+
     CALL timestop(handle)
-       
+
   END SUBROUTINE update_input
 
 ! *****************************************************************************
@@ -877,7 +918,7 @@ CONTAINS
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_motion_pint', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, ibead, &
@@ -1003,10 +1044,10 @@ CONTAINS
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_motion_helium', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_helium', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: err_str, stmp
+    CHARACTER(LEN=default_string_length)     :: err_str, stmp
     INTEGER                                  :: handle, itmp, msglen, offset, &
                                                 reqlen, status
     INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
@@ -1168,7 +1209,7 @@ CONTAINS
       WRITE(stmp,*) reqlen
       err_str = TRIM(ADJUSTL(err_str)) // &
                 TRIM(ADJUSTL(stmp)) // "'."
-      CALL cp_assert(msglen==reqlen,cp_failure_level,&
+      CALL cp_assert(msgLEN==reqlen,cp_failure_level,&
            cp_assertion_failed, routineP, err_str)
 
       ! allocate the buffer to be saved and fill it with forces
@@ -1209,7 +1250,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dump_csvr_energy_info', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_energy_info', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, Nlist
@@ -1677,7 +1718,7 @@ CONTAINS
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, Nlist, stat
@@ -1810,10 +1851,12 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_force_eval(force_env,logger,root_section,error)
+  SUBROUTINE update_force_eval(force_env,logger,root_section,&
+                               write_binary_restart_file,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: root_section
+    LOGICAL, INTENT(IN)                      :: write_binary_restart_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
@@ -1845,7 +1888,8 @@ CONTAINS
     iforce_eval=1
     subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
          i_rep_section=i_force_eval(iforce_eval),error=error)
-    CALL update_subsys(subsys_section,force_env,skip_vel_section,error)
+    CALL update_subsys(subsys_section,force_env,skip_vel_section,&
+                       write_binary_restart_file,error)
 
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
     CALL update_rng_particle(rng_section,force_env,error)
@@ -1984,10 +2028,12 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_subsys(subsys_section,force_env,skip_vel_section,error)
+  SUBROUTINE update_subsys(subsys_section,force_env,skip_vel_section,&
+                           write_binary_restart_file,error)
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN)                      :: skip_vel_section
+    LOGICAL, INTENT(IN)                      :: skip_vel_section, &
+                                                write_binary_restart_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
@@ -2042,7 +2088,7 @@ CONTAINS
        output_unit = 0
        IF (para_env%ionode) THEN
           CALL open_file(file_name=TRIM(ADJUSTL(coord_file_name)),&
-                         file_action="WRITE",&
+                         file_action="READWRITE",&
                          file_form="FORMATTED",&
                          file_position="REWIND",&
                          file_status="UNKNOWN",&
@@ -2052,46 +2098,51 @@ CONTAINS
                                     core_or_shell=.FALSE.,&
                                     scaled_coordinates=scale,&
                                     error=error)
+         CALL close_file(unit_number=output_unit)
        END IF
     ELSE
-       CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-                                  cell, error=error)
+       IF (.NOT.write_binary_restart_file) THEN
+          CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
+                                     cell, error=error)
+       END IF
     END IF
     CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=particles%n_els,error=error)
     work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     IF (.NOT.skip_vel_section) THEN
-      CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+       IF (.NOT.write_binary_restart_file) THEN
+          CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+       END IF
     ELSE
        CALL section_vals_remove_values(work_section, error)
     END IF
 
     ! Write restart input for core-shell model
-    IF (ASSOCIATED(shell_particles)) THEN
-       work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-       CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
-       CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
-       conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-       CALL section_coord_val_set(work_section, shell_particles, molecules, &
-                                  conv_factor, scale, cell, shell=.TRUE., error=error)
-       IF (.NOT.skip_vel_section) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-          CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+    IF (.NOT.write_binary_restart_file) THEN
+       IF (ASSOCIATED(shell_particles)) THEN
+          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+          conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          CALL section_coord_val_set(work_section, shell_particles, molecules, &
+                                     conv_factor, scale, cell, shell=.TRUE., error=error)
+          IF (.NOT.skip_vel_section) THEN
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+             CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+          END IF
+       END IF
+       IF (ASSOCIATED(core_particles)) THEN
+          work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+          conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          CALL section_coord_val_set(work_section, core_particles, molecules, &
+                                     conv_factor, scale, cell, shell=.TRUE., error=error)
+          IF (.NOT.skip_vel_section) THEN
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+             CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
+          END IF
        END IF
     END IF
-    IF (ASSOCIATED(core_particles)) THEN
-       work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-       CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
-       CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
-       conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-        CALL section_coord_val_set(work_section, core_particles, molecules, &
-                                   conv_factor, scale, cell, shell=.TRUE., error=error)
-       IF (.NOT.skip_vel_section) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-          CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
-       END IF
-    END IF
-
-    IF (coord_file_format == do_coord_cp2k) CALL close_file(unit_number=output_unit)
 
     ! Updating cell info
     CALL update_cell_section(force_env, subsys_section, error)
@@ -2223,7 +2274,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2*default_string_length)   :: line
@@ -2371,7 +2422,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_velocity_val_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ik, irk, Nlist, &
@@ -2459,7 +2510,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_dipoles_section', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_dipoles_section', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ik, irk, Nlist, &
@@ -2542,7 +2593,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_quadrupoles_section', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_quadrupoles_section', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ik, ind, irk, j, &
@@ -2631,7 +2682,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :)                 :: ascii
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_rng_val_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'section_rng_val_set', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
@@ -2716,7 +2767,7 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist, stat
@@ -2791,7 +2842,7 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist, stat
@@ -2866,7 +2917,7 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ww', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ww', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist
@@ -2936,7 +2987,7 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_dt', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_dt', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist
@@ -3013,7 +3064,7 @@ CONTAINS
                                                 scaled_coordinates
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dump_coordinates_cp2k', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_coordinates_cp2k', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: kind_name, tag
@@ -3077,5 +3128,364 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dump_coordinates_cp2k
+
+! *****************************************************************************
+!> \brief   Write all input sections scaling in size with the number of atoms
+!>          in the system to an external file in binary format
+!> \author  Matthias Krack (MK)
+!> \version 1.0 
+!> \par History
+!>      - Creation (10.02.2011,MK)
+! *****************************************************************************
+  SUBROUTINE write_binary_restart(output_unit,root_section,md_env,force_env,&
+                                  error)
+
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: md_env
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
+    INTEGER :: handle, iatom, icore, ikind, imolecule, ishell, istat, &
+      n_char_size, n_dp_size, n_int_size, natom, natomkind, ncore, nmolecule, &
+      nmoleculekind, nshell, print_level, run_type
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ibuf, imol
+    LOGICAL                                  :: failure, print_info, &
+                                                write_velocities
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(force_env_type), POINTER            :: my_force_env
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY (atomic_kinds)
+    NULLIFY (core_particles)
+    NULLIFY (atomic_kinds)
+    NULLIFY (molecule_kinds)
+    NULLIFY (molecules)
+    NULLIFY (my_force_env)
+    NULLIFY (para_env)
+    NULLIFY (particles)
+    NULLIFY (shell_particles)
+    NULLIFY (subsys)
+
+    IF (PRESENT(md_env)) THEN
+       CALL get_md_env(md_env=md_env,&
+                       force_env=my_force_env,&
+                       error=error)
+    ELSE IF (PRESENT(force_env)) THEN 
+       my_force_env => force_env
+    END IF
+
+    IF (.NOT.ASSOCIATED(my_force_env)) THEN
+       CALL timestop(handle)
+       RETURN
+    END IF
+
+    CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=print_level,error=error)
+    IF (print_level > 1) THEN
+       print_info = .TRUE.
+    ELSE
+       print_info = .FALSE.
+    END IF
+
+    CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=run_type,error=error)
+    write_velocities = ((run_type == mol_dyn_run).OR.&
+                        (run_type == mon_car_run).OR.&
+                        (run_type == pint_run))
+
+    CALL force_env_get(force_env=my_force_env,&
+                       para_env=para_env,&
+                       subsys=subsys,&
+                       error=error)
+    CALL cp_subsys_get(subsys,&
+                       atomic_kinds=atomic_kinds,&
+                       particles=particles,&
+                       natom=natom,&
+                       core_particles=core_particles,&
+                       ncore=ncore,&
+                       shell_particles=shell_particles,&
+                       nshell=nshell,&
+                       molecule_kinds_new=molecule_kinds,&
+                       molecules_new=molecules,&
+                       error=error)
+
+    natomkind = atomic_kinds%n_els
+    IF (ASSOCIATED(molecule_kinds)) THEN
+       nmoleculekind = molecule_kinds%n_els
+    ELSE
+       nmoleculekind = 0
+    END IF
+
+    IF (ASSOCIATED(molecules)) THEN
+       nmolecule = molecules%n_els
+    ELSE
+       nmolecule = 0
+    END IF
+
+    IF (output_unit > 0) THEN ! only ionode
+
+       IF (print_info) THEN
+          INQUIRE (UNIT=output_unit,NAME=binary_restart_file_name)
+          WRITE (UNIT=*,FMT="(T2,A,/,/,(T3,A,T71,I10))")&
+            "Writing binary restart file "//TRIM(ADJUSTL(binary_restart_file_name)),&
+            "Number of atomic kinds:",natomkind,&
+            "Number of atoms:",natom,&
+            "Number of cores (only core-shell model):",ncore,&
+            "Number of shells (only core-shell model):",nshell,&
+            "Number of molecule kinds:",nmoleculekind,&
+            "Number of molecules",nmolecule
+       END IF
+
+       WRITE (UNIT=output_unit,IOSTAT=istat)&
+         natomkind,natom,ncore,nshell,nmoleculekind,nmolecule
+       IF (istat /= 0) THEN
+          CALL stop_write(routineN,moduleN,__LINE__,&
+                          "natomkind,natom,ncore,nshell,nmoleculekind,nmolecule "//&
+                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                          output_unit,para_env)
+       END IF
+       n_int_size = 6 ! init
+
+       ! Write atomic kind names
+       n_char_size = 0 ! init
+       DO ikind=1,natomkind
+          WRITE (UNIT=output_unit,IOSTAT=istat) atomic_kinds%els(ikind)%name
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "atomic_kinds%els(ikind)%name "//&
+                                         "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_char_size = n_char_size + LEN(atomic_kinds%els(ikind)%name)
+       END DO
+
+       ! Write atomic kind numbers of all atoms
+       ALLOCATE (ibuf(natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "ibuf",int_size*natom,para_env)
+       DO iatom=1,natom
+          ibuf(iatom) = particles%els(iatom)%atomic_kind%kind_number
+       END DO
+       WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:natom)
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "ibuf(1:natom) -> atomic kind numbers "//&
+                                       "(IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_int_size = n_int_size + natom
+       ! Write atomic coordinates
+       ALLOCATE (rbuf(3,natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "rbuf",dp_size*3*natom,para_env)
+       DO iatom=1,natom
+          rbuf(1:3,iatom) = particles%els(iatom)%r(1:3)
+       END DO
+       WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:natom)
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "rbuf(1:3,1:natom) -> atomic coordinates "//&
+                                       "(IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_dp_size = 3*natom ! init
+       DEALLOCATE (rbuf,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+
+       ! Write molecule information if available
+       IF (nmolecule > 0) THEN
+          ! Write molecule kind names
+          DO ikind=1,nmoleculekind
+             WRITE (UNIT=output_unit,IOSTAT=istat) molecule_kinds%els(ikind)%name
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "molecule_kinds%els(ikind)%name "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_char_size = n_char_size + LEN(molecule_kinds%els(ikind)%name)
+          END DO
+          ! Write molecule (kind) index numbers for all atoms
+          ibuf(:) = 0
+          ALLOCATE (imol(natom),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "imol",int_size*natom,para_env)
+          imol(:) = 0
+          DO imolecule=1,nmolecule
+             ikind = molecules%els(imolecule)%molecule_kind%kind_number
+             DO iatom=molecules%els(imolecule)%first_atom,&
+                      molecules%els(imolecule)%last_atom
+                ibuf(iatom) = ikind
+                imol(iatom) = imolecule
+             END DO
+          END DO
+          ! Write molecule kind index number for each atom
+          WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:natom)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "ibuf(1:natom) -> molecule kind index numbers "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_int_size = n_int_size + natom
+          ! Write molecule index number for each atom
+          WRITE (UNIT=output_unit,IOSTAT=istat) imol(1:natom)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "imol(1:natom) -> molecule index numbers "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_int_size = n_int_size + natom
+          DEALLOCATE (imol,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"imol",&
+                                           para_env)
+       END IF ! molecules
+
+       DEALLOCATE (ibuf,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+
+       ! Core-shell model only
+
+       IF (nshell > 0) THEN
+          ! Write shell coordinates
+          ALLOCATE (rbuf(3,nshell),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "rbuf",dp_size*3*nshell,para_env)
+          DO ishell=1,nshell
+             rbuf(1:3,ishell) = shell_particles%els(ishell)%r(1:3)
+          END DO
+          WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:nshell)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "rbuf(1:3,1:nshell) -> shell coordinates "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_dp_size = n_dp_size + 3*nshell
+          DEALLOCATE (rbuf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          ! Write atomic indices, i.e. number of the atom the shell belongs to
+          ALLOCATE (ibuf(nshell),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "ibuf",int_size*nshell,para_env)
+          DO ishell=1,nshell
+             ibuf(ishell) = shell_particles%els(ishell)%atom_index
+          END DO
+          WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:nshell)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "ibuf(1:nshell) -> atomic indices "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_int_size = n_int_size + nshell
+          DEALLOCATE (ibuf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+       END IF
+
+       IF (ncore > 0) THEN
+          ! Write core coordinates
+          ALLOCATE (rbuf(3,ncore),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "rbuf",dp_size*3*ncore,para_env)
+          DO icore=1,ncore
+             rbuf(1:3,icore) = core_particles%els(icore)%r(1:3)
+          END DO
+          WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:ncore)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "rbuf(1:3,1:ncore) -> core coordinates "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_dp_size = n_dp_size + 3*ncore
+          DEALLOCATE (rbuf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          ! Write atomic indices, i.e. number of the atom the core belongs to
+          ALLOCATE (ibuf(ncore),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "ibuf",int_size*ncore,para_env)
+          DO icore=1,ncore
+             ibuf(icore) = core_particles%els(icore)%atom_index
+          END DO
+          WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:ncore)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "ibuf(1:ncore) -> atomic indices "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_int_size = n_int_size + ncore
+          DEALLOCATE (ibuf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+       END IF
+
+       ! Write velocities if needed
+       IF (write_velocities) THEN
+          ALLOCATE (rbuf(3,natom),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                           "rbuf",dp_size*3*natom,para_env)
+          ! Write atomic velocities
+          DO iatom=1,natom
+             rbuf(1:3,iatom) = particles%els(iatom)%v(1:3)
+          END DO
+          WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:natom)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "rbuf(1:3,1:natom) -> atomic velocities "//&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          output_unit,para_env)
+          n_dp_size = n_dp_size + 3*natom
+          DEALLOCATE (rbuf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          ! Write shell velocities
+          IF (nshell > 0) THEN
+             ALLOCATE (rbuf(3,nshell),STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                              "rbuf",dp_size*3*nshell,para_env)
+             DO ishell=1,nshell
+                rbuf(1:3,ishell) = shell_particles%els(ishell)%v(1:3)
+             END DO
+             WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:nshell)
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "rbuf(1:3,1:nshell) -> shell velocities "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_dp_size = n_dp_size + 3*nshell
+             DEALLOCATE (rbuf,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          END IF
+          ! Write core velocities
+          IF (ncore > 0) THEN
+             ALLOCATE (rbuf(3,ncore),STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                              "rbuf",dp_size*3*ncore,para_env)
+             DO icore=1,ncore
+                rbuf(1:3,icore) = core_particles%els(icore)%v(1:3)
+             END DO
+             WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:ncore)
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "rbuf(1:3,1:ncore) -> core velocities "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_dp_size = n_dp_size + 3*ncore
+             DEALLOCATE (rbuf,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          END IF
+       END IF
+
+       ! Thermostat information
+
+       ! to be done
+
+       IF (print_info) THEN
+          WRITE (UNIT=*,FMT="(/,(T2,I10,1X,I0,A,T68,I10,A))")&
+            n_char_size,int_size,"-byte characters written",n_char_size*int_size/1024," KB",&
+            n_dp_size,dp_size,"-byte floating point numbers written",n_dp_size*dp_size/1024," KB",&
+            n_int_size,int_size,"-byte integer numbers written",n_int_size*int_size/1024," KB"
+          WRITE (UNIT=*,FMT="(/,T2,A)")&
+            "Binary restart file "//TRIM(ADJUSTL(binary_restart_file_name))//" written"
+       END IF
+
+    END IF ! ionode only
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_binary_restart
 
 END MODULE input_cp2k_restarts

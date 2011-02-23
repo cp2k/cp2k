@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE helium_sampling
 
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -37,7 +38,6 @@ MODULE helium_sampling
   USE pint_public,                     ONLY: pint_com_pos
   USE pint_types,                      ONLY: pint_env_type
   USE splines_types,                   ONLY: spline_data_p_type
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

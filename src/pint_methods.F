@@ -14,6 +14,7 @@
 MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -89,7 +90,6 @@ MODULE pint_methods
                                              rep_env_create,&
                                              rep_env_release,&
                                              replica_env_type
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

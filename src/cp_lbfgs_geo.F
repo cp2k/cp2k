@@ -9,6 +9,7 @@
 !>      none
 ! *****************************************************************************
 MODULE cp_lbfgs_geo
+  USE cp_external_control,             ONLY: external_control
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
                                              cp_opt_gopt_next,&
@@ -33,7 +34,6 @@ MODULE cp_lbfgs_geo
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

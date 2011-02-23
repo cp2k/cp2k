@@ -273,7 +273,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(default_path_length)           :: r_file_path
+    CHARACTER(default_path_length)           :: binary_restart_file, &
+                                                r_file_path
     CHARACTER(default_string_length)         :: path
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: restarted_infos
@@ -305,6 +306,8 @@ CONTAINS
        ! Handle restart file
        r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART",error=error)
        CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", c_val=r_file_path, error=error)
+       CALL section_vals_val_get(r_section,"BINARY_RESTART_FILE_NAME",c_val=binary_restart_file,&
+                                 error=error)
 
        IF (r_file_path/=" ") THEN
           CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
@@ -744,7 +747,8 @@ CONTAINS
           !
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
           CALL section_vals_release(restart_file,error=error)
-          CALL release_restart_info(restarted_infos, r_file_path, output_unit, error)
+          CALL release_restart_info(restarted_infos, r_file_path, TRIM(binary_restart_file),&
+                                    output_unit, error)
        END IF
     END IF
     CALL timestop(handle)
@@ -780,10 +784,12 @@ CONTAINS
 !> \brief dumps on output the information on the information effectively restarted
 !> \author Teodoro Laino [tlaino] 09.2008 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE release_restart_info(restarted_infos, r_file_path, output_unit, error)
+  SUBROUTINE release_restart_info(restarted_infos, r_file_path,&
+                                  binary_restart_file, output_unit, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: restarted_infos
-    CHARACTER(LEN=*), INTENT(IN)             :: r_file_path
+    CHARACTER(LEN=*), INTENT(IN)             :: r_file_path, &
+                                                binary_restart_file
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -805,6 +811,14 @@ CONTAINS
        DO i = 2, CEILING(REAL(LEN_TRIM(r_file_path),KIND=dp)/53.0_dp)
           WRITE(output_unit,'(T1,1X,"*",T26,A,T80,"*")')r_file_path(53*(i-1)+1:53*i)
        END DO
+       IF (LEN_TRIM(binary_restart_file) > 0) THEN
+          i = 1
+          WRITE (output_unit,'(1X,"*",A,T26,A,T80,"*")')"  BINARY RESTART FILE:  ",&
+            binary_restart_file(53*(i-1)+1:53*i)
+          DO i = 2, CEILING(REAL(LEN_TRIM(binary_restart_file),KIND=dp)/53.0_dp)
+             WRITE(output_unit,'(T1,1X,"*",T26,A,T80,"*")') binary_restart_file(53*(i-1)+1:53*i)
+          END DO
+       END IF
        WRITE(output_unit,'(1X,"*",T80,"*")')
        WRITE(output_unit,'(1X,"*", A,T80,"*")')" RESTARTED QUANTITIES:  "
        DO j = 1, SIZE(restarted_infos)

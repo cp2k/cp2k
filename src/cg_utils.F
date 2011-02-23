@@ -9,6 +9,7 @@
 !>      10.2005
 ! *****************************************************************************
 MODULE cg_utils
+  USE cp_external_control,             ONLY: external_control
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: dimer_thrs,&
                                              rotate_dimer
@@ -25,7 +26,6 @@ MODULE cg_utils
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

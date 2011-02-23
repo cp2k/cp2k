@@ -19,6 +19,7 @@ MODULE xas_tp_scf
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
                                              cp_fm_set_submatrix,&
@@ -85,7 +86,6 @@ MODULE xas_tp_scf
                                              pulay_mixing_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type

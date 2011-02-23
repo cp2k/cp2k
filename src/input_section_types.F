@@ -40,6 +40,7 @@ MODULE input_section_types
                                              substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
+  USE termination,                     ONLY: print_message
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -5,34 +5,25 @@
 
 ! *****************************************************************************
 !> \brief Perform an abnormal program termination.
-!> \par Index
-!>      SUBROUTINE set_error_unit(lunit)
-!>      SUBROUTINE stop_allocate(routine,array,memory)
-!>      SUBROUTINE stop_deallocate(routine,array)
-!>      SUBROUTINE stop_program(routine,message)
+!> \note These routines are low-level and thus provide also an error recovery
+!>       when dependencies do not allow the use of the error logger. Only
+!>       the master (root) process will dump, if para_env is available and
+!>       properly specified. Otherwise (without any information about the
+!>       parallel environment) most likely more than one process or even all
+!>       processes will send their error dump to the default output unit.
 !> \par History
-!>      none
+!>      - Routine external_control moved to a separate module
 !> \author Matthias Krack (12.02.2001)
 ! *****************************************************************************
 MODULE termination
 
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
-  USE machine,                         ONLY: m_flush_internal,&
-                                             m_walltime
-  USE message_passing,                 ONLY: mp_abort,&
-                                             mp_bcast
-  USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: print_stack,&
-                                             timeset,&
-                                             timestop
-#include "cp_common_uses.h"
+  USE kinds,                           ONLY: default_path_length
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_flush_internal
+  USE message_passing,                 ONLY: mp_abort
+  USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
 
@@ -42,13 +33,16 @@ MODULE termination
 
   INTEGER :: error_unit
 
-  PUBLIC :: external_control,&
+  PUBLIC :: print_message,&
             set_error_unit,&
             stop_memory,&
-            stop_program
+            stop_program,&
+            stop_read,&
+            stop_write
 
   INTERFACE stop_memory
-    MODULE PROCEDURE stop_allocate,stop_deallocate
+    MODULE PROCEDURE stop_allocate,&
+                     stop_deallocate
   END INTERFACE
 
   INTERFACE stop_program
@@ -56,6 +50,157 @@ MODULE termination
   END INTERFACE
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Perform a basic blocking of the text in message and print it
+!>        optionally decorated with a frame of stars as defined by declev. 
+!> \note
+!>       after      : Number of empty lines after the message.
+!>       before     : Number of empty lines before the message.
+!>       declev     : Decoration level (0,1,2, ... star lines).
+!>       message    : String with the message text.
+!>       output_unit: Logical unit number of output unit.
+!> \par History
+!>      - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
+!>      - CP2K by JH 21.08.2000
+!>      - Bugs in the dynamic format generation removed (09.02.2001, MK)
+!>      - Revised (26.01.2011,MK)
+!> \author Matthias Krack (MK)
+!> \date 28.08.1996
+! *****************************************************************************
+  SUBROUTINE print_message(message,output_unit,declev,before,after)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: message
+    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN), OPTIONAL            :: declev, before, after
+
+    INTEGER :: blank_lines_after, blank_lines_before, decoration_level, i, &
+      ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
+
+    IF (PRESENT(after)) THEN
+       blank_lines_after = MAX(after,0)
+    ELSE
+       blank_lines_after = 1
+    END IF
+
+    IF (PRESENT(before)) THEN
+       blank_lines_before = MAX(before,0)
+    ELSE
+       blank_lines_before = 1
+    END IF
+
+    IF (PRESENT(declev)) THEN
+       decoration_level = MAX(declev,0)
+    ELSE
+       decoration_level = 0
+    END IF
+
+    IF (decoration_level == 0) THEN
+       rowlen = 78
+    ELSE
+       rowlen = 70
+    END IF
+
+    msglen = LEN_TRIM(message)
+
+    ! Calculate number of rows
+
+    nrow = msglen/(rowlen + 1) + 1
+
+    ! Calculate appropriate row length
+
+    rowlen = MIN(msglen,rowlen)
+
+    ! Generate the blank lines before the message
+
+    DO i=1,blank_lines_before
+       WRITE (UNIT=output_unit,FMT="(A)") ""
+    END DO
+
+    ! Scan for the longest row
+
+    ipos1 = 1
+    ipos2 = rowlen
+    maxrowlen = 0
+
+    DO
+       IF (ipos2 < msglen) THEN
+          i = INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+          IF (i == 0) THEN
+             ibreak = ipos2
+          ELSE
+             ibreak = ipos1 + i - 2
+          END IF
+       ELSE
+          ibreak = ipos2
+       END IF
+
+       maxrowlen = MAX(maxrowlen,ibreak - ipos1 + 1)
+
+       ipos1 = ibreak + 2
+       ipos2 = MIN(msglen,ipos1 + rowlen - 1)
+
+       ! When the last row is processed, exit loop
+
+       IF (ipos1 > msglen) EXIT
+
+    END DO
+
+    ! Generate the first set of star rows
+
+    IF (decoration_level > 1) THEN
+       DO i=1,decoration_level-1
+          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",maxrowlen+8)
+       END DO
+    END IF
+
+    ! Break long messages
+
+    ipos1 = 1
+    ipos2 = rowlen
+
+    DO
+       IF (ipos2 < msglen) THEN
+          i = INDEX(message(ipos1:ipos2)," ",BACK=.TRUE.)
+          IF (i == 0) THEN
+             ibreak = ipos2
+          ELSE
+             ibreak = ipos1 + i - 2
+          END IF
+       ELSE
+          ibreak = ipos2
+       END IF
+
+       IF (decoration_level == 0) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A)") message(ipos1:ibreak)
+       ELSE IF (decoration_level > 0) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A)")&
+            "*** "//message(ipos1:ibreak)//REPEAT(" ",ipos1+maxrowlen-ibreak)//"***"
+       END IF
+
+       ipos1 = ibreak + 2
+       ipos2 = MIN(msglen,ipos1 + rowlen - 1)
+
+       ! When the last row is processed, exit loop
+
+       IF (ipos1 > msglen) EXIT
+    END DO
+
+    ! Generate the second set star rows
+
+    IF (decoration_level > 1) THEN
+       DO i=1,decoration_level-1
+          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("*",maxrowlen+8)
+       END DO
+    END IF
+
+    ! Generate the blank lines after the message
+
+    DO i=1,blank_lines_after
+       WRITE (UNIT=output_unit,FMT="(A)") ""
+    END DO
+
+  END SUBROUTINE print_message
 
 ! *****************************************************************************
 !> \brief Initialise the output unit number for error messages.
@@ -74,22 +219,27 @@ CONTAINS
   END SUBROUTINE set_error_unit
 
 ! *****************************************************************************
-!> \brief The memory allocation for an array failed. Print an error message and
-!>      stop the program execution.
+!> \brief The memory allocation for a data object failed. Print an error
+!>        message and stop the program execution.
 !> \note
-!>      array  : Name of the array.
-!>      memory : Size of array in bytes.
-!>      routine: Name of the calling routine.
+!>      routineN   : Name of the calling routine
+!>      moduleN    : Name of the calling module including the calling routine
+!>      line_number: Code line number in the module
+!>      object     : Name of the data object for which the allocation failed
+!>      memory     : Size of the data object in bytes.
 !> \par History
-!>      CP2K by JGH 21.08.2000
-!> \author Matthias Krack (12.10.1999)
+!>      - CP2K by JGH 21.08.2000
+!>      - Revised (16.02.2011,MK)
+!> \author Matthias Krack (12.10.1999,MK)
 ! *****************************************************************************
-  SUBROUTINE stop_allocate(routineN,moduleN,line_number,object,memory)
+  SUBROUTINE stop_allocate(routineN,moduleN,line_number,object,memory,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
     INTEGER, INTENT(IN)                      :: memory
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
     CHARACTER(LEN=default_path_length)       :: message
 
@@ -102,32 +252,47 @@ CONTAINS
         "> failed. The requested memory size is ",memory/1024," KB"
     END IF
 
-    CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
+    IF (PRESENT(para_env)) THEN
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
+                        para_env)
+    ELSE
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
+    END IF
 
   END SUBROUTINE stop_allocate
 
 ! *****************************************************************************
-!> \brief The memory deallocation for an array failed. Print an error message and
-!>      stop the program execution.
+!> \brief The memory deallocation for a data object failed. Print an error
+!>        message and stop the program execution.
 !> \note
-!>      array  : Name of the array.
-!>      routine: Name of the calling routine.
+!>      routineN   : Name of the calling routine
+!>      moduleN    : Name of the calling module including the calling routine
+!>      line_number: Code line number in the module
+!>      object     : Name of the data object for which the deallocation failed
 !> \par History
 !>      CP2K by JGH 21.08.2000
-!> \author Matthias Krack (20.10.1999)
+!>      - Revised (16.02.2011,MK)
+!> \author Matthias Krack (20.10.1999,MK)
 ! *****************************************************************************
-  SUBROUTINE stop_deallocate(routineN,moduleN,line_number,object)
+  SUBROUTINE stop_deallocate(routineN,moduleN,line_number,object,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
     CHARACTER(LEN=default_path_length)       :: message
 
     message = "The memory deallocation for the data object <"//TRIM(object)//&
               "> failed"
 
-    CALL stop_program(routineN,moduleN,line_number,message)
+    IF (PRESENT(para_env)) THEN
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
+                        para_env)
+    ELSE
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
+    END IF
 
   END SUBROUTINE stop_deallocate
 
@@ -137,7 +302,7 @@ CONTAINS
 !>      routine: Name of the calling routine
 !> \par History
 !>      Translated to Fortran 90 (07.10.99, MK)
-!> \author Matthias Krack (28.08.1996)
+!> \author Matthias Krack (28.08.1996,MK)
 ! *****************************************************************************
   SUBROUTINE stop_program_old(routine,error_message,para_env)
 
@@ -162,6 +327,7 @@ CONTAINS
       CALL print_message("ERROR in "//TRIM(ADJUSTL(routine)),error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,1)
       CALL print_stack(error_unit)
+      CALL m_flush_internal(default_output_unit)
       CALL m_flush_internal(error_unit)
       CALL mp_abort()
     END IF
@@ -169,7 +335,8 @@ CONTAINS
   END SUBROUTINE stop_program_old
 
 ! *****************************************************************************
-  SUBROUTINE stop_program_new(routineN,moduleN,line_number,error_message,para_env)
+  SUBROUTINE stop_program_new(routineN,moduleN,line_number,error_message,&
+                              para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
@@ -177,7 +344,7 @@ CONTAINS
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
 
-    CHARACTER(LEN=2*default_path_length)     :: message
+    CHARACTER(LEN=3*default_path_length)     :: message
     LOGICAL                                  :: ionode
 
     IF (PRESENT(para_env)) THEN
@@ -193,12 +360,12 @@ CONTAINS
                 " (MODULE "//TRIM(moduleN)//")"
       CALL print_message(message,error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,0)
-      WRITE (UNIT=message,FMT="(A,I6,A)")&
+      WRITE (UNIT=message,FMT="(A,I0,A)")&
         "Program stopped at line number ",line_number,&
         " of MODULE "//TRIM(moduleN)
-      CALL compress(message)
       CALL print_message(message,error_unit,1,1,0)
       CALL print_stack(error_unit)
+      CALL m_flush_internal(default_output_unit)
       CALL m_flush_internal(error_unit)
       CALL mp_abort()
     END IF
@@ -206,147 +373,98 @@ CONTAINS
   END SUBROUTINE stop_program_new
 
 ! *****************************************************************************
-!> \brief External manipulations during a run : when the <PROJECT_NAME>.EXIT_$runtype
-!>      command is sent the program stops at the level of $runtype
-!>      when a general <PROJECT_NAME>.EXIT command is sent the program is stopped
-!>      at all levels (at least those that call this function)
-!>      if the file WAIT exists, the program waits here till it disappears
-!> \author MI (10.03.2005)
+!> \brief Print an error message and stop the program execution in case of a
+!>        read error.
+!> \note
+!>      routineN   : Name of the calling routine
+!>      moduleN    : Name of the calling module including the calling routine
+!>      object     : Name of the data object for which I/O operation failed
+!>      unit_number: Logical unit number of the file read from
+!> \par History
+!>      - Creation (15.02.2011,MK)
+!> \author Matthias Krack (MK)
 ! *****************************************************************************
-  SUBROUTINE external_control(should_stop,flag,globenv,target_time,start_time,error)
+  SUBROUTINE stop_read(routineN,moduleN,line_number,object,unit_number,&
+                       para_env)
 
-    LOGICAL, INTENT(OUT)                     :: should_stop
-    CHARACTER(LEN=*), INTENT(IN)             :: flag
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
-    REAL(dp), OPTIONAL                       :: target_time, start_time
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: object
+    INTEGER, INTENT(IN)                      :: unit_number
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'external_control', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=2*default_path_length)     :: message
+    CHARACTER(LEN=default_path_length)       :: file_name
+    LOGICAL                                  :: file_exists
 
-    CHARACTER(LEN=default_string_length)     :: exit_fname, exit_fname_level, &
-                                                exit_gname, exit_gname_level
-    INTEGER                                  :: handle, i, unit_number
-    LOGICAL                                  :: failure, should_wait
-    LOGICAL, SAVE                            :: check_always = .FALSE.
-    REAL(KIND=dp)                            :: my_start_time, &
-                                                my_target_time, t1, t2, &
-                                                time_check
-    REAL(KIND=dp), SAVE                      :: t_last_file_check = 0.0_dp
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    logger => cp_error_get_logger(error)
-    should_stop = .FALSE.
-
-    exit_gname       = "EXIT"
-    exit_gname_level = TRIM(exit_gname)//"_"//TRIM(flag)
-    exit_fname       = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname)
-    exit_fname_level = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname_level)
-
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-       ! files will only be checked every 20 seconds, or if the clock wraps/does not exist,
-       ! otherwise 64 waters on 64 cores can spend up to 10% of time here, on lustre
-       ! however, if should_stop has been true, we should always check
-       ! (at each level scf, md, ... the file must be there to guarantee termination)
-       t1=m_walltime()
-       IF (t1>t_last_file_check+20.0_dp .OR. t1 <= t_last_file_check .OR. check_always) THEN
-          t_last_file_check=t1
-          ! allows for halting execution for a while
-          ! this is useful to copy a consistent snapshot of the output
-          ! while a simulation is running
-          INQUIRE (FILE="WAIT",EXIST=should_wait)
-          IF (should_wait) THEN
-             CALL open_file(file_name="WAITING",file_status="UNKNOWN",&
-                  file_form="FORMATTED",file_action="WRITE",&
-                  unit_number=unit_number)
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                  "*** waiting till the file WAIT has been removed ***"
-             DO
-                ! sleep a bit (to save the file system)
-                t1=m_walltime()
-                DO I=1,100000000
-                   t2=m_walltime()
-                   IF (t2-t1>1.0_dp) EXIT
-                ENDDO
-                ! and ask again
-                INQUIRE (FILE="WAIT",EXIST=should_wait)
-                IF (.NOT.should_wait) EXIT
-             ENDDO
-             CALL close_file(unit_number=unit_number,file_status="DELETE")
-          ENDIF
-          ! EXIT control sequence
-          ! Check for <PROJECT_NAME>.EXIT_<FLAG>
-          IF (.NOT.should_stop) THEN
-             INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
-             IF (should_stop) THEN
-                CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
-                CALL close_file(unit_number=unit_number,file_status="DELETE")
-                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                     "*** "//flag//" run terminated by external request ***"
-             END IF
-          END IF
-          ! Check for <PROJECT_NAME>.EXIT
-          IF (.NOT.should_stop) THEN
-             INQUIRE (FILE=exit_fname,EXIST=should_stop)
-             IF(should_stop) THEN
-                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                     "*** "//TRIM(flag)//" run terminated by external request ***"
-             ENDIF
-          END IF
-          ! Check for EXIT_<FLAG>
-          IF (.NOT.should_stop) THEN
-             INQUIRE (FILE=exit_gname_level,EXIST=should_stop)
-             IF (should_stop) THEN
-                CALL open_file(file_name=exit_gname_level,unit_number=unit_number)
-                CALL close_file(unit_number=unit_number,file_status="DELETE")
-                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                     "*** "//flag//" run terminated by external request ***"
-             END IF
-          END IF
-          ! Check for EXIT
-          IF (.NOT.should_stop) THEN
-             INQUIRE (FILE=exit_gname,EXIST=should_stop)
-             IF(should_stop) THEN
-                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                     "*** "//TRIM(flag)//" run terminated by external request ***"
-             ENDIF
-          END IF
-       ENDIF
-
-       IF(PRESENT(target_time)) THEN
-          my_target_time = target_time
-          my_start_time = start_time
-       ELSEIF(PRESENT(globenv)) THEN
-          my_target_time=globenv%cp2k_target_time
-          my_start_time=globenv%cp2k_start_time
-       ELSE
-          ! If none of the two arguments is present abort.. This routine should always check about time.
-          CPPrecondition(.FALSE.,cp_fatal_level,routineP,error,failure)
-       END IF
-
-       IF ( (.NOT.should_stop).AND.(my_target_time > 0.0_dp)) THEN
-          ! Check for execution time
-          time_check  = m_walltime() - my_start_time
-          IF (time_check .GT. my_target_time) THEN
-             should_stop = .TRUE.
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,f12.3,A)")&
-                  "*** "//TRIM(flag)//" run terminated - exceeded requested execution time:",&
-                  my_target_time," seconds.",&
-                  "*** Execution time now: ",time_check," seconds."
-          END IF
-       END IF
+    INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    IF (file_exists) THEN
+       INQUIRE (UNIT=unit_number,NAME=file_name)
+       WRITE (UNIT=message,FMT="(A)")&
+         "An error occurred reading data object <"//TRIM(ADJUSTL(object))//&
+         "> from file <"//TRIM(ADJUSTL(file_name))//">"
+    ELSE
+       WRITE (UNIT=message,FMT="(A,I0,A)")&
+         "Could not read data object <"//TRIM(ADJUSTL(object))//&
+         "> from logical unit ",unit_number,". The I/O unit does not exist."
     END IF
-    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
 
-    check_always=should_stop
+    IF (PRESENT(para_env)) THEN
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
+                        para_env)
+    ELSE
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
+    END IF
 
-    CALL timestop(handle)
+  END SUBROUTINE stop_read
 
-  END SUBROUTINE external_control
+! *****************************************************************************
+!> \brief Print an error message and stop the program execution in case of a
+!>        read error.
+!> \note
+!>      routineN   : Name of the calling routine
+!>      moduleN    : Name of the calling module including the calling routine
+!>      object     : Name of the data object for which I/O operation failed
+!>      unit_number: Logical unit number of the file written to
+!> \par History
+!>      - Creation (15.02.2011,MK)
+!> \author Matthias Krack (MK)
+! *****************************************************************************
+  SUBROUTINE stop_write(routineN,moduleN,line_number,object,unit_number,&
+                        para_env)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: object
+    INTEGER, INTENT(IN)                      :: unit_number
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+
+    CHARACTER(LEN=2*default_path_length)     :: message
+    CHARACTER(LEN=default_path_length)       :: file_name
+    LOGICAL                                  :: file_exists
+
+    INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    IF (file_exists) THEN
+       INQUIRE (UNIT=unit_number,NAME=file_name)
+       WRITE (UNIT=message,FMT="(A)")&
+         "An error occurred writing data object <"//TRIM(ADJUSTL(object))//&
+         "> to file <"//TRIM(ADJUSTL(file_name))//">"
+    ELSE
+       WRITE (UNIT=message,FMT="(A,I0,A)")&
+         "Could not write data object <"//TRIM(ADJUSTL(object))//&
+         "> to logical unit ",unit_number,". The I/O unit does not exist."
+    END IF
+
+    IF (PRESENT(para_env)) THEN
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
+                        para_env)
+    ELSE
+      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
+    END IF
+
+  END SUBROUTINE stop_write
 
 END MODULE termination
 

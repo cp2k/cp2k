@@ -16,6 +16,7 @@ MODULE md_run
                                              create_barostat_type,&
                                              release_barostat_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_p_file,&
@@ -79,7 +80,6 @@ MODULE md_run
   USE simpar_types,                    ONLY: create_simpar_type,&
                                              release_simpar_type,&
                                              simpar_type
-  USE termination,                     ONLY: external_control
   USE thermal_region_types,            ONLY: release_thermal_regions,&
                                              thermal_regions_type
   USE thermal_region_utils,            ONLY: create_thermal_regions
@@ -169,7 +169,8 @@ CONTAINS
                                                 run_type_id
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, ehrenfest_md, failure, &
-                                                save_mem, should_stop
+                                                save_mem, should_stop, &
+                                                write_binary_restart_file
     REAL(KIND=dp)                            :: dummy, time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
@@ -269,7 +270,10 @@ CONTAINS
     ENDIF
 
     ! Initialize velocities possibly applying constraints at the zeroth MD step
-    CALL setup_velocities(force_env, simpar, globenv, md_env, md_section, constraint_section, error)
+    CALL section_vals_val_get(motion_section,"PRINT%RESTART%SPLIT_RESTART_FILE",&
+                              l_val=write_binary_restart_file,error=error)
+    CALL setup_velocities(force_env,simpar,globenv,md_env,md_section,constraint_section, &
+                          write_binary_restart_file,error)
 
     ! Setup Free Energy Calculation (if required)
     CALL fe_env_create (fe_env, free_energy_section, error)

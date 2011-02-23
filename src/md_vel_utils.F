@@ -39,6 +39,7 @@ MODULE md_vel_utils
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
        reftraj_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE input_cp2k_binary_restarts,      ONLY: read_binary_velocities
   USE input_cp2k_restarts,             ONLY: update_subsys
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -505,7 +506,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_velocities(simpar, part, force_env, globenv, md_env, &
        molecule_kinds, label, print_section, subsys_section, shell_present, shell_part, &
-       core_part, force_rescaling, error)
+       core_part, force_rescaling, para_env, error)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
@@ -520,7 +521,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: shell_part, core_part
     LOGICAL, INTENT(IN)                      :: force_rescaling
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
       routineP = moduleN//':'//routineN
@@ -531,8 +533,9 @@ CONTAINS
                                                 nshell, num_x, shell_index, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    LOGICAL :: atomvel_explicit, corevel_explicit, failure, is_ok, &
-      rescale_regions, shellvel_explicit
+    LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, &
+      corevel_read, failure, is_ok, rescale_regions, shellvel_explicit, &
+      shellvel_read
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass, mass_tot, &
                                                 temp, tmp_r1
@@ -615,19 +618,33 @@ CONTAINS
        simpar%v_shock = simpar%v_shock * SQRT ( mass_tot )
     END IF
 
+    ! Read velocities from binary restart file if available
+    CALL read_binary_velocities("",part,force_env%root_section,para_env,&
+                                subsys_section,atomvel_read,error)
+    IF (shell_present) THEN
+       CALL read_binary_velocities("SHELL",shell_part,force_env%root_section,para_env,&
+                                   subsys_section,shellvel_read,error)
+       CALL read_binary_velocities("CORE",core_part,force_env%root_section,para_env,&
+                                   subsys_section,corevel_read,error)
+    END IF
+
     ! Read or initialize the particle velocities
     CALL section_vals_get(atomvel_section,explicit=atomvel_explicit,error=error)
     CALL section_vals_get(shellvel_section,explicit=shellvel_explicit,error=error)
     CALL section_vals_get(corevel_section,explicit=corevel_explicit,error=error)
     CPPostcondition(shellvel_explicit.EQV.corevel_explicit,cp_failure_level,routineP,error,failure)
 
-    IF (atomvel_explicit) THEN
-       ! Read the atom velocities if explicitely given in the input file
-       CALL section_vals_list_get(atomvel_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
+    IF (atomvel_explicit.OR.atomvel_read) THEN
+       IF (.NOT.atomvel_read) THEN
+          ! Read the atom velocities if explicitly given in the input file
+          CALL section_vals_list_get(atomvel_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
+          DO i = 1, natoms
+             is_ok = cp_sll_val_next(atom_list,val,error=error)
+             CALL val_get(val,r_vals=vel,error=error)
+             part(i)%v = vel
+          END DO
+       END IF
        DO i = 1, natoms
-         is_ok=cp_sll_val_next(atom_list,val,error=error)
-         CALL val_get(val,r_vals=vel,error=error)
-         part(i)%v = vel
          SELECT CASE(is_fixed(i))
          CASE (use_perd_x)
             part(i)%v(1) = 0.0_dp
@@ -648,26 +665,28 @@ CONTAINS
             part(i)%v    = 0.0_dp
          END SELECT
        END DO
-       IF(shell_present) THEN 
+       IF (shell_present) THEN
           IF (shellvel_explicit) THEN
              ! If the atoms positions are given (?) and core and shell velocities are
              ! present in the input, read the latter.
              CALL section_vals_list_get(shellvel_section,"_DEFAULT_KEYWORD_",list=shell_list,error=error)
              CALL section_vals_list_get(corevel_section,"_DEFAULT_KEYWORD_",list=core_list,error=error)
-             DO i = 1 , nshell
-                is_ok=cp_sll_val_next(shell_list,val,error=error)
+             DO i=1,nshell
+                is_ok = cp_sll_val_next(shell_list,val,error=error)
                 CALL val_get(val,r_vals=vel,error=error)
-                shell_part(i)%v  = vel
-                is_ok=cp_sll_val_next(core_list,val,error=error)
+                shell_part(i)%v = vel
+                is_ok = cp_sll_val_next(core_list,val,error=error)
                 CALL val_get(val,r_vals=vel,error=error)
-                core_part(i)%v  = vel
+                core_part(i)%v = vel
              END DO
           ELSE
-             ! Otherwise, just copy atom velocties into shell and core velocities.
-             CALL clone_core_shell_vel(part,shell_part,core_part)
+             IF (.NOT.(shellvel_read.AND.corevel_read)) THEN
+                ! Otherwise, just copy atom velocties into shell and core velocities.
+                CALL clone_core_shell_vel(part,shell_part,core_part)
+             END IF
           END IF
        END IF
-       
+
        ! compute vcom, ecom and ekin
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
@@ -1481,13 +1500,15 @@ CONTAINS
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
   SUBROUTINE setup_velocities(force_env, simpar, globenv, md_env, md_section, &
-       constraint_section, error)
+                              constraint_section, write_binary_restart_file, &
+                              error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, constraint_section
+    LOGICAL, INTENT(IN)                      :: write_binary_restart_file
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_velocities', &
@@ -1547,7 +1568,7 @@ CONTAINS
        label="Velocities initialization",print_section=print_section, &
        subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
        shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
-       error=error)
+       para_env=para_env,error=error)
     
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
@@ -1571,14 +1592,14 @@ CONTAINS
           END IF
           ! Reinitialize velocities rescaling properly after rattle
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-          CALL update_subsys(subsys_section,force_env,.FALSE.,error)
+          CALL update_subsys(subsys_section,force_env,.FALSE.,write_binary_restart_file,error)
 
           CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
              force_env=force_env, globenv=globenv, md_env=md_env,&
              label="Re-Initializing velocities after applying constraints",print_section=print_section, &
              subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
              shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
-             error=error)
+             para_env=para_env,error=error)
        END IF
     END IF
     CALL timestop(handle)

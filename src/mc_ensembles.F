@@ -14,6 +14,7 @@
 MODULE mc_ensembles
   USE cell_types,                      ONLY: cell_p_type,&
                                              get_cell
+  USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -80,8 +81,7 @@ MODULE mc_ensembles
                                              boltzmann,&
                                              joule,&
                                              n_avogadro
-  USE termination,                     ONLY: external_control,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

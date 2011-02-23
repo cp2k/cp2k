@@ -224,7 +224,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MIXED_ENERGIES",&
-            description="controls the output of the energies of the two"//&
+            description="Controls the output of the energies of the two"//&
             "regular FORCE_EVALS in the MIXED method"//&
             "printed is step,time,Etot,E_F1,E_F2,CONS_QNT",&
             print_level=low_print_level, common_iter_levels=1,&
@@ -232,8 +232,8 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"stress",&
-            description="controls the output of the stress tensor",&
+       CALL cp_print_key_section_create(print_key,"STRESS",&
+            description="Controls the output of the stress tensor",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -253,6 +253,20 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SPLIT_RESTART_FILE",&
+                           description="If specified selected input sections, which are growing with the "//&
+                                       "number of atoms in the system, are written to another restart file "//&
+                                       "in binary format instead of the default restart file in human "//&
+                                       "readable ASCII format. This split of the restart file may "//&
+                                       "provide significant memory savings and an accelerated I/O for "//&
+                                       "systems with a very large number of atoms",&
+                           usage="SPLIT_RESTART_FILE yes",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -264,6 +278,7 @@ CONTAINS
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+
 
        CALL cp_print_key_section_create(print_key,"TRANSLATION_VECTOR",&
             description="Dumps the translation vector applied along an MD (if any). Useful"//&

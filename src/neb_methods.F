@@ -20,6 +20,7 @@
 ! *****************************************************************************
 MODULE neb_methods
   USE colvar_utils,                    ONLY: number_of_colvar
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -63,7 +64,6 @@ MODULE neb_methods
   USE replica_types,                   ONLY: rep_env_create,&
                                              rep_env_release,&
                                              replica_env_type
-  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
