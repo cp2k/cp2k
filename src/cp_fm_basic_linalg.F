@@ -326,7 +326,7 @@ CPSourceFileRef,&
                    descb,beta,c(1,1),i_c,j_c,descc)
 
     ELSE
-       CALL stop_program(routineN,"mixed precision gemm NYI")
+       CALL stop_program(routineN,moduleN,__LINE__,"Mixed precision gemm NYI")
     ENDIF
 #else
 
@@ -348,7 +348,7 @@ CPSourceFileRef,&
        CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
 
     ELSE
-       CALL stop_program(routineN,"mixed precision gemm NYI")
+       CALL stop_program(routineN,moduleN,__LINE__,"Mixed precision gemm NYI")
     ENDIF
 
 #endif

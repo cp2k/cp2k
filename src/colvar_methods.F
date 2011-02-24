@@ -2694,15 +2694,17 @@ CPSourceFileRef)
              theta = ACOS(costheta)
              plm = legendre (costheta, l, m)
              dplm = dlegendre (costheta, l, m)
-             IF((l+m) .GT. maxfac) THEN
-                CALL stop_program("qparm_colvar","l-m GT maxfac")
-             ENDIF
+             IF ((l+m) > maxfac) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "(l-m) > maxfac")
+             END IF
              lmm = fac(l-m)
              lpm = fac(l+m)
              bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
              IF (bond > 1.0_dp) THEN 
-                CALL stop_program("qparm_colvar","bond GT 1.0_dp")
-             ENDIF
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "bond > 1.0_dp")
+             END IF
              pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
              IF (plm < 0.0_dp) THEN
                 dylm = -pre_fac*dplm 
@@ -2728,8 +2730,9 @@ CPSourceFileRef)
              fact = 1.0_dp
           ENDIF
           IF (nbond < 0.0001_dp) THEN
-             CALL stop_program("qparm_colvar","NBOND = 0.0")
-          ENDIF
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "NBOND = 0.0")
+          END IF
           ylm = ylm/nbond
           grad(:) = grad(:)/nbond
           grad_nb(:) = grad_nb(:)/nbond

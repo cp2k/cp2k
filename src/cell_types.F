@@ -306,7 +306,7 @@ CONTAINS
     cell%deth = ABS(det_3x3(cell%hmat))
 
     IF (cell%deth < 1.0E-10_dp) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "An invalid set of cell vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
@@ -319,7 +319,8 @@ CONTAINS
     IF ( PRESENT ( orthorhombic ) ) cell % orthorhombic = orthorhombic
     dim = COUNT(cell%perd == 1)
     IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
-       CALL stop_program(routineP,"Not ortho and not periodic")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Not ortho and not periodic")
     END IF
 
   END SUBROUTINE init_cell

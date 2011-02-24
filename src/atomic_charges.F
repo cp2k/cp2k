@@ -76,8 +76,10 @@ CONTAINS
        WRITE(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
        END SELECT
        total_charge = 0.0_dp
-       IF (SIZE(particle_set) .NE. natom) &
-           CALL stop_program(routineN,"unexpected number of atoms/charges")
+       IF (SIZE(particle_set) /= natom) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Unexpected number of atoms/charges")
+       END IF
        WRITE(scr,'(A)') ""
        DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&

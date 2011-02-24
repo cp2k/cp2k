@@ -186,7 +186,7 @@ CONTAINS
     CASE(dbcsr_type_no_symmetry)
        print_sym = .FALSE.
     CASE DEFAULT
-       CALL stop_program(routineN,"WRONG")
+       CALL stop_program(routineN,moduleN,__LINE__,"WRONG")
     END SELECT
 
     ! *** Get the matrix dimension and check the optional arguments ***

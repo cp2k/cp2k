@@ -13,7 +13,8 @@ MODULE constraint_util
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE mathlib,                         ONLY: matmul_3x3,&
                                              transpose_3d
   USE message_passing,                 ONLY: mp_sum
@@ -30,7 +31,8 @@ MODULE constraint_util
                                              local_g4x6_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -542,7 +544,8 @@ CONTAINS
              v_shake ( i, i ) = vector_v ( i )
           END DO
        ELSE
-          CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Not sufficient parameters")
        END IF
     CASE ( 'RATTLE' )
        IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
@@ -555,7 +558,8 @@ CONTAINS
              v_shake ( i, i ) = vector_v ( i )
           END DO
        ELSE
-          CALL stop_program ( "get_roll_matrix", "not sufficient parameters" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Not sufficient parameters")
        END IF
     END SELECT
 
@@ -572,6 +576,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: pos, vel
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restore_temporary_set', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_local, stat
@@ -579,8 +586,9 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: wrk
 
     failure = .FALSE.
-    ALLOCATE(wrk(SIZE(particle_set)),stat=stat)
-    IF (stat/=0) CALL stop_program ( "restore_temporary_set", "Error in allocation" )
+    ALLOCATE (wrk(SIZE(particle_set)),stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "wrk",int_size*SIZE(particle_set))
     wrk = .TRUE.
     DO iparticle_kind=1,SIZE(local_particles%n_el)
        nparticle_local = local_particles%n_el(iparticle_kind)
@@ -603,8 +611,8 @@ CONTAINS
           END IF
        END DO
     END IF
-    DEALLOCATE(wrk,stat=stat)
-    IF (stat/=0) CALL stop_program ( "restore_temporary_set", "Error in deallocation" )
+    DEALLOCATE (wrk,stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"wrk")
   END SUBROUTINE restore_temporary_set
 
 ! *****************************************************************************

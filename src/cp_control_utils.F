@@ -104,7 +104,7 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
     CALL section_vals_get(xc_section,explicit=is_present,error=error)
     IF (.NOT.is_present.AND.not_SE) THEN
-       CALL stop_program(routineN,"XC section missing.")
+       CALL stop_program(routineN,moduleN,__LINE__,"XC section missing.")
     END IF
     IF (is_present) THEN
        CALL section_vals_val_get(xc_section,"density_cutoff", r_val=density_cut,error=error)
@@ -136,7 +136,7 @@ CPSourceFileRef,&
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
     CALL section_vals_get(xc_fun_section,explicit=is_present,error=error)
     IF (.NOT.is_present.AND.not_SE) THEN
-       CALL stop_program(routineN,"XC_FUNCTIONAL section missing.")
+       CALL stop_program(routineN,moduleN,__LINE__,"XC_FUNCTIONAL section missing.")
     END IF
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     CALL section_vals_val_get(dft_section,"UKS",l_val=dft_control%uks,error=error)
@@ -374,12 +374,12 @@ CPSourceFileRef,&
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     qs_control%cutoff = cutoff
 
-    IF(multigrid_set) THEN
+    IF (multigrid_set) THEN
       ! Read the values from input
       IF (qs_control%commensurate_mgrids) THEN
-          CALL stop_program(routineN,&
-               "Do not specify cutoffs for the commensurate grids (NYI)")
-      ENDIF
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Do not specify cutoffs for the commensurate grids (NYI)")
+      END IF
 
       CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",r_vals=cutofflist,error=error)
       IF(ASSOCIATED(cutofflist)) THEN
@@ -415,7 +415,7 @@ CPSourceFileRef,&
     DO igrid_level=2,ngrid_level
       IF ( qs_control%e_cutoff(igrid_level) > &
            qs_control%e_cutoff(igrid_level-1) ) THEN
-         CALL stop_program (routineN,"Multi grids not ordered")
+         CALL stop_program(routineN,moduleN,__LINE__,"Multi-grids not ordered")
       END IF
     END DO
     CALL timestop(handle)
@@ -647,8 +647,9 @@ CPSourceFileRef,&
        END DO
        qs_control%mulliken_restraint_control%natoms = jj
        IF (qs_control%mulliken_restraint_control%natoms<1) &
-            CALL stop_program(routineN, "Need at least 1 atom to use mulliken contraints")
-       ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                              "Need at least 1 atom to use mulliken contraints")
+       ALLOCATE (qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
        jj = 0
        DO k = 1,n_rep
           CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
@@ -950,8 +951,7 @@ CPSourceFileRef,&
          tmpstr = "Explicit Orbital SIC"
        CASE DEFAULT
          ! fix throughout the cp2k for this option
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "SIC option unknown")
+         CALL stop_program(routineN,moduleN,__LINE__,"SIC option unknown")
        END SELECT
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
@@ -1214,7 +1214,7 @@ CPSourceFileRef,&
                 WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
                      "QS| ddapc restraint functional form :","CONSTRAINT"
              CASE DEFAULT
-                CALL stop_program(routineN,"unknown ddapc restraint")
+                CALL stop_program(routineN,moduleN,__LINE__,"Unknown ddapc restraint")
              END SELECT
           END DO
        END IF
@@ -1227,12 +1227,12 @@ CPSourceFileRef,&
           CASE (do_s2_restraint)
              WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
                   "QS| s2 restraint functional form :","RESTRAINT"
-             CALL stop_program(routineN,"Not yet implemented")
+             CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented")
           CASE (do_s2_constraint)
              WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
                   "QS| s2 restraint functional form :","CONSTRAINT"
           CASE DEFAULT
-             CALL stop_program(routineN,"unknown ddapc restraint")
+             CALL stop_program(routineN,moduleN,__LINE__,"Unknown ddapc restraint")
           END SELECT
        END IF
     END IF
@@ -1427,7 +1427,8 @@ CPSourceFileRef,&
              jj = jj+1
           END DO
        END DO
-       IF (jj<1) CALL stop_program(routineN, "Need at least 1 atom to use ddapc contraints")
+       IF (jj < 1) CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "Need at least 1 atom to use ddapc contraints")
        ddapc_restraint_control%natoms=jj
        IF(ASSOCIATED(ddapc_restraint_control%atoms))&
             DEALLOCATE(ddapc_restraint_control%atoms)
@@ -1456,12 +1457,14 @@ CPSourceFileRef,&
           DO  j = 1,SIZE(rtmplist)
              jj = jj+1
              IF (jj>ddapc_restraint_control%natoms) &
-                  CALL stop_program(routineN, "Need the same number of coeff as there are atoms ")
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Need the same number of coeff as there are atoms ")
              ddapc_restraint_control%coeff (jj) = rtmplist(j)
           END DO
        END DO
        IF (jj<ddapc_restraint_control%natoms .AND. jj.NE.0) &
-            CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                              "Need no or the same number of coeff as there are atoms.")
     END DO
     k=0
     DO i=1,SIZE(qs_control%ddapc_restraint_control)
@@ -1506,7 +1509,8 @@ CPSourceFileRef,&
           jj = jj+1
        END DO
     END DO
-    IF (jj<1) CALL stop_program(routineN, "Need at least 1 atom to use ddapc contraints")
+    IF (jj < 1) CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Need at least 1 atom to use ddapc contraints.")
     qs_control%becke_control%natoms=jj
     IF(ASSOCIATED(qs_control%becke_control%atoms))DEALLOCATE(qs_control%becke_control%atoms)
     ALLOCATE(qs_control%becke_control%atoms(qs_control%becke_control%natoms))
@@ -1532,12 +1536,14 @@ CPSourceFileRef,&
        DO  j = 1,SIZE(rtmplist)
           jj = jj+1
           IF (jj>qs_control%becke_control%natoms) &
-               CALL stop_program(routineN, "Need the same number of coeff as there are atoms ")
+               CALL stop_program(routineN,moduleN,__LINE__,&
+                                 "Need the same number of coeff as there are atoms.")
           qs_control%becke_control%coeff (jj) = rtmplist(j)
        END DO
     END DO
-    IF (jj<qs_control%becke_control%natoms .AND. jj.NE.0) &
-         CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
+    IF (jj < qs_control%becke_control%natoms .AND. jj.NE.0) &
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Need no or the same number of coeff as there are atoms.")
   END SUBROUTINE read_becke_section
 
   SUBROUTINE read_efield_sections(dft_control,efield_section,error)

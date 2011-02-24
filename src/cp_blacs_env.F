@@ -64,7 +64,12 @@ CONTAINS
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: blacs2mpi, mpi2blacs
 
-    IF (.NOT.ASSOCIATED(blacs_env)) CALL stop_program("get_blacs_info","no blacs environment")
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_blacs_info', &
+      routineP = moduleN//':'//routineN
+
+    IF (.NOT.ASSOCIATED(blacs_env)) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"No BLACS environment")
+    END IF
 
     IF (PRESENT(my_process_row)) my_process_row = blacs_env%mepos(1)
     IF (PRESENT(my_process_column)) my_process_column = blacs_env%mepos(2)

@@ -151,7 +151,8 @@ CONTAINS
                   i_rep_val=my_index,r_val=csvr%nvt(i)%thermostat_energy,error=error)
           END DO
        ELSE
-          CALL stop_program ( routineP,'Number pf restartable stream not equal to the number of'//&
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               'Number pf restartable stream not equal to the number of'//&
                ' total thermostats!')
        END IF
     END IF
@@ -173,7 +174,8 @@ CONTAINS
                   rng_record=rng_record,error=error)
           END DO
        ELSE
-          CALL stop_program ( routineP,'Number pf restartable stream not equal to the number of'//&
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               'Number pf restartable stream not equal to the number of'//&
                ' total thermostats!')
        END IF
     END IF

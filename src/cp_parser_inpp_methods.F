@@ -95,7 +95,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@INCLUDE: Incorrect @INCLUDE directive in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
        indi=1
        DO WHILE (is_whitespace(filename(indi:indi)))
@@ -120,7 +120,7 @@ CONTAINS
                 WRITE(UNIT=message,FMT="(3A,I6)") &
                      "INPP_@INCLUDE: Incorrect quoting of include file in file: ",&
                      TRIM(input_file_name), "  Line:",input_line_number
-                CALL stop_program(routineP,TRIM(message))
+                CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
              ENDIF
              ! nothing to do. unquoted filename.
           ENDIF
@@ -167,7 +167,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@SET: Incorrect @SET directive in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
 
        indi=1
@@ -190,7 +190,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@SET: Incorrect @SET directive in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
 
        ! sort into table of variables.
@@ -244,7 +244,7 @@ CONTAINS
              WRITE(UNIT=message,FMT="(3A,I6)") &
                   "INPP_@IF: Incorrect @IF directive in file: ",&
                   TRIM(input_file_name), "  Line:",input_line_number
-             CALL stop_program(routineP,TRIM(message))
+             CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
           ENDIF
        ELSEIF(pos2>0) THEN
           cond1=input_line(indi:pos2-1)
@@ -254,7 +254,7 @@ CONTAINS
              WRITE(UNIT=message,FMT="(3A,I6)") &
                   "INPP_@IF: Incorrect @IF directive in file: ",&
                   TRIM(input_file_name), "  Line:",input_line_number
-             CALL stop_program(routineP,TRIM(message))
+             CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
           ENDIF
        ELSE
           IF(LEN_TRIM(input_line(indi:))>0) THEN
@@ -296,7 +296,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@IF: Incorrect @IF directive in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
 
        IF ((TRIM(cond1)==TRIM(cond2)) .EQV. check) THEN
@@ -354,7 +354,7 @@ CONTAINS
              WRITE(UNIT=message,FMT="(3A,I6)") &
                   "INPP_@IF: Error while looking for @ENDIF directive in file: ",&
                   TRIM(input_file_name), "  Line:",input_line_number
-             CALL stop_program(routineP,TRIM(message))
+             CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
           ENDIF
        ENDIF
 
@@ -444,7 +444,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@SET: Missing '}' in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
 
        pos2=pos1+pos2-2
@@ -455,7 +455,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable ${",TRIM(varname),"} not defined in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
 
        IF(pos1>3) THEN
@@ -484,7 +484,7 @@ CONTAINS
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable $",TRIM(varname)," not defined in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
-          CALL stop_program(routineP,TRIM(message))
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        ENDIF
 
        IF(pos1>2) THEN

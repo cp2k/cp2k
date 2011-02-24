@@ -516,7 +516,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, iw
+    CHARACTER(LEN=default_string_length)     :: message
+    INTEGER                                  :: handle, handle2, istat, iw
     LOGICAL                                  :: failure, found, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
@@ -536,13 +537,18 @@ CPSourceFileRef,&
     !-----------------------------------------------------------------------------
     ! 1. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
-    IF(topology%coordinate) THEN
-       IF(para_env%ionode) THEN
-          INQUIRE(FILE=topology%coord_file_name,EXIST=found)
-          IF(found) THEN
-          ELSE
-             CALL stop_program ("coordinate_control","coordinate file missing")
-          END IF
+    IF (topology%coordinate) THEN
+       INQUIRE (FILE=topology%coord_file_name,EXIST=found,IOSTAT=istat)
+       IF (istat /= 0) THEN
+          WRITE (UNIT=message,FMT="(A,I0,A)")&
+            "An error occurred inquiring the file <"//&
+            TRIM(topology%coord_file_name)//"> (IOSTAT = ",istat,")"
+          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
+       END IF
+       IF (.NOT.found) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Coordinate file <"//TRIM(topology%coord_file_name)//&
+                            "> not found.",para_env)
        END IF
     END IF
     !-----------------------------------------------------------------------------

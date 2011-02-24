@@ -446,7 +446,8 @@ CONTAINS
 
     b_col_size = col_blk_size(b_col)
 
-    IF(pkd_b(nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_b(n+1).LE.0")
+    IF (pkd_b(nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                        "1pkd_b(n+1).LE.0")
 
     CALL packed_vec_ini(pkd_c, nblkrows_total, error)
     !pkd_c(:) = 0.0_dp
@@ -473,8 +474,10 @@ CONTAINS
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    IF(pkd_b(nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_b(n+1).LE.0")
-    IF(pkd_c(nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_c(n+1).LE.0")
+    IF (pkd_b(nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                        "2pkd_b(n+1).LE.0")
+    IF (pkd_c(nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                        "2pkd_c(n+1).LE.0")
 
     CALL timestop(timing_handle)
 
@@ -879,10 +882,11 @@ CONTAINS
           ! let's copy the block
           pkd_vec(row) = pkd_vec(nblkrows_total+1)
           pkd_vec(nblkrows_total+1) = pkd_vec(nblkrows_total+1) + REAL(nze,dp)
-          IF(SIZE(pkd_vec).LT.INT(pkd_vec(nblkrows_total+1))-1) THEN
+          IF (SIZE(pkd_vec).LT.INT(pkd_vec(nblkrows_total+1))-1) THEN
              WRITE(*,*) 'SIZE(pkd_vec)',SIZE(pkd_vec)
              WRITE(*,*) 'pkd_vec(nblkrows_total+1)',pkd_vec(nblkrows_total+1)
-             CALL stop_program(routineN,"col: SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "col: SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
           ENDIF
           CALL dcopy(nze,data_p(1),1,pkd_vec(INT(pkd_vec(row))),1)
        ENDDO
@@ -903,13 +907,14 @@ CONTAINS
           ! let's copy the block
           pkd_vec(col) = pkd_vec(nblkrows_total+1)
           pkd_vec(nblkrows_total+1) = pkd_vec(nblkrows_total+1) + nze
-          IF(SIZE(pkd_vec).LT.INT(pkd_vec(nblkrows_total+1))-1) &
-               CALL stop_program(routineN,"SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
+          IF (SIZE(pkd_vec).LT.INT(pkd_vec(nblkrows_total+1))-1) &
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
           CALL dcopy(nze,data_p(1),1,pkd_vec(INT(pkd_vec(col))),1)
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     CASE DEFAULT
-       CALL stop_program(routineN,"pack what?")       
+       CALL stop_program(routineN,moduleN,__LINE__,"pack what?")
     END SELECT
 
     CALL timestop(timing_handle)
@@ -957,8 +962,9 @@ CONTAINS
     ! let's go
     SELECT CASE(what)
     CASE('column')
-       IF(INT(pkd_vec(nblkrows_total+1)).LE.0) &
-            CALL stop_program(routineN,"1pkd_vec(n+1).LE.0")
+       IF (INT(pkd_vec(nblkrows_total+1)).LE.0) &
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "1pkd_vec(n+1).LE.0")
        col = ivec
        col_size = col_blk_size(col)
        DO row = 1, nblkrows_total
@@ -974,8 +980,9 @@ CONTAINS
        ENDDO ! row
        CALL cp_dbcsr_finalize(matrix, error=error)
     CASE('row')
-       IF(INT(pkd_vec(nblkrows_total+1)).LE.0) &
-            CALL stop_program(routineN,"2pkd_vec(n+1).LE.0")
+       IF (INT(pkd_vec(nblkrows_total+1)).LE.0) &
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "2pkd_vec(n+1).LE.0")
        row = ivec
        row_size = row_blk_size(row)
        DO col = 1,nblkcols_total
@@ -991,13 +998,12 @@ CONTAINS
        ENDDO ! col
        CALL cp_dbcsr_finalize(matrix, error=error)
     CASE DEFAULT
-       CALL stop_program(routineN,"unpack what?")
+       CALL stop_program(routineN,moduleN,__LINE__,"unpack what?")
     END SELECT
 
     CALL timestop(timing_handle)
 
   END SUBROUTINE cp_dbcsr_unpack_vec
-
 
 ! *****************************************************************************
 !> \brief Does one of the operations:
@@ -1052,7 +1058,7 @@ CONTAINS
           iblk = iblk + vec_blk_size(i)**2
        ENDDO
     CASE DEFAULT
-       CALL stop_program(routineN,"side?")
+       CALL stop_program(routineN,moduleN,__LINE__,"side?")
     END SELECT
     DEALLOCATE(buff)
 
@@ -1087,8 +1093,10 @@ CONTAINS
     row_blk_size => array_data (cp_dbcsr_row_block_sizes (mat_u))
     col_blk_size => array_data (cp_dbcsr_col_block_sizes (mat_u))
 
-    IF(pkd_u(cp_dbcsr_nblkrows_total(mat_u)+1).LE.0) CALL stop_program(routineN,"1pkd_u(n+1).LE.0")
-    IF(pkd_v(cp_dbcsr_nblkrows_total(mat_v)+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+    IF (pkd_u(cp_dbcsr_nblkrows_total(mat_u)+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                                        "1pkd_u(n+1).LE.0")
+    IF (pkd_v(cp_dbcsr_nblkrows_total(mat_v)+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                                        "1pkd_v(n+1).LE.0")
     CALL dbcsr_get_data (mat_v%matrix, data_v)
     CALL dbcsr_get_data (mat_u%matrix, data_u)
     !
@@ -1148,8 +1156,10 @@ CONTAINS
        ENDDO
     ENDDO ! row
 
-    IF(pkd_u(mat_u%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_u(n+1).LE.0")
-    IF(pkd_v(mat_v%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+    IF (pkd_u(mat_u%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                                       "2pkd_u(n+1).LE.0")
+    IF (pkd_v(mat_v%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                                       "2pkd_v(n+1).LE.0")
 
     CALL timestop(timing_handle)
 
@@ -1223,7 +1233,8 @@ CONTAINS
     nblkrows_total = cp_dbcsr_nblkrows_total(mat_v)
     row_blk_size => array_data (cp_dbcsr_row_block_sizes(mat_v))
 
-    IF(pkd_v(nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+    IF (pkd_v(nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                        "1pkd_v(n+1).LE.0")
 
     ALLOCATE(buff(SIZE(pkd_v)))
 
@@ -1254,7 +1265,8 @@ CONTAINS
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
     !
-    IF(pkd_v(nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+    IF (pkd_v(nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                        "2pkd_v(n+1).LE.0")
     DEALLOCATE(buff)
 
     CALL timestop(timing_handle)
@@ -1310,7 +1322,7 @@ CONTAINS
 
     SELECT CASE(scope)
     CASE('row')
-       CALL stop_program(routineN,"NYI")
+       CALL stop_program(routineN,moduleN,__LINE__,"NYI")
     CASE('column')
        !
        ! simple hack
@@ -1341,7 +1353,7 @@ CONTAINS
           !endif
        ENDDO
     CASE DEFAULT
-       CALL stop_program(routineN,"how do you wanna bcast")
+       CALL stop_program(routineN,moduleN,__LINE__,"how do you wanna bcast")
     END SELECT
     
     IF(SIZE(pkd_vec).lt.INT(buff2(n+1))-1) THEN
@@ -1442,7 +1454,7 @@ CONTAINS
        CALL dcopy( INT(buff2(n+1)) - 1, buff2(1), 1, pkd_vec(1), 1)
 
     CASE DEFAULT
-       CALL stop_program(routineN,"how do you wanna bcast")
+       CALL stop_program(routineN,moduleN,__LINE__,"how do you wanna bcast")
     END SELECT
 
     DEALLOCATE(buff)
@@ -1484,13 +1496,14 @@ CONTAINS
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
 
-    IF(pkd_vec(n+1).LE.0) CALL stop_program(routineN,"a_offset_last.LE.0!!!!!!!")
+    IF (pkd_vec(n+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                             "a_offset_last.LE.0!!!!!!!")
 
     ALLOCATE(buff(SIZE(pkd_vec)),sums(SIZE(pkd_vec)))
     sums = 0.0_dp
     SELECT CASE(scope)
     CASE('rowise')
-       CALL stop_program(routineN,"more work here")
+       CALL stop_program(routineN,moduleN,__LINE__,"more work here")
        !
        ! simple hack
        DO icol = 0,npcols-1
@@ -1514,14 +1527,15 @@ CONTAINS
           ENDIF
        ENDDO
     CASE('all')
-       CALL stop_program(routineN,"more work here")
+       CALL stop_program(routineN,moduleN,__LINE__,"more work here")
     CASE DEFAULT
-       CALL stop_program(routineN,"how do you wanna reduce")
+       CALL stop_program(routineN,moduleN,__LINE__,"how do you wanna reduce")
     END SELECT
     pkd_vec = sums
     DEALLOCATE(buff,sums)
 
-    IF(pkd_vec(n+1).LE.0) CALL stop_program(routineN,"a_offset_last.LE.0!!!!!!!")
+    IF(pkd_vec(n+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                            "a_offset_last.LE.0!!!!!!!")
 
     CALL timestop(timing_handle)
 
@@ -1552,7 +1566,8 @@ CONTAINS
     IF(PRESENT(do_summation)) my_do_summation=do_summation
 
     a_offset_last = INT(pkd_vec_a(n+1)) 
-    IF(a_offset_last.LE.0) CALL stop_program(routineN,"a_offset_last.LT.0!!!!!!!")
+    IF (a_offset_last.LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                              "a_offset_last.LT.0!!!!!!!")
     DO i = 1,n
        b_offset = INT(pkd_vec_b(i))
        a_offset = INT(pkd_vec_a(i))
@@ -1619,7 +1634,7 @@ CONTAINS
     CASE('row')
        copy_column = .FALSE.
     CASE DEFAULT
-       CALL stop_program(routineN,"copy what?")
+       CALL stop_program(routineN,moduleN,__LINE__,"copy what?")
     END SELECT
 
     CALL cp_dbcsr_iterator_start(iter, matrix_b)
@@ -2150,7 +2165,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     ! Now convert to the desired matrix distribution
     IF (PRESENT (alpha)) THEN
-       CALL stop_program(routineN,'no more alpha... cleanme')
+       CALL stop_program(routineN,moduleN,__LINE__,'no more alpha... clean me')
     ELSE
        CALL cp_dbcsr_complete_redistribute (bc_mat, matrix,&
             keep_sparsity=keep_sparsity, error=error)
