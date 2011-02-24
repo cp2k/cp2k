@@ -457,6 +457,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'pz_init'
+
     CALL set_util(cutoff)
 
     eps_rho = cutoff
@@ -466,7 +468,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     SELECT CASE (method)
 
     CASE DEFAULT
-       CALL stop_program("xc_perdew_zunger/pz_init", "unknown method")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown method")
        
     CASE (pz_orig)
        CALL cite_reference(Perdew1981)

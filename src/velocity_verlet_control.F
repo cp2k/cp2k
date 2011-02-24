@@ -61,13 +61,15 @@ CONTAINS
 
     ! RESPA implemented only for NVE
     IF(simpar%do_respa .AND. nve_ensemble.NE.simpar % ensemble) THEN
-       CALL stop_program ( 'velocity_verlet','respa integrator not implemented for this ensemble')
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "RESPA integrator not implemented for this ensemble")
     END IF
 
     ! Choice of the ensemble
     SELECT CASE (simpar%ensemble)
     CASE DEFAULT
-       CALL stop_program ( 'velocity_verlet','integrator not implemented')
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Integrator not implemented")
     CASE (nve_ensemble)
        IF(simpar%do_respa)THEN
           CALL nve_respa(md_env,error)

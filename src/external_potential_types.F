@@ -343,9 +343,8 @@ CONTAINS
        DEALLOCATE (potential,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
     END IF
 
   END SUBROUTINE deallocate_all_potential
@@ -371,9 +370,8 @@ CONTAINS
        DEALLOCATE (potential,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
     END IF
 
   END SUBROUTINE deallocate_fist_potential
@@ -427,9 +425,8 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
     END IF
 
   END SUBROUTINE deallocate_gth_potential
@@ -471,9 +468,8 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
 
     END IF
 
@@ -508,9 +504,8 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
 
     END IF
 
@@ -627,9 +622,8 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated.")
 
     END IF
 
@@ -932,7 +926,7 @@ CONTAINS
           IF (read_from_input) THEN
              match = .TRUE.
           ELSE
-             !       *** Check both the element symbol and the atomic potential name ***
+             ! Check both the element symbol and the atomic potential name
              match = .FALSE.
              CALL uppercase(line)
              line2 = " "//line//" "
@@ -945,15 +939,14 @@ CONTAINS
                   (INDEX(line2,apname2(:strlen2)) > 0)) match = .TRUE.
           END IF
           IF (match) THEN
-             !         *** Read the electronic configuration ***
+             ! Read the electronic configuration
              NULLIFY (elec_conf)
              l = 0
              CALL reallocate(elec_conf,0,l)
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val,error=error)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                     __LINE__,&
-                     "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN, __LINE__,&
+                                                  "Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)elec_conf(l)
                 CALL remove_word(line_att)
@@ -985,14 +978,13 @@ CONTAINS
              DEALLOCATE (elec_conf,STAT=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-             !         *** Read r(loc) to define the exponent of the core charge    ***
-             !         *** distribution and calculate the corresponding coefficient ***
+             ! Read r(loc) to define the exponent of the core charge
+             ! distribution and calculate the corresponding coefficient
 
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val,error=error)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                     __LINE__,&
-                     "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                  "Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)r
              ELSE
@@ -1010,11 +1002,12 @@ CONTAINS
              EXIT search_loop
           END IF
        ELSE
-          !       *** Stop program, if the end of file is reached ***
-          CALL stop_program(routineN,moduleN,&
-               __LINE__,&
-               "The requested atomic potential <"//TRIM(potential_name)//&
-               "> was not found in the potential file <"//TRIM(potential_file_name)//">")
+          ! Stop program, if the end of file is reached
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "The requested atomic potential <"//&
+                            TRIM(potential_name)//&
+                            "> was not found in the potential file <"//&
+                            TRIM(potential_file_name)//">")
        END IF
     END DO search_loop
 
@@ -1143,9 +1136,8 @@ CONTAINS
              CALL reallocate(elec_conf,0,l)
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val,error=error)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                     __LINE__,&
-                     "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                  "Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)elec_conf(l)
                 CALL remove_word(line_att)
@@ -1182,9 +1174,8 @@ CONTAINS
 
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val,error=error)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                     __LINE__,&
-                     "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                  "Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)r
                 CALL remove_word(line_att)
@@ -1235,9 +1226,10 @@ CONTAINS
                      c_val=TRIM(line_att), error=error)
                 line_att = ""
              ELSE
-                IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,&
-                     __LINE__,&
-                     "Error reading the Potential from input file!!")
+                IF (LEN_TRIM(line_att)/= 0) THEN
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "Error reading the Potential from input file!!")
+                END IF
              END IF
              maxlppl = 2*(n - 1)
 
@@ -1387,9 +1379,8 @@ CONTAINS
              !         *** part of the GTH pseudopotential (ppnl) ***
              IF (read_from_input) THEN
 !deb            is_ok=cp_sll_val_next(list,val,error=error)
-!deb            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-!deb                 __LINE__,&
-!deb                 "Error reading the Potential from input file!!")
+!deb            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+!deb                                              "Error reading the Potential from input file!!")
 !deb            CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)n
                 CALL remove_word(line_att)
@@ -1416,7 +1407,7 @@ CONTAINS
 
                 NULLIFY (hprj_ppnl)
 
-                !           *** Load the parameter for n non-local projectors ***
+                ! Load the parameter for n non-local projectors
 
                 CALL reallocate(potential%alpha_ppnl,0,lppnl)
                 CALL reallocate(potential%nprj_ppnl,0,lppnl)
@@ -1427,9 +1418,8 @@ CONTAINS
                 DO l=0,lppnl
                    IF (read_from_input) THEN
                       is_ok=cp_sll_val_next(list,val,error=error)
-                      IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                           __LINE__,&
-                           "Error reading the Potential from input file!!")
+                      IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                        "Error reading the Potential from input file!!")
                       CALL val_get(val,c_val=line_att,error=error)
                       READ(line_att,*)r
                       CALL remove_word(line_att)
@@ -1443,8 +1433,7 @@ CONTAINS
                       WRITE(line_att(istr:),'(E24.16,1X,I0)')r, nprj_ppnl
                    END IF
                    IF (r==0.0_dp.AND.nprj_ppnl/=0) THEN
-                      CALL stop_program(routineN,moduleN,&
-                           __LINE__,&
+                      CALL stop_program(routineN,moduleN,__LINE__,&
                            "An error was detected in the atomic potential <"//&
                            TRIM(potential_name)//&
                            "> potential file <"//&
@@ -1472,13 +1461,11 @@ CONTAINS
                          END IF
                       ELSE
                          IF (read_from_input) THEN
-                            IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,&
-                                 __LINE__,&
-                                 "Error reading the Potential from input file!!")
+                            IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                            "Error reading the Potential from input file!!")
                             is_ok=cp_sll_val_next(list,val,error=error)
-                            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                                 __LINE__,&
-                                 "Error reading the Potential from input file!!")
+                            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                              "Error reading the Potential from input file!!")
                             CALL val_get(val,c_val=line_att,error=error)
                             READ(line_att,*)hprj_ppnl(i,i,l)
                             CALL remove_word(line_att)
@@ -1509,9 +1496,10 @@ CONTAINS
                            c_val=TRIM(line_att), error=error)
                       line_att =""
                    ELSE
-                      IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,&
-                           __LINE__,&
-                           "Error reading the Potential from input file!!")
+                      IF (LEN_TRIM(line_att) /= 0) THEN
+                         CALL stop_program(routineN,moduleN,__LINE__,&
+                                           "Error reading the Potential from input file!!")
+                      END IF
                    END IF
                    IF (nprj_ppnl > 1) THEN
                       CALL symmetrize_matrix(hprj_ppnl(:,:,l),"upper_to_lower")
@@ -1539,13 +1527,12 @@ CONTAINS
              EXIT search_loop
           END IF
        ELSE
-          !       *** Stop program, if the end of file is reached ***
-          CALL stop_program(routineN,moduleN,&
-               __LINE__,&
-               "The requested atomic potential <"//&
-               TRIM(potential_name)//&
-               "> was not found in the potential file <"//&
-               TRIM(potential_file_name)//">",para_env)
+          ! Stop program, if the end of file is reached
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "The requested atomic potential <"//&
+                            TRIM(potential_name)//&
+                            "> was not found in the potential file <"//&
+                            TRIM(potential_file_name)//">",para_env)
        END IF
     END DO search_loop
     IF (.NOT.read_from_input) THEN
@@ -1652,9 +1639,8 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated")
 
     END IF
 
@@ -1686,9 +1672,8 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated")
 
     END IF
 
@@ -1757,9 +1742,8 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,&
-            __LINE__,&
-            "The pointer potential is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The pointer potential is not associated")
 
     END IF
 

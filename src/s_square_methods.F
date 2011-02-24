@@ -153,7 +153,7 @@ CONTAINS
             CALL cp_fm_release(matrix_overlap,error=error)
           ENDIF
     CASE DEFAULT
-          CALL stop_program("compute_s_square","alpha, beta, what else ?")
+          CALL stop_program(routineN,moduleN,__LINE__,"alpha, beta, what else ?")
     END SELECT
 
     CALL timestop(handle)

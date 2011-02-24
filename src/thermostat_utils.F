@@ -203,7 +203,7 @@ CONTAINS
 
     SELECT CASE(ensemble)
     CASE DEFAULT
-       CALL stop_program (routineN, 'unknown ensemble ')
+       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble')
     CASE(isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
          reftraj_ensemble, langevin_ensemble)
        ! Do Nothing
@@ -269,7 +269,7 @@ CONTAINS
                 ELSE IF (region==do_region_massive) THEN
                    number = number + 3*nmol_local*natom
                 ELSE
-                   CALL stop_program (routineP, 'Invalid region setup' )
+                   CALL stop_program(routineN,moduleN,__LINE__,'Invalid region setup')
                 END IF
              END DO
           ELSE
@@ -505,7 +505,8 @@ CONTAINS
                 IF (thermolist(ipart)==HUGE(0)) THEN
                    thermolist(ipart) = ig
                 ELSE
-                   CALL stop_program (routineP, 'One atom ('//cp_to_string(ipart)//') of the '//&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                        'One atom ('//cp_to_string(ipart)//') of the '//&
                         TRIM(label1)//' was already assigned to'//&
                         ' the thermostatting region Nr.'//cp_to_string(thermolist(ipart))//&
                         '. Please check the input for inconsistencies!')
@@ -520,7 +521,8 @@ CONTAINS
                       IF (thermolist(ipart)==HUGE(0)) THEN
                          thermolist(ipart) = ig
                       ELSE
-                         CALL stop_program (routineP, 'One atom ('//cp_to_string(ipart)//') of the '//&
+                         CALL stop_program(routineN,moduleN,__LINE__,&
+                              'One atom ('//cp_to_string(ipart)//') of the '//&
                               TRIM(label1)//' was already assigned to'//&
                               ' the thermostatting region Nr.'//cp_to_string(thermolist(ipart))//&
                               '. Please check the input for inconsistencies!')

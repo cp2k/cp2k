@@ -10,6 +10,7 @@
 !>      Joost VandeVondele [2006.03]         
 ! *****************************************************************************
 MODULE atomic_charges
+
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -24,8 +25,6 @@ MODULE atomic_charges
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_charges'
-
-! *** Public subroutines ***
 
   PUBLIC :: print_atomic_charges
 

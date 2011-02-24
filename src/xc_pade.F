@@ -37,29 +37,27 @@ MODULE xc_pade
 
   PRIVATE
 
-! *** Global parameters ***
-
   REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
-                          f23 = 2.0_dp*f13, &
-                          f43 = 4.0_dp*f13
+                              f23 = 2.0_dp*f13, &
+                              f43 = 4.0_dp*f13
 
   REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp,&
-                          a1 = 0.2217058676663745E+1_dp,&
-                          a2 = 0.7405551735357053E+0_dp,&
-                          a3 = 0.1968227878617998E-1_dp,&
-                          b1 = 1.0000000000000000E+0_dp,&
-                          b2 = 0.4504130959426697E+1_dp,&
-                          b3 = 0.1110667363742916E+1_dp,&
-                          b4 = 0.2359291751427506E-1_dp
+                              a1 = 0.2217058676663745E+1_dp,&
+                              a2 = 0.7405551735357053E+0_dp,&
+                              a3 = 0.1968227878617998E-1_dp,&
+                              b1 = 1.0000000000000000E+0_dp,&
+                              b2 = 0.4504130959426697E+1_dp,&
+                              b3 = 0.1110667363742916E+1_dp,&
+                              b4 = 0.2359291751427506E-1_dp
 
   REAL(KIND=dp), PARAMETER :: da0 = 0.119086804055547E+0_dp,&
-                          da1 = 0.6157402568883345E+0_dp,&
-                          da2 = 0.1574201515892867E+0_dp,&
-                          da3 = 0.3532336663397157E-2_dp,&
-                          db1 = 0.0000000000000000E+0_dp,&
-                          db2 = 0.2673612973836267E+0_dp,&
-                          db3 = 0.2052004607777787E+0_dp,&
-                          db4 = 0.4200005045691381E-2_dp
+                              da1 = 0.6157402568883345E+0_dp,&
+                              da2 = 0.1574201515892867E+0_dp,&
+                              da3 = 0.3532336663397157E-2_dp,&
+                              db1 = 0.0000000000000000E+0_dp,&
+                              db2 = 0.2673612973836267E+0_dp,&
+                              db3 = 0.2052004607777787E+0_dp,&
+                              db4 = 0.4200005045691381E-2_dp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pade'
 
@@ -116,7 +114,7 @@ CONTAINS
 
     IF (PRESENT(needs)) THEN
        IF (.NOT. PRESENT(lsd)) &
-            CALL stop_program(routineP, "Arguments mismatch")
+            CALL stop_program(routineN,moduleN,__LINE__,"Arguments mismatch.")
        IF (lsd) THEN
           needs%rho_spin = .TRUE.
        ELSE
@@ -151,7 +149,8 @@ CONTAINS
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program ( "pade_lda", "Size of POT array too small" )
+    IF ( mt > mp ) CALL stop_program(routineN,moduleN,__LINE__,& 
+                                     "Size of POT array too small.")
 
     n = SIZE ( rho )
     ALLOCATE ( rs(n), STAT=stat )
@@ -256,6 +255,9 @@ CONTAINS
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lsd', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, m, m1, m2, mp, mt, &
                                                 mx(0:3,2), n
     LOGICAL                                  :: calc(0:4)
@@ -269,10 +271,10 @@ CONTAINS
     m  = ABS(order)
     mt = mx(m,2)
 
-    IF ( mt > mp ) &
-         CALL stop_program("pade_lsd", "Size of POT array too small")
-    IF ( n > SIZE(pot,1) ) &
-         CALL stop_program("pade_lsd", "Size of POT array too small")
+    IF ( mt > mp ) CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "Size of POT array too small.")
+    IF ( n > SIZE(pot,1) ) CALL stop_program(routineN,moduleN,__LINE__,&
+                                             "Size of POT array too small.")
  
 !$omp parallel do private(i,fx,rs,m1,m2)
     DO i=1, n
@@ -772,11 +774,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fx
     REAL(KIND=dp), INTENT(INOUT)             :: potaaa, potaab, potabb, potbbb
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lsd_3', &
+      routineP = moduleN//':'//routineN
+
     REAL(KIND=dp) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, &
       dx, dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
       fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
 
-    IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
+    IF ( .NOT. debug_flag ) CALL stop_program(routineN,moduleN,__LINE__,&
+                                              "Routine not tested")
 
       rhoab = rhoa + rhob
 

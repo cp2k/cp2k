@@ -84,7 +84,7 @@ CONTAINS
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The fist_energy pointer is not associated "//&
-                        "and cannot be deallocated")
+                        "and cannot be deallocated.")
     END IF
 
   END SUBROUTINE deallocate_fist_energy
@@ -114,7 +114,7 @@ CONTAINS
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The fist_energy pointer is not associated "//&
-                        "and cannot be initialised")
+                        "and cannot be initialised.")
     END IF
 
   END SUBROUTINE init_fist_energy

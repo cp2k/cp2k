@@ -190,8 +190,8 @@ CONTAINS
     fft_plan_style = plan_style
     aligned = arrays_aligned
 
-    IF ( fft_type <= 0 ) &
-         CALL stop_program ("init_fft","Unknown FFT library: "//TRIM(fftlib))
+    IF ( fft_type <= 0 ) CALL stop_program(routineN,moduleN,__LINE__,&
+                                           "Unknown FFT library: "//TRIM(fftlib))
 
     ! only do FFTW3 related stuff right now
     ! note that the library might not actually be available
@@ -262,6 +262,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: radix_out
     INTEGER, INTENT(IN)                      :: operation
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_radix_operations'
     INTEGER, PARAMETER                       :: fft_type_sg = 1
 
     INTEGER                                  :: i, iloc, ldata
@@ -294,8 +295,8 @@ CONTAINS
     END DO
 
     IF ( iloc == 0 ) THEN
-       CALL stop_program ( "fft_radix_operations",&
-            "index to radix array not found" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Index to radix array not found.")
     END IF
 
     IF ( OPERATION == FFT_RADIX_ALLOWED ) THEN
@@ -328,12 +329,13 @@ CONTAINS
           END IF
        END DO
        IF ( MOD ( radix_out, 2 ) == 0 ) THEN
-          CALL stop_program ( "fft_radix_operations", "no odd radix found" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "No odd radix found.")
        END IF
 
     ELSE
-       CALL stop_program ( "fft_radix_operations",&
-            "disallowed radix operation" )
+       CALL stop_program (routineN,moduleN,__LINE__,&
+                         "Disallowed radix operation.")
     END IF
 
     DEALLOCATE(DATA) 
@@ -402,7 +404,8 @@ CONTAINS
     ld ( 3 ) = SIZE ( zin ,3 )
 
     IF ( n(1) /= ld(1) .OR. n(2) /= ld(2) .OR. n(3) /= ld(3) ) THEN
-       CALL stop_program("fft3d","Size and dimension (zin) have to be the same")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Size and dimension (zin) have to be the same.")
     END IF
 
     sign = fsign
@@ -451,7 +454,8 @@ CONTAINS
        lo ( 2 ) = SIZE ( zout ,2 )
        lo ( 3 ) = SIZE ( zout ,3 )
        IF ( n(1) /= lo(1) .OR. n(2) /= lo(2) .OR. n(3) /= lo(3) ) THEN
-          CALL stop_program("fft3d","Size and dimension (zout) have to be the same")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Size and dimension (zout) have to be the same.")
        END IF
     END IF
 
@@ -532,12 +536,14 @@ CONTAINS
     CALL mp_environ ( numtask_g, g_pos, gs_group )
     CALL mp_environ ( numtask_r, r_dim, r_pos, rs_group )
     IF ( numtask_g /= numtask_r ) THEN
-       CALL stop_program ( "fft3d", "Real space and G space groups are different")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Real space and G space groups are different.")
     END IF
     numtask = numtask_r
     CALL mp_comm_compare ( rs_group, gs_group, iout )
     IF ( iout >3 ) THEN
-       CALL stop_program("fft3d","Real space and G space groups are different")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Real space and G space groups are different.")
     END IF
 
     IF ( PRESENT ( scale ) ) THEN
@@ -627,7 +633,8 @@ CONTAINS
        !
 
        IF ( r_dim ( 1 ) == 1 ) THEN
-          CALL stop_program ( "fft3d", "This processor distribution is not supported" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "This processor distribution is not supported.")
        END IF
        CALL get_fft_scratch(fft_scratch,tf_type=300,n=n,fft_sizes=fft_scratch_size,error=error)
 
@@ -816,7 +823,8 @@ CONTAINS
 
        ELSE
 
-          CALL stop_program ( "fft3d", "Illegal fsign parameter" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal fsign parameter.")
 
        ENDIF
 
@@ -974,7 +982,8 @@ CONTAINS
              END IF
           END IF
        ELSE
-          CALL stop_program ( "fft3d", "Illegal fsign parameter" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal fsign parameter.")
        ENDIF
 
        CALL release_fft_scratch(fft_scratch,error)
@@ -1305,8 +1314,9 @@ CONTAINS
           END IF
 
        ELSE
-          CALL stop_program ( "fft3d", "Illegal fsign parameter" )
-       ENDIF
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal fsign parameter.")
+       END IF
 
        CALL release_fft_scratch(fft_scratch,error)
 
@@ -1460,14 +1470,16 @@ CONTAINS
           END IF
 
        ELSE
-          CALL stop_program ( "fft3d", "Illegal fsign parameter" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal fsign parameter.")
        ENDIF
 
        CALL release_fft_scratch(fft_scratch,error)
 
     ELSE
 
-       CALL stop_program ( "fft3d", "This partition not implemented" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "This partition not implemented.")
 
     END IF
 

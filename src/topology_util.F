@@ -1160,7 +1160,7 @@ CONTAINS
           ! 1. Check each molecule have the same number of atoms
           !-----------------------------------------------------------------------------
           IF (counter /= loc_counter) THEN
-             CALL stop_program ("topology_molecules_check",&
+             CALL stop_program(routineN,moduleN,__LINE__,&
                   "different number of atoms for same molecule kind"//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
@@ -1183,7 +1183,7 @@ CONTAINS
           !-----------------------------------------------------------------------------
           IF( atom_info%id_atmname(iatom) /= &
               atom_info%id_atmname(first+loc_counter-1) ) THEN
-             CALL stop_program ("topology_molecules_check",&
+             CALL stop_program(routineN,moduleN,__LINE__,&
                   "different atom name for same molecule kind"//&
                   " atom number    = "//cp_to_string(iatom)//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
@@ -1201,7 +1201,7 @@ CONTAINS
              DO k = 1,SIZE(atom_bond_list(iatom)%array1)
                 IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first/=&
                         atom_bond_list(iatom)%array1(k)-first_loc)) THEN
-                   CALL stop_program ("topology_molecules_check",&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                         "different sequence of bonds for same molecule kind"//&
                         " molecule type  = "//cp_to_string(mol_typ)//&
                         " molecule number= "//cp_to_string(mol_num)//&
@@ -1209,7 +1209,7 @@ CONTAINS
                 END IF
              END DO
           ELSE
-             CALL stop_program ("topology_molecules_check",&
+             CALL stop_program(routineN,moduleN,__LINE__,&
                   "different number of bonds for same molecule kind"//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
@@ -1368,7 +1368,7 @@ CPSourceFileRef,&
 
     ! If no element is found the job stops here.
     IF (.NOT.found) THEN
-       CALL stop_program ("check_subsys_element",&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             " Unknown element for KIND <"//TRIM(atom_name_in)//">."//&
             " This problem can be fixed specifying properly elements in PDB"//&
             " or specifying a KIND section or getting in touch with one of "//&

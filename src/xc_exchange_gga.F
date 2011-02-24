@@ -12,6 +12,7 @@
 !> \author JGH (27.02.2002)
 ! *****************************************************************************
 MODULE xc_exchange_gga
+
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_constants,                 ONLY: xgga_b88,&
@@ -21,6 +22,7 @@ MODULE xc_exchange_gga
                                              xgga_pw91,&
                                              xgga_revpbe
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -40,13 +42,11 @@ MODULE xc_exchange_gga
   PRIVATE
 
   PUBLIC :: xgga_info, xgga_eval
-! *** Global parameters ***
 
-  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
   REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
-                          f23 = 2.0_dp*f13, &
-                          f43 = 4.0_dp*f13, &
-                          f53 = 5.0_dp*f13
+                              f23 = 2.0_dp*f13, &
+                              f43 = 4.0_dp*f13, &
+                              f53 = 5.0_dp*f13
 
   REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact
@@ -510,6 +510,8 @@ CONTAINS
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_b88'
+
     INTEGER                                  :: ip
     REAL(KIND=dp) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, &
       t13, t15, t16, t19, t2, t22, t24, t25, t32, t34, t36, t39, t4, t40, &
@@ -585,7 +587,7 @@ CONTAINS
          fs(ip,4) = f0*f0*f0*fs(ip,4)
 
       CASE DEFAULT
-         CALL stop_program("efactor_b88","Illegal order")
+         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
       END SELECT
     END DO
 
@@ -596,6 +598,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_pw86'
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f15, p0, p1, p15, s2, s4, s6, &
@@ -647,7 +651,7 @@ CONTAINS
                     75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
                     1/t14*(24*t2*s(ip)+120*t3*t19)*f15
       CASE DEFAULT
-         CALL stop_program("efactor_ol1","Illegal order")
+         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
       END SELECT
     END DO
 
@@ -659,6 +663,7 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_optx'
     REAL(KIND=dp), PARAMETER                 :: a1 = 1.05151_dp, &
                                                 a2 = 1.43169_dp, &
                                                 gamma_bo = 0.006_dp
@@ -690,7 +695,7 @@ CONTAINS
          fs(ip,4) = 24.0_dp*b*f0*f0*f0* gamma_bo*gamma_bo*x * &
                     (1.0_dp-5.0_dp*a+2.0_dp*a*a) * y*y*y*y*y
       CASE DEFAULT
-         CALL stop_program("efactor_optx","Illegal order")
+         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
       END SELECT
     END DO
 
@@ -964,6 +969,7 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m, pset
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_pbex'
     REAL(KIND=dp), PARAMETER                 :: kappa1 = 0.804_dp, &
                                                 kappa2 = 1.245_dp, &
                                                 mu = 0.2195149727645171_dp
@@ -996,7 +1002,7 @@ CONTAINS
          fs(ip,3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
          fs(ip,4) = 24.0_dp*mu*mk*x*(mk*x2-1.0_dp)*y*y*y*y*f0*f0*f0
       CASE DEFAULT
-         CALL stop_program("efactor_pbex","Illegal order")
+         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
       END SELECT
     END DO
 

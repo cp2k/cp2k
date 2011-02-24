@@ -170,7 +170,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_2",handle2)
     IF(topology%nmol_type <= 0) THEN
-       CALL stop_program("topology_connectivity_pack","no molecule kind defined")
+       CALL stop_program(routineN,moduleN,__LINE__,"No molecule kind defined")
     ELSE
        NULLIFY(molecule_kind_set)
        i = topology%nmol_type
@@ -185,7 +185,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_3",handle2)
     IF(topology%nmol <= 0) THEN
-       CALL stop_program("topology_connectivity_pack","no molecule defined")
+       CALL stop_program(routineN,moduleN,__LINE__,"No molecule defined")
     ELSE
        NULLIFY(molecule_set)
        i = topology%nmol

@@ -66,6 +66,7 @@ CONTAINS
 !>      11.2008 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_cube_center(cube_center,rs_grid,zeta,zetb,ra,rab)
+
     INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     REAL(KIND=dp), INTENT(IN)                :: zeta, zetb, ra(3), rab(3)
@@ -86,6 +87,9 @@ CONTAINS
     INTEGER                                  :: lb(3), ub(3)
     REAL(KIND=dp)                            :: rp(3)
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'return_cube_nonortho', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j, k
     REAL(KIND=dp)                            :: point(3), res(3)
 
@@ -97,7 +101,7 @@ CONTAINS
             ! in the call to init_cube_info
             !
             WRITE(6,*) info%max_rad_ga,radius
-            CALL stop_program("return_cube_nonortho","called with radius too large")
+            CALL stop_program(routineN,moduleN,__LINE__,"Called with too large radius.")
     ENDIF
 
     ! get the min max indices that contain at least the cube that contains a sphere around rp of radius radius
@@ -123,10 +127,14 @@ CONTAINS
 !------------------------------------------------------------------------------
 ! *****************************************************************************
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
+
     TYPE(cube_info_type)                     :: info
     REAL(KIND=dp)                            :: radius
     INTEGER                                  :: lb_cube(3), ub_cube(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'return_cube', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imr
 
@@ -139,7 +147,7 @@ CONTAINS
             ! This error can invariably be fixed by improving the computation of maxradius
             ! in the call to init_cube_info
             !
-            CALL stop_program("return_cube","called with radius too large")
+            CALL stop_program(routineN,moduleN,__LINE__,"Called with too large radius.")
         ENDIF
         lb_cube(:)       = info%lb_cube(:,imr)
         ub_cube(:)       = info%ub_cube(:,imr)
@@ -300,12 +308,14 @@ CONTAINS
           info%ub_cube(:,i)=1-info%lb_cube(:,i)
         ENDDO
         IF (check_1.NE.check_2) THEN 
-            CALL stop_program("init_cube_info",&
-                              " :-/ irreproducible fp math caused memory corruption")
-        ENDIF
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                              "Irreproducible fp math caused memory corruption")
+        END IF
 
     END IF
+
     CALL timestop(handle)
+
   END SUBROUTINE
   ! try to hide things from the optimizer, so that we get the same numbers,
   ! always (this solves the optimisation problems with the intel and nag compiler

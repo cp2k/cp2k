@@ -71,7 +71,7 @@ CONTAINS
     failure = .FALSE.
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
-       CALL stop_program(routineN, 'Never reach this point!' )
+       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
     CASE ( npt_i_ensemble, npt_f_ensemble )
        map_info => nhc%map_info
        map_info%dis_type = do_thermo_only_master
@@ -149,10 +149,10 @@ CONTAINS
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program ( routineN, 'Unknown ensemble!' )
+       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
     CASE ( nve_ensemble, isokin_ensemble,npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
-       CALL stop_program ( routineN, 'Never reach this point!' )
+       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
 
        CALL setup_nhc_thermostat(nhc, thermostat_info, deg_of_freedom, massive_atom_list,&
@@ -177,7 +177,7 @@ CONTAINS
        IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
           IF ( fac == 0.0_dp ) THEN 
-             CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
+             CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
           END IF
           nhc%nvt(1,1)%nkt = simpar%temp_ext*fac
           nhc%nvt(1,1)%degrees_of_freedom = FLOOR(fac)
@@ -293,10 +293,10 @@ CONTAINS
 
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program ( routineN, 'Unknown ensemble!' )
+       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
     CASE ( isokin_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
-       CALL stop_program ( routineN, 'Never reach this point!' )
+       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
     CASE ( nve_ensemble, nvt_ensemble, npe_f_ensemble, npe_i_ensemble,npt_i_ensemble, npt_f_ensemble )
 
        CALL setup_nhc_thermostat(nhc, thermostat_info, deg_of_freedom, massive_shell_list,&

@@ -1767,7 +1767,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF ( .NOT. ASSOCIATED ( tasks ) ) &
-         CALL stop_program ( "get_my_tasks", "tasks not associated" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Tasks not associated")
 
     ! *** figure out if we have distributed grids
     distributed_grids=.FALSE.
@@ -2204,7 +2204,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           block=p_block,found=found)
      IF ( .NOT. ASSOCIATED ( p_block ) ) THEN 
-        CALL stop_program ( "pack_matrix almost there", "Matrix block not found" )
+        CALL stop_program(routineN,moduleN,__LINE__,"Matrix block not found")
      ENDIF
 
      DO k = 1, ncol
@@ -2304,7 +2304,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      IF ( ASSOCIATED ( p_block ) .AND. l .NE. rs%desc%my_pos+1) THEN
         !IF( scatter ) THEN
         !   WRITE(6,*) arow,acol,l 
-        !   CALL stop_program ( "unpack_matrix here and new", "Matrix block already present" )
+        !   CALL stop_program(routineN,moduleN,__LINE__,"Matrix block already present")
         !ENDIF
      ELSE
         IF(scatter) THEN

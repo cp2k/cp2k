@@ -497,7 +497,7 @@ CONTAINS
        globenv%default_fft_library="FFTCU"
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,&
-            " unknown FFT type",para_env)
+                         "Unknown FFT type",para_env)
     END SELECT
 
     IF (globenv%run_type_id == 0) THEN
@@ -525,12 +525,12 @@ CONTAINS
 
     IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            " FARMING program supports only NONE as run type",para_env)
+                         "FARMING program supports only NONE as run type",para_env)
     ENDIF
 
-    IF( globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-         "TEST program supports only NONE as run type",para_env)
+    IF (globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "TEST program supports only NONE as run type",para_env)
 
     CALL m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
     MemTotal_avr=MemTotal
@@ -680,7 +680,7 @@ CONTAINS
          print_level_string=" DEBUG"
        CASE DEFAULT
          CALL stop_program(routineN,moduleN,__LINE__,&
-         "unknown print_level",para_env)
+                           "Unknown print_level",para_env)
        END SELECT
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T75,A6)")&
@@ -761,7 +761,7 @@ CONTAINS
           fftw_name="FFTW3"
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,&
-               " unknown FFT type",para_env)
+                            "Unknown FFT type",para_env)
        END SELECT
     ENDIF
 
@@ -818,7 +818,8 @@ CONTAINS
 
           CALL fft3d(1,n,zz,status=stat)
           IF (stat /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,"FFTSG not functional....",para_env)
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "FFTSG not functional....",para_env)
           ENDIF
 
        ENDIF

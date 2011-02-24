@@ -285,7 +285,8 @@ CONTAINS
                            (xas_control%xas_method==xas_tp_xfh).OR.&
                            (xas_control%xas_method==xas_dscf)
     IF(nspins==1 .AND. transition_potential) THEN
-       CALL stop_program(routineP,"xas with tp method requires LSD calculations")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "XAS with TP method requires LSD calculations")
     END IF
 
 !   Set of states among which there is the state to be excited
@@ -950,7 +951,8 @@ CONTAINS
         nq(1) = 2
         lq(1) = 1
       ELSE
-        CALL stop_program(routineP,"xas type of state not implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "XAS type of state not implemented")
       END IF
 
       ALLOCATE(kind_type_tmp(nkind),STAT=istat)
@@ -1758,7 +1760,7 @@ CONTAINS
          "MO index", state_of_atom(iat)
       END IF
       IF(state_of_atom(iat)==0 .OR. state_of_atom(iat) .GT. homo) THEN
-        CALL stop_program(routineP,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
         "A wrong state has been selected for excitation, check the Wannier centers")
       END IF
     END DO

@@ -2354,7 +2354,8 @@ CPSourceFileRef,&
                     CASE('TANG-TOENNIES')
                         damping%damp(k)%itype=tang_toennies
                     CASE DEFAULT
-                        CALL stop_program (routineN,'unknown damping type')
+                        CALL stop_program(routineN,moduleN,__LINE__,&
+                                          "Unknown damping type.")
                     END SELECT
                     damping%damp(k)%order=inp_info%damping_list(i)%order
                     damping%damp(k)%bij=inp_info%damping_list(i)%bij
@@ -2484,8 +2485,9 @@ CPSourceFileRef,&
     NULLIFY(shell_particle_set,core_particle_set)
     IF(nshell_tot>0) THEN
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
-       IF(shell_adiabatic .AND. null_massfrac) THEN
-          CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
+       IF (shell_adiabatic .AND. null_massfrac) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Shell-model adiabatic: at least one shell_kind has mass zero")
        END IF
        CALL allocate_particle_set(shell_particle_set,nshell_tot,error)
        CALL allocate_particle_set(core_particle_set,nshell_tot,error)

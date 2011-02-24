@@ -28,7 +28,10 @@ MODULE eigenvalueproblems
   IMPLICIT NONE
 
   PRIVATE
+
   PUBLIC :: diagonalise, diagonalise_general_packed, singular_values
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eigenvalueproblems'
 
   INTERFACE diagonalise
      MODULE PROCEDURE diagonalise_ssyev
@@ -48,14 +51,16 @@ MODULE eigenvalueproblems
 CONTAINS
 
 ! *****************************************************************************
-SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
-     eigenvectors )
+SUBROUTINE diagonalise_ssyev( matrix, mysize, storageform, eigenvalues, &
+                              eigenvectors )
 
     REAL(KIND=dp), INTENT(IN)                :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_ssyev'
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info, lda, lwork
@@ -72,7 +77,7 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
        storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
-     CALL stop_program ( "diagonalise_ssyev", "unknown form of storage" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
   END IF
 
   lda = SIZE ( matrix, 1 )
@@ -83,20 +88,22 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
   CALL lapack_ssyev ( jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
        work, lwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_ssyev", "error in diagonalisation" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in diagonalisation")
   END IF
 
 END SUBROUTINE diagonalise_ssyev
 
 ! *****************************************************************************
 SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
-     eigenvectors )
+                               eigenvectors )
 
     COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
     COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_chpev'
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
@@ -114,26 +121,28 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
        storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
-     CALL stop_program ( "diagonalise_chpev", "unknown form of storage" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
   END IF
 
   CALL lapack_chpev ( jobz, uplo, mysize, matrix, eigenvalues, &
        eigenvectors, mysize, work, rwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_chpev", "error in diagonalisation" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in diagonalisation")
   END IF
 
 END SUBROUTINE diagonalise_chpev
 
 ! *****************************************************************************
 SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
-     eigenvalues, eigenvectors )
+                               eigenvalues, eigenvectors )
 
     REAL(KIND=dp), INTENT(INOUT)             :: matrix( : ), overlap( : )
     INTEGER, INTENT(IN)                      :: mysize, TYPE
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_sspgv'
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
@@ -150,26 +159,28 @@ SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
        storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
-     CALL stop_program ( "diagonalise_sspgv", "unknown form of storage" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
   END IF
 
   CALL lapack_sspgv ( TYPE, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
        eigenvectors, mysize, work, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_sspgv", "error in diagonalisation" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in diagonalisation")
   END IF
 
 END SUBROUTINE diagonalise_sspgv
 
 ! *****************************************************************************
 SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
-     eigenvalues, eigenvectors )
+                               eigenvalues, eigenvectors )
 
     COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : ), overlap( : )
     INTEGER, INTENT(IN)                      :: mysize, TYPE
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
     COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_chpgv'
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
@@ -187,13 +198,13 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
        storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
-     CALL stop_program ( "diagonalise_chpgv", "unknown form of storage" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage.")
   END IF
 
   CALL lapack_chpgv ( TYPE, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
        eigenvectors, mysize, work, rwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "diagonalise_chpgv", "error in diagonalisation" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in diagonalisation.")
   END IF
 
 END SUBROUTINE diagonalise_chpgv
@@ -206,6 +217,7 @@ SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
     INTEGER, INTENT(IN)                      :: mrow, ncol
     REAL(KIND=dp), INTENT(OUT)               :: uvec( :, : ), vtvec( :, : )
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp2k_sgesvd'
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
@@ -221,8 +233,8 @@ SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
   CALL lapack_sgesvd( jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
         uvec, ldu, vtvec, ldvt, work, lwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "cp2k_sgesvd", &
-                         "error in singular value decomposition" )
+     CALL stop_program(routineN,moduleN,__LINE__,&
+                       "Error in singular value decomposition.")
   END IF
 
 END SUBROUTINE cp2k_sgesvd
@@ -235,6 +247,7 @@ SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
     INTEGER, INTENT(IN)                      :: mrow, ncol
     COMPLEX(KIND=dp), INTENT(OUT)            :: uvec( :, : ), vtvec( :, : )
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp2k_cgesvd'
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
@@ -251,8 +264,8 @@ SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
   CALL lapack_cgesvd( jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
         uvec, ldu, vtvec, ldvt, work, lwork, rwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "cp2k_cgesvd", &
-                         "error in singular value decomposition" )
+     CALL stop_program(routineN,moduleN,__LINE__,&
+                       "Error in singular value decomposition.")
   END IF
 
 END SUBROUTINE cp2k_cgesvd

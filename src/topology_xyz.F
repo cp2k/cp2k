@@ -96,7 +96,8 @@ CONTAINS
           CALL reallocate(atom_info%beta,1,natom)
           CALL reallocate(atom_info%id_element,1,natom)
        ELSE IF (natom > SIZE(atom_info%id_atmname)) THEN
-          CALL stop_program (routineP,"Atom number differs in different frames!")
+          CALL stop_program (routineN,moduleN,__LINE__,&
+                             "Atom number differs in different frames!")
        END IF
        ! Dummy line
        CALL parser_get_next_line(parser,2,error=error)

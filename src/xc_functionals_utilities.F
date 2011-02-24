@@ -14,6 +14,7 @@ MODULE xc_functionals_utilities
 
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -21,9 +22,6 @@ MODULE xc_functionals_utilities
 
   PRIVATE
 
-! *** Global parameters ***
-
-  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
   REAL(KIND=dp), PARAMETER :: rsfac = 0.6203504908994000166680065_dp ! (4*pi/3)^(-1/3)
   REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
                           f23 = 2.0_dp*f13, &
@@ -65,8 +63,11 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: calc(0:)
     INTEGER, INTENT(IN)                      :: tag
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'setup_calculation'
+
     IF ( ABS(order) > 3 ) &
-       CALL stop_program("setup_calculation","Order of derivative too high")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Order of derivative too high")
 
     SELECT CASE (tag)
     CASE ( 100 )          ! LDA
@@ -124,7 +125,7 @@ CONTAINS
           m(3,1) = 22
           m(3,2) = 57
     CASE DEFAULT
-       CALL stop_program("setup_calculation","Invalid tag")
+       CALL stop_program(routineN,moduleN,__LINE__,"Invalid tag")
     END SELECT
 
     calc = .FALSE.
@@ -162,10 +163,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: rs
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calc_rs_array'
+
     INTEGER                                  :: k
 
     IF (SIZE(rs) < SIZE(rho)) THEN
-       CALL stop_program("functionals_utilities/calc_rs_array","size of array rs too small")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Size of array rs too small.")
     END IF
 
 !$omp parallel do private(k)
@@ -251,11 +255,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: r13
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calc_rho13'
+
     INTEGER                                  :: ip, n
 
     n = SIZE ( rho )
     IF ( n > SIZE(r13) ) &
-      CALL stop_program ( "calc_rho13", "Incompatible array sizes" )
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "Incompatible array sizes.")
 
 !$omp parallel do private(ip)
     DO ip = 1, n
@@ -277,6 +284,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: s
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calc_wave_vector'
+
     INTEGER                                  :: ip, n
     REAL(KIND=dp)                            :: fac
 
@@ -289,9 +298,9 @@ CONTAINS
 
     n = SIZE ( s ) !FM it was size(rho)
     !FM IF ( n > SIZE(s) ) &
-    !FM   CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
+    !FM   CALL stop_program(routineN,moduleN,__LINE__,"Incompatible array sizes.")
     !FM IF ( n > SIZE(grho) ) &
-    !FM   CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
+    !FM   CALL stop_program(routineN,moduleN,__LINE__,"Incompatible array sizes.")
 
 !$omp parallel do private(ip)
     DO ip = 1, n
@@ -331,13 +340,15 @@ CONTAINS
 ! order of derivatives
 !   *** Parameters ***
 
-    IF ( m > 3 ) CALL stop_program (routineP, "Order too high" )
+    IF ( m > 3 ) CALL stop_program(routineN,moduleN,__LINE__,"Order too high.")
 !!    IF (.NOT.ASSOCIATED(fx)) THEN
 !!       ALLOCATE(fx(n,m+1), STAT=ierr)
 !!       IF (ierr /= 0) CALL stop_memory(routineP, "fx", n*m)
 !!    ELSE
-       IF (SIZE(fx,1)<n) CALL stop_program(routineP, "SIZE(fx,1) too small")
-       IF (SIZE(fx,2)<m) CALL stop_program(routineP, "SIZE(fx,2) too small")
+       IF (SIZE(fx,1)<n) CALL stop_program(routineN,moduleN,__LINE__,&
+                                           "SIZE(fx,1) too small")
+       IF (SIZE(fx,2)<m) CALL stop_program(routineN,moduleN,__LINE__,&
+                                           "SIZE(fx,2) too small")
 !!    END IF
        
 !$omp parallel do private(ip,x,rhoab)

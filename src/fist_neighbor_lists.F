@@ -615,8 +615,10 @@ CONTAINS
                               SQRT(rab2_min),&
                               "; increase EMAX_SPLINE."
                          IF (rab2 < rab2_min/(1.06_dp)**2) THEN
-                            IF (geo_check) CALL stop_program(routineN, &
-                                 "GEOMETRY wrong or EMAX_SPLINE too small!")
+                            IF (geo_check) THEN
+                               CALL stop_program(routineN,moduleN,__LINE__,&
+                                                 "GEOMETRY wrong or EMAX_SPLINE too small!")
+                            END IF
                          END IF
                       END IF
                    END IF

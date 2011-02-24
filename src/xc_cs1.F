@@ -31,13 +31,10 @@ MODULE xc_cs1
 
   PRIVATE
 
-! *** Global parameters ***
-
-  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
   REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
-                          f23 = 2.0_dp*f13, &
-                          f43 = 4.0_dp*f13, &
-                          f53 = 5.0_dp*f13
+                              f23 = 2.0_dp*f13, &
+                              f43 = 4.0_dp*f13, &
+                              f53 = 5.0_dp*f13
 
   PUBLIC :: cs1_lda_info, cs1_lda_eval, cs1_lsd_info, cs1_lsd_eval
 
@@ -46,14 +43,14 @@ MODULE xc_cs1
   REAL(KIND=dp) :: fsig
 
   REAL(KIND=dp), PARAMETER :: a = 0.04918_dp, &
-                          b = 0.132_dp, &
-                          c = 0.2533_dp, &
-                          d = 0.349_dp
+                              b = 0.132_dp, &
+                              c = 0.2533_dp, &
+                              d = 0.349_dp
 
-  REAL(KIND=dp), PARAMETER :: c1 = 0.018897_dp, &
-                          c2 = -0.155240_dp, &
-                          c3 = 0.159068_dp, &
-                          c4 = -0.007953_dp
+  REAL(KIND=dp), PARAMETER :: c1 =  0.018897_dp, &
+                              c2 = -0.155240_dp, &
+                              c3 =  0.159068_dp, &
+                              c4 = -0.007953_dp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_cs1'
 

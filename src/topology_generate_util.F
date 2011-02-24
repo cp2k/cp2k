@@ -348,7 +348,7 @@ CONTAINS
           nlocl = last-first+1
           IF (iend-istart+1 /= nlocl) THEN
              IF (debug_this_module) WRITE(*,*)iend, istart, iend-istart+1, first, last, nlocl
-             CALL stop_program ("topology_generate_molecule",&
+             CALL stop_program(routineN,moduleN,__LINE__,&
                   "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "//&
                   "In particular a molecule defined from index ("//cp_to_string(first)//") to ("//&
                   cp_to_string(last)//") contains other molecules, not connected! "//&
@@ -366,7 +366,7 @@ CONTAINS
     nlocl = last-first+1
     IF (iend-istart+1 /= nlocl) THEN
        IF (debug_this_module) WRITE(*,*)iend, istart, iend-istart+1, first, last, nlocl
-       CALL stop_program ("topology_generate_molecule",&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "//&
             "In particular a molecule defined from index ("//cp_to_string(first)//") to ("//&
             cp_to_string(last)//") contains other molecules, not connected! "//&
@@ -570,8 +570,9 @@ CONTAINS
                 WRITE(iw,*)"molecule type:",i,"molecule num:",j," has ",&
                      COUNT(atom_info%map_mol_num(first:last)==j),&
                      " atoms instead of ",atom_in_mol," ."
-                CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
-                     " have been created with different numbers of atoms!")
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Two molecules of the same kind have "//&
+                                  "been created with different numbers of atoms!")
              END IF
           END DO
        END DO
@@ -674,7 +675,8 @@ CONTAINS
           ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
              CALL get_ptable_info(symbol=upper_sym_1, vdw_radius=radius(iatom))
           ELSE
-             CALL stop_program ("topology_generate_bond","illegal bondparm_type")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Illegal bondparm_type")
           END IF
           IF (upper_sym_1=="H ") h_list(iatom) = .TRUE.
           ! isolated atoms? put the radius to 0.0_dp
@@ -801,7 +803,7 @@ CONTAINS
                 dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
                 r2 = DOT_PRODUCT(dr,dr)
                 IF(r2 <= r_minsq(1,1)) THEN
-                   CALL stop_program ("topology_generate_bond",&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                         "bond distance between atoms less then the smallest distance provided "//&
                         "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
@@ -849,7 +851,7 @@ CONTAINS
                 dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
                 r2 = DOT_PRODUCT(dr,dr)
                 IF(r2 <= r_minsq(1,1)) THEN
-                   CALL stop_program ("topology_generate_bond",&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                         "bond distance between atoms less then the smallest distance provided "//&
                         "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
@@ -963,8 +965,8 @@ CONTAINS
                 conn_info%c_bond_b(cbond) = jatom
              ELSE
                 IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
-                   CALL stop_program ("topology_generate_bond",&
-                     "bonds between different molecule types??? ")
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "Bonds between different molecule types?")
                 END IF
              END IF
           END DO

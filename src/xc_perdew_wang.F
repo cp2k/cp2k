@@ -131,6 +131,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'perdew_wang_init'
+
     INTEGER                                  :: k
 
     CALL set_util(cutoff)
@@ -150,7 +152,7 @@ CONTAINS
     SELECT CASE (method)
 
     CASE DEFAULT
-       CALL stop_program("xc_perdew_wang/pw_init", "unknown method")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown method")
 
     CASE (pw_orig)
        A(0)  = 0.031091_dp ; A(1)  = 0.015545_dp

@@ -235,7 +235,7 @@ CONTAINS
           CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF ,error=error)
           
           IF ( ANY(gmax == 2 * ( gmax / 2 )) ) THEN
-             CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
+             CALL stop_program(routineN,moduleN,__LINE__,"gmax has to be odd.")
           END IF
           bo ( 1, : ) = -gmax / 2
           bo ( 2, : ) = +gmax / 2
@@ -259,7 +259,7 @@ CONTAINS
           CALL pw_grid_create( pw_small_grid, MPI_COMM_SELF ,error=error)
           CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
           IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
-             CALL stop_program ( "initialize_ewalds", "ns_max has to be odd" )
+             CALL stop_program(routineN,moduleN,__LINE__,"ns_max has to be odd.")
           END IF
           npts_s ( : ) = ns_max
           ! compute cut-off radius

@@ -317,7 +317,7 @@ CONTAINS
 
     SELECT CASE (nhc % nyosh)
     CASE DEFAULT
-       CALL stop_program ( 'yoshida_coef', 'Value not available' )
+       CALL stop_program(routineN,moduleN,__LINE__,'Value not available.')
     CASE (1)
        yosh_wt(1) = 1.0_dp
     CASE (3)

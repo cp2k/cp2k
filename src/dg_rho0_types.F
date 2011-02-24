@@ -223,7 +223,7 @@ CONTAINS
        CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
        CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ),error=error)
     CASE ( do_ewald_spme )
-       CALL stop_program ( 'dg_rho0_init', 'SPME type not implemented' )
+       CALL stop_program(routineN,moduleN,__LINE__,'SPME type not implemented')
     END SELECT
 
   END SUBROUTINE dg_rho0_init

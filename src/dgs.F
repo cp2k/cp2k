@@ -186,8 +186,6 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: dr
 
-!------------------------------------------------------------------------------
-
   dr ( : ) = cutoff_radius  / ( REAL ( npts ( : ),KIND=dp) / 2.0_dp )
 
  END SUBROUTINE dg_get_spacing
@@ -271,9 +269,10 @@ SUBROUTINE dg_find_max_cutoff ( npts, grid_b )
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_b
 
-!------------------------------------------------------------------------------
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_find_max_cutoff', &
+      routineP = moduleN//':'//routineN
 
-  CALL stop_program ( "dg_find_max_cutoff", "not yet implemented" )
+  CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented.")
 
 END SUBROUTINE dg_find_max_cutoff
 

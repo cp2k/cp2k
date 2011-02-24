@@ -226,7 +226,8 @@ CONTAINS
           END DO
        END DO
        IF (nglob_cns/=0) THEN
-          CALL stop_program ( routineN, "User Defined thermostats with global constraints not implemented!" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "User Defined thermostats with global constraints not implemented!")
        END IF
     ELSE IF ( region==do_region_molecule) THEN
        ! Molecular Region

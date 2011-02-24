@@ -762,16 +762,18 @@ CONTAINS
                       END SELECT
                       ! We should never reach this point but let's check it anyway
                       IF (fix_atom_qm.AND.fix_atom_mm) THEN
-                         CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
-                              " has been defined both QM and MM. General Error!")
+                         CALL stop_program(routineN,moduleN,__LINE__,&
+                                           "Atom number: "//cp_to_string(k)//&
+                                          " has been defined both QM and MM. General Error!")
                       END IF
                    END IF
                    ! Check that the fixed atom constraint/restraint is unique
                    IF ((fix_fixed_atom.AND.fix_atom_qmmm).OR.(fix_fixed_atom.AND.fix_atom_molname)&
                         .OR.(fix_atom_qmmm.AND.fix_atom_molname)) THEN 
-                      CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
-                           " has been constrained/restrained to be fixed in more than one"//&
-                           " input section. Check and correct your input file!")
+                      CALL stop_program(routineN,moduleN,__LINE__,&
+                                        "Atom number: "//cp_to_string(k)//&
+                                        " has been constrained/restrained to be fixed in more than one"//&
+                                        " input section. Check and correct your input file!")
                    END IF
                    ! Let's store the atom index
                    IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
