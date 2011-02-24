@@ -69,19 +69,19 @@ UO2-2x2x2-coord-scaled-1.inp   11
 UO2-2x2x2-coord-scaled-2.inp   11
 UO2-2x2x2-coord-scaled-3.inp   11
 # Binary restart file
-UO2-2x2x2-binary_restart-1.inp
-UO2-2x2x2-binary_restart-2.inp
-UO2-2x2x2-binary_restart-3.inp
-UO2-2x2x2-binary_restart-4.inp
-UO2-2x2x2-binary_restart-cs-1.inp
-UO2-2x2x2-binary_restart-cs-2.inp
-UO2-2x2x2-binary_restart-cs-3.inp
-UO2-2x2x2-binary_restart-cs-4.inp
-UO2-2x2x2-binary_restart-scaled-1.inp
-UO2-2x2x2-binary_restart-scaled-2.inp
-UO2-2x2x2-binary_restart-scaled-3.inp
-UO2-2x2x2-binary_restart-scaled-4.inp
-UO2-2x2x2-binary_restart-cs-scaled-1.inp
-UO2-2x2x2-binary_restart-cs-scaled-2.inp
-UO2-2x2x2-binary_restart-cs-scaled-3.inp
-UO2-2x2x2-binary_restart-cs-scaled-4.inp
+UO2-2x2x2-binary_restart-1.inp                     2
+UO2-2x2x2-binary_restart-2.inp                     2
+UO2-2x2x2-binary_restart-3.inp                     2
+UO2-2x2x2-binary_restart-4.inp                     2
+UO2-2x2x2-binary_restart-cs-1.inp                  2
+UO2-2x2x2-binary_restart-cs-2.inp                  2
+UO2-2x2x2-binary_restart-cs-3.inp                  2
+UO2-2x2x2-binary_restart-cs-4.inp                  2
+UO2-2x2x2-binary_restart-scaled-1.inp              2
+UO2-2x2x2-binary_restart-scaled-2.inp              2
+UO2-2x2x2-binary_restart-scaled-3.inp              2
+UO2-2x2x2-binary_restart-scaled-4.inp              2
+UO2-2x2x2-binary_restart-cs-scaled-1.inp           2
+UO2-2x2x2-binary_restart-cs-scaled-2.inp           2
+UO2-2x2x2-binary_restart-cs-scaled-3.inp           2
+UO2-2x2x2-binary_restart-cs-scaled-4.inp           2
