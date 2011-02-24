@@ -578,8 +578,8 @@ CONTAINS
 
     IF (simpar%constraint) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            "Constraints not yet implemented")
-    ENDIF
+                         "Constraints not yet implemented",para_env)
+    END IF
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,&
          local_particles=local_particles,&

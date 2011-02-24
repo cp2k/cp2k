@@ -23,6 +23,7 @@ MODULE mathlib
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
@@ -240,22 +241,22 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    !   *** Get the size of the matrix a ***
+    ! Get the size of the matrix a
     n = SIZE(a,1)
 
-    !   *** Check the size of matrix a ***
+    ! Check the size of matrix a
     IF (SIZE(a,2) /= n) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "Check the size of matrix a (parameter #1)")
     END IF
 
-    !   *** Check the size of vector eigval ***
+    ! Check the size of vector eigval
     IF (SIZE(eigval) /= n) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "The dimension of vector eigval is too small")
     END IF
 
-    !   *** Check, if the divide-and-conquer algorithm is requested ***
+    ! Check, if the divide-and-conquer algorithm is requested
 
     IF (PRESENT(dac)) THEN
        divide_and_conquer = dac
@@ -263,7 +264,7 @@ CONTAINS
        divide_and_conquer = .FALSE.
     END IF
 
-    !   *** Get the optimal work storage size ***
+    ! Get the optimal work storage size
 
     IF (divide_and_conquer) THEN
        lwork = 2*n**2 + 6*n + 1
@@ -273,7 +274,7 @@ CONTAINS
        lwork = (nb + 2)*n
     END IF
 
-    !   *** Allocate work storage ***
+    ! Allocate work storage
 
     ALLOCATE (work(lwork),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -282,7 +283,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    !   *** Diagonalize the matrix a ***
+    ! Diagonalize the matrix a
 
     IF (divide_and_conquer) THEN
        CALL dsyevd("V","U",n,a,n,eigval,work,lwork,iwork,liwork,info)
@@ -300,7 +301,7 @@ CONTAINS
        END IF
     END IF
 
-    !   *** Release work storage ***
+    ! Release work storage
 
     DEALLOCATE (work,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -331,8 +332,8 @@ CONTAINS
 
     abc = vector_product(bc,-ab)
     bcd = vector_product(cd,-bc)
-    !   *** Calculate the normal vectors of the planes ***
-    !   *** defined by the points a,b,c and b,c,d      ***
+    ! Calculate the normal vectors of the planes
+    ! defined by the points a,b,c and b,c,d     
 
     det_abcd = det_3x3(abc,bcd,-bc)
     dihedral_angle_abcd = SIGN(1.0_dp,det_abcd)*angle(abc,bcd)
@@ -854,17 +855,17 @@ CONTAINS
     EXTERNAL dsyrk
 
     failure = .FALSE.
-    !   *** Define the threshold for the eigenvalue quenching ***
+    !  Define the threshold for the eigenvalue quenching
     IF (PRESENT(threshold)) THEN
        eps_eigval = threshold
     ELSE
        eps_eigval = EPSILON(0.0_dp)
     END IF
 
-    !   *** Get the dimension of matrix a ***
+    ! Get the dimension of matrix a
     n = SIZE(a,1)
 
-    !   *** Check array dimensions ***
+    !  Check array dimensions
     IF (n /= SIZE(a,2)) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "Check the array bounds of parameter #1")
@@ -876,21 +877,21 @@ CONTAINS
             "Check the array bounds of parameter #2")
     END IF
 
-    !   *** Allocate work storage ***
+    ! Allocate work storage
     ALLOCATE (eigval(n),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    !   *** Check, if the divide-and-conquer algorithm is requested ***
+    !  Check, if the divide-and-conquer algorithm is requested
     IF (PRESENT(dac)) THEN
        divide_and_conquer = dac
     ELSE
        divide_and_conquer = .FALSE.
     END IF
 
-    !   *** Compute the eigenvectors and eigenvalues of the matrix a ***
+    ! Compute the eigenvectors and eigenvalues of the matrix a
     CALL diamat_all(a,eigval,divide_and_conquer,error=error)
 
-    !   *** Build a**exponent with eigenvector quenching ***
+    !  Build a**exponent with eigenvector quenching
     expa = 0.5_dp*exponent
 
     n_dep = 0
@@ -909,13 +910,13 @@ CONTAINS
        n_dependent = n_dep
     END IF
 
-    !   *** a_power <- a*Transpose(a) ***
+    ! a_power <- a*Transpose(a)
     CALL dsyrk("U","N",n,n,1.0_dp,a(1,1),n,0.0_dp,a_power(1,1),n)
 
-    !   *** Copy upper triangle of matrix a_power to lower triangle ***
+    !  Copy upper triangle of matrix a_power to lower triangle
     CALL symmetrize_matrix(a_power,"upper_to_lower")
 
-    !   *** Release work storage ***
+    ! Release work storage
     DEALLOCATE (eigval,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -942,7 +943,7 @@ CONTAINS
 
        d(:) = b(:)/length_of_b
 
-       !     *** Calculate the mirror image a_mirror of the vector a ***
+       ! Calculate the mirror image a_mirror of the vector a
        scapro = a(1)*d(1) + a(2)*d(2) + a(3)*d(3)
 
        a_mirror(:) = a(:) - 2.0_dp*scapro*d(:)
@@ -975,10 +976,10 @@ CONTAINS
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
     IF (length_of_b > eps_geo) THEN
 
-       !     *** Build up the rotation matrix rotmat ***
+       ! Build up the rotation matrix rotmat
        CALL build_rotmat(phi,b,rotmat)
 
-       !     *** Rotate the vector a by phi about the axis defined by vector b ***
+       ! Rotate the vector a by phi about the axis defined by vector b
        a_rot(:) = MATMUL(rotmat,a)
 
     ELSE
@@ -1407,10 +1408,10 @@ CONTAINS
 
     n = SIZE(d(:))
 
-    ! *** Diagonalize matrix a ***
+    ! Diagonalize matrix a
     CALL diag(n,a,d,v)
 
-    ! *** Sort eigenvalues and eigenvector in ascending order ***
+    ! Sort eigenvalues and eigenvector in ascending order
     CALL eigsrt(n,d,v)
 
   END SUBROUTINE jacobi
@@ -1487,7 +1488,7 @@ CONTAINS
        d(:) = b(:)
        z(:) = 0.0_dp
     END DO
-    WRITE (6,'(/,T2,A,/)') '*** Too many iterations in jacobi ***'
+    WRITE (6,'(/,T2,A,/)') 'Too many iterations in jacobi'
 
   END SUBROUTINE diag
 
@@ -1516,7 +1517,7 @@ CONTAINS
 !>
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
-! *****************************************************************************
+! **************************************************************************
   SUBROUTINE eigsrt(n,d,v)
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(:), &
@@ -1536,12 +1537,12 @@ CONTAINS
 
   END SUBROUTINE eigsrt
 
-! *****************************************************************************
+! **************************************************************************
 !> \brief Swap two scalars
 !>
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
-! *****************************************************************************
+! **************************************************************************
    SUBROUTINE swap_scalar(a,b)
     REAL(KIND=dp), INTENT(INOUT)             :: a, b
 
@@ -1553,15 +1554,17 @@ CONTAINS
 
    END SUBROUTINE swap_scalar
 
-! *****************************************************************************
+! **************************************************************************
 !> \brief Swap two vectors
 !>
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
-! *****************************************************************************
+! **************************************************************************
    SUBROUTINE swap_vector(a,b)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: a, b
+
+    CHARACTER(len=*), PARAMETER              :: routineN = 'swap_vector'
 
     INTEGER                                  :: i, n
     REAL(KIND=dp)                            :: c
@@ -1569,7 +1572,7 @@ CONTAINS
     n = SIZE(a)
 
     IF (n /= SIZE(b)) THEN
-      CALL stop_program("SUBROUTINE swap_vector (MODULE mathlib)",&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the array bounds of the parameters")
     END IF
 

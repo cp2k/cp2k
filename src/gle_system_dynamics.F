@@ -56,9 +56,7 @@ MODULE gle_system_dynamics
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gle_system_dynamics'
 
-!***
-  
-   CONTAINS
+CONTAINS
 
 ! *****************************************************************************
 !> \par History
@@ -332,10 +330,10 @@ MODULE gle_system_dynamics
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program ( routineN, 'Unknown ensemble!' )
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown ensemble!",para_env)
     CASE ( nve_ensemble, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
-       CALL stop_program ( routineN, 'Never reach this point!' )
+       CALL stop_program(routineN,moduleN,__LINE__,"Never reach this point!",para_env)
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
 
       map_info => gle%map_info
@@ -375,7 +373,8 @@ MODULE gle_system_dynamics
        IF ( (sum_of_thermostats == 1).AND.(map_info%dis_type /= do_thermo_no_communication)) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
           IF ( fac == 0.0_dp ) THEN 
-             CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Zero degrees of freedom. Nothing to thermalize!",para_env)
           END IF
           gle%nvt(1)%nkt = simpar%temp_ext*fac
           gle%nvt(1)%degrees_of_freedom = FLOOR(fac)
@@ -458,8 +457,9 @@ MODULE gle_system_dynamics
                     i_rep_val=ind,r_val=gle%nvt(i)%thermostat_energy,error=error)
             END DO
          ELSE
-            CALL stop_program ( routineP,'Number of thermostat energies not equal to the number of'//&
-                 ' total thermostats!')
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                              "Number of thermostat energies not equal to the number of "//&
+                              "total thermostats!")
          END IF
        END IF
 
@@ -483,8 +483,9 @@ MODULE gle_system_dynamics
                     rng_record=rng_record,error=error)
            END DO
          ELSE
-           CALL stop_program ( routineP,'Number pf restartable stream not equal to the number of'//&
-                ' total thermostats!')
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                             "Number pf restartable stream not equal to the number of "//&
+                             "total thermostats!")
          END IF
        END IF
     END IF

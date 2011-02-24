@@ -382,7 +382,8 @@ CONTAINS
                " All missing parameters will not contribute to the potential energy!"
         END IF
       ELSE
-        CALL stop_program(TRIM(routineN),"Missing critical ForceField parameters! Abort..")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Missing critical ForceField parameters!")
       END IF
     END IF
   END SUBROUTINE release_FF_missing_par

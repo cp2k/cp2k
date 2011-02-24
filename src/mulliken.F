@@ -77,6 +77,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: ks_matrix, w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_restraint'
+
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 ispin, nblock, nspin
     LOGICAL                                  :: found
@@ -118,8 +120,9 @@ CONTAINS
                   row=iblock_row,col=iblock_col,BLOCK=ks_block,found=found)
 
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
-                CALL stop_program("Mulliken","unexpected s / ks structure")
-             ENDIF
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Unexpected s / ks structure",para_env)
+             END IF
                 mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
                        0.5_dp * charges_deriv(iblock_col,ispin)
 

@@ -23,11 +23,13 @@ MODULE linear_systems
                                              lapack_spotrf,&
                                              lapack_strtri
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'linear_systems'
+
   PUBLIC :: cholesky_inverse 
   PUBLIC :: solve_system 
 
@@ -45,6 +47,8 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
+    CHARACTER(len=*), PARAMETER              :: routineN = 'ch_inv_pdsym'
+
     CHARACTER                                :: diag = "N", uplo
     INTEGER                                  :: info, lda
 
@@ -59,18 +63,18 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
        storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
-     CALL stop_program ( "ch_inv_pdsym", "unknown form of storage" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
   END IF
 
   lda = SIZE ( matrix, 1 )
 
   CALL lapack_spotrf ( uplo, mysize, matrix, lda, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "ch_inv_pdsym", "error in Cholesky factorisation" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in Cholesky factorisation")
   END IF
   CALL lapack_strtri ( uplo, diag, mysize, matrix, lda, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "ch_inv_pdsym", "error in inversion" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in inversion")
   END IF
 
 END SUBROUTINE ch_inv_pdsym

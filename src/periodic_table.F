@@ -94,7 +94,8 @@ CONTAINS
       found = (ielem_found > 0)
     ELSE
       IF (ielem_found < 0) THEN
-        CALL stop_program(routineN,"Unknown element symbol <"//TRIM(symbol)//"> found.")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Unknown element symbol <"//TRIM(symbol)//"> found.")
       END IF
     END IF
 

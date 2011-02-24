@@ -378,7 +378,8 @@ CONTAINS
        CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=cutoff, &
             spherical=my_spherical, error=error)
     ELSE
-       CALL stop_program ( routineP, "BOUNDS, NPTS or CUTOFF have to be specified" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "BOUNDS, NPTS or CUTOFF have to be specified")
     END IF
 
     CALL pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
@@ -1170,6 +1171,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'pw_grid_count'
+
     INTEGER                                  :: gpt, l, m, mm, n, &
                                                 n_upperlimit, nlim( 2 ), nn
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
@@ -1185,7 +1188,8 @@ CONTAINS
     ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
        n_upperlimit = bounds ( 2, 3 )
     ELSE
-       CALL stop_program ( "pw_grid_count", "no type set for the grid" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "No type set for the grid")
     END IF
 
     ! finds valid g-points within grid
@@ -1198,7 +1202,8 @@ CONTAINS
        nlim = get_limit ( n, pw_grid % para % group_size, pw_grid % para % my_pos )
        nlim = nlim + bounds ( 1, 3 ) - 1
     ELSE
-       CALL stop_program ( "pw_grid_count", "para % mode not specified" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "para % mode not specified")
     END IF
 
     yz_mask = 0
@@ -1285,7 +1290,8 @@ CONTAINS
     ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
        n_upperlimit = bounds ( 2, 3 )
     ELSE
-       CALL stop_program ( "pw_grid_assign", "no type set for the grid" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "No type set for the grid")
     END IF
 
     ! finds valid g-points within grid
@@ -1682,7 +1688,8 @@ CONTAINS
        IF ( pw_grid % spherical ) THEN
           IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
                == ref_grid % g_hat ( 1:3, 1:ngr ) ) ) THEN
-             CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "G space sorting not compatible")
           END IF
        ELSE
           ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
@@ -1711,7 +1718,8 @@ CONTAINS
                 END DO
                 IF ( .NOT. g_found ) THEN
                    WRITE(*,"(A,I10,F20.10)") "G-vector", ig, pw_grid % gsq(ig)
-                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "G vector not found")
                 END IF
                 ip = ih - 1
                 DO ih = ip + 1, SIZE ( ref_grid % gsq  )
@@ -1733,7 +1741,7 @@ CONTAINS
                       WRITE ( *, "(A,I10,3I6,F20.10)" ) &
                            " G-vector", ih, ref_grid % g_hat(1:3,ih),ref_grid % gsq(ih)
                    END DO
-                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                   CALL stop_program(routineN,moduleN,__LINE__,"G vector not found")
                 END IF
                 is = ip
              END DO
@@ -1751,7 +1759,7 @@ CONTAINS
                 END DO
                 IF ( .NOT. g_found ) THEN
                    WRITE(*,"(A,I10,F20.10)") "G-vector", ig, ref_grid % gsq(ig)
-                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                   CALL stop_program(routineN,moduleN,__LINE__,"G vector not found")
                 END IF
                 ip = ih - 1
                 DO ih = ip + 1, ng
@@ -1773,14 +1781,14 @@ CONTAINS
                       WRITE ( *, "(A,I10,3I6,F20.10)" ) &
                            " G-vector", ih, pw_grid % g_hat(1:3,ih),pw_grid % gsq(ih)
                    END DO
-                   CALL stop_program ( "pw_grid_sort", "G vector not found" )
+                   CALL stop_program(routineN,moduleN,__LINE__,"G vector not found")
                 END IF
                 is = ip
              END DO
           END IF
           ! test if all g-vectors are associated
           IF ( ANY ( pw_grid%gidx == 0 ) ) THEN
-             CALL stop_program ( "pw_grid_sort", "G space sorting not compatible" )
+             CALL stop_program(routineN,moduleN,__LINE__,"G space sorting not compatible")
           END IF
        END IF
     END IF
@@ -1788,7 +1796,7 @@ CONTAINS
     !check if G=0 is at first position
     IF ( pw_grid % have_g0 ) THEN
        IF ( pw_grid % gsq ( 1 ) /= 0.0_dp ) THEN
-          CALL stop_program ( "pw_grid_sort", "G=0 not in first position" )
+          CALL stop_program(routineN,moduleN,__LINE__,"G = 0 not in first position")
        END IF
     END IF
 

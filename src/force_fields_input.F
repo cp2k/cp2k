@@ -123,7 +123,8 @@ CPSourceFileRef,&
        CASE(do_ff_undef)
           ! Do Nothing
        CASE DEFAULT
-          CALL stop_program ("force_fields_input","force field type not implemented")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Force field type not implemented",para_env)
        END SELECT
        ! Numerical Accuracy:
        ! the factors here should depend on the energy and on the shape of each potential mapped
@@ -506,7 +507,8 @@ CPSourceFileRef,&
        ft%c = cp_unit_to_cp2k(72.50_dp,"eV*angstrom^6",error=error)
        ft%d = cp_unit_to_cp2k(145.427_dp,"eV*angstrom^8",error=error)
     ELSE
-       CALL stop_program ("input_nonbonded","BMHFT only for NaCl")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "BMHFT only for NaCl")
     ENDIF
 
   END SUBROUTINE set_BMHFT_ff
@@ -523,7 +525,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff', &
       routineP = moduleN//':'//routineN
 
-    CALL stop_program ("input_nonbonded","No default parameters present for BMHFTD")
+    CALL stop_program(routineN,moduleN,__LINE__,&
+                      "No default parameters present for BMHFTD")
 
   END SUBROUTINE set_BMHFTD_ff
 

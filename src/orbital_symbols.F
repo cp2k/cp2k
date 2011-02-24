@@ -54,7 +54,7 @@ CONTAINS
     IF ((n > 0).AND.(n < 100)) THEN
       WRITE (symbol(1:2),"(I2)") n
     ELSE
-      CALL stop_program(routineP,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Invalid principal quantum number specified")
     END IF
 
@@ -63,7 +63,7 @@ CONTAINS
     IF ((l >= 0).AND.(l <= 11)) THEN
       symbol(3:3) = l_sym(l)
     ELSE
-      CALL stop_program(routineP,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Invalid angular momentum quantum number specified")
     END IF
 
@@ -81,7 +81,7 @@ CONTAINS
             WRITE (symbol(ipos:ipos+1),"(I2)") lxyz(i)
             ipos = ipos + 2
           ELSE
-            CALL stop_program(routineP,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
                               "Invalid magnetic quantum number specified")
           END IF
         END IF
@@ -121,7 +121,7 @@ CONTAINS
       WRITE (symbol(1:2),"(I2)") n
       i = 3
     ELSE
-      CALL stop_program(routineP,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Invalid principal quantum number specified")
     END IF
 
@@ -129,7 +129,7 @@ CONTAINS
       symbol(i:i) = l_sym(l)
       i = i + 1
     ELSE
-      CALL stop_program(routineP,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Invalid angular momentum quantum number specified")
     END IF
 
@@ -146,7 +146,7 @@ CONTAINS
         END IF
       END IF
     ELSE
-      CALL stop_program(routineP,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Invalid magnetic quantum number specified")
     END IF
 

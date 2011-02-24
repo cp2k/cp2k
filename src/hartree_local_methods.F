@@ -55,11 +55,7 @@ MODULE  hartree_local_methods
 
   PRIVATE
 
-  ! *** Global parameters (only in this module)
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_methods'
-
-  ! *** Define multipole type ***
 
   ! Public Subroutine
 
@@ -373,7 +369,7 @@ CONTAINS
          nchan_0 = nsoset(lmax0)
 
          IF(nchan_0 > max_iso_not0) CALL stop_program(routineN,moduleN,__LINE__,&
-            "channels for rho0 > # max of spherical harmonics")
+            "channels for rho0 > # max of spherical harmonics",para_env)
 
          NULLIFY(rrad_z,my_CG)
          my_CG  => harmonics%my_CG

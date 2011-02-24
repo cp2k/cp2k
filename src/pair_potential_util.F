@@ -27,6 +27,7 @@ MODULE pair_potential_util
   IMPLICIT NONE
 
   PRIVATE
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_util'
   REAL(KIND=dp), PARAMETER, PRIVATE    :: MIN_HICUT_VALUE=1.0E-15_dp,&
                                           DEFAULT_HICUT_VALUE=1.0E3_dp
@@ -43,6 +44,8 @@ CONTAINS
       POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff
     REAL(KIND=dp)                            :: value
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ener_pot'
 
     INTEGER                                  :: i, index, j, n
     REAL(KIND=dp)                            :: damp, dampexp, dampsum, f6, &
@@ -139,7 +142,8 @@ CONTAINS
           pot%set(j)%gp%values(1)=r
           lvalue = evalf(pot%set(j)%gp%myid,pot%set(j)%gp%values)
           IF (EvalErrType > 0) &
-               CALL stop_program("ener_pot","Error evaluating generic potential energy function")
+               CALL stop_program(routineN,moduleN,__LINE__,&
+                                 "Error evaluating generic potential energy function")
        ELSE
           lvalue = 0.0_dp
        END IF

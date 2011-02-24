@@ -443,7 +443,8 @@ CONTAINS
     IF(PRESENT(is1_shell)) my_is1_shell = is1_shell
     IF(PRESENT(is2_shell)) my_is2_shell = is2_shell
     IF(my_is1_core .AND. my_is1_shell) THEN
-       CALL stop_program ( "pme%get_patch","shell-model: cannot be core and shell simultaneously" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Shell-model: cannot be core and shell simultaneously")
     END IF
 
     CALL dg_get ( dg, dg_rho0 = dg_rho0 )

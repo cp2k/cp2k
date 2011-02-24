@@ -264,7 +264,7 @@ CONTAINS
     IF (PRESENT(array)) THEN
        SELECT CASE(TRIM(content))
        CASE ("POS_VEL","POS_VEL_FORCE")
-          CALL stop_program ("particle_types","illegal usage of write_particle_coordinates")
+          CALL stop_program(routineN,moduleN,__LINE__,"Illegal usage")
        END SELECT
     END IF
     factor = 1.0_dp
@@ -395,7 +395,8 @@ CONTAINS
           WRITE(iunit) y4*REAL(factor,KIND=sp)
           WRITE(iunit) z4*REAL(factor,KIND=sp)
        CASE DEFAULT
-          CALL stop_program ("particle_types","illegal dcd dump type")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal dcd dump type")
        END SELECT
        IF (PRESENT(array)) THEN
           DEALLOCATE(arr,STAT=stat)
@@ -404,7 +405,7 @@ CONTAINS
        DEALLOCATE(x4,y4,z4,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
-       CALL stop_program ("particle_types","illegal dump type")
+       CALL stop_program(routineN,moduleN,__LINE__,"Illegal dump type")
     END SELECT
 
   END SUBROUTINE write_particle_coordinates

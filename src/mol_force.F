@@ -95,7 +95,7 @@ CONTAINS
        energy  = f12*k(1)*r0*r0*(1.0_dp+disp*(disp-2.0_dp))
        fscalar = k(1)*r0*disp*disp*(1.0_dp-disp) / dij
     CASE DEFAULT
-       CALL stop_program (routineP,"unmatched bond kind")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched bond kind")
     END SELECT
 
   END SUBROUTINE force_bonds
@@ -224,9 +224,8 @@ CONTAINS
        ! fscalar is already included in g1, g2 and g3
        fscalar=1.0_dp
 
-
     CASE DEFAULT
-       CALL stop_program (routineP,"unmatched bend kind")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched bend kind")
     END SELECT
 
   END SUBROUTINE force_bends
@@ -269,7 +268,7 @@ CONTAINS
        ! compute fscalar
        fscalar = k * m * SIN(m*phi-phi0)
     CASE DEFAULT
-       CALL stop_program (routineP,"unmatched torsion kind")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched torsion kind")
     END SELECT
 
     ! compute the gradients
@@ -326,7 +325,7 @@ CONTAINS
        fscalar = - k * ( phi - phi0 )
 
     CASE DEFAULT
-       CALL stop_program (routineP,"unmatched impr kind")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched improper kind")
     END SELECT
 
     ! compute the gradients
@@ -408,7 +407,7 @@ CONTAINS
        fscalar = k * ( phi - phi0 ) * is41
 
     CASE DEFAULT
-       CALL stop_program (routineP,"unmatched opbend kind")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched opbend kind")
     END SELECT
 
 

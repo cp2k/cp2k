@@ -18,11 +18,15 @@ MODULE fparser
   !
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   USE f77_blas
-  USE kinds,                           ONLY: rn => dp
-  USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+  USE kinds,                           ONLY: default_string_length,&
+                                             rn => dp
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fparser'
+
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   PUBLIC                     :: initf,    & ! Initialize function parser for n functions
                                 parsef,   & ! Parse single function string
@@ -96,6 +100,8 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Finalize function parser 
     !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'finalizef'
+
     INTEGER                                  :: i, istat
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
@@ -103,31 +109,21 @@ CONTAINS
     DO i = 1, SIZE(Comp)
        IF (ASSOCIATED(Comp(i)%ByteCode)) THEN
           DEALLOCATE ( Comp(i)%ByteCode, stat = istat) 
-          IF (istat /= 0) THEN
-             WRITE(*,*) '*** Parser error: Memmory deallocation for byte code failed'
-             STOP
-          END IF
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%ByteCode")
        END IF
        IF (ASSOCIATED(Comp(i)%Immed)) THEN
           DEALLOCATE ( Comp(i)%Immed, stat=istat)
-          IF (istat /= 0) THEN
-             WRITE(*,*) '*** Parser error: Memmory deallocation for Immed Size failed'
-             STOP
-          END IF
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%Immed")
        END IF
        IF (ASSOCIATED(Comp(i)%Stack)) THEN
           DEALLOCATE ( Comp(i)%Stack, stat=istat)
-          IF (istat /= 0) THEN
-             WRITE(*,*) '*** Parser error: Memmory deallocation for Stack Size failed'
-             STOP
-          END IF
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%Stack")
        END IF
     END DO
+
     DEALLOCATE ( Comp, stat=istat)
-    IF (istat /= 0) THEN
-       WRITE(*,*) '*** Parser error: Memmory deallocation for Comp failed'
-       STOP
-    END IF
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp")
+
   END SUBROUTINE finalizef
   !
 ! *****************************************************************************
@@ -158,6 +154,8 @@ CONTAINS
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: Var
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'parsef'
+
     CHARACTER(LEN=LEN(FuncStr))              :: Func
 
 ! Function identifier
@@ -167,8 +165,8 @@ CONTAINS
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
     IF (i < 1 .OR. i > SIZE(Comp)) THEN
-       WRITE(*,*) '*** Parser error: Function number ',i,' out of range'
-       STOP
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Function number is out of range")
     END IF
     ALLOCATE (ipos(LEN_TRIM(FuncStr)))                       ! Char. positions in orig. string
     Func = FuncStr                                           ! Local copy of function string
@@ -177,6 +175,7 @@ CONTAINS
     CALL CheckSyntax (Func,FuncStr,Var)
     DEALLOCATE (ipos)
     CALL Compile (i,Func,Var)                                ! Compile into bytecode
+
   END SUBROUTINE parsef
   !
 ! *****************************************************************************
@@ -188,6 +187,7 @@ CONTAINS
     REAL(rn), DIMENSION(:), INTENT(in)       :: Val
     REAL(rn)                                 :: res
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'evalf'
     REAL(rn), PARAMETER                      :: zero = 0._rn
 
     INTEGER                                  :: DP, IP, ipow, SP
@@ -219,7 +219,8 @@ CONTAINS
              IF (MOD(Comp(i)%Stack(SP),REAL(ipow,KIND=rn))==0.0_rn) THEN
                 Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)**ipow
              ELSE
-                CALL stop_program("evalf","Error: Negative floating-point value raised to a real power!")
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Negative floating-point value raised to a real power!")
              END IF
           ELSE
              Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)**Comp(i)%Stack(SP)
@@ -370,23 +371,22 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(in)             :: FuncStr
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: Msg
 
-    INTEGER                                  :: k
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ParseErrMsg'
+
+    CHARACTER(LEN=default_string_length)     :: message
 
 ! Original function string
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
     IF (PRESENT(Msg)) THEN
-       WRITE(*,*) '*** Error in syntax of function string: '//Msg
+       WRITE (UNIT=message,FMT="(A)") "Syntax error in function string: "//Msg
     ELSE
-       WRITE(*,*) '*** Error in syntax of function string:'
-    ENDIF
-    WRITE(*,*)
-    WRITE(*,'(A)') ' '//FuncStr
-    DO k=1,ipos(j)
-       WRITE(*,'(A)',ADVANCE='NO') ' '                       ! Advance to the jth position
-    END DO
-    WRITE(*,'(A)') '?'
-    STOP
+       WRITE (UNIT=message,FMT="(A)") "Syntax error in function string"
+    END IF
+    WRITE(*,'(/,T2,A)') FuncStr
+    WRITE(*,'(A)') REPEAT(" ",ipos(j))//"?"
+    CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
+
   END SUBROUTINE ParseErrMsg
   !
 ! *****************************************************************************
@@ -529,6 +529,8 @@ CONTAINS
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: Var
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'Compile'
+
     INTEGER                                  :: istat
 
 ! Function identifier
@@ -549,8 +551,7 @@ CONTAINS
                Comp(i)%Stack(Comp(i)%StackSize),       &
                STAT = istat                            )
     IF (istat /= 0) THEN
-       WRITE(*,*) '*** Parser error: Memmory allocation for byte code failed'
-       STOP
+       CALL stop_memory(routineN,moduleN,__LINE__,"Byte code")
     ELSE
        Comp(i)%ByteCodeSize = 0
        Comp(i)%ImmedSize    = 0
@@ -909,6 +910,7 @@ CONTAINS
     REAL(KIND=rn), INTENT(OUT)               :: err
     REAL(KIND=rn)                            :: derivative
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'evalfd'
     INTEGER, PARAMETER                       :: ntab = 10
     REAL(KIND=rn), PARAMETER                 :: big_error = 1.0E30_rn, &
                                                 con = 1.4_rn, con2 = con*con, &
@@ -948,7 +950,8 @@ CONTAINS
           IF(ABS(a(i,i)-a(i-1,i-1)).GE.safe*err)RETURN
        END DO
     ELSE
-       CALL stop_program("evalfd","Error: DX provided equals zero!!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "DX provided equals zero!")
     END IF
     vals(ipar)=xval
   END FUNCTION evalfd

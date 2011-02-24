@@ -29,11 +29,11 @@ MODULE mixed_energy_types
      REAL(KIND=dp), DIMENSION(:,:), POINTER         :: forces
   END TYPE mixed_force_type
 
-! *** Public data types ***
+! Public data types
   PUBLIC :: mixed_energy_type,&
             mixed_force_type
 
-! *** Public subroutines ***
+! Public subroutines
   PUBLIC :: allocate_mixed_energy,&
             deallocate_mixed_energy,&
             init_mixed_energy
@@ -97,8 +97,9 @@ CONTAINS
     IF (ASSOCIATED(mixed_energy)) THEN
       mixed_energy%pot = 0.0_dp
     ELSE
-      CALL stop_program(routineP,"The mixed_energy pointer is not associated "//&
-                                "and cannot be initialised")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The mixed_energy pointer is not associated "//&
+                        "and cannot be initialised")
     END IF
   END SUBROUTINE init_mixed_energy
 

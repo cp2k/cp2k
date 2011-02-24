@@ -173,7 +173,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse)
           !supported
        CASE DEFAULT
-          CALL stop_program(routineN,"This precond with mixed precision is not supported yet")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "This precond with mixed precision is not supported yet")
        END SELECT
     ENDIF
  
@@ -191,7 +192,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        ! these should be happy without an estimate for the homo energy
        ! preconditioning can  not depend on an absolute eigenvalue, only on eigenvalue differences
     CASE DEFAULT
-          CALL stop_program(routineN,"The preconditioner is unknown ...")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "The preconditioner is unknown ...")
     END SELECT
    
     energy_homo=0.0_dp
@@ -216,7 +218,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        IF (k>0) energy_homo=eigenvalues_ot(k)
     ELSE
        IF (needs_homo) THEN 
-          CALL stop_program(routineN,"Not yet implemented")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Not yet implemented")
        ENDIF
     ENDIF
 
@@ -224,9 +227,10 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   SELECT CASE (precon_type)
   CASE (ot_precond_sparse_diag)
      preconditioner_env%in_use=ot_precond_sparse_diag
-     IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
-     ENDIF
+     IF (my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Only PRECOND_SOLVER DEFAULT for the moment")
+     END IF
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
                               energy_homo, energy_gap ,error=error)
@@ -237,7 +241,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE (ot_precond_full_single)
      preconditioner_env%in_use=ot_precond_full_single
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Only PRECOND_SOLVER DEFAULT for the moment")
      ENDIF
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
@@ -255,7 +260,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, error=error)
      ELSE
-        CALL stop_program("make preconditioner","Type for S=1 not implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Type for S=1 not implemented")
      END IF
   CASE (ot_precond_full_kinetic)
      preconditioner_env%in_use=ot_precond_full_kinetic
@@ -265,7 +271,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
              &                 matrix_t, matrix_s, energy_gap, &
              &                 my_mixed_precision, error=error)
      ELSE
-        CALL stop_program("make preconditioner","Type for S=1 not implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Type for S=1 not implemented")
      ENDIF
   CASE (ot_precond_full_single_inverse)
      preconditioner_env%in_use=ot_precond_full_single_inverse
@@ -284,7 +291,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE (ot_precond_full_all)
      preconditioner_env%in_use=ot_precond_full_all
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Only PRECOND_SOLVER DEFAULT for the moment")
      ENDIF
      IF(use_mo_coeff_b) THEN
         CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff,error=error)
@@ -299,13 +307,14 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE(ot_precond_sparse_kinetic)
      preconditioner_env%in_use=ot_precond_sparse_kinetic
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Only PRECOND_SOLVER DEFAULT for the moment")
      ENDIF
      CALL make_sparse_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap ,error=error)
      CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
                                   preconditioner_env%sparse_matrix_inner, error=error)
   CASE DEFAULT
-     CALL stop_program("make preconditioner","Type not implemented")
+     CALL stop_program(routineN,moduleN,__LINE__,"Type not implemented")
   END SELECT
   !
   ! here comes the solver
@@ -331,7 +340,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      preconditioner_env%solver=ot_precond_solver_default
   CASE DEFAULT
      !
-     CALL stop_program("make preconditioner","doesnt know this type of solver")
+     CALL stop_program(routineN,moduleN,__LINE__,"Doesn't know this type of solver")
   END SELECT
 
 
@@ -356,7 +365,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      ELSEIF(ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
         CALL cp_dbcsr_copy(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, error=error)
      ELSE
-        CALL stop_program(routineN,"something wrong")
+        CALL stop_program(routineN,moduleN,__LINE__,"Something is wrong")
      ENDIF
   ENDIF
 
@@ -388,7 +397,7 @@ SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out, er
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
-     CALL stop_program("apply preconditioner","No preconditioner in use")
+     CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
   CASE (ot_precond_sparse_diag)
      CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_single)
@@ -403,7 +412,7 @@ SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out, er
         CALL apply_sparse_single(preconditioner_env, matrix_in, matrix_out,error=error)
         !CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE DEFAULT
-        CALL stop_program("apply preconditioner","solver not implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,"Solver not implemented")
      END SELECT
   CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
@@ -412,10 +421,10 @@ SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out, er
      CASE(ot_precond_solver_direct)
         CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE DEFAULT
-        CALL stop_program("apply preconditioner","solver not implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,"Solver not implemented")
      END SELECT
   CASE DEFAULT
-     CALL stop_program("apply preconditioner","implemented")
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown preconditioner")
   END SELECT
 
   CALL timestop(handle)
@@ -437,7 +446,7 @@ SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out,
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
-     CALL stop_program(routineN,"No preconditioner in use")
+     CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
   CASE (ot_precond_sparse_diag,ot_precond_full_single)
      CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_all)
@@ -449,20 +458,20 @@ SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out,
      CASE (ot_precond_solver_sainv)
         CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE DEFAULT
-        CALL stop_program(routineN,"wrong solver")
+        CALL stop_program(routineN,moduleN,__LINE__,"Wrong solver")
      END SELECT
   CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
      CASE(ot_precond_solver_inv_chol,ot_precond_solver_sainv)
         CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE(ot_precond_solver_direct)
-        CALL stop_program(routineN,"apply_full_direct not supported with ot")
+        CALL stop_program(routineN,moduleN,__LINE__,"Apply_full_direct not supported with ot")
         !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE DEFAULT
-        CALL stop_program(routineN,"wrong solver")
+        CALL stop_program(routineN,moduleN,__LINE__,"Wrong solver")
      END SELECT
   CASE DEFAULT
-     CALL stop_program(routineN,"wrong preconditioner")
+     CALL stop_program(routineN,moduleN,__LINE__,"Wrong preconditioner")
   END SELECT
 
   CALL timestop(handle)
@@ -526,7 +535,8 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
      CALL cp_dbcsr_get_block_p(matrix=matrix_s,&
           row=iblock_row,col=iblock_col,BLOCK=block_s,found=found)
 
-     IF(.NOT.ASSOCIATED(block_s))CALL stop_program("qs preconditioner",".NOT.ASSOCIATED(block_s)")
+     IF(.NOT.ASSOCIATED(block_s))CALL stop_program(routineN,moduleN,__LINE__,&
+                                                   ".NOT.ASSOCIATED(block_s)")
 
      IF (iblock_col .EQ. iblock_row) THEN
         n=SIZE(block_s,1)
@@ -597,12 +607,12 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
      block_chol(:,:)=block_s(:,:)
      block_evec(:,:)=block_h(:,:)
      CALL DPOTRF('U',n,block_chol(1,1),n,info)
-     IF (info.ne.0)  CALL stop_program("use preconditioner","Error dpotrf")
+     IF (info.ne.0)  CALL stop_program(routineN,moduleN,__LINE__,"Error in dpotrf")
      CALL DSYGST(1,'U',n,block_evec(1,1),n,block_chol(1,1),n,info)
-     IF (info.ne.0)  CALL stop_program("use preconditioner","Error dsygst")
+     IF (info.ne.0)  CALL stop_program(routineN,moduleN,__LINE__,"Error in dsygst")
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
-     IF (info.NE.0) CALL stop_program("use preconditioner","problems")
+     IF (info.NE.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd")
      block_pre(:,:)=0.0_dp
      DO i=1,n
           block_pre(i,i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
@@ -628,7 +638,7 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
      block_evec(:,:)=block_s(:,:)
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
-     IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD S")
+     IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd S")
      block_pre(:,:)=0.0_dp
      DO i=1,n
         block_pre(i,i)=1.0_dp/SQRT(evals(i))
@@ -647,7 +657,7 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
      ! get evals and evecs
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
-     IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD H")
+     IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd H")
      block_pre(:,:)=0.0_dp
      DO i=1,n
           block_pre(i,i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
@@ -661,7 +671,7 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
      ! get evals and evecs
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
-     IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD H")
+     IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd H")
      block_pre(:,:)=0.0_dp
      DO i=1,n
           block_pre(i,i)=1.0_dp/MAX(evals(i),energy_gap)
@@ -723,8 +733,9 @@ SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out,error)
 
   CALL timeset(routineN,handle)
 
-  IF(.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
-       CALL stop_program(routineN," NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
+  IF (.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
+     CALL stop_program(routineN,moduleN,__LINE__,&
+                       "NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
   CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix,matrix_in,&
        0.0_dp,matrix_out,&
        left_set=preconditioner_env%dbcsr_matrix%matrix%m%predistributed,error=error)
@@ -1771,10 +1782,11 @@ END SUBROUTINE make_full_all_ortho
           block_evec(:,:) = block_h(:,:)
           CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                          iwork(1), liwork, info)
-             IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD H")
+             IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"DSYEVD H")
              block_pre(:,:)=0.0_dp
              DO i=1,n
-                IF(evals(i).lt.1e-10_dp) CALL stop_program("preconditioner","evals(i).lt.1e-10_dp")
+                IF (evals(i).lt.1e-10_dp) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                            "evals(i).lt.1e-10_dp")
                 block_pre(i,i)=1.0_dp/evals(i)
              ENDDO
              CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
@@ -1908,7 +1920,7 @@ END SUBROUTINE make_full_all_ortho
             & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
     ENDIF
     IF(iter.GT.max_iter) THEN
-       CALL stop_program("apply_solve_lin_system","increase max_iter")
+       CALL stop_program(routineN,moduleN,__LINE__,"Increase max_iter")
     ENDIF
     !
     CALL cp_fm_release(r ,error=error)
@@ -2028,7 +2040,7 @@ END SUBROUTINE make_full_all_ortho
             & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
     ENDIF
     IF(iter.GT.max_iter) THEN
-       CALL stop_program("apply_solve_lin_system","increase max_iter")
+       CALL stop_program(routineN,moduleN,__LINE__,"increase max_iter")
     ENDIF
     !
     CALL cp_dbcsr_release(r, error=error)
@@ -2242,7 +2254,8 @@ END SUBROUTINE make_full_all_ortho
        !v(k,k)=v(k,k)-s;
        IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
           CALL cp_dbcsr_get_block_p(mat_v, k, k, blk_p, found)
-          IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
+          IF (.NOT.found) CALL stop_program(routineN,moduleN,__LINE__,&
+                                            "Matrix block not found")
           CALL block_add_on_diag(row_blk_size(k), blk_p, -s)
        ENDIF
 
@@ -2370,7 +2383,8 @@ END SUBROUTINE make_full_all_ortho
        ! d(k,k) = v(k,k) / s + eye(k);
        IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
           CALL cp_dbcsr_get_block(mat_v, k, k, blk, found)
-          IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
+          IF (.NOT.found) CALL stop_program(routineN,moduleN,__LINE__,&
+                                            "Matrix block not found" )
           CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)
           CALL block_add_on_diag(row_blk_size(k), blk, 1.0_dp)
           CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)

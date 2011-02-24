@@ -140,7 +140,7 @@ CONTAINS
 
     SELECT CASE ( simpar%ensemble  )
     CASE DEFAULT
-       CALL stop_program( RoutineN, 'Unknown Ensemble')
+       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble')
     CASE ( isokin_ensemble )
        md_ener%constant = md_ener%ekin
     CASE ( reftraj_ensemble ) ! no constant of motion available

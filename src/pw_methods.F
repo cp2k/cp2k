@@ -106,7 +106,7 @@ CONTAINS
        ns = SIZE(pw%cc3d)
        pw%cc3d(:,:,:) = CMPLX(0._dp,0._dp,KIND=dp)
     ELSE
-       CALL stop_program (routineP, "No possible data field!" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No possible data field!")
     END IF
 
     zr = REAL ( ns,KIND=dp) * 1.e-6_dp
@@ -165,7 +165,7 @@ CONTAINS
                 END IF
                 ns = 2 * MAX ( ng1, ng2 )
              ELSE
-                CALL stop_program (routineP, "No suitable data field" )
+                CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
              END IF
              
           ELSE
@@ -177,7 +177,7 @@ CONTAINS
                         " grid 2 :",pw2%pw_grid %id_nr, &
                         " sperical :",pw2%pw_grid%spherical, &
                         " reference :",pw2%pw_grid%reference 
-             CALL stop_program (routineP, "Incompatible grids" )
+             CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
           END IF
           
        ELSE IF ( .NOT. ( pw1%pw_grid%spherical .OR. &
@@ -230,11 +230,11 @@ CONTAINS
                            " grid 2 :",pw2%pw_grid %id_nr, &
                            " sperical :",pw2%pw_grid%spherical, &
                            " reference :",pw2%pw_grid%reference 
-                CALL stop_program (routineP, "Incompatible grids" )
+                CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
              END IF
              
           ELSE
-             CALL stop_program (routineP, "no suitable data field" )
+             CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
           END IF
           
           pw2%in_space = RECIPROCALSPACE
@@ -248,7 +248,7 @@ CONTAINS
                      " grid 2 :",pw2%pw_grid %id_nr, &
                      " sperical :",pw2%pw_grid%spherical, &
                      " reference :",pw2%pw_grid%reference 
-          CALL stop_program (routineP, "Incompatible grids" )
+          CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
        END IF
 
     ELSE
@@ -274,7 +274,7 @@ CONTAINS
           ns = SIZE ( pw1%cc3d )
           pw2%cc3d(:,:,:) = pw1%cc3d(:,:,:)
        ELSE
-          CALL stop_program (routineP, "no suitable data field" )
+          CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
        END IF
        
     END IF
@@ -321,7 +321,7 @@ CONTAINS
        ns = 2*SIZE(pw%cc3d)
        pw%cc3d(:,:,:) = a*pw%cc3d(:,:,:)
     CASE DEFAULT  
-       CALL stop_program (routineP, "No suitable data field" )
+       CALL stop_program(routineN,moduleN,__LINE__, "No suitable data field" )
     END SELECT
 
     flop = REAL ( ns, KIND=dp) * 1.e-6_dp
@@ -419,7 +419,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program (routineP, "no suitable data field" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
 
     END IF
 
@@ -479,7 +479,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program (routineP, "no suitable data field" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
 
     END IF
 
@@ -543,7 +543,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program (routineP, "no suitable data field" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
 
     END IF
 
@@ -595,7 +595,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program (routineP, "no suitable data field" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
 
     END IF
 
@@ -649,7 +649,7 @@ CONTAINS
           ELSEIF ( pw2%in_use == COMPLEXDATA1D ) THEN
              CALL pw_gather ( pw2, pw1%cc3d, error=error)
           ELSE
-             CALL stop_program (routineP, "Do not know what to do" )
+             CALL stop_program(routineN,moduleN,__LINE__, "Do not know what to do" )
           END IF
 
        END IF
@@ -745,7 +745,7 @@ CONTAINS
              flop = REAL ( 4 * SIZE ( pw2%cc3d ),KIND=dp)
           END IF
        ELSE
-          CALL stop_program (routineP, "no suitable data field" )
+          CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
        END IF
 
     ELSE IF ( pw_compatible ( pw1%pw_grid, pw2%pw_grid, error=error) ) THEN
@@ -846,12 +846,12 @@ CONTAINS
                         " grid 2 :",pw2%pw_grid %id_nr, &
                         " sperical :",pw2%pw_grid%spherical, &
                         " reference :",pw2%pw_grid%reference
-             CALL stop_program (routineP, "grids not compatible" )
+             CALL stop_program(routineN,moduleN,__LINE__,"Grids not compatible")
 
           END IF
 
        ELSE
-          CALL stop_program (routineP, "no suitable data field" )
+          CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
        END IF
 
     ELSE
@@ -864,7 +864,7 @@ CONTAINS
                   " grid 2 :",pw2%pw_grid %id_nr, &
                   " sperical :",pw2%pw_grid%spherical, &
                   " reference :",pw2%pw_grid%reference
-       CALL stop_program (routineP, "grids not compatible" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Grids not compatible")
 
     END IF
 
@@ -901,7 +901,7 @@ CONTAINS
     CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
-       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
     ENDIF
 
     ! after the gather we are in g-space
@@ -970,11 +970,11 @@ CONTAINS
     CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
-       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
     ENDIF
 
     IF ( pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED ) THEN
-       CALL stop_program (routineP, "This grid type is not distributed")
+       CALL stop_program(routineN,moduleN,__LINE__,"This grid type is not distributed")
     ENDIF
 
     ! after the gather we are in g-space
@@ -1052,11 +1052,11 @@ CONTAINS
     CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
-       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
     ENDIF
 
     IF ( pw%in_space /= RECIPROCALSPACE ) THEN
-       CALL stop_program (routineP, "Data has to be in RECIPROCALSPACE" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Data has to be in RECIPROCALSPACE")
     ENDIF
 
     mapl => pw%pw_grid%mapl%pos
@@ -1162,15 +1162,15 @@ CONTAINS
     CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
-       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
     ENDIF
 
     IF ( pw%in_space /= RECIPROCALSPACE ) THEN
-       CALL stop_program (routineP, "Data has to be in RECIPROCALSPACE" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Data has to be in RECIPROCALSPACE")
     ENDIF
 
     IF ( pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED ) THEN
-       CALL stop_program (routineP, "This grid type is not distributed")
+       CALL stop_program(routineN,moduleN,__LINE__,"This grid type is not distributed")
     ENDIF
 
     mapl => pw%pw_grid%mapl%pos
@@ -1318,7 +1318,7 @@ CONTAINS
           norm = 1.0_dp
           out_space = REALSPACE
        ELSE
-          CALL stop_program (routineP, "PW structure is missing a "//&
+          CALL stop_program(routineN,moduleN,__LINE__, "PW structure is missing a "//&
                "proper tag to identidy its space" )
        END IF
 
@@ -1328,7 +1328,7 @@ CONTAINS
        !..tag new data with correct space
        pw1%in_space = out_space
     ELSE
-       CALL stop_program (routineP, "In place FFT only possible for "//&
+       CALL stop_program(routineN,moduleN,__LINE__, "In place FFT only possible for "//&
             "replicated data with COMPLEXDATA3D structure" )
     END IF
     CALL timestop(handle) 
@@ -1378,10 +1378,12 @@ CONTAINS
     !..check if grids are compatible
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
        IF ( pw1%pw_grid%dvol /= pw2%pw_grid%dvol ) THEN
-          CALL stop_program (routineP, "PW grids not compatible" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "PW grids not compatible")
        END IF
        IF ( pw1%pw_grid%para %group /= pw2%pw_grid%para%group) THEN
-          CALL stop_program (routineP,"PW grids have not compatible MPI groups" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "PW grids have not compatible MPI groups")
        END IF
     END IF
 
@@ -1395,7 +1397,7 @@ CONTAINS
        norm = 1.0_dp
        out_space = REALSPACE
     ELSE
-       CALL stop_program (routineP, "Error in space tag" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Error in space tag")
     END IF
 
     n => pw1%pw_grid%npts
@@ -1425,7 +1427,8 @@ CONTAINS
 
        SELECT CASE ( mode )
        CASE DEFAULT
-          CALL stop_program (routineP,"Illegal combination of in_use and in_space" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal combination of in_use and in_space")
        CASE ( "FW_C3DC3D" )
           c_in => pw1%cc3d
           c_out => pw2%cc3d
@@ -1547,9 +1550,9 @@ CONTAINS
 
        SELECT CASE ( mode )
        CASE DEFAULT
-          CALL stop_program ( "fft_wrap_pw1pw2", &
-               "Illegal combination of in_use and in_space "//&
-               "in parallel 3d FFT" )
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Illegal combination of in_use and in_space "//&
+                            "in parallel 3d FFT")
        CASE ( "FW_C3DC1D" )
           c_in => pw1%cc3d
        CASE ( "FW_R3DC1D" )
@@ -1585,9 +1588,9 @@ CONTAINS
        !..prepare output
        SELECT CASE ( mode )
        CASE DEFAULT
-          CALL stop_program (routineP, &
-               "Illegal combination of in_use and in_space "//&
-               "in parallel 3d FFT" )
+          CALL stop_program(routineN,moduleN,__LINE__, &
+                            "Illegal combination of in_use and in_space "//&
+                            "in parallel 3d FFT" )
        CASE ( "FW_C3DC1D" )
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
@@ -1639,7 +1642,7 @@ CONTAINS
     ELSE IF ( space1 == RECIPROCALSPACE ) THEN
        mode ( 1 : 3 ) = "BW_"
     ELSE
-       CALL stop_program (routineP, "Error in space tag" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Error in space tag")
     END IF
 
     SELECT CASE ( use1 )
@@ -1652,7 +1655,7 @@ CONTAINS
     CASE ( REALDATA1D )
        mode ( 4 : 6 ) = "R1D"
     CASE DEFAULT
-       CALL stop_program (routineP, "Error in use1 tag" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Error in use1 tag")
     END SELECT
 
     SELECT CASE ( use2 )
@@ -1665,7 +1668,7 @@ CONTAINS
     CASE ( REALDATA1D )
        mode ( 7 : 9 ) = "R1D"
     CASE DEFAULT
-       CALL stop_program (routineP, "Error in use1 tag" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Error in use1 tag")
     END SELECT
 
   END FUNCTION fftselect
@@ -1875,7 +1878,7 @@ CONTAINS
 
     failure = .FALSE.
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
-       CALL stop_program (routineP, "grids incompatible" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Grids incompatible")
     END IF
 
     ! since the return value is real, only do accurate sum on the real bit ?
@@ -1908,7 +1911,7 @@ CONTAINS
          .AND. pw2%in_use == COMPLEXDATA1D ) THEN
        integral_value = accurate_sum ( CONJG ( pw1%cc (:) ) * pw2%cc (:) )
     ELSE
-       CALL stop_program (routineP, "no possible DATA" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
     END IF
 
     IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
@@ -1961,11 +1964,11 @@ CONTAINS
                      CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 )
              END IF
           ELSE
-             CALL stop_program (routineP, "no possible SQUARE DATA" )
+             CALL stop_program(routineN,moduleN,__LINE__,"No possible SQUARE DATA")
           END IF
 
        ELSE IF ( flag == SQUAREROOT ) THEN
-          CALL stop_program (routineP, "no SQUAREROOT defined" )
+          CALL stop_program(routineN,moduleN,__LINE__,"No SQUAREROOT defined")
        END IF
 
     ELSE
@@ -1978,7 +1981,7 @@ CONTAINS
        ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
           integral_value = accurate_sum ( pw1%cc (:) )
        ELSE
-          CALL stop_program (routineP, "no possible DATA" )
+          CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
        END IF
     END IF
 
@@ -2007,7 +2010,7 @@ CONTAINS
 
     failure = .FALSE.
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
-       CALL stop_program (routineP, "grids incompatible" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Grids incompatible")
     END IF
     IF ( pw1%in_use == REALDATA1D .AND. &
          pw2%in_use == REALDATA1D ) THEN
@@ -2021,7 +2024,7 @@ CONTAINS
           integral_value = 2.0_dp * integral_value
        END IF
     ELSE
-       CALL stop_program (routineP, "no possible DATA" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
     END IF
 
     IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
@@ -2074,7 +2077,7 @@ CONTAINS
        flop = flop + 7 * cnt
     ELSE
 
-       CALL stop_program (routineP, "no suitable data field" )
+       CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
 
     END IF
 
@@ -2105,7 +2108,7 @@ CONTAINS
        CASE ("ABS","abs")
           iop = 1
        CASE DEFAULT
-          CALL stop_program(routineP,"Unknown operator")
+          CALL stop_program(routineN,moduleN,__LINE__,"Unknown operator")
        END SELECT
     END IF
 
@@ -2120,11 +2123,13 @@ CONTAINS
              total_fun = fun%pw_grid%dvol*accurate_sum(fun%cr3d)
           END IF
        ELSE
-          CALL stop_program(routineP,"in_space/in_use combination not implemented")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "In_space/in_use combination not implemented")
        END IF
     ELSEIF (fun%in_space == RECIPROCALSPACE) THEN
        IF (iop==1) &
-            CALL stop_program(routineN,"Operator ABS not implemented")
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                              "Operator ABS not implemented")
        IF (fun%in_use == COMPLEXDATA3D) THEN
           total_fun = fun%pw_grid%vol*fun%cc3d(      &
                fun%pw_grid%bounds(1,1), &
@@ -2133,10 +2138,11 @@ CONTAINS
        ELSEIF (fun%in_use == COMPLEXDATA1D) THEN
           IF ( fun%pw_grid%have_g0 ) total_fun = fun%pw_grid%vol*fun%cc(1)
        ELSE
-          CALL stop_program(routineP,"in_space/in_use combination not implemented")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "In_space/in_use combination not implemented")
        END IF
     ELSE
-       CALL stop_program(routineP,"No space defined")
+       CALL stop_program(routineN,moduleN,__LINE__,"No space defined")
     END IF
     IF (fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
        CALL mp_sum(total_fun,fun%pw_grid%para%group)
