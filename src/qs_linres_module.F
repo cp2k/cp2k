@@ -146,7 +146,7 @@ CONTAINS
        CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                           qs_env=qs_env,error=error)
     CASE DEFAULT
-       CALL stop_program(routineP,"Doesnt recognize this force_env.")
+       CALL stop_program(routineN,moduleN,__LINE__,"Doesnt recognize this force_env.")
     END SELECT
 
     logger => cp_error_get_logger(error)
@@ -173,14 +173,14 @@ CONTAINS
        IF(nmr_present.OR.epr_present) THEN
           linres_control%property = lr_current
           IF(.NOT.linres_control%localized_psi0) THEN
-             CALL stop_program(routineP,&
-                  "Are you sure that you want to calculate the chemical"//&
-                  " shift without localized psi0??")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "Are you sure that you want to calculate the chemical "//&
+                  "shift without localized psi0?")
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                   dft_control%nspins,centers_only=.TRUE.,error=error)
           ENDIF
           IF(dft_control%nspins/=2.AND.epr_present) THEN
-             CALL stop_program(routineP,&
+             CALL stop_program(routineN,moduleN,__LINE__,&
                   "LSD is needed to perform a g tensor calculation!")
           ENDIF
           !
@@ -252,9 +252,9 @@ CONTAINS
        IF(issc_present) THEN
           linres_control%property = lr_current
           IF(.NOT.linres_control%localized_psi0) THEN
-             CALL stop_program(routineP,&
-                  "Are you sure that you want to calculate the chemical"//&
-                  " shift without localized psi0??")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "Are you sure that you want to calculate the chemical "//&
+                  "shift without localized psi0?")
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                   dft_control%nspins,centers_only=.TRUE.,error=error)
           ENDIF
@@ -436,7 +436,7 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
                  "LINRES| Preconditioner","SAINV SPARSE KINETIC"
          CASE DEFAULT
-            CALL stop_program(routineP,"Preconditioner NYI")
+            CALL stop_program(routineN,moduleN,__LINE__,"Preconditioner NYI")
          END SELECT
 
          WRITE (UNIT=output_unit,FMT="(T2,A,T72,ES8.1)")&

@@ -109,7 +109,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,moduleN,__LINE__,"Wrong ncol value")
 
     CALL cp_fm_create(svmatrix,vmatrix%matrix_struct,"SV",error=error)
     CALL cp_dbcsr_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol,error=error)
@@ -159,7 +159,7 @@ CONTAINS
     NULLIFY(fm_struct_tmp)
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,moduleN,__LINE__,"Wrong ncol value")
 
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
                              para_env=vmatrix%matrix_struct%para_env, &
@@ -202,7 +202,7 @@ CONTAINS
 
     !CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     CALL cp_dbcsr_get_info(vmatrix,nfullrows_total=n,nfullcols_total=ncol_global)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,moduleN,__LINE__,"Wrong ncol value")
 
 
     CALL cp_fm_struct_create(fm_struct_tmp,context=blacs_env,nrow_global=ncol,&
@@ -267,7 +267,7 @@ CONTAINS
     NULLIFY(fm_struct_tmp)
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,moduleN,__LINE__,"Wrong ncol value")
 
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
                              para_env=vmatrix%matrix_struct%para_env, &
@@ -318,7 +318,7 @@ CONTAINS
     NULLIFY(fm_struct_tmp)
     threshold = 1.0E-7_dp
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,moduleN,__LINE__,"Wrong ncol value")
 
     CALL cp_fm_create(sc,vmatrix%matrix_struct,"SC",error=error)
     CALL cp_dbcsr_sm_fm_multiply(matrix_s,vmatrix,sc,ncol,error=error)
@@ -371,7 +371,7 @@ CONTAINS
     NULLIFY(fm_struct_tmp)
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,moduleN,__LINE__,"Wrong ncol value")
 
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
                              para_env=vmatrix%matrix_struct%para_env, &
@@ -418,9 +418,10 @@ CONTAINS
     my_use_dbcsr = .FALSE.
     IF(PRESENT(use_dbcsr)) my_use_dbcsr = use_dbcsr
     IF(my_use_dbcsr) THEN
-       IF(.NOT.ASSOCIATED(mo_set%mo_coeff_b)) CALL stop_program(routineN,"mo_coeff_b NOT ASSOCIATED")
-    ENDIF
-
+       IF (.NOT.ASSOCIATED(mo_set%mo_coeff_b)) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,"mo_coeff_b NOT ASSOCIATED")
+       END IF
+    END IF
 
     CALL cp_dbcsr_set(density_matrix,0.0_dp,error=error)
 
@@ -585,8 +586,8 @@ CONTAINS
         ENDIF
 
         IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
-          IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
-          IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
+          IF (.NOT. PRESENT(ionode)) CALL stop_program(routineN,moduleN,__LINE__,"IONODE?")
+          IF (.NOT. PRESENT(scr)) CALL stop_program(routineN,moduleN,__LINE__,"SCR?")
           IF (ionode) THEN
              DO i=1,ncol_global,4
                 j=MIN(3,ncol_global-i)
@@ -743,8 +744,8 @@ CONTAINS
         ENDIF
 
         IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
-          IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
-          IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
+          IF (.NOT. PRESENT(ionode)) CALL stop_program(routineN,moduleN,__LINE__,"IONODE?")
+          IF (.NOT. PRESENT(scr)) CALL stop_program(routineN,moduleN,__LINE__,"SCR?")
           IF (ionode) THEN
              DO i=1,ncol_global,4
                 j=MIN(3,ncol_global-i)

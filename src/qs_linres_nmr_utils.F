@@ -161,18 +161,18 @@ CONTAINS
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
-         &          atomic_kind_set=atomic_kind_set,&
-         &          cell=cell,&
-         &          dft_control=dft_control,&
-         &          linres_control=linres_control,&
-         &          mpools=mpools,&
-         &          particle_set=particle_set,&
-         &          pw_env=pw_env,&
-         &          scf_control=scf_control,error=error)
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    linres_control=linres_control,&
+                    mpools=mpools,&
+                    particle_set=particle_set,&
+                    pw_env=pw_env,&
+                    scf_control=scf_control,error=error)
     !
     ! Check if restat also psi0 should be restarted
     !IF(nmr_env%restart_nmr .AND. scf_control%density_guess/=restart_guess)THEN
-    !   CALL stop_program("nmr_env_init","restart_nmr requires density_guess=restart")
+    !   CALL stop_program(routineN,moduleN,__LINE__,"restart_nmr requires density_guess=restart")
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
@@ -269,12 +269,12 @@ CONTAINS
        CPPostcondition(ASSOCIATED(nmr_env%cs_atom_list),cp_failure_level,routineP,error,failure)
        DO ir = 1,SIZE(nmr_env%cs_atom_list,1)
           IF(nmr_env%cs_atom_list(ir).LT.1.OR.nmr_env%cs_atom_list(ir).GT.natom) THEN
-             CALL stop_program("nmr_env_init","unknown atom(s)")
+             CALL stop_program(routineN,moduleN,__LINE__,"Unknown atom(s)")
           ENDIF
           DO j = 1,SIZE(nmr_env%cs_atom_list,1)
              IF(j.EQ.ir) CYCLE
              IF(nmr_env%cs_atom_list(ir).EQ.nmr_env%cs_atom_list(j)) THEN
-                CALL stop_program("nmr_env_init","duplicate atoms")
+                CALL stop_program(routineN,moduleN,__LINE__,"Duplicate atoms")
              ENDIF
            ENDDO
         ENDDO

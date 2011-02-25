@@ -174,7 +174,7 @@ CONTAINS
     energies = 0.0_dp
 
     IF (.NOT.ASSOCIATED(tddfpt_control%lumos)) THEN
-       CALL stop_program(routineP,"LUMOS missing")
+       CALL stop_program(routineN,moduleN,__LINE__,"LUMOS missing")
     END IF
 
     DO spin=1, n_spins

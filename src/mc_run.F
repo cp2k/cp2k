@@ -273,8 +273,8 @@ CONTAINS
       DO ibox=1,nboxes
          IF(nunits_tot(ibox) == 0) THEN
             IF(lskip_box) THEN
-               CALL stop_program('mc_run.F/do_mon_car',&
-               'More than one box has no atoms in it!')
+               CALL stop_program(routineN,moduleN,__LINE__,&
+                                 'More than one box has no atoms in it!')
             END IF
             box_number=ibox
             lskip_box=.TRUE.
@@ -298,8 +298,8 @@ CONTAINS
          IF(iw>0) WRITE (iw,'( A,T73,F8.4 )') &
             ' MC| Interaction cutoff [angstroms]',rcut*angstrom
          IF(lterminate) THEN
-            CALL stop_program('mc_run.F/do_mon_car',&
-               'Cutoff larger than twice the boxlength')
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                              'Cutoff larger than twice the boxlength')
          ENDIF
       ENDIF
 

@@ -29,11 +29,8 @@ MODULE qs_harmonics_atom
 
   PRIVATE
 
-  ! *** Global parameters (only in this module)
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harmonics_atom'
 
-! *****************************************************************************
   TYPE harmonics_atom_type
      INTEGER                                :: max_s_harm,llmax, &
                                                max_iso_not0, &
@@ -49,14 +46,10 @@ MODULE qs_harmonics_atom
 
   END TYPE harmonics_atom_type
 
-  ! *** Public subroutines ***
-
   PUBLIC :: allocate_harmonics_atom, &
             create_harmonics_atom, &
             deallocate_harmonics_atom,&
             get_none0_cg_list
-
-  ! *** Public data types ***
 
   PUBLIC :: harmonics_atom_type
 

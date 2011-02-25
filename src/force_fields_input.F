@@ -415,6 +415,9 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
     TYPE(ipbv_pot_type), POINTER             :: ipbv
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_IPBV_ff', &
+      routineP = moduleN//':'//routineN
+
     IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
        ipbv%rcore = 0.9_dp                  ! a.u.
        ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u.
@@ -476,7 +479,7 @@ CPSourceFileRef,&
        ipbv% a ( 14 ) = 88766181532.94E0_dp
        ipbv% a ( 15 ) = -79705131323.98_dp
     ELSE
-       CALL stop_program ("input_nonbonded","IPBV only for WATER")
+       CALL stop_program (routineN,moduleN,__LINE__,"IPBV only for WATER")
     ENDIF
   END SUBROUTINE set_IPBV_ff
 

@@ -125,8 +125,9 @@ CONTAINS
       DEALLOCATE (qs_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qs_energy")
     ELSE
-      CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
-                                 "and cannot be deallocated")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The qs_energy pointer is not associated "//&
+                        "and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_qs_energy
@@ -182,8 +183,9 @@ CONTAINS
       END IF
       qs_energy%ddapc_restraint(:) = 0.0_dp
     ELSE
-      CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
-                                 "and cannot be initialised")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The qs_energy pointer is not associated "//&
+                        "and cannot be initialised")
     END IF
 
   END SUBROUTINE init_qs_energy
@@ -269,7 +271,8 @@ CONTAINS
         END IF
       END IF
     ELSE
-      CALL stop_program(routineP,"The qs_energy pointer is not associated ")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The qs_energy pointer is not associated")
     END IF
 
   END SUBROUTINE copy_qs_energy

@@ -763,9 +763,11 @@ CONTAINS
     IF (pab_required) THEN
        CALL reallocate(pabt,1,maxco,1,maxco,0,nthread)
     ELSE
-       IF (calculate_forces) CALL stop_program("integrate_v_rspace",&
-            "need p for forces")
-    ENDIF
+       IF (calculate_forces) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Need p for forces")
+       END IF
+    END IF
 
     NULLIFY(hdabt,hadbt,hdab,hadb)
 
@@ -948,7 +950,8 @@ CONTAINS
           IF (debug_this_module) THEN
 !$omp critical (block_touched_critical)
             IF ((block_touched(brow,bcol).NE.ithread) .AND. (block_touched(brow,bcol).NE. -1) ) THEN
-              CALL stop_program("Block has been modified by another thread", "Exiting...")
+              CALL stop_program(routineN,moduleN,__LINE__,&
+                                "Block has been modified by another thread")
             END IF
             block_touched(brow,bcol) = ithread
 !$omp end critical (block_touched_critical)
@@ -973,8 +976,10 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=deltap,&
                   row=brow,col=bcol,BLOCK=p_block,found=found)
 
-             IF (.NOT.ASSOCIATED(p_block)) &
-                  CALL stop_program(routineP,"p_block not associated in deltap")
+             IF (.NOT.ASSOCIATED(p_block)) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "p_block not associated in deltap")
+             END IF
           END IF
 
           IF (calculate_forces) THEN

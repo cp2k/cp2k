@@ -22,16 +22,11 @@ MODULE scp_force_types
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_force_types'
 
-! *****************************************************************************
   TYPE scp_force_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_scp, f_scp_disp, f_total
   END TYPE scp_force_type
 
-! *** Public data types ***
-
   PUBLIC :: scp_force_type
-
-! *** Public subroutines ***
 
   PUBLIC :: allocate_scp_force,&
             deallocate_scp_force,&
@@ -105,8 +100,9 @@ CONTAINS
     INTEGER                                  :: ikind, istat, nkind
 
     IF (.NOT.ASSOCIATED(scp_forces)) THEN
-      CALL stop_program(routineP,"The scp_forces pointer is not associated "//&
-                                 "and cannot be deallocated")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The scp_forces pointer is not associated "//&
+                        "and cannot be deallocated")
     END IF
 
     nkind = SIZE(scp_forces)
@@ -157,8 +153,9 @@ CONTAINS
     INTEGER                                  :: ikind
 
     IF (.NOT.ASSOCIATED(scp_forces)) THEN
-      CALL stop_program(routineP,"The scp_forces pointer is not associated "//&
-                                "and cannot be initialized")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The scp_forces pointer is not associated "//&
+                        "and cannot be initialized")
     END IF
 
     DO ikind=1,SIZE(scp_forces)

@@ -45,10 +45,6 @@ MODULE termination
                      stop_deallocate
   END INTERFACE
 
-  INTERFACE stop_program
-    MODULE PROCEDURE stop_program_new,stop_program_old
-  END INTERFACE
-
 CONTAINS
 
 ! *****************************************************************************
@@ -226,7 +222,8 @@ CONTAINS
 !>      moduleN    : Name of the calling module including the calling routine
 !>      line_number: Code line number in the module
 !>      object     : Name of the data object for which the allocation failed
-!>      memory     : Size of the data object in bytes.
+!>      memory     : Size of the data object in bytes. If zero no size is
+!>                   printed.
 !> \par History
 !>      - CP2K by JGH 21.08.2000
 !>      - Revised (16.02.2011,MK)
@@ -304,39 +301,8 @@ CONTAINS
 !>      Translated to Fortran 90 (07.10.99, MK)
 !> \author Matthias Krack (28.08.1996,MK)
 ! *****************************************************************************
-  SUBROUTINE stop_program_old(routine,error_message,para_env)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routine, error_message
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_program_old', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: ionode
-
-    IF (PRESENT(para_env)) THEN
-      ionode = para_env%ionode
-    ELSE
-      ionode = .TRUE.
-    END IF
-
-    ! Print the error message
-
-    IF (ionode) THEN
-      CALL print_message("ERROR in "//TRIM(ADJUSTL(routine)),error_unit,2,2,0)
-      CALL print_message(error_message,error_unit,1,1,1)
-      CALL print_stack(error_unit)
-      CALL m_flush_internal(default_output_unit)
-      CALL m_flush_internal(error_unit)
-      CALL mp_abort()
-    END IF
-
-  END SUBROUTINE stop_program_old
-
-! *****************************************************************************
-  SUBROUTINE stop_program_new(routineN,moduleN,line_number,error_message,&
-                              para_env)
+  SUBROUTINE stop_program(routineN,moduleN,line_number,error_message,&
+                          para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
@@ -370,7 +336,7 @@ CONTAINS
       CALL mp_abort()
     END IF
 
-  END SUBROUTINE stop_program_new
+  END SUBROUTINE stop_program
 
 ! *****************************************************************************
 !> \brief Print an error message and stop the program execution in case of a
@@ -467,4 +433,3 @@ CONTAINS
   END SUBROUTINE stop_write
 
 END MODULE termination
-

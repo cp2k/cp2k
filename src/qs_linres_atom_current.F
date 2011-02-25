@@ -703,7 +703,8 @@ CONTAINS
           gauge_h(1:nr) = HUGE(0e0_dp)!0e0_dp
           gauge_s(1:nr) = HUGE(0e0_dp)!0e0_dp
        CASE DEFAULT
-          CALL stop_program(routineP,"Unknown gauge, try again...")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Unknown gauge, try again...")
        END SELECT
        !
        !

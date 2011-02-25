@@ -86,6 +86,9 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'ch_inv_pdher', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER                                :: diag = "N", uplo
     INTEGER                                  :: info, lda
 
@@ -98,18 +101,19 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
        storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
-     CALL stop_program ( "ch_inv_pdher", "unknown form of storage" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
   END IF
 
   lda = SIZE ( matrix, 1 )
 
   CALL lapack_cpotrf ( uplo, mysize, matrix, lda, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "ch_inv_pdher", "error in Cholesky factorisation" )
+     CALL stop_program(routineN,moduleN,__LINE__,&
+                       "Error in Cholesky factorisation" )
   END IF
   CALL lapack_ctrtri ( uplo, diag, mysize, matrix, lda, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "ch_inv_pdher", "error in inversion" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in inversion")
   END IF
 
 END SUBROUTINE ch_inv_pdher
@@ -121,6 +125,9 @@ SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
     INTEGER, INTENT(IN)                      :: mysize
     REAL(KIND=dp), INTENT(INOUT)             :: eigenvectors( :, : )
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'solve_system', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: info, lda, ldb, nrhs, &
                                                 ipiv( mysize )
 
@@ -131,7 +138,7 @@ SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
   CALL lapack_sgesv ( mysize, nrhs, matrix, lda, ipiv, &
                       eigenvectors, ldb, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program ( "solve_system", "error in inversion" )
+     CALL stop_program(routineN,moduleN,__LINE__,"Error in inversion")
   END IF
 
 END SUBROUTINE solve_system

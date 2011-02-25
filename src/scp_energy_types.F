@@ -67,8 +67,9 @@ CONTAINS
       DEALLOCATE (scp_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"scp_energy")
     ELSE
-      CALL stop_program(routineP,"The scp_energy pointer is not associated "//&
-                                "and cannot be deallocated")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The scp_energy pointer is not associated "//&
+                        "and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_scp_energy
@@ -92,8 +93,9 @@ CONTAINS
       scp_energy % e_scp_total = 0._dp
       scp_energy % e_scp_disp = 0._dp
     ELSE
-      CALL stop_program(routineP,"The scp_energy pointer is not associated "//&
-                                "and cannot be initialised")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The scp_energy pointer is not associated "//&
+                        "and cannot be initialised")
     END IF
 
   END SUBROUTINE init_scp_energy

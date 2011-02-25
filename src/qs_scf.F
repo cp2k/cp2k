@@ -944,9 +944,8 @@ CONTAINS
     !if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
     DO ispin=1,SIZE(mos)!fm -> dbcsr
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
-          IF(.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &!fm->dbcsr
-               CALL stop_program(routineN, "mo_coeff_b is not allocated")!fm->dbcsr
-          !write(*,*) routinen//' copy_dbcsr_to_fm',__LINE__
+          IF (.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &!fm->dbcsr
+             CALL stop_program(routineN,moduleN,__LINE__,"mo_coeff_b is not allocated")!fm->dbcsr
           CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &!fm->dbcsr
                mos(ispin)%mo_set%mo_coeff,error=error)!fm -> dbcsr
        ENDIF!fm->dbcsr

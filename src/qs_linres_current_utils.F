@@ -670,15 +670,16 @@ CONTAINS
                        uniform_occupation=uniform_occupation)
        !
        ! check that homo=nmo
-       IF(nmo.NE.homo) CALL stop_program("current_env_init","nmo != homo.")
+       IF (nmo.NE.homo) CALL stop_program(routineN,moduleN,__LINE__,"nmo != homo")
        !
        ! check that the nbr of localized states is equal to the nbr of states
        nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
-       IF(nmoloc.NE.nmo) CALL stop_program("current_env_init","The nbr of localized functions"//&
-            &                              " is not equal to the nbr of states.")
+       IF (nmoloc.NE.nmo) CALL stop_program(routineN,moduleN,__LINE__,&
+                                            "The nbr of localized functions "//&
+            &                               "is not equal to the nbr of states.")
        !
        ! check that the occupation is uniform
-       IF(.NOT.uniform_occupation) CALL stop_program("current_env_init","nmo != homo.")
+       IF (.NOT.uniform_occupation) CALL stop_program(routineN,moduleN,__LINE__,"nmo != homo")
     ENDDO
     !
     !
@@ -716,7 +717,7 @@ CONTAINS
     CASE(current_gauge_atom)
        current_env%gauge_name="ATOM"
     CASE DEFAULT
-       CALL stop_program("current_env_init","unknown gauge, try again...")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown gauge, try again...")
     END SELECT
     !
     ! maximal radius to build the atom gauge
@@ -758,12 +759,12 @@ CONTAINS
        ! Is there a user specified nbox?
        CALL section_vals_val_get(current_section,"NBOX",i_vals=nbox,error=error)
     CASE DEFAULT
-       CALL stop_program("current_env_init","unknown orbital center, try again...")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown orbital center, try again...")
     END SELECT
     !
     ! Check if restat also psi0 should be restarted
     !IF(current_env%restart_current .AND. scf_control%density_guess/=restart_guess)THEN
-    !   CALL stop_program("current_env_init","restart_nmr requires density_guess=restart")
+    !   CALL stop_program(routineN,moduleN,__LINE__,"restart_nmr requires density_guess=restart")
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
@@ -818,7 +819,8 @@ CONTAINS
     !
     ! for the moment selected states doesnt work with the preconditioner FULL_ALL
     IF(linres_control%preconditioner_type.EQ.ot_precond_full_all.AND.current_env%do_selected_states) &
-         CALL stop_program("current_env_init","selected states doesnt work with the preconditioner FULL_ALL")
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Selected states doesnt work with the preconditioner FULL_ALL")
     !
     !
     NULLIFY(current_env%selected_states_on_atom_list)
@@ -1025,7 +1027,8 @@ CONTAINS
           DEALLOCATE(buff,rbuff,STAT=istat)
           CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
        CASE DEFAULT
-          CALL stop_program("current_env_init","unknown orbital center, try again...")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Unknown orbital center, try again...")
        END SELECT
     ENDDO
     !

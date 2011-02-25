@@ -485,8 +485,9 @@ CONTAINS
     IF (output_unit>0) THEN
 
        IF (.NOT.ASSOCIATED(qs_force)) THEN
-          CALL stop_program(routineP,"The qs_force pointer is not associated "//&
-                                    "and cannot be printed")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "The qs_force pointer is not associated "//&
+                            "and cannot be printed")
        END IF
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&

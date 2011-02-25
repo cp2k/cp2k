@@ -318,7 +318,7 @@ CONTAINS
     ! compute the P^(-1/2)
     DO i = 1,k
        IF(eig(i).LE.0.0_dp) &
-            & CALL stop_program(routineN,"P not positive definite")
+            & CALL stop_program(routineN,moduleN,__LINE__,"P not positive definite")
        IF(eig(i).LT.1.0E-8_dp) THEN
           fun(i)=0.0_dp
        ELSE
@@ -448,11 +448,12 @@ CONTAINS
             & routineN,irefine,': ||P-I||=',norm
        !
        ! blows up
-       IF(norm.GT.1.0E10_dp) THEN
-          CALL stop_program(routineN,"... refinement blows up! "//&
-               & "... we need you to improve the code, please post your input on "//&
-               & "the forum http://cp2k.berlios.de/")
-       ENDIF
+       IF (norm > 1.0E10_dp) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Refinement blows up! "//&
+                            "We need you to improve the code, please post your input on "//&
+                            "the forum http://cp2k.berlios.de/")
+       END IF
        !
        ! can we do a quick exit next step?
        IF(norm.LT.qs_ot_env%settings%eps_irac_quick_exit) quick_exit = .TRUE.
@@ -490,6 +491,9 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env1
     LOGICAL                                  :: update
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_update', &
+      routineP = moduleN//':'//routineN
+
     update = .FALSE.
     SELECT CASE(qs_ot_env1%settings%ot_method)
     CASE("CG")
@@ -497,12 +501,12 @@ CONTAINS
        CASE("2PNT")
           IF(qs_ot_env1%line_search_count.EQ.2) update = .TRUE.
        CASE DEFAULT
-          CALL stop_program("qs_ot_ref_update","NYI")
+          CALL stop_program(routineN,moduleN,__LINE__,"NYI")
        END SELECT
     CASE("DIIS")
        update = .TRUE.
     CASE DEFAULT
-       CALL stop_program("qs_ot_ref_update","NYI")
+       CALL stop_program(routineN,moduleN,__LINE__,"NYI")
     END SELECT
   END FUNCTION qs_ot_ref_update
 
@@ -611,7 +615,7 @@ CONTAINS
     CASE("POLY")
        CALL qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
     CASE DEFAULT
-       CALL stop_program(routineN,"Wrong argument")
+       CALL stop_program(routineN,moduleN,__LINE__,"Wrong argument")
     END SELECT
     !
     ! We update the C_i+1 and localization
@@ -712,7 +716,7 @@ CONTAINS
        r =  315.0_dp/128.0_dp
        CALL cp_dbcsr_add_on_diag(FY, alpha_scalar=r, error=error)                ! Y=Y+315/128*I
     CASE DEFAULT
-       CALL stop_program(routineN,"this irac_order NYI")
+       CALL stop_program(routineN,moduleN,__LINE__,"This irac_order NYI")
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE qs_ot_refine
@@ -1635,14 +1639,17 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: xa, ya
     REAL(KIND=dp)                            :: qs_ot_sincf
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_sincf', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: a, b, rs, sf, x, xs, y, ybx, &
                                                 ybxs
 
 ! this is currently a limit of the routine, could be removed rather easily
 
-    IF (xa.lt.0) CALL stop_program("qs_ot_sincf","x is negative")
-    IF (ya.lt.0) CALL stop_program("qs_ot_sincf","y is negative")
+    IF (xa.lt.0) CALL stop_program(routineN,moduleN,__LINE__,"x is negative")
+    IF (ya.lt.0) CALL stop_program(routineN,moduleN,__LINE__,"y is negative")
 
     IF (xa.lt.ya) THEN
        x=ya

@@ -769,11 +769,11 @@ CONTAINS
               cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))),handle)
 
     IF ( rs % desc % grid_id /= pw % pw_grid % id_nr ) &
-       CALL stop_program ( "rs_pw_transfer", "different rs and pw indentitfiers")
+       CALL stop_program(routineN,moduleN,__LINE__,"Different rs and pw indentitfiers")
     IF ( (pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
-       CALL stop_program ( "rs_pw_transfer", "Need REALDATA3D or COMPLEXDATA3D" )
+       CALL stop_program(routineN,moduleN,__LINE__,"Need REALDATA3D or COMPLEXDATA3D")
     IF ( (dir.NE.rs2pw) .AND. (dir.NE.pw2rs) ) &
-       CALL stop_program ( "rs_pw_transfer", "direction must be rs2pw or pw2rs")
+       CALL stop_program(routineN,moduleN,__LINE__,"Direction must be rs2pw or pw2rs")
 
     IF (  rs % desc % parallel ) THEN
        IF ( .NOT. rs % desc % distributed ) THEN
@@ -789,7 +789,7 @@ CONTAINS
           ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
              CALL copy_rc ( nn, rs % r, pw % cc3d )
           ELSE
-             CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
+             CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
           END IF
        ELSE
           IF ( pw % in_use == REALDATA3D ) THEN
@@ -797,7 +797,7 @@ CONTAINS
           ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
              CALL copy_cr ( nn, pw % cc3d, rs % r )
           ELSE
-             CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
+             CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
           END IF
        END IF
     END IF
@@ -888,7 +888,7 @@ CONTAINS
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
           CALL copy_rc ( nn, sendbuf, pw % cc3d )
        ELSE
-          CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
+          CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
        END IF
     ELSE
        nn = rcount ( mepos )
@@ -897,7 +897,7 @@ CONTAINS
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
           CALL dcopy ( nn, pw % cc3d, 2, sendbuf, 1 )
        ELSE
-          CALL stop_program ( "rs_pw_transfer", "PW type not compatible" )
+          CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
        END IF
 
        dest  =MODULO(mepos+1,np)
@@ -1484,8 +1484,9 @@ CONTAINS
           IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
              WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", &
                   rs % desc %  npts, rs % desc % group_dim, pw_sum,rs_sum,ABS(pw_sum-rs_sum)
-             CALL stop_program(error_string, &
-                  "Please report this bug... quick workaround: use DISTRIBUTION_TYPE REPLICATED")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               error_string//" Please report this bug ... quick workaround: use "//&
+                               "DISTRIBUTION_TYPE REPLICATED")
           ENDIF
        ENDIF
 

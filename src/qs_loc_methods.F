@@ -232,7 +232,8 @@ CONTAINS
             eps_localization=eps_localization, iterations=sweeps,  out_each=out_each, error=error  )
     CASE( do_loc_l1_norm_sd )
        IF(.NOT. cell%orthorhombic ) THEN
-           CALL stop_program("qs_localization","non-orthorhombic cell with the selected method NYI")
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                             "Non-orthorhombic cell with the selected method NYI")
        ELSE
        CALL approx_l1_norm_sd(vectors,max_iter,eps_localization,converged,sweeps,error=error)
        ! here we need to set zij for the computation of the centers and spreads
@@ -250,7 +251,7 @@ CONTAINS
           WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
        ENDIF
     CASE DEFAULT
-       CALL stop_program("qs_localization","unknown localization method")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown localization method")
     END SELECT
     IF (output_unit>0) THEN
        IF(sweeps<=max_iter) WRITE(output_unit,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
@@ -371,7 +372,7 @@ CONTAINS
     CASE ( do_loc_none )
        IF (output_unit>0) WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
     CASE DEFAULT
-       CALL stop_program("qs_localization","unknown localization method")
+       CALL stop_program(routineN,moduleN,__LINE__,"Unknown localization method")
     END SELECT
 
     IF (output_unit>0) WRITE(output_unit,'(A,I3,A,I6,A)') " Localization  for spin ",ispin ,&

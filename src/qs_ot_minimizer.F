@@ -104,7 +104,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
                    &  qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx, &
                    &  qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
            CASE DEFAULT
-              CALL stop_program("ot_mini","ALGORITHM NYI")
+              CALL stop_program(routineN,moduleN,__LINE__,"ALGORITHM NYI")
            END SELECT
         END IF
         ! and also the gradient along the direction
@@ -208,7 +208,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
            qs_ot_env(1)%OT_METHOD_FULL="OT BROY"
            CALL ot_broyden_step(qs_ot_env,error=error)
    CASE DEFAULT
-           CALL stop_program("ot_mini","OT_METHOD NYI")
+           CALL stop_program(routineN,moduleN,__LINE__,"OT_METHOD NYI")
    END SELECT
 
    CALL timestop(handle)
@@ -253,6 +253,9 @@ SUBROUTINE do_line_search(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search', &
+      routineP = moduleN//':'//routineN
+
    SELECT CASE(qs_ot_env(1)%settings%line_search_method)
    CASE("GOLD")
        CALL do_line_search_gold(qs_ot_env,error=error)
@@ -263,7 +266,7 @@ SUBROUTINE do_line_search(qs_ot_env,error)
    CASE("NONE")
        CALL do_line_search_none(qs_ot_env,error=error)
    CASE DEFAULT
-       CALL stop_program("do_line_search","NYI")
+       CALL stop_program(routineN,moduleN,__LINE__,"NYI")
    END SELECT
 END SUBROUTINE do_line_search
 
@@ -353,6 +356,8 @@ SUBROUTINE do_line_search_gold(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_gold', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp
 
     INTEGER                                  :: count
@@ -368,7 +373,7 @@ SUBROUTINE do_line_search_gold(qs_ot_env,error)
    IF (count+1 .GT. SIZE(qs_ot_env(1)%OT_pos)) THEN
       ! should not happen, we pass with a warning first
       ! you can increase the size of OT_pos and the like in qs_ot_env
-      CALL stop_program("OT LS","MAX ITER EXCEEDED : FATAL")
+      CALL stop_program(routineN,moduleN,__LINE__,"MAX ITER EXCEEDED : FATAL")
    ENDIF
 
    IF (qs_ot_env(1)%line_search_count .EQ. 1) THEN
@@ -451,6 +456,9 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_3pnt', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: count
     REAL(KIND=dp)                            :: denom, ds, fa, fb, fc, nom, &
                                                 pos, val, xa, xb, xc
@@ -499,7 +507,7 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
          qs_ot_env(1)%energy_only=.FALSE.
          qs_ot_env(1)%line_search_might_be_done=.TRUE.
    CASE DEFAULT
-         CALL stop_program("line_search","NYI")
+         CALL stop_program(routineN,moduleN,__LINE__,"NYI")
    END SELECT
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
@@ -513,6 +521,9 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_2pnt', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: count
     REAL(KIND=dp)                            :: a, b, c, ds, pos, val, x0, x1
@@ -549,7 +560,7 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
              qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:2))*2.0_dp
          ENDIF
    CASE DEFAULT
-      CALL stop_program("line_search","NYI")
+      CALL stop_program(routineN,moduleN,__LINE__,"NYI")
    END SELECT
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
@@ -597,7 +608,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
    IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
-       IF (.NOT. qs_ot_env(1)%use_dx) CALL stop_program("OT SD","use dx ")
+       IF (.NOT. qs_ot_env(1)%use_dx) CALL stop_program(routineN,moduleN,__LINE__,"use dx")
        qs_ot_env(1)%gnorm=0.0_dp
        IF ( do_ks ) THEN
          DO ispin=1,nspin
@@ -1254,7 +1265,7 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
 
    CALL DGESV(diis_bound+1, 1, qs_ot_env(1)%lss_diis,diis_m+1,qs_ot_env(1)%ipivot,&
                  qs_ot_env(1)%c_diis, diis_m+1, info)
-   IF (info.ne.0) CALL stop_program("ot diis","singular diis matrix")
+   IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Singular DIIS matrix")
 
    IF ( do_ks ) THEN
      DO ispin=1,nspin
@@ -1480,7 +1491,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
     ! simplify our life....
     IF (do_ener .OR. do_scp_nddo .OR. do_scp_dft .OR. .NOT. do_ks .OR. &
         qs_ot_env(1)%settings%do_rotation) THEN
-        CALL stop_program(routineN,"Not Implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented")
     ENDIF
     ! 
     nspin=SIZE(qs_ot_env)

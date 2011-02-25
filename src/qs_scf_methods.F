@@ -189,7 +189,7 @@ CONTAINS
 
     IF (do_level_shift) THEN
        IF (cholesky_method>cholesky_off) THEN
-          CALL stop_program("eigensolver","level shift not implemented")
+          CALL stop_program(routineN,moduleN,__LINE__,"Level shift not implemented")
        ENDIF
     ENDIF
 

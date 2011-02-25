@@ -1029,7 +1029,8 @@ CONTAINS
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
-               CALL stop_program(routineP,"p_block not associated in deltap")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "p_block not associated in deltap")
 
           iatom_old = iatom
           jatom_old = jatom
@@ -1494,7 +1495,8 @@ CONTAINS
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
-               CALL stop_program(routineP,"p_block not associated in deltap")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "p_block not associated in deltap")
 
           iatom_old = iatom
           jatom_old = jatom
@@ -1696,8 +1698,9 @@ CONTAINS
          sphi_a, zeta, first_sgfa,&
          rs_rho,rs_descs,pw_pools,mgrid_rspace,mgrid_gspace)
 
-    ALLOCATE(eigenvector(nao), stat=stat)
-    IF (stat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
+    ALLOCATE (eigenvector(nao),STAT=stat)
+    IF (stat.NE.0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "eigenvector",dp_size*nao)
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -1712,8 +1715,9 @@ CONTAINS
                 in_space = REALSPACE, error=error)
 
     ! *** set up rs multi-grids
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels), stat=stat)
-    IF (stat.NE.0) CALL stop_program(routineP,"rs_rho")
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "rs_rho",int_size*gridlevel_info%ngrid_levels)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)

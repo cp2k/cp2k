@@ -504,7 +504,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       SELECT CASE (flag)
       CASE DEFAULT
          WRITE(6,*) 'flag =',flag
-         CALL stop_program( "mc_move_update","Wrong option passed")
+         CALL stop_program(routineN,moduleN,__LINE__,"Wrong option passed")
       CASE ("trans")
 
 ! we need to update all the displacements for every molecule type

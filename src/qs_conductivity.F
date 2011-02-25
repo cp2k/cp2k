@@ -65,13 +65,14 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
     TYPE(cp_fm_type), POINTER                :: buf, matrix_elements
 
 ! bands can be used to split the spectrum divinding the occupied evals in nbands
-! CALL stop_program("optical_conductivity","NYI")
+! CALL stop_program(routineN,moduleN,__LINE__,"NYI")
 ! very much *not* tested and most likely to be wrong
 ! the core is present
 
    CALL timeset(routineN,handle)
 
-   IF (SIZE(matrix_s).lt.4) CALL stop_program("optical_conductivity","where is the derivative ?")
+   IF (SIZE(matrix_s).lt.4) CALL stop_program(routineN,moduleN,__LINE__,&
+                                              "Where is the derivative?")
 
    NULLIFY(buf,me_struct,template,RESULT,row_indices,col_indices)
    ALLOCATE(RESULT(0:npoints-1,nbands))

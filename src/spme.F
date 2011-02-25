@@ -392,7 +392,8 @@ CONTAINS
     use_charge_array=PRESENT(charges)
     IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
     IF(is_core .AND. is_shell) THEN
-       CALL stop_program(TRIM(routineP),"shell-model: cannot be core and shell simultaneously" )
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Shell-model: cannot be core and shell simultaneously")
     END IF
 
     nbox = SIZE ( rhos, 1 )
@@ -443,7 +444,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 1:nmax)      :: f_assign
 
     IF ( n > nmax ) THEN
-       CALL stop_program ( "spme_get_patch","nmax value too small" )
+       CALL stop_program(routineN,moduleN,__LINE__,"nmax value too small")
     END IF
     ! calculate the assignment function values and
     ! the charges on the grid (small box)

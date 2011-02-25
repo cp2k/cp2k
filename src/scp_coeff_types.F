@@ -138,7 +138,7 @@ CONTAINS
           END IF
        ELSE
           aux_coeff_set%distribution_method=aux_coeff_replicated
-          CALL stop_program ('aux_coeff_set_create','replicated coefs NYI')
+          CALL stop_program(routineN,moduleN,__LINE__,'Replicated coeffs NYI')
        END IF
     END IF
 

@@ -577,7 +577,7 @@ CONTAINS
                                                 oca, ocb, oda, odb, r3a, r3b, &
                                                 ra, rb, xa, xb
 
-!FM IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_0","Routine not tested")
+!FM IF ( .NOT. debug_flag ) CALL stop_program(routineN,moduleN,__LINE__,"Routine not tested")
 
     CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
          "not tested!"//&

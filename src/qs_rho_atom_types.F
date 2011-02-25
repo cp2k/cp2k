@@ -16,18 +16,12 @@ MODULE qs_rho_atom_types
 
   PRIVATE
 
-! *** Global parameters (only in this module)
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_types'
 
-! *** Define the rho_atom_type ***
-
-! *****************************************************************************
   TYPE rho_atom_coeff
     REAL(dp), DIMENSION(:,:), POINTER :: r_coef
   END TYPE rho_atom_coeff
 
-! *****************************************************************************
   TYPE rho_atom_type
     TYPE(rho_atom_coeff), DIMENSION(:),&
                                POINTER  :: cpc_h, cpc_s
@@ -54,18 +48,13 @@ MODULE qs_rho_atom_types
                                            ga_Vlocal_gb_s
   END TYPE rho_atom_type
 
-! *****************************************************************************
   TYPE rho_atom_p_type
      TYPE(rho_atom_type), POINTER       :: rho_atom
   END TYPE rho_atom_p_type 
 
-! *** Public subroutines ***
-
   PUBLIC :: allocate_rho_atom_set,&
             deallocate_rho_atom_set,&
             get_rho_atom
-
-! *** Public data types ***
 
   PUBLIC :: rho_atom_coeff,rho_atom_p_type,rho_atom_type
 

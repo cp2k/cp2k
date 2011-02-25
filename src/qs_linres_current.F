@@ -532,7 +532,7 @@ CONTAINS
                 ! Add the local hard and soft contributions
                 ! This can be done atom by atom by a spline extrapolation of the  values
                 ! on the spherical grid to the grid points.
-                CALL stop_program(routineP,"GAPW needs to be finalized") 
+                CALL stop_program(routineN,moduleN,__LINE__,"GAPW needs to be finalized")
              ENDIF
              filename="jresp"
              WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",iB,"_d",idir,".cube"
@@ -1018,7 +1018,7 @@ CONTAINS
           WRITE(*,*) 'UBOUND(my_rho,3),UBOUND(my_current,3)',UBOUND(my_rho,3),UBOUND(my_current,3)
           WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_current,2)',UBOUND(my_rho,2),UBOUND(my_current,2)
           WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_current,1)',UBOUND(my_rho,1),UBOUND(my_current,1)
-          CALL stop_program(routineP,"bug")
+          CALL stop_program(routineN,moduleN,__LINE__,"Bug")
        ENDIF
 
        IF(do_igaim) THEN
@@ -1035,7 +1035,7 @@ CONTAINS
              WRITE(*,*) 'UBOUND(my_rho,3),UbOUND(my_gauge,3)',UBOUND(my_rho,3),UBOUND(my_gauge,3)
              WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_gauge,2)',UBOUND(my_rho,2),UBOUND(my_gauge,2)
              WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_gauge,1)',UBOUND(my_rho,1),UBOUND(my_gauge,1)
-             CALL stop_program(routineP,"bug")
+             CALL stop_program(routineN,moduleN,__LINE__,"Bug")
           ENDIF
        ENDIF
     ENDDO
@@ -1129,7 +1129,8 @@ CONTAINS
                block=jp_block_d,found=den_found)
 
           IF (.NOT.ASSOCIATED(jp_block_a)) &
-               CALL stop_program(routineP,"p_block not associated in deltap")
+               CALL stop_program(routineN,moduleN,__LINE__,&
+                                 "p_block not associated in deltap")
 
           iatom_old = iatom
           jatom_old = jatom

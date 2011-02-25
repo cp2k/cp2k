@@ -177,25 +177,27 @@ CONTAINS
        epsiter=EPSILON(epsiter)*(1.0E-12_dp / 2.22044604925031E-16_dp)
     ENDIF
 
-    !   *** Initialize function value ***
+    ! Initialize function value
 
     radius = 0.0_dp
 
-    !   *** Load and check parameter values ***
+    ! Load and check parameter values
 
     IF (l < 0) THEN
-       CALL stop_program(routineP,"The angular momentum quantum number is "//&
-            "negative")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The angular momentum quantum number is negative")
     END IF
 
     IF (alpha == 0.0_dp) THEN
-       CALL stop_program(routineP,"The Gaussian function exponent is zero")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The Gaussian function exponent is zero")
     ELSE
        a = ABS(alpha)
     END IF
 
     IF (threshold == 0.0_dp) THEN
-       CALL stop_program(routineP,"The requested threshold is zero")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "The requested threshold is zero")
     ELSE
        t = ABS(threshold)
     END IF
@@ -206,7 +208,7 @@ CONTAINS
        d = ABS(prefactor)
     END IF
 
-    !   *** Calculate the Maximum g(r) ***
+    ! Calculate the Maximum g(r)
     r = SQRT(0.5_dp*REAL(l,dp)/a)
     ar2 = a*r*r
 
@@ -225,7 +227,10 @@ CONTAINS
     iter=0
     DO 
        iter=iter+1
-       IF (iter.gt.maxiter) CALL stop_program(routineP,"Maximum number of iterations exceeded")
+       IF (iter.gt.maxiter) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Maximum number of iterations exceeded")
+       END IF
        g = d*rhigh**l*EXP(-a*rhigh**2)
        IF (g < t) EXIT
        rlow = rhigh
@@ -246,7 +251,8 @@ CONTAINS
           RETURN
        ENDIF
     ENDDO
-    CALL stop_program(routineP,"Maximum number of iterations exceeded")
+    CALL stop_program(routineN,moduleN,__LINE__,&
+                      "Maximum number of iterations exceeded")
 
   END FUNCTION exp_radius
 
@@ -634,11 +640,16 @@ CONTAINS
     REAL(dp)                                 :: mat(ld_mat,sd_mat,n)
     INTEGER                                  :: lmax1, lmax2
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sph2cart_mat', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: idx_l1, idx_l2
     REAL(dp) :: mat_aux(ncoset(lmax1),nsoset(lmax2),n)
 
-    IF (lmax1>3.or.lmax2>3) CALL stop_program('sph2cart_mat',moduleN,__LINE__,&
-         'l>3 not implemented')
+    IF (lmax1>3.or.lmax2>3) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "l>3 not implemented")
+    END IF
     DO idx_l2=1,nsoset(lmax2)
 
        mat_aux(1,idx_l2,:)&
@@ -805,12 +816,15 @@ CONTAINS
     REAL(dp)                                 :: mat(ld_mat,sd_mat,n)
     INTEGER                                  :: lmax1, lmax2
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cart2sph_mat', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: idx_l2, idx_lm1
     REAL(dp) :: mat_aux(nsoset(lmax1),ncoset(lmax2),n)
 
     IF ((lmax1 > 3).OR.(lmax2 > 3)) THEN
-       CALL stop_program("SUBROUTINE cart2sph_mat",moduleN,__LINE__,&
-            "l > 3 not implemented")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "l > 3 not implemented")
     END IF
 
     DO idx_l2=1,ncoset(lmax2)

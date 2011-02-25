@@ -65,7 +65,7 @@ CONTAINS
     failure = .FALSE.
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
-       CALL stop_program(routineN,'Never reach this point!')
+       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
     CASE ( npt_i_ensemble, npt_f_ensemble )
        map_info => csvr%map_info
        map_info%dis_type = do_thermo_only_master

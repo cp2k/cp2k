@@ -1601,7 +1601,7 @@ CONTAINS
        ELSE
           IF (.NOT.( BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                error=error),cp_p_file) )) &
-               CALL stop_program("optical_conductivity","Needs MO_CUBES to be activated")
+               CALL stop_program(routineN,moduleN,__LINE__,"Needs MO_CUBES to be activated")
           filename="CONDUCTIVITY"
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
                extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)

@@ -138,19 +138,19 @@ CONTAINS
 
 
     CALL get_qs_env(qs_env=qs_env,&
-         &          atomic_kind_set=atomic_kind_set,&
-         &          cell=cell,&
-         &          dft_control=dft_control,&
-         &          linres_control=linres_control,&
-         &          mos=mos,&
-         &          mpools=mpools,&
-         &          particle_set=particle_set,&
-         &          pw_env=pw_env,&
-         &          scf_control=scf_control,error=error)
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    linres_control=linres_control,&
+                    mos=mos,&
+                    mpools=mpools,&
+                    particle_set=particle_set,&
+                    pw_env=pw_env,&
+                    scf_control=scf_control,error=error)
     !
     ! Check if restat also psi0 should be restarted
     !IF(epr_env%restart_epr .AND. scf_control%density_guess/=restart_guess)THEN
-    !   CALL stop_program("epr_env_init","restart_epr requires density_guess=restart")
+    !   CALL stop_program(routineN,moduleN,__LINE__,"restart_epr requires density_guess=restart")
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers

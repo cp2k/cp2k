@@ -231,7 +231,7 @@ CONTAINS
 
     nkind=SIZE(atomic_kind_set)
     IF(aux_coeff_set%distribution_method/=aux_coeff_distributed) THEN
-      CALL stop_program ( 'collocate_scp_density','replicated coefs not yet implemented')
+      CALL stop_program(routineN,moduleN,__LINE__,'Replicated coeffs not yet implemented')
     END IF
 
     ! Allocate work storage

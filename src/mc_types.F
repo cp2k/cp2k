@@ -895,7 +895,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program('mc_types.F/mc_input_file_create',&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
     ENDIF
 
@@ -910,7 +910,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program('mc_types.F/mc_input_file_create',&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             'Could not find &END after &COORD (make sure & is the first in the same column after &COORD)')
     ENDIF
 
@@ -923,7 +923,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program('mc_types.F/mc_input_file_create',&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             'Could not find RUN_TYPE in the input file (should be in the &GLOBAL section).')
     ENDIF
 
@@ -950,7 +950,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program('mc_types.F/mc_input_file_create',&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             'Could not find &CELL section in the input file.  Or could not find the ABC line after it.')
     ENDIF
 
@@ -976,7 +976,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*) 'Number of molecule types ',nmol_types
           WRITE(iw,*) '&MOLECULE sections found ',irep
        END IF
-       CALL stop_program('mc_types.F/mc_input_file_create',&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
     ENDIF
 
@@ -992,8 +992,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CASE("QS","QUICKSTEP")
        mc_input_file%in_use=use_qs_force
     CASE default
-       CALL stop_program('mc_types.F/mc_input_file_create',&
-         'Cannot determine the type of force_env we are using (check METHOD)')
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'Cannot determine the type of force_env we are using (check METHOD)')
     END SELECT
 
   END SUBROUTINE mc_input_file_create

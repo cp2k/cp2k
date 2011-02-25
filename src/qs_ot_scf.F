@@ -323,11 +323,11 @@ CONTAINS
           CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),error=error)
        CASE("REF")
           CALL qs_ot_get_orbitals_ref(mo_coeff,matrix_s,qs_ot_env(ispin)%matrix_x,&
-               &           qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin)%matrix_gx_old,&
-               &           qs_ot_env(ispin)%matrix_dx,qs_ot_env(ispin),qs_ot_env(1),&
-               &           error=error)
+                           qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin)%matrix_gx_old,&
+                           qs_ot_env(ispin)%matrix_dx,qs_ot_env(ispin),qs_ot_env(1),&
+                           error=error)
        CASE DEFAULT
-          CALL stop_program("ot_scf_mini","ALGORITHM NYI")
+          CALL stop_program(routineN,moduleN,__LINE__,"Algorithm not yet implemented")
        END SELECT
     ENDDO
 
@@ -415,7 +415,7 @@ CONTAINS
 
     DO ispin=1,SIZE(mo_array)
        IF(.NOT.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
-          CALL stop_program(routinen,'shouldnt get there')
+          CALL stop_program(routineN,moduleN,__LINE__,"Shouldn't get there")
           ! we do ot then copy fm to dbcsr
           ! allocate that somewhere else ! fm -> dbcsr
           CALL cp_create_bl_distribution (col_dist, col_blk_size, mo_array(ispin)%mo_set%nmo, &
@@ -498,7 +498,7 @@ CONTAINS
           CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_c0,error=error)
           CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin)%matrix_sc0,error=error)
        CASE DEFAULT
-          CALL stop_program("ot_scf_init","ALGORITHM NYI")
+          CALL stop_program(routineN,moduleN,__LINE__,"Algorithm not yet implemented")
        END SELECT
 !!!  CAN WE REPLACE WITH THE CALL TO QS_OT_GET_SCP_*_DERIVATIVE???????
        ! **** SCP

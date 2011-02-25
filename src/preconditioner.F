@@ -254,7 +254,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE (ot_precond_s_inverse)
      preconditioner_env%in_use=ot_precond_s_inverse
      !IF(my_solver_type.NE.ot_precond_solver_default) THEN
-     !   CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     !   CALL stop_program(routineN,moduleN,__LINE__,"Only PRECOND_SOLVER DEFAULT for the moment")
      !ENDIF
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
      IF ( PRESENT(matrix_s) ) THEN

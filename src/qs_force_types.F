@@ -23,7 +23,6 @@ MODULE qs_force_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'
   PRIVATE
 
-! *****************************************************************************
   TYPE qs_force_type
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: all_potential,&
                                          core_overlap,&
@@ -48,11 +47,7 @@ MODULE qs_force_types
                                          total
   END TYPE qs_force_type
 
-! *** Public data types ***
-
   PUBLIC :: qs_force_type
-
-! *** Public subroutines ***
 
   PUBLIC :: allocate_qs_force,&
             deallocate_qs_force,&
@@ -397,8 +392,9 @@ CONTAINS
     INTEGER                                  :: ikind
 
     IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routineP,"The qs_force pointer is not associated "//&
-                                "and cannot be initialized")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The qs_force pointer is not associated "//&
+                        "and cannot be initialized")
     END IF
 
     DO ikind=1,SIZE(qs_force)
@@ -457,8 +453,9 @@ CONTAINS
     failure = .FALSE.
 
     IF (.NOT.ASSOCIATED(qs_force_input)) THEN
-      CALL stop_program(routineP,"The qs_force_input pointer is not associated "//&
-                                "and cannot be initialized")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "The qs_force_input pointer is not associated "//&
+                        "and cannot be initialized")
     END IF
 
     IF (.NOT. failure) THEN

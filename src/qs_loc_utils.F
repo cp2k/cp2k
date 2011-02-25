@@ -548,8 +548,9 @@ CONTAINS
                    occ_imo = occupations(imo)
                    IF(ABS(occ_imo-my_occ) > localized_wfn_control% eps_occ) THEN
                       IF(localized_wfn_control%localization_method /= do_loc_none) &
-                           CALL stop_program(routineP,"States with different occupations"//&
-                           " cannot be rotated together")
+                           CALL stop_program(routineN,moduleN,__LINE__,&
+                                             "States with different occupations "//&
+                                             "cannot be rotated together")
                    END IF
                 END IF
                 ! Take the imo vector from the full set and copy in the imoloc vector of the subset
@@ -565,8 +566,9 @@ CONTAINS
              occ_imo = occupations( ub )
              IF(ABS(occ_imo-my_occ) >  localized_wfn_control% eps_occ) THEN
                 IF(localized_wfn_control%localization_method /= do_loc_none) &
-                     CALL stop_program(routineP,"States with different occupations"//&
-                     " cannot be rotated together")
+                     CALL stop_program(routineN,moduleN,__LINE__,&
+                                       "States with different occupations "//&
+                                       "cannot be rotated together")
              END IF
              nmosub = localized_wfn_control%nloc_states(ispin)
              CALL cp_fm_to_fm(mat_ptr,moloc_coeff(ispin)%matrix,nmosub,lb,1)
@@ -633,7 +635,8 @@ CONTAINS
              END DO  ! iatom
           END DO  ! ispin
        ELSE
-          CALL stop_program(routineP,"Type of operator not implemented")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Type of operator not implemented")
        ENDIF
        CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 

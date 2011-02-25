@@ -212,7 +212,7 @@ CONTAINS
                (((density_guess == restart_guess).OR.&
                 (density_guess == history_guess)).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
-       CALL stop_program("calculate_first_density_matrix",&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             "OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
     END IF
 
@@ -536,8 +536,10 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     ELSE IF (density_guess == sparse_guess) THEN
 
-       IF(ofgpw) CALL stop_program(routineN,"SPARSE_GUESS not implemented for OFGPW")
-       IF(.NOT.scf_control%use_ot) CALL stop_program(routineN,"OT needed!")
+       IF (ofgpw) CALL stop_program(routineN,moduleN,__LINE__,&
+                                    "SPARSE_GUESS not implemented for OFGPW")
+       IF(.NOT.scf_control%use_ot) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                     "OT needed!")
 
        eps = 1.0E-5_dp
 
@@ -658,8 +660,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                    !
                    nmo_tmp = nmo_tmp - n_cols
                    natoms_tmp = natoms_tmp - 1
-                   IF(nmo_tmp.LT.0.OR.natoms_tmp.LT.0) CALL stop_program(routineN,"Wrong1!")
-                   !
+                   IF (nmo_tmp.LT.0.OR.natoms_tmp.LT.0) THEN
+                      CALL stop_program(routineN,moduleN,__LINE__,"Wrong1!")
+                   END IF
                    DO j = 1,n_cols
                       CALL dlarnv(1,iseed,n_rows,buff(1,j))
                    ENDDO
@@ -669,7 +672,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 ENDDO
              ENDDO
 
-             IF(istart_col.LE.nmo) CALL stop_program(routineN,"Wrong2!")
+             IF (istart_col.LE.nmo) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,"Wrong2!")
+             END IF
 
              DEALLOCATE(buff,nelec_kind,sort_kind,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -725,9 +730,10 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              IF(output_unit>0)WRITE(output_unit,*) 'C occ',occ,' checksum',checksum
              !
              ! multiply times PS
-             IF(has_unit_metric) THEN
-                CALL stop_program(routineN,"has_unit_metric will be removed soon")
-             ENDIF
+             IF (has_unit_metric) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "has_unit_metric will be removed soon")
+             END IF
              !
              ! S*C
              CALL cp_dbcsr_init(mo_tmp_dbcsr, error)
@@ -895,7 +901,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     ELSE IF (density_guess == no_guess) THEN
       
     ELSE
-       CALL stop_program(routineP,"An invalid keyword for the initial density guess was specified")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid keyword for the initial density guess was specified")
     END IF
 
     CALL timestop(handle)

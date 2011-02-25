@@ -670,6 +670,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_pgf_orb_radii', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=10)                        :: bas
     CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, ipgf, iset, nkind, &
@@ -694,7 +697,8 @@ CONTAINS
     ELSE IF ( bas(1:3) == "AUX" ) THEN
       bas="AUXILLIARY"
     ELSE 
-      CALL stop_program("write_pgf_orb_radii","undefined basis type")
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "Undefined basis set type")
     END IF
 
     nkind = SIZE(atomic_kind_set)
@@ -728,7 +732,8 @@ CONTAINS
                                    kind_radius=kind_radius)
           END IF
         ELSE
-          CALL stop_program("write_pgf_orb_radii","undefined basis type")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Undefined basis set type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6)")&
@@ -770,7 +775,8 @@ CONTAINS
                                    set_radius=set_radius)
           END IF
         ELSE
-          CALL stop_program("write_pgf_orb_radii","undefined basis type")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Undefined basis set type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,(T63,I5,T69,F12.6))")&
@@ -813,7 +819,8 @@ CONTAINS
                                    pgf_radius=pgf_radius)
           END IF
         ELSE
-          CALL stop_program("write_pgf_orb_radii","undefined basis type")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           DO iset=1,nset

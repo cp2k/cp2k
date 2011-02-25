@@ -609,8 +609,8 @@ CONTAINS
           CALL cp_fm_create(vectors(index,spin)%matrix,  &
                fm_struct(spin)%struct, mat_name,error=error)
           IF (.NOT.ASSOCIATED(vectors(index,spin)%matrix)) &
-               CALL stop_program(routineP, &
-               "Could not allocate "//TRIM(mat_name)//".")
+               CALL stop_program(routineN,moduleN,__LINE__,&
+                                 "Could not allocate "//TRIM(mat_name)//".")
        END DO
     END DO
 

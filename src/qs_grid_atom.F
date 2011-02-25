@@ -21,11 +21,8 @@ MODULE qs_grid_atom
 
   PRIVATE
 
-  ! *** Global parameters (only in this module)
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_grid_atom'
 
-! *****************************************************************************
   TYPE grid_atom_type
 
      INTEGER                         :: nr, ng_sphere
@@ -39,18 +36,20 @@ MODULE qs_grid_atom
 
   END TYPE grid_atom_type
 
-  ! *** Public subroutines ***
-
   PUBLIC :: allocate_grid_atom, &
-       create_grid_atom, &
-       deallocate_grid_atom
-
-  ! *** Public data types ***
+            create_grid_atom, &
+            deallocate_grid_atom
 
   PUBLIC :: grid_atom_type
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief   Deallocate a Gaussian-type orbital (GTO) basis set data set.
+!> \author  MK
+!> \date    03.11.2000
+!> \version 1.0
+!> \author Matthias Krack (MK)
 ! *****************************************************************************
   SUBROUTINE allocate_grid_atom(grid_atom,error)
 
@@ -207,9 +206,9 @@ CONTAINS
 
     NULLIFY (rad,rad2,wr)
 
-    IF(ASSOCIATED(grid_atom)) THEN
+    IF (ASSOCIATED(grid_atom)) THEN
 
-       !     *** allocate the radial grid arrays *** 
+       ! Allocate the radial grid arrays
        CALL reallocate(grid_atom%rad,1,nr)
        CALL reallocate(grid_atom%rad2,1,nr)
        CALL reallocate(grid_atom%wr,1,nr)
@@ -226,7 +225,7 @@ CONTAINS
        CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)
        CALL reallocate(grid_atom%oorad2l,1,nr,0,llmax+1)
 
-       !     *** calculate the radial grid for this kind ***
+       ! Calculate the radial grid for this kind
        rad => grid_atom%rad
        rad2 => grid_atom%rad2
        wr => grid_atom%wr
@@ -329,11 +328,11 @@ CONTAINS
 
     CASE DEFAULT
 
-       CALL stop_program(routineP,"Invalid radial quadrature type specified")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Invalid radial quadrature type specified")
 
     END SELECT
 
   END SUBROUTINE radial_grid
 
 END MODULE qs_grid_atom
-

@@ -474,7 +474,7 @@ CONTAINS
 
        IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
        IF (scf_control%use_ot.AND.(scf_control%density_guess == core_guess)) THEN
-          CALL stop_program("scf_c_read_parameters","Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
+          CALL stop_program(routineN,moduleN,__LINE__,"Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
        END IF
 
        outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF",error=error)
