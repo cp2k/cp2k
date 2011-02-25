@@ -1,3 +1,4 @@
+#CPQA DEPENDS UO2-2x2x2-binary_restart-scaled-3.inp
 &GLOBAL
   PROJECT UO2-2x2x2-binary_restart-scaled
  FLUSH_SHOULD_FLUSH
