@@ -45,7 +45,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff
     REAL(KIND=dp)                            :: value
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ener_pot'
+    CHARACTER(len=*), PARAMETER :: routineN = 'ener_pot', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, index, j, n
     REAL(KIND=dp)                            :: damp, dampexp, dampsum, f6, &

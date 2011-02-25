@@ -262,7 +262,8 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: radix_out
     INTEGER, INTENT(IN)                      :: operation
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fft_radix_operations'
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_radix_operations', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: fft_type_sg = 1
 
     INTEGER                                  :: i, iloc, ldata

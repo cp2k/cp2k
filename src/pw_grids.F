@@ -1171,7 +1171,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'pw_grid_count'
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_count', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: gpt, l, m, mm, n, &
                                                 n_upperlimit, nlim( 2 ), nn

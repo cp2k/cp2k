@@ -60,7 +60,8 @@ SUBROUTINE diagonalise_ssyev( matrix, mysize, storageform, eigenvalues, &
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_ssyev'
+    CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_ssyev', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info, lda, lwork
@@ -103,7 +104,8 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
     COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_chpev'
+    CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_chpev', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
@@ -142,7 +144,8 @@ SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_sspgv'
+    CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_sspgv', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
@@ -180,7 +183,8 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
     REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
     COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diagonalise_chpgv'
+    CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_chpgv', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
@@ -217,7 +221,8 @@ SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
     INTEGER, INTENT(IN)                      :: mrow, ncol
     REAL(KIND=dp), INTENT(OUT)               :: uvec( :, : ), vtvec( :, : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp2k_sgesvd'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_sgesvd', &
+      routineP = moduleN//':'//routineN
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
@@ -247,7 +252,8 @@ SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
     INTEGER, INTENT(IN)                      :: mrow, ncol
     COMPLEX(KIND=dp), INTENT(OUT)            :: uvec( :, : ), vtvec( :, : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp2k_cgesvd'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_cgesvd', &
+      routineP = moduleN//':'//routineN
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork

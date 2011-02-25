@@ -47,7 +47,8 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'ch_inv_pdsym'
+    CHARACTER(len=*), PARAMETER :: routineN = 'ch_inv_pdsym', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER                                :: diag = "N", uplo
     INTEGER                                  :: info, lda

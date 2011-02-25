@@ -131,7 +131,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'perdew_wang_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k
 

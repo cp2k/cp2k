@@ -457,7 +457,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'pz_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'pz_init', &
+      routineP = moduleN//':'//routineN
 
     CALL set_util(cutoff)
 

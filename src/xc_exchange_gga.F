@@ -510,7 +510,8 @@ CONTAINS
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_b88'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_b88', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, &
@@ -599,7 +600,8 @@ CONTAINS
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_pw86'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_pw86', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f15, p0, p1, p15, s2, s4, s6, &
@@ -663,7 +665,8 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_optx'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_optx', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: a1 = 1.05151_dp, &
                                                 a2 = 1.43169_dp, &
                                                 gamma_bo = 0.006_dp
@@ -969,7 +972,8 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m, pset
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_pbex'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_pbex', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: kappa1 = 0.804_dp, &
                                                 kappa2 = 1.245_dp, &
                                                 mu = 0.2195149727645171_dp

@@ -374,7 +374,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: copy_in
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ii, ikind, &
                                                 iparticle_local, maxgtops, &
@@ -447,7 +448,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: copy_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_replicated_coeff'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_replicated_coeff', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ii, ikind, &
                                                 iparticle_local, &

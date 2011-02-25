@@ -634,7 +634,8 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_ol1'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_ol1', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: t1, t2
@@ -667,7 +668,8 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_ol2'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_ol2', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: t1, t2, t3, y
@@ -706,7 +708,8 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_llp'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_llp', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: as, bs, p, q, sas, sbs, t1, t10, t11, t12, t133, t16, &
@@ -863,7 +866,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: m
     REAL(dp), OPTIONAL                       :: f2_lsd
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_pw86'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_pw86', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f15, ff, p0, p1, p15, p2, p3, &
@@ -923,7 +927,8 @@ CONTAINS
       INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_t92'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_t92', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a1, a2, as, asp, asp2, asp3, &
@@ -1006,7 +1011,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: m, pset
     REAL(dp), OPTIONAL                       :: f2_lsd
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'efactor_pbex'
+    CHARACTER(len=*), PARAMETER :: routineN = 'efactor_pbex', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: kappa1 = 0.804_dp, &
                                                 kappa2 = 1.245_dp, &
                                                 mu = 0.2195149727645171_dp

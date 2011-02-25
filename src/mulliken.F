@@ -77,7 +77,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: ks_matrix, w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_restraint'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_restraint', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 ispin, nblock, nspin

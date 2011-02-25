@@ -48,7 +48,8 @@ CONTAINS
     TYPE(spline_data_type), POINTER          :: spl
     INTEGER, INTENT(IN)                      :: nn
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_splinexy'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_splinexy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: err
 
@@ -110,7 +111,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: dx
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_spline'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_spline', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s

@@ -46,7 +46,8 @@ CONTAINS
     TYPE(structure_factor_type), &
       INTENT(INOUT)                          :: exp_igr
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'structure_factor_deallocate'
+    CHARACTER(len=*), PARAMETER :: routineN = 'structure_factor_deallocate', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isos
 
@@ -101,7 +102,8 @@ CONTAINS
                                                 allocate_shell_centre
     INTEGER, INTENT(IN), OPTIONAL            :: nshell
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'structure_factor_allocate'
+    CHARACTER(len=*), PARAMETER :: routineN = 'structure_factor_allocate', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isos
 

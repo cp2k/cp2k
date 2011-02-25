@@ -63,7 +63,8 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: calc(0:)
     INTEGER, INTENT(IN)                      :: tag
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'setup_calculation'
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_calculation', &
+      routineP = moduleN//':'//routineN
 
     IF ( ABS(order) > 3 ) &
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -163,7 +164,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: rs
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calc_rs_array'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_rs_array', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k
 
@@ -255,7 +257,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: r13
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calc_rho13'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_rho13', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip, n
 
@@ -284,7 +287,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: s
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calc_wave_vector'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_wave_vector', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip, n
     REAL(KIND=dp)                            :: fac

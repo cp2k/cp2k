@@ -1564,7 +1564,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: a, b
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'swap_vector'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_vector', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
     REAL(KIND=dp)                            :: c

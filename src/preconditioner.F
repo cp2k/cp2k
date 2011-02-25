@@ -570,7 +570,8 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     INTEGER                                  :: TYPE
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'make_local_block'
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_local_block', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, info, istat, liwork, &
                                                 lwork, n

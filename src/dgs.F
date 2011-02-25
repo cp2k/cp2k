@@ -293,8 +293,6 @@ SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
 
     REAL(KIND=dp)                            :: delta( 3 )
 
-!------------------------------------------------------------------------------
-
   CALL dg_get_delta ( box, r, npts_s, npts_b, centre, delta)
 
   CALL structure_factor_evaluate ( delta, npts_s, lb, ex, ey, ez )
@@ -771,7 +769,8 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: ex1, ey1, ez1
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'dg_get_patch_1'
+    CHARACTER(len=*), PARAMETER :: routineN = 'dg_get_patch_1', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -780,23 +779,9 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
       DIMENSION(:, :, :)                     :: cd
     INTEGER                                  :: ierr, n, nd( 3 )
 
-!------------------------------------------------------------------------------
-
   nd = rhos1 % pw % pw_grid % npts
   n = PRODUCT ( nd )
 
-!  IF ( ALLOCATED ( cd ) ) THEN
-!    n1 = SIZE ( cd, 1 )
-!    n2 = SIZE ( cd, 2 )
-!    n3 = SIZE ( cd, 3 )
-!    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
-!      DEALLOCATE ( zs, STAT = ierr )
-!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
-!      DEALLOCATE ( cd, STAT = ierr )
-!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd")
-!    ENDIF
-!  ENDIF
-!  IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE (zs(nd(1)*nd(2)),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "zs",2*dp_size*nd(1)*nd(2))
@@ -805,7 +790,6 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "cd",2*dp_size*nd(1)*nd(2)*nd(3))
     cd=0.0_dp
-!  ENDIF
 
   za = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   zb = CMPLX ( charge1, 0.0_dp,KIND=dp)
@@ -834,7 +818,8 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: ex1, ey1, ez1, ex2, ey2, ez2
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'dg_get_patch_2'
+    CHARACTER(len=*), PARAMETER :: routineN = 'dg_get_patch_2', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -843,23 +828,9 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
       DIMENSION(:, :, :)                     :: cd
     INTEGER                                  :: ierr, n, nd( 3 )
 
-!------------------------------------------------------------------------------
-
   nd = rhos1 % pw % pw_grid % npts
   n = PRODUCT ( nd )
 
-!  IF ( ALLOCATED ( cd ) ) THEN
-!    n1 = SIZE ( cd, 1 )
-!    n2 = SIZE ( cd, 2 )
-!    n3 = SIZE ( cd, 3 )
-!    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
-!      DEALLOCATE ( zs, STAT = ierr )
-!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
-!      DEALLOCATE ( cd, STAT = ierr )
-!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd")
-!    ENDIF
-!  ENDIF
- ! IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE (zs(nd(1)*nd(2)),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "zs",2*dp_size*nd(1)*nd(2))
@@ -868,7 +839,6 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "cd",2*dp_size*nd(1)*nd(2)*nd(3))
     cd=0.0_dp
-!  ENDIF
 
   za = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   zb = CMPLX ( charge2, 0.0_dp,KIND=dp)
@@ -924,8 +894,6 @@ SUBROUTINE dg_add_patch_folded ( rb, rs, ns, px, py, pz )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
 
-!------------------------------------------------------------------------------
-
   DO k = 1, ns ( 3 )
     kk = pz ( k )
     DO j = 1, ns ( 2 )
@@ -949,8 +917,6 @@ SUBROUTINE dg_int_patch_simple_3d ( rbx, rby, rbz, rs, f, ns, nc )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
     REAL(KIND=dp)                            :: s
-
-!------------------------------------------------------------------------------
 
   f = 0.0_dp
   DO k = 1, ns ( 3 )

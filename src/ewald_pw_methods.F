@@ -50,11 +50,7 @@ MODULE ewald_pw_methods
 
   PUBLIC :: ewald_pw_grid_change
 
-!-----------------------------------------------------------------------------!
-
 CONTAINS
-
-!-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief Rescales pw_grids after a box change
@@ -150,7 +146,8 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_rho0_setup'
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_rho0_setup', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, grid_index, isos
     REAL(dp)                                 :: alpha

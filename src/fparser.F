@@ -100,7 +100,8 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Finalize function parser 
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'finalizef'
+    CHARACTER(len=*), PARAMETER :: routineN = 'finalizef', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat
 
@@ -154,7 +155,8 @@ CONTAINS
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: Var
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'parsef'
+    CHARACTER(len=*), PARAMETER :: routineN = 'parsef', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=LEN(FuncStr))              :: Func
 
@@ -187,7 +189,8 @@ CONTAINS
     REAL(rn), DIMENSION(:), INTENT(in)       :: Val
     REAL(rn)                                 :: res
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'evalf'
+    CHARACTER(len=*), PARAMETER :: routineN = 'evalf', &
+      routineP = moduleN//':'//routineN
     REAL(rn), PARAMETER                      :: zero = 0._rn
 
     INTEGER                                  :: DP, IP, ipow, SP
@@ -371,7 +374,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(in)             :: FuncStr
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: Msg
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ParseErrMsg'
+    CHARACTER(len=*), PARAMETER :: routineN = 'ParseErrMsg', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: message
 
@@ -529,7 +533,8 @@ CONTAINS
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: Var
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'Compile'
+    CHARACTER(len=*), PARAMETER :: routineN = 'Compile', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -910,7 +915,8 @@ CONTAINS
     REAL(KIND=rn), INTENT(OUT)               :: err
     REAL(KIND=rn)                            :: derivative
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'evalfd'
+    CHARACTER(len=*), PARAMETER :: routineN = 'evalfd', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: ntab = 10
     REAL(KIND=rn), PARAMETER                 :: big_error = 1.0E30_rn, &
                                                 con = 1.4_rn, con2 = con*con, &
