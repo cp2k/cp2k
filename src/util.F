@@ -20,10 +20,10 @@ MODULE util
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'util'
   PUBLIC :: sort,&
-       get_limit,&
-       locate,&
-       find_boundary,&
-       sort_unique
+            get_limit,&
+            locate,&
+            find_boundary,&
+            sort_unique
 
   INTERFACE sort
      MODULE PROCEDURE sort_rv, sort_int_4v, sort_int_8v, sort_cv, sort_im,&

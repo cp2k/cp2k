@@ -20,6 +20,7 @@ MODULE periodic_table
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

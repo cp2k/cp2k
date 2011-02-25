@@ -15,6 +15,7 @@ MODULE scp_force_types
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -23,6 +23,7 @@ MODULE reference_manager
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
   USE util,                            ONLY: sort
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -15,6 +15,7 @@
 MODULE qmmm_gaussian_data
   USE f77_blas
   USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   INTEGER, PARAMETER, PUBLIC       :: min_geep_lib_gauss = 2

@@ -35,6 +35,7 @@ MODULE ai_onecenter
                                              pi
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
