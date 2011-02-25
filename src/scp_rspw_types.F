@@ -27,11 +27,9 @@ MODULE scp_rspw_types
      INTEGER :: ref_count
      TYPE ( pw_env_type ),         POINTER              :: qs_pw_env
   END TYPE scp_rspw_type
-!-----------------------------------------------------------------------------!
 
 CONTAINS
 
-!-----------------------------------------------------------------------------!
 ! *****************************************************************************
 SUBROUTINE scp_rspw_get(scp_rspw, qs_pw_env, error)
     TYPE(scp_rspw_type), POINTER             :: scp_rspw
@@ -84,8 +82,6 @@ END SUBROUTINE scp_rspw_retain
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-
-!---------------------------------------------------------------------------
 
    CALL timeset(routineN,handle)
    failure=.FALSE.

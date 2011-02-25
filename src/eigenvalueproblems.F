@@ -67,8 +67,6 @@ SUBROUTINE diagonalise_ssyev( matrix, mysize, storageform, eigenvalues, &
     INTEGER                                  :: info, lda, lwork
     REAL(KIND=dp)                            :: work( 3 * mysize - 1 )
 
-!------------------------------------------------------------------------------
-
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
        storageform ( 1:5 ) == "LOWER" .OR. &
        storageform ( 1:5 ) == "lower" ) THEN
@@ -112,8 +110,6 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
     COMPLEX(KIND=dp)                         :: work( 2 * mysize - 1 )
     REAL(KIND=dp)                            :: rwork( 3 * mysize - 2 )
 
-!------------------------------------------------------------------------------
-
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
        storageform ( 1:5 ) == "LOWER" .OR. &
        storageform ( 1:5 ) == "lower" ) THEN
@@ -150,8 +146,6 @@ SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
     REAL(KIND=dp)                            :: work( 2 * mysize - 1 )
-
-!----------------------------------------------------------------------
 
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
        storageform ( 1:5 ) == "LOWER" .OR. &
@@ -191,8 +185,6 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
     COMPLEX(KIND=dp)                         :: work( 2 * mysize - 1 )
     REAL(KIND=dp)                            :: rwork( 3 * mysize - 2 )
 
-!----------------------------------------------------------------------
-
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
        storageform ( 1:5 ) == "LOWER" .OR. &
        storageform ( 1:5 ) == "lower" ) THEN
@@ -228,8 +220,6 @@ SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
     REAL(KIND=dp)                            :: work( 25 * ( mrow + ncol ) )
 
-!----------------------------------------------------------------------
-
   lwork = 25 * ( mrow + ncol )
   lda = SIZE ( matrix, 1 )
   ldu = SIZE ( uvec, 1 )
@@ -259,8 +249,6 @@ SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
     COMPLEX(KIND=dp)                         :: work( 25 * ( mrow + ncol ) )
     REAL(KIND=dp)                            :: rwork( 25 * ( mrow + ncol ) )
-
-!----------------------------------------------------------------------
 
   lwork = 25 * ( mrow + ncol )
   lda = SIZE ( matrix, 1 )

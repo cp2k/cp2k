@@ -29,11 +29,9 @@ MODULE scp_rho_types
      REAL(KIND=dp) :: total_rho_gspace, total_rho_rspace
      TYPE ( pw_p_type ), POINTER ::  rhop_g,  rhop_r
   END TYPE scp_rho_type
-!-----------------------------------------------------------------------------!
 
 CONTAINS
 
-!-----------------------------------------------------------------------------!
 ! *****************************************************************************
 SUBROUTINE scp_rho_get(rho_scp,  rhop_r, rhop_g, error)
     TYPE(scp_rho_type), POINTER              :: rho_scp
@@ -87,8 +85,6 @@ END SUBROUTINE scp_rho_retain
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-
-!---------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
   failure=.FALSE.

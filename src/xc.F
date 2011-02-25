@@ -415,9 +415,6 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        END DO
        PRINT *,"diff exc=",ABS(exc-exc2),"diff vxc_tau=",maxdiff
     END IF
-!       CPPostcondition(maxdiff<5.e-11,cp_failure_level,routineP,error,failure)
-!       CPPostcondition(ABS(exc-exc2)<1.e-14,cp_failure_level,routineP,error,failure)
-!------
        deriv_iter => dSet1%derivs
        DO WHILE (cp_sll_xc_deriv_next(deriv_iter,el_att=deriv,error=error))
           CALL xc_derivative_get(deriv,&
@@ -500,7 +497,6 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
           WRITE (unit=120) pot(:,:,bo(2,3))
           CLOSE (unit=120)
        END DO
-!-------
        CALL xc_rho_set_release(rho_set1,error=error)
        CALL xc_rho_set_release(rho_set2,error=error)
        CALL xc_dset_release(dSet2,error=error)

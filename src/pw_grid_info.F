@@ -224,8 +224,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alat( 3 )
 
-!------------------------------------------------------------------------------
-
     failure=.FALSE.
 
     DO i=1,3
@@ -285,7 +283,6 @@ CONTAINS
 
     REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
 
-!------------------------------------------------------------------------------
 ! compute 2*pi*h_inv^t*g  where g = (nmax[1],0,0)
 
     gdum(:) = twopi * h_inv(1,:) * REAL((npts(1)-1)/2,KIND=dp)

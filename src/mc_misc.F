@@ -97,7 +97,6 @@ SUBROUTINE mc_averages_create ( averages  )
 
     INTEGER                                  :: handle, stat
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -133,7 +132,6 @@ SUBROUTINE mc_averages_release ( averages  )
 
     INTEGER                                  :: handle, stat
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -190,7 +188,6 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mc_moves_type), POINTER             :: moves
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,handle)
@@ -520,8 +517,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
 
-!    TYPE(input_info_type), POINTER           :: inp_info
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     STOP 'Need to rework this subroutine...mc_make_dat_file'

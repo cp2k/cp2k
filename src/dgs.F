@@ -217,8 +217,6 @@ SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
 
     INTEGER, DIMENSION(3)                    :: nin
 
-!------------------------------------------------------------------------------
-
   nin ( : ) = NINT ( cell_lengths ( : ) / dr ( : ) )
   CALL fft_radix_operations ( nin ( 1 ), npts ( 1 ), &
        operation = FFT_RADIX_CLOSEST )
@@ -310,7 +308,6 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
 
     REAL(KIND=dp), DIMENSION(3)              :: grid_i, s
 
-!------------------------------------------------------------------------------
 ! compute the scaled coordinate of atomi
 
   s = MATMUL ( box % h_inv, r )
@@ -341,8 +338,6 @@ SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: nc
     LOGICAL                                  :: folded
-
-!------------------------------------------------------------------------------
 
   folded = .FALSE.
 
@@ -409,8 +404,6 @@ SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
     LOGICAL                                  :: folded
-
-!------------------------------------------------------------------------------
 
   ns ( 1 ) = SIZE ( rhos, 1 )
   ns ( 2 ) = SIZE ( rhos, 2 )
@@ -483,8 +476,6 @@ SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
     LOGICAL                                  :: folded
-
-!------------------------------------------------------------------------------
 
   ns ( 1 ) = SIZE ( rhos, 1 )
   ns ( 2 ) = SIZE ( rhos, 2 )
@@ -560,8 +551,6 @@ SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
     INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
     LOGICAL                                  :: folded
 
-!------------------------------------------------------------------------------
-
   ns ( 1 ) = SIZE ( rhos, 1 )
   ns ( 2 ) = SIZE ( rhos, 2 )
   ns ( 3 ) = SIZE ( rhos, 3 )
@@ -634,8 +623,6 @@ SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
     INTEGER, DIMENSION(3)                    :: nc
     LOGICAL                                  :: folded
 
-!------------------------------------------------------------------------------
-
   folded = .FALSE.
 
   DO i = rhos % pw % pw_grid % bounds( 1, 1 ), rhos % pw % pw_grid % bounds( 2, 1 )
@@ -703,8 +690,6 @@ SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: nc
     LOGICAL                                  :: folded
-
-!------------------------------------------------------------------------------
 
   folded = .FALSE.
 
@@ -869,8 +854,6 @@ SUBROUTINE dg_add_patch_simple ( rb, rs, ns, nc )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
 
-!------------------------------------------------------------------------------
-
   DO k = 1, ns ( 3 )
     kk = nc ( 3 ) + k
     DO j = 1, ns ( 2 )
@@ -946,8 +929,6 @@ SUBROUTINE dg_int_patch_simple_1d ( rb, rs, f, ns, nc )
     INTEGER                                  :: i, ii, j, jj, k, kk
     REAL(KIND=dp)                            :: s
 
-!------------------------------------------------------------------------------
-
   f = 0.0_dp
   DO k = 1, ns ( 3 )
     kk = nc ( 3 ) + k
@@ -975,8 +956,6 @@ SUBROUTINE dg_int_patch_folded_3d ( rbx, rby, rbz, rs, f, ns, px, py, pz )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
     REAL(KIND=dp)                            :: s
-
-!------------------------------------------------------------------------------
 
   f = 0.0_dp
   DO k = 1, ns ( 3 )
@@ -1006,8 +985,6 @@ SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
     REAL(KIND=dp)                            :: s
-
-!------------------------------------------------------------------------------
 
   f = 0.0_dp
   DO k = 1, ns ( 3 )

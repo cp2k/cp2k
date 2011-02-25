@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \par Literature
-!>      M. Krack, A. Gambirasio, and M.\ Parrinello,
+!>      M. Krack, A. Gambirasio, and M. Parrinello,
 !>      "Ab-initio x-ray scattering of liquid water",
 !>      J. Chem. Phys. 117, 9409 (2002)
 !> \author Matthias Krack

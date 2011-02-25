@@ -1180,8 +1180,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length, length_x, length_y, &
                                                 length_z
 
-!------------------------------------------------------------------------------
-
     bounds => pw_grid % bounds
 
     IF ( pw_grid % grid_span == HALFSPACE ) THEN
@@ -1275,8 +1273,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: length, length_x, length_y, &
                                                 length_z
-
-!------------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -1482,8 +1478,6 @@ CONTAINS
 
     INTEGER                                  :: gpt, l, m, n, ng
 
-!------------------------------------------------------------------------------
-
     ng = SIZE ( g_hat ,2 )
 
     DO gpt = 1, ng
@@ -1633,8 +1627,6 @@ CONTAINS
     REAL(KIND=dp)                            :: gig, gigr
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: real_tmp
-
-!------------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -1918,8 +1910,6 @@ CONTAINS
                                                 n, ny, nz
     INTEGER, DIMENSION(:), POINTER           :: mapm, mapn
     LOGICAL                                  :: failure
-
-!------------------------------------------------------------------------------
 
     failure = .FALSE.
 

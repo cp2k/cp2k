@@ -85,7 +85,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init', &
       routineP = moduleN//':'//routineN
 
-! --------------------------------------------------------------------
 !------------------!
 ! create the p_env !
 !------------------!
@@ -115,8 +114,6 @@ CONTAINS
 
     INTEGER                                  :: n_spins, spin
 
-! -------------------------------------------------------------------
-
     n_spins = qs_env%dft_control%nspins
     IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
@@ -137,8 +134,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_cleanup', &
       routineP = moduleN//':'//routineN
-
-! -------------------------------------------------------------------
 
     CALL tddfpt_env_deallocate(t_env,error=error)
     CALL p_env_release(p_env,error=error)

@@ -549,8 +549,6 @@ SUBROUTINE calc_p3m_charge ( gf )
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pc
 
-!------------------------------------------------------------------------------
-
   grid => gf % influence_fn % pw_grid
 
   ! check if charge function is consistent with current box volume
@@ -588,8 +586,6 @@ END SUBROUTINE calc_p3m_charge
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-
-!------------------------------------------------------------------------------
 
     failure=.FALSE.
 
@@ -654,8 +650,6 @@ END SUBROUTINE calc_p3m_charge
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-!------------------------------------------------------------------------------
-
     failure=.FALSE.
     IF (ASSOCIATED(poisson_env)) THEN
        CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -693,8 +687,6 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
     INTEGER                                  :: i, j, l, m
     REAL(KIND=dp)                            :: b
     REAL(KIND=dp), DIMENSION(n, -n:n, 0:n-1) :: a
-
-!------------------------------------------------------------------------------
 
   a = 0.0_dp
   a ( 1, 0, 0 ) = 1.0_dp

@@ -396,13 +396,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
-!------------------------------------------------------------------------------
-!-------------- INITIALISATION ---------------------
-
     CALL timeset(routineN,handle)
-
+    !-------------- INITIALISATION ---------------------
     failure = .FALSE.
-
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
          error=error)
     NULLIFY(green, poisson_env, pw_pool)

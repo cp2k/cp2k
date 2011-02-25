@@ -8,26 +8,16 @@
 !> \par History
 !>      adapted to F95
 ! *****************************************************************************
-    MODULE erf_fn
-!
-!------------------------------------------------------------------------------!
-
+MODULE erf_fn
   USE f77_blas
-!
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
       IMPLICIT NONE
-!
       PRIVATE
-!
       PUBLIC :: erf,erfc,erfcx                        
 
-!------------------------------------------------------------------------------!
-!
     CONTAINS
-!
-!------------------------------------------------------------------------------!
 
 ! *****************************************************************************
 SUBROUTINE CALERF(ARG,RESULT,JINT)
@@ -337,8 +327,6 @@ FUNCTION ERF(X)
     INTEGER                                  :: JINT
     REAL(KIND=dp)                            :: RESULT
 
-!------------------------------------------------------------------
-
   JINT = 0
   CALL CALERF(X,RESULT,JINT)
   ERF = RESULT
@@ -360,8 +348,6 @@ FUNCTION ERFC(X)
 
     INTEGER                                  :: JINT
     REAL(KIND=dp)                            :: RESULT
-
-!------------------------------------------------------------------
 
   JINT = 1
   CALL CALERF(X,RESULT,JINT)
@@ -385,12 +371,10 @@ FUNCTION ERFCX(X)
     INTEGER                                  :: JINT
     REAL(KIND=dp)                            :: RESULT
 
-!------------------------------------------------------------------
-
   JINT = 2
   CALL CALERF(X,RESULT,JINT)
   ERFCX = RESULT
   RETURN
 !---------- Last card of DERFCX ----------
 END FUNCTION erfcx
-   END  MODULE erf_fn
+END  MODULE erf_fn

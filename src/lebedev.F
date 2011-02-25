@@ -154,7 +154,6 @@ CONTAINS
 !>       - np       : Number of the nonredundant grid points.
 !> \version 1.0
 ! *****************************************************************************
-! *****************************************************************************
   SUBROUTINE load_sub_grid(subsystem,lgnum,np)
     CHARACTER(*), INTENT(IN)                 :: subsystem
     INTEGER, INTENT(IN)                      :: lgnum, np

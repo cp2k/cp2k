@@ -54,8 +54,6 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
     CHARACTER                                :: diag = "N", uplo
     INTEGER                                  :: info, lda
 
-!------------------------------------------------------------------------------
-
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
        storageform ( 1:5 ) == "LOWER" .OR. &
        storageform ( 1:5 ) == "lower" ) THEN
@@ -90,8 +88,6 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
 
     CHARACTER                                :: diag = "N", uplo
     INTEGER                                  :: info, lda
-
-!------------------------------------------------------------------------------
 
   IF ( storageform ( 1:5 ) == "Lower" .OR. &
        storageform ( 1:5 ) == "LOWER" .OR. &

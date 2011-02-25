@@ -176,8 +176,6 @@ CONTAINS
 
   END SUBROUTINE create_atom_section
 
-!--------------------------------------------------------------------------------------------------
-
 ! *****************************************************************************
 !> \brief Create the print atom section
 !> \param section the section to create

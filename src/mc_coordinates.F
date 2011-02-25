@@ -92,7 +92,6 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
     TYPE(cp_subsys_type), POINTER            :: oldsys
     TYPE(particle_list_type), POINTER        :: particles
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -212,7 +211,6 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
     INTEGER                                  :: handle, i, iatom
     REAL(KIND=dp)                            :: total_mass
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -268,7 +266,6 @@ SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_l
                                                 start_atom
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -386,7 +383,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
     TYPE(cp_subsys_type), POINTER            :: oldsys
     TYPE(particle_list_type), POINTER        :: particles
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -697,7 +693,6 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
                                                 sindg
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -796,7 +791,6 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rand
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -945,8 +939,6 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
     INTEGER                                  :: iside
     REAL(dp)                                 :: high_value, length1, length2, &
                                                 low_value
-
-!------------------------------------------------------------------------------
 
       discrete_array(:,:)=0
 

@@ -635,8 +635,6 @@ CONTAINS
                                                 smear_section
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-!------------------------------------------------------------------------------
-
     failure=.FALSE.
 
     n_mo(1:2) = 0

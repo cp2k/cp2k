@@ -53,8 +53,6 @@ MODULE cube_utils
      REAL(KIND = dp)              :: max_rad_ga
   END TYPE cube_info_type
 
-!------------------------------------------------------------------------------
-
 CONTAINS
 ! *****************************************************************************
 !> \brief unifies the computation of the cube center, so that differences in
@@ -79,6 +77,7 @@ CONTAINS
     cube_center(:) = FLOOR(MATMUL(rs_grid%desc%dh_inv,rp))
 
   END SUBROUTINE compute_cube_center
+
 ! *****************************************************************************
   SUBROUTINE return_cube_nonortho(info,radius,lb,ub,rp)
 
@@ -124,7 +123,6 @@ CONTAINS
 
   END SUBROUTINE return_cube_nonortho
 
-!------------------------------------------------------------------------------
 ! *****************************************************************************
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
 
@@ -164,8 +162,6 @@ CONTAINS
     return_cube_max_iradius=info%max_radius
   END FUNCTION return_cube_max_iradius
 
-!------------------------------------------------------------------------------
-
 ! *****************************************************************************
   SUBROUTINE destroy_cube_info(info)
     TYPE(cube_info_type)                     :: info
@@ -197,8 +193,6 @@ CONTAINS
         ! no info to be deallocated
     ENDIF
   END SUBROUTINE
-
-!------------------------------------------------------------------------------
 
 ! *****************************************************************************
   SUBROUTINE init_cube_info(info,dr,dh,dh_inv,ortho,max_radius)
@@ -317,6 +311,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE
+
   ! try to hide things from the optimizer, so that we get the same numbers,
   ! always (this solves the optimisation problems with the intel and nag compiler
   ! in which the counting loops and execution loops above are executed a different
@@ -338,6 +333,7 @@ CONTAINS
     res=do_and_hide_it_2(buf,i,jg2,kg2)
     DEALLOCATE(buf)
   END FUNCTION do_and_hide_it_1
+
 ! *****************************************************************************
   FUNCTION do_and_hide_it_2(buf,i,jg2,kg2) RESULT(res)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buf

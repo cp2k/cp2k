@@ -1508,8 +1508,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: print_section, qs_env_input
 
-!----------------
-
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY (logger)

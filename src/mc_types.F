@@ -1130,7 +1130,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
 
-!------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
@@ -1502,8 +1501,6 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
-
-!------------------------------------------------------------------------------
 
       NULLIFY(cell,potparm,fist_nonbond_env,fist_env)
 

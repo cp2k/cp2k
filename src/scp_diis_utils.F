@@ -120,7 +120,6 @@ CONTAINS
 
   END SUBROUTINE diis_info_destroy
 
-!------------------------------------------------------------------------------!
 ! *****************************************************************************
   SUBROUTINE do_diis_step ( scp_env, atomic_kind_set, diis_info, maxerr, error)
 
@@ -256,10 +255,9 @@ CONTAINS
   END IF
 
   END SUBROUTINE do_diis_step
-!------------------------------------------------------------------------------!
+
 ! *****************************************************************************
   SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
-!------------------------------------------------------------------------------!
 
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: c_forces
@@ -296,10 +294,9 @@ CONTAINS
   ENDDO
 
   END SUBROUTINE store_hist
-!------------------------------------------------------------------------------!
+
 ! *****************************************************************************
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
-!------------------------------------------------------------------------------!
     REAL(KIND=dp), INTENT(INOUT)             :: dcg(:)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: e_hist
