@@ -48,7 +48,8 @@ MODULE thermostat_methods
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -103,6 +104,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostats', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
     INTEGER                                  :: n_rep, region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_shell, &
       explicit_baro, explicit_barostat_section, explicit_part, &
@@ -167,11 +169,15 @@ CONTAINS
           ! Initialize thermostat
           IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Particles
+             binary_restart_file_name = ""
+             CALL section_vals_val_get(force_env%root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
+                                       c_val=binary_restart_file_name,error=error)
              work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE",error=error)
              CALL initialize_nhc_part(thermostats%thermostat_info_part, simpar, local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                   thermostats%thermostat_part%nhc, nose_section=work_section,&
-                  gci=gci, save_mem=save_mem, error=error)
+                  gci=gci, save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
+                  error=error)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Particles
              work_section => section_vals_get_subs_vals(thermo_part_section,"CSVR",error=error)

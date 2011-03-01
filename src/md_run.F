@@ -98,8 +98,6 @@ MODULE md_run
 
   PRIVATE
 
-! *** Global parameters ***
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
 
   PUBLIC :: qs_mol_dyn

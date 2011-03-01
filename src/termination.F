@@ -31,7 +31,7 @@ MODULE termination
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
 
-  INTEGER :: error_unit
+  INTEGER :: error_unit = default_output_unit
 
   PUBLIC :: print_message,&
             set_error_unit,&

@@ -202,7 +202,7 @@ CONTAINS
                                          do_backup=(ikey==2),&
                                          error=error)
              IF (ires > 0) THEN
-                CALL write_restart_header(ires, error)
+                CALL write_restart_header(ires,error)
                 CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE.,error=error)
              END IF
              CALL cp_print_key_finished_output(ires,logger,motion_section,TRIM(keys(ikey)),error=error)
@@ -508,9 +508,17 @@ CONTAINS
        END IF
        ! The real restart setting...
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-       CALL update_motion(motion_section,md_env=md_env,force_env=my_force_env,&
-            logger=logger,coords=coords,vels=vels,&
-            pint_env=pint_env,helium_env=helium_env,save_mem=my_save_mem,error=error)
+       CALL update_motion(motion_section,&
+                          md_env=md_env,&
+                          force_env=my_force_env,&
+                          logger=logger,&
+                          coords=coords,&
+                          vels=vels,&
+                          pint_env=pint_env,&
+                          helium_env=helium_env,&
+                          save_mem=my_save_mem,&
+                          write_binary_restart_file=write_binary_restart_file,&
+                          error=error)
        ! Update one force_env_section per time..
        IF (ASSOCIATED(my_force_env)) THEN
           CALL update_force_eval(force_env=my_force_env,&
@@ -534,7 +542,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_motion(motion_section,md_env,force_env,logger,&
-       coords,vels,pint_env,helium_env,save_mem,error)
+                           coords,vels,pint_env,helium_env,save_mem,&
+                           write_binary_restart_file,error)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -544,7 +553,8 @@ CONTAINS
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
     TYPE(helium_solvent_type), OPTIONAL, &
       POINTER                                :: helium_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
+    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem, &
+                                                write_binary_restart_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
@@ -555,7 +565,8 @@ CONTAINS
                                                 tot_nhcneed
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, my_save_mem
+    LOGICAL                                  :: failure, my_save_mem, &
+                                                my_write_binary_restart_file
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
                                                 veta, wrk
     REAL(KIND=dp), POINTER                   :: constant, t
@@ -605,9 +616,18 @@ CONTAINS
     IF(ASSOCIATED(force_env)) THEN
        meta_env => force_env%meta_env
     END IF
-    
-    my_save_mem=.FALSE.
-    IF (PRESENT(save_mem)) my_save_mem=save_mem
+
+    IF (PRESENT(save_mem)) THEN
+       my_save_mem = save_mem
+    ELSE
+      my_save_mem = .FALSE.
+    END IF
+
+    IF (PRESENT(write_binary_restart_file)) THEN
+       my_write_binary_restart_file = write_binary_restart_file
+    ELSE
+       my_write_binary_restart_file = .FALSE.
+    END IF
 
     CALL timeset(routineN//"_COUNTERS",handle2)
     IF (ASSOCIATED(itimes)) THEN
@@ -698,13 +718,14 @@ CONTAINS
     ! PARTICLE THERMOSTAT
     CALL timeset(routineN//"_THERMOSTAT_PARTICLES",handle2)
     IF (ASSOCIATED(thermostat_part)) THEN
-       IF     (thermostat_part%type_of_thermostat==do_thermo_nose) THEN
+       IF (thermostat_part%type_of_thermostat == do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Particles
-          nhc     => thermostat_part%nhc
-          CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
-          
-          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE",error=error)
-          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+          IF (.NOT.write_binary_restart_file) THEN
+             nhc => thermostat_part%nhc
+             CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE",error=error)
+             CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+          END IF
        ELSE IF (thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Particles
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR",error=error)
@@ -1545,7 +1566,6 @@ CONTAINS
                                                 nhc_len, num_nhc, numneed, &
                                                 stat, tot_nhcneed
     INTEGER, DIMENSION(:), POINTER           :: index, nhc_per_proc
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -1553,8 +1573,9 @@ CONTAINS
     num_nhc = nhc%loc_num_nhc
     numneed = num_nhc
     map_info=> nhc%map_info
-    ALLOCATE ( nhc_per_proc(para_env%num_pe), STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (nhc_per_proc(para_env%num_pe), STAT = stat )
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "nhc_per_proc",int_size*para_env%num_pe)
     nhc_per_proc(:) = 0
 
     CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
@@ -1565,8 +1586,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! nhc%eta  
     !-----------------------------------------------------------------------------
-    ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (eta(tot_nhcneed*nhc_len),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "eta",dp_size*tot_nhcneed*nhc_len)
     DO iproc=1,para_env%num_pe
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
@@ -1597,8 +1619,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! nhc%veta   
     !-----------------------------------------------------------------------------
-    ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (veta(tot_nhcneed*nhc_len),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "veta",dp_size*tot_nhcneed*nhc_len)
     DO iproc=1,para_env%num_pe
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
@@ -1629,8 +1652,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! nhc%force
     !-----------------------------------------------------------------------------
-    ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (fnhc(tot_nhcneed*nhc_len),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "fnhc",dp_size*tot_nhcneed*nhc_len)
     DO iproc=1,para_env%num_pe
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
@@ -1661,8 +1685,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! nhc%mass
     !-----------------------------------------------------------------------------
-    ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
+    ALLOCATE (mnhc(tot_nhcneed*nhc_len),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "mnhc",dp_size*tot_nhcneed*nhc_len)
     DO iproc=1,para_env%num_pe
        CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
        CALL reallocate(index,1,nhc_per_proc(iproc))
@@ -1690,12 +1715,12 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE ( work, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-    DEALLOCATE ( index, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-    DEALLOCATE ( nhc_per_proc, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (index,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"index")
+    DEALLOCATE (nhc_per_proc,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nhc_per_proc")
 
   END SUBROUTINE collect_nose_restart_info
 
@@ -1804,43 +1829,44 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coord, force, mass, velocity
 
     failure = .FALSE.
-    NULLIFY(coord, force, velocity, mass)
+    NULLIFY (coord, force, velocity, mass)
     IF (PRESENT(eta)) THEN
-       IF (SIZE(eta)>0) THEN
+       IF (SIZE(eta) > 0) THEN
           coord => section_vals_get_subs_vals(work_section,"COORD",error=error)
           CALL section_vals_val_set(coord,"_DEFAULT_KEYWORD_",r_vals_ptr=eta,error=error)
        ELSE
-          DEALLOCATE(eta, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+          DEALLOCATE (eta,STAT=stat)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta")
        END IF
     END IF
     IF (PRESENT(veta)) THEN
-       IF (SIZE(veta)>0) THEN
+       IF (SIZE(veta) > 0) THEN
           velocity => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
           CALL section_vals_val_set(velocity,"_DEFAULT_KEYWORD_",r_vals_ptr=veta,error=error)
        ELSE
-          DEALLOCATE(veta, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+          DEALLOCATE (veta,STAT=stat)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta")
        END IF
     END IF
     IF (PRESENT(fnhc)) THEN
-       IF (SIZE(fnhc)>0) THEN
+       IF (SIZE(fnhc) > 0) THEN
           force => section_vals_get_subs_vals(work_section,"FORCE",error=error)
           CALL section_vals_val_set(force,"_DEFAULT_KEYWORD_",r_vals_ptr=fnhc,error=error)
        ELSE
-          DEALLOCATE(fnhc, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+          DEALLOCATE (fnhc,STAT=stat)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc")
        END IF
     END IF
     IF (PRESENT(mnhc)) THEN
-       IF (SIZE(mnhc)>0) THEN
+       IF (SIZE(mnhc) > 0) THEN
           mass => section_vals_get_subs_vals(work_section,"MASS",error=error)
           CALL section_vals_val_set(mass,"_DEFAULT_KEYWORD_",r_vals_ptr=mnhc,error=error)
        ELSE
-          DEALLOCATE(mnhc, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+          DEALLOCATE (mnhc,STAT=stat)
+          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc")
        END IF
     END IF
+
   END SUBROUTINE set_template_restart
 
 ! *****************************************************************************
@@ -3152,21 +3178,24 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
     INTEGER :: handle, iatom, icore, ikind, imolecule, ishell, istat, &
-      n_char_size, n_dp_size, n_int_size, natom, natomkind, ncore, nmolecule, &
-      nmoleculekind, nshell, print_level, run_type
+      n_char_size, n_dp_size, n_int_size, natom, natomkind, ncore, nhc_size, &
+      nmolecule, nmoleculekind, nshell, print_level, run_type
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ibuf, imol
     LOGICAL                                  :: failure, print_info, &
                                                 write_velocities
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eta, fnhc, mnhc, veta
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: my_force_env
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
+    TYPE(thermostat_type), POINTER           :: thermostat_part
 
     CALL timeset(routineN,handle)
 
@@ -3174,7 +3203,9 @@ CONTAINS
 
     NULLIFY (atomic_kinds)
     NULLIFY (core_particles)
-    NULLIFY (atomic_kinds)
+    NULLIFY (eta)
+    NULLIFY (fnhc)
+    NULLIFY (mnhc)
     NULLIFY (molecule_kinds)
     NULLIFY (molecules)
     NULLIFY (my_force_env)
@@ -3182,10 +3213,12 @@ CONTAINS
     NULLIFY (particles)
     NULLIFY (shell_particles)
     NULLIFY (subsys)
+    NULLIFY (veta)
 
     IF (PRESENT(md_env)) THEN
        CALL get_md_env(md_env=md_env,&
                        force_env=my_force_env,&
+                       thermostat_part=thermostat_part,&
                        error=error)
     ELSE IF (PRESENT(force_env)) THEN 
        my_force_env => force_env
@@ -3415,7 +3448,72 @@ CONTAINS
           DEALLOCATE (ibuf,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
        END IF
+    END IF ! ionode only
 
+    ! Thermostat information
+
+    IF (ASSOCIATED(thermostat_part)) THEN
+       IF (thermostat_part%type_of_thermostat == do_thermo_nose) THEN
+          ! Write restart the information of the Nose-Hoover thermostat for particles
+          nhc => thermostat_part%nhc
+          CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
+          nhc_size = SIZE(eta)
+          IF (output_unit > 0) THEN ! only ionode
+             WRITE (UNIT=output_unit,IOSTAT=istat) nhc_size
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "nhc_size (IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_int_size = n_int_size + 1
+             IF (print_info) WRITE (UNIT=*,FMT="(T3,A,T71,I10)") "NHC size",nhc_size
+             ! eta
+             WRITE (UNIT=output_unit,IOSTAT=istat) eta(1:nhc_size)
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "eta(1:nhc_size) "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_dp_size = n_dp_size + nhc_size
+          END IF ! ionode only
+          DEALLOCATE (eta,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta",para_env)
+          ! veta
+          IF (output_unit > 0) THEN ! only ionode
+             WRITE (UNIT=output_unit,IOSTAT=istat) veta(1:nhc_size)
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "veta(1:nhc_size) "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_dp_size = n_dp_size + nhc_size
+          END IF ! ionode only
+          DEALLOCATE (veta,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta",para_env)
+          ! mnhc
+          IF (output_unit > 0) THEN ! only ionode
+             WRITE (UNIT=output_unit,IOSTAT=istat) mnhc(1:nhc_size)
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "mnhc(1:nhc_size) "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_dp_size = n_dp_size + nhc_size
+          END IF ! ionode only
+          DEALLOCATE (mnhc,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc",para_env)
+          ! fnhc
+          IF (output_unit > 0) THEN ! only ionode
+             WRITE (UNIT=output_unit,IOSTAT=istat) fnhc(1:nhc_size)
+             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                             "fnhc(1:nhc_size) "//&
+                                             "(IOSTAT = "//cp_to_string(istat)//")",&
+                                             output_unit,para_env)
+             n_dp_size = n_dp_size + nhc_size
+          END IF ! ionode only
+          DEALLOCATE (fnhc,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc",para_env)
+       END IF ! write Nose thermostat information for particles
+    END IF ! write thermostat information for particles
+
+    ! Particle velocities
+
+    IF (output_unit > 0) THEN ! only ionode
        ! Write velocities if needed
        IF (write_velocities) THEN
           ALLOCATE (rbuf(3,natom),STAT=istat)
@@ -3468,11 +3566,10 @@ CONTAINS
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
           END IF
        END IF
+    END IF ! ionode only
 
-       ! Thermostat information
-
-       ! to be done
-
+    ! Optionally, print a small I/O statistics
+    IF (output_unit > 0) THEN ! only ionode
        IF (print_info) THEN
           WRITE (UNIT=*,FMT="(/,(T2,I10,1X,I0,A,T68,I10,A))")&
             n_char_size,int_size,"-byte characters written",n_char_size*int_size/1024," KB",&
@@ -3481,7 +3578,6 @@ CONTAINS
           WRITE (UNIT=*,FMT="(/,T2,A)")&
             "Binary restart file "//TRIM(ADJUSTL(binary_restart_file_name))//" written"
        END IF
-
     END IF ! ionode only
 
     CALL timestop(handle)

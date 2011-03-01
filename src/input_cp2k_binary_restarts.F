@@ -16,6 +16,7 @@ MODULE input_cp2k_binary_restarts
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE extended_system_types,           ONLY: lnhc_parameters_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -24,12 +25,14 @@ MODULE input_cp2k_binary_restarts
                                              dp,&
                                              dp_size,&
                                              int_size
+  USE machine
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
   USE termination,                     ONLY: stop_memory,&
+                                             stop_program,&
                                              stop_read
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -45,6 +48,7 @@ MODULE input_cp2k_binary_restarts
 
   PUBLIC :: read_binary_coordinates,&
             read_binary_cs_coordinates,&
+            read_binary_thermostats,&
             read_binary_velocities
 
 CONTAINS
@@ -71,8 +75,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name, &
-                                                file_action, file_form, &
-                                                file_name, file_position
+                                                file_name
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER :: handle, iatom, ikind, input_unit, istat, iw, natom, natomkind, &
       ncore, nmolecule, nmoleculekind, nshell
@@ -345,8 +348,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name, &
-                                                file_action, file_form, &
-                                                file_name, file_position
+                                                file_name
     INTEGER                                  :: handle, input_unit, &
                                                 iparticle, istat, iw, &
                                                 nparticle
@@ -488,8 +490,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name, &
-                                                file_form, file_name, &
-                                                file_position
+                                                file_name
     CHARACTER(LEN=default_string_length)     :: section_name
     INTEGER                                  :: handle, input_unit, &
                                                 iparticle, istat, iw, &
@@ -584,5 +585,172 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE read_binary_velocities
+
+! *****************************************************************************
+!> \brief   Read the input section &THERMOSTAT from an external file written
+!>          in binary format.
+!> \author  Matthias Krack (MK)
+!> \version 1.0 
+!> \par History
+!>      - Creation (28.02.2011,MK)
+! *****************************************************************************
+  SUBROUTINE read_binary_thermostats(nhc,binary_restart_file_name,para_env,&
+                                     error)
+
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: file_name
+    INTEGER                                  :: handle, i, idx, input_unit, &
+                                                istat, j, nhc_size
+    LOGICAL                                  :: debug
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rbuf
+
+    CALL timeset(routineN,handle)
+
+    IF (.NOT.ASSOCIATED(para_env)) CALL stop_program(routineN,moduleN,__LINE__,&
+                                        "Pointer object para_env is not associated")
+    IF (.NOT.ASSOCIATED(nhc)) CALL stop_program(routineN,moduleN,__LINE__,&
+                                                "Pointer object nhc is not associated",para_env)
+
+    ! Set to .TRUE. for debug mode, i.e. all data read are written to stdout
+    debug = .FALSE.
+
+    ! Open binary restart file at last position
+    IF (para_env%ionode) THEN
+       CALL open_file(file_name=binary_restart_file_name,&
+                      file_status="OLD",&
+                      file_form="UNFORMATTED",&
+                      file_action="READWRITE",&
+                      file_position="ASIS",&
+                      unit_number=input_unit)
+       READ (UNIT=input_unit,IOSTAT=istat) nhc_size
+       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                      "nhc_size (IOSTAT = "//cp_to_string(istat)//")",&
+                                      input_unit,para_env)
+       IF (debug) THEN
+          WRITE (UNIT=*,FMT="(T2,A,/,T2,A,I0)")&
+            "&THERMOSTAT section data read in binary format from file "//&
+            TRIM(binary_restart_file_name),&
+            "# nhc_size = ",nhc_size
+       END IF
+    END IF
+
+    CALL mp_bcast(nhc_size,para_env%source,para_env%group)
+
+    IF (nhc_size > 0) THEN
+
+       ALLOCATE (rbuf(nhc_size),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "rbuf",dp_size*nhc_size,para_env)
+       rbuf(:) = 0.0_dp
+
+       ! Read NHC section &COORD
+       IF (para_env%ionode) THEN
+          READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
+          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                         "eta -> rbuf (IOSTAT = "//&
+                                         cp_to_string(istat)//")",&
+                                         input_unit,para_env)
+          IF (debug) THEN
+             WRITE (UNIT=*,FMT="(T2,A,/,(4E25.15))")&
+               "&COORD",rbuf(1:nhc_size)
+          END IF
+       END IF
+       CALL mp_bcast(rbuf,para_env%source,para_env%group)
+       DO i=1,SIZE(nhc%nvt,2)
+          idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
+          DO j=1,SIZE(nhc%nvt,1)
+             idx = idx + 1
+             nhc%nvt(j,i)%eta = rbuf(idx)
+          END DO
+       END DO
+
+       ! Read NHC section &VELOCITY
+       IF (para_env%ionode) THEN
+          READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
+          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                         "veta -> rbuf (IOSTAT = "//&
+                                         cp_to_string(istat)//")",&
+                                         input_unit,para_env)
+          IF (debug) THEN
+             WRITE (UNIT=*,FMT="(T2,A,/,(4E25.15))")&
+               "&VELOCITY",rbuf(1:nhc_size)
+          END IF
+       END IF
+       CALL mp_bcast(rbuf,para_env%source,para_env%group)
+       DO i=1,SIZE(nhc%nvt,2)
+          idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
+          DO j=1,SIZE(nhc%nvt,1)
+             idx = idx + 1
+             nhc%nvt(j,i)%v = rbuf(idx)
+          END DO
+       END DO
+
+       ! Read NHC section &MASS
+       IF (para_env%ionode) THEN
+          READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
+          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                         "mnhc -> rbuf (IOSTAT = "//&
+                                         cp_to_string(istat)//")",&
+                                         input_unit,para_env)
+          IF (debug) THEN
+             WRITE (UNIT=*,FMT="(T2,A,/,(4E25.15))")&
+               "&MASS:",rbuf(1:nhc_size)
+          END IF
+       END IF
+       CALL mp_bcast(rbuf,para_env%source,para_env%group)
+       DO i=1,SIZE(nhc%nvt,2)
+          idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
+          DO j=1,SIZE(nhc%nvt,1)
+             idx = idx + 1
+             nhc%nvt(j,i)%mass = rbuf(idx)
+          END DO
+       END DO
+
+       ! Read NHC section &FORCE
+       IF (para_env%ionode) THEN
+          READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
+          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                         "fnhc -> rbuf (IOSTAT = "//&
+                                         cp_to_string(istat)//")",&
+                                         input_unit,para_env)
+          IF (debug) THEN
+             WRITE (UNIT=*,FMT="(T2,A,/,(4E25.15))")&
+               "&FORCE",rbuf(1:nhc_size)
+          END IF
+       END IF
+       CALL mp_bcast(rbuf,para_env%source,para_env%group)
+       DO i=1,SIZE(nhc%nvt,2)
+          idx = (nhc%map_info%index(i) - 1)*nhc%nhc_len
+          DO j=1,SIZE(nhc%nvt,1)
+             idx = idx + 1
+             nhc%nvt(j,i)%f = rbuf(idx)
+          END DO
+       END DO
+
+       DEALLOCATE (rbuf,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+
+    END IF
+
+    IF (para_env%ionode) THEN
+       IF (debug) THEN
+          WRITE (UNIT=*,FMT="(T2,A)")&
+          "&END THERMOSTAT section data read in binary format from file "//&
+          TRIM(binary_restart_file_name)
+       END IF
+       CALL close_file(unit_number=input_unit,&
+                       keep_preconnection=.TRUE.)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE read_binary_thermostats
 
 END MODULE input_cp2k_binary_restarts
