@@ -499,6 +499,7 @@ MODULE hfx_load_balance_methods
       nblocks = load_balance_parameter%nblocks
 
       DO atom_block = my_process_id,nblocks**4-1,n_processes
+        
         latom_block = MODULO(atom_block,nblocks)+1
         tmp_block = atom_block/nblocks
         katom_block = MODULO(tmp_block,nblocks)+1
@@ -517,7 +518,6 @@ MODULE hfx_load_balance_methods
         katom_end =   x_data%blocks(katom_block)%iend
         latom_start = x_data%blocks(latom_block)%istart
         latom_end =   x_data%blocks(latom_block)%iend
-
 
         SELECT CASE(eval_type)
         CASE (hfx_do_eval_energy)
@@ -547,12 +547,31 @@ MODULE hfx_load_balance_methods
                                               log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
 
       END DO ! atom_block
+    
       nbins = load_balance_parameter%nbins
       cost_per_bin = (cost_per_core + nbins -1 ) / (nbins) 
 
 !$OMP BARRIER
 !$OMP MASTER
     CALL timestop(handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
+
+! new load balancing test
+IF ( .FALSE. ) THEN
+    CALL hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
+                                 natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                 particle_set,&
+                                 coeffs_set, coeffs_kind, &
+                                 is_assoc_atomic_block_global, do_periodic,&
+                                 kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                 cell, x_data, para_env, pmax_block,&
+                                 do_p_screening, map_atom_to_kind_atom, eval_type,&
+                                 log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+END IF
+
+!$OMP BARRIER
+!$OMP MASTER
     CALL timeset(routineN//"_bin",handle_inner)
 !$OMP END MASTER
 !$OMP BARRIER
@@ -885,6 +904,585 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
   END SUBROUTINE hfx_load_balance
+
+! *****************************************************************************
+!> \brief Reference implementation of new recursive load balancing routine 
+!>        Computes a local list of atom_blocks (p_atom_blocks,q_atom_blocks) for
+!>        each process in a P-Q grid such that every process has more or less the
+!>        same amount of work. Has no output at the moment (not used) but writes
+!>        its computed load balance values into a file. Possible output is ready
+!>        to use in the two arrays p_atom_blocks & q_atom_blocks
+!> \par History
+!>      03.2011 created [Michael Steinlechner]
+!> \author Michael Steinlechner
+! *****************************************************************************
+
+SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
+                             natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                             particle_set,&
+                             coeffs_set, coeffs_kind, &
+                             is_assoc_atomic_block_global, do_periodic,&
+                             kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                             cell, x_data, para_env, pmax_block,&
+                             do_p_screening, map_atom_to_kind_atom, eval_type,&
+                             log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+
+! input variables:
+    INTEGER(int_8), INTENT(IN)               :: n_processes
+    INTEGER, INTENT(IN)                      :: my_process_id
+    INTEGER(int_8), INTENT(IN)               :: nblocks
+    INTEGER, INTENT(IN)                      :: natom, nkind
+    TYPE(pair_list_type), INTENT(IN)         :: list_ij, list_kl
+    TYPE(pair_set_list_type), ALLOCATABLE, &
+      DIMENSION(:), INTENT(IN)               :: set_list_ij, set_list_kl
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN), POINTER                    :: particle_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), INTENT(IN), &
+      POINTER                                :: coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), INTENT(IN), POINTER   :: coeffs_kind
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: is_assoc_atomic_block_global
+    LOGICAL, INTENT(IN)                      :: do_periodic
+    INTEGER, INTENT(IN)                      :: kind_of(*)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      INTENT(IN), POINTER                    :: basis_parameter
+    TYPE(hfx_p_kind), DIMENSION(:), &
+      INTENT(IN), POINTER                    :: pmax_set
+    REAL(dp), DIMENSION(:, :), INTENT(IN), &
+      POINTER                                :: pmax_atom
+    REAL(dp)                                 :: pmax_blocks
+    TYPE(cell_type), INTENT(IN), POINTER     :: cell
+    TYPE(hfx_type), INTENT(IN), POINTER      :: x_data
+    TYPE(cp_para_env_type), INTENT(IN), &
+      POINTER                                :: para_env
+    REAL(dp), DIMENSION(:, :), INTENT(IN), &
+      POINTER                                :: pmax_block
+    LOGICAL, INTENT(IN)                      :: do_p_screening
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: map_atom_to_kind_atom
+    INTEGER, INTENT(IN)                      :: eval_type
+    REAL(dp), INTENT(IN)                     :: log10_eps_schwarz, log_2, &
+                                                coeffs_kind_max0
+    LOGICAL, INTENT(IN)                      :: use_virial
+    LOGICAL, DIMENSION(:, :), INTENT(IN), &
+      POINTER                                :: atomic_pair_list
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_recursive_load_balance', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, iatom_block, iatom_end, iatom_start, j, &
+      jatom_block, jatom_end, jatom_start, katom_block, katom_end, &
+      katom_start, latom_block, latom_end, latom_start
+    INTEGER(int_8)                           :: local_cost, nP, nQ, numBins, &
+                                                p, pidx, q, qidx, sizeP, &
+                                                sizeQ, sumP, sumQ
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: local_cost_vector, &
+                                                p_atom_blocks, q_atom_blocks
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blocksize, permute
+    REAL(dp)                                 :: maximum, mean
+
+! internal variables:
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN,handle)
+!$OMP END MASTER
+!$OMP BARRIER
+    
+
+    ! calculate best p/q distribution grid for the n_processes
+    CALL hfx_calculate_PQ(p, q, numBins, n_processes)
+    
+    ALLOCATE(blocksize(numBins))
+    ALLOCATE(permute(nblocks**2))
+    DO i=1,nblocks**2
+        permute(i) = i
+    END DO
+
+    ! call the main recursive permutation routine. 
+    ! Output:
+    !   blocksize :: vector (size numBins) with the sizes for each column/row block
+    !   permute   :: permutation vector
+    CALL hfx_recursive_permute( blocksize, 1, INT(nblocks**2), numBins,&
+                                permute, 1,&
+                                my_process_id, n_processes, nblocks, &  
+                                natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                particle_set,&
+                                coeffs_set, coeffs_kind, &
+                                is_assoc_atomic_block_global, do_periodic,&
+                                kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                cell, x_data, para_env, pmax_block,&
+                                do_p_screening, map_atom_to_kind_atom, eval_type,&
+                                log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+
+    ! number of blocks per processor in p-direction (vertical)
+    nP = numBins/p
+    ! number of blocks per processor in q-direction (horizontal)
+    nQ = numBins/q
+
+    ! calc own position in P-Q-processor grid (PQ-grid is column-major)
+    pidx = MODULO(INT(my_process_id),INT(p)) + 1
+    qidx = my_process_id / p + 1
+
+    sizeP = SUM(blocksize( (nP*(pidx-1)+1):(nP*pidx) ))
+    sizeQ = SUM(blocksize( (nQ*(qidx-1)+1):(nQ*qidx) ))
+
+    sumP = SUM(blocksize( 1:(nP*(pidx-1)) ))
+    sumQ = SUM(blocksize( 1:(nQ*(qidx-1)) ))
+
+    ALLOCATE(p_atom_blocks(sizeP))
+    ALLOCATE(q_atom_blocks(sizeQ))
+
+    p_atom_blocks = permute( (sumP+1):(sumP+sizeP) )
+    q_atom_blocks = permute( (sumQ+1):(sumQ+sizeQ) )
+
+    ! from here on, we are actually finished, each process has been
+    ! assigned a (p_atom_blocks,q_atom_blocks) pair list.
+    ! what follows is just a small routine to calculate the local cost
+    ! for each processor which is then written to a file.
+
+    ! calculate local cost for each processor!
+    ! ****************************************
+    local_cost = 0.0
+    DO i = 1,sizeP
+        DO j= 1,sizeQ
+            
+    !       get corresponding 4D block indices out of our own P-Q-block       
+            latom_block = MODULO(q_atom_blocks(j),nblocks)
+            iatom_block = q_atom_blocks(j)/nblocks + 1
+            jatom_block = MODULO(p_atom_blocks(i),nblocks)
+            katom_block = p_atom_blocks(i)/nblocks + 1
+
+    !       symmetry checks.
+            IF(latom_block<katom_block) CYCLE
+            IF(jatom_block<iatom_block) CYCLE
+
+            iatom_start = x_data%blocks(iatom_block)%istart
+            iatom_end =   x_data%blocks(iatom_block)%iend
+            jatom_start = x_data%blocks(jatom_block)%istart
+            jatom_end =   x_data%blocks(jatom_block)%iend
+            katom_start = x_data%blocks(katom_block)%istart
+            katom_end =   x_data%blocks(katom_block)%iend
+            latom_start = x_data%blocks(latom_block)%istart
+            latom_end =   x_data%blocks(latom_block)%iend
+
+    !       whatever.
+            SELECT CASE(eval_type)
+            CASE (hfx_do_eval_energy)
+              pmax_blocks = MAX( pmax_block(katom_block, iatom_block), &
+                                 pmax_block(latom_block, jatom_block), &
+                                 pmax_block(latom_block, iatom_block), &
+                                 pmax_block(katom_block, jatom_block) )
+            CASE (hfx_do_eval_forces)
+              pmax_blocks = MAX( pmax_block(katom_block, iatom_block) + &
+                                 pmax_block(latom_block, jatom_block), &
+                                 pmax_block(latom_block, iatom_block) + &
+                                 pmax_block(katom_block, jatom_block) )
+            END SELECT
+
+    !       screening.
+            IF( 2.0_dp*coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
+
+    !       estimate the cost of this atom_block.
+            local_cost = local_cost + estimate_block_cost( natom, nkind, list_ij, list_kl, set_list_ij, &
+                                                  set_list_kl, &
+                                                  iatom_start, iatom_end, jatom_start, jatom_end, &
+                                                  katom_start, katom_end, latom_start, latom_end, &
+                                                  particle_set,&
+                                                  coeffs_set, coeffs_kind, &
+                                                  is_assoc_atomic_block_global, do_periodic,&
+                                                  kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                  cell, &
+                                                  do_p_screening, map_atom_to_kind_atom, eval_type,&
+                                                  log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list) 
+          END DO 
+    END DO
+
+    ALLOCATE(local_cost_vector(n_processes))
+    local_cost_vector = 0
+    local_cost_vector(my_process_id+1) = local_cost
+    CALL mp_sum(local_cost_vector, para_env%group)
+
+    mean = SUM(local_cost_vector) / n_processes
+    maximum = MAXVAL(local_cost_vector)
+
+    !$OMP BARRIER
+    !$OMP MASTER
+        ! only output once 
+        IF( my_process_id == 0) THEN
+            OPEN(UNIT=1000,FILE="loads.dat")
+            WRITE(1000,*) 'maximum cost:', maximum
+            WRITE(1000,*) 'mean cost:', mean
+            WRITE(1000,*) 'load balance ratio max/mean: ', maximum/mean
+            WRITE(1000,*) '-------- detailed per-process costs ---------'
+            DO i=1,n_processes
+                WRITE(1000,*) local_cost_vector(i)
+            END DO
+            CLOSE(1000)
+        END IF
+    !$OMP END MASTER
+    !$OMP BARRIER
+
+    DEALLOCATE(local_cost_vector)
+    DEALLOCATE(p_atom_blocks,q_atom_blocks)
+    DEALLOCATE(blocksize,permute)
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle)
+!$OMP END MASTER
+!$OMP BARRIER
+
+END SUBROUTINE hfx_recursive_load_balance
+
+
+! *****************************************************************************
+!> \brief Small routine to calculate the optimal P-Q-processor grid distribution 
+!>        for a given number of processors N
+!>        and the corresponding number of Bins for the load balancing routine
+!> \param p     number of rows on P-Q process grid (output)
+!> \param q     number of columns on P-Q process grid (output)
+!> \param nBins number of Bins (output)
+!> \param N     number of processes (input)
+!> \par History
+!>      03.2011 created [Michael Steinlechner]
+!> \author Michael Steinlechner
+! *****************************************************************************
+  SUBROUTINE hfx_calculate_PQ(p, q, nBins, N)
+
+    INTEGER(int_8), INTENT(OUT)              :: p, q, nBins
+    INTEGER(int_8), INTENT(IN)               :: N
+
+    INTEGER(int_8)                           :: a, b, k
+    REAL(dp)                                 :: sqN
+
+    k=2
+    sqN = SQRT(REAL(N))
+    p = 1
+    
+    DO WHILE (REAL(k) <= sqN)
+        IF (MODULO(N,k) == 0) THEN
+            p = k
+        END IF
+        k = k+1
+    END DO
+    q=N/p
+
+    ! now compute the least common multiple of p & q to get the number of necessary bins
+    ! compute using the relation LCM(p,q) = abs(p*q) / GCD(p,q)
+    ! and use euclid's algorithm for GCD computation.
+    a = p
+    b = q
+
+    DO WHILE( b .NE. 0)
+        IF (a > b) THEN
+            a = a-b
+        ELSE
+            b = b-a
+        END IF
+    END DO
+    ! gcd(p,q) is now saved in a
+
+    nBins = p*q / a
+
+  END SUBROUTINE
+
+  
+! *****************************************************************************
+!> \brief Recursive permutation routine for the load balancing of the integral
+!>       computation
+!> \param blocksize     vector of blocksizes, size(nProc), which contains for
+!>                      each process the local blocksize (OUTPUT)
+!> \param permute       permutation vector which balances column/row cost
+!>                      size(nblocks^2). (OUTPUT)
+!> \param blockstart    starting row/column idx of the block which is to be examined
+!>                      at this point (INPUT)
+!> \param blockend      ending row/column idx of the block which is to be examined
+!>                      (INPUT)
+!> \param nProc_in      number of bins into which the current block has to be divided
+!>                      (INPUT)
+!> \par History
+!>      03.2011 created [Michael Steinlechner]
+!> \author Michael Steinlechner
+! *****************************************************************************
+  RECURSIVE SUBROUTINE hfx_recursive_permute( blocksize, blockstart, blockend, nProc_in,&
+                                      permute, step,&
+                                      my_process_id, n_processes, nblocks, &  
+                                      natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                      particle_set,&
+                                      coeffs_set, coeffs_kind, &
+                                      is_assoc_atomic_block_global, do_periodic,&
+                                      kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                      cell, x_data, para_env, pmax_block,&
+                                      do_p_screening, map_atom_to_kind_atom, eval_type,&
+                                      log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+
+
+    INTEGER(int_8)                           :: nProc_in
+    INTEGER                                  :: blockend, blockstart
+    INTEGER, DIMENSION(nProc_in)             :: blocksize
+    INTEGER(int_8)                           :: nblocks, n_processes
+    INTEGER                                  :: my_process_id
+    INTEGER, INTENT(IN)                      :: step
+    INTEGER, DIMENSION(nblocks*nblocks)      :: permute
+    INTEGER                                  :: natom
+    INTEGER, INTENT(IN)                      :: nkind
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    TYPE(pair_set_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: set_list_ij, set_list_kl
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: coeffs_kind
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
+    LOGICAL                                  :: do_periodic
+    INTEGER                                  :: kind_of(*)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
+    REAL(dp)                                 :: pmax_blocks
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(hfx_type), POINTER                  :: x_data
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_block
+    LOGICAL, INTENT(IN)                      :: do_p_screening
+    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+    INTEGER, INTENT(IN)                      :: eval_type
+    REAL(dp)                                 :: log10_eps_schwarz, log_2, &
+                                                coeffs_kind_max0
+    LOGICAL, INTENT(IN)                      :: use_virial
+    LOGICAL, DIMENSION(:, :), POINTER        :: atomic_pair_list
+
+    INTEGER :: endoffset, i, iatom_end, iatom_start, idx, inv_perm, &
+      jatom_end, jatom_start, katom_end, katom_start, latom_end, latom_start, &
+      startoffset
+    INTEGER(int_8) :: atom_block, col, iatom_block, jatom_block, katom_block, &
+      latom_block, nbins, nProc, row, tmp_block
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ithblocksize, localblocksize
+    INTEGER, &
+      DIMENSION(blockend-blockstart+1)       :: bin_perm, tmp_perm
+    REAL(dp)                                 :: partialcost
+    REAL(dp), DIMENSION(nblocks*nblocks)     :: cost_vector
+
+    nProc = nProc_in
+    cost_vector = 0.0_dp
+
+!   loop over local atom_blocks.
+    DO atom_block = my_process_id,nblocks**4-1,n_processes
+        
+!       get corresponding 4D block indices
+        latom_block = MODULO(atom_block,nblocks)+1
+        tmp_block = atom_block/nblocks
+        katom_block = MODULO(tmp_block,nblocks)+1
+        IF(latom_block<katom_block) CYCLE
+        tmp_block = tmp_block/nblocks
+        jatom_block = MODULO(tmp_block,nblocks)+1
+        tmp_block = tmp_block/nblocks
+        iatom_block = MODULO(tmp_block,nblocks)+1
+        IF(jatom_block<iatom_block) CYCLE
+
+!       get 2D indices of this atom_block (with permutation applied)
+!       for this, we need to invert the permutation, this means 
+!       find position in permutation vector where value==idx
+
+        row = (katom_block-1)*nblocks + jatom_block
+        inv_perm = 1
+        DO WHILE (permute(inv_perm) .NE. row)
+            inv_perm = inv_perm + 1
+        END DO
+        row = inv_perm
+        
+        col = (iatom_block-1)*nblocks + latom_block
+        inv_perm = 1
+        DO WHILE (permute(inv_perm) .NE. col)
+            inv_perm = inv_perm + 1
+        END DO
+        col = inv_perm
+
+!       if row/col outside our current diagonal block, skip calculation.
+        IF (col < blockstart .OR. col > blockend) CYCLE  
+        IF (row < blockstart .OR. row > blockend) CYCLE
+
+        iatom_start = x_data%blocks(iatom_block)%istart
+        iatom_end =   x_data%blocks(iatom_block)%iend
+        jatom_start = x_data%blocks(jatom_block)%istart
+        jatom_end =   x_data%blocks(jatom_block)%iend
+        katom_start = x_data%blocks(katom_block)%istart
+        katom_end =   x_data%blocks(katom_block)%iend
+        latom_start = x_data%blocks(latom_block)%istart
+        latom_end =   x_data%blocks(latom_block)%iend
+
+!       whatever.
+        SELECT CASE(eval_type)
+        CASE (hfx_do_eval_energy)
+          pmax_blocks = MAX( pmax_block(katom_block, iatom_block), &
+                             pmax_block(latom_block, jatom_block), &
+                             pmax_block(latom_block, iatom_block), &
+                             pmax_block(katom_block, jatom_block) )
+        CASE (hfx_do_eval_forces)
+          pmax_blocks = MAX( pmax_block(katom_block, iatom_block) + &
+                             pmax_block(latom_block, jatom_block), &
+                             pmax_block(latom_block, iatom_block) + &
+                             pmax_block(katom_block, jatom_block) )
+        END SELECT
+
+!       screening.
+        IF( 2.0_dp*coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
+
+!       every second recursion step, compute row sum instead of column sum
+        
+        IF( MODULO(step,2) .EQ. 0) THEN
+            idx = row
+        ELSE
+            idx = col
+        END IF
+
+!       estimate the cost of this atom_block.
+        partialcost = estimate_block_cost( natom, nkind, list_ij, list_kl, set_list_ij, &
+                                              set_list_kl, &
+                                              iatom_start, iatom_end, jatom_start, jatom_end, &
+                                              katom_start, katom_end, latom_start, latom_end, &
+                                              particle_set,&
+                                              coeffs_set, coeffs_kind, &
+                                              is_assoc_atomic_block_global, do_periodic,&
+                                              kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                              cell, &
+                                              do_p_screening, map_atom_to_kind_atom, eval_type,&
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list) 
+        
+        cost_vector(idx) = cost_vector(idx) + partialcost
+      END DO ! atom_block
+
+!   sum costvector over all processes
+    CALL mp_sum(cost_vector, para_env%group)
+
+!   calculate next prime factor of nProc
+    nBins = 2
+    DO WHILE (MODULO(INT(nProc),INT(nBins)) .NE. 0)
+        nBins = nBins + 1
+    END DO
+    
+    nProc = nProc/nBins
+
+! ... do the binning...
+   
+    ALLOCATE(localblocksize(nBins))
+    CALL hfx_permute_binning( nBins, cost_vector(blockstart:blockend), blockend-blockstart+1, bin_perm, localblocksize )
+    
+!... and update the permutation vector
+
+    tmp_perm = permute(blockstart:blockend)
+    permute(blockstart:blockend) = tmp_perm(bin_perm)
+
+!   split recursion into the nBins Bins
+    IF (nProc > 1) THEN
+        ALLOCATE(ithblocksize(nProc))
+        DO i=1,nBins
+            startoffset = SUM(localblocksize(1:(i-1)))
+            endoffset = SUM(localblocksize(1:i))-1
+            
+            CALL hfx_recursive_permute( ithblocksize, blockstart+startoffset, blockstart+endoffset, nProc,&
+                                      permute, step+1, &
+                                      my_process_id, n_processes, nblocks, &  
+                                      natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                      particle_set, &
+                                      coeffs_set, coeffs_kind, &
+                                      is_assoc_atomic_block_global, do_periodic,&
+                                      kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                      cell, x_data,para_env, pmax_block,&
+                                      do_p_screening, map_atom_to_kind_atom, eval_type,&
+                                      log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+            blocksize(((i-1)*nProc+1):(i*nProc)) = ithblocksize
+        END DO
+        DEALLOCATE(ithblocksize)
+    ELSE
+        DO i=1,nBins
+            blocksize(i) = localblocksize(i)
+        END DO
+    END IF
+
+    DEALLOCATE(localblocksize)
+
+END SUBROUTINE hfx_recursive_permute
+
+
+
+! *****************************************************************************
+!> \brief small binning routine for the recursive load balancing
+!>
+!> \param nBins         number of Bins (INPUT)
+!> \param costvector    vector of current row/column costs which have to be binned (INPUT)
+!> \param maxbinsize    upper bound for bin size (INPUT)
+!> \param perm          resulting permutation due to be binning routine (OUTPUT)
+!> \param block_count   vector of size(nbins) which contains the size of each bin (OUTPUT)
+!> \par History
+!>      03.2011 created [Michael Steinlechner]
+!> \author Michael Steinlechner
+! *****************************************************************************
+SUBROUTINE hfx_permute_binning ( nBins, costvector, maxbinsize, perm, block_count)
+
+    INTEGER(int_8), INTENT(IN)               :: nBins
+    INTEGER, INTENT(IN)                      :: maxbinsize
+    REAL(dp), DIMENSION(maxbinsize), &
+      INTENT(IN)                             :: costvector
+    INTEGER, DIMENSION(maxbinsize), &
+      INTENT(OUT)                            :: perm
+    INTEGER, DIMENSION(nBins), INTENT(OUT)   :: block_count
+
+    INTEGER                                  :: i, j, mod_idx, offset
+    INTEGER, DIMENSION(nBins, maxbinsize)    :: bin
+    INTEGER, DIMENSION(nBins)                :: bin_idx
+    INTEGER, DIMENSION(maxbinsize)           :: idx
+    REAL(dp), DIMENSION(maxbinsize)          :: vec
+    REAL(dp), DIMENSION(nBins)               :: bincosts
+
+! be careful not to change costvector (copy it!)    
+
+    vec = costvector
+    block_count = 0
+    bincosts = 0
+
+    !sort the array (ascending)
+    CALL sort(vec, maxbinsize, idx)
+
+    ! count the loop down to distribute the largest cols/rows first
+    DO i = maxbinsize, 1, -1
+        IF (vec(i) == 0) THEN
+            ! spread zero-cost col/rows evenly among procs    
+            mod_idx = MODULO(i,INT(nBins)) + 1 !(note the fortran offset by one!)
+            block_count(mod_idx) = block_count(mod_idx) + 1
+            bin(mod_idx, block_count(mod_idx) ) = idx(i)
+        ELSE
+            ! sort the bins so that the one with the lowest cost is at the
+            ! first place, where we then assign the current col/row
+            CALL sort(bincosts, INT(nBins), bin_idx)
+            block_count = block_count(bin_idx)        
+            bin = bin(bin_idx,:) 
+
+            bincosts(1) = bincosts(1) + vec(i)
+            block_count(1) = block_count(1) + 1
+            bin(1, block_count(1) ) = idx(i)
+        END IF
+    END DO
+
+    ! construct permutation vector from the binning
+    offset = 0
+    DO i = 1, nBins
+        DO j = 1, block_count(i)
+            perm(offset+j) = bin(i,j)
+        END DO
+        offset = offset + block_count(i)
+    END DO
+
+
+END SUBROUTINE hfx_permute_binning 
+
+
 
 ! *****************************************************************************
 !> \brief Cheap way of redistributing the eri's
