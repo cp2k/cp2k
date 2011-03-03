@@ -36,7 +36,8 @@ MODULE thermostat_mapping
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort
+  USE util,                            ONLY: locate,&
+                                             sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -167,7 +168,7 @@ CONTAINS
       routineN = 'thermostat_mapping_region_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, iii, &
+    INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, &
       ikind, imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, &
       last_shell, nglob_cns, nmol_local, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp, wrk
@@ -305,12 +306,7 @@ CONTAINS
              k = 0
              DO ii =  point ( 1, icount ), point ( 2, icount )
                 ipart = first_atom + k
-                DO  iii = 1, SIZE ( massive_atom_list )
-                   IF ( ipart == massive_atom_list ( iii ) ) THEN
-                      ielement = iii
-                      EXIT
-                   END IF
-                END DO
+                ielement = locate(massive_atom_list,ipart)
                 k = k + 1
                 DO jj = 1, 3
                    number = number + 1
