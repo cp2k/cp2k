@@ -34,13 +34,13 @@ MODULE extended_system_mapping
   USE thermostat_mapping,              ONLY: init_baro_map_info,&
                                              thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-
-  ! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_mapping'
 
@@ -57,6 +57,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, error )
+
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -64,11 +65,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_barostat_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, number, stat
+    INTEGER                                  :: handle, i, number, stat
     LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
+
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
@@ -109,6 +113,8 @@ CONTAINS
        map_info%v_scale = 0.0_dp 
     END SELECT
 
+    CALL timestop(handle)
+
   END SUBROUTINE nhc_to_barostat_mapping
 
 ! *****************************************************************************
@@ -137,16 +143,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imap, j, natoms_local, &
-                                                stat, sum_of_thermostats
+    INTEGER                                  :: handle, i, imap, j, &
+                                                natoms_local, stat, &
+                                                sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
+
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
@@ -206,6 +216,8 @@ CONTAINS
        map_info%v_scale = 0.0_dp 
     END SELECT
 
+    CALL timestop(handle)
+
   END SUBROUTINE nhc_to_particle_mapping
 
 ! *****************************************************************************
@@ -234,9 +246,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_nhc_thermostat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nkind, number, region, stat
+    INTEGER                                  :: handle, nkind, number, &
+                                                region, stat
     LOGICAL                                  :: do_shell, failure
     TYPE(map_info_type), POINTER             :: map_info
+
+    CALL timeset(routineN,handle)
 
     failure  = .FALSE.
     do_shell = .FALSE.
@@ -262,6 +277,9 @@ CONTAINS
     !  on the chain)
     nhc%loc_num_nhc  = number
     nhc%glob_num_nhc = sum_of_thermostats
+
+    CALL timestop(handle)
+
   END SUBROUTINE setup_nhc_thermostat
 
 ! *****************************************************************************
@@ -281,12 +299,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_shell_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imap, j, nshell_local, &
-                                                stat, sum_of_thermostats
+    INTEGER                                  :: handle, i, imap, j, &
+                                                nshell_local, stat, &
+                                                sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
     LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (massive_shell_list, deg_of_freedom)
@@ -339,6 +360,8 @@ CONTAINS
        map_info%s_kin   = 0.0_dp 
        map_info%v_scale = 0.0_dp 
     END SELECT
+
+    CALL timestop(handle)
 
   END SUBROUTINE nhc_to_shell_mapping
 

@@ -17,6 +17,7 @@ MODULE thermostat_mapping
        do_region_molecule, do_thermo_communication, &
        do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE kinds,                           ONLY: int_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
@@ -31,7 +32,10 @@ MODULE thermostat_mapping
                                              global_constraint_type,&
                                              molecule_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
@@ -72,11 +76,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nkind, nmol_local, nsize, &
-                                                number_of_thermostats, stat
+    INTEGER                                  :: handle, nkind, nmol_local, &
+                                                nsize, number_of_thermostats, &
+                                                stat
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
     INTEGER, DIMENSION(:, :), POINTER        :: point
     LOGICAL                                  :: check, failure
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
@@ -129,6 +136,8 @@ CONTAINS
     DEALLOCATE (point, STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE thermostat_mapping_region
 
 ! *****************************************************************************
@@ -158,13 +167,15 @@ CONTAINS
       routineN = 'thermostat_mapping_region_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: first_atom, first_shell, i, icount, ielement, ii, iii, ikind, &
-      imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, last_shell, &
-      nglob_cns, nmol_local, stat
+    INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, iii, &
+      ikind, imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, &
+      last_shell, nglob_cns, nmol_local, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp, wrk
     LOGICAL                                  :: check, failure, &
                                                 global_constraints
     TYPE(molecule_type), POINTER             :: molecule
+
+    CALL timeset(routineN,handle)
 
     failure        = .FALSE.
     global_constraints = ASSOCIATED(gci)
@@ -319,6 +330,8 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,"Invalid region!")
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE thermostat_mapping_region_low
 
 ! *****************************************************************************
@@ -346,9 +359,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mapping_region_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atm_offset, first_atom, i, iatm, icount, id_region, ikind, &
-      ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, nfixd, &
-      nkind, nmol_per_kind, nmolecule, nshell, stat
+    INTEGER :: atm_offset, first_atom, handle, i, iatm, icount, id_region, &
+      ikind, ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, &
+      nfixd, nkind, nmol_per_kind, nmolecule, nshell, stat
     LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
@@ -360,6 +373,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: g4x6_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+
+    CALL timeset(routineN,handle)
 
     natoms_local = 0
     nmol_local   = 0
@@ -602,11 +617,14 @@ CONTAINS
        tot_const = 0
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE mapping_region_evaluate
 
 ! *****************************************************************************
   SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
        local_molecules, para_env, massive_atom_list, region, shell, error )
+
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -619,14 +637,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'massive_list_generate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: first_atom, first_shell, i, ikind, imol, iproc, j, k, natom, &
-      ncount, nkind, nmol_per_kind, nshell, num_massive_atm, &
+    INTEGER :: first_atom, first_shell, handle, i, ikind, imol, iproc, j, &
+      natom, ncount, nkind, nmol_per_kind, nshell, num_massive_atm, &
       num_massive_atm_local, offset, stat
     INTEGER, DIMENSION(:), POINTER           :: array_num_massive_atm, &
                                                 local_atm_list, work
     LOGICAL                                  :: failure
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     num_massive_atm_local = 0
@@ -687,20 +707,20 @@ CONTAINS
        offset = offset + array_num_massive_atm(iproc)
     END DO
 
-    DO i=1,num_massive_atm
-       DO j=1,num_massive_atm
-          IF(massive_atom_list(i)<massive_atom_list(j)) THEN
-             k = massive_atom_list ( i )
-             massive_atom_list ( i )  = massive_atom_list ( j )
-             massive_atom_list ( j ) = k
-          ENDIF
-       END DO
-    END DO
+    ! Sort atom list
+    ALLOCATE (work(num_massive_atm),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "work",int_size*num_massive_atm)
+    CALL sort(massive_atom_list,num_massive_atm,work)
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     DEALLOCATE(local_atm_list, STAT = stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(array_num_massive_atm, STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE massive_list_generate
 
@@ -708,7 +728,8 @@ CONTAINS
 !> \brief Initialize the map_info for barostat thermostat
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE  init_baro_map_info(map_info, ndeg, num_thermo, error)
+  SUBROUTINE init_baro_map_info(map_info, ndeg, num_thermo, error)
+
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, INTENT(IN)                      :: ndeg, num_thermo
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -716,8 +737,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_baro_map_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     ALLOCATE (map_info%s_kin(num_thermo),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -740,6 +763,8 @@ CONTAINS
     END DO
     map_info%index(1)     = 1
     map_info%map_index(1) = 1
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_baro_map_info
 
