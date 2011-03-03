@@ -50,11 +50,14 @@ MODULE extended_system_init
                                              timestop
 #include "cp_common_uses.h"
 
+  IMPLICIT NONE
+
   PRIVATE
-  PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
-            initialize_nhc_shell
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
+
+  PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
+            initialize_nhc_shell
 
 CONTAINS
 
@@ -74,17 +77,22 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, j, stat
+    INTEGER                                  :: handle, i, ind, j, stat
     LOGICAL                                  :: explicit, failure, restart
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(section_vals_type), POINTER         :: work_section2
 
-    NULLIFY(work_section2)
+    CALL timeset(routineN,handle)
+
+    NULLIFY (work_section2)
+
     explicit = .FALSE.
     failure=.FALSE.
     restart = .FALSE.
+
     CPPrecondition(.NOT.ASSOCIATED(npt_info),cp_fatal_level,routineP,error,failure)
+
     ! first allocating the npt_info_type if requested
     SELECT CASE ( simpar % ensemble )
     CASE ( npt_i_ensemble, npe_i_ensemble )
@@ -150,6 +158,9 @@ CONTAINS
        END IF
 
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE initialize_npt
 
 ! *****************************************************************************
@@ -169,13 +180,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure, restart
     REAL(KIND=dp)                            :: temp
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
     restart = .FALSE.
+
     CALL nhc_to_barostat_mapping ( simpar, nhc, error)
+
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
@@ -185,7 +200,7 @@ CONTAINS
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,"",para_env,error)
     
-    IF(.NOT. restart) THEN
+    IF (.NOT. restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
        SELECT CASE (simpar % ensemble )
@@ -196,7 +211,11 @@ CONTAINS
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, temp, para_env, globenv ,error=error)
     END IF
+
     CALL init_nhc_forces ( nhc, error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE initialize_nhc_baro
 
 ! *****************************************************************************
@@ -223,8 +242,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure, restart
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     restart = .FALSE.
@@ -249,8 +270,12 @@ CONTAINS
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % temp_ext, para_env, globenv ,error=error)
 
-    ENDIF
+    END IF
+
     CALL init_nhc_forces ( nhc, error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE initialize_nhc_part
 
 ! *****************************************************************************
@@ -276,8 +301,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure, restart
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CALL nhc_to_shell_mapping(thermostat_info, simpar, local_molecules,&
@@ -300,7 +327,11 @@ CONTAINS
           CALL init_nhc_variables (nhc, simpar%temp_sh_ext, para_env, globenv, error=error)
        END IF
     END IF
+
     CALL init_nhc_forces ( nhc, error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE  initialize_nhc_shell
   
 ! *****************************************************************************
@@ -523,12 +554,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, icount, j, number, stat, &
-                                                tot_rn
+    INTEGER                                  :: handle, i, icount, j, number, &
+                                                stat, tot_rn
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, dum, temp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
     TYPE(map_info_type), POINTER             :: map_info
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -626,6 +659,9 @@ CONTAINS
        END DO
 
     END SELECT
+
+    CALL timestop(handle)
+
   END SUBROUTINE init_nhc_variables
 
 ! *****************************************************************************
@@ -648,11 +684,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_barostat_variables', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, number
+    INTEGER                                  :: handle, i, j, number
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
+
     ! first initializing the mass of the nhc variables
 
     npt(:,:)%eps = 0.0_dp 
@@ -714,6 +753,8 @@ CONTAINS
        npt(:,:) % v = 0.0_dp
     END SELECT
     
+    CALL timestop(handle)
+
   END SUBROUTINE init_barostat_variables
 
 ! *****************************************************************************
@@ -728,8 +769,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j
+    INTEGER                                  :: handle, i, j
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -743,6 +786,8 @@ CONTAINS
           nhc % nvt ( j, i ) % f = nhc % nvt ( j, i ) % f / nhc % nvt ( j, i ) % mass
        END DO
     END DO
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_nhc_forces
 
