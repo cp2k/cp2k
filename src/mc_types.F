@@ -1123,7 +1123,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
                                                 format_string_int
     INTEGER                                  :: handle, ia, ie, imol, istat, &
                                                 itype, iw, method_name_id, &
-                                                stop_num
+                                                stop_num, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: temp_i_array
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: temp_r_array
@@ -1148,6 +1148,9 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       mc_par % ionode = para_env%ionode
       mc_par % group = para_env%group
       mc_par % source = para_env%source
+
+! for convenience
+      nmol_types=mc_par%mc_molecule_info%nmol_types
 
 !..defaults...most are set in input_cp2k_motion
       mc_par % nstart = 0
@@ -1247,59 +1250,120 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            mc_par%virial_temps(imol)=temp_r_array(imol)
         ENDDO
       END IF
+! all of these arrays should have one value for each type of molecule...so check that
       CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'AVBMC_RMIN must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmin(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"AVBMC_RMAX",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'AVBMC_RMAXL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmax(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"PBIAS",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'PBIAS must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pbias(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"PMAVBMC_MOL",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'PMAVBMC_MOL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmavbmc_mol(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"ETA",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'ETA must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%eta(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMBOND",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'RMBOND must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmbond(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMANGLE",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'RMANGLE must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmangle(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMDIHEDRAL",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'RMDIHEDRAL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmdihedral(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMROT",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'RMROT must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmrot(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMTRANS",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'RMTRANS must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmtrans(imol)=temp_r_array(imol)
       ENDDO
+
       CALL section_vals_val_get(mc_section,"PMTRAION_MOL",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'PMTRAION_MOL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmtraion_mol(imol)=temp_r_array(imol)
       ENDDO
+
       CALL section_vals_val_get(mc_section,"PMTRANS_MOL",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'PMTRANS_MOL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmtrans_mol(imol)=temp_r_array(imol)
       ENDDO
+
       CALL section_vals_val_get(mc_section,"PMROT_MOL",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'PMROT_MOL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmrot_mol(imol)=temp_r_array(imol)
       ENDDO
+
       CALL section_vals_val_get(mc_section,"PMSWAP_MOL",r_vals=temp_r_array,error=error)
+      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'PMSWAP_MOL must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmswap_mol(imol)=temp_r_array(imol)
       ENDDO
@@ -1836,6 +1900,7 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_molecule_info_type
 !> \param mc_molecule_info the structure you want the parameters for
+!> \param nmol_types the number of molecule types in the simulation
 !> 
 !>    Suitable for parallel.
 !> \author MJM
@@ -1876,6 +1941,8 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
        CALL stop_program(routineN,moduleN,__LINE__,&
             'The last value of PMROT_MOL needs to be 1.0')       
     ENDIF
+
+! check to make sure we have all the desired values for various
 
  ! some ensembles require multiple boxes or molecule types
     SELECT CASE(mc_par%ensemble)
