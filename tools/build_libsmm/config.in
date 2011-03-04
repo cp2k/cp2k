@@ -31,7 +31,7 @@ blas_linking="-L/data_cp2k/vondele/mkl/lib/em64t/ -Wl,--start-group -lmkl_gf_lp6
 # since all combinations of M,N,K are being generated the size of the library becomes very large
 # if too many sizes are being optimized for. Numbers have to be ascending.
 #
-dims_small="1 4 5 6 9 13 17 22 32"
+dims_small="1 4 5 6 9 13 16 17 22"
 
 #
 # tiny dimensions used are used as primivitves and generated in an 'exhaustive' search.
