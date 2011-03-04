@@ -250,7 +250,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: iatom, natom, stat
+    INTEGER                                  :: handle, iatom, natom, stat
     LOGICAL                                  :: dummy, failure
     REAL(KIND=dp)                            :: angle_alpha, angle_beta, &
                                                 angle_gamma, factor
@@ -258,6 +258,8 @@ CONTAINS
       DIMENSION(:, :)                        :: arr
     REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     natom = SIZE(particle_set)
@@ -407,6 +409,8 @@ CONTAINS
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"Illegal dump type")
     END SELECT
+
+    CALL timestop(handle)
 
   END SUBROUTINE write_particle_coordinates
 

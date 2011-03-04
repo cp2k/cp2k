@@ -262,8 +262,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: id_label, id_wpc, my_act, my_ext, &
       my_form, my_middle, my_pk_name, my_pos, remark1, remark2, section_ref, &
       title, unit_str
-    INTEGER                                  :: iskip, nat, outformat, &
-                                                traj_unit
+    INTEGER                                  :: handle, iskip, nat, &
+                                                outformat, traj_unit
     LOGICAL                                  :: failure, &
                                                 my_extended_xmol_title, &
                                                 new_file
@@ -274,6 +274,8 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: my_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(logger, cell, subsys, my_particles, particle_set)
@@ -357,7 +359,10 @@ CONTAINS
        CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
             unit_conv=unit_conv,error=error)
     END IF
+
     CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE write_trajectory
 

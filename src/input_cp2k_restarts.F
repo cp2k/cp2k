@@ -2104,30 +2104,30 @@ CONTAINS
     CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
     CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
     conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-    CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_FORMAT",&
-                              i_val=coord_file_format,&
-                              error=error)
-    IF (coord_file_format == do_coord_cp2k) THEN
-       CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
-                                 c_val=coord_file_name,&
+    IF (.NOT.write_binary_restart_file) THEN
+       CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_FORMAT",&
+                                 i_val=coord_file_format,&
                                  error=error)
-       output_unit = 0
-       IF (para_env%ionode) THEN
-          CALL open_file(file_name=TRIM(ADJUSTL(coord_file_name)),&
-                         file_action="READWRITE",&
-                         file_form="FORMATTED",&
-                         file_position="REWIND",&
-                         file_status="UNKNOWN",&
-                         unit_number=output_unit)
-         CALL dump_coordinates_cp2k(particles,molecules,cell,conv_factor,&
-                                    output_unit=output_unit,&
-                                    core_or_shell=.FALSE.,&
-                                    scaled_coordinates=scale,&
+       IF (coord_file_format == do_coord_cp2k) THEN
+          CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
+                                    c_val=coord_file_name,&
                                     error=error)
-         CALL close_file(unit_number=output_unit)
-       END IF
-    ELSE
-       IF (.NOT.write_binary_restart_file) THEN
+          output_unit = 0
+          IF (para_env%ionode) THEN
+             CALL open_file(file_name=TRIM(ADJUSTL(coord_file_name)),&
+                            file_action="READWRITE",&
+                            file_form="FORMATTED",&
+                            file_position="REWIND",&
+                            file_status="UNKNOWN",&
+                            unit_number=output_unit)
+            CALL dump_coordinates_cp2k(particles,molecules,cell,conv_factor,&
+                                       output_unit=output_unit,&
+                                       core_or_shell=.FALSE.,&
+                                       scaled_coordinates=scale,&
+                                       error=error)
+            CALL close_file(unit_number=output_unit)
+          END IF
+       ELSE
           CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
                                      cell, error=error)
        END IF
