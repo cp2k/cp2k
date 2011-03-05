@@ -2179,10 +2179,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
                     error=error)
             END IF
             IF(do_xas_tp .AND. ispin==1) THEN
-              CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=xas_env%smear,&
-                   xas_env=xas_env,error=error)
-              CALL set_mo_set(mos(ispin)%mo_set,&
-                   uniform_occupation=.FALSE.,error=error)
+              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
             END IF
          END DO
       END IF

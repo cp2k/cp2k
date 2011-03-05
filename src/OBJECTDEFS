@@ -550,6 +550,7 @@ OBJECTS_GENERIC =\
  qs_tddfpt_types.o\
  qs_tddfpt_utils.o\
  qs_util.o\
+ qs_vxc.o\
  qs_vxc_atom.o\
  qs_wf_history_methods.o\
  qs_wf_history_types.o\
@@ -677,6 +678,7 @@ OBJECTS_GENERIC =\
  xas_tp_scf.o\
  xc.o\
  xc_adiabatic_methods.o\
+ xc_adiabatic_utils.o\
  xc_atom.o\
  xc_b97.o\
  xc_cs1.o\

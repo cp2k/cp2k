@@ -60,8 +60,8 @@ MODULE qs_linres_epr_nablavks
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
-                                             qs_vxc_create
+  USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
+  USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_linres_types,                 ONLY: epr_env_type,&
                                              get_epr_env,&
                                              nablavks_atom_type

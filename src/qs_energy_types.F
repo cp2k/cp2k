@@ -56,7 +56,8 @@ MODULE qs_energy_types
                        ktS,& ! electronic entropic contribution
                        efermi,& ! Fermi energy 
                        total,&
-                       tot_old
+                       tot_old,&
+                       s_square
     REAL(KIND = dp), DIMENSION(:), POINTER :: ddapc_restraint
   END TYPE qs_energy_type
 

@@ -210,7 +210,7 @@ CONTAINS
 
 
     ! Calculate the (r - dk)xp operator applied to psi0k
-    ! We use the distributive property of the vector product and calculatr
+    ! One possible way to go is to use the distributive property of the vector product and calculatr
     ! (r-c)xp + (c-d)xp
     ! where c depends on the contracted functions and not on the states
     ! d is the center of a specific state and a loop over states is needed
@@ -221,6 +221,10 @@ CONTAINS
     !    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
     !************************************************************
     !
+    ! Since many psi0 vector can have the same center, depending on how the center is selected,
+    ! the (r - dk)xp operator matrix is computed Ncenter times, 
+    ! where Ncenter is the total number of different centers
+    ! and each time it is multiplied by all the psi0 with center dk to get the rxp_psi0 matrix
 
 
     !
@@ -281,6 +285,7 @@ CONTAINS
                   &                    alpha=-1.0_dp,error=error)
              DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
                 istate = center_list(ispin)%array(2,j)
+           ! the p_psi0 fm is used as temporary matrix to store the results for the psi0 centered in dk
                 CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
                      &           p_psi0(ispin,idir)%matrix,1,istate,istate)
              ENDDO
@@ -350,6 +355,13 @@ CONTAINS
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
+
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !  This part is not necessary with the present implementation
+    !  the angular momentum operator is computed directly for each dk independently
+    !  and multiplied by the proper psi0 (i.e. those centered in dk)
+    !  If Wannier centers are used, and no grouping of states with close centers is applied
+    !  the (r-dk)xp operator is computed Nstate times and each time applied to only one vector psi0 
     !
     ! Apply the (r-c)xp operator to the psi0
     !DO ispin = 1,nspins

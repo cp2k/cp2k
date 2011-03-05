@@ -2050,6 +2050,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
@@ -2165,10 +2166,13 @@ CONTAINS
             IF (output_unit>0) WRITE(UNIT=output_unit,FMT="(T3,A)")&
               "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
           ELSE
+             CALL get_qs_env(qs_env=qs_env,&
+                              energy=energy,error=error)
              CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
                   s_square_ideal=s_square_ideal,error=error)
              IF (output_unit > 0) WRITE (UNIT=output_unit,FMT='(T3,A,T51,2F15.6)')&
                   "Ideal and single determinant S**2 : ",s_square_ideal,s_square
+             energy%s_square=s_square
           END IF
        ENDIF
 

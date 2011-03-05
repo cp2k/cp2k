@@ -36,7 +36,7 @@ MODULE harris_functional
                                              calculate_ecore_self
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_vxc_create
+  USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type
