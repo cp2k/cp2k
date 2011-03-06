@@ -18,9 +18,7 @@
 ! *****************************************************************************
 MODULE qs_ks_methods
 
-  USE admm_methods,                    ONLY: admm_calculate_density_matrix,&
-                                             admm_fit_mo_coeffs,&
-                                             admm_merge_ks_matrix,&
+  USE admm_methods,                    ONLY: admm_merge_ks_matrix,&
                                              admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -71,6 +69,7 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+  USE hfx_admm_utils,                  ONLY: admm_density_matrix
   USE hfx_derivatives,                 ONLY: derivatives_four_center
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_ri_methods,                  ONLY: hfx_ri_energy_potential
@@ -349,7 +348,7 @@ CONTAINS
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
          input, poisson_env, scf_section,my_rho,becke, v_rspace_new_aux_fit,&
-         v_tau_rspace_aux_fit, xc_section)
+         v_tau_rspace_aux_fit, xc_section, admm_env,matrix_dv)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -359,8 +358,6 @@ CONTAINS
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
     output_unit=-1
-
-    NULLIFY (matrix_dv)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -599,102 +596,39 @@ CONTAINS
 
        ! calculate the density matrix for the fitted mo_coeffs
        IF( dft_control%do_admm ) THEN       
-         ! ** Method only implemented for GPW
-         IF( gapw ) THEN
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                                    message="ADMM only implemented for GPW", &
-                                    error=error, error_level=cp_failure_level)
-         END IF
-
-         NULLIFY(mo_coeff_aux_fit)
-         CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
-         CALL get_qs_env(qs_env,mos=mos,admm_env=admm_env,error=error)
-          
-         !! ** ADMM can only be used with HFX
-         IF ( .NOT. do_hfx ) THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                          "Wavefunction fitting requested without Hartree-Fock."//&
-                          CPSourceFileRef,&
-                          only_ionode=.TRUE.)
-         END IF 
-         CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-         IF ( n_rep_hf > 1 ) THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                          "ADMM can handle only one HF section."//&
-                          CPSourceFileRef,&
-                          only_ionode=.TRUE.)
-         END IF
-
-         DO ispin=1,nspins!fm->dbcsr
-            IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
-               CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr            
-            ENDIF!fm->dbcsr
-         ENDDO!fm->dbcsr
-
-         CALL admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
-                                 qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
-                                 mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
-
-         CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
-          
-         DO ispin=1,nspins
-            matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
-            matrix_p => qs_env%rho%rho_ao
-            CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, matrix_p(ispin)%matrix, &
-                                               matrix_p_aux_fit(ispin)%matrix,ispin,nspins,error=error)
-            CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
-                 rho=qs_env%rho_aux_fit%rho_r(ispin),&
-                 rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
-                 total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
-                 qs_env=qs_env,soft_valid=.FALSE.,&
-                 basis_set_id=use_aux_fit_basis_set, error=error)
-         END DO
-
-         qs_env%rho_aux_fit%rho_r_valid=.TRUE.
-         qs_env%rho_aux_fit%rho_g_valid=.TRUE.
+         CALL admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
        END IF
 
        ! only activate stress calculation if 
        IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
 
-        ! *** calculate the xc potential on the pw density ***
-        ! *** associates v_rspace_new if the xc potential needs to be computed.
-        ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
-        IF( dft_control%do_admm ) THEN
-          xc_section => admm_env%xc_section_aux
+       ! *** calculate the xc potential on the pw density ***
+       ! *** associates v_rspace_new if the xc potential needs to be computed.
+       ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
+       IF( dft_control%do_admm ) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env,error=error)
+         xc_section => admm_env%xc_section_aux
 
-          CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
-               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
-               just_energy=just_energy_xc, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
-                             error=error)
-          IF (use_virial .AND. calculate_forces) THEN
-            virial%pv_virial = virial%pv_virial - virial%pv_xc 
-            ! ** virial%pv_xc will be zeroed in the xc routines
-          END IF
-          xc_section => admm_env%xc_section_primary
-        ELSE
-          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-        END IF
+         CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
+              vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
+              just_energy=just_energy_xc, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
+                            error=error)
+         IF (use_virial .AND. calculate_forces) THEN
+           virial%pv_virial = virial%pv_virial - virial%pv_xc 
+           ! ** virial%pv_xc will be zeroed in the xc routines
+         END IF
+         xc_section => admm_env%xc_section_primary
+       ELSE
+         xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       END IF
 
-        CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
+       CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
              vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
              just_energy=just_energy_xc, gapw_xc=gapw_xc, error=error)
 
-        IF (gapw .OR. gapw_xc) THEN
+       IF (gapw .OR. gapw_xc) THEN
            CALL calculate_vxc_atom(qs_env,just_energy_xc,error)
-        END IF
-!       ELSE
-!         !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
-!          !! HFX-energy. Thus, let us first calculate the energy 
-!        
-!          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-!          CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
-!               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-!               just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
-!          IF (gapw .OR. gapw_xc) THEN
-!             CALL calculate_vxc_atom(qs_env,.TRUE.,error=error)
-!          END IF
-!       END IF ! do_adiabatic_rescaling
+       END IF
 
        IF (use_virial .AND. calculate_forces) THEN
           virial%pv_virial = virial%pv_virial - virial%pv_xc 
@@ -1161,12 +1095,13 @@ CONTAINS
 
        !** merge the auxiliary KS matrix and the primary one
        IF( dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env,mos=mo_array,error=error)
          DO ispin=1,nspins
            matrix_p =>qs_env%rho%rho_ao
            CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
-           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-           CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
+           CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
                 mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
                 matrix_p_aux_fit, matrix_p, error)
          END DO

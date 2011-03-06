@@ -258,6 +258,7 @@ OBJECTS_GENERIC =\
  helium_methods.o\
  helium_sampling.o\
  helium_types.o\
+ hfx_admm_utils.o\
  hfx_communication.o\
  hfx_compression_core_methods.o\
  hfx_compression_methods.o\
