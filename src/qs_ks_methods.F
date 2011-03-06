@@ -75,8 +75,8 @@ MODULE qs_ks_methods
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_ri_methods,                  ONLY: hfx_ri_energy_potential
   USE input_constants,                 ONLY: &
-       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-       sic_mauri_us, sic_none, use_aux_fit_basis_set
+       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+       sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -87,7 +87,6 @@ MODULE qs_ks_methods
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grids,                        ONLY: pw_grid_compare
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
                                              pw_integrate_function,&
@@ -153,8 +152,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
-  USE xc_adiabatic_utils,               ONLY: rescale_xc_potential
+  USE xc_adiabatic_utils,              ONLY: rescale_xc_potential
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -293,14 +291,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ikind, irep, ispin, n, n_rep_hf, nspins, output_unit, stat
+    INTEGER                                  :: handle, ikind, irep, ispin, &
+                                                n, n_rep_hf, nspins, &
+                                                output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
-      gapw_xc, hfx_treat_lsd_in_core, ionode, my_print, scp_dft, &
-      uniform_occupation, use_virial, just_energy_xc
+      gapw_xc, hfx_treat_lsd_in_core, ionode, just_energy_xc, my_print, &
+      scp_dft, uniform_occupation, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
-    REAL(KIND=dp)                            :: ecore_ppl, &
-                                                ee_ener, mulliken_order_p
+    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, &
+                                                mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(admm_type), POINTER                 :: admm_env
@@ -2709,11 +2709,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: n, output_unit
-    REAL(KIND=dp)                            :: ddapc_order_p,  &
-                                                s2_order_p
+    INTEGER                                  :: n, output_unit
+    REAL(KIND=dp)                            :: ddapc_order_p, s2_order_p
     TYPE(cp_logger_type), POINTER            :: logger
-     
+
     logger => cp_error_get_logger(error)
 
     output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&

@@ -14,12 +14,12 @@
 MODULE xc_adiabatic_utils
 
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hfx_communication,               ONLY: scale_and_add_fock_to_ks_matrix
   USE hfx_derivatives,                 ONLY: derivatives_four_center
-  USE input_constants,                 ONLY: do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade
+  USE input_constants,                 ONLY: do_adiabatic_hybrid_mcy3,&
+                                             do_adiabatic_model_pade
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -32,10 +32,9 @@ MODULE xc_adiabatic_utils
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
-  USE timings,                         ONLY: timeset,& 
+  USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -61,24 +60,27 @@ CONTAINS
       POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new,v_tau_rspace
-    LOGICAL, INTENT(in)                      :: just_energy
-    LOGICAL, INTENT(in)                      :: calculate_forces
-    LOGICAL, INTENT(in)                      :: use_virial
-    REAL(dp), DIMENSION(:)      :: hf_energy
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    REAL(dp), DIMENSION(:)                   :: hf_energy
+    LOGICAL, INTENT(in)                      :: just_energy, &
+                                                calculate_forces, use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_xc_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: adiabatic_functional, adiabatic_model, handle, n_rep_hf
-    LOGICAL :: do_adiabatic_rescaling, do_hfx, failure, gapw, gapw_xc
+    INTEGER                                  :: adiabatic_functional, &
+                                                adiabatic_model, handle, &
+                                                n_rep_hf
+    LOGICAL                                  :: do_adiabatic_rescaling, &
+                                                do_hfx, failure, gapw, gapw_xc
     REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
       scale_dEx1, scale_dEx2, total_energy_xc
-
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER :: adiabatic_rescaling_section, hfx_sections, input, xc_section
+    TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
+                                                hfx_sections, input, &
+                                                xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)

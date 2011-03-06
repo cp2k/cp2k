@@ -16,47 +16,45 @@ MODULE qs_vxc
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE harris_env_types,                ONLY: harris_env_type
-  USE input_constants,                 ONLY: sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-       sic_mauri_us, sic_none, use_aux_fit_basis_set, use_orb_basis_set, xc_none
+  USE input_constants,                 ONLY: sic_ad,&
+                                             sic_eo,&
+                                             sic_mauri_spz,&
+                                             sic_mauri_us,&
+                                             sic_none,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set,&
+                                             xc_none
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grids,                        ONLY: pw_grid_compare
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
-                                             pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_p_type,&
-                                             pw_pool_retain,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_create,&
                                              pw_p_type,&
                                              pw_release,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

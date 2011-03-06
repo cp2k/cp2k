@@ -1123,7 +1123,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
                                                 format_string_int
     INTEGER                                  :: handle, ia, ie, imol, istat, &
                                                 itype, iw, method_name_id, &
-                                                stop_num, nmol_types
+                                                nmol_types, stop_num
     INTEGER, DIMENSION(:), POINTER           :: temp_i_array
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: temp_r_array

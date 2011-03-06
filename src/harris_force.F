@@ -57,11 +57,11 @@ MODULE harris_force
                                              zero_qs_force
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
-  USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_methods,                  ONLY: diff_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE qs_vxc,                          ONLY: qs_vxc_create
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv,&

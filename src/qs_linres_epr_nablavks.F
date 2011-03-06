@@ -61,7 +61,6 @@ MODULE qs_linres_epr_nablavks
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
-  USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_linres_types,                 ONLY: epr_env_type,&
                                              get_epr_env,&
                                              nablavks_atom_type
@@ -75,6 +74,7 @@ MODULE qs_linres_epr_nablavks
 ! R0
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
+  USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE termination,                     ONLY: stop_memory
