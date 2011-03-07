@@ -13,6 +13,8 @@ MODULE atom_output
        atom_basis_type, atom_potential_type, atom_state, atom_type
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
@@ -36,7 +38,8 @@ MODULE atom_output
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_output'
 
   PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration, &
-            atom_print_basis, atom_print_method, atom_print_info, atom_print_potential
+            atom_print_basis, atom_print_method, atom_print_info, atom_print_potential, &
+            atom_print_basis_file
 
 ! *****************************************************************************
 
@@ -287,6 +290,55 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE atom_print_basis
+! *****************************************************************************
+  SUBROUTINE atom_print_basis_file(atom_basis,error)
+    TYPE(atom_basis_type)                    :: atom_basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_basis_file', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iw
+    LOGICAL                                  :: failure = .FALSE.
+
+    CALL open_file(file_name="OPT_BASIS",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
+    SELECT CASE (atom_basis%basis_type)
+      CASE (GTO_BASIS)
+        IF ( atom_basis%geometrical ) THEN
+          WRITE(iw,'(/," ",21("*"),A,22("*"))') " Geometrical Gaussian Type Orbitals "
+          WRITE(iw,'(A,F15.8,T41,A,F15.8)') " Initial exponent: ",atom_basis%aval,&
+                " Proportionality factor: ",atom_basis%cval
+        ELSE
+          WRITE(iw,'(A)') "      BASIS_TYPE GAUSSIAN"
+        END IF
+        IF ( atom_basis%nbas(0) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "S_Exponents ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
+        END IF
+        IF ( atom_basis%nbas(1) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "P_Exponents ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
+        END IF
+        IF ( atom_basis%nbas(2) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "D_Exponents ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
+        END IF
+        IF ( atom_basis%nbas(3) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "F_Exponents ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+        END IF
+      CASE (CGTO_BASIS)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (STO_BASIS)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (NUM_BASIS)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+    END SELECT
+    CALL close_file(unit_number=iw)
+
+  END SUBROUTINE atom_print_basis_file
 ! *****************************************************************************
   SUBROUTINE atom_print_method(atom,iw,error)
     TYPE(atom_type)                          :: atom

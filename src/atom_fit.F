@@ -14,15 +14,16 @@ MODULE atom_fit
                                              atom_ppint_setup,&
                                              atom_relint_release,&
                                              atom_relint_setup
-  USE atom_output,                     ONLY: atom_print_basis
+  USE atom_output,                     ONLY: atom_print_basis,&
+                                             atom_print_basis_file
   USE atom_types,                      ONLY: &
        GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
        atom_p_type, atom_potential_type, atom_type, create_opgrid, &
        opgrid_type, release_opgrid, set_atom
   USE atom_utils,                      ONLY: &
        atom_consistent_method, atom_denmat, atom_density, &
-       atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, &
-       atom_print_pseudo, atom_wfnr0, get_maxn_occ, integrate_grid
+       atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, &
+       get_maxn_occ, integrate_grid
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE f77_blas
@@ -351,6 +352,7 @@ CONTAINS
             END DO
        END SELECT
        CALL atom_print_basis(basis,iunit," Optimized Basis",error)
+       CALL atom_print_basis_file(basis,error)
     END IF
 
     DEALLOCATE(x,STAT=ierr)
@@ -390,7 +392,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: pval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
-    TYPE(atom_type), POINTER                 :: aref, atom
+    TYPE(atom_type), POINTER                 :: atom
     TYPE(opt_state_type)                     :: ostate
 
 ! weights for the optimization
@@ -736,9 +738,6 @@ CONTAINS
               END DO
             END IF
           END IF
-          ! Print wfn information
-          aref => atom_refs(i,j)%atom
-          CALL atom_print_pseudo(iunit,aref,atom,error)
         END DO
       END DO
     END IF
@@ -969,7 +968,7 @@ CONTAINS
                   pval(2,k,l,j,i) = pv
                 END IF
                 IF(atom%orbitals%wrefnod(k,l,1) > 0._dp) THEN
-                  CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),2*rcov,l,atom%basis,error)
+                  CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),2._dp*rcov,l,atom%basis,error)
                   afun = afun + atom%weight*atom%orbitals%wrefnod(k,l,1)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l,1))
                 END IF
                 IF ( l==0 ) THEN
@@ -1008,11 +1007,11 @@ CONTAINS
                   pval(4,k,l,j,i) = pv
                 END IF
                 IF(atom%orbitals%wrefnod(k,l,1) > 0._dp) THEN
-                  CALL atom_orbital_nodes(node,atom%orbitals%wfna(:,k,l),2*rcov1,l,atom%basis,error)
+                  CALL atom_orbital_nodes(node,atom%orbitals%wfna(:,k,l),2._dp*rcov1,l,atom%basis,error)
                   afun = afun + atom%weight*atom%orbitals%wrefnod(k,l,1)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l,1))
                 END IF
                 IF(atom%orbitals%wrefnod(k,l,2) > 0._dp) THEN
-                  CALL atom_orbital_nodes(node,atom%orbitals%wfnb(:,k,l),2*rcov2,l,atom%basis,error)
+                  CALL atom_orbital_nodes(node,atom%orbitals%wfnb(:,k,l),2._dp*rcov2,l,atom%basis,error)
                   afun = afun + atom%weight*atom%orbitals%wrefnod(k,l,2)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l,2))
                 END IF
                 IF ( l==0 ) THEN
