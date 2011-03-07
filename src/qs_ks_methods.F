@@ -69,13 +69,11 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
-  USE hfx_admm_utils,                  ONLY: admm_density_matrix
-  USE hfx_derivatives,                 ONLY: derivatives_four_center
-  USE hfx_energy_potential,            ONLY: integrate_four_center
-  USE hfx_ri_methods,                  ONLY: hfx_ri_energy_potential
+  USE hfx_admm_utils,                  ONLY: admm_density_matrix,&
+                                             hfx_ks_matrix
   USE input_constants,                 ONLY: &
-       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
-       sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
+       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+       sic_mauri_us, sic_none, use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -83,7 +81,6 @@ MODULE qs_ks_methods
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
-  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
@@ -103,20 +100,16 @@ MODULE qs_ks_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_create,&
                                              pw_p_type,&
-                                             pw_release,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                             calculate_wavefunction
+  USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
@@ -151,7 +144,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE xc_adiabatic_utils,              ONLY: rescale_xc_potential
+  USE xc_adiabatic_utils,               ONLY: rescale_xc_potential
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -290,16 +283,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, irep, ispin, &
-                                                n, n_rep_hf, nspins, &
-                                                output_unit, stat
+    INTEGER :: handle,  ispin, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
-      gapw_xc, hfx_treat_lsd_in_core, ionode, just_energy_xc, my_print, &
-      scp_dft, uniform_occupation, use_virial
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
-    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, &
-                                                mulliken_order_p
+      gapw_xc, hfx_treat_lsd_in_core, ionode, my_print, scp_dft, &
+      uniform_occupation, use_virial, just_energy_xc
+    REAL(KIND=dp)                            :: ecore_ppl, &
+                                                ee_ener, mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(admm_type), POINTER                 :: admm_env
@@ -333,8 +323,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
     TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(scp_energy_type), POINTER           :: scp_energy
@@ -636,110 +624,15 @@ CONTAINS
        
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hfx ) THEN
-          ! *** Initialize the auxiliary ks matrix to zero if required
-          IF( dft_control%do_admm ) THEN
-            DO ispin = 1,nspins
-               CALL cp_dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error) 
-            END DO
-          END IF
-          DO ispin = 1,nspins
-             CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
-          END DO
-
-          CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-          !! set hf exchange energy to zero
-          energy%ex = 0.0_dp
-
-          IF ( do_hfx_ri ) THEN
-             IF( calculate_forces ) THEN
-                !! initalize force array to zero
-                CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-                DO ikind = 1,SIZE(force)
-                   force(ikind)%hfx_ri(:,:) = 0.0_dp
-                END DO
-             END IF
-             CALL hfx_ri_energy_potential (qs_env,calculate_forces,error)
-          ELSE
-             IF( calculate_forces ) THEN
-                !! initalize force array to zero
-                CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-                DO ikind = 1,SIZE(force)
-                   force(ikind)%fock_4c(:,:) = 0.0_dp
-                END DO
-             END IF
-             ALLOCATE(hf_energy(n_rep_hf), STAT=stat) 
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO irep = 1,n_rep_hf
-                IF( .NOT. do_adiabatic_rescaling) THEN
-                   IF( dft_control%do_admm ) THEN
-                      IF ( .NOT. hfx_treat_lsd_in_core ) THEN 
-                         CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                                    qs_env%rho_aux_fit,hfx_sections,&
-                                                    para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                    ispin=1, error=error)
-                      ELSE
-                         DO ispin = 1,nspins
-                            CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                                       qs_env%rho_aux_fit,hfx_sections,&
-                                                       para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                       ispin=ispin, error=error)
-                         END DO
-                      END IF
-                      IF( calculate_forces ) THEN
-                         CALL derivatives_four_center(qs_env, qs_env%rho_aux_fit, hfx_sections, &
-                                                      para_env, irep, use_virial, error=error)
-                      END IF
-                   ELSE
-                      IF ( .NOT. hfx_treat_lsd_in_core ) THEN
-                         CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                                    para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                    ispin=1, error=error)
-                      ELSE
-                         DO ispin = 1,nspins
-                            CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                                       para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                       ispin=ispin, error=error)
-                         END DO
-                      END IF
-                      IF( calculate_forces ) THEN
-                         CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                                      para_env, irep, use_virial, error=error)
-                      END IF
-                   END IF
-                ELSE
-                   IF( .NOT. hfx_treat_lsd_in_core ) THEN
-                      !! we calculate everything but we do not add the potential in a first step
-                      CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
-                                                 para_env,ks_env%s_mstruct_changed,irep,.FALSE.,&
-                                                 ispin=1, error=error)
-                   ELSE
-                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                           message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
-                           error=error, error_level=cp_failure_level)
-                   END IF
-                   hf_energy(irep) = energy%ex
-                   !! If required, the calculation of the forces will be done later
-                END IF
-                CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
-             END DO
-          END IF
-
-          ! *** Add Core-Hamiltonian-Matrix ***
-          DO ispin=1,nspins
-             CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
-                  1.0_dp,1.0_dp,error=error)
-          END DO
-          IF (use_virial .AND. calculate_forces) THEN
-             virial%pv_virial = virial%pv_virial - virial%pv_fock_4c 
-             virial%pv_calculate = .FALSE.
-          ENDIF
+         CALL hfx_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,calculate_forces,&
+              just_energy,v_rspace_new,v_tau_rspace,error=error)
+!!       !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
+!!       Adiabatic rescaling  only if do_hfx; right?????
+!!       IF( do_adiabatic_rescaling ) THEN
+!!         CALL rescale_xc_potential(qs_env,ks_matrix,rho,energy,v_rspace_new,v_tau_rspace,&
+!!             hf_energy, just_energy,calculate_forces,use_virial,error=error)
+!!       END IF   ! do_adiabatic_rescaling
        END IF !do_hfx
-
-       !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
-       IF( do_adiabatic_rescaling ) THEN
-          CALL rescale_xc_potential(qs_env,ks_matrix,rho,energy,v_rspace_new,v_tau_rspace,&
-               hf_energy, just_energy,calculate_forces,use_virial,error=error)
-       END IF   ! do_adiabatic_rescaling
 
        IF(do_ppl .AND. calculate_forces)THEN
           CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
@@ -817,7 +710,6 @@ CONTAINS
                       ks_env%v_hartree_rspace%pw%cr3d
 
                  ! add the hartree part due to v_rspace
-
                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                       p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                       qs_env=qs_env, &
@@ -1022,7 +914,6 @@ CONTAINS
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             END IF  
           END IF
-
           
        END IF  ! .NOT. just energy
 
@@ -1209,10 +1100,6 @@ CONTAINS
             energy%ee + energy%ee_core+&
            energy%exc_aux_fit
 
-!       IF( dft_control%do_admm ) THEN
-!         energy%total = energy%total + energy%exc_aux_fit
-!       END IF 
-
        IF (scp_dft) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
          energy%total = energy%total + scp_energy%e_scp_total
@@ -1229,178 +1116,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
-
-! *****************************************************************************
-!> \brief computes the Hartree-Fock energy brute force in a pw basis
-!> \note
-!>      only computes the HFX energy, no derivatives as yet
-!> \par History
-!>      12.2007 created [Joost VandeVondele]
-! *****************************************************************************
-  SUBROUTINE pw_hfx(qs_env,energy,hfx_section,poisson_env,auxbas_pw_pool,irep,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(section_vals_type), POINTER         :: hfx_section
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    INTEGER                                  :: irep
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blocksize, handle, iloc, &
-                                                iorb, iorb_block, ispin, iw, &
-                                                jloc, jorb, jorb_block, norb
-    LOGICAL                                  :: do_pw_hfx, failure
-    REAL(KIND=dp)                            :: exchange_energy, fraction, &
-                                                pair_energy, scaling
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
-    TYPE(pw_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: rho_i, rho_j
-
-    CALL timeset(routineN,handle)
-    failure = .FALSE.
-    logger => cp_error_get_logger(error)
-
-    CALL section_vals_val_get(hfx_section, "PW_HFX", l_val=do_pw_hfx, i_rep_section=irep, error=error)
-
-    IF (do_pw_hfx) THEN
-       CALL section_vals_val_get(hfx_section, "FRACTION", r_val=fraction, error=error)
-       CALL section_vals_val_get(hfx_section, "PW_HFX_BLOCKSIZE", i_val=blocksize, error=error)
-   
-       CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
-                       cell=cell, particle_set=particle_set, &
-                       atomic_kind_set=atomic_kind_set, error=error)
-
-       ! limit the blocksize by the number of orbitals
-       CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
-       blocksize=MAX(1,MIN(blocksize,norb))
-
-       CALL pw_pool_create_pw(auxbas_pw_pool,rho_r%pw,&
-                               use_data=REALDATA3D,&
-                               in_space=REALSPACE,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,rho_g%pw,&
-                               use_data=COMPLEXDATA1D,&
-                               in_space=RECIPROCALSPACE,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,pot_g%pw,&
-                               use_data=COMPLEXDATA1D,&
-                               in_space=RECIPROCALSPACE,error=error)
-
-       ALLOCATE(rho_i(blocksize)) 
-       ALLOCATE(rho_j(blocksize)) 
-  
-       DO iorb_block=1,blocksize 
-          NULLIFY(rho_i(iorb_block)%pw)
-          CALL pw_create(rho_i(iorb_block)%pw,rho_r%pw%pw_grid,&
-                                  use_data=REALDATA3D,&
-                                  in_space=REALSPACE,error=error)
-          NULLIFY(rho_j(iorb_block)%pw)
-          CALL pw_create(rho_j(iorb_block)%pw,rho_r%pw%pw_grid,&
-                                  use_data=REALDATA3D,&
-                                  in_space=REALSPACE,error=error)
-       ENDDO
-
-       exchange_energy = 0.0_dp
-   
-       DO ispin=1,SIZE(mo_array)
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
-
-          IF(mo_array(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
-             CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff,error=error)!fm->dbcsr
-          ENDIF!fm->dbcsr
-
-          CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
-
-          DO iorb_block=1,norb,blocksize
-
-             DO iorb=iorb_block,MIN(iorb_block+blocksize-1,norb)
-
-                 iloc=iorb-iorb_block+1
-                 CALL calculate_wavefunction(mo_coeff,iorb,rho_i(iloc),rho_g, &
-                          atomic_kind_set,cell,dft_control,particle_set, &
-                          pw_env,error=error)
-
-             ENDDO
-   
-             DO jorb_block=iorb_block,norb,blocksize
-  
-                DO jorb=jorb_block,MIN(jorb_block+blocksize-1,norb)
-
-                   jloc=jorb-jorb_block+1
-                   CALL calculate_wavefunction(mo_coeff,jorb,rho_j(jloc),rho_g, &
-                            atomic_kind_set,cell,dft_control,particle_set, &
-                            pw_env,error=error)
-
-                ENDDO
-   
-                DO iorb=iorb_block,MIN(iorb_block+blocksize-1,norb)
-                   iloc=iorb-iorb_block+1
-                   DO jorb=jorb_block,MIN(jorb_block+blocksize-1,norb)
-                      jloc=jorb-jorb_block+1 
-                      IF (jorb<iorb) CYCLE
-
-                      ! compute the pair density
-                      rho_r%pw%cr3d = rho_i(iloc)%pw%cr3d * rho_j(jloc)%pw%cr3d
-         
-                      ! go the g-space and compute hartree energy
-                      CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
-                      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
-         
-                      ! sum up to the full energy
-                      scaling=fraction
-                      IF (SIZE(mo_array)==1) scaling=scaling*2.0_dp
-                      IF (iorb/=jorb) scaling=scaling*2.0_dp
-         
-                      exchange_energy=exchange_energy - scaling * pair_energy
-
-                   ENDDO
-                ENDDO
-        
-             ENDDO
-          ENDDO
-       ENDDO
-       
-       DO iorb_block=1,blocksize 
-          CALL pw_release(rho_i(iorb_block)%pw,error=error)
-          CALL pw_release(rho_j(iorb_block)%pw,error=error)
-       ENDDO
-
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error)
-   
-       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-              extension=".scfLog",error=error)
-   
-       IF (iw>0) THEN
-           WRITE (UNIT=iw,FMT="((T3,A,T61,F20.10))")&
-                    "HF_PW_HFX| PW exchange energy:",exchange_energy
-           WRITE (UNIT=iw,FMT="((T3,A,T61,F20.10),/)")&
-                    "HF_PW_HFX| Gaussian exchange energy:",energy%ex
-       ENDIF
-   
-       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                         "HF_INFO", error=error)
-   
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE pw_hfx
 
 ! *****************************************************************************
 !> \brief do ROKS calculations yielding low spin states
@@ -2644,10 +2359,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, output_unit
-    REAL(KIND=dp)                            :: ddapc_order_p, s2_order_p
+    INTEGER :: n, output_unit
+    REAL(KIND=dp)                            :: ddapc_order_p,  &
+                                                s2_order_p
     TYPE(cp_logger_type), POINTER            :: logger
-
+     
     logger => cp_error_get_logger(error)
 
     output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
