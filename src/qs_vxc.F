@@ -181,12 +181,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
          pw_env=pw_env, cell=cell,virial=virial, error=error)
-    IF(my_epr_xc) THEN
-!       xc_section => section_vals_get_subs_vals(input,&
-!            "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
-    ELSE
-!       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-    END IF
+
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=myfun,error=error)
     IF (myfun/=xc_none) THEN

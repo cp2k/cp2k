@@ -663,6 +663,8 @@ CPSourceFileRef,&
     IF (qs_control%ddapc_restraint) THEN
        ALLOCATE (qs_control%ddapc_restraint_control(nrep))
        CALL read_ddapc_section(qs_control,qs_section=qs_section,error=error)
+       qs_control%ddapc_restraint_is_spin = .FALSE.
+       qs_control%ddapc_explicit_potential = .FALSE.
     ENDIF
 
     CALL section_vals_get(s2_restraint_section,explicit=qs_control%s2_restraint,error=error)

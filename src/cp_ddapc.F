@@ -76,7 +76,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
        v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
-       ddapc_restraint_is_spin,explicit_potential,error)
+!       ddapc_restraint_is_spin,explicit_potential,
+       error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -89,8 +90,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in)                      :: just_energy
-    LOGICAL, INTENT(OUT)                     :: ddapc_restraint_is_spin, &
-                                                explicit_potential
+!    LOGICAL, INTENT(OUT)                     :: ddapc_restraint_is_spin, &
+!                                                explicit_potential
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', &
@@ -98,7 +99,7 @@ CONTAINS
 
     INTEGER                                  :: ddapc_size, handle, i, my_id, &
                                                 stat
-    LOGICAL                                  :: et_coupling_calc, failure
+    LOGICAL                                  :: ddapc_restraint_is_spin, explicit_potential, et_coupling_calc, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
@@ -128,6 +129,8 @@ CONTAINS
     ENDIF
 
     explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
+    qs_env%dft_control%qs_control%ddapc_explicit_potential = explicit_potential
+    qs_env%dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
     IF (explicit_potential) THEN
        CALL pw_pool_create_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,&
             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)

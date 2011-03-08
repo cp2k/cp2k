@@ -255,6 +255,8 @@ MODULE cp_control_types
     LOGICAL                                       :: semi_empirical
     LOGICAL                                       :: mulliken_restraint
     LOGICAL                                       :: ddapc_restraint
+    LOGICAL                                       :: ddapc_restraint_is_spin
+    LOGICAL                                       :: ddapc_explicit_potential
     LOGICAL                                       :: becke_restraint
     LOGICAL                                       :: et_coupling_calc
     LOGICAL                                       :: s2_restraint
