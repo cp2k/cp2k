@@ -8,7 +8,9 @@
 ! *****************************************************************************
 MODULE qs_ks_scp_methods
   USE cell_types,                      ONLY: cell_type
-  USE f77_blas
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -182,23 +184,34 @@ CONTAINS
 !>      04.2007 
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE scp_modify_hartree_pot(v_hartree,v_scp, error)
+  SUBROUTINE scp_modify_hartree_pot(v_hartree,v_scp, input,error)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
     TYPE(pw_p_type), INTENT(IN)              :: v_scp
+    TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_modify_hartree_pot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,handle)
     failure=.FALSE.
+    CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
+
+    output_unit = cp_print_key_unit_nr(logger,input,"DFT%SCP%PROGRAM_RUN_INFO",&
+              extension=".scpLog",error=error)
+    IF (output_unit>0) &
+               WRITE (UNIT=output_unit,FMT="(T3,A)")&
+               "Adding SCP  potential to the Kohn-Sham potential.."
 
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + &
                         v_scp%pw%pw_grid%dvol*v_scp%pw%cr3d
 
+    CALL cp_print_key_finished_output(output_unit,logger,input,&
+              "DFT%SCP%PROGRAM_RUN_INFO", error=error)
     CALL timestop(handle)
   END SUBROUTINE scp_modify_hartree_pot
 

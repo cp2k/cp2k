@@ -164,8 +164,67 @@ MODULE qs_ks_methods
        qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix, calculate_w_matrix_ot
 !***
 
+  TYPE qs_potential_type
+    TYPE(pw_p_type), POINTER :: v_efield_rspace, v_hartree_gspace, &
+          vppl_rspace, v_sic_rspace, v_spin_ddapc_rest_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
+                                                v_rspace_new_aux_fit, &
+                                                v_tau_rspace, &
+                                                v_tau_rspace_aux_fit
+  END TYPE qs_potential_type
+
 CONTAINS
 
+  SUBROUTINE qs_potential_create (qs_potential,error)
+    TYPE(qs_potential_type), POINTER    :: qs_potential 
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_potential_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(qs_potential),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE (qs_potential,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       NULLIFY(qs_potential%v_efield_rspace)
+       NULLIFY(qs_potential%v_hartree_gspace)
+       NULLIFY(qs_potential%vppl_rspace)
+       NULLIFY(qs_potential%v_sic_rspace)
+       NULLIFY(qs_potential%v_spin_ddapc_rest_r)
+       NULLIFY(qs_potential%v_rspace_new)
+       NULLIFY(qs_potential%v_rspace_new_aux_fit)
+       NULLIFY(qs_potential%v_tau_rspace)
+       NULLIFY(qs_potential%v_tau_rspace_aux_fit)
+    END IF
+
+  END SUBROUTINE qs_potential_create
+
+  SUBROUTINE qs_potential_allocate(qs_potential,nspins,error)
+
+    TYPE(qs_potential_type), POINTER         :: qs_potential 
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_potential_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(qs_potential),cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (qs_potential%v_hartree_gspace,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE qs_potential_allocate
 ! *****************************************************************************
 !> \brief allocates and initializes the given ks_env.
 !> \param ks_env the ks env to be initialized
@@ -282,10 +341,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, &
-                                                output_unit
+    INTEGER                                  :: handle,  ispin, nspins
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
-      failure, gapw, gapw_xc, hfx_treat_lsd_in_core, ionode, just_energy_xc, &
+      failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
       my_print, scp_dft, uniform_occupation, use_virial
     REAL(KIND=dp)                            :: ecore_ppl, ee_ener, &
                                                 mulliken_order_p
@@ -310,8 +368,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
-      v_efield_rspace, v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_r
+    TYPE(pw_p_type) ::  rho_tot_gspace, v_efield_rspace, v_hartree_gspace,&
+                        v_sic_rspace, v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -321,7 +379,6 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
     TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(scp_energy_type), POINTER           :: scp_energy
@@ -333,25 +390,21 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(admm_env,becke,cell,dft_control,ep_pot_g,ep_pot_r,ep_qs_env,logger,&
+    NULLIFY(admm_env,becke,cell,dft_control,ep_qs_env,logger,&
          mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, mo_derivs_aux_fit, &
-         mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, &
-         my_rho_xc,occupation_numbers,para_env,pw_env,&
-         scp_energy,scp_env, virial,vppl_rspace)
-    NULLIFY(adiabatic_rescaling_section,hfx_sections,input,&
-         scf_section,xc_section)
-    NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s,&
-         auxbas_pw_pool,poisson_env, pw_pools,&
-         v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace,v_tau_rspace_aux_fit)
+         mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, my_rho_xc, &
+         occupation_numbers,para_env,pw_env, scp_energy,scp_env, virial,vppl_rspace)
+    NULLIFY(adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section)
+    NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
+         poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit, &
+         v_tau_rspace,v_tau_rspace_aux_fit)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
-    output_unit=-1
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -388,7 +441,6 @@ CONTAINS
      just_energy_xc=.TRUE.
     END IF
 
-    scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
@@ -457,6 +509,7 @@ CONTAINS
                                  error=error)
        END IF
 
+       scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
             "PRINT%DETAILED_ENERGY",error=error),cp_p_file).AND.(.NOT.gapw).AND.(.NOT.gapw_xc)) THEN
           CALL pw_zero(rho_tot_gspace%pw, error=error)
@@ -471,11 +524,7 @@ CONTAINS
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        IF(my_print) THEN
-         output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-              extension=".scfLog",error=error)
-         CALL print_densities(qs_env, rho, my_rho_xc, output_unit, error)
-         CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-              "PRINT%TOTAL_DENSITIES", error=error)
+         CALL print_densities(qs_env, rho, my_rho_xc, error=error)
        END IF
 
        ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
@@ -545,19 +594,11 @@ CONTAINS
 
        ! Adds the QM/MM potential 
        IF (qs_env%qmmm) THEN
-          output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
-               extension=".qmmmLog",error=error)
-          IF (output_unit>0) &
-               WRITE (UNIT=output_unit,FMT="(T3,A)")&
-               "Adding QM/MM electrostatic potential to the Kohn-Sham potential."
           CALL qmmm_calculate_energy (qs_env=qs_env,&
                                       rho=rho%rho_r,&
                                       v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
                                       qmmm_energy=energy%qmmm_el,&
                                       error=error)
-          CALL cp_print_key_finished_output(output_unit,logger,input,&
-               "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
-
           IF (.NOT.just_energy) THEN
              CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                   v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,scale=1.0_dp,&
@@ -569,9 +610,6 @@ CONTAINS
        IF ( scp_dft ) THEN
           ! Get the KS_SCP environment
           CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
-          IF (output_unit>0) &
-               WRITE (UNIT=output_unit,FMT="(T3,A)")&
-               "Adding SCP  potential to the Kohn-Sham potential.."
           IF (qs_env % qmmm ) THEN
              CALL scp_calculate_qmmm_energy ( scp_env, qs_env%ks_qmmm_env%v_qmmm_rspace, error )
           END IF
@@ -579,7 +617,7 @@ CONTAINS
              ! Needs up-to-date KS_SCP_ENV
              CALL scp_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                                          v_scp=ks_scp_env%v_scp_rspace,&
-                                         error=error)
+                                         input=input,error=error)
           END IF
        END IF
 
@@ -601,7 +639,7 @@ CONTAINS
          CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
               just_energy=just_energy_xc, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
-                            error=error)
+              error=error)
          IF (use_virial .AND. calculate_forces) THEN
            virial%pv_virial = virial%pv_virial - virial%pv_xc 
            ! ** virial%pv_xc will be zeroed in the xc routines
@@ -647,35 +685,7 @@ CONTAINS
           IF (calculate_forces ) THEN
              IF (do_ep) THEN
                 ! Getting  nuclear force contribution from ep potential
-!                CALL ep_v_core
-                CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_r%pw,&
-                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
-                CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_g%pw,&
-                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-                CPAssert(nspins==1,cp_failure_level,routineP,error,failure)
-                CALL calculate_rho_elec(matrix_p=ep_qs_env%dH_coeffs(1)%matrix,&
-                     rho=ep_rho_r,rho_gspace=ep_rho_g, total_rho=ep_qs_env%tot_rho,&
-                     qs_env=qs_env, error=error)
-
-                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_r%pw,error=error)
-                CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_g,&
-                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-
-                CALL pw_poisson_solve(poisson_env,ep_rho_g%pw,ep_qs_env%core_energy,&
-                     ep_pot_g,error=error)
-
-                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_g%pw,error=error)
-                CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
-                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
-
-                CALL pw_transfer(ep_pot_g,ep_pot_r, error=error)
-
-                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
-
-                ep_pot_r_coeff%pw => ep_pot_r
-                CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env,error=error)
-
-                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
+                CALL ep_v_core(qs_env,ep_qs_env,nspins,error=error)
              ELSE
                 ! Getting nuclear force contribution from the core charge density
                 CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
@@ -701,7 +711,7 @@ CONTAINS
                 v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
                 v_efield_rspace,v_sic_rspace,v_spin_ddapc_rest_r,&
                 becke,calculate_forces,error=error)
-
+          
        END IF  ! .NOT. just energy
 
        IF (dft_control%qs_control%ddapc_explicit_potential) THEN
@@ -816,9 +826,11 @@ CONTAINS
                     mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
 
-               CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
-               CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                    mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error=error)
+               CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,&
+                    mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
+               CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
+                    mo_coeff, mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, &
+                    qs_env%matrix_ks_aux_fit, error=error)
                CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)!fm->dbcsr
              END IF
 
@@ -868,7 +880,8 @@ CONTAINS
          ! update core energy for grid based local pseudopotential
          ecore_ppl = 0._dp
          DO ispin=1,nspins
-           ecore_ppl = ecore_ppl+SUM(vppl_rspace%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
+           ecore_ppl = ecore_ppl+&
+              SUM(vppl_rspace%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
          END DO
          CALL mp_sum(ecore_ppl,para_env%group)
          energy%core = energy%core+ecore_ppl
@@ -881,9 +894,10 @@ CONTAINS
             energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
             energy%qmmm_el + energy%mulliken + &
             SUM(energy%ddapc_restraint) + energy%s2_restraint +&
-            energy%becke + energy%dft_plus_u + energy%kTS + energy%efield +energy%efield_core+&
+            energy%becke + energy%dft_plus_u + energy%kTS + &
+            energy%efield +energy%efield_core+&
             energy%ee + energy%ee_core+&
-           energy%exc_aux_fit
+            energy%exc_aux_fit
 
        IF (scp_dft) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
@@ -1631,27 +1645,35 @@ CONTAINS
   END SUBROUTINE calc_rho_tot_gspace
 
 ! *****************************************************************************
-  SUBROUTINE print_densities(qs_env, rho, rho_xc, output_unit, error)
+  SUBROUTINE print_densities(qs_env, rho, rho_xc, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
-    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: ispin, n_electrons
+    INTEGER                                  :: ispin, n_electrons, output_unit
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(section_vals_type), POINTER         :: input, scf_section
+    
+    NULLIFY(qs_charges, atomic_kind_set, cell, input, logger, scf_section)
+    logger => cp_error_get_logger(error)
 
-    NULLIFY(qs_charges, atomic_kind_set, cell)
     CALL get_qs_env(qs_env=qs_env, &
          atomic_kind_set=atomic_kind_set, &
-         cell=cell,qs_charges=qs_charges,error=error)
+         cell=cell,qs_charges=qs_charges,&
+         input=input,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
          nelectron=n_electrons)
-    n_electrons = n_electrons - qs_env%dft_control%charge
 
+    scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+              extension=".scfLog",error=error)
+
+    n_electrons = n_electrons - qs_env%dft_control%charge
     tot_rho_r = accurate_sum(rho%tot_rho_r)
     IF(output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
@@ -1716,6 +1738,9 @@ CONTAINS
     END IF
     IF (output_unit>0) WRITE (UNIT=output_unit,FMT="()")
     qs_charges%background=qs_charges%background/cell%deth
+
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+              "PRINT%TOTAL_DENSITIES", error=error)
 
   END SUBROUTINE print_densities
 
@@ -2469,5 +2494,74 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE sum_up_and_integrate
+
+! *****************************************************************************
+!> \brief Sum up all potentials defined  on the grid and integrate
+!>        
+!> \par History
+!>    refactoring 04.03.2011 [MI]
+!> \author 
+! *****************************************************************************
+  SUBROUTINE ep_v_core(qs_env,ep_qs_env,nspins,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ep_v_core', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle
+    LOGICAL :: failure
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
+
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    NULLIFY(pw_env,auxbas_pw_pool,poisson_env)
+    CALL get_qs_env(qs_env=qs_env,&
+         pw_env=pw_env,&
+         error=error)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+         poisson_env=poisson_env,error=error)
+
+    ! Getting  nuclear force contribution from ep potential
+    CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_r%pw,&
+         use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_g%pw,&
+         use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+    CPAssert(nspins==1,cp_failure_level,routineP,error,failure)
+    CALL calculate_rho_elec(matrix_p=ep_qs_env%dH_coeffs(1)%matrix,&
+         rho=ep_rho_r,rho_gspace=ep_rho_g, total_rho=ep_qs_env%tot_rho,&
+         qs_env=qs_env, error=error)
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_r%pw,error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_g,&
+         use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+
+    CALL pw_poisson_solve(poisson_env,ep_rho_g%pw,ep_qs_env%core_energy,&
+         ep_pot_g,error=error)
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_g%pw,error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
+         use_data=REALDATA3D,in_space=REALSPACE,error=error)
+
+    CALL pw_transfer(ep_pot_g,ep_pot_r, error=error)
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
+
+    ep_pot_r_coeff%pw => ep_pot_r
+    CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env,error=error)
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ep_v_core
 
 END MODULE qs_ks_methods

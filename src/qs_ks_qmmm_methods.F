@@ -8,11 +8,16 @@
 ! *****************************************************************************
 MODULE qs_ks_qmmm_methods
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
+  USE input_section_types,             ONLY: section_vals_type
+  USE kahan_sum,                       ONLY: accurate_sum
+
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_retain
@@ -164,19 +169,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle, output_unit,ispin
     LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho0_s_rs
+    TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-    NULLIFY(dft_control)
+    NULLIFY(dft_control,input,logger)
+    logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
+                    input=input,&
                     error=error)
+
+    output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
+               extension=".qmmmLog",error=error)
+    IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
+               "Adding QM/MM electrostatic potential to the Kohn-Sham potential."
+
 
     qmmm_energy = 0.0_dp
     DO ispin=1, dft_control%nspins
@@ -189,6 +204,9 @@ CONTAINS
        CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,error,failure)
        qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw, error=error)
     END IF
+
+    CALL cp_print_key_finished_output(output_unit,logger,input,&
+               "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
 
     CALL timestop(handle)
   END SUBROUTINE qmmm_calculate_energy
