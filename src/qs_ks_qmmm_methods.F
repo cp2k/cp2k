@@ -16,8 +16,6 @@ MODULE qs_ks_qmmm_methods
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_type
-  USE kahan_sum,                       ONLY: accurate_sum
-
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_retain
@@ -169,7 +167,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, output_unit,ispin
+    INTEGER                                  :: handle, ispin, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control

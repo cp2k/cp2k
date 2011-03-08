@@ -176,7 +176,7 @@ MODULE qs_ks_methods
 CONTAINS
 
   SUBROUTINE qs_potential_create (qs_potential,error)
-    TYPE(qs_potential_type), POINTER    :: qs_potential 
+    TYPE(qs_potential_type), POINTER         :: qs_potential
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_potential_create', &
@@ -207,11 +207,11 @@ CONTAINS
 
   SUBROUTINE qs_potential_allocate(qs_potential,nspins,error)
 
-    TYPE(qs_potential_type), POINTER         :: qs_potential 
+    TYPE(qs_potential_type), POINTER         :: qs_potential
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_potential_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_potential_allocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -341,7 +341,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle,  ispin, nspins
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
       failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
       my_print, scp_dft, uniform_occupation, use_virial
@@ -368,8 +368,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type) ::  rho_tot_gspace, v_efield_rspace, v_hartree_gspace,&
-                        v_sic_rspace, v_spin_ddapc_rest_r
+    TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
+      v_sic_rspace, v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -1650,7 +1650,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: ispin, n_electrons, output_unit
+    INTEGER                                  :: ispin, n_electrons, &
+                                                output_unit
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1658,7 +1659,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(section_vals_type), POINTER         :: input, scf_section
-    
+
     NULLIFY(qs_charges, atomic_kind_set, cell, input, logger, scf_section)
     logger => cp_error_get_logger(error)
 
@@ -2512,14 +2513,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ep_v_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle
-    LOGICAL :: failure
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r
+    TYPE(pw_p_type)                          :: ep_pot_r_coeff, ep_rho_g, &
+                                                ep_rho_r
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
-
 
     failure = .FALSE.
     CALL timeset(routineN,handle)

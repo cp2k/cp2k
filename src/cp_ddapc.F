@@ -103,7 +103,6 @@ CONTAINS
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
 
-
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)
     ! In case decouple periodic images and/or apply restraints to charges
