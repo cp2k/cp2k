@@ -72,8 +72,8 @@ MODULE qs_ks_methods
   USE hfx_admm_utils,                  ONLY: admm_density_matrix,&
                                              hfx_ks_matrix
   USE input_constants,                 ONLY: &
-       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-       sic_mauri_us, sic_none, use_aux_fit_basis_set
+       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+       sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -144,7 +144,6 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE xc_adiabatic_utils,               ONLY: rescale_xc_potential
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -283,22 +282,22 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle,  ispin, nspins, output_unit, stat
-    LOGICAL :: do_adiabatic_rescaling, do_ddapc, &
-      do_ep, do_hfx, do_ppl, failure, gapw, &
-      gapw_xc, hfx_treat_lsd_in_core, ionode, my_print, scp_dft, &
-      uniform_occupation, use_virial, just_energy_xc
-    REAL(KIND=dp)                            :: ecore_ppl, &
-                                                ee_ener, mulliken_order_p
+    INTEGER                                  :: handle, ispin, nspins, &
+                                                output_unit
+    LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
+      failure, gapw, gapw_xc, hfx_treat_lsd_in_core, ionode, just_energy_xc, &
+      my_print, scp_dft, uniform_occupation, use_virial
+    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, &
+                                                mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, &
-                                                matrix_p, matrix_p_aux_fit, &
-                                                matrix_s, mo_derivs, my_rho
+      POINTER                                :: matrix_h, matrix_p, &
+                                                matrix_p_aux_fit, matrix_s, &
+                                                mo_derivs, my_rho
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_aux_fit, &
@@ -327,8 +326,9 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER :: adiabatic_rescaling_section, &
-      hfx_sections, input, scf_section, xc_section
+    TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
+                                                hfx_sections, input, &
+                                                scf_section, xc_section
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
@@ -2137,11 +2137,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: n, output_unit
-    REAL(KIND=dp)                            :: ddapc_order_p,  &
-                                                s2_order_p
+    INTEGER                                  :: n, output_unit
+    REAL(KIND=dp)                            :: ddapc_order_p, s2_order_p
     TYPE(cp_logger_type), POINTER            :: logger
-     
+
     logger => cp_error_get_logger(error)
 
     output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
@@ -2227,13 +2226,14 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: my_rho
-    TYPE(pw_p_type)                          :: v_efield_rspace,&
-                                                v_sic_rspace, v_spin_ddapc_rest_r
+    TYPE(pw_p_type), POINTER                 :: vppl_rspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
-    TYPE(pw_p_type), POINTER                 :: vppl_rspace
+    TYPE(pw_p_type)                          :: v_efield_rspace, &
+                                                v_sic_rspace, &
+                                                v_spin_ddapc_rest_r
     TYPE(becke_restraint_type), POINTER      :: becke
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2241,8 +2241,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_up_and_integrate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ispin, nspins, stat
-    LOGICAL :: failure, gapw, gapw_xc, do_ppl
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv
     TYPE(dft_control_type), POINTER          :: dft_control

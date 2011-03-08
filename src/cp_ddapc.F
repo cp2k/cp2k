@@ -76,7 +76,6 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
        v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
-!       ddapc_restraint_is_spin,explicit_potential,
        error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -90,8 +89,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in)                      :: just_energy
-!    LOGICAL, INTENT(OUT)                     :: ddapc_restraint_is_spin, &
-!                                                explicit_potential
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', &
@@ -99,10 +96,13 @@ CONTAINS
 
     INTEGER                                  :: ddapc_size, handle, i, my_id, &
                                                 stat
-    LOGICAL                                  :: ddapc_restraint_is_spin, explicit_potential, et_coupling_calc, failure
+    LOGICAL                                  :: ddapc_restraint_is_spin, &
+                                                et_coupling_calc, &
+                                                explicit_potential, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
+
 
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)

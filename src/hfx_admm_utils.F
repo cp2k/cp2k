@@ -16,8 +16,7 @@ MODULE hfx_admm_utils
   USE admm_methods,                    ONLY: admm_calculate_density_matrix,&
                                              admm_fit_mo_coeffs
   USE admm_types,                      ONLY: admm_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
@@ -27,14 +26,13 @@ MODULE hfx_admm_utils
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type                   
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE hfx_derivatives,                 ONLY: derivatives_four_center
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_ri_methods,                  ONLY: hfx_ri_energy_potential
-  USE input_constants,                 ONLY: use_aux_fit_basis_set 
+  USE input_constants,                 ONLY: use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -64,12 +62,13 @@ MODULE hfx_admm_utils
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_types,                     ONLY: get_mo_set, mo_set_p_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE xc_adiabatic_utils,               ONLY: rescale_xc_potential
+  USE xc_adiabatic_utils,              ONLY: rescale_xc_potential
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -100,22 +99,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_density_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ispin, n_rep_hf, nspins
-    LOGICAL :: failure, do_hfx
-
+    INTEGER                                  :: handle, ispin, n_rep_hf, &
+                                                nspins
+    LOGICAL                                  :: do_hfx, failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_p_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
     TYPE(section_vals_type), POINTER         :: hfx_sections
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(admm_env, force, hfx_sections,  matrix_p, matrix_p_aux_fit, mos, mos_aux_fit, para_env)    
+    NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
+         mos_aux_fit, para_env)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -195,16 +193,18 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
-                                                v_tau_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ikind, irep, ispin, n_rep_hf, nspins, stat
-    LOGICAL :: failure, do_adiabatic_rescaling, do_hfx_ri, hfx_treat_lsd_in_core, use_virial
-
+    INTEGER                                  :: handle, ikind, irep, ispin, &
+                                                n_rep_hf, nspins, stat
+    LOGICAL                                  :: do_adiabatic_rescaling, &
+                                                do_hfx_ri, failure, &
+                                                hfx_treat_lsd_in_core, &
+                                                use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h
@@ -215,10 +215,10 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section,&
-                                                hfx_sections,hfx_ri_section,input
+    TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
+                                                hfx_ri_section, hfx_sections, &
+                                                input
     TYPE(virial_type), POINTER               :: virial
-
 
     CALL timeset(routineN, handle)
 
