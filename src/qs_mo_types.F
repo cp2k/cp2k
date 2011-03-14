@@ -213,7 +213,7 @@ CONTAINS
     all_nelec = nelec_a+nelec_b
 
     DO i = 1,all_nmo
-       IF(all_index(i)<nmo_a) THEN
+       IF(all_index(i)<=nmo_a) THEN
          all_occ(i) = occ_a(all_index(i))
        ELSE
          all_occ(i) = occ_b(all_index(i)-nmo_a)
@@ -242,7 +242,7 @@ CONTAINS
                     error,failure)
 
     DO i = 1,all_nmo
-       IF(all_index(i)<nmo_a) THEN
+       IF(all_index(i)<=nmo_a) THEN
          occ_a(all_index(i)) = all_occ(i)
          eigval_a(all_index(i)) = all_eigval(i)
        ELSE
