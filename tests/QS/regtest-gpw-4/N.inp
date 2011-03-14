@@ -26,12 +26,23 @@
       &SMEAR
          ELECTRONIC_TEMPERATURE [au_temp] 0.010
          METHOD FERMI_DIRAC
+         FIXED_MAGNETIC_MOMENT 1.
       &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
+    &PRINT
+       &MO
+         &EACH
+           QS_SCF 0
+         &END
+         ADD_LAST NUMERIC
+         EIGENVALUES
+         OCCUPATION_NUMBERS
+       &END
+    &END
   &END DFT
   &SUBSYS
     &CELL
