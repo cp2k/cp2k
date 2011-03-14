@@ -164,21 +164,21 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(smear_type), POINTER                :: smear
-
-   TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo_a, homo_b, lfomo_a, lfomo_b,&
-               nmo_a, nmo_b, all_nmo, i, stat, xas_estate
+    INTEGER                                  :: all_nmo, handle, homo_a, &
+                                                homo_b, i, lfomo_a, lfomo_b, &
+                                                nmo_a, nmo_b, stat, xas_estate
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_index
     LOGICAL                                  :: failure, is_large
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: all_index
-    REAL(KIND=dp) :: nelec_a, nelec_b, all_nelec , occ_estate, kTS, mu
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: all_eigval
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: all_occ
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occ_a, occ_b
+    REAL(KIND=dp)                            :: all_nelec, kTS, mu, nelec_a, &
+                                                nelec_b, occ_estate
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: all_eigval, all_occ
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b, occ_a, &
+                                                occ_b
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
@@ -253,13 +253,13 @@ CONTAINS
 
     nelec_a=accurate_sum(occ_a(:))
     nelec_b=accurate_sum(occ_b(:))
-    Do i =1,nmo_a
+    DO i =1,nmo_a
      IF (occ_a(i) < 1.0_dp) THEN
        lfomo_a=i
        EXIT
      END IF
     END DO
-    Do i =1,nmo_b
+    DO i =1,nmo_b
      IF (occ_b(i) < 1.0_dp) THEN
        lfomo_b=i
        EXIT
@@ -532,7 +532,7 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
-    REAL(KIND=dp), INTENT(IN)                :: n_el_f,maxocc
+    REAL(KIND=dp), INTENT(IN)                :: n_el_f, maxocc
     LOGICAL, INTENT(IN)                      :: flexible_electron_count
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -735,9 +735,9 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
-    INTEGER, INTENT(OUT), OPTIONAL           :: homo, lfomo, nao, nelectron, &
-                                                nmo
+    INTEGER, INTENT(OUT), OPTIONAL           :: homo, lfomo, nao, nelectron
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: n_el_f
+    INTEGER, INTENT(OUT), OPTIONAL           :: nmo
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
@@ -1030,9 +1030,9 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
-    INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo, nao, nelectron, &
-                                                nmo
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: n_el_f 
+    INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo, nao, nelectron
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: n_el_f
+    INTEGER, INTENT(IN), OPTIONAL            :: nmo
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
