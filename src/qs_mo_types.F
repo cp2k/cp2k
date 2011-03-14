@@ -72,6 +72,7 @@ MODULE qs_mo_types
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              xas_environment_type
 #include "cp_common_uses.h"
@@ -98,6 +99,7 @@ MODULE qs_mo_types
     REAL(KIND = dp)                           :: maxocc
     ! number of electrons (taking occupation into account)
     INTEGER                                   :: nelectron
+    REAL(KIND=dp)                             :: n_el_f
     ! highest non-zero occupied orbital
     INTEGER                                   :: homo
     ! lowest non maxocc occupied orbital (e.g. fractional or zero)
@@ -150,6 +152,142 @@ MODULE qs_mo_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Occupation for smeared spin polirized electronic structures 
+!>         with relaxed multiplicity 
+!>          
+!> \author  MI
+!> \date    10.03.2011 (MI)
+!> \version 1.0
+! *****************************************************************************
+   SUBROUTINE set_mo_occupation_3(mo_array,smear,error)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(smear_type), POINTER                :: smear
+
+   TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, homo_a, homo_b, lfomo_a, lfomo_b,&
+               nmo_a, nmo_b, all_nmo, i, stat, xas_estate
+    LOGICAL                                  :: failure, is_large
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: all_index
+    REAL(KIND=dp) :: nelec_a, nelec_b, all_nelec , occ_estate, kTS, mu
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: all_eigval
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: all_occ
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occ_a, occ_b
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
+    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
+    CALL timeset(routineN,handle)
+
+    NULLIFY(eigval_a,eigval_b,occ_a,occ_b)
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set,nmo=nmo_a,eigenvalues=eigval_a, &
+         occupation_numbers=occ_a)
+    CALL get_mo_set(mo_set=mo_array(2)%mo_set,nmo=nmo_b,eigenvalues=eigval_b, &
+         occupation_numbers=occ_b)
+    all_nmo = nmo_a+nmo_b
+    ALLOCATE(all_eigval(all_nmo), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(all_occ(all_nmo), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(all_index(all_nmo), STAT=stat)
+
+    all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
+    all_eigval(nmo_a+1:all_nmo) = eigval_b(1:nmo_b)
+
+    CALL sort(all_eigval,all_nmo,all_index)
+
+    xas_estate =  -1
+    occ_estate = 0.0_dp
+
+    nelec_a=0.0_dp
+    nelec_b=0.0_dp
+    all_nelec=0.0_dp
+    nelec_a=accurate_sum(occ_a(:))
+    nelec_b=accurate_sum(occ_b(:))
+    all_nelec = nelec_a+nelec_b
+
+    DO i = 1,all_nmo
+       IF(all_index(i)<nmo_a) THEN
+         all_occ(i) = occ_a(all_index(i))
+       ELSE
+         all_occ(i) = occ_b(all_index(i)-nmo_a)
+       END IF
+    END DO
+
+    CALL FermiFixed(all_occ,mu,kTS,all_eigval,all_nelec, &
+                   smear%electronic_temperature,1._dp,xas_estate,occ_estate)
+
+    is_large=ABS(MAXVAL(all_occ)-1.0_dp)> smear%eps_fermi_dirac
+    ! this is not a real problem, but the temperature might be a bit large
+        CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
+                       "Fermi-Dirac smearing includes the first MO",&
+                       error,failure)
+
+    is_large=ABS(MINVAL(all_occ))> smear%eps_fermi_dirac
+    CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
+                   "Fermi-Dirac smearing includes the last MO => "//&
+                    "Add more MOs for proper smearing.",error,failure)
+
+    ! check that the total electron count is accurate
+    is_large=(ABS(all_nelec - accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
+    CALL cp_assert(.NOT.is_large,&
+                   cp_warning_level,cp_assertion_failed,routineP,&
+                   "Total number of electrons is not accurate",&
+                    error,failure)
+
+    DO i = 1,all_nmo
+       IF(all_index(i)<nmo_a) THEN
+         occ_a(all_index(i)) = all_occ(i)
+         eigval_a(all_index(i)) = all_eigval(i)
+       ELSE
+         occ_b(all_index(i)-nmo_a) = all_occ(i)
+         eigval_b(all_index(i)-nmo_a) = all_eigval(i)
+       END IF
+    END DO
+
+    nelec_a=accurate_sum(occ_a(:))
+    nelec_b=accurate_sum(occ_b(:))
+    Do i =1,nmo_a
+     IF (occ_a(i) < 1.0_dp) THEN
+       lfomo_a=i
+       EXIT
+     END IF
+    END DO
+    Do i =1,nmo_b
+     IF (occ_b(i) < 1.0_dp) THEN
+       lfomo_b=i
+       EXIT
+     END IF
+    END DO
+    DO i = nmo_a,lfomo_a,-1
+      IF (occ_a(i)  > smear%eps_fermi_dirac) THEN
+       homo_a=i
+       EXIT
+     END IF
+    END DO
+    DO i = nmo_b,lfomo_b,-1
+      IF (occ_b(i)  > smear%eps_fermi_dirac) THEN
+       homo_b=i
+       EXIT
+     END IF
+    END DO
+
+    CALL set_mo_set(mo_set=mo_array(1)%mo_set,kTS=kTS/2.0_dp,mu=mu,n_el_f=nelec_a,&
+         lfomo=lfomo_a,homo=homo_a,uniform_occupation=.FALSE., error=error)
+    CALL set_mo_set(mo_set=mo_array(2)%mo_set,kTS=kTS/2.0_dp,mu=mu,n_el_f=nelec_b,&
+         lfomo=lfomo_b,homo=homo_b,uniform_occupation=.FALSE., error=error)
+
+
+    CALL timestop(handle)
+
+  END SUBROUTINE set_mo_occupation_3
+! *****************************************************************************
 !> \brief   Prepare an occupation of alpha and beta MOs following an Aufbau
 !>          principle, i.e. allowing a change in multiplicity.
 !> \author  Matthias Krack (MK)
@@ -191,6 +329,24 @@ CONTAINS
     END IF
     CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
     mo_set_b => mo_array(2)%mo_set
+
+    IF(smear%do_smear .AND. smear%fixed_mag_mom<0.0_dp) THEN
+      CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
+      CALL set_mo_occupation_3(mo_array,smear=smear,error=error)
+      RETURN
+    ELSEIF(smear%do_smear .AND.  smear%fixed_mag_mom >=0.0) THEN
+      nelec = mo_set_a%n_el_f + mo_set_b%n_el_f
+      IF(ABS((mo_set_a%n_el_f-mo_set_b%n_el_f)-smear%fixed_mag_mom)>&
+                 smear%eps_fermi_dirac*nelec)THEN
+         mo_set_a%n_el_f = nelec/2.0_dp + smear%fixed_mag_mom
+         mo_set_b%n_el_f = nelec/2.0_dp - smear%fixed_mag_mom
+      END IF
+      CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
+      CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
+      CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+    END IF
+
+
     IF (.NOT.(mo_set_a%flexible_electron_count.AND.mo_set_b%flexible_electron_count)) THEN
        IF (PRESENT(eval_deriv)) THEN
           CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
@@ -201,6 +357,7 @@ CONTAINS
        END IF
        RETURN
     END IF
+
 
     CALL timeset(routineN,handle)
 
@@ -320,6 +477,7 @@ CONTAINS
 
     mo_set_new%maxocc = mo_set_old%maxocc
     mo_set_new%nelectron = mo_set_old%nelectron
+    mo_set_new%n_el_f = mo_set_old%n_el_f
     mo_set_new%nao = mo_set_old%nao
     mo_set_new%nmo = mo_set_old%nmo
     mo_set_new%homo = mo_set_old%homo
@@ -369,12 +527,12 @@ CONTAINS
 !> \author Matthias Krack
 !> \date 15.05.2001
 ! *****************************************************************************
-  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,&
+  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,n_el_f,maxocc,&
                              flexible_electron_count,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
-    REAL(KIND=dp), INTENT(IN)                :: maxocc
+    REAL(KIND=dp), INTENT(IN)                :: n_el_f,maxocc
     LOGICAL, INTENT(IN)                      :: flexible_electron_count
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -393,6 +551,7 @@ CONTAINS
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
+    mo_set%n_el_f = n_el_f
     mo_set%nao = nao
     mo_set%nmo = nmo
     mo_set%homo = 0
@@ -570,7 +729,7 @@ CONTAINS
 !> \date    22.04.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
+  SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,n_el_f,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,mo_coeff_b,&
                         uniform_occupation,kTS,mu,flexible_electron_count)
 
@@ -578,6 +737,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
     INTEGER, INTENT(OUT), OPTIONAL           :: homo, lfomo, nao, nelectron, &
                                                 nmo
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: n_el_f
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
@@ -592,6 +752,7 @@ CONTAINS
     IF (PRESENT(lfomo)) lfomo = mo_set%lfomo
     IF (PRESENT(nao)) nao = mo_set%nao
     IF (PRESENT(nelectron)) nelectron = mo_set%nelectron
+    IF (PRESENT(n_el_f)) n_el_f = mo_set%n_el_f
     IF (PRESENT(nmo)) nmo = mo_set%nmo
     IF (PRESENT(eigenvalues)) eigenvalues => mo_set%eigenvalues
     IF (PRESENT(occupation_numbers)) THEN
@@ -722,7 +883,8 @@ CONTAINS
          nelec = xas_nelectron
       ELSE
          i_first = 1
-         nelec = REAL(mo_set%nelectron,dp)
+!         nelec = REAL(mo_set%nelectron,dp)
+         nelec = mo_set%n_el_f
       END IF
       SELECT CASE (smear%method)
       CASE (smear_fermi_dirac)
@@ -862,7 +1024,7 @@ CONTAINS
 !> \date    22.04.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
+  SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,n_el_f,nmo,&
                         eigenvalues,occupation_numbers,uniform_occupation,&
                         kTS,mu,flexible_electron_count,error)
 
@@ -870,6 +1032,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
     INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo, nao, nelectron, &
                                                 nmo
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: n_el_f 
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
@@ -889,6 +1052,7 @@ CONTAINS
     IF (PRESENT(lfomo)) mo_set%lfomo = lfomo
     IF (PRESENT(nao)) mo_set%nao = nao
     IF (PRESENT(nelectron)) mo_set%nelectron = nelectron
+    IF (PRESENT(n_el_f)) mo_set%n_el_f = n_el_f
     IF (PRESENT(nmo)) mo_set%nmo = nmo
     IF (PRESENT(eigenvalues)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN

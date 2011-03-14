@@ -107,8 +107,10 @@ MODULE scf_control_types
 
   TYPE smear_type
     LOGICAL       :: do_smear
+    LOGICAL       :: common_mu
     INTEGER       :: method
     REAL(KIND=dp) :: electronic_temperature,&
+                     fixed_mag_mom,&
                      eps_fermi_dirac,&
                      window_size
     REAL(KIND=dp), DIMENSION(:), POINTER :: list
@@ -548,6 +550,7 @@ CONTAINS
       smear%method = smear_energy_window
       smear%electronic_temperature = 0.0_dp
       smear%eps_fermi_dirac = 1.0E-5_dp
+      smear%fixed_mag_mom=-100.0_dp
       smear%window_size = 0.0_dp
       NULLIFY(smear%list)
     END IF
@@ -594,6 +597,9 @@ CONTAINS
             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
             smear%list=r_vals
          END IF
+         CALL section_vals_val_get(smear_section,"FIXED_MAGNETIC_MOMENT",&
+                                   r_val=smear%fixed_mag_mom,&
+                                   error=error)
       END IF ! do smear
     END IF
   END SUBROUTINE read_smear_section
@@ -698,6 +704,9 @@ CONTAINS
                    WRITE (UNIT=output_unit,FMT="(T25,A,T71,ES10.2)")&
                         "Electronic temperature [a.u.]:",scf_control%smear%electronic_temperature,&
                         "Accuracy threshold:",scf_control%smear%eps_fermi_dirac
+                   IF(scf_control%smear%fixed_mag_mom>0.0_dp) WRITE (UNIT=output_unit,FMT="(T25,A,F10.5)")&
+                          "Spin channel alpha and spin channel beta are smeared independently, keeping "//&
+                          " fixed difference in number of electrons equal to ",scf_control%smear%fixed_mag_mom
                 CASE (smear_energy_window)
                    WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
                         "Smear window [a.u.]:       ",scf_control%smear%window_size

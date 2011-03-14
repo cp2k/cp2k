@@ -168,8 +168,7 @@ MODULE qs_environment
   USE semi_empirical_types,            ONLY: se_taper_create,&
                                              se_taper_type
   USE semi_empirical_utils,            ONLY: se_cutoff_compatible
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
@@ -773,7 +772,7 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dispersion_env",1)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -1022,16 +1021,14 @@ CONTAINS
       NULLIFY(mos)
     ELSE
       ALLOCATE (mos(dft_control%nspins),STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN,moduleN,__LINE__,&
-                          "mos",dft_control%nspins*int_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO ispin=1,dft_control%nspins
          NULLIFY (mos(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
                               nao=n_ao,&
                               nmo=n_mo(ispin),&
                               nelectron=nelectron_spin(ispin),&
+                              n_el_f=REAL(nelectron_spin(ispin),dp),&
                               maxocc=maxocc,&
                               flexible_electron_count=dft_control%relax_multiplicity,&
                               error=error)
@@ -1047,10 +1044,7 @@ CONTAINS
                              nelectron=nelectron,&
                              basis_set_id=use_aux_fit_basis_set)
       ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN,moduleN,__LINE__,&
-                          "mos_aux_fit",dft_control%nspins*int_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       DO ispin=1,dft_control%nspins
          NULLIFY (mos_aux_fit(ispin)%mo_set)
@@ -1058,6 +1052,7 @@ CONTAINS
                               nao=n_ao_aux_fit,&
                               nmo=n_mo(ispin),&
                               nelectron=nelectron_spin(ispin),&
+                              n_el_f=REAL(nelectron_spin(ispin),dp),&
                               maxocc=maxocc,&
                               flexible_electron_count=dft_control%relax_multiplicity,&
                               error=error)

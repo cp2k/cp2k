@@ -7018,6 +7018,18 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="FIXED_MAGNETIC_MOMENT",&
+                          description="Imposed difference between the numbers of electrons of spin up and spin down, m=nup-ndown",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=-100.0_dp,&
+                          usage="FIXED_MAGNETIC_MOMENT 1.5",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_smear_section

@@ -119,11 +119,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_init', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: dev_flag, string
-    INTEGER                                  :: ipe, istat, my_output_unit, &
+    CHARACTER(LEN=default_string_length)     :: dev_flag
+    INTEGER                                  :: ipe, my_output_unit, &
                                                 strend, strstart
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_pid
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
     TYPE(cp_logger_type), POINTER            :: logger
 #if defined(__HPM)
 #include "f_hpm.h"

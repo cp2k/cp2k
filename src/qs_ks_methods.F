@@ -665,12 +665,7 @@ CONTAINS
        IF ( do_hfx ) THEN
          CALL hfx_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,calculate_forces,&
               just_energy,v_rspace_new,v_tau_rspace,error=error)
-!!       !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
 !!       Adiabatic rescaling  only if do_hfx; right?????
-!!       IF( do_adiabatic_rescaling ) THEN
-!!         CALL rescale_xc_potential(qs_env,ks_matrix,rho,energy,v_rspace_new,v_tau_rspace,&
-!!             hf_energy, just_energy,calculate_forces,use_virial,error=error)
-!!       END IF   ! do_adiabatic_rescaling
        END IF !do_hfx
 
        IF(do_ppl .AND. calculate_forces)THEN
