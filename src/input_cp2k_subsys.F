@@ -2282,6 +2282,35 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword,&
+                          name="U_RAMPING",&
+                          description="Increase the effective U parameter stepwise using the specified "//&
+                                      "increment until the target value given by U_MINUS_J is reached.",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.0_dp,&
+                          unit_str="au_e",&
+                          usage="U_RAMPING [eV] 0.1",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="EPS_U_RAMPING",&
+                          description="Threshold value (SCF convergence) for incrementing the effective "//&
+                                      "U value when U ramping is active.",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=1.0E-5_dp,&
+                          usage="EPS_U_RAMPING 1.0E-6",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       NULLIFY (subsection)
 
       CALL section_create(subsection,&

@@ -102,7 +102,11 @@ MODULE atomic_kind_types
 ! *****************************************************************************
   TYPE dft_plus_u_type
      INTEGER                                :: l,max_scf
-     REAL(KIND=dp)                          :: eps_scf,u_minus_j
+     REAL(KIND=dp)                          :: eps_u_ramping,&
+                                               eps_scf,&
+                                               u_minus_j_target,&
+                                               u_minus_j,&
+                                               u_ramping
      INTEGER, DIMENSION(:), POINTER         :: orbitals
      LOGICAL                                :: smear
   END TYPE dft_plus_u_type
@@ -392,7 +396,7 @@ CONTAINS
        ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active, damping, &
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id, &
        npgf, bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
-       max_scf, eps_scf, smear)
+       max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -462,6 +466,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: max_scf
     REAL(KIND=dp), OPTIONAL                  :: eps_scf
     LOGICAL, OPTIONAL                        :: smear
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_ramping, u_minus_j_target, &
+                                                eps_u_ramping
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -470,9 +476,6 @@ CONTAINS
                                                 n_set
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf_set
     LOGICAL                                  :: softb_local
-
-!JTs
-!JTe
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
@@ -713,6 +716,27 @@ CONTAINS
              u_minus_j = atomic_kind%dft_plus_u%u_minus_j
           ELSE
              u_minus_j = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(u_minus_j_target)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             u_minus_j_target = atomic_kind%dft_plus_u%u_minus_j_target
+          ELSE
+             u_minus_j_target = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(u_ramping)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             u_ramping = atomic_kind%dft_plus_u%u_ramping
+          ELSE
+             u_ramping = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(eps_u_ramping)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             eps_u_ramping = atomic_kind%dft_plus_u%eps_u_ramping
+          ELSE
+             eps_u_ramping = 1.0E-5_dp
           END IF
        END IF
        IF (PRESENT(orbitals)) THEN
@@ -1811,7 +1835,20 @@ CONTAINS
                          error,failure)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="U_MINUS_J",&
-                                    r_val=atomic_kind%dft_plus_u%u_minus_j,&
+                                    r_val=atomic_kind%dft_plus_u%u_minus_j_target,&
+                                    error=error)
+          CALL section_vals_val_get(dft_plus_u_section,&
+                                    keyword_name="U_RAMPING",&
+                                    r_val=atomic_kind%dft_plus_u%u_ramping,&
+                                    error=error)
+          IF (atomic_kind%dft_plus_u%u_ramping > 0.0_dp) THEN
+             atomic_kind%dft_plus_u%u_minus_j = 0.0_dp
+          ELSE
+             atomic_kind%dft_plus_u%u_minus_j = atomic_kind%dft_plus_u%u_minus_j_target
+          END IF
+          CALL section_vals_val_get(dft_plus_u_section,&
+                                    keyword_name="EPS_U_RAMPING",&
+                                    r_val=atomic_kind%dft_plus_u%eps_u_ramping,&
                                     error=error)
 
           NULLIFY (enforce_occupation_section)
@@ -2198,7 +2235,7 @@ CONTAINS
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        fist_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
-       shell_active,no_optimize,dispersion,damping,error)
+       shell_active,no_optimize,dispersion,damping,u_minus_j,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
@@ -2220,6 +2257,7 @@ CONTAINS
     TYPE(qs_atom_dispersion_type), &
       OPTIONAL, POINTER                      :: dispersion
     TYPE(damping_p_type), OPTIONAL, POINTER  :: damping
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u_minus_j
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2230,6 +2268,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
+
     IF (ASSOCIATED(atomic_kind)) THEN
 
        IF (PRESENT(element_symbol)) atomic_kind%element_symbol = element_symbol
@@ -2288,6 +2327,12 @@ CONTAINS
 
        IF (PRESENT(damping)) atomic_kind%damping => damping
 
+       IF (PRESENT(u_minus_j)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             atomic_kind%dft_plus_u%u_minus_j = u_minus_j
+          END IF
+       END IF
+
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind is not associated")
@@ -2344,11 +2389,15 @@ CONTAINS
           CALL write_potential(atomic_kind%all_potential,output_unit,error)
           CALL write_potential(atomic_kind%gth_potential,output_unit,error)
           IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
-             WRITE (UNIT=output_unit,&
-                    FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
+             WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
                "A DFT+U correction is applied to atoms of this atomic kind:",&
                "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
-               "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt
+               "U(eff) = (U - J) value in [eV]:",atomic_kind%dft_plus_u%u_minus_j_target*evolt
+             IF (atomic_kind%dft_plus_u%u_ramping > 0.0_dp) THEN
+                WRITE (UNIT=output_unit,FMT="(T8,A,T73,F8.3,/,T8,A,T73,ES8.1)")&
+                  "Increment for U ramping in [eV]:",atomic_kind%dft_plus_u%u_ramping*evolt,&
+                  "SCF threshold value for U ramping:",atomic_kind%dft_plus_u%eps_u_ramping
+             END IF
              IF (ASSOCIATED(atomic_kind%dft_plus_u%orbitals)) THEN
                 WRITE (UNIT=output_unit,FMT="(T8,A)")&
                   "An initial orbital occupation is requested:"

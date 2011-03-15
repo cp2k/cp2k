@@ -10,3 +10,6 @@ H2O-rks-diag-lowdin.inp 24
 H2O-rks-otcg-lowdin.inp 24
 H2O-uks-diag-lowdin.inp 24
 H2O-uks-otcg-lowdin.inp 24
+# U ramping
+H2O-rks-u_ramping.inp 24
+H2O-uks-u_ramping.inp 24

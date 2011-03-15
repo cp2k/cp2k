@@ -17,7 +17,8 @@ MODULE dft_plus_u
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind_set,&
+                                             set_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE bibliography,                    ONLY: Dudarev1997,&
@@ -65,6 +66,7 @@ MODULE dft_plus_u
   USE orbital_symbols,                 ONLY: sgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE physcon,                         ONLY: evolt
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -228,8 +230,10 @@ CONTAINS
     LOGICAL :: debug, dft_plus_u_atom, failure, fm_work1_local_alloc, &
       fm_work2_local_alloc, found, just_energy, smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_occ
-    REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
-                                                trq2, u_minus_j
+    REAL(KIND=dp)                            :: eps_scf, eps_u_ramping, &
+                                                fspin, occ, trq, trq2, &
+                                                u_minus_j, u_minus_j_target, &
+                                                u_ramping
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: q_eigval
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: q_eigvec, q_matrix, q_work
@@ -478,6 +482,9 @@ CONTAINS
                              nsgf=nsgf_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j,&
+                             u_minus_j_target=u_minus_j_target,&
+                             u_ramping=u_ramping,&
+                             eps_u_ramping=eps_u_ramping,&
                              orbitals=orbitals,&
                              eps_scf=eps_scf,&
                              max_scf=max_scf,&
@@ -488,6 +495,20 @@ CONTAINS
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
         IF (.NOT.dft_plus_u_atom) CYCLE
         IF (lu < 0) CYCLE
+
+        ! Apply U ramping if requested
+
+        IF (u_ramping > 0.0_dp) THEN
+          IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
+            u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
+            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+          END IF
+          IF (should_output.AND.(output_unit > 0)) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,F0.3,A)")&
+              "U(eff) = U - J = ",u_minus_j*evolt," eV"
+          END IF
+        END IF
+
         IF (u_minus_j == 0.0_dp) CYCLE
 
         ! Load the required Gaussian basis set data
@@ -549,10 +570,10 @@ CONTAINS
           ! Get diagonal block
 
           CALL cp_dbcsr_get_block_p(matrix=sm_q,&
-                                 row=atom_a,&
-                                 col=atom_a,&
-                                 block=q_block,&
-                                 found=found)
+                                    row=atom_a,&
+                                    col=atom_a,&
+                                    block=q_block,&
+                                    found=found)
 
           IF (ASSOCIATED(q_block)) THEN
 
@@ -663,10 +684,10 @@ CONTAINS
             IF (.NOT.just_energy) THEN
 
               CALL cp_dbcsr_get_block_p(matrix=sm_v,&
-                                     row=atom_a,&
-                                     col=atom_a,&
-                                     block=v_block,&
-                                     found=found)
+                                        row=atom_a,&
+                                        col=atom_a,&
+                                        block=v_block,&
+                                        found=found)
               CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
               i = 0
@@ -899,8 +920,10 @@ CONTAINS
                                                 failure, found, just_energy, &
                                                 smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
-    REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
-                                                trq2, u_minus_j
+    REAL(KIND=dp)                            :: eps_scf, eps_u_ramping, &
+                                                fspin, occ, trq, trq2, &
+                                                u_minus_j, u_minus_j_target, &
+                                                u_ramping
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: q_eigval
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: q_eigvec, q_matrix, q_work
@@ -1046,18 +1069,18 @@ CONTAINS
       DO iatom=1,natom
 
         CALL cp_dbcsr_get_block_p(matrix=sm_p,&
-                               row=iatom,&
-                               col=iatom,&
-                               block=p_block,&
-                               found=found)
+                                  row=iatom,&
+                                  col=iatom,&
+                                  block=p_block,&
+                                  found=found)
 
         IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
         CALL cp_dbcsr_get_block_p(matrix=sm_q,&
-                               row=iatom,&
-                               col=iatom,&
-                               block=q_block,&
-                               found=found)
+                                  row=iatom,&
+                                  col=iatom,&
+                                  block=q_block,&
+                                  found=found)
         CPPostcondition(ASSOCIATED(q_block),cp_failure_level,routineP,error,failure)
 
         IF (orthonormal_basis) THEN
@@ -1067,10 +1090,10 @@ CONTAINS
           END DO
         ELSE
           CALL cp_dbcsr_get_block_p(matrix=sm_s,&
-                                 row=iatom,&
-                                 col=iatom,&
-                                 block=s_block,&
-                                 found=found)
+                                    row=iatom,&
+                                    col=iatom,&
+                                    block=s_block,&
+                                    found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
           ! Exploit that P and S are symmetric
           DO jsgf=1,SIZE(p_block,2)
@@ -1106,6 +1129,9 @@ CONTAINS
                              nsgf=nsgf_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j,&
+                             u_minus_j_target=u_minus_j_target,&
+                             u_ramping=u_ramping,&
+                             eps_u_ramping=eps_u_ramping,&
                              orbitals=orbitals,&
                              eps_scf=eps_scf,&
                              max_scf=max_scf,&
@@ -1116,6 +1142,20 @@ CONTAINS
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
         IF (.NOT.dft_plus_u_atom) CYCLE
         IF (lu < 0) CYCLE
+
+        ! Apply U ramping if requested
+
+        IF (u_ramping > 0.0_dp) THEN
+          IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
+            u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
+            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+          END IF
+          IF (should_output.AND.(output_unit > 0)) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,F0.3,A)")&
+              "U(eff) = U - J = ",u_minus_j*evolt," eV"
+          END IF
+        END IF
+
         IF (u_minus_j == 0.0_dp) CYCLE
 
         is_plus_u_kind(ikind) = .TRUE.
@@ -1179,10 +1219,10 @@ CONTAINS
           ! Get diagonal block
 
           CALL cp_dbcsr_get_block_p(matrix=sm_q,&
-                                 row=atom_a,&
-                                 col=atom_a,&
-                                 block=q_block,&
-                                 found=found)
+                                    row=atom_a,&
+                                    col=atom_a,&
+                                    block=q_block,&
+                                    found=found)
 
           ! Calculate energy contribution to E(U)
 
@@ -1293,10 +1333,10 @@ CONTAINS
             IF (.NOT.just_energy) THEN
 
               CALL cp_dbcsr_get_block_p(matrix=sm_v,&
-                                     row=atom_a,&
-                                     col=atom_a,&
-                                     block=v_block,&
-                                     found=found)
+                                        row=atom_a,&
+                                        col=atom_a,&
+                                        block=v_block,&
+                                        found=found)
               CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
               i = 0
@@ -1441,18 +1481,18 @@ CONTAINS
             atom_a = atom_list(iatom)
 
             CALL cp_dbcsr_get_block_p(matrix=sm_h,&
-                                   row=atom_a,&
-                                   col=atom_a,&
-                                   block=h_block,&
-                                   found=found)
-
+                                      row=atom_a,&
+                                      col=atom_a,&
+                                      block=h_block,&
+                                      found=found)
+ 
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
             CALL cp_dbcsr_get_block_p(matrix=sm_v,&
-                                   row=atom_a,&
-                                   col=atom_a,&
-                                   block=v_block,&
-                                   found=found)
+                                      row=atom_a,&
+                                      col=atom_a,&
+                                      block=v_block,&
+                                      found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
             IF (orthonormal_basis) THEN
@@ -1461,10 +1501,10 @@ CONTAINS
               END DO
             ELSE
                CALL cp_dbcsr_get_block_p(matrix=sm_s,&
-                                      row=atom_a,&
-                                      col=atom_a,&
-                                      block=s_block,&
-                                      found=found)
+                                         row=atom_a,&
+                                         col=atom_a,&
+                                         block=s_block,&
+                                         found=found)
               CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
               DO jsgf=1,SIZE(h_block,2)
                 DO isgf=1,SIZE(h_block,1)
@@ -1558,7 +1598,9 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
                                                 found, just_energy
-    REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
+    REAL(KIND=dp)                            :: eps_u_ramping, fspin, q, &
+                                                u_minus_j, u_minus_j_target, &
+                                                u_ramping, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: q_ii
@@ -1719,10 +1761,10 @@ CONTAINS
         ELSE
 
           CALL cp_dbcsr_get_block_p(matrix=sm_s,&
-                                 row=iatom,&
-                                 col=jatom,&
-                                 block=s_block,&
-                                 found=found)
+                                    row=iatom,&
+                                    col=jatom,&
+                                    block=s_block,&
+                                    found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
           sgf = first_sgf_atom(jatom)
@@ -1775,13 +1817,30 @@ CONTAINS
                              name=atomic_kind_name,&
                              natom=natom_of_kind,&
                              orb_basis_set=orb_basis_set,&
-                             u_minus_j=u_minus_j)
+                             u_minus_j=u_minus_j,&
+                             u_minus_j_target=u_minus_j_target,&
+                             u_ramping=u_ramping,&
+                             eps_u_ramping=eps_u_ramping)
 
         ! Check, if this atom needs a DFT+U correction
 
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
         IF (.NOT.dft_plus_u_atom) CYCLE
         IF (lu < 0) CYCLE
+
+        ! Apply U ramping if requested
+
+        IF (u_ramping > 0.0_dp) THEN
+          IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
+            u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
+            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+          END IF
+          IF (should_output.AND.(output_unit > 0)) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,F0.3,A)")&
+              "U(eff) = U - J = ",u_minus_j*evolt," eV"
+          END IF
+        END IF
+
         IF (u_minus_j == 0.0_dp) CYCLE
 
         ! Load the required Gaussian basis set data
@@ -1839,10 +1898,10 @@ CONTAINS
           ! Get diagonal block
 
           CALL cp_dbcsr_get_block_p(matrix=sm_p,&
-                                 row=atom_a,&
-                                 col=atom_a,&
-                                 block=p_block,&
-                                 found=found)
+                                    row=atom_a,&
+                                    col=atom_a,&
+                                    block=p_block,&
+                                    found=found)
 
           ! Calculate E(U) and dE(U)/dq
 
@@ -1930,10 +1989,10 @@ CONTAINS
             ! Request katom just to check for consistent sparse matrix pattern
 
             CALL cp_dbcsr_get_block_p(matrix=sm_s,&
-                                   row=iatom,&
-                                   col=jatom,&
-                                   block=s_block,&
-                                   found=found)
+                                      row=iatom,&
+                                      col=jatom,&
+                                      block=s_block,&
+                                      found=found)
             CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
             ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
@@ -1989,10 +2048,10 @@ CONTAINS
           ! Request katom just to check for consistent sparse matrix patterns
 
           CALL cp_dbcsr_get_block_p(matrix=sm_w,&
-                                 row=iatom,&
-                                 col=jatom,&
-                                 block=w_block,&
-                                 found=found)
+                                    row=iatom,&
+                                    col=jatom,&
+                                    block=w_block,&
+                                    found=found)
           CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 
           ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
