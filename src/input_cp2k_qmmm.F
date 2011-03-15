@@ -870,12 +870,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       NULLIFY(keyword, print_key)
        CALL section_create(section,name="print",&
             description="Section of possible print options specific of the QMMM code.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
@@ -895,6 +897,15 @@ CONTAINS
             description="Controls the printing of the QMMM  potential",&
             print_level=high_print_level,filename="MM_ELPOT_QMMM",&
             common_iter_levels=1,error=error)
+
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

@@ -28,7 +28,8 @@ MODULE qmmm_gpw_energy
                                              do_qmmm_swave,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_ivals,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -196,6 +197,7 @@ CONTAINS
                   extension=".qmmmLog",error=error)
              CALL pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,&
                   particles=particles,&
+                  stride=section_get_ivals(print_section,"POTENTIAL%STRIDE",error),&
                   title="QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
              CALL cp_print_key_finished_output(iw2,logger,print_section,&
                   "POTENTIAL", error=error)
