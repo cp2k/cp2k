@@ -93,6 +93,7 @@ MODULE input_cp2k_restarts
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
   USE termination,                     ONLY: stop_memory,&
+                                             stop_program,&
                                              stop_write
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: communication_thermo_low2,&
@@ -3213,6 +3214,7 @@ CONTAINS
     NULLIFY (particles)
     NULLIFY (shell_particles)
     NULLIFY (subsys)
+    NULLIFY (thermostat_part)
     NULLIFY (veta)
 
     IF (PRESENT(md_env)) THEN
@@ -3273,7 +3275,14 @@ CONTAINS
     IF (output_unit > 0) THEN ! only ionode
 
        IF (print_info) THEN
-          INQUIRE (UNIT=output_unit,NAME=binary_restart_file_name)
+          INQUIRE (UNIT=output_unit,NAME=binary_restart_file_name,IOSTAT=istat)
+          IF (istat /= 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "An error occurred inquiring logical unit <"//&
+                               TRIM(ADJUSTL(cp_to_string(output_unit)))//&
+                               "> which should be linked to the binary restart file",&
+                               para_env)
+          END IF
           WRITE (UNIT=*,FMT="(T2,A,/,/,(T3,A,T71,I10))")&
             "Writing binary restart file "//TRIM(ADJUSTL(binary_restart_file_name)),&
             "Number of atomic kinds:",natomkind,&
@@ -3300,7 +3309,7 @@ CONTAINS
           WRITE (UNIT=output_unit,IOSTAT=istat) atomic_kinds%els(ikind)%name
           IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
                                           "atomic_kinds%els(ikind)%name "//&
-                                         "(IOSTAT = "//cp_to_string(istat)//")",&
+                                          "(IOSTAT = "//cp_to_string(istat)//")",&
                                           output_unit,para_env)
           n_char_size = n_char_size + LEN(atomic_kinds%els(ikind)%name)
        END DO
