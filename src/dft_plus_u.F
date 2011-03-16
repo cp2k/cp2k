@@ -498,7 +498,7 @@ CONTAINS
 
         ! Apply U ramping if requested
 
-        IF (u_ramping > 0.0_dp) THEN
+        IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
             CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
@@ -1145,7 +1145,7 @@ CONTAINS
 
         ! Apply U ramping if requested
 
-        IF (u_ramping > 0.0_dp) THEN
+        IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
             CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
@@ -1830,7 +1830,7 @@ CONTAINS
 
         ! Apply U ramping if requested
 
-        IF (u_ramping > 0.0_dp) THEN
+        IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
             CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)

@@ -414,3 +414,5 @@ H2O-rks-otcg-lowdin.inp
 H2O-uks-otcg.inp
 # DBCSR Numerics 
 H2O-uks-otcg-lowdin.inp
+# Bug fix for spin-polarised calculations
+H2O-uks-u_ramping.inp
