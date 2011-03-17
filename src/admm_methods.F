@@ -140,7 +140,7 @@ MODULE admm_methods
         CALL calculate_density_matrix(mo_set, density_matrix_aux, use_dbcsr, error=error)
       CASE(do_admm_purify_mo_no_diag)
         CALL calculate_dm_mo_no_diag(admm_env, mo_set, density_matrix_aux, ispin, error)
-    END SELECT
+      END SELECT
     
     CASE(do_admm_block_density_matrix)
       SELECT CASE(admm_env%block_purification_method)
@@ -638,7 +638,9 @@ MODULE admm_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nao_aux_fit, &
-                                                nao_orb, nmo, nspins
+                                                nao_orb, nmo, nspins, nmo_mos
+    REAL(KIND=dp), DIMENSION(:), &
+      POINTER                                :: occ_num, occ_num_aux
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
@@ -680,12 +682,14 @@ MODULE admm_methods
 
     DO ispin = 1,nspins
       nmo = admm_env%nmo(ispin)
-      CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-      CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
- 
+      CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, occupation_numbers=occ_num,nmo=nmo_mos)
+      CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,&
+           occupation_numbers=occ_num_aux)
+
       CALL cp_fm_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
                       1.0_dp,admm_env%A,mo_coeff,0.0_dp,&
                       mo_coeff_aux_fit,error)
+      occ_num_aux(1:nmo) = occ_num(1:nmo)
     END DO
 
     CALL timestop(handle)
