@@ -66,6 +66,7 @@ MODULE qs_initial_guess
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             make_basis_lowdin,&
                                              make_basis_simple,&
                                              make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -171,7 +172,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(atomic_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
          particle_set, ortho, work2, work1, mo_array, s_sparse, &
-         scf_control, dft_control, p_rmpv, ortho, work2, work1, mo_array, &
+         scf_control, dft_control, p_rmpv, ortho, work2, work1, &
          s_sparse, scf_control, dft_control, h_core_sparse)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
@@ -286,6 +287,9 @@ CPSourceFileRef,&
 
           IF(has_unit_metric) THEN
             CALL make_basis_simple(mo_coeff,nmo,error=error)
+          ELSEIF(qs_env%dft_control%smear)THEN
+            CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
+                 matrix_s=s_sparse(1)%matrix,error=error)
           ELSE
             ! ortho so that one can restart for different positions (basis sets?)
             CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
@@ -295,16 +299,15 @@ CPSourceFileRef,&
        ENDDO
        IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
 
-       DO ispin=1,nspin
-          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+        CALL set_mo_occupation(mo_array,&
                                  smear=qs_env%scf_control%smear,&
                                  error=error)
-       ENDDO
+
 
        DO ispin=1,nspin
 
           IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+             CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
           ENDIF!fm->dbcsr
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&

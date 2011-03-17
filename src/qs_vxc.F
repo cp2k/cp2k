@@ -116,12 +116,13 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, &
                                                 my_basis_set_id, myfun, &
-                                                nelec_spin(2), stat
+                                                stat
     LOGICAL :: do_adiabatic_rescaling, failure, harris_flag, my_epr_xc, &
       my_gapw_xc, my_just_energy, nsc_flag, sic_scaling_b_zero, uf_grid
     REAL(KIND=dp)                            :: exc_m, &
                                                 my_adiabatic_rescale_factor, &
-                                                my_scaling, nelec_s_inv
+                                                my_scaling, nelec_s_inv,&
+                                                 nelec_spin(2)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -443,8 +444,8 @@ CONTAINS
 
              ! find out how many elecs we have
              CALL get_qs_env(qs_env,mos=mo_array,error=error)
-             CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_spin(1))
-             CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_spin(2))
+             CALL get_mo_set(mo_set=mo_array(1)%mo_set,n_el_f=nelec_spin(1))
+             CALL get_mo_set(mo_set=mo_array(2)%mo_set,n_el_f=nelec_spin(2))
 
              ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
              DO ispin=1,2
@@ -462,8 +463,8 @@ CONTAINS
              rho_r(2)%pw => rho_m_rspace(2)%pw
 
              DO ispin=1,2
-                IF (nelec_spin(ispin) .GT. 0 ) THEN
-                   nelec_s_inv=1.0_dp/REAL(nelec_spin(ispin),KIND=dp)
+                IF (nelec_spin(ispin) .GT. 0.0_dp ) THEN
+                   nelec_s_inv=1.0_dp/nelec_spin(ispin)
                 ELSE
                    ! does it matter if there are no electrons with this spin (H) ?
                    nelec_s_inv=0.0_dp
