@@ -115,14 +115,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, &
-                                                my_basis_set_id, myfun, &
-                                                stat
+                                                my_basis_set_id, myfun, stat
     LOGICAL :: do_adiabatic_rescaling, failure, harris_flag, my_epr_xc, &
       my_gapw_xc, my_just_energy, nsc_flag, sic_scaling_b_zero, uf_grid
     REAL(KIND=dp)                            :: exc_m, &
                                                 my_adiabatic_rescale_factor, &
-                                                my_scaling, nelec_s_inv,&
-                                                 nelec_spin(2)
+                                                my_scaling, nelec_s_inv, &
+                                                nelec_spin(2)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env

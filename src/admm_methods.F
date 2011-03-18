@@ -638,9 +638,8 @@ MODULE admm_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nao_aux_fit, &
-                                                nao_orb, nmo, nspins, nmo_mos
-    REAL(KIND=dp), DIMENSION(:), &
-      POINTER                                :: occ_num, occ_num_aux
+                                                nao_orb, nmo, nmo_mos, nspins
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occ_num, occ_num_aux
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(section_vals_type), POINTER         :: input, xc_section
 

@@ -1060,7 +1060,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     REAL(KIND=dp)                            :: scaling
-    TYPE(cp_dbcsr_type)                      :: matrix_tmp1, matrix_tmp2
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp1, matrix_tmp2, &
+                                                matrix_tmp3
 
     CALL timeset(routineN,handle)
 
@@ -1068,6 +1069,8 @@ CONTAINS
     CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,matrix_type=dbcsr_type_no_symmetry,error=error)
     CALL cp_dbcsr_init(matrix_tmp2,error=error)
     CALL cp_dbcsr_create(matrix_tmp2,template=ls_scf_env%matrix_s,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_init(matrix_tmp3,error=error)
+    CALL cp_dbcsr_create(matrix_tmp3,template=ls_scf_env%matrix_s,matrix_type=dbcsr_type_no_symmetry,error=error)
 
     IF (ls_scf_env%nspins==1) THEN
       scaling=0.5_dp
@@ -1075,8 +1078,17 @@ CONTAINS
       scaling=1.0_dp
     ENDIF
 
+
     DO ispin=1,ls_scf_env%nspins
-      CALL cp_dbcsr_multiply("N", "N", scaling, ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin),&
+
+      CALL cp_dbcsr_copy(matrix_tmp3,ls_scf_env%matrix_ks(ispin),error=error)
+      IF (ls_scf_env%has_s_preconditioner) THEN
+         CALL apply_matrix_preconditioner(matrix_tmp3,"backward", &
+                       ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
+      ENDIF
+      CALL cp_dbcsr_filter(matrix_tmp3,ls_scf_env%eps_filter,error=error)
+
+      CALL cp_dbcsr_multiply("N", "N", scaling, ls_scf_env%matrix_p(ispin), matrix_tmp3, &
                               0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_p(ispin),&
                               0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter,error=error)
@@ -1085,6 +1097,7 @@ CONTAINS
 
     CALL cp_dbcsr_release(matrix_tmp1,error=error)
     CALL cp_dbcsr_release(matrix_tmp2,error=error)
+    CALL cp_dbcsr_release(matrix_tmp3,error=error)
 
     CALL timestop(handle)
 
