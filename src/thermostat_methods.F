@@ -150,6 +150,10 @@ CONTAINS
                          (simpar%ensemble == npe_i_ensemble).OR.&
                          (simpar%ensemble == npe_f_ensemble)
 
+    binary_restart_file_name = ""
+    CALL section_vals_val_get(force_env%root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
+                              c_val=binary_restart_file_name,error=error)
+
     ! Compute Degrees of Freedom
     region = do_region_global
     region_sections => section_vals_get_subs_vals(thermo_part_section,"DEFINE_REGION",error=error)
@@ -162,21 +166,18 @@ CONTAINS
 
     ! Particles
     ! For constant temperature ensembles the thermostat is activated by default
-    IF(explicit_part) THEN
+    IF (explicit_part) THEN
        IF (apply_general_thermo) THEN
           CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section,&
                label="PARTICLES", error=error)
           ! Initialize thermostat
-          IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
+          IF (thermostats%thermostat_part%type_of_thermostat == do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Particles
-             binary_restart_file_name = ""
-             CALL section_vals_val_get(force_env%root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
-                                       c_val=binary_restart_file_name,error=error)
              work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE",error=error)
              CALL initialize_nhc_part(thermostats%thermostat_info_part, simpar, local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
-                  thermostats%thermostat_part%nhc, nose_section=work_section,&
-                  gci=gci, save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
+                  thermostats%thermostat_part%nhc, nose_section=work_section, gci=gci,&
+                  save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
                   error=error)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Particles
@@ -222,21 +223,21 @@ CPSourceFileRef,&
              CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section,&
                   label="SHELL", error=error)
              CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els, shell_adiabatic=shell_adiabatic)
-
              region_sections => section_vals_get_subs_vals(thermo_shell_section,"DEFINE_REGION",error=error)
              CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
              CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
                   local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic,&
                   region_sections=region_sections, qmmm_env=qmmm_env, error=error)
-             IF(shell_adiabatic) THEN
+             IF (shell_adiabatic) THEN
                 ! Initialize thermostat
-                IF      (thermostats%thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
+                IF (thermostats%thermostat_shell%type_of_thermostat == do_thermo_nose) THEN
                    ! Initialize or possibly restart Nose on Shells
                    work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
                    CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
                         molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                         thermostats%thermostat_shell%nhc, nose_section=work_section,gci=gci,&
-                        save_mem=save_mem, error=error) 
+                        save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
+                        error=error)
                 ELSE IF (thermostats%thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
                    ! Initialize or possibly restart CSVR thermostat on Shells
                    work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)

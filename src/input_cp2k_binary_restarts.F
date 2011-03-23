@@ -18,6 +18,7 @@ MODULE input_cp2k_binary_restarts
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE f77_blas
+  USE input_constants,                 ONLY: debug_print_level
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -48,7 +49,7 @@ MODULE input_cp2k_binary_restarts
 
   PUBLIC :: read_binary_coordinates,&
             read_binary_cs_coordinates,&
-            read_binary_thermostats,&
+            read_binary_thermostats_nose,&
             read_binary_velocities
 
 CONTAINS
@@ -74,8 +75,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_coordinates', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name, &
-                                                file_name
+    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER :: handle, iatom, ikind, input_unit, istat, iw, natom, natomkind, &
       ncore, nmolecule, nmoleculekind, nshell
@@ -347,8 +347,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_cs_coordinates', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name, &
-                                                file_name
+    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
     INTEGER                                  :: handle, input_unit, &
                                                 iparticle, istat, iw, &
                                                 nparticle
@@ -489,8 +488,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_velocities', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name, &
-                                                file_name
+    CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
     CHARACTER(LEN=default_string_length)     :: section_name
     INTEGER                                  :: handle, input_unit, &
                                                 iparticle, istat, iw, &
@@ -587,29 +585,30 @@ CONTAINS
   END SUBROUTINE read_binary_velocities
 
 ! *****************************************************************************
-!> \brief   Read the input section &THERMOSTAT from an external file written
-!>          in binary format.
+!> \brief   Read the input section &THERMOSTAT for Nose thermostats from an
+!>          external file written in binary format.
 !> \author  Matthias Krack (MK)
 !> \version 1.0 
 !> \par History
 !>      - Creation (28.02.2011,MK)
 ! *****************************************************************************
-  SUBROUTINE read_binary_thermostats(nhc,binary_restart_file_name,para_env,&
-                                     error)
+  SUBROUTINE read_binary_thermostats_nose(nhc,binary_restart_file_name,&
+                                          para_env,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_string_length)     :: section_label
     INTEGER                                  :: handle, i, idx, input_unit, &
                                                 istat, j, nhc_size
     LOGICAL                                  :: debug
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rbuf
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
@@ -619,7 +618,13 @@ CONTAINS
                                                 "Pointer object nhc is not associated",para_env)
 
     ! Set to .TRUE. for debug mode, i.e. all data read are written to stdout
-    debug = .FALSE.
+    NULLIFY (logger)
+    logger => cp_error_get_logger(error)
+    IF (logger%iter_info%print_level >= debug_print_level) THEN
+       debug = .TRUE.
+    ELSE
+       debug = .FALSE.
+    END IF
 
     ! Open binary restart file at last position
     IF (para_env%ionode) THEN
@@ -629,13 +634,14 @@ CONTAINS
                       file_action="READWRITE",&
                       file_position="ASIS",&
                       unit_number=input_unit)
-       READ (UNIT=input_unit,IOSTAT=istat) nhc_size
+       READ (UNIT=input_unit,IOSTAT=istat) section_label,nhc_size
        IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
                                       "nhc_size (IOSTAT = "//cp_to_string(istat)//")",&
                                       input_unit,para_env)
        IF (debug) THEN
           WRITE (UNIT=*,FMT="(T2,A,/,T2,A,I0)")&
-            "&THERMOSTAT section data read in binary format from file "//&
+            "BEGIN "//TRIM(ADJUSTL(section_label))//&
+            " section data read in binary format from file "//&
             TRIM(binary_restart_file_name),&
             "# nhc_size = ",nhc_size
        END IF
@@ -742,8 +748,9 @@ CONTAINS
     IF (para_env%ionode) THEN
        IF (debug) THEN
           WRITE (UNIT=*,FMT="(T2,A)")&
-          "&END THERMOSTAT section data read in binary format from file "//&
-          TRIM(binary_restart_file_name)
+            "END "//TRIM(ADJUSTL(section_label))//&
+            " section data read in binary format from file "//&
+            TRIM(binary_restart_file_name)
        END IF
        CALL close_file(unit_number=input_unit,&
                        keep_preconnection=.TRUE.)
@@ -751,6 +758,6 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE read_binary_thermostats
+  END SUBROUTINE read_binary_thermostats_nose
 
 END MODULE input_cp2k_binary_restarts

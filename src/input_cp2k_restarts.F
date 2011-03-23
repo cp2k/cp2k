@@ -171,6 +171,8 @@ CONTAINS
                                  l_val=write_binary_restart_file,error=error)
 
        IF (write_binary_restart_file) THEN
+          CALL update_subsys_release(md_env,force_env,root_section,error)
+          CALL update_motion_release(motion_section,error)
           DO ikey=1,SIZE(keys)
              IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                        motion_section,keys(ikey),error=error),cp_p_file)) THEN
@@ -214,7 +216,8 @@ CONTAINS
           CALL update_subsys_release(md_env,force_env,root_section,error)
           CALL update_motion_release(motion_section,error)
        END IF
-    ENDIF
+
+    END IF
 
     CALL timestop(handle)
 
@@ -305,6 +308,7 @@ CONTAINS
     ELSEIF (PRESENT(force_env)) THEN 
        my_force_env => force_env
     END IF
+
     IF (ASSOCIATED(my_force_env))  THEN
        NULLIFY(subsys_section)
        CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
@@ -347,7 +351,7 @@ CONTAINS
              CALL section_vals_remove_values(work_section, error)
           END IF
 
-          IF(ASSOCIATED(shell_particles)) THEN
+          IF (ASSOCIATED(shell_particles)) THEN
              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
              CALL section_vals_get(work_section,explicit=explicit,error=error)
              IF (explicit) THEN
@@ -366,7 +370,7 @@ CONTAINS
              END IF
           END IF
 
-          IF(ASSOCIATED(core_particles)) THEN
+          IF (ASSOCIATED(core_particles)) THEN
              work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
              CALL section_vals_get(work_section,explicit=explicit,error=error)
              IF (explicit) THEN
@@ -384,9 +388,13 @@ CONTAINS
                 CALL section_vals_remove_values(work_section, error=error)
              END IF
           END IF
+       
        END DO
-       DEALLOCATE(i_force_eval)
+       
+       DEALLOCATE (i_force_eval)
+
     END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE update_subsys_release
@@ -411,40 +419,42 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
 
     CALL timeset(routineN,handle)
-    NULLIFY( work_section)
+
+    NULLIFY (work_section)
 
     work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
 
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section, error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section,error)
 
     work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section, error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section,error)
     
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section, error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section, error)
+    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(work_section,error)
 
     CALL timestop(handle)
-  END SUBROUTINE   update_motion_release
+
+  END SUBROUTINE update_motion_release
 
 ! *****************************************************************************
 !> \brief Updates the whole input file for the restart
@@ -518,7 +528,7 @@ CONTAINS
                           pint_env=pint_env,&
                           helium_env=helium_env,&
                           save_mem=my_save_mem,&
-                          write_binary_restart_file=write_binary_restart_file,&
+                          write_binary_restart_file=my_write_binary_restart_file,&
                           error=error)
        ! Update one force_env_section per time..
        IF (ASSOCIATED(my_force_env)) THEN
@@ -716,28 +726,30 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle2)
+
     ! PARTICLE THERMOSTAT
     CALL timeset(routineN//"_THERMOSTAT_PARTICLES",handle2)
     IF (ASSOCIATED(thermostat_part)) THEN
        IF (thermostat_part%type_of_thermostat == do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Particles
-          IF (.NOT.write_binary_restart_file) THEN
+          IF (.NOT.my_write_binary_restart_file) THEN
              nhc => thermostat_part%nhc
-             CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
+             CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
              work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE",error=error)
-             CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+             CALL set_template_restart(work_section,eta,veta,fnhc,mnhc,error)
           END IF
-       ELSE IF (thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
+       ELSE IF (thermostat_part%type_of_thermostat == do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Particles
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR",error=error)
           CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section, error)
-       ELSE IF (thermostat_part%type_of_thermostat==do_thermo_gle) THEN
+       ELSE IF (thermostat_part%type_of_thermostat == do_thermo_gle) THEN
           ! Restart of GLE Thermostat for Particles
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%GLE",error=error)
           CALL dump_gle_restart_info(thermostat_part%gle, para_env, work_section, error)
        END IF
     END IF
     CALL timestop(handle2)
+
     ! BAROSTAT - THERMOSTAT
     CALL timeset(routineN//"_BAROSTAT",handle2)
     IF (ASSOCIATED(thermostat_baro)) THEN
@@ -753,8 +765,7 @@ CONTAINS
           ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-          
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           counter = 0
           DO i=1,SIZE(nhc%nvt,1)
              DO j=1,SIZE(nhc%nvt,2)
@@ -765,9 +776,8 @@ CONTAINS
                 mnhc(counter)= nhc%nvt(i,j)%mass
              END DO
           END DO
-          
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE",error=error)
-          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)   
+          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
        ELSE IF (thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Barostat
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%CSVR",error=error)
@@ -775,14 +785,14 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle2)
+
     ! BAROSTAT
     CALL timeset(routineN//"_NPT",handle2)
     IF (ASSOCIATED(npt)) THEN
        ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(mnhc(SIZE(npt,1)*SIZE(npt,2)), STAT = stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-       
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        counter = 0
        DO i=1,SIZE(npt,1)
           DO j=1,SIZE(npt,2)
@@ -795,17 +805,19 @@ CONTAINS
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
     END IF
     CALL timestop(handle2)
+
     ! SHELL THERMOSTAT
     CALL timeset(routineN//"_THERMOSTAT_SHELL",handle2)
     IF (ASSOCIATED(thermostat_shell)) THEN
-       IF     (thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
+       IF (thermostat_shell%type_of_thermostat == do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Shell Particles
-          nhc     => thermostat_shell%nhc
-          CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
-
-          work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE",error=error)
-          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
-       ELSE IF (thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
+          IF (.NOT.my_write_binary_restart_file) THEN
+             nhc => thermostat_shell%nhc
+             CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE",error=error)
+             CALL set_template_restart(work_section,eta,veta,fnhc,mnhc,error)
+          END IF
+       ELSE IF (thermostat_shell%type_of_thermostat == do_thermo_csvr) THEN
           work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%CSVR",error=error)
           ! Restart of CSVR Thermostat for Shell Particles
           CALL dump_csvr_restart_info(thermostat_shell%csvr, para_env, work_section, error)
@@ -1051,7 +1063,6 @@ CONTAINS
 
   END SUBROUTINE update_motion_pint
 
-
   ! ***************************************************************************
   !> \brief  Update HELIUM section in the input structure.
   !> \date   2009-11-12
@@ -1255,7 +1266,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE update_motion_helium
-
 
 ! *****************************************************************************
 !> \brief routine to dump thermostat CSVR energies 
@@ -3178,15 +3188,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
+    CHARACTER(LEN=default_string_length)     :: section_label
     INTEGER :: handle, iatom, icore, ikind, imolecule, ishell, istat, &
-      n_char_size, n_dp_size, n_int_size, natom, natomkind, ncore, nhc_size, &
-      nmolecule, nmoleculekind, nshell, print_level, run_type
+      n_char_size, n_dp_size, n_int_size, natom, natomkind, ncore, nmolecule, &
+      nmoleculekind, nshell, print_level, run_type
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ibuf, imol
-    LOGICAL                                  :: failure, print_info, &
-                                                write_velocities
+    LOGICAL                                  :: print_info, write_velocities
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eta, fnhc, mnhc, veta
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -3196,17 +3205,13 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(thermostat_type), POINTER           :: thermostat_part
+    TYPE(thermostat_type), POINTER           :: thermostat_part, &
+                                                thermostat_shell
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
-
     NULLIFY (atomic_kinds)
     NULLIFY (core_particles)
-    NULLIFY (eta)
-    NULLIFY (fnhc)
-    NULLIFY (mnhc)
     NULLIFY (molecule_kinds)
     NULLIFY (molecules)
     NULLIFY (my_force_env)
@@ -3215,12 +3220,13 @@ CONTAINS
     NULLIFY (shell_particles)
     NULLIFY (subsys)
     NULLIFY (thermostat_part)
-    NULLIFY (veta)
+    NULLIFY (thermostat_shell)
 
     IF (PRESENT(md_env)) THEN
        CALL get_md_env(md_env=md_env,&
                        force_env=my_force_env,&
                        thermostat_part=thermostat_part,&
+                       thermostat_shell=thermostat_shell,&
                        error=error)
     ELSE IF (PRESENT(force_env)) THEN 
        my_force_env => force_env
@@ -3461,64 +3467,29 @@ CONTAINS
 
     ! Thermostat information
 
+    ! Particle thermostats
     IF (ASSOCIATED(thermostat_part)) THEN
+       ! Nose-Hoover thermostats
        IF (thermostat_part%type_of_thermostat == do_thermo_nose) THEN
-          ! Write restart the information of the Nose-Hoover thermostat for particles
           nhc => thermostat_part%nhc
-          CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
-          nhc_size = SIZE(eta)
-          IF (output_unit > 0) THEN ! only ionode
-             WRITE (UNIT=output_unit,IOSTAT=istat) nhc_size
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "nhc_size (IOSTAT = "//cp_to_string(istat)//")",&
-                                             output_unit,para_env)
-             n_int_size = n_int_size + 1
-             IF (print_info) WRITE (UNIT=*,FMT="(T3,A,T71,I10)") "NHC size",nhc_size
-             ! eta
-             WRITE (UNIT=output_unit,IOSTAT=istat) eta(1:nhc_size)
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "eta(1:nhc_size) "//&
-                                             "(IOSTAT = "//cp_to_string(istat)//")",&
-                                             output_unit,para_env)
-             n_dp_size = n_dp_size + nhc_size
-          END IF ! ionode only
-          DEALLOCATE (eta,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta",para_env)
-          ! veta
-          IF (output_unit > 0) THEN ! only ionode
-             WRITE (UNIT=output_unit,IOSTAT=istat) veta(1:nhc_size)
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "veta(1:nhc_size) "//&
-                                             "(IOSTAT = "//cp_to_string(istat)//")",&
-                                             output_unit,para_env)
-             n_dp_size = n_dp_size + nhc_size
-          END IF ! ionode only
-          DEALLOCATE (veta,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta",para_env)
-          ! mnhc
-          IF (output_unit > 0) THEN ! only ionode
-             WRITE (UNIT=output_unit,IOSTAT=istat) mnhc(1:nhc_size)
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "mnhc(1:nhc_size) "//&
-                                             "(IOSTAT = "//cp_to_string(istat)//")",&
-                                             output_unit,para_env)
-             n_dp_size = n_dp_size + nhc_size
-          END IF ! ionode only
-          DEALLOCATE (mnhc,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc",para_env)
-          ! fnhc
-          IF (output_unit > 0) THEN ! only ionode
-             WRITE (UNIT=output_unit,IOSTAT=istat) fnhc(1:nhc_size)
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "fnhc(1:nhc_size) "//&
-                                             "(IOSTAT = "//cp_to_string(istat)//")",&
-                                             output_unit,para_env)
-             n_dp_size = n_dp_size + nhc_size
-          END IF ! ionode only
-          DEALLOCATE (fnhc,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc",para_env)
-       END IF ! write Nose thermostat information for particles
-    END IF ! write thermostat information for particles
+          section_label = "PARTICLE THERMOSTAT"
+          CALL write_binary_thermostats_nose(nhc,output_unit,section_label,&
+                                             n_char_size,n_dp_size,n_int_size,&
+                                             print_info,para_env,error)
+       END IF
+    END IF
+
+    ! Shell thermostats (only for core-shell models)
+    IF (ASSOCIATED(thermostat_shell)) THEN
+       ! Nose-Hoover thermostats
+       IF (thermostat_shell%type_of_thermostat == do_thermo_nose) THEN
+          nhc => thermostat_shell%nhc
+          section_label = "SHELL THERMOSTAT"
+          CALL write_binary_thermostats_nose(nhc,output_unit,section_label,&
+                                             n_char_size,n_dp_size,n_int_size,&
+                                             print_info,para_env,error)
+       END IF
+    END IF
 
     ! Particle velocities
 
@@ -3592,5 +3563,111 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_binary_restart
+
+! *****************************************************************************
+!> \brief   Write an input section for Nose thermostats to an external file in
+!>          binary format
+!> \author  Matthias Krack (MK)
+!> \version 1.0 
+!> \par History
+!>      - Creation (23.03.2011,MK)
+! *****************************************************************************
+  SUBROUTINE write_binary_thermostats_nose(nhc,output_unit,section_label,&
+                                           n_char_size,n_dp_size,n_int_size,&
+                                           print_info,para_env,error)
+
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    INTEGER, INTENT(IN)                      :: output_unit
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section_label
+    INTEGER, INTENT(INOUT)                   :: n_char_size, n_dp_size, &
+                                                n_int_size
+    LOGICAL, INTENT(IN)                      :: print_info
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'write_binary_thermostats_nose', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, istat, nhc_size
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eta, fnhc, mnhc, veta
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY (eta)
+    NULLIFY (fnhc)
+    NULLIFY (mnhc)
+    NULLIFY (veta)
+
+    CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
+
+    nhc_size = SIZE(eta)
+
+    IF (output_unit > 0) THEN ! only ionode
+       WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "nhc_size (IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_char_size = n_char_size + LEN(section_label)
+       n_int_size = n_int_size + 1
+       IF (print_info) THEN
+          WRITE (UNIT=*,FMT="(T3,A,T71,I10)")&
+            "NHC size ("//TRIM(ADJUSTL(section_label))//")",nhc_size
+       END IF
+       ! eta
+       WRITE (UNIT=output_unit,IOSTAT=istat) eta(1:nhc_size)
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "eta(1:nhc_size) "//&
+                                       "(IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_dp_size = n_dp_size + nhc_size
+    END IF ! ionode only
+
+    DEALLOCATE (eta,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta",para_env)
+
+    ! veta
+    IF (output_unit > 0) THEN ! only ionode
+       WRITE (UNIT=output_unit,IOSTAT=istat) veta(1:nhc_size)
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "veta(1:nhc_size) "//&
+                                       "(IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_dp_size = n_dp_size + nhc_size
+    END IF ! ionode only
+
+    DEALLOCATE (veta,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta",para_env)
+
+    ! mnhc
+    IF (output_unit > 0) THEN ! only ionode
+       WRITE (UNIT=output_unit,IOSTAT=istat) mnhc(1:nhc_size)
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "mnhc(1:nhc_size) "//&
+                                       "(IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_dp_size = n_dp_size + nhc_size
+    END IF ! ionode only
+
+    DEALLOCATE (mnhc,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc",para_env)
+
+    ! fnhc
+    IF (output_unit > 0) THEN ! only ionode
+       WRITE (UNIT=output_unit,IOSTAT=istat) fnhc(1:nhc_size)
+       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                       "fnhc(1:nhc_size) "//&
+                                       "(IOSTAT = "//cp_to_string(istat)//")",&
+                                       output_unit,para_env)
+       n_dp_size = n_dp_size + nhc_size
+    END IF ! ionode only
+
+    DEALLOCATE (fnhc,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc",para_env)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_binary_thermostats_nose
 
 END MODULE input_cp2k_restarts

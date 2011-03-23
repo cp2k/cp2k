@@ -31,7 +31,7 @@ MODULE extended_system_init
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble
-  USE input_cp2k_binary_restarts,      ONLY: read_binary_thermostats
+  USE input_cp2k_binary_restarts,      ONLY: read_binary_thermostats_nose
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -141,16 +141,16 @@ CONTAINS
              DO j = 1, SIZE(npt_info,2)
                 ind = ind + 1
                 npt_info ( i, j ) % v = buffer(ind)
-             ENDDO
-          ENDDO
+             END DO
+          END DO
           CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
           ind = 0
           DO i = 1, SIZE(npt_info,1)
              DO j = 1, SIZE(npt_info,2)
                 ind = ind + 1
                 npt_info ( i, j ) % mass = buffer(ind)
-             ENDDO
-          ENDDO
+             END DO
+          END DO
        ELSE
           CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
                simpar % nfree, simpar % ensemble, simpar % cmass,&
@@ -196,20 +196,20 @@ CONTAINS
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        CALL set_yoshida_coef ( nhc, simpar % dt )
-    ENDIF
+    END IF
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,"",para_env,error)
-    
-    IF (.NOT. restart) THEN
+
+    IF (.NOT.restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
        SELECT CASE (simpar % ensemble )
        CASE DEFAULT
           temp =  simpar%temp_baro_ext
        END SELECT
-       
-       IF ( nhc % nhc_len /= 0 ) &
-            CALL init_nhc_variables ( nhc, temp, para_env, globenv ,error=error)
+       IF ( nhc % nhc_len /= 0 ) THEN
+          CALL init_nhc_variables(nhc,temp,para_env,globenv,error=error)
+       END IF
     END IF
 
     CALL init_nhc_forces ( nhc, error=error)
@@ -259,17 +259,17 @@ CONTAINS
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        CALL set_yoshida_coef ( nhc, simpar % dt)
-    ENDIF
+    END IF
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
                       para_env,error)
 
-    IF(.NOT. restart) THEN
+    IF (.NOT.restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
        ! Chain variables
-       IF ( nhc % nhc_len /= 0 ) &
-            CALL init_nhc_variables ( nhc, simpar % temp_ext, para_env, globenv ,error=error)
-
+       IF ( nhc % nhc_len /= 0 ) THEN
+          CALL init_nhc_variables(nhc,simpar%temp_ext,para_env,globenv,error=error)
+       END IF
     END IF
 
     CALL init_nhc_forces ( nhc, error=error)
@@ -283,7 +283,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_nhc_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
-       gci, save_mem, error)
+       gci, save_mem, binary_restart_file_name, error)
  
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -296,6 +296,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
+    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
@@ -316,11 +317,12 @@ CONTAINS
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        CALL set_yoshida_coef ( nhc, simpar % dt )
-    ENDIF
+    END IF
+
+    CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
+                      para_env,error)
     
-    CALL restart_nose(nhc,nose_section,save_mem,restart,"",para_env,error)
-    
-    IF(.NOT. restart) THEN
+    IF (.NOT.restart) THEN
        ! Initialize thermostat forces and velocities
        ! Chain variables
        IF ( nhc % nhc_len /= 0 ) THEN
@@ -443,7 +445,7 @@ CONTAINS
 
        ! Read binary restart file, if available
 
-       CALL read_binary_thermostats(nhc,binary_restart_file_name,para_env,error)
+       CALL read_binary_thermostats_nose(nhc,binary_restart_file_name,para_env,error)
        restart = .TRUE.
 
     ELSE
