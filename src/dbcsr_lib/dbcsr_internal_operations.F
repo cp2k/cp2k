@@ -1507,6 +1507,7 @@ CONTAINS
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     epoch = m_walltime()
+    carrier%flop = 0
     !
     local_cols = right%local_indexing
     local_rows = left%local_indexing
