@@ -1522,7 +1522,7 @@ CONTAINS
     !
     ! Find out the local A columns / B rows and sizes
     ! The right%local_rows is setup by the communication engine.
-    k_locals => array_data (left%local_cols)
+    k_locals => array_data (right%local_rows)
     carrier%k_locals => k_locals
     CALL ensure_array_size (carrier%k_sizes, ub=SIZE(k_locals), error=error)
     CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals),&
@@ -3305,7 +3305,7 @@ CONTAINS
 
     INTEGER                                  :: l
 
-    FORALL (l = 1 : SIZE(local_data))
+    FORALL (l = 1 : nle)
        local_data(l) = full_data(local_elements(l))
     END FORALL
   END SUBROUTINE local_filter
