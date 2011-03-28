@@ -46,7 +46,8 @@ MODULE dbcsr_methods
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             real_8
+                                             real_8,&
+                                             sp
   USE dbcsr_message_passing,           ONLY: mp_cart_create,&
                                              mp_cart_sub,&
                                              mp_comm_free,&
@@ -55,12 +56,19 @@ MODULE dbcsr_methods
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
-       dbcsr_distribution_obj, dbcsr_imagedistribution_type, &
-       dbcsr_magic_number, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
-       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
-       dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
+       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
+       dbcsr_imagedistribution_type, dbcsr_magic_number, dbcsr_mp_obj, &
+       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
+       dbcsr_work_type
+  USE min_heap,                        ONLY: heap_fill,&
+                                             heap_get_first,&
+                                             heap_new,&
+                                             heap_release,&
+                                             heap_reset_first,&
+                                             heap_t
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -72,6 +80,7 @@ MODULE dbcsr_methods
   ! Workaround for Intel MPI.
   LOGICAL, PARAMETER, PRIVATE :: use_subcommunicators = .FALSE.
 
+  INTEGER, PUBLIC :: dbcsr_matrix_counter = 111111
 
   PUBLIC :: dbcsr_init, dbcsr_init_p
   PUBLIC :: dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy
@@ -96,6 +105,7 @@ MODULE dbcsr_methods
             dbcsr_distribution_num_threads
   PUBLIC :: dbcsr_distribution_add_row_map, dbcsr_distribution_add_col_map,&
             dbcsr_distribution_del_row_map, dbcsr_distribution_del_col_map
+  PUBLIC :: dbcsr_release_locals, dbcsr_dist_release_locals
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
@@ -120,7 +130,8 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_allocate_matrix_array, dbcsr_array_new, dbcsr_array_put,&
             dbcsr_array_get, dbcsr_array_destroy, dbcsr_array_hold,&
             dbcsr_array_release
-  PUBLIC :: dbcsr_destroy_array, dbcsr_destroy_image_dist
+  PUBLIC :: dbcsr_destroy_array
+  PUBLIC :: dbcsr_image_dist_init, dbcsr_image_dist_hold, dbcsr_image_dist_release
 
   PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
             dbcsr_mutable_release, dbcsr_mutable_hold,&
@@ -259,6 +270,10 @@ CONTAINS
     CALL array_nullify (matrix%col_blk_size)
     CALL array_nullify (matrix%row_blk_offset)
     CALL array_nullify (matrix%col_blk_offset)
+    CALL array_nullify (matrix%local_rows)
+    CALL array_nullify (matrix%global_rows)
+    CALL array_nullify (matrix%local_cols)
+    CALL array_nullify (matrix%global_cols)
     NULLIFY (matrix%wms)
     NULLIFY (matrix%predistributed)
   END SUBROUTINE dbcsr_init_type
@@ -457,7 +472,7 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dbcsr_destroy(matrix, error, force)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type)                   :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: force
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
@@ -499,7 +514,6 @@ CONTAINS
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                   "Predistributed data should exist if allocated",__LINE__,error)
              CALL dbcsr_destroy_array (matrix%m%predistributed,error)
-             CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
              DEALLOCATE (matrix%m%predistributed)
           ENDIF
           NULLIFY (matrix%m%predistributed)
@@ -513,12 +527,17 @@ CONTAINS
              CALL dbcsr_assert (array_exists (matrix%m%local_rows),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                   "Global row mapping should exist", __LINE__, error=error)
-             CALL array_release (matrix%m%local_rows)
              CALL dbcsr_assert (array_exists (matrix%m%global_rows),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                   "Global row mapping should exist", __LINE__, error=error)
-             CALL array_release (matrix%m%global_rows)
+             CALL dbcsr_assert (array_exists (matrix%m%local_cols),&
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Global column mapping should exist", __LINE__, error=error)
+             CALL dbcsr_assert (array_exists (matrix%m%global_cols),&
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Global column mapping should exist", __LINE__, error=error)
           ENDIF
+          CALL dbcsr_release_locals (matrix, error)
           matrix%m%valid = .FALSE.
 !$        CALL OMP_DESTROY_LOCK (matrix%m%modification_lock)
           CALL dbcsr_init (matrix%m)
@@ -526,6 +545,44 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_destroy
+
+  SUBROUTINE dbcsr_release_locals (matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    IF (matrix%m%has_local_rows) &
+         CALL array_release (matrix%m%local_rows)
+    IF (matrix%m%has_global_rows) &
+         CALL array_release (matrix%m%global_rows)
+    IF (matrix%m%has_local_cols) &
+         CALL array_release (matrix%m%local_cols)
+    IF (matrix%m%has_global_cols) &
+         CALL array_release (matrix%m%global_cols)
+    matrix%m%has_local_rows  = .FALSE.
+    matrix%m%has_global_rows = .FALSE.
+    matrix%m%has_local_cols  = .FALSE.
+    matrix%m%has_global_cols = .FALSE.
+  END SUBROUTINE dbcsr_release_locals
+
+!  SUBROUTINE dbcsr_release_vlocals (matrix, error)
+!    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+!    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+!
+!    IF (matrix%m%has_local_vrows) &
+!         CALL array_release (matrix%m%local_vrows)
+!    IF (matrix%m%has_global_vrows) &
+!         CALL array_release (matrix%m%global_vrows)
+!    IF (matrix%m%has_local_vcols) &
+!         CALL array_release (matrix%m%local_vcols)
+!    IF (matrix%m%has_global_vcols) &
+!         CALL array_release (matrix%m%global_vcols)
+!    matrix%m%has_local_vrows  = .FALSE.
+!    matrix%m%has_global_vrows = .FALSE.
+!    matrix%m%has_local_vcols  = .FALSE.
+!    matrix%m%has_global_vcols = .FALSE.
+!  END SUBROUTINE dbcsr_release_vlocals
+!
+
 
 
 ! *****************************************************************************
@@ -928,15 +985,18 @@ CONTAINS
     ENDIF
     dist%d%num_threads = 1
 !$  dist%d%num_threads = OMP_GET_MAX_THREADS()
+    dist%d%has_thread_dist = .FALSE.
     CALL array_nullify (dist%d%thread_dist)
     CALL array_nullify (dist%d%row_map)
     CALL array_nullify (dist%d%col_map)
-    NULLIFY (dist%d%other_rows)
-    NULLIFY (dist%d%other_cols)
-    CALL array_nullify (dist%d%other_row_map)
-    CALL array_nullify (dist%d%other_col_map)
-    dist%d%has_other_row_map = .FALSE.
-    dist%d%has_other_col_map = .FALSE.
+    NULLIFY (dist%d%other_l_rows)
+    NULLIFY (dist%d%other_l_cols)
+    dist%d%has_other_l_rows = .FALSE.
+    dist%d%has_other_l_cols = .FALSE.
+    CALL array_nullify (dist%d%global_row_map)
+    CALL array_nullify (dist%d%global_col_map)
+    dist%d%has_global_row_map = .FALSE.
+    dist%d%has_global_col_map = .FALSE.
   END SUBROUTINE dbcsr_distribution_new
 
 ! *****************************************************************************
@@ -960,7 +1020,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
 
-    INTEGER                                  :: i
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -972,32 +1032,51 @@ CONTAINS
           CALL array_release (dist%d%local_rows)
           CALL array_release (dist%d%local_cols)
           CALL dbcsr_mp_release (dist%d%mp_env)
-          CALL array_release (dist%d%thread_dist)
+          IF (dist%d%has_thread_dist) &
+               CALL array_release (dist%d%thread_dist)
           CALL array_release (dist%d%row_map)
           CALL array_release (dist%d%col_map)
-          IF (ASSOCIATED (dist%d%other_rows)) THEN
-             DO i = LBOUND (dist%d%other_rows,1), UBOUND (dist%d%other_rows,1)
-                CALL array_release (dist%d%other_rows(i))
-             END DO
-             DEALLOCATE (dist%d%other_rows)
-          ENDIF
-          IF (ASSOCIATED (dist%d%other_cols)) THEN
-             DO i = LBOUND (dist%d%other_cols,1), UBOUND (dist%d%other_cols,1)
-                CALL array_release (dist%d%other_cols(i))
-             END DO
-             DEALLOCATE (dist%d%other_cols)
-          ENDIF
-          IF (dist%d%has_other_row_map) THEN
-             CALL array_release (dist%d%other_row_map)
-          ENDIF
-          IF (dist%d%has_other_col_map) THEN
-             CALL array_release (dist%d%other_col_map)
-          ENDIF
+          CALL dbcsr_dist_release_locals (dist, error)
           DEALLOCATE (dist%d)
           CALL dbcsr_distribution_init (dist)
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_distribution_release
+
+  SUBROUTINE dbcsr_dist_release_locals (dist, error)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i
+
+    IF (dist%d%has_other_l_rows) THEN
+       DO i = LBOUND (dist%d%other_l_rows,1), UBOUND (dist%d%other_l_rows,1)
+          CALL array_release (dist%d%other_l_rows(i))
+       END DO
+       DEALLOCATE (dist%d%other_l_rows)
+       NULLIFY (dist%d%other_l_rows)
+    ENDIF
+    IF (dist%d%has_other_l_cols) THEN
+       DO i = LBOUND (dist%d%other_l_cols,1), UBOUND (dist%d%other_l_cols,1)
+          CALL array_release (dist%d%other_l_cols(i))
+       END DO
+       DEALLOCATE (dist%d%other_l_cols)
+       NULLIFY (dist%d%other_l_cols)
+    ENDIF
+    IF (dist%d%has_global_row_map) THEN
+       CALL array_release (dist%d%global_row_map)
+    ENDIF
+    IF (dist%d%has_global_col_map) THEN
+       CALL array_release (dist%d%global_col_map)
+    ENDIF
+    dist%d%has_other_l_rows = .FALSE.
+    dist%d%has_other_l_cols = .FALSE.
+    dist%d%has_global_row_map = .FALSE.
+    dist%d%has_global_col_map = .FALSE.
+  END SUBROUTINE dbcsr_dist_release_locals
+
+
 
   SUBROUTINE dbcsr_distribution_init (dist)
     TYPE(dbcsr_distribution_obj), &
@@ -1137,7 +1216,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    has_thread_dist = array_exists (dist%d%thread_dist)
+    has_thread_dist = dist%d%has_thread_dist
   END FUNCTION dbcsr_distribution_has_threads
 
   PURE FUNCTION dbcsr_distribution_num_threads(dist) RESULT (num_threads)
@@ -1176,6 +1255,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates a distribution for threads
+!> \par When row_sizes is present
+!>      When row_sizes is present then the thread distribution
+!>      attempts to distribute rows to threads such that the sum of
+!>      delegated row sizes is approximately matched for all rows.
+!> \par When row_sizes is absent
+!>      When row_sizes is not present then a random distribution is chosen.
 !> \param[in,out] dist   Add thread distribution to this distribution
 !> \param[in] row_sizes  (optional) row block sizes
 ! *****************************************************************************
@@ -1188,9 +1273,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ithread, nlrows, nrows, &
-                                                nthreads, t
+                                                nthreads, row, t, t_cnt
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
+    LOGICAL                                  :: found, heap_error
+    REAL(kind=sp)                            :: rn
     TYPE(dbcsr_error_type)                   :: error
+    TYPE(heap_t)                             :: t_heap
 
 !   ---------------------------------------------------------------------------
 
@@ -1203,17 +1291,42 @@ CONTAINS
     nlrows = dbcsr_distribution_nlocal_rows (dist)
     lrows => array_data (dbcsr_distribution_local_rows (dist))
     !
-!$OMP SINGLE
-    dist%d%num_threads = nthreads
-    CALL array_release (dist%d%thread_dist)
-    ALLOCATE (td(nrows))
-    CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
-
-    td => array_data (dist%d%thread_dist)
-    DO t = 1, nrows
-       td(t) = MOD(t-1, nthreads)
-    END DO
-!$OMP END SINGLE
+!$OMP BARRIER
+!$OMP MASTER
+    IF (.NOT. dist%d%has_thread_dist) THEN
+       dist%d%num_threads = nthreads
+       ALLOCATE (td(nrows))
+       dist%d%has_thread_dist = .TRUE.
+       CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
+       td => array_data (dist%d%thread_dist)
+       
+       IF (PRESENT (row_sizes)) THEN
+          CALL heap_new (t_heap, nthreads, heap_error)
+          CALL heap_fill (t_heap,&
+               (/ (t, t=0, nthreads-1) /),&
+               (/(0, t=0, nthreads-1)/),&
+               heap_error)
+          DO row = 1, nrows
+             CALL heap_get_first (t_heap, t, t_cnt, found, heap_error)
+             td(row) = t
+             t_cnt = t_cnt + row_sizes (row)
+             CALL heap_reset_first (t_heap, t_cnt, heap_error)
+          ENDDO
+          CALL heap_release (t_heap, heap_error)
+       ELSE
+          DO t = 1, nrows
+             IF (.FALSE.) THEN
+                td(t) = MOD(t-1, nthreads)
+             ELSE
+                CALL RANDOM_NUMBER (rn)
+                ! Makes sure the numbers are in the proper integer range.
+                td(t) = MOD (INT (rn*REAL(nthreads)), nthreads)
+             ENDIF
+          END DO
+       ENDIF
+    ENDIF
+!$OMP END MASTER
+!$OMP BARRIER
   END SUBROUTINE make_threads
 
 
@@ -1225,6 +1338,7 @@ CONTAINS
 
 !$OMP MASTER
     CALL array_release (dist%d%thread_dist)
+    dist%d%has_thread_dist = .FALSE.
 !$OMP END MASTER
   END SUBROUTINE dbcsr_distribution_no_threads
     
@@ -2346,9 +2460,52 @@ CONTAINS
           CALL dbcsr_destroy (marray%mats(row, col), error=error, force=.TRUE.)
        ENDDO
     ENDDO
+    CALL dbcsr_image_dist_release (marray%image_dist, error)
     DEALLOCATE (marray%mats)
     NULLIFY (marray%mats)
   END SUBROUTINE dbcsr_destroy_2d_array
+
+! *****************************************************************************
+!> \brief Releases a reference to and possible deallocates an image
+!         distribution
+!*****************************************************************************
+  SUBROUTINE dbcsr_image_dist_release (imgdist, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    IF (ASSOCIATED (imgdist%i)) THEN
+       imgdist%i%refcount = imgdist%i%refcount - 1
+       IF (imgdist%i%refcount .EQ. 0) THEN
+          CALL dbcsr_destroy_image_dist (imgdist%i)
+          DEALLOCATE (imgdist%i)
+          NULLIFY (imgdist%i)
+       ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_image_dist_release
+
+! *****************************************************************************
+!> \brief Retains a reference to an image distribution
+! *****************************************************************************
+  SUBROUTINE dbcsr_image_dist_hold (imgdist, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    imgdist%i%refcount = imgdist%i%refcount + 1
+  END SUBROUTINE dbcsr_image_dist_hold
+
+! *****************************************************************************
+!> \brief Initialized an image distribution
+!> \par Akin to nullify.
+! *****************************************************************************
+  SUBROUTINE dbcsr_image_dist_init (imgdist, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(OUT)                            :: imgdist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    NULLIFY (imgdist%i)
+  END SUBROUTINE dbcsr_image_dist_init
 
 ! *****************************************************************************
 !> \brief Destroys a DBCSR distribution for a matrix multiplication based on
@@ -2359,14 +2516,42 @@ CONTAINS
     TYPE(dbcsr_imagedistribution_type), &
       INTENT(INOUT)                          :: imgdist
 
-!
+    INTEGER                                  :: i
+
 !   ---------------------------------------------------------------------------
 
     CALL array_release (imgdist%row_image)
     CALL array_release (imgdist%col_image)
     CALL dbcsr_distribution_release (imgdist%main)
+    !
+    CALL array_release (imgdist%vrow_dist)
+    CALL array_release (imgdist%vcol_dist)
+    !
+    IF (imgdist%has_other_vl_rows) THEN
+       DO i = LBOUND (imgdist%other_vl_rows,1), UBOUND (imgdist%other_vl_rows,1)
+          CALL array_release (imgdist%other_vl_rows(i))
+       END DO
+       DEALLOCATE (imgdist%other_vl_rows)
+       NULLIFY (imgdist%other_vl_rows)
+       imgdist%has_other_vl_rows = .FALSE.
+    ENDIF
+    !
+    IF (imgdist%has_other_vl_cols) THEN
+       DO i = LBOUND (imgdist%other_vl_cols,1), UBOUND (imgdist%other_vl_cols,1)
+          CALL array_release (imgdist%other_vl_cols(i))
+       END DO
+       DEALLOCATE (imgdist%other_vl_cols)
+       NULLIFY (imgdist%other_vl_cols)
+       imgdist%has_other_vl_cols = .FALSE.
+    ENDIF
+    !
+    IF (imgdist%has_global_vrow_map) THEN
+       CALL array_release (imgdist%global_vrow_map)
+    ENDIF
+    IF (imgdist%has_global_vcol_map) THEN
+       CALL array_release (imgdist%global_vcol_map)
+    ENDIF
   END SUBROUTINE dbcsr_destroy_image_dist
-
 
 ! *****************************************************************************
 ! Mutable data

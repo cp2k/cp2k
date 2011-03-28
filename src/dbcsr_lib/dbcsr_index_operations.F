@@ -15,31 +15,28 @@
 MODULE dbcsr_index_operations
 
   USE array_types,                     ONLY: array_data,&
-                                             array_hold,&
                                              array_size
-  USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_rows,&
-                                             dbcsr_get_row_map,&
-                                             find_local_virtual_elements,&
-                                             get_stored_canonical
+  USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8
   USE dbcsr_message_passing,           ONLY: mp_deallocate
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_row_dist, dbcsr_mp_nprows, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_uses_special_memory, dbcsr_wm_use_mutable
+       dbcsr_distribution_local_rows, dbcsr_distribution_ncols, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_thread_dist, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_uses_special_memory, &
+       dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_prow, &
-       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
-       dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
-       dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
-       dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type
+       dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
+       dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
+       dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
+       dbcsr_slot_nfullcols_local, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type
   USE dbcsr_util,                      ONLY: joaat_hash,&
                                              sort,&
                                              swap
@@ -54,12 +51,17 @@ MODULE dbcsr_index_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
+
+
 
 
   ! Index transformations
   PUBLIC :: dbcsr_make_index_canonical, make_index_triangular,&
             transpose_index_local, dbcsr_order_matrix_index
   PUBLIC :: dbcsr_make_index_local_row, dbcsr_has_local_row_index
+  PUBLIC :: dbcsr_make_index_list
   ! Dense/Sparse
   PUBLIC :: make_dense_index, make_undense_index
   ! Working with DBCSR and linear indices
@@ -83,9 +85,6 @@ MODULE dbcsr_index_operations
      MODULE PROCEDURE dbcsr_build_row_index_copy,&
                       dbcsr_build_row_index_inplace
   END INTERFACE
-
-  LOGICAL, PARAMETER :: careful_mod = .FALSE.
-  LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 CONTAINS
 
@@ -473,8 +472,9 @@ CONTAINS
     IF(debug_mod) WRITE(*,*)routineP//' index',&
          matrix%index(:dbcsr_num_slots)
     ! Clear index entry pointer
-    matrix%index(slot) = 0
+    matrix%index(slot) = 1
     matrix%index(slot+1) = 0
+    CALL dbcsr_repoint_index(matrix, slot)
     ! Update the declared index size
     max_extents = (/ &
          matrix%index(dbcsr_slot_row_p+1),&
@@ -517,18 +517,39 @@ CONTAINS
 
     IF (m%index(dbcsr_slot_row_p).GT.0.AND.all .OR.&
          s.EQ.dbcsr_slot_row_p) THEN
-       m%row_p => m%index(m%index(dbcsr_slot_row_p):&
-            &                  m%index(dbcsr_slot_row_p+1))
+       IF (m%index(dbcsr_slot_row_p).GT.0) THEN
+          m%row_p => m%index(m%index(dbcsr_slot_row_p):&
+               &                  m%index(dbcsr_slot_row_p+1))
+       ELSE
+          NULLIFY (m%row_p)
+       ENDIF
     ENDIF
     IF (m%index(dbcsr_slot_col_i).GT.0.AND.all .OR.&
          s.EQ.dbcsr_slot_col_i) THEN
-       m%col_i => m%index(m%index(dbcsr_slot_col_i):&
-            &                  m%index(dbcsr_slot_col_i+1))
+       IF (m%index(dbcsr_slot_col_i).GT.0) THEN
+          m%col_i => m%index(m%index(dbcsr_slot_col_i):&
+               &                  m%index(dbcsr_slot_col_i+1))
+       ELSE
+          NULLIFY (m%col_i)
+       ENDIF
     ENDIF
     IF (m%index(dbcsr_slot_blk_p).GT.0.AND.all .OR.&
          s.EQ.dbcsr_slot_blk_p) THEN
-       m%blk_p => m%index(m%index(dbcsr_slot_blk_p):&
-            &                  m%index(dbcsr_slot_blk_p+1))
+       IF (m%index(dbcsr_slot_blk_p).GT.0) THEN
+          m%blk_p => m%index(m%index(dbcsr_slot_blk_p):&
+               &                  m%index(dbcsr_slot_blk_p+1))
+       ELSE
+          NULLIFY (m%blk_p)
+       ENDIF
+    ENDIF
+    IF (m%index(dbcsr_slot_thr_c).GT.0.AND.all .OR.&
+         s.EQ.dbcsr_slot_thr_c) THEN
+       IF (m%index(dbcsr_slot_thr_c).GT.0) THEN
+          m%thr_c => m%index(m%index(dbcsr_slot_thr_c):&
+               &                  m%index(dbcsr_slot_thr_c+1))
+       ELSE
+          NULLIFY (m%thr_c)
+       ENDIF
     ENDIF
     IF (all) THEN
        m%index(dbcsr_slot_nblks) = m%nblks
@@ -809,10 +830,12 @@ CONTAINS
     old_row_p => matrix%m%row_p
     CALL dbcsr_build_row_index(counts=new_row_count, rows=old_row_p,&
          nrows=nrows)
-    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, DATA=new_col_i,&
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, DATA=new_col_i(1:new_blk),&
          error=error)
-    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, DATA=new_blk_p,&
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, DATA=new_blk_p(1:new_blk),&
          error=error)
+    matrix%m%nblks = new_blk
+    matrix%m%index(dbcsr_slot_nblks) = new_blk
     !
     DEALLOCATE (new_col_i, new_blk_p, new_row_count)
     !
@@ -1333,9 +1356,8 @@ CONTAINS
     INTEGER                                  :: error_handle, lrow, &
                                                 nlocal_rows, ntotal_rows, &
                                                 prow, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_row_p, local_rows
-    INTEGER, DIMENSION(:), POINTER           :: row_dist
-    TYPE(dbcsr_distribution_obj)             :: dist
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_row_p
+    INTEGER, DIMENSION(:), POINTER           :: local_rows
 
 !   ---------------------------------------------------------------------------
 
@@ -1346,42 +1368,30 @@ CONTAINS
     CALL dbcsr_assert ("NOT", matrix%m%bcsc,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Not support for BCSC yet.", __LINE__, error=error)
-    prow = matrix%m%index(dbcsr_slot_home_prow)
-    CALL dbcsr_assert (prow, "GE", 0,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "The process row must be defined in the matrix index.",&
-         __LINE__, error=error)
-    dist = dbcsr_distribution (matrix)
-    CALL dbcsr_assert (prow, "LT",&
-         dbcsr_mp_nprows (dbcsr_distribution_mp (dist)),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Invalid process row.",&
-         __LINE__, error=error)
-    row_dist => array_data (dbcsr_distribution_row_dist (dist))
-    nlocal_rows = COUNT (row_dist .EQ. prow)
+    !
+    prow = matrix%m%index(dbcsr_slot_home_vprow)
+    IF (prow .LT. 0) THEN
+       prow = matrix%m%index(dbcsr_slot_home_prow)
+    ENDIF
+    nlocal_rows = matrix%m%nblkrows_local
     ALLOCATE (local_row_p(nlocal_rows+1), stat=stat)
     CALL dbcsr_assert (stat, "EQ", 0,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Could not allocate memory.", __LINE__, error=error)
-    ALLOCATE (local_rows (nlocal_rows), stat=stat)
-    CALL dbcsr_assert (stat, "EQ", 0,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Could not allocate memory.", __LINE__, error=error)
     !> The existing row_p is converted from an indexing array into a
-    !> counting array.  Because it is later discarded, this is done in-place.
-    ntotal_rows = dbcsr_distribution_nrows (dist)
+    !> counting array.  Because it is later discarded, the counting is
+    !> done in-place.
+    ntotal_rows = matrix%m%nblkrows_total
     CALL dbcsr_count_row_index (matrix%m%row_p, ntotal_rows)
     ! We first have to find the local rows for the given prow.
-    CALL find_local_virtual_elements (local_rows, lrow,&
-         grid_distribution = row_dist, local_grid = prow)
-    CALL dbcsr_assert (lrow, "EQ", nlocal_rows,&
+    local_rows => array_data (matrix%m%local_rows)
+    CALL dbcsr_assert (SIZE(local_rows), "EQ", nlocal_rows,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Inconsistency in local row count.", __LINE__, error=error)
+         "Mismatch in the number of local rows.", __LINE__, error=error)
     !> The counts are mapped to local rows,
     FORALL (lrow = 1:nlocal_rows)
        local_row_p(lrow) = matrix%m%row_p(local_rows(lrow))
     END FORALL
-    DEALLOCATE (local_rows)
     CALL dbcsr_assert (SUM (matrix%m%row_p(1:ntotal_rows)), "EQ",&
          SUM(local_row_p(1:nlocal_rows)),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1395,30 +1405,179 @@ CONTAINS
          error=error)
     !> Finally the matrix is designated as having a local-based index.
     matrix%m%local_indexing = .TRUE.
-    CALL dbcsr_get_local_rows (dist, matrix%m%local_rows,&
-         matrix%m%index(dbcsr_slot_home_prow),&
-         error=error)
-    CALL array_hold (matrix%m%local_rows)
-    CALL dbcsr_assert (array_size(matrix%m%local_rows), "EQ", nlocal_rows,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Inconsistent local row counts.",&
-         __LINE__, error=error)
-    CALL dbcsr_get_row_map (dist, matrix%m%global_rows, error=error)
-    CALL array_hold (matrix%m%global_rows)
-    CALL dbcsr_assert (array_size(matrix%m%global_rows), "EQ", ntotal_rows,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Inconsistent global row counts.",&
-         __LINE__, error=error)
-    IF (array_size (matrix%m%global_rows) .EQ. 0) THEN
-       CALL dbcsr_assert (nlocal_rows, "EQ", 0,&
+    IF (careful_mod) THEN
+       CALL dbcsr_assert (array_size(matrix%m%local_rows), "EQ", nlocal_rows,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Invalid number of local or global rows.",&
+            "Inconsistent local row counts.",&
             __LINE__, error=error)
+       CALL dbcsr_assert (array_size(matrix%m%global_rows), "EQ", ntotal_rows,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Inconsistent global row counts.",&
+            __LINE__, error=error)
+       IF (array_size (matrix%m%global_rows) .EQ. 0) THEN
+          CALL dbcsr_assert (nlocal_rows, "EQ", 0,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Invalid number of local or global rows.",&
+               __LINE__, error=error)
+       ENDIF
     ENDIF
     DEALLOCATE (local_row_p)
     !
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_make_index_local_row
+
+
+! *****************************************************************************
+!> \brief Converts BCSR index into list indices (similar to work matrices)
+!> \param[in,out] matrix       matrix for which to make canonical index
+!> \param[in] thread_redist    make a thread subdistribution
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE dbcsr_make_index_list (matrix, thread_redist, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, INTENT(IN)                      :: thread_redist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_index_list', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    INTEGER                                  :: blk, error_handle, ithread, &
+                                                my_cnt, nblks, nrows, &
+                                                nthreads, thr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: blki
+    INTEGER, DIMENSION(:), POINTER           :: global_cols, local_rows, td, &
+                                                thr_c
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "The row index must be initialized.", __LINE__, error=error)
+    CALL dbcsr_assert ("NOT", matrix%m%list_indexing,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "List index already exists?", __LINE__, error=error)
+    CALL dbcsr_assert ("NOT", matrix%m%bcsc,&
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Not support for BCSC yet.", __LINE__, error=error)
+    CALL dbcsr_assert (matrix%m%nblks, "EQ", SIZE(matrix%m%col_i),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Block count mismatch.", __LINE__, error=error)
+    CALL dbcsr_assert (matrix%m%nblks, "EQ", SIZE(matrix%m%blk_p),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Block count mismatch", __LINE__, error=error)
+    !
+    IF (matrix%m%local_indexing) THEN
+       CALL dbcsr_assert (SIZE(matrix%m%row_p)-1, "EQ", matrix%m%nblkrows_local,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Local row index incorrectly sized.", __LINE__, error=error)
+    ELSE
+       CALL dbcsr_assert (SIZE(matrix%m%row_p)-1, "EQ", matrix%m%nblkrows_total,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global row index incorrectly sized", __LINE__, error=error)
+    ENDIF
+    !
+    matrix%m%list_indexing = .TRUE.
+    !
+    IF (matrix%m%local_indexing) THEN
+       global_cols => array_data (matrix%m%global_cols)
+       nrows = matrix%m%nblkrows_local
+    ELSE
+       nrows = matrix%m%nblkrows_total
+    ENDIF
+    !
+    nblks = matrix%m%nblks
+    ALLOCATE (blki(3, nblks))
+    CALL dbcsr_expand_row_index (matrix%m%row_p, blki(1,:), nrows, nblks)
+    IF (matrix%m%local_indexing) THEN
+       ! If local indexing is enabled, then the rows but not the
+       ! columns are already localized
+       IF (dbg) THEN
+          WRITE(*,*)routineN//" Making local columns"
+          WRITE(*,'(10(1X,i7))')global_cols
+          WRITE(*,*)'local'
+          WRITE(*,'(10(1X,i7))')array_data(matrix%m%local_cols)
+       ENDIF
+       FORALL (blk = 1 : nblks)
+          blki(2,blk) = global_cols(matrix%m%col_i(blk))
+          blki(3,blk) = matrix%m%blk_p(blk)
+       END FORALL
+    ELSE
+       IF (dbg) WRITE(*,*)routineN//" Not making local columns"
+       FORALL (blk = 1 : nblks)
+          blki(2,blk) = matrix%m%col_i(blk)
+          blki(3,blk) = matrix%m%blk_p(blk)
+       END FORALL
+    ENDIF
+    CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_row_p)
+    CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_col_i)
+    CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_blk_p)
+    nthreads = 0
+    !$ nthreads = OMP_GET_MAX_THREADS ()
+    !
+    ! Reshuffle according to threads
+    IF (nthreads .GT. 0 .AND. thread_redist) THEN
+       td => array_data (dbcsr_distribution_thread_dist (dbcsr_distribution (matrix)))
+       IF (matrix%m%local_indexing) THEN
+          local_rows => array_data (matrix%m%local_rows)
+       ENDIF
+       !$OMP PARALLEL DEFAULT (none) &
+       !$OMP PRIVATE (my_cnt, ithread, blk, thr) &
+       !$OMP SHARED (td, blki, nthreads, thr_c, nblks, matrix, error, local_rows)
+       !
+       !$ ithread = OMP_GET_THREAD_NUM ()
+       !$OMP MASTER
+       !$ nthreads = OMP_GET_NUM_THREADS ()
+       CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_thr_c,&
+            reservation=nthreads+1, extra=3*nblks, error=error)
+       thr_c => matrix%m%thr_c
+       CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
+            reservation=3*nblks, error=error)
+       !$OMP END MASTER
+       !$OMP BARRIER
+       my_cnt = 0
+       IF (matrix%m%local_indexing) THEN
+          my_cnt = COUNT (td(local_rows(blki(1,:))) .EQ. ithread)
+       ELSE
+          my_cnt = COUNT (td(blki(1,:)) .EQ. ithread)
+       ENDIF
+       !DO blk = 1, nblks
+       !   IF (td(blki(1, blk)) .EQ. ithread) my_cnt = my_cnt+1
+       !ENDDO
+       thr_c(ithread+1) = my_cnt
+       !$OMP BARRIER
+       !$OMP MASTER
+       CALL dbcsr_build_row_index_inplace (thr_c, nthreads)
+       !$OMP END MASTER
+       !$OMP BARRIER
+       my_cnt = (thr_c(ithread+1)+1) * 3 -2
+       IF (matrix%m%local_indexing) THEN
+          DO blk = 1, nblks
+             IF (td(local_rows(blki(1, blk))) .EQ. ithread) THEN
+                matrix%m%row_p(my_cnt:my_cnt+2) = blki(1:3, blk)
+                my_cnt = my_cnt + 3
+             ENDIF
+          ENDDO
+       ELSE
+          DO blk = 1, nblks
+             IF (td(blki(1, blk)) .EQ. ithread) THEN
+                matrix%m%row_p(my_cnt:my_cnt+2) = blki(1:3, blk)
+                my_cnt = my_cnt + 3
+             ENDIF
+          ENDDO
+       ENDIF
+       !$OMP END PARALLEL
+    ELSE
+       CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
+            DATA=RESHAPE(blki, ((/3*nblks/))), error=error)
+    ENDIF
+    
+    DEALLOCATE (blki)
+    !
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_make_index_list
+
 
 
 ! *****************************************************************************
@@ -1435,9 +1594,10 @@ CONTAINS
 
     INTEGER                                  :: error_handle, new_size, &
                                                 size_blk_p, size_col_i, &
-                                                size_row_p
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p, col_i, meta, row_p
-    LOGICAL                                  :: compact
+                                                size_row_p, size_thr_c
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p, col_i, meta, row_p, &
+                                                thr_c
+    LOGICAL                                  :: compact, has_thr_c
 
 !   ---------------------------------------------------------------------------
 
@@ -1448,7 +1608,13 @@ CONTAINS
     size_row_p = SIZE(matrix%m%row_p)
     size_col_i = SIZE(matrix%m%col_i)
     size_blk_p = SIZE(matrix%m%blk_p)
-    new_size = dbcsr_num_slots + size_row_p + size_col_i + size_blk_p
+    has_thr_c = ASSOCIATED (matrix%m%thr_c)
+    IF (has_thr_c) THEN
+       size_thr_c = SIZE(matrix%m%thr_c)
+    ELSE
+       size_thr_c = 0
+    ENDIF
+    new_size = dbcsr_num_slots + size_row_p + size_col_i + size_blk_p + size_thr_c
     compact = new_size .LT. SIZE(matrix%m%index)
     IF (compact) THEN
        ! Store old index arrays.
@@ -1458,6 +1624,10 @@ CONTAINS
        col_i(:) = matrix%m%col_i(:)
        ALLOCATE (blk_p(size_blk_p))
        blk_p(:) = matrix%m%blk_p(:)
+       IF (has_thr_c) THEN
+          ALLOCATE (thr_c(size_thr_c))
+          thr_c(:) = matrix%m%thr_c(:)
+       ENDIF
        ALLOCATE (meta(dbcsr_num_slots))
        meta(:) = matrix%m%index(1:dbcsr_num_slots)
        ! Clear the index.
@@ -1477,6 +1647,10 @@ CONTAINS
        matrix%m%index(1:dbcsr_meta_size) = meta(1:dbcsr_meta_size)
        matrix%m%index(dbcsr_meta_size+1:) = 0
        matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
+       IF (has_thr_c) THEN
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_thr_c, thr_c,&
+               error=error)
+       ENDIF
        CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, row_p,&
             error=error)
        CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, col_i,&
@@ -1486,6 +1660,7 @@ CONTAINS
        DEALLOCATE (row_p)
        DEALLOCATE (col_i)
        DEALLOCATE (blk_p)
+       IF (has_thr_c) DEALLOCATE (thr_c)
        DEALLOCATE (meta)
        IF (careful_mod) THEN
           ! This is pretty strong but it should be true.

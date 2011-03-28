@@ -23,6 +23,8 @@ MODULE dbcsr_io
                                              sp
   USE dbcsr_message_passing,           ONLY: mp_allgather
   USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
+                                             dbcsr_get_data_size_used,&
+                                             dbcsr_get_data_type,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_numnodes,&
                                              dbcsr_valid_index
@@ -114,9 +116,11 @@ CONTAINS
     IF (PRESENT (nodata)) yesprint = .NOT. nodata
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
     WRITE(*,*)routineP//' Flags ', matrix%m%symmetry,&
-         matrix%m%negate_real, matrix%m%negate_imaginary
-    WRITE(*,'(1X,A,3(1X,I9,1X,A))')routineP, matrix%m%nblks, "blocks",&
-         matrix%m%nze, "nzes,", dbcsr_get_data_size (matrix), "data els"
+         matrix%m%negate_real, matrix%m%negate_imaginary, "type",&
+         dbcsr_get_data_type (matrix)
+    WRITE(*,'(1X,A,3(1X,I9,1X,A))')routineP, matrix%m%nblks, "blocks", &
+         matrix%m%nze, "nzes,", dbcsr_get_data_size (matrix), "data els", &
+         dbcsr_get_data_size_used (matrix, error=error), "used"
     WRITE(*,'(1X,A,I5,A,I5)')routineP//" Full size",&
          matrix%m%nfullrows_total, "x",matrix%m%nfullcols_total
     WRITE(*,'(1X,A,I5,A,I5)')routineP//" Blocked size",&

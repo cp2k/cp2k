@@ -25,6 +25,15 @@ MODULE dbcsr_plasma_interface
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_plasma_interface'
 
   PUBLIC :: dbcsr_plasma_init, dbcsr_plasma_finalize
+  PUBLIC :: dbcsr_use_plasma
+
+
+#if defined(__PLASMA)
+  LOGICAL, PARAMETER :: dbcsr_use_plasma = .TRUE.
+#else
+  LOGICAL, PARAMETER :: dbcsr_use_plasma = .FALSE.
+#endif
+
 
 CONTAINS
 

@@ -43,7 +43,7 @@ MODULE dbcsr_block_operations
   PUBLIC :: dbcsr_block_copy, dbcsr_block_partial_copy
   PUBLIC :: set_block_diagonal, dbcsr_data_clear
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
-  PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg
+  PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
 
   PUBLIC :: block_set
   PUBLIC :: block_add_on_diag
@@ -95,6 +95,11 @@ MODULE dbcsr_block_operations
                       block_partial_copy_2d2d_s,&
                       block_partial_copy_2d2d_z,&
                       block_partial_copy_2d2d_c
+  END INTERFACE
+
+  INTERFACE dbcsr_data_clear
+     MODULE PROCEDURE dbcsr_data_clear_nt
+     MODULE PROCEDURE dbcsr_data_clear0
   END INTERFACE
 
   ! Supports copy between two data areas, or to a data area from a
@@ -424,6 +429,101 @@ CONTAINS
   END SUBROUTINE dbcsr_block_scale
 
 ! *****************************************************************************
+!> \brief Negates the real part of a block
+!>
+!> There are no checks done for correctness!
+!> \param[in] src        source data area
+!> \param[in] row_size   row size of existing block
+!> \param[in] col_size   column size of existing block
+!> \param[in] lb         (optional) lower bound for destination (and source if
+!>                       not given explicity)
+!> \param[in] source_lb  (optional) lower bound of source
+!> \param[in] scale      (optional) scale data
+!> \param[in] lb2        (optional) lower bound of 2nd dimension for target
+!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \par History
+!> - 2010-09 [??] Copied from block_transpose?
+!> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
+! *****************************************************************************
+  SUBROUTINE dbcsr_block_real_neg (dst,& 
+       row_size, col_size, lb, lb2, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    INTEGER, INTENT(IN)                      :: row_size, col_size
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, lb2
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_real_neg', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_size, error_handler, &
+                                                lb2_t, lb_t, ub_t
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (ASSOCIATED(dst%d),&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Data area must be setup.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
+            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
+    ENDIF
+
+    data_size = row_size*col_size
+    lb_t = 1
+    IF (PRESENT (lb)) lb_t = lb
+    ub_t = lb_t + data_size - 1
+    lb2_t = 1
+    IF (PRESENT (lb2)) lb2_t = lb2
+    SELECT CASE (dst%d%data_type)
+    CASE (dbcsr_type_real_8)
+       dst%d%r_dp(lb_t:ub_t) = -dst%d%r_dp(lb_t:ub_t)
+    CASE (dbcsr_type_real_4)
+       dst%d%r_sp(lb_t:ub_t) = -dst%d%r_sp(lb_t:ub_t)
+    CASE (dbcsr_type_complex_8)
+       dst%d%c_dp(lb_t:ub_t) = CMPLX (&
+            REAL(dst%d%c_dp(lb_t:ub_t), KIND=real_8),&
+            AIMAG(dst%d%c_dp(lb_t:ub_t)),&
+            KIND=real_8)
+    CASE (dbcsr_type_complex_4)
+       dst%d%c_sp(lb_t:ub_t) = CMPLX(&
+            REAL(dst%d%c_sp(lb_t:ub_t), KIND=real_4),&
+            AIMAG(dst%d%c_sp(lb_t:ub_t)),&
+            KIND=real_4)
+    CASE (dbcsr_type_real_8_2d)
+       dst%d%r2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+      -dst%d%r2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1)
+    CASE (dbcsr_type_real_4_2d)
+       dst%d%r2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+      -dst%d%r2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1)
+    CASE (dbcsr_type_complex_8_2d)
+       dst%d%c2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+            CMPLX(&
+            REAL(dst%d%c2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1), KIND=real_8),&
+            AIMAG(dst%d%c2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1)),&
+            KIND=real_8)
+    CASE (dbcsr_type_complex_4_2d)
+       dst%d%c2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+            CMPLX(&
+            REAL(dst%d%c2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1), KIND=real_4),&
+            AIMAG(dst%d%c2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1)),&
+            KIND=real_4)
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN, &
+            "Incorrect data type.",__LINE__,error)
+    END SELECT
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_block_real_neg
+
+! *****************************************************************************
 !> \brief Conjugate a data area.
 !>
 !> There are no checks done for correctness!
@@ -455,7 +555,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -503,7 +603,7 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN, &
             "Incorrect data type.",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_conjg
 
 ! *****************************************************************************
@@ -526,7 +626,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) &
+         CALL dbcsr_error_set(routineN, error_handler, error)
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_block_transpose (area%d%r_dp,&
@@ -544,7 +645,8 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) &
+         CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_transpose_a
 
 
@@ -957,20 +1059,43 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Clears a data area, possibly transposed.
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_clear_nt (area, lb, ub, value, lb2, ub2, tr)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: value
+    INTEGER, INTENT(IN), OPTIONAL            :: lb2, ub2
+    LOGICAL, INTENT(in)                      :: tr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_nt', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF (tr) THEN
+       CALL dbcsr_data_clear0 (area, lb=lb2, ub=ub2, value=value, lb2=lb, ub2=ub)
+    ELSE
+       CALL dbcsr_data_clear0 (area, lb=lb, ub=ub, value=value, lb2=lb2, ub2=ub2)
+    ENDIF
+  END SUBROUTINE dbcsr_data_clear_nt
+
+! *****************************************************************************
 !> \brief Clears a data area
 !> \param[in,out] area   area with encapsulated data
 !> \param[in] lb, lb2    (optional) lower bound for clearing
 !> \param[in] ub, ub2    (optional) upper bound for clearing
 !> \param[in] value      (optional) value to use for clearing
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_clear (area, lb, ub, value, lb2, ub2)
+  SUBROUTINE dbcsr_data_clear0 (area, lb, ub, value, lb2, ub2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: value
     INTEGER, INTENT(IN), OPTIONAL            :: lb2, ub2
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear0', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l, l2, u, u2
@@ -1039,7 +1164,7 @@ CONTAINS
        IF (PRESENT (value)) THEN
           area%d%c_sp(l:u) = value%c_sp
        ELSE
-          area%d%c_sp(l:u) = CMPLX(0.0, real_4)
+          area%d%c_sp(l:u) = CMPLX(0.0, 0.0, real_4)
        ENDIF
     CASE (dbcsr_type_complex_8)
        l = LBOUND(area%d%c_dp, 1)
@@ -1057,7 +1182,7 @@ CONTAINS
        IF (PRESENT (value)) THEN
           area%d%c_dp(l:u) = value%c_dp
        ELSE
-          area%d%c_dp(l:u) = CMPLX(0.0, real_8)
+          area%d%c_dp(l:u) = CMPLX(0.0, 0.0, real_8)
        ENDIF
     CASE (dbcsr_type_real_4_2d)
        l = LBOUND(area%d%r2_sp, 1)
@@ -1147,7 +1272,7 @@ CONTAINS
        IF (PRESENT (value)) THEN
           area%d%c2_sp(l:u, l2:u2) = value%c_sp
        ELSE
-          area%d%c2_sp(l:u, l2:u2) = 0.0_real_4
+          area%d%c2_sp(l:u, l2:u2) = CMPLX(0.0, 0.0, real_4)
        ENDIF
     CASE (dbcsr_type_complex_8_2d)
        l = LBOUND(area%d%c2_dp, 1)
@@ -1177,13 +1302,13 @@ CONTAINS
        IF (PRESENT (value)) THEN
           area%d%c2_dp(l:u, l2:u2) = value%c_dp
        ELSE
-          area%d%c2_dp(l:u, l2:u2) = 0.0_real_8
+          area%d%c2_dp(l:u, l2:u2) = CMPLX(0.0, 0.0, real_8)
        ENDIF
     CASE default
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid or unsupported data type.",__LINE__,error)
     END SELECT
-  END SUBROUTINE dbcsr_data_clear
+  END SUBROUTINE dbcsr_data_clear0
 
 
 ! *****************************************************************************
@@ -1221,7 +1346,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_a', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: verification = .TRUE.
+    LOGICAL, PARAMETER                       :: verification = careful_mod
 
     INTEGER                                  :: dst_o, src_o
     LOGICAL                                  :: src_is_2d
@@ -1229,7 +1354,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (dbcsr_type_2d_to_1d (dbcsr_data_get_type (dst)),&
+    IF (careful_mod) &
+         CALL dbcsr_assert (dbcsr_type_2d_to_1d (dbcsr_data_get_type (dst)),&
          "EQ", dbcsr_type_2d_to_1d (dbcsr_data_get_type(src)),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Incompatible data types.",__LINE__,error)

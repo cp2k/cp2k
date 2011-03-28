@@ -54,17 +54,17 @@ MODULE dbcsr_work_operations
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_distribution, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_release, dbcsr_get_data_size_used, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_ncols, &
+       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_get_data_size_used, dbcsr_get_data_type, dbcsr_get_matrix_type, &
        dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mutable_destroy, &
-       dbcsr_mutable_init, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
-       dbcsr_mutable_release, dbcsr_name, dbcsr_row_block_sizes, &
-       dbcsr_switch_data_area, dbcsr_use_mutable, dbcsr_uses_special_memory, &
-       dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_matrix_counter, dbcsr_modify_lock, dbcsr_modify_unlock, &
+       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_name, &
+       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_use_mutable, &
+       dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
@@ -72,6 +72,7 @@ MODULE dbcsr_work_operations
        dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_coli, &
        dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
+       dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, &
@@ -197,6 +198,10 @@ CONTAINS
        CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
        CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
     ENDIF
+    matrix%m%serial_number = dbcsr_matrix_counter
+    !$OMP CRITICAL
+    dbcsr_matrix_counter = dbcsr_matrix_counter + 1
+    !$OMP END CRITICAL
     ! Mark matrix index as having an invalid index.
     matrix%m%valid = .FALSE.
     matrix%m%name = name
@@ -232,10 +237,22 @@ CONTAINS
        CALL array_release (matrix%m%col_blk_size)
        CALL array_release (matrix%m%row_blk_offset)
        CALL array_release (matrix%m%col_blk_offset)
+       IF (matrix%m%has_local_rows) &
+            CALL array_release (matrix%m%local_rows)
+       IF (matrix%m%has_global_rows) &
+            CALL array_release (matrix%m%global_rows)
+       IF (matrix%m%has_local_cols) &
+            CALL array_release (matrix%m%local_cols)
+       IF (matrix%m%has_global_cols) &
+            CALL array_release (matrix%m%global_cols)
        CALL dbcsr_distribution_release (matrix%m%dist)
        IF (ASSOCIATED (matrix%m%wms)) THEN
           CALL dbcsr_work_destroy_all(matrix%m)
        ENDIF
+       CALL array_nullify (matrix%m%local_rows)
+       CALL array_nullify (matrix%m%global_rows)
+       CALL array_nullify (matrix%m%local_cols)
+       CALL array_nullify (matrix%m%global_cols)
     ELSE
        ! Invalidate index
        NULLIFY(matrix%m%index)
@@ -243,7 +260,7 @@ CONTAINS
        CALL dbcsr_data_init (matrix%m%data_area)
     ENDIF
     ! These are always invalidated.
-    NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p)
+    NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c)
     matrix%m%row_blk_size = row_blk_size
     CALL array_hold (matrix%m%row_blk_size)
     IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
@@ -258,7 +275,17 @@ CONTAINS
     ELSE
        matrix%m%max_cbs = 0
     ENDIF
-
+    !
+    CALL dbcsr_assert (array_size (row_blk_size), "EQ",&
+         dbcsr_distribution_nrows (dist),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Number of blocked rows does match blocked row distribution.",&
+         __LINE__, error=error)
+    CALL dbcsr_assert (array_size (col_blk_size), "EQ",&
+         dbcsr_distribution_ncols (dist),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Number of blocked columns does match blocked column distribution.",&
+         __LINE__, error=error)
     ! initialize row/col offsets
     ALLOCATE(row_blk_offset(array_size (matrix%m%row_blk_size)+1))
     ALLOCATE(col_blk_offset(array_size (matrix%m%col_blk_size)+1))
@@ -330,12 +357,8 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Index is not large enough",__LINE__,error)
     matrix%m%index(1:dbcsr_num_slots) = 0
+    matrix%m%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
-    !
-    matrix%m%index(dbcsr_slot_home_prow) = -1
-    matrix%m%index(dbcsr_slot_home_pcol) = -1
-    matrix%m%index(dbcsr_slot_home_rowi) = -1
-    matrix%m%index(dbcsr_slot_home_coli) = -1
     !
     matrix%m%symmetry = .FALSE.
     matrix%m%negate_real = .FALSE.
@@ -364,8 +387,15 @@ CONTAINS
     NULLIFY (matrix%m%predistributed)
     matrix%m%bcsc = .FALSE.
     matrix%m%local_indexing = .FALSE.
+    matrix%m%list_indexing = .FALSE.
     CALL array_nullify (matrix%m%local_rows)
     CALL array_nullify (matrix%m%global_rows)
+    CALL array_nullify (matrix%m%local_cols)
+    CALL array_nullify (matrix%m%global_cols)
+    matrix%m%has_local_rows  = .FALSE.
+    matrix%m%has_global_rows = .FALSE.
+    matrix%m%has_local_cols  = .FALSE.
+    matrix%m%has_global_cols = .FALSE.
     CALL dbcsr_buffers_init (matrix%m%buffers)
     IF (dbcsr_buffers_2d_needed) THEN
        CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
@@ -462,6 +492,18 @@ CONTAINS
          mutable_work = new_mutable_work,&
          replication_type = new_replication_type,&
          error=error)
+    ! Copy stuff from the meta-array.  These are not normally needed,
+    ! but have to be here for creating matrices from "image" matrices.
+    ! (Matrix type may be "N", but negate_real or negate_imaginary
+    ! should still be honored.
+    matrix%m%index(dbcsr_slot_home_prow) = template%m%index(dbcsr_slot_home_prow)
+    matrix%m%index(dbcsr_slot_home_rowi) = template%m%index(dbcsr_slot_home_rowi)
+    matrix%m%index(dbcsr_slot_home_pcol) = template%m%index(dbcsr_slot_home_pcol)
+    matrix%m%index(dbcsr_slot_home_coli) = template%m%index(dbcsr_slot_home_coli)
+    matrix%m%index(dbcsr_slot_home_vprow) = template%m%index(dbcsr_slot_home_vprow)
+    matrix%m%index(dbcsr_slot_home_vpcol) = template%m%index(dbcsr_slot_home_vpcol)
+    matrix%m%negate_real = template%m%negate_real
+    matrix%m%negate_imaginary = template%m%negate_imaginary
   END SUBROUTINE dbcsr_create_template
 
 
@@ -659,7 +701,6 @@ CONTAINS
     !$OMP SINGLE
     IF (ASSOCIATED (matrix%m%predistributed)) THEN
           CALL dbcsr_destroy_array (matrix%m%predistributed,error)
-          CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
           DEALLOCATE (matrix%m%predistributed)
     ENDIF
     NULLIFY (matrix%m%predistributed)

@@ -64,9 +64,11 @@ MODULE cp_dbcsr_interface
        dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
        dbcsr_blk_row_size, dbcsr_distribution, &
        dbcsr_distribution_add_col_map, dbcsr_distribution_add_row_map, &
-       dbcsr_distribution_del_col_map, dbcsr_distribution_del_row_map, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
-       dbcsr_distribution_release, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_del_col_map, &
+       dbcsr_distribution_del_row_map, dbcsr_distribution_hold, &
+       dbcsr_distribution_init, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data_size, dbcsr_get_data_type, &
        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
        dbcsr_get_occupation, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_new, &
@@ -92,7 +94,8 @@ MODULE cp_dbcsr_interface
                                              dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
-                                             dbcsr_mp_obj
+                                             dbcsr_mp_obj,&
+                                             dbcsr_no_transpose
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
@@ -2283,9 +2286,9 @@ CONTAINS
     !
     IF (PRESENT (row_blk_size)) THEN
        matrix%cp_row_sizes = row_blk_size
-       ALLOCATE (offsets (cp_dbcsr_nblkrows_total(template)+1), stat=stat)
+       ALLOCATE (offsets (array_size(row_blk_size)+1), stat=stat)
        IF (stat /= 0) CALL stop_memory (routineN, moduleN, __LINE__, "offsets",&
-            int_size*(cp_dbcsr_nblkrows_total(template)+1))
+            int_size*(array_size(row_blk_size)+1))
        CALL convert_sizes_to_offsets (array_data (matrix%cp_row_sizes), offsets)
        CALL array_new (matrix%cp_row_offsets, offsets, gift=.TRUE.)
     ELSE
@@ -2297,9 +2300,9 @@ CONTAINS
     !
     IF (PRESENT (col_blk_size)) THEN
        matrix%cp_col_sizes = col_blk_size
-       ALLOCATE (offsets (cp_dbcsr_nblkcols_total(template)+1), stat=stat)
+       ALLOCATE (offsets (array_size(col_blk_size)+1), stat=stat)
        IF (stat /= 0) CALL stop_memory (routineN, moduleN, __LINE__, "offsets",&
-            int_size*(cp_dbcsr_nblkcols_total(template)+1))
+            int_size*(array_size(col_blk_size)+1))
        CALL convert_sizes_to_offsets (array_data (matrix%cp_col_sizes), offsets)
        CALL array_new (matrix%cp_col_offsets, offsets, gift=.TRUE.)
     ELSE
@@ -2548,9 +2551,10 @@ CONTAINS
     INTEGER                                  :: timing_handle, &
                                                 timing_handle_clustering, &
                                                 timing_handle_detail
+    LOGICAL                                  :: new_a_is_new, new_b_is_new
     REAL(kind=dp)                            :: cs_b, cs_c
     TYPE(cp_dbcsr_type)                      :: clustered_a, clustered_b, &
-                                                clustered_c
+                                                clustered_c, new_a, new_b
     TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
@@ -2659,15 +2663,22 @@ CONTAINS
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb,&
+         new_a, new_b, new_a_is_new, new_b_is_new, error)
     CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
          //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
-         alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
+         alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set, right_set,&
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
-
+    IF (new_a_is_new) THEN
+       CALL cp_dbcsr_release (new_a, error=error)
+    ENDIF
+    IF (new_b_is_new) THEN
+       CALL cp_dbcsr_release (new_b, error=error)
+    ENDIF
     IF (prnt) THEN
        CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
             variable_name="mpo", error=error)
@@ -2772,6 +2783,8 @@ CONTAINS
                                                 trans_b
     INTEGER                                  :: timing_handle, &
                                                 timing_handle_detail
+    LOGICAL                                  :: new_a_is_new, new_b_is_new
+    TYPE(cp_dbcsr_type)                      :: new_a, new_b
     TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
@@ -2789,14 +2802,22 @@ CONTAINS
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb,&
+         new_a, new_b, new_a_is_new, new_b_is_new, error)
     CALL timeset('cp_dbcsr_mult_'//trans_a//shape_a//'_'&
          //trans_b//shape_b, timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
-         alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
+         alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set=left_set, right_set=right_set,&
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
+    IF (new_a_is_new) THEN
+       CALL cp_dbcsr_release (new_a, error=error)
+    ENDIF
+    IF (new_b_is_new) THEN
+       CALL cp_dbcsr_release (new_b, error=error)
+    ENDIF
     CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_z
@@ -3532,6 +3553,152 @@ CONTAINS
     !call cp_dbcsr_print (clustered_matrix, nodata=.true., error=error)
     CALL timestop (timing_handle)
   END SUBROUTINE cp_dbcsr_docluster
+
+
+! *****************************************************************************
+!> \brief     Adjusts matrices to be compatibly for multiplication.
+!>
+!> In BLAS xGEMM or PxGEMM style, CP2K allows with differing
+!> dimensions to be multiplied.  This compatibilyt has been removed
+!> from DBCSR.  Therefore, matrices must be matched for
+!> multiplication:
+!> <ul>
+!> <li> The rows of matrix_b are adjusted to fit the columns of matrix_a,
+!> <li> The columns of matrix_b are adjusted to fit the columns of matrix_c, and
+!> <li> The rows of matrix_a are adjusted to fit the rows of matrix_c.
+!> </ul>
+!> Transformations are skipped if the sizes are already compatible.
+! *****************************************************************************
+  SUBROUTINE matrix_match_sizes (matrix_c, matrix_a, tr_a, matrix_b, tr_b,&
+       new_a, new_b, new_a_is_new, new_b_is_new,&
+       error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_c, matrix_a
+    CHARACTER, INTENT(IN)                    :: tr_a
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
+    CHARACTER, INTENT(IN)                    :: tr_b
+    TYPE(cp_dbcsr_type), INTENT(OUT)         :: new_a, new_b
+    LOGICAL, INTENT(OUT)                     :: new_a_is_new, new_b_is_new
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_match_sizes', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: tr_a_l, tr_b_l
+    INTEGER :: a_cols_total, a_rows_total, b_cols_total, b_rows_total, &
+      c_cols_total, c_rows_total, handle
+    LOGICAL                                  :: atr, btr, new_a_rows, &
+                                                new_b_cols, new_b_rows
+    TYPE(array_i1d_obj)                      :: new_col_dist, new_col_size, &
+                                                new_row_dist, new_row_size, &
+                                                tmp_array
+    TYPE(dbcsr_distribution_obj)             :: a_dist, c_dist, new_dist
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset (routineN, handle)
+    tr_a_l = tr_a
+    CALL uppercase (tr_a_l)
+    tr_b_l = tr_b
+    CALL uppercase (tr_b_l)
+    btr = tr_b_l .NE. dbcsr_no_transpose
+    atr = tr_a_l .NE. dbcsr_no_transpose
+    !
+    c_rows_total = cp_dbcsr_nfullrows_total (matrix_c)
+    c_cols_total = cp_dbcsr_nfullcols_total (matrix_c)
+    b_rows_total = cp_dbcsr_nfullrows_total (matrix_b)
+    b_cols_total = cp_dbcsr_nfullcols_total (matrix_b)
+    a_rows_total = cp_dbcsr_nfullrows_total (matrix_a)
+    a_cols_total = cp_dbcsr_nfullcols_total (matrix_a)
+    IF (atr) CALL swap (a_cols_total, a_rows_total)
+    IF (btr) CALL swap (b_cols_total, b_rows_total)
+    !
+    ! Process matrix B.
+    !
+    ! This check is faster than explicity comparing blocked row and
+    ! column sizes.
+    new_b_cols = c_cols_total .NE. b_cols_total
+    new_b_rows = a_cols_total .NE. b_rows_total
+    IF (new_b_rows .OR. new_b_cols) THEN
+       WRITE(*,*)routineN//" Matching B"
+       new_b_is_new = .TRUE.
+       CALL cp_dbcsr_init (new_b, error=error)
+       c_dist = cp_dbcsr_distribution (matrix_c)
+       a_dist = cp_dbcsr_distribution (matrix_a)
+       IF (atr) THEN
+          new_row_dist = dbcsr_distribution_row_dist (a_dist)
+          new_row_size = cp_dbcsr_row_block_sizes (matrix_a)
+       ELSE
+          new_row_dist = dbcsr_distribution_col_dist (a_dist)
+          new_row_size = cp_dbcsr_col_block_sizes (matrix_a)
+       ENDIF
+       new_col_dist = dbcsr_distribution_col_dist (c_dist)
+       new_col_size = cp_dbcsr_col_block_sizes (matrix_c)
+       IF (btr) THEN
+          ! swap rows/columns
+          tmp_array = new_row_dist
+          new_row_dist = new_col_dist
+          new_col_dist = tmp_array
+          !
+          tmp_array = new_row_size
+          new_row_size = new_col_size
+          new_col_size = tmp_array
+       ENDIF
+       CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (c_dist),&
+            row_dist=new_row_dist,&
+            col_dist=new_col_dist)
+       CALL cp_dbcsr_create (new_b, template=matrix_b,&
+            dist = new_dist,&
+            row_blk_size = new_row_size,&
+            col_blk_size = new_col_size,&
+            error=error)
+       CALL dbcsr_distribution_release (new_dist)
+       CALL cp_dbcsr_complete_redistribute (matrix_b, new_b, error=error)
+    ELSE
+       !new_b_is_new = .FALSE.
+       !new_b = matrix_b
+       new_b_is_new = .TRUE.
+       CALL cp_dbcsr_init (new_b, error=error)
+       CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE., error=error)
+    ENDIF
+    !
+    ! Process matrix A
+    new_a_rows = a_rows_total .NE. c_rows_total
+    IF (new_a_rows) THEN
+       WRITE(*,*)routineN//" Matching A"
+       CALL cp_dbcsr_init (new_a, error=error)
+       c_dist = cp_dbcsr_distribution (matrix_c)
+       a_dist = cp_dbcsr_distribution (matrix_a)
+       IF (atr) THEN
+          new_row_dist = dbcsr_distribution_row_dist (a_dist)
+          new_row_size = cp_dbcsr_row_block_sizes (matrix_a)
+          new_col_dist = dbcsr_distribution_row_dist (c_dist)
+          new_col_size = cp_dbcsr_row_block_sizes (matrix_c)
+       ELSE
+          new_row_dist = dbcsr_distribution_row_dist (c_dist)
+          new_row_size = cp_dbcsr_row_block_sizes (matrix_c)
+          new_col_dist = dbcsr_distribution_col_dist (a_dist)
+          new_col_size = cp_dbcsr_col_block_sizes (matrix_a)
+       ENDIF
+       CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (a_dist),&
+            row_dist = new_row_dist,&
+            col_dist = new_col_dist)
+       CALL cp_dbcsr_create (new_a, template=matrix_a,&
+            dist=new_dist,&
+            row_blk_size = new_row_size,&
+            col_blk_size = new_col_size,&
+            error=error)
+       CALL dbcsr_distribution_release (new_dist)
+       CALL cp_dbcsr_complete_redistribute (matrix_a, new_a, error=error)
+    ELSE
+       !new_a_is_new = .FALSE.
+       !new_a = matrix_a
+       new_a_is_new = .TRUE.
+       CALL cp_dbcsr_init (new_a, error=error)
+       CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE., error=error)
+    ENDIF
+    CALL timestop (handle)
+  END SUBROUTINE matrix_match_sizes
+
 
 
 END MODULE cp_dbcsr_interface

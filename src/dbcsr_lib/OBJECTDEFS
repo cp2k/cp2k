@@ -37,4 +37,5 @@ LIB3_OBJECTS = array_types.o\
                dbcsr_transformations.o\
                dbcsr_work_operations.o\
                dbcsr_util.o\
-	       min_heap.o
+	       min_heap.o\
+	       smm.o

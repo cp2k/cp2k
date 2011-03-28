@@ -14,29 +14,27 @@
 ! *****************************************************************************
 MODULE dbcsr_dist_operations
 
-  USE array_types,                     ONLY: array_data,&
-                                             array_exists,&
-                                             array_hold,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release,&
-                                             array_size
+  USE array_types,                     ONLY: &
+       array_data, array_equality, array_exists, array_hold, array_i1d_obj, &
+       array_new, array_nullify, array_release, array_size
   USE dbcsr_error_handling
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nrows, &
-       dbcsr_distribution_processor, dbcsr_distribution_row_dist, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new_transposed, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_release
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_imagedistribution_type,&
-                                             dbcsr_magic_number,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_obj,&
-                                             dbcsr_type
+       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
+       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_distribution_thread_dist, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_release, dbcsr_release_locals
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
+       dbcsr_magic_number, dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_home_pcol, &
+       dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              gcd,&
                                              lcm
@@ -50,6 +48,8 @@ MODULE dbcsr_dist_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_operations'
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
+
+  INTEGER :: idid = 0
 
 
   ! Queries
@@ -87,7 +87,13 @@ MODULE dbcsr_dist_operations
   PUBLIC ::  find_local_virtual_elements,&
              map_local_virtual_elements,&
              dbcsr_get_local_rows, dbcsr_get_local_cols,&
-             dbcsr_get_row_map, dbcsr_get_col_map
+             dbcsr_get_global_row_map, dbcsr_get_global_col_map,&
+             dbcsr_get_local_vrows, dbcsr_get_local_vcols,&
+             dbcsr_get_global_vrow_map, dbcsr_get_global_vcol_map,&
+             dbcsr_reset_locals, dbcsr_reset_vlocals
+
+  ! For dense distributions
+  PUBLIC ::  dbcsr_make_1dist_dense, dbcsr_make_dists_dense
 
 
   INTERFACE dbcsr_get_stored_block_info
@@ -454,8 +460,8 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp
 
     mp = dbcsr_distribution_mp (dist)
-    WRITE(*,'(1X,A,I5,"x",I5)')"Distribution process grid size",&
-         dbcsr_mp_nprows (mp), dbcsr_mp_npcols (mp)
+    WRITE(*,'(1X,A,I5,"x",I5,1X,I5)')"Distribution process grid size, threads",&
+         dbcsr_mp_nprows (mp), dbcsr_mp_npcols (mp), dist%d%num_threads
     IF (array_size(dist%d%row_dist).gt.0) &
          WRITE(*,*)"Distribution: Row dist", array_data(dist%d%row_dist)
     IF (array_size(dist%d%col_dist).gt.0) &
@@ -463,7 +469,9 @@ CONTAINS
     IF (array_size(dist%d%local_rows).gt.0) &
          WRITE(*,*)"Distribution: Local rows", array_data(dist%d%local_rows)
     IF (array_size(dist%d%local_cols).gt.0) &
-    WRITE(*,*)"Distribution: Local cols", array_data(dist%d%local_cols)
+         WRITE(*,*)"Distribution: Local cols", array_data(dist%d%local_cols)
+    IF (dist%d%has_thread_dist) &
+         WRITE(*,*)"Distribution: Thread", array_data(dist%d%thread_dist)
   END SUBROUTINE dbcsr_print_dist
 
 
@@ -551,14 +559,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
 !> \par Definition of multiplicity and nimages
-!>      Multiplicity and number of images are used to match process
-!>      grid coordinates on non-square process grids. Given
-!>      source_nbins and target_nbins, their relation is
-!>          source_nbins * multiplicity = target_nbins * nimages.
+!>      Multiplicity and decimation (number of images) are used to
+!>      match process grid coordinates on non-square process
+!>      grids. Given source_nbins and target_nbins, their relation is
+!>                source_nbins * target_multiplicity
+!>              = target_nbins * target_nimages.
 !>      It is best when both multiplicity and nimages are small. To
 !>      get these two factors, then, one can use the following formulas:
 !>          nimages      = lcm(source_nbins, target_nbins) / target_nbins
 !>          multiplicity = target_nbins / gcd(source_nbins, target_nbins)
+!>      from the target's point of view (nimages = target_nimages).
 !> \par Mapping
 !>      The new distribution comprises of real bins and images within
 !>      bins. These can be view as target_nbins*nimages virtual
@@ -626,14 +636,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
 !> \par Definition of multiplicity and nimages
-!>      Multiplicity and number of images are used to match process
-!>      grid coordinates on non-square process grids. Given
-!>      source_nbins and target_nbins, their relation is
-!>          source_nbins * multiplicity = target_nbins * nimages.
+!>      Multiplicity and decimation (number of images) are used to
+!>      match process grid coordinates on non-square process
+!>      grids. Given source_nbins and target_nbins, their relation is
+!>                source_nbins * target_multiplicity
+!>              = target_nbins * target_nimages.
 !>      It is best when both multiplicity and nimages are small. To
 !>      get these two factors, then, one can use the following formulas:
 !>          nimages      = lcm(source_nbins, target_nbins) / target_nbins
 !>          multiplicity = target_nbins / gcd(source_nbins, target_nbins)
+!>      from the target's point of view (nimages = target_nimages).
 !> \par Mapping
 !>      The new distribution comprises of real bins and images within
 !>      bins. These can be view as target_nbins*nimages virtual
@@ -679,6 +691,36 @@ CONTAINS
     ENDDO
   END SUBROUTINE reimage_distribution
 
+! *****************************************************************************
+!> \brief Makes new virtual distribution of rows/columns.
+!> \param[in] nelements      number of elements
+!> \param[out] vbins         virtual bins
+!> \param[in] bins           bins to which elements belong
+!> \param[in] decimation     matching between bins
+!> \param[in] images         images to which element belong
+! *****************************************************************************
+  PURE SUBROUTINE make_vdistribution (nelements, vbins, bins, decimation, images)
+    INTEGER, INTENT(IN)                      :: nelements
+    INTEGER, DIMENSION(nelements), &
+      INTENT(OUT)                            :: vbins
+    INTEGER, DIMENSION(nelements), &
+      INTENT(IN)                             :: bins
+    INTEGER, INTENT(IN)                      :: decimation
+    INTEGER, DIMENSION(nelements), &
+      INTENT(IN)                             :: images
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_vdistribution', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: el
+
+!   ---------------------------------------------------------------------------
+
+    FORALL (el = 1 : nelements)
+       vbins(el) = bins(el) * decimation + images(el)-1
+    END FORALL
+  END SUBROUTINE make_vdistribution
+      
 
 ! *****************************************************************************
 !> \brief Makes new distribution with multiplicity
@@ -752,71 +794,42 @@ CONTAINS
   END SUBROUTINE rebin_imaged_distribution
 
 
-
-! *****************************************************************************
-!> \brief Creates an image distribution with column images.
-!>
-!> The column images make the column distribution compatible with the
-!> row distribution of the supplied other_dist distribution.
-!>
-!> This routine is used to make a left matrix (with new_row_dist)
-!> column-comptable with a given right matrix (other_dist) for
-!> multiplication with non-transposed processor grids.
-!>
-!> \param[out] imgdist        image distribution with columns
-!> \param[in] new_row_dist    use this row distribution
-!> \param[in] other_dist      makes the distribution compatible with and based
-!>                            on this one
-! *****************************************************************************
-  SUBROUTINE dbcsr_create_col_image_dist(imgdist, new_row_dist, other_dist)
-    TYPE(dbcsr_imagedistribution_type), &
+  SUBROUTINE dbcsr_new_image_dist (imgdist, dist,&
+       template, error)
+    TYPE(dbcsr_imagedistribution_obj), &
       INTENT(OUT)                            :: imgdist
-    TYPE(array_i1d_obj), INTENT(IN)          :: new_row_dist
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: other_dist
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(IN)                             :: template
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_col_image_dist', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_image_dist', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: new_ncols, npcols, nprows
-    INTEGER, DIMENSION(:), POINTER           :: new_col_dist_data, &
-                                                new_col_img_data, rd
-    TYPE(array_i1d_obj)                      :: new_col_dist, new_col_image
-    TYPE(dbcsr_distribution_obj)             :: new_dist
-    TYPE(dbcsr_mp_obj)                       :: other_mp_env
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_distribution_init (new_dist)
-    CALL dbcsr_distribution_init (imgdist%main)
-    CALL array_nullify (imgdist%col_image)
-    CALL array_nullify (imgdist%row_image)
-    other_mp_env = dbcsr_distribution_mp (other_dist)
-    ! Determine the factors.
-    new_ncols = dbcsr_distribution_nrows (other_dist) ! They must be compatible
-    nprows = dbcsr_mp_nprows (other_mp_env)
-    npcols = dbcsr_mp_npcols (other_mp_env)
-    imgdist%col_decimation = lcm (nprows, npcols) / npcols
-    imgdist%col_multiplicity = npcols / gcd (nprows, npcols)
-    imgdist%row_decimation = 1
-    imgdist%row_multiplicity = 1
-    ! Create the new column distribution and column image distribution
-    ALLOCATE (new_col_dist_data (new_ncols))
-    ALLOCATE (new_col_img_data (new_ncols))
-    rd => array_data (dbcsr_distribution_row_dist (other_dist))
-    CALL rebin_distribution (new_col_dist_data, new_col_img_data, rd,&
-         npcols, imgdist%col_multiplicity, imgdist%col_decimation)
-    CALL array_new (new_col_dist, new_col_dist_data, gift=.TRUE.)
-    CALL array_new (new_col_image, new_col_img_data, gift=.TRUE.)
-    ! Copy the row distribution from old distribution
-    CALL dbcsr_distribution_new(new_dist,&
-         other_mp_env,&
-         new_row_dist, new_col_dist)
-    CALL array_release (new_col_dist)
-    ! Now finish the distribution image.
-    imgdist%main = new_dist
-    imgdist%col_image = new_col_image
-  END SUBROUTINE dbcsr_create_col_image_dist
-
+    idid = idid+1
+    ALLOCATE (imgdist%i)
+    imgdist%i%refcount = 1
+    imgdist%i%id = idid
+    imgdist%i%row_decimation   = template%i%row_decimation
+    imgdist%i%row_multiplicity = template%i%row_multiplicity
+    imgdist%i%col_decimation   = template%i%col_decimation
+    imgdist%i%col_multiplicity = template%i%col_multiplicity
+    !
+    NULLIFY (imgdist%i%other_vl_rows)
+    NULLIFY (imgdist%i%other_vl_cols)
+    CALL array_nullify (imgdist%i%global_vrow_map)
+    CALL array_nullify (imgdist%i%global_vcol_map)
+    imgdist%i%has_other_vl_rows = .FALSE.
+    imgdist%i%has_other_vl_cols = .FALSE.
+    imgdist%i%has_global_vrow_map = .FALSE.
+    imgdist%i%has_global_vcol_map = .FALSE.
+    !
+    imgdist%i%main = dist
+    CALL dbcsr_distribution_hold (imgdist%i%main)
+    !
+  END SUBROUTINE dbcsr_new_image_dist
 
 ! *****************************************************************************
 !> \brief Creates an image distribution given the other compatibility images
@@ -840,7 +853,7 @@ CONTAINS
   SUBROUTINE dbcsr_create_image_dist(imgdist, dist,&
        match_row_pdist, match_row_idist, match_row_nbins,&
        match_col_pdist, match_col_idist, match_col_nbins)
-    TYPE(dbcsr_imagedistribution_type), &
+    TYPE(dbcsr_imagedistribution_obj), &
       INTENT(OUT)                            :: imgdist
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER, DIMENSION(:), INTENT(IN), &
@@ -857,7 +870,8 @@ CONTAINS
 
     INTEGER                                  :: ncols, npcols, nprows, nrows
     INTEGER, DIMENSION(:), POINTER           :: col_dist_data, col_img_data, &
-                                                row_dist_data, row_img_data
+                                                col_vdist, row_dist_data, &
+                                                row_img_data, row_vdist
     TYPE(array_i1d_obj)                      :: col_dist, col_image, &
                                                 row_dist, row_image
     TYPE(dbcsr_distribution_obj)             :: new_dist
@@ -865,10 +879,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    idid = idid+1
+    ALLOCATE (imgdist%i)
+    imgdist%i%refcount = 1
+    imgdist%i%id = idid
     CALL dbcsr_distribution_init (new_dist)
-    CALL dbcsr_distribution_init (imgdist%main)
-    CALL array_nullify (imgdist%col_image)
-    CALL array_nullify (imgdist%row_image)
+    CALL dbcsr_distribution_init (imgdist%i%main)
+    CALL array_nullify (imgdist%i%col_image)
+    CALL array_nullify (imgdist%i%row_image)
     mp_env = dbcsr_distribution_mp (dist)
     ! Determine the factors.
     nrows = dbcsr_distribution_nrows (dist)
@@ -876,10 +894,12 @@ CONTAINS
     nprows = dbcsr_mp_nprows (mp_env)
     npcols = dbcsr_mp_npcols (mp_env)
     ! Create the new row distribution and row image distribution
-    imgdist%row_decimation = lcm (nprows, match_row_nbins) / nprows
-    imgdist%row_multiplicity = nprows / gcd (nprows, match_row_nbins)
+    imgdist%i%row_decimation = lcm (nprows, match_row_nbins) / nprows
+    imgdist%i%row_multiplicity = nprows / gcd (nprows, match_row_nbins)
+    IF (debug_mod) WRITE (*,'(1X,A,I5,"x",I5)')routineN//"pgrid",&
+         nprows, npcols
     IF (debug_mod) WRITE (*,*)routineN//'row decimation, multiplicity',&
-         imgdist%row_decimation, imgdist%row_multiplicity
+         imgdist%i%row_decimation, imgdist%i%row_multiplicity
     IF (debug_mod) WRITE(*,*)routineN//" nprows, match prows", nprows, match_row_nbins
     IF (match_row_nbins .EQ. nprows .AND. .NOT. PRESENT (match_row_pdist)) THEN
        row_dist = dbcsr_distribution_row_dist (dist)
@@ -895,12 +915,12 @@ CONTAINS
              CALL rebin_imaged_distribution (row_dist_data, row_img_data,&
                   match_row_pdist, match_row_idist,&
                   nprows,&
-                  imgdist%row_multiplicity, imgdist%row_decimation)
+                  imgdist%i%row_multiplicity, imgdist%i%row_decimation)
           ELSE
              CALL rebin_distribution (row_dist_data, row_img_data,&
                   match_row_pdist, &
                   nprows,&
-                  imgdist%row_multiplicity, imgdist%row_decimation)
+                  imgdist%i%row_multiplicity, imgdist%i%row_decimation)
           ENDIF
           CALL array_new (row_dist, row_dist_data, gift=.TRUE.)
        ELSE
@@ -909,15 +929,21 @@ CONTAINS
           CALL reimage_distribution (row_img_data,&
                array_data (row_dist),&
                nprows,&
-               imgdist%row_multiplicity, imgdist%row_decimation)
+               imgdist%i%row_multiplicity, imgdist%i%row_decimation)
        ENDIF
        CALL array_new (row_image, row_img_data, gift=.TRUE.)
     ENDIF
+    !
+    ALLOCATE (row_vdist (nrows))
+    CALL make_vdistribution (nrows, row_vdist, array_data (row_dist),&
+         imgdist%i%row_decimation, row_img_data)
+    CALL array_new (imgdist%i%vrow_dist, row_vdist, gift=.TRUE.)
+    !
     ! Create the new column distribution and column image distribution
-    imgdist%col_decimation = lcm (npcols, match_col_nbins) / npcols
-    imgdist%col_multiplicity = npcols / gcd (npcols, match_col_nbins)
+    imgdist%i%col_decimation = lcm (npcols, match_col_nbins) / npcols
+    imgdist%i%col_multiplicity = npcols / gcd (npcols, match_col_nbins)
     IF (debug_mod) WRITE (*,*)routineN//'col decimation, multiplicity',&
-         imgdist%col_decimation, imgdist%col_multiplicity
+         imgdist%i%col_decimation, imgdist%i%col_multiplicity
     IF (debug_mod) WRITE(*,*)routineN//" npcols, match pcols", npcols, match_col_nbins
     IF (match_col_nbins .EQ. npcols .AND. .NOT. PRESENT (match_col_pdist)) THEN
        col_dist = dbcsr_distribution_col_dist (dist)
@@ -933,12 +959,12 @@ CONTAINS
              CALL rebin_imaged_distribution (col_dist_data, col_img_data,&
                   match_col_pdist, match_col_idist,&
                   npcols,&
-                  imgdist%col_multiplicity, imgdist%col_decimation)
+                  imgdist%i%col_multiplicity, imgdist%i%col_decimation)
           ELSE
              CALL rebin_distribution (col_dist_data, col_img_data,&
                   match_col_pdist,&
                   npcols,&
-                  imgdist%col_multiplicity, imgdist%col_decimation)
+                  imgdist%i%col_multiplicity, imgdist%i%col_decimation)
           ENDIF
           CALL array_new (col_dist, col_dist_data, gift=.TRUE.)
        ELSE
@@ -947,20 +973,33 @@ CONTAINS
           CALL reimage_distribution (col_img_data,&
                array_data (col_dist),&
                npcols,&
-               imgdist%col_multiplicity, imgdist%col_decimation)
+               imgdist%i%col_multiplicity, imgdist%i%col_decimation)
        ENDIF
        CALL array_new (col_image, col_img_data, gift=.TRUE.)
     ENDIF
-    ! Copy the row distribution from old distribution
+    !
+    ALLOCATE (col_vdist (ncols))
+    CALL make_vdistribution (ncols, col_vdist, array_data(col_dist),&
+         imgdist%i%col_decimation, col_img_data)
+    CALL array_new (imgdist%i%vcol_dist, col_vdist, gift=.TRUE.)
+    !
+    ! Copy the row & column distribution from old distribution
     CALL dbcsr_distribution_new(new_dist,&
          mp_env,&
          row_dist, col_dist)
     CALL array_release (row_dist)
     CALL array_release (col_dist)
+    ! Now setup the list of distributions, ... .
     ! Now finish the distribution image.
-    imgdist%main = new_dist
-    imgdist%col_image = col_image
-    imgdist%row_image = row_image
+    imgdist%i%main = new_dist
+    imgdist%i%col_image = col_image
+    imgdist%i%row_image = row_image
+    !
+    imgdist%i%has_other_vl_rows = .FALSE.
+    imgdist%i%has_other_vl_cols = .FALSE.
+    imgdist%i%has_global_vrow_map = .FALSE.
+    imgdist%i%has_global_vcol_map = .FALSE.
+    !
   END SUBROUTINE dbcsr_create_image_dist
 
 
@@ -1578,7 +1617,7 @@ CONTAINS
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_image_distribution_dense (image_dist, join_rows, join_cols)
-    TYPE(dbcsr_imagedistribution_type), &
+    TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: image_dist
     LOGICAL, INTENT(IN), OPTIONAL            :: join_rows, join_cols
 
@@ -1598,29 +1637,29 @@ CONTAINS
     IF (PRESENT (join_cols)) jcols = join_cols
     jrows = .TRUE.
     IF (PRESENT (join_rows)) jrows = join_rows
-    nrow_images = image_dist%row_decimation
-    ncol_images = image_dist%col_decimation
-    nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (image_dist%main))
-    npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (image_dist%main))
+    nrow_images = image_dist%i%row_decimation
+    ncol_images = image_dist%i%col_decimation
+    nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (image_dist%i%main))
+    npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (image_dist%i%main))
     nvprows = nprows * nrow_images
     nvpcols = npcols * ncol_images
     IF (jrows) THEN
-       CALL array_release (image_dist%row_image)
-       CALL array_nullify (image_dist%row_image)
+       CALL array_release (image_dist%i%row_image)
+       CALL array_nullify (image_dist%i%row_image)
        ALLOCATE (new_rid (nvprows))
        FORALL (i = 1 : nvprows)
           new_rid(i) = MOD (i-1, nrow_images) + 1
        END FORALL
-       CALL array_new (image_dist%row_image, new_rid, gift=.TRUE.)
+       CALL array_new (image_dist%i%row_image, new_rid, gift=.TRUE.)
     ENDIF
     IF (jcols) THEN
-       CALL array_release (image_dist%col_image)
-       CALL array_nullify (image_dist%col_image)
+       CALL array_release (image_dist%i%col_image)
+       CALL array_nullify (image_dist%i%col_image)
        ALLOCATE (new_cid (nvpcols))
        FORALL (i = 1 : nvpcols)
           new_cid(i) = MOD (i-1, ncol_images) + 1
        END FORALL
-       CALL array_new (image_dist%col_image, new_cid, gift=.TRUE.)
+       CALL array_new (image_dist%i%col_image, new_cid, gift=.TRUE.)
     ENDIF
   END SUBROUTINE make_image_distribution_dense
 
@@ -1637,7 +1676,7 @@ CONTAINS
     TYPE(array_i1d_obj), INTENT(INOUT)       :: row_blk_sizes, col_blk_sizes, &
                                                 row_blk_offsets, &
                                                 col_blk_offsets
-    TYPE(dbcsr_imagedistribution_type), &
+    TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN), OPTIONAL                   :: old_image_dist, &
                                                 old_col_idist, old_col_nimages
 
@@ -1676,15 +1715,15 @@ CONTAINS
     new_prow_dist => array_data (dbcsr_distribution_row_dist (new_distribution))
     new_pcol_dist => array_data (dbcsr_distribution_col_dist (new_distribution))
     IF (images) THEN
-       nvprows = dbcsr_mp_nprows(mp)*old_image_dist%row_decimation
-       nvpcols = dbcsr_mp_npcols(mp)*old_image_dist%col_decimation
+       nvprows = dbcsr_mp_nprows(mp)*old_image_dist%i%row_decimation
+       nvpcols = dbcsr_mp_npcols(mp)*old_image_dist%i%col_decimation
        ALLOCATE (rbs(nvprows), cbs(nvpcols), rbo(nvprows+1), cbo(nvpcols+1))
-       old_irow_dist => array_data (old_image_dist%row_image)
-       old_icol_dist => array_data (old_image_dist%col_image)
+       old_irow_dist => array_data (old_image_dist%i%row_image)
+       old_icol_dist => array_data (old_image_dist%i%col_image)
        CALL match_sizes_to_el_dist(rbs, old_rbo, new_prow_dist,&
-            old_prow_dist, old_irow_dist, old_image_dist%row_decimation)
+            old_prow_dist, old_irow_dist, old_image_dist%i%row_decimation)
        CALL match_sizes_to_el_dist(cbs, old_cbo, new_pcol_dist,&
-            old_pcol_dist, old_icol_dist, old_image_dist%col_decimation)
+            old_pcol_dist, old_icol_dist, old_image_dist%i%col_decimation)
     ELSE
        nvprows = dbcsr_mp_nprows (mp)
        nvpcols = dbcsr_mp_npcols (mp)
@@ -1706,11 +1745,42 @@ CONTAINS
     CALL array_release (old_col_blk_offsets)
   END SUBROUTINE match_sizes_to_dist
 
+
+! *****************************************************************************
+!> \brief Matches row/block sizes and offsets to a given distribution
+!> \note Used for making matrices dense/undense
+! *****************************************************************************
+  SUBROUTINE make_sizes_dense (old_sizes, mapping, nel_new, new_sizes, error)
+    TYPE(array_i1d_obj), INTENT(IN)          :: old_sizes, mapping
+    INTEGER, INTENT(IN)                      :: nel_new
+    TYPE(array_i1d_obj), INTENT(OUT)         :: new_sizes
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: el, nel_old
+    INTEGER, DIMENSION(:), POINTER           :: map, new_s, old_s
+
+!   ---------------------------------------------------------------------------
+
+    map => array_data (mapping)
+    old_s => array_data (old_sizes)
+    nel_old = array_size (old_sizes)
+    ALLOCATE (new_s (nel_new))
+    new_s(:) = 0
+    DO el = 1, nel_old
+       new_s(map(el)) = new_s(map(el)) + old_s(el)
+    ENDDO
+    CALL array_new (new_sizes, new_s, gift=.TRUE.)
+  END SUBROUTINE make_sizes_dense
+
+
 ! *****************************************************************************
 !> \brief Matches row/block sizes and offsets to a given distribution, inplace.
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
-  SUBROUTINE make_sizes_dense (new_distribution, old_distribution,&
+  SUBROUTINE make_sizes_dense_old (new_distribution, old_distribution,&
        blk_sizes, blk_offsets, nbins,&
        old_image_dist, nimages)
     TYPE(array_i1d_obj), INTENT(IN)          :: new_distribution, &
@@ -1721,7 +1791,7 @@ CONTAINS
       OPTIONAL                               :: old_image_dist
     INTEGER, INTENT(IN), OPTIONAL            :: nimages
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense_old', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nvbins
@@ -1757,7 +1827,7 @@ CONTAINS
     CALL array_new (blk_offsets, bo, gift=.TRUE.)
     CALL array_release (old_blk_sizes)
     CALL array_release (old_blk_offsets)
-  END SUBROUTINE make_sizes_dense
+  END SUBROUTINE make_sizes_dense_old
 
 
 ! *****************************************************************************
@@ -1791,6 +1861,177 @@ CONTAINS
        new_sizes(new_bin) = new_sizes(new_bin) + old_size
     ENDDO
   END SUBROUTINE match_sizes_to_el_dist
+
+
+! *****************************************************************************
+!> \brief Makes a 1-D distribution dense.
+!> \param[in] bins             Number of bins in the main distribution
+!> \param[in] old_dist         Current distribution
+!> \param[out] dense_dist      Dense distribution
+!> \param[out] dist_map        Map from current to dense distribution
+!> \param[in] nsubdist         Number of bins in the subdistribution
+!> \param[in] subdist          Subdistribution
+! *****************************************************************************
+  SUBROUTINE dbcsr_make_1dist_dense (nbins, old_dist, dense_dist, dist_map, nsubdist, subdist)
+    INTEGER, INTENT(IN)                      :: nbins
+    TYPE(array_i1d_obj), INTENT(IN)          :: old_dist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: dense_dist, dist_map
+    INTEGER, INTENT(IN)                      :: nsubdist
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: subdist
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_1dist_dense', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: b, i, n_new_bins
+    INTEGER, DIMENSION(:), POINTER           :: dense, map, old_d
+
+!   ---------------------------------------------------------------------------
+
+    IF (nsubdist .EQ. 0) THEN
+       n_new_bins = nbins
+    ELSE
+       n_new_bins = nbins * nsubdist
+    ENDIF
+    old_d => array_data (old_dist)
+    ALLOCATE (dense (n_new_bins))
+    ALLOCATE (map (array_size (old_dist)))
+    !
+    IF (nsubdist .EQ. 0) THEN
+       dense(:) = (/ (b, b = 0, n_new_bins-1) /)
+       map(:) = old_d(:)+1
+    ELSE
+       DO i = 1, nbins
+          dense((i-1)*nsubdist+1 : (i)*nsubdist) = i-1
+       ENDDO
+       map(:) = old_d(:)*nsubdist + subdist(:) + 1
+    ENDIF
+    !
+    CALL array_new (dense_dist, dense, gift=.TRUE.)
+    CALL array_new (dist_map, map, gift=.TRUE.)
+  END SUBROUTINE dbcsr_make_1dist_dense
+
+
+! *****************************************************************************
+!> \brief Prepares distributions for making dense matrices.
+! *****************************************************************************
+  SUBROUTINE dbcsr_make_dists_dense (product_dist, left_rdist, right_rdist,&
+       dense_product_dist, dense_left_rdist, dense_right_rdist,&
+       partial,&
+       m_map, k_vmap, n_map,&
+       old_m_sizes,&
+       error)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: product_dist
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(IN)                             :: left_rdist, right_rdist
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dense_product_dist
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(OUT)                            :: dense_left_rdist, &
+                                                dense_right_rdist
+    LOGICAL, INTENT(IN)                      :: partial
+    TYPE(array_i1d_obj), INTENT(OUT)         :: m_map, k_vmap, n_map
+    TYPE(array_i1d_obj), INTENT(IN)          :: old_m_sizes
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dists_dense', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, i, j, k_nbins, &
+                                                m_nbins, n_nbins, nthreads
+    INTEGER, DIMENSION(:), POINTER           :: tdist
+    TYPE(array_i1d_obj) :: new_k_idist, new_k_pdist, new_k_vdist, new_m_dist, &
+      new_m_sizes, new_n_dist, old_k_vdist, old_m_dist, old_n_dist
+    TYPE(dbcsr_distribution_obj)             :: dense_left_dist, &
+                                                dense_right_dist
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    !
+    CALL dbcsr_assert (dbcsr_distribution_has_threads (product_dist), &
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Product distribution must have threads.", __LINE__, error=error)
+    tdist => array_data (dbcsr_distribution_thread_dist (product_dist))
+    old_m_dist = product_dist%d%row_dist
+    old_n_dist = product_dist%d%col_dist
+    old_k_vdist = right_rdist%i%vrow_dist
+    m_nbins = dbcsr_mp_nprows (product_dist%d%mp_env)
+    n_nbins = dbcsr_mp_npcols (product_dist%d%mp_env)
+    k_nbins = dbcsr_mp_nprows (right_rdist%i%main%d%mp_env) * right_rdist%i%row_decimation
+    CALL dbcsr_assert (array_equality (old_k_vdist, left_rdist%i%vcol_dist),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "k distribution mismtach", __LINE__, error=error)
+    nthreads = product_dist%d%num_threads
+    !
+    IF (partial) THEN
+       new_m_dist = old_m_dist
+       CALL array_hold (new_m_dist)
+       new_n_dist = old_n_dist
+       CALL array_hold (new_n_dist)
+       dense_product_dist = product_dist
+       CALL dbcsr_distribution_hold (dense_product_dist)
+       CALL array_new (m_map, (/ (i, i=1, array_size(new_m_dist)) /), lb=1)
+       CALL array_new (n_map, (/ (i, i=1, array_size(new_n_dist)) /), lb=1)
+    ELSE
+       CALL dbcsr_make_1dist_dense (m_nbins, old_m_dist, new_m_dist, m_map,&
+            nthreads, tdist)
+       CALL dbcsr_make_1dist_dense (n_nbins, old_n_dist, new_n_dist, n_map, 0)
+       CALL dbcsr_distribution_new (dense_product_dist, product_dist%d%mp_env,&
+            new_m_dist, new_n_dist)
+       CALL make_sizes_dense (old_m_sizes, m_map, array_size(new_m_dist), new_m_sizes, error=error)
+       CALL dbcsr_distribution_make_threads (dense_product_dist,&
+            array_data(new_m_sizes))
+       CALL array_release (new_m_sizes)
+       tdist => array_data (dbcsr_distribution_thread_dist (dense_product_dist))
+       ! Resets the thread distribution to be in-order.
+       DO i = 1, m_nbins
+          tdist((i-1)*nthreads+1 : (i)*nthreads) = (/ (j, j=0,nthreads-1) /)
+       ENDDO
+    ENDIF
+    !
+    CALL dbcsr_make_1dist_dense (k_nbins, old_k_vdist, new_k_vdist, k_vmap, 0)
+    CALL v_to_p_i_dist_o (new_k_vdist,&
+         right_rdist%i%row_decimation, new_k_pdist, new_k_idist)
+    ! Left
+    CALL dbcsr_distribution_new (dense_left_dist, left_rdist%i%main%d%mp_env,&
+         new_m_dist, new_k_pdist)
+    CALL dbcsr_distribution_no_threads (dense_left_dist)
+    dense_left_dist%d%thread_dist = dbcsr_distribution_thread_dist (dense_product_dist)
+    CALL array_hold (dense_left_dist%d%thread_dist)
+    dense_left_dist%d%has_thread_dist = .TRUE.
+    CALL dbcsr_new_image_dist (dense_left_rdist, dense_left_dist, left_rdist, error)
+    CALL dbcsr_distribution_release (dense_left_dist)
+    CALL array_new (dense_left_rdist%i%row_image,&
+         (/ (1, i=1, array_size (new_m_dist)) /), lb=1)
+    dense_left_rdist%i%col_image = new_k_idist
+    CALL array_hold (new_k_idist)
+    dense_left_rdist%i%vrow_dist = new_m_dist
+    CALL array_hold (new_m_dist)
+    dense_left_rdist%i%vcol_dist = new_k_vdist
+    CALL array_hold (new_k_vdist)
+    ! Right
+    CALL dbcsr_distribution_new (dense_right_dist, right_rdist%i%main%d%mp_env,&
+         new_k_pdist, new_n_dist)
+    CALL dbcsr_new_image_dist (dense_right_rdist, dense_right_dist, right_rdist, error)
+    CALL dbcsr_distribution_release (dense_right_dist)
+    CALL array_new (dense_right_rdist%i%col_image,&
+         (/ (1, i=1, array_size (new_n_dist)) /), lb=1)
+    dense_right_rdist%i%row_image = new_k_idist
+    CALL array_hold (new_k_idist)
+    dense_right_rdist%i%vrow_dist = new_k_vdist
+    CALL array_hold (new_k_vdist)
+    dense_right_rdist%i%vcol_dist = new_n_dist
+    CALL array_hold (new_n_dist)
+    !
+    CALL array_release (new_k_idist)
+    CALL array_release (new_k_pdist)
+    CALL array_release (new_m_dist)
+    CALL array_release (new_n_dist)
+    CALL array_release (new_k_vdist)
+    !
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_make_dists_dense
 
 
 ! *****************************************************************************
@@ -1996,16 +2237,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Determines mapping from local to global rows
-!> \param[in] matrix            mapping for this distribution
-!> \param[in] bin_distribution  mapping of elements to bins
-!> \param[in] local_bin         the local bin
+!> \param[in] dist              mapping for this distribution
+!> \param[in] local_rows        local elements for specified row
+!> \param[in] local_bin         find local elemnts for this local row
 !> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_row, error)
+  SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_prow, error)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: local_rows
-    INTEGER, INTENT(IN)                      :: local_row
+    INTEGER, INTENT(IN)                      :: local_prow
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_rows', &
@@ -2017,12 +2258,10 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
-    IF (.NOT. ASSOCIATED (dist%d%other_rows)) THEN
+    IF (.NOT. dist%d%has_other_l_rows) THEN
+       dist%d%has_other_l_rows = .TRUE.
        nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
-       ALLOCATE (dist%d%other_rows(0:dbcsr_mp_nprows (dist%d%mp_env)-1))
-       DO prow = 0, dbcsr_mp_nprows (dist%d%mp_env)-1
-          CALL array_nullify (dist%d%other_rows(prow))
-       ENDDO
+       ALLOCATE (dist%d%other_l_rows(0:dbcsr_mp_nprows (dist%d%mp_env)-1))
        ALLOCATE (nle (0:nprows-1))
        row_dist => array_data (dbcsr_distribution_row_dist (dist))
        ! Count the number of local elements per row.
@@ -2032,28 +2271,34 @@ CONTAINS
           nle(prow) = nle(prow) + 1
        ENDDO
        DO prow = 0, nprows-1
-          CALL array_new (dist%d%other_rows(prow),&
+          CALL array_new (dist%d%other_l_rows(prow),&
                (/ (0, el=1,nle(prow)) /), lb=1)
        ENDDO
        DEALLOCATE (nle)
-       CALL find_all_local_elements (dist%d%other_rows, row_dist, nprows)
+       CALL find_all_local_elements (dist%d%other_l_rows, row_dist, nprows)
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (ASSOCIATED (dist%d%other_l_rows),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Local rows mapping does not exist.", __LINE__, error=error)
+       ENDIF
     ENDIF
-    local_rows = dist%d%other_rows(local_row)
+    local_rows = dist%d%other_l_rows(local_prow)
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_local_rows
 
 ! *****************************************************************************
-!> \brief Determines mapping from local to global cols
-!> \param[in] matrix            mapping for this distribution
-!> \param[in] bin_distribution  mapping of elements to bins
-!> \param[in] local_bin         the local bin
+!> \brief Determines mapping from local to global columnss
+!> \param[in] dist              mapping for this distribution
+!> \param[in] local_cols        local elements for specified column
+!> \param[in] local_bin         find local elemnts for this local column
 !> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_col, error)
+  SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_pcol, error)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: local_cols
-    INTEGER, INTENT(IN)                      :: local_col
+    INTEGER, INTENT(IN)                      :: local_pcol
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_cols', &
@@ -2065,12 +2310,10 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
-    IF (.NOT. ASSOCIATED (dist%d%other_cols)) THEN
+    IF (.NOT. dist%d%has_other_l_cols) THEN
+       dist%d%has_other_l_cols = .TRUE.
        npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
-       ALLOCATE (dist%d%other_cols(0:dbcsr_mp_npcols (dist%d%mp_env)-1))
-       DO pcol = 0, dbcsr_mp_npcols (dist%d%mp_env)-1
-          CALL array_nullify (dist%d%other_cols(pcol))
-       ENDDO
+       ALLOCATE (dist%d%other_l_cols(0:dbcsr_mp_npcols (dist%d%mp_env)-1))
        ALLOCATE (nle (0:npcols-1))
        col_dist => array_data (dbcsr_distribution_col_dist (dist))
        ! Count the number of local elements per col.
@@ -2080,31 +2323,36 @@ CONTAINS
           nle(pcol) = nle(pcol) + 1
        ENDDO
        DO pcol = 0, npcols-1
-          CALL array_new (dist%d%other_cols(pcol),&
+          CALL array_new (dist%d%other_l_cols(pcol),&
                (/ (0, el=1,nle(pcol)) /), lb=1)
        ENDDO
        DEALLOCATE (nle)
-       CALL find_all_local_elements (dist%d%other_cols, col_dist, npcols)
+       CALL find_all_local_elements (dist%d%other_l_cols, col_dist, npcols)
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (ASSOCIATED (dist%d%other_l_cols),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Local columns mapping does not exist.", __LINE__, error=error)
+       ENDIF
     ENDIF
-    local_cols = dist%d%other_cols(local_col)
+    local_cols = dist%d%other_l_cols(local_pcol)
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_local_cols
 
 
 ! *****************************************************************************
-!> \brief Determines mapping from local to global rows
-!> \param[in] matrix            mapping for this distribution
-!> \param[in] bin_distribution  mapping of elements to bins
-!> \param[in] local_bin         the local bin
+!> \brief Determines mapping from global to local rows
+!> \param[in] dist              mapping for this distribution
+!> \param[in] row_map           mapping to local rows
 !> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_row_map (dist, row_map, error)
+  SUBROUTINE dbcsr_get_global_row_map (dist, row_map, error)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: row_map
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_row_map', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_row_map', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, nprows
@@ -2112,37 +2360,38 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
-    IF (.NOT. dist%d%has_other_row_map) THEN
+    IF (.NOT. dist%d%has_global_row_map) THEN
        row_dist => array_data (dbcsr_distribution_row_dist (dist))
        ALLOCATE (rmap (SIZE (row_dist)))
        nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
        CALL map_all_local_elements (rmap, row_dist, nprows)
-       CALL array_new (dist%d%other_row_map, rmap, gift=.TRUE.)
-       dist%d%has_other_row_map = .TRUE.
+       CALL array_new (dist%d%global_row_map, rmap, gift=.TRUE.)
+       dist%d%has_global_row_map = .TRUE.
     ELSE
-       CALL dbcsr_assert (array_exists (dist%d%other_row_map),&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Row map does not exist.", __LINE__, error=error)
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (array_exists (dist%d%global_row_map),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Row map does not exist.", __LINE__, error=error)
+       ENDIF
     ENDIF
-    row_map = dist%d%other_row_map
+    row_map = dist%d%global_row_map
     CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_get_row_map
+  END SUBROUTINE dbcsr_get_global_row_map
 
 
 ! *****************************************************************************
-!> \brief Determines mapping from local to global cols
-!> \param[in] matrix            mapping for this distribution
-!> \param[in] bin_distribution  mapping of elements to bins
-!> \param[in] local_bin         the local bin
+!> \brief Determines mapping from global to local columns
+!> \param[in] dist              mapping for this distribution
+!> \param[in] col_map           mapping to local columns
 !> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_col_map (dist, col_map, error)
+  SUBROUTINE dbcsr_get_global_col_map (dist, col_map, error)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: col_map
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_col_map', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_col_map', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, npcols
@@ -2150,23 +2399,334 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
-    IF (.NOT. dist%d%has_other_col_map) THEN
+    IF (.NOT. dist%d%has_global_col_map) THEN
        col_dist => array_data (dbcsr_distribution_col_dist (dist))
        ALLOCATE (cmap (SIZE (col_dist)))
        npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
        CALL map_all_local_elements (cmap, col_dist, npcols)
-       CALL array_new (dist%d%other_col_map, cmap, gift=.TRUE.)
-       dist%d%has_other_col_map = .TRUE.
+       CALL array_new (dist%d%global_col_map, cmap, gift=.TRUE.)
+       dist%d%has_global_col_map = .TRUE.
     ELSE
        IF (careful_mod) THEN
-          CALL dbcsr_assert (array_exists (dist%d%other_col_map),&
+          CALL dbcsr_assert (array_exists (dist%d%global_col_map),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "Column map does not exist.", __LINE__, error=error)
        ENDIF
     ENDIF
-    col_map = dist%d%other_col_map
+    col_map = dist%d%global_col_map
     CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_get_col_map
+  END SUBROUTINE dbcsr_get_global_col_map
+
+
+! *****************************************************************************
+!> \brief Resets local rows, columns to the correct arrays and values.
+! *****************************************************************************
+  SUBROUTINE dbcsr_reset_locals (matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    TYPE(dbcsr_distribution_obj)             :: dist
+
+!   ---------------------------------------------------------------------------
+
+    dist = dbcsr_distribution (matrix)
+    CALL dbcsr_release_locals (matrix, error=error)
+    ! Rows
+    IF (dbg) &
+         WRITE(*,*)"reset local rows for ", TRIM(matrix%m%name),&
+         matrix%m%nblkrows_local, "prow", matrix%m%index(dbcsr_slot_home_prow),&
+         dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%m%dist))
+    CALL dbcsr_get_local_rows (dist, matrix%m%local_rows,&
+         matrix%m%index(dbcsr_slot_home_prow), error=error)
+    CALL array_hold (matrix%m%local_rows)
+    IF (dbg) WRITE(*,*)"local rows", matrix%m%local_rows%low%data
+    matrix%m%nblkrows_local = array_size (matrix%m%local_rows)
+    CALL dbcsr_get_global_row_map (dist, matrix%m%global_rows, error=error)
+    CALL array_hold (matrix%m%global_rows)
+    matrix%m%has_local_rows = .TRUE.
+    matrix%m%has_global_rows = .TRUE.
+    ! Columns
+    IF (dbg) &
+         WRITE(*,*)"reset local cols for ", TRIM(matrix%m%name),&
+         matrix%m%nblkcols_local, "pcol", matrix%m%index(dbcsr_slot_home_pcol),&
+         dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%m%dist))
+    CALL dbcsr_get_local_cols (dist, matrix%m%local_cols,&
+         matrix%m%index(dbcsr_slot_home_pcol), error=error)
+    CALL array_hold (matrix%m%local_cols)
+    IF (dbg) WRITE(*,*)"local cols", matrix%m%local_cols%low%data
+    matrix%m%nblkcols_local = array_size (matrix%m%local_cols)
+    CALL dbcsr_get_global_col_map (dist, matrix%m%global_cols, error=error)
+    CALL array_hold (matrix%m%global_cols)
+    matrix%m%has_local_cols = .TRUE.
+    matrix%m%has_global_cols = .TRUE.
+    !
+  END SUBROUTINE dbcsr_reset_locals
+
+! *****************************************************************************
+!> \brief Determines mapping from local to global virtual process rows
+!> \param[in] imgdist           image distribution
+!> \param[out] local_rows       local rows
+!> \param[in] local_vprow       the local virtual process row
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_local_vrows (imgdist, local_vrows, local_vprow, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: local_vrows
+    INTEGER, INTENT(IN)                      :: local_vprow
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vrows', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: el, error_handle, nvprows, &
+                                                vprow
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: vrow_dist
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! If the current local row mappings do not exist, create them.
+    IF (.NOT. imgdist%i%has_other_vl_rows) THEN
+       imgdist%i%has_other_vl_rows = .TRUE.
+       nvprows = dbcsr_mp_nprows (dbcsr_distribution_mp (imgdist%i%main))&
+               * imgdist%i%row_decimation
+       ALLOCATE (imgdist%i%other_vl_rows(0:nvprows-1))
+       ALLOCATE (nle (0:nvprows-1))
+       vrow_dist => array_data (imgdist%i%vrow_dist)
+       ! Count the number of local elements per row.
+       nle(:) = 0
+       DO el = 1, SIZE (vrow_dist)
+          vprow = vrow_dist(el)
+          nle(vprow) = nle(vprow) + 1
+       ENDDO
+       DO vprow = 0, nvprows-1
+          CALL array_new (imgdist%i%other_vl_rows(vprow),&
+               (/ (0, el=1,nle(vprow)) /), lb=1)
+       ENDDO
+       DEALLOCATE (nle)
+       CALL find_all_local_elements (imgdist%i%other_vl_rows, vrow_dist, nvprows)
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (ASSOCIATED (imgdist%i%other_vl_rows),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Local rows mapping does not exist.", __LINE__, error=error)
+       ENDIF
+    ENDIF
+    local_vrows = imgdist%i%other_vl_rows(local_vprow)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_local_vrows
+
+! *****************************************************************************
+!> \brief Determines mapping from local to global virtual process columnss
+!> \param[in] imgdist           image distribution
+!> \param[out] local_cols       local columnss
+!> \param[in] local_vpcol       the local virtual process column
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_local_vcols (imgdist, local_vcols, local_vpcol, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: local_vcols
+    INTEGER, INTENT(IN)                      :: local_vpcol
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vcols', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: el, error_handle, nvpcols, &
+                                                vpcol
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: vcol_dist
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! If the current local col mappings do not exist, create them.
+    IF (.NOT. imgdist%i%has_other_vl_cols) THEN
+       imgdist%i%has_other_vl_cols = .TRUE.
+       nvpcols = dbcsr_mp_npcols (dbcsr_distribution_mp (imgdist%i%main))&
+               * imgdist%i%col_decimation
+       ALLOCATE (imgdist%i%other_vl_cols(0:nvpcols-1))
+       ALLOCATE (nle (0:nvpcols-1))
+       vcol_dist => array_data (imgdist%i%vcol_dist)
+       ! Count the number of local elements per col.
+       nle(:) = 0
+       DO el = 1, SIZE (vcol_dist)
+          vpcol = vcol_dist(el)
+          nle(vpcol) = nle(vpcol) + 1
+       ENDDO
+       DO vpcol = 0, nvpcols-1
+          CALL array_new (imgdist%i%other_vl_cols(vpcol),&
+               (/ (0, el=1,nle(vpcol)) /), lb=1)
+       ENDDO
+       DEALLOCATE (nle)
+       CALL find_all_local_elements (imgdist%i%other_vl_cols, vcol_dist, nvpcols)
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (ASSOCIATED (imgdist%i%other_vl_cols),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Local cols mapping does not exist.", __LINE__, error=error)
+       ENDIF
+    ENDIF
+    local_vcols = imgdist%i%other_vl_cols(local_vpcol)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_local_vcols
+
+! *****************************************************************************
+!> \brief Determines mapping from global to virtual local rows
+!> \param[in] imgdist           mapping for this image distribution
+!> \param[in] row_map           mapping to local rows
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_global_vrow_map (imgdist, vrow_map, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: vrow_map
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vrow_map', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, nvprows
+    INTEGER, DIMENSION(:), POINTER           :: rmap, vrow_dist
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! If the current local row mappings do not exist, create them.
+    IF (.NOT. imgdist%i%has_global_vrow_map) THEN
+       vrow_dist => array_data (imgdist%i%vrow_dist)
+       ALLOCATE (rmap (SIZE (vrow_dist)))
+       nvprows = dbcsr_mp_nprows (dbcsr_distribution_mp (imgdist%i%main))&
+               * imgdist%i%row_decimation
+       CALL map_all_local_elements (rmap, vrow_dist, nvprows)
+       CALL array_new (imgdist%i%global_vrow_map, rmap, gift=.TRUE.)
+       imgdist%i%has_global_vrow_map = .TRUE.
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (array_exists (imgdist%i%global_vrow_map),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Row map does not exist.", __LINE__, error=error)
+       ENDIF
+    ENDIF
+    vrow_map = imgdist%i%global_vrow_map
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_global_vrow_map
+
+! *****************************************************************************
+!> \brief Determines mapping from global to virtual local columnss
+!> \param[in] imgdist           mapping for this image distribution
+!> \param[in] col_map           mapping to local columnss
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_global_vcol_map (imgdist, vcol_map, error)
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(array_i1d_obj), INTENT(OUT)         :: vcol_map
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vcol_map', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, nvpcols
+    INTEGER, DIMENSION(:), POINTER           :: rmap, vcol_dist
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! If the current local col mappings do not exist, create them.
+    IF (.NOT. imgdist%i%has_global_vcol_map) THEN
+       vcol_dist => array_data (imgdist%i%vcol_dist)
+       ALLOCATE (rmap (SIZE (vcol_dist)))
+       nvpcols = dbcsr_mp_npcols (dbcsr_distribution_mp (imgdist%i%main))&
+               * imgdist%i%col_decimation
+       CALL map_all_local_elements (rmap, vcol_dist, nvpcols)
+       CALL array_new (imgdist%i%global_vcol_map, rmap, gift=.TRUE.)
+       imgdist%i%has_global_vcol_map = .TRUE.
+    ELSE
+       IF (careful_mod) THEN
+          CALL dbcsr_assert (array_exists (imgdist%i%global_vcol_map),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Col map does not exist.", __LINE__, error=error)
+       ENDIF
+    ENDIF
+    vcol_map = imgdist%i%global_vcol_map
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_global_vcol_map
+
+
+
+! *****************************************************************************
+!> \brief Resets local rows, columns to the correct arrays and values
+!         for images.
+!*****************************************************************************
+  SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: imgdist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    TYPE(dbcsr_distribution_obj)             :: dist
+
+!   ---------------------------------------------------------------------------
+
+    dist = dbcsr_distribution (matrix)
+    ! Rows
+    CALL dbcsr_release_locals (matrix, error)
+    CALL dbcsr_get_local_vrows (imgdist, matrix%m%local_rows,&
+         matrix%m%index(dbcsr_slot_home_vprow), error=error)
+    CALL array_hold (matrix%m%local_rows)
+    matrix%m%has_local_rows = .TRUE.
+    !write(*,'(1X,A,7(1X,I7))')"reset_vlocals my homevprow",&
+    !     matrix%m%index(dbcsr_slot_home_vprow), &
+    !     matrix%m%index(dbcsr_slot_home_prow), matrix%m%index(dbcsr_slot_home_rowi),&
+    !     matrix%m%dist%d%mp_env%mp%myprow, matrix%m%dist%d%mp_env%mp%mypcol,&
+    !     SIZE(matrix%m%dist%d%mp_env%mp%pgrid,1), SIZE(matrix%m%dist%d%mp_env%mp%pgrid,2)
+    matrix%m%nblkrows_local = array_size (matrix%m%local_rows)
+    matrix%m%index(dbcsr_slot_nblkrows_local) = array_size (matrix%m%local_rows)
+    CALL dbcsr_get_global_vrow_map (imgdist, matrix%m%global_rows, error=error)
+    CALL array_hold (matrix%m%global_rows)
+    matrix%m%has_global_rows = .TRUE.
+    ! Columns
+    CALL dbcsr_get_local_vcols (imgdist, matrix%m%local_cols,&
+         matrix%m%index(dbcsr_slot_home_vpcol), error=error)
+    CALL array_hold (matrix%m%local_cols)
+    matrix%m%has_local_cols = .TRUE.
+    matrix%m%nblkcols_local = array_size (matrix%m%local_cols)
+    matrix%m%index(dbcsr_slot_nblkcols_local) = array_size (matrix%m%local_cols)
+    CALL dbcsr_get_global_vcol_map (imgdist, matrix%m%global_cols, error=error)
+    CALL array_hold (matrix%m%global_cols)
+    matrix%m%has_global_cols = .TRUE.
+  END SUBROUTINE dbcsr_reset_vlocals
+
+! *****************************************************************************
+!> \brief Converts virtual 1-D distribution to process and image
+  pure SUBROUTINE v_to_p_i_dist (nel, vdist, nim, pdist, idist)
+    INTEGER, INTENT(in)                      :: nel
+    INTEGER, DIMENSION(1:nel), INTENT(in)    :: vdist
+    INTEGER, INTENT(in)                      :: nim
+    INTEGER, DIMENSION(1:nel), INTENT(out)   :: pdist, idist
+
+    INTEGER                                  :: i
+
+    FORALL (i = 1 : nel)
+       pdist(i) = vdist(i) / nim
+       idist(i) = MOD (vdist(i), nim) + 1
+    END FORALL
+  END SUBROUTINE v_to_p_i_dist
+  SUBROUTINE v_to_p_i_dist_o (vdist, nim, pdist, idist)
+    TYPE(array_i1d_obj), INTENT(in)          :: vdist
+    INTEGER, INTENT(in)                      :: nim
+    TYPE(array_i1d_obj), INTENT(out)         :: pdist, idist
+
+    INTEGER                                  :: nel
+    INTEGER, DIMENSION(:), POINTER           :: id, pd, vd
+
+    nel = array_size (vdist)
+    vd => array_data (vdist)
+    ALLOCATE (pd(nel), id(nel))
+    CALL v_to_p_i_dist (nel, vd, nim, pd, id)
+    CALL array_new (pdist, pd, gift=.TRUE.)
+    CALL array_new (idist, id, gift=.TRUE.)
+  END SUBROUTINE v_to_p_i_dist_o
 
 
 ! *****************************************************************************
@@ -2221,19 +2781,24 @@ CONTAINS
   SUBROUTINE image_calculator (image_dist,&
        prow, rowi, pcol, coli,&
        myprow, mypcol, myrowi, mycoli,&
+       vprow, vpcol,&
        shifting)
-    TYPE(dbcsr_imagedistribution_type), &
+    TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: image_dist
     INTEGER, INTENT(OUT)                     :: prow, rowi, pcol, coli
     INTEGER, INTENT(in), OPTIONAL            :: myprow, mypcol
     INTEGER, INTENT(in)                      :: myrowi, mycoli
+    INTEGER, INTENT(OUT), OPTIONAL           :: vprow, vpcol
     CHARACTER, INTENT(IN)                    :: shifting
 
     INTEGER :: col_mult, my_pcol, my_prow, ncol_images, npcols, nprows, &
       nrow_images, nvpcols, nvprows, row_mult, vcol, vrow
     TYPE(dbcsr_mp_obj)                       :: mp
 
-    mp = dbcsr_distribution_mp (image_dist%main)
+!   ---------------------------------------------------------------------------
+
+    mp = image_dist%i%main%d%mp_env
+    !mp = dbcsr_distribution_mp (image_dist%i%main)
     nprows = dbcsr_mp_nprows (mp)
     npcols = dbcsr_mp_npcols (mp)
     IF (PRESENT (myprow)) THEN
@@ -2247,10 +2812,10 @@ CONTAINS
        my_pcol = dbcsr_mp_mypcol (mp)
     ENDIF
     !
-    nrow_images = image_dist%row_decimation
-    ncol_images = image_dist%col_decimation
-    row_mult = image_dist%row_multiplicity
-    col_mult = image_dist%col_multiplicity
+    nrow_images = image_dist%i%row_decimation
+    ncol_images = image_dist%i%col_decimation
+    row_mult = image_dist%i%row_multiplicity
+    col_mult = image_dist%i%col_multiplicity
     nvprows = nprows * nrow_images
     nvpcols = npcols * ncol_images
     !
@@ -2270,6 +2835,8 @@ CONTAINS
     rowi = MODULO (vrow, nrow_images)+1
     pcol = vcol / ncol_images
     coli = MODULO (vcol, ncol_images)+1
+    IF (PRESENT (vprow)) vprow = vrow
+    IF (PRESENT (vpcol)) vpcol = vcol
   END SUBROUTINE image_calculator
 
 END MODULE dbcsr_dist_operations

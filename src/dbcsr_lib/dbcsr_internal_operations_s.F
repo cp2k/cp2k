@@ -4,298 +4,196 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Issues actual DGEMM calls.
+!> \brief Processes MM stack and issues BLAS xGEMM calls
 !>
-!> \param[in] params           Stack of DGEMM parameters
-!> \param[in] n                Number of parameters
-!> \param[in] left_data_a      Left-matrix data
-!> \param[in] right_data_a     Right-matrix data
-!> \param[in,out] product_data_area  Data for results
-!> \param[out] lflop           (optional) Number of FLOPs used by DGEMM
+!> \param[in] params           Stack of MM parameters
+!> \param[in] stack_size       Number of parameters
+!> \param[in] a_data           Left-matrix data
+!> \param[in] b_data           Right-matrix data
+!> \param[in,out] c_data       Product data
+!> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE process_dgemm_stack_s(params,&
-       params_a, params_b, params_c,&
-       stack_size, stack_size_a, stack_size_b, stack_size_c,&
-       left_data_a, right_data_a, product_data_a, use_plasma, lflop, ltime, error)
-    INTEGER, INTENT(IN)                       :: stack_size, stack_size_a,&
-                                                 stack_size_b, stack_size_c
-    TYPE(dgemm_join), DIMENSION(1:stack_size), &
+  SUBROUTINE blas_process_mm_stack_s(params,&
+       stack_size,&
+       a_data, b_data, c_data, error)
+    INTEGER, INTENT(IN)                       :: stack_size
+    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
       INTENT(IN)                              :: params
-    TYPE(block_parameters), DIMENSION(1:stack_size_a), INTENT(IN) :: params_a
-    TYPE(block_parameters), DIMENSION(1:stack_size_b), INTENT(IN) :: params_b
-    TYPE(block_parameters), DIMENSION(1:stack_size_c), INTENT(IN) :: params_c
-    REAL(kind=real_4), DIMENSION(:), INTENT(IN)         :: left_data_a, &
-                                                 right_data_a
-    REAL(kind=real_4), DIMENSION(:), INTENT(INOUT)      :: product_data_a
-    LOGICAL, INTENT(IN), OPTIONAL             :: use_plasma
-    INTEGER(KIND=int_8), INTENT(OUT), &
-      OPTIONAL                                :: lflop
-    REAL(KIND=real_8), INTENT(OUT), OPTIONAL  :: ltime
+    REAL(kind=real_4), DIMENSION(*), INTENT(IN)         :: a_data, &
+                                                 b_data
+    REAL(kind=real_4), DIMENSION(*), INTENT(INOUT)      :: c_data
     TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_dgemm_stack_s', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'blas_process_mm_stack_s', &
       routineP = moduleN//':'//routineN
-    REAL, PARAMETER                           :: resize_factor = 1.618034
 
-    INTEGER                                   :: c, plasma_info, lda, ldb, ldc, r, sp,&
-                                                 poff
-    INTEGER                                   :: sp_c, sp_a, sp_b
-    LOGICAL                                   :: my_use_plasma
+    INTEGER                                   :: sp
 
+!   ---------------------------------------------------------------------------
+
+    DO sp = 1, stack_size
+       CALL SGEMM('N',&
+            'N',&
+            params(sp)%m, params(sp)%n,& !m, n
+            params(sp)%k,& ! k
+            1.0_real_4,& ! alpha
+            a_data(params(sp)%a_first),& ! A
+            params(sp)%m,& !lda
+            b_data(params(sp)%b_first),& ! B
+            params(sp)%k,& !ldb
+            1.0_real_4,& ! beta
+            c_data(params(sp)%c_first), params(sp)%m)
+    ENDDO
+  END SUBROUTINE blas_process_mm_stack_s
+
+! *****************************************************************************
+!> \brief Processes MM stack and issues internal MM calls.
+!>
+!> \param[in] params           Stack of MM parameters
+!> \param[in] stack_size       Number of parameters
+!> \param[in] a_data           Left-matrix data
+!> \param[in] b_data           Right-matrix data
+!> \param[in,out] c_data       Product data
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE internal_process_mm_stack_s(params, stack_size,&
+       a_data, b_data, c_data, error)
+    INTEGER, INTENT(IN)                       :: stack_size
+    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+      INTENT(IN)                              :: params
+    REAL(kind=real_4), DIMENSION(*), INTENT(IN)         :: a_data, &
+                                                 b_data
+    REAL(kind=real_4), DIMENSION(*), INTENT(INOUT)      :: c_data
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'internal_process_mm_stack_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                   :: sp
+
+!   ---------------------------------------------------------------------------
+
+    DO sp = 1, stack_size
+       CALL internal_mm_s_nn(&
+            params(sp)%m,&
+            params(sp)%n,&
+            params(sp)%k,&
+            a_data(params(sp)%a_first),&
+            b_data(params(sp)%b_first),&
+            c_data(params(sp)%c_first))
+    ENDDO
+  END SUBROUTINE internal_process_mm_stack_s
+
+
+! *****************************************************************************
+!> \brief Processes MM stack and issues SMM library calls
+!>
+!> \param[in] params           Stack of MM parameters
+!> \param[in] stack_size       Number of parameters
+!> \param[in] a_data           Left-matrix data
+!> \param[in] b_data           Right-matrix data
+!> \param[in,out] c_data       Product data
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE smm_process_mm_stack_s(params,&
+       stack_size,&
+       a_data, b_data, c_data, error)
+    INTEGER, INTENT(IN)                       :: stack_size
+    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+      INTENT(IN)                              :: params
+    REAL(kind=real_4), DIMENSION(*), INTENT(IN)         :: a_data, &
+                                                 b_data
+    REAL(kind=real_4), DIMENSION(*), INTENT(INOUT)      :: c_data
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'smm_process_mm_stack_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                   :: sp
+
+!   ---------------------------------------------------------------------------
+
+    DO sp = 1, stack_size
+       CALL smm_snn(&
+            params(sp)%m,&
+            params(sp)%n,&
+            params(sp)%k,&
+            a_data(params(sp)%a_first),&
+            b_data(params(sp)%b_first),&
+            c_data(params(sp)%c_first))
+    ENDDO
+  END SUBROUTINE smm_process_mm_stack_s
+
+
+! *****************************************************************************
+!> \brief Processes MM stack and issues Plasma xGEMM calls.
+!>
+!> \param[in] params           Stack of MM parameters
+!> \param[in] stack_size       Number of parameters
+!> \param[in] a_data           Left-matrix data
+!> \param[in] b_data           Right-matrix data
+!> \param[in,out] c_data       Product data
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE plasma_process_mm_stack_s(params, stack_size,&
+       a_data, b_data, c_data, error)
+    INTEGER, INTENT(IN)                       :: stack_size
+    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+      INTENT(IN)                              :: params
+    REAL(kind=real_4), DIMENSION(*), INTENT(IN)         :: a_data, &
+                                                 b_data
+    REAL(kind=real_4), DIMENSION(*), INTENT(INOUT)      :: c_data
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'plasma_process_mm_stack_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                   :: sp
+
+!   ---------------------------------------------------------------------------
 #ifdef __PLASMA
     INCLUDE 'plasmaf.h'
+#else
+    CALL dbcsr_assert(.FALSE.,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "PLASMA support not compiled.", __LINE__, error=error)
 #endif
-
-    my_use_plasma = .FALSE.
-    IF (PRESENT(use_plasma)) my_use_plasma = use_plasma
-    IF (PRESENT (lflop)) lflop = INT(0, int_8)
-    IF (PRESENT (ltime)) ltime = 0.0_real_8
-    ! Setup encapsulated data area
+    !
     DO sp = 1, stack_size
-       sp_c = params(sp)%p_c
-       sp_a = params(sp)%p_a
-       sp_b = params(sp)%p_b
-       IF (params_c(sp_c)%nze .EQ. 0 .OR. params(sp)%last_k .LT. 0) THEN
-          CYCLE
-       ENDIF
-       !
-       poff = params_c(sp_c)%offset
-       !
-       ! Avoid nagging compilers
-       IF (params(sp)%beta%r_sp .EQ. 0.0_real_4) THEN
-          IF (.NOT. params_c(sp_c)%tr &
-               .OR. params(sp)%last_n .EQ. params_c(sp_c)%logical_cols) THEN
-             product_data_a(poff : poff-1+params_c(sp_c)%logical_rows*params(sp)%last_n) = 0.0_real_4
-             !CALL dbcsr_data_clear (product_data_area,&
-             !     lb=poff,&
-             !     ub=poff-1+params_c(sp_c)%logical_rows*params(sp)%last_n)
-          ELSE
-             ! It must be transposed.
-             FORALL (r = 1 : params_c(sp_c)%logical_rows,&
-                  c = 1 : params(sp)%last_n)
-                product_data_a(poff-1+(r-1)*params_c(sp_c)%logical_cols+c) =&
-                     0.0_real_4
-             END FORALL
-             !### optimize out the inner loop (turn into a range)
-             !DO r = 1, params_c(sp_c)%logical_rows
-             !   DO c = 1, params(sp)%last_n
-             !      CALL dbcsr_data_clear(product_data_area,&
-             !           lb=poff-1+(r-1)*params_c(sp_c)%logical_cols+c,&
-             !           ub=poff-1+(r-1)*params_c(sp_c)%logical_cols+c)
-             !   ENDDO
-             !ENDDO
-             !FORALL (r = 1:params(sp)%lrows_c, c = 1:params(sp)%last_n)
-             !   product_data_d((r-1)*params(sp)%lcols_c+c) = 0.0_dp
-             !END FORALL
-          ENDIF
-       ENDIF
-       IF (params_a(sp_a)%nze .EQ. 0&
-            .OR. params_b(sp_b)%nze .EQ. 0 &
-            .OR. params(sp)%last_k .EQ. 0) THEN
-          CYCLE
-       ENDIF
-       ! Now prepare and issue the multiplies.
-       lda = select_n_or_t (params_a(sp_a)%tr,&
-            params_a(sp_a)%logical_rows, params_a(sp_a)%logical_cols)
-       ldb = select_n_or_t (params_b(sp_b)%tr,&
-            params_b(sp_b)%logical_rows, params_b(sp_b)%logical_cols)
-       ldc = select_n_or_t (params_c(sp_c)%tr,&
-            params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols)
-       !write(*,*)"LDx", lda, ldb, ldc
-       IF (debug_mod) THEN
-          WRITE(*,*)"Multiplying left data", sp, params_a(sp_a)%offset,&
-               params_a(sp_a)%nze
-          WRITE(*,'(10(1X,F9.3))')left_data_a(params_a(sp_a)%offset&
-               :params_a(sp_a)%offset+params_a(sp_a)%nze-1)
-          WRITE(*,*)"Multiplying right data", sp, &
-               params_b(sp_b)%offset, params_b(sp_b)%nze
-          WRITE(*,'(10(1X,F9.3))')right_data_a(params_b(sp_b)%offset&
-               :params_b(sp_b)%offset+params_b(sp_b)%nze-1)
-          WRITE(*,*)"Multiplying product data", sp, poff, params_c(sp_c)%nze,"/",&
-               SIZE(product_data_a), poff+params_c(sp_c)%nze-1
-          WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
-               poff+params_c(sp_c)%nze-1)
-          WRITE(*,*)"again"
-          WRITE(*,'(10(1X,F9.3))')product_data_a
-       ENDIF
-       IF (.NOT. params_c(sp_c)%tr) THEN
-          IF (PRESENT (ltime)) ltime = ltime + m_walltime()
-          IF(my_use_plasma) THEN
 #ifdef __PLASMA
-             CALL plasma_SGEMM(&
-                  plasma_mat_type(params_a(sp_a)%tr),&
-                  plasma_mat_type(params_b(sp_b)%tr),&
-                  params_c(sp_c)%logical_rows, params(sp)%last_n,& !m, n
-                  params(sp)%last_k,& ! k
-                  params(sp)%alpha%r_sp,&
-                  left_data_a(params_a(sp_a)%offset), lda,&
-                  right_data_a(params_b(sp_b)%offset), ldb,&
-                  params(sp)%beta%r_sp,&
-                  product_data_a(poff), ldc,&
-                  plasma_info)
-             CALL dbcsr_assert( plasma_info, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "plasma_gemm failed", __LINE__, error=error)
+       CALL plasma_SGEMM(&
+            'N',&
+            'N',&
+            params(sp)%m, params(sp)%n,& !m, n
+            params(sp)%k,& ! k
+            1.0_real_4,& ! alpha
+            a_data(params(sp)%a_first),& ! A
+            params(sp)%m,& !lda
+            b_data(params(sp)%b_first),& ! B
+            params(sp)%k,& !ldb
+            1.0_real_4,& ! beta
+            c_data(params(sp)%c_first), params(sp)%m,& !c, ldc
+            plasma_info)
+       CALL dbcsr_assert( plasma_info, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "plasma_gemm failed", __LINE__, error=error)
 #else
-             CALL dbcsr_assert( .FALSE., dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "plasma badly set", __LINE__, error=error)
+       CALL dbcsr_assert( .FALSE., dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "plasma badly set", __LINE__, error=error)
 #endif
-          ELSEIF (internal_gemm) THEN
-             CALL internal_SGEMM(&
-                  params_a(sp_a)%tr,&
-                  params_b(sp_b)%tr,&
-                  params_c(sp_c)%logical_rows, params(sp)%last_n,& !m, n
-                  params(sp)%last_k,& ! k
-                  params(sp)%alpha%r_sp,&
-                  left_data_a(params_a(sp_a)%offset:), lda,&
-                  right_data_a(params_b(sp_b)%offset:), ldb,&
-                  params(sp)%beta%r_sp,&
-                  product_data_a(poff:), ldc)
-          ELSE
-             CALL SGEMM(&
-                  blas_mat_type(params_a(sp_a)%tr),&
-                  blas_mat_type(params_b(sp_b)%tr),&
-                  params_c(sp_c)%logical_rows, params(sp)%last_n,& !m, n
-                  params(sp)%last_k,& ! k
-                  params(sp)%alpha%r_sp,&
-                  left_data_a(params_a(sp_a)%offset), lda,&
-                  right_data_a(params_b(sp_b)%offset), ldb,&
-                  params(sp)%beta%r_sp,&
-                  product_data_a(poff), ldc)
-          ENDIF
-          IF (PRESENT (ltime)) ltime = m_walltime() - ltime
-          IF (PRESENT (lflop)) &
-               lflop = lflop + INT(2, int_8) * &
-               INT(params_c(sp_c)%logical_rows, int_8)* &
-               INT(params(sp)%last_n, int_8) *&
-               INT(params(sp)%last_k, int_8)
-       ELSE
-          IF (PRESENT (ltime)) ltime = ltime + m_walltime()
-          IF(my_use_plasma) THEN
-#ifdef __PLASMA
-             CALL plasma_SGEMM(&
-                  plasma_mat_type(.NOT.params_b(sp_b)%tr),&
-                  plasma_mat_type(.NOT.params_a(sp_a)%tr),&
-                  params_c(sp_c)%logical_cols, params_c(sp_c)%logical_rows,& !m, n (switched)
-                  params(sp)%last_k,& ! k
-                  params(sp)%alpha%r_sp,&
-                  right_data_a(params_b(sp_b)%offset), ldb,&
-                  left_data_a(params_a(sp_a)%offset), lda,&
-                  params(sp)%beta%r_sp,&
-                  product_data_a(poff), ldc,&
-                  plasma_info)
-             CALL dbcsr_assert( plasma_info, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "plasma_gemm failed", __LINE__, error=error)
-#else
-             CALL dbcsr_assert( .FALSE., dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "plasma badly set", __LINE__, error=error)
-#endif
-          ELSEIF (internal_gemm) THEN
-             CALL internal_SGEMM(&
-                  .NOT.params_b(sp_b)%tr,&
-                  .NOT.params_a(sp_a)%tr,&
-                  params_c(sp_c)%logical_cols, params_c(sp_c)%logical_rows,& !m, n (switched)
-                  params(sp)%last_k,& ! k
-                  params(sp)%alpha%r_sp,&
-                  right_data_a(params_b(sp_b)%offset:), ldb,&
-                  left_data_a(params_a(sp_a)%offset:), lda,&
-                  params(sp)%beta%r_sp,&
-                  product_data_a(poff:), ldc)
-          ELSE
-             CALL SGEMM(&
-                  blas_mat_type(.NOT.params_b(sp_b)%tr),&
-                  blas_mat_type(.NOT.params_a(sp_a)%tr),&
-                  params_c(sp_c)%logical_cols, params_c(sp_c)%logical_rows,& !m, n (switched)
-                  params(sp)%last_k,& ! k
-                  params(sp)%alpha%r_sp,&
-                  right_data_a(params_b(sp_b)%offset), ldb,&
-                  left_data_a(params_a(sp_a)%offset), lda,&
-                  params(sp)%beta%r_sp,&
-                  product_data_a(poff), ldc)
-          ENDIF
-          IF (PRESENT (ltime)) ltime = m_walltime() - ltime
-          IF (PRESENT (lflop)) &
-               lflop = lflop + INT(2, int_8) * &
-               INT(params(sp)%last_n, int_8) * &
-               INT(params_c(sp_c)%logical_cols, int_8) * &
-               INT(params(sp)%last_k, int_8)
-       ENDIF
-       IF (debug_mod) THEN
-          WRITE(*,*)"Resulting product data", poff,":",poff+params_c(sp_c)%nze-1,&
-               SIZE(product_data_a)
-          WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
-               poff+params_c(sp_c)%nze-1)
-          WRITE(*,*)"again"
-          WRITE(*,'(10(1X,F9.3))')product_data_a
-       ENDIF
     ENDDO
-  END SUBROUTINE process_dgemm_stack_s
+  END SUBROUTINE plasma_process_mm_stack_s
 
 
-  PURE SUBROUTINE internal_SGEMM(&
-       TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-    LOGICAL, INTENT(IN)                      :: TRANSA, TRANSB
-    INTEGER, INTENT(IN)                      :: M, N, K
-    INTEGER, INTENT(IN)                      :: LDC
-    REAL(kind=real_4), INTENT(INOUT)                   :: C(LDC,*)
-    REAL(kind=real_4), INTENT(IN)                      :: BETA
-    INTEGER, INTENT(IN)                      :: LDB
-    REAL(kind=real_4), INTENT(IN)                      :: B(LDB,*)
-    INTEGER, INTENT(IN)                      :: LDA
-    REAL(kind=real_4), INTENT(IN)                      :: A(LDA,*), ALPHA
-    IF (.NOT. transa .AND. .NOT. transb) THEN
-       CALL internal_SGEMM_nn(M,N,K,ALPHA,A,B,BETA,C)
-    ELSEIF (.NOT. transa .AND. transb) THEN
-       CALL internal_SGEMM_nt(M,N,K,ALPHA,A,B,BETA,C)
-    ELSEIF (transa .AND. .NOT. transb) THEN
-       CALL internal_SGEMM_tn(M,N,K,ALPHA,A,B,BETA,C)
-    ELSEIF (transa .AND. transb) THEN
-       CALL internal_SGEMM_tt(M,N,K,ALPHA,A,B,BETA,C)
-    ENDIF
-  END SUBROUTINE internal_SGEMM
 
-  PURE SUBROUTINE internal_SGEMM_nn(&
-       M,N,K,ALPHA,A,B,BETA,C)
+  PURE SUBROUTINE internal_mm_s_nn(&
+       M,N,K,A,B,C)
     INTEGER, INTENT(IN)                      :: M, N, K
     REAL(kind=real_4), INTENT(INOUT)                   :: C(M,N)
-    REAL(kind=real_4), INTENT(IN)                      :: BETA
     REAL(kind=real_4), INTENT(IN)                      :: B(K,N)
-    REAL(kind=real_4), INTENT(IN)                      :: A(M,K), ALPHA
-    C(:,:) = BETA * C(:,:) &
-         + ALPHA * MATMUL (A, B)
-  END SUBROUTINE internal_SGEMM_nn
+    REAL(kind=real_4), INTENT(IN)                      :: A(M,K)
+    C(:,:) = C(:,:) + MATMUL (A, B)
+  END SUBROUTINE internal_mm_s_nn
 
-  PURE SUBROUTINE internal_SGEMM_nt(&
-       M,N,K,ALPHA,A,B,BETA,C)
-    INTEGER, INTENT(IN)                      :: M, N, K
-    REAL(kind=real_4), INTENT(INOUT)                   :: C(M,N)
-    REAL(kind=real_4), INTENT(IN)                      :: BETA
-    REAL(kind=real_4), INTENT(IN)                      :: B(N,K)
-    REAL(kind=real_4), INTENT(IN)                      :: A(M,K), ALPHA
-    C(:,:) = BETA * C(:,:) &
-         + ALPHA * MATMUL (A, TRANSPOSE(B))
-  END SUBROUTINE internal_SGEMM_nt
-
-  PURE SUBROUTINE internal_SGEMM_tn(&
-       M,N,K,ALPHA,A,B,BETA,C)
-    INTEGER, INTENT(IN)                      :: M, N, K
-    REAL(kind=real_4), INTENT(INOUT)                   :: C(M,N)
-    REAL(kind=real_4), INTENT(IN)                      :: BETA
-    REAL(kind=real_4), INTENT(IN)                      :: B(K,N)
-    REAL(kind=real_4), INTENT(IN)                      :: A(K,M), ALPHA
-    C(:,:) = BETA * C(:,:) &
-         + ALPHA * MATMUL (TRANSPOSE(A), B)
-  END SUBROUTINE internal_SGEMM_tn
-
-  PURE SUBROUTINE internal_SGEMM_tt(&
-       M,N,K,ALPHA,A,B,BETA,C)
-    INTEGER, INTENT(IN)                      :: M, N, K
-    REAL(kind=real_4), INTENT(INOUT)                   :: C(M,N)
-    REAL(kind=real_4), INTENT(IN)                      :: BETA
-    REAL(kind=real_4), INTENT(IN)                      :: B(N,K)
-    REAL(kind=real_4), INTENT(IN)                      :: A(K,M), ALPHA
-    C(:,:) = BETA * C(:,:) &
-         + ALPHA * MATMUL (TRANSPOSE(A), TRANSPOSE(B))
-  END SUBROUTINE internal_SGEMM_tt
 
 
 !> \brief Calculates norms of the entire matrix with minimal overhead.
@@ -342,5 +240,49 @@
     !$omp end do
     !$omp end parallel
   END SUBROUTINE calc_norms_s
+
+!> \brief Calculates norms of the entire matrix with minimal overhead.
+  SUBROUTINE calc_norms_list_s(norms, nblks,&
+       blki, rbs, cbs, DATA, local, local2global_rows, local2global_cols)
+    REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
+    INTEGER, INTENT(IN)                      :: nblks
+    INTEGER, DIMENSION(3,nblks), INTENT(IN)  :: blki
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rbs, cbs
+    REAL(kind=real_4), DIMENSION(:), &
+      INTENT(IN)                             :: DATA
+    LOGICAL, INTENT(IN)                      :: local
+    INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_rows
+    INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_cols
+
+    INTEGER                                  :: blk, bp, bpe, row, col, &
+                                                row_size
+
+!   ---------------------------------------------------------------------------
+
+    !$omp parallel default(none) &
+    !$omp          private (row, col, blk, bp, bpe) &
+    !$omp          shared (local, nblks) &
+    !$omp          shared (rbs, cbs, blki, &
+    !$omp                  data, norms, local2global_rows, local2global_cols)
+    !$omp do
+    DO blk = 1, nblks
+       IF (blki(3,blk) .NE. 0) THEN
+          bp = blki(3,blk)
+          IF (local) THEN
+             row = local2global_rows(blki(1,blk))
+             col = local2global_cols(blki(2,blk))
+          ELSE
+             row = blki(1,blk)
+             col = blki(2,blk)
+          ENDIF
+          bpe = bp + rbs(row) * cbs(col) - 1
+          norms(blk) = SQRT (REAL (SUM(ABS(DATA(bp:bpe))**2), KIND=sp))
+       ELSE
+          norms(blk) = 0.0_sp
+       ENDIF
+    ENDDO
+    !$omp end do
+    !$omp end parallel
+  END SUBROUTINE calc_norms_list_s
 
 

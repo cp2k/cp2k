@@ -43,6 +43,7 @@ MODULE dbcsr_types
             dbcsr_mp_obj, dbcsr_mp_type,&
             dbcsr_distribution_obj, dbcsr_distribution_type,&
             dbcsr_imagedistribution_type,&
+            dbcsr_imagedistribution_obj,&
             dbcsr_iterator,&
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
@@ -54,6 +55,7 @@ MODULE dbcsr_types
             dbcsr_slot_row_p,&
             dbcsr_slot_col_i,&
             dbcsr_slot_blk_p,&
+            dbcsr_slot_thr_c,&
             dbcsr_slot_nblks,&
             dbcsr_slot_nze,&
             dbcsr_slot_dense,&
@@ -70,6 +72,8 @@ MODULE dbcsr_types
             dbcsr_slot_home_pcol,&
             dbcsr_slot_home_rowi,&
             dbcsr_slot_home_coli,&
+            dbcsr_slot_home_vprow,&
+            dbcsr_slot_home_vpcol,&
             dbcsr_num_slots
   PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
             dbcsr_type_complex_4, dbcsr_type_complex_8,&
@@ -84,9 +88,6 @@ MODULE dbcsr_types
   PUBLIC :: dbcsr_filter_frobenius
   PUBLIC :: dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm,&
             dbcsr_norm_gershgorin, dbcsr_norm_column
-
-  INTEGER, PARAMETER :: dbcsr_meta_size = 17 ! The number of meta fields
-
 
 ! *****************************************************************************
 !> \brief A processor (process) grid distribution
@@ -129,12 +130,16 @@ MODULE dbcsr_types
 !> \var local_rows            list of rows local to the processor grid row
 !> \var local_cols            list of columns local to the processor grid
 !>                            column
-!> \var other_rows            local rows for each process row
-!> \var other_cols            local columns for each process column
-!> \var other_row_map         mapping from rows to sequence in local rows
-!> \var other_col_map         mapping from rows to sequence in local columns
-!> \var has_other_row_map     whether other_row_map is defined
-!> \var has_other_col_map     whether other_col_map is defined
+!> \var other_l_rows          local rows for each process row
+!> \var other_l_cols          local columns for each process column
+!> \var has_other_l_rows      other_rows is defined
+!> \var has_other_l_cols      other_cols is defined
+!> \var global_row_map        mapping from rows to sequence in local rows
+!>                            (global to local mapping)
+!> \var global_col_map        mapping from rows to sequence in local columns
+!>                            (global to local mapping)
+!> \var has_global_row_map    whether other_row_map is defined
+!> \var has_global_col_map    whether other_col_map is defined
 !> \var row_map               distribution map for rows
 !> \var col_map               distribution map for columns
 !> \var thread_dist           thread distribution (of the rows)
@@ -146,10 +151,12 @@ MODULE dbcsr_types
   TYPE dbcsr_distribution_type
      TYPE(array_i1d_obj)               :: row_dist, col_dist
      TYPE(array_i1d_obj)               :: local_rows, local_cols
-     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_rows, other_cols
-     TYPE(array_i1d_obj)               :: other_row_map, other_col_map
-     LOGICAL                           :: has_other_row_map, has_other_col_map
+     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_rows, other_l_cols
+     LOGICAL                           :: has_other_l_rows, has_other_l_cols
+     TYPE(array_i1d_obj)               :: global_row_map, global_col_map
+     LOGICAL                           :: has_global_row_map, has_global_col_map
      TYPE(array_i1d_obj)               :: row_map, col_map
+     LOGICAL                           :: has_thread_dist
      TYPE(array_i1d_obj)               :: thread_dist
      INTEGER                           :: num_threads
      TYPE(dbcsr_mp_obj)                :: mp_env
@@ -175,13 +182,27 @@ MODULE dbcsr_types
 !>                                      to a real row/column
 !> \var row_multiplicity, col_multiplicity   Number of real rows/columns mapped
 !>                                      to a virtual row/column
+!> \var refcount                        count of references
 ! *****************************************************************************
   TYPE dbcsr_imagedistribution_type
      TYPE(dbcsr_distribution_obj)       :: main
      TYPE(array_i1d_obj)                :: row_image, col_image
      INTEGER                            :: row_decimation, col_decimation
      INTEGER                            :: row_multiplicity, col_multiplicity
+     !
+     TYPE(array_i1d_obj)                :: vrow_dist, vcol_dist
+     !
+     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_vl_rows, other_vl_cols
+     TYPE(array_i1d_obj)               :: global_vrow_map, global_vcol_map
+     LOGICAL                           :: has_other_vl_rows, has_other_vl_cols,&
+                                          has_global_vrow_map, has_global_vcol_map
+     INTEGER :: id
+     INTEGER :: refcount
   END TYPE dbcsr_imagedistribution_type
+
+  TYPE dbcsr_imagedistribution_obj
+     TYPE(dbcsr_imagedistribution_type), POINTER :: i
+  END TYPE dbcsr_imagedistribution_obj
 
 ! *****************************************************************************
 !> \brief Stores a scalar in any of the supported data types.
@@ -382,6 +403,7 @@ MODULE dbcsr_types
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix type.
 !> \par arrays data and index hold the bulk of the data.
+!> \var serial_number   a unique number of each created matrix
 !> \var initialized whether the matrix is initialized (i.e., it is not random
 !>                  garbage from memory)
 !> \var valid       whether the matrix is valid (consistent)
@@ -395,6 +417,7 @@ MODULE dbcsr_types
 !>                  row_p(row)+1:row_p(row+1).
 !> \var col_i       the global blocked column number of this block.
 !> \var blk_p       the pointer into the data array of this block.
+!> \var thr_c       elements/thread for list index
 !> \var row_blk_size          sizes (rows in a block) of blocked rows
 !> \var col_blk_size          sizes (columns in a block) of blocked columns
 !> \var row_blk_offset          row offset (size = nrow+1)
@@ -434,6 +457,7 @@ MODULE dbcsr_types
 !>                            matrices before multiplication
 ! *****************************************************************************
   TYPE dbcsr_type
+     INTEGER                            :: serial_number
      LOGICAL                            :: valid
      INTEGER                            :: initialized
      CHARACTER(LEN=default_string_length) :: name
@@ -442,12 +466,16 @@ MODULE dbcsr_types
      INTEGER, DIMENSION(:), POINTER     :: index
      INTEGER, DIMENSION(:), POINTER     :: row_p,&
           &                                col_i,&
-          &                                blk_p
+          &                                blk_p,&
+          &                                thr_c
      TYPE(array_i1d_obj)                   row_blk_size,&
           &                                col_blk_size,&
           &                                row_blk_offset,&
           &                                col_blk_offset,&
-          &                                local_rows, global_rows
+          &                                local_rows, global_rows,&
+          &                                local_cols, global_cols
+     LOGICAL                               has_local_rows, has_global_rows,&
+                                           has_local_cols, has_global_cols
      INTEGER                            :: max_rbs, max_cbs
 
      INTEGER                             :: sparsity_id
@@ -462,7 +490,7 @@ MODULE dbcsr_types
      CHARACTER               :: replication_type
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
      !LOGICAL                 :: transpose
-     LOGICAL                 :: bcsc, local_indexing
+     LOGICAL                 :: bcsc, local_indexing, list_indexing
      LOGICAL                 :: special_memory
      TYPE(dbcsr_block_buffer_obj) :: buffers
      !TYPE(dbcsr_work_type)   :: w
@@ -517,10 +545,16 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_slot_home_pcol = 15
   INTEGER, PARAMETER          :: dbcsr_slot_home_rowi = 16
   INTEGER, PARAMETER          :: dbcsr_slot_home_coli = 17
+  INTEGER, PARAMETER          :: dbcsr_slot_home_vprow = 18
+  INTEGER, PARAMETER          :: dbcsr_slot_home_vpcol = 19
+  ! The number of meta fields.  Its value should be the index of the
+  ! last slot listed above.
+  INTEGER, PARAMETER          :: dbcsr_meta_size = 19
   INTEGER, PARAMETER          :: dbcsr_slot_row_p = dbcsr_meta_size+2
   INTEGER, PARAMETER          :: dbcsr_slot_col_i = dbcsr_meta_size+4
   INTEGER, PARAMETER          :: dbcsr_slot_blk_p = dbcsr_meta_size+6
-  INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+7
+  INTEGER, PARAMETER          :: dbcsr_slot_thr_c = dbcsr_meta_size+8
+  INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+9 ! previous + 1
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix object.
@@ -577,7 +611,7 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_2d_array_type
      TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: mats
-     TYPE(dbcsr_imagedistribution_type) :: image_dist
+     TYPE(dbcsr_imagedistribution_obj) :: image_dist
   END TYPE dbcsr_2d_array_type
 
 END MODULE dbcsr_types

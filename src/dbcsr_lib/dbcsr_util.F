@@ -33,11 +33,14 @@ MODULE dbcsr_util
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data_size_referenced, &
-       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index
+       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
        dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-       dbcsr_slot_dense, dbcsr_slot_nblkcols_local, &
+       dbcsr_slot_dense, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, &
+       dbcsr_slot_home_prow, dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, &
+       dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
        dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
        dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
        dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
@@ -65,7 +68,9 @@ MODULE dbcsr_util
             global_offsets_to_local,&
             dbcsr_unpack_i8_2i4, make_coordinate_tuple,&
             nfull_elements,&
-            dbcsr_calc_block_sizes
+            dbcsr_calc_block_sizes,&
+            find_block_of_element,&
+            get_internal_offsets
   PUBLIC :: swap, sgn
   ! string routines
   PUBLIC :: uppercase
@@ -73,6 +78,7 @@ MODULE dbcsr_util
   PUBLIC :: gcd, lcm, ceil_log2
   ! utility routines
   PUBLIC :: sort, joaat_hash
+  PUBLIC :: count_bins
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
@@ -104,19 +110,20 @@ CONTAINS
 !>        that hint is in the range [0, nblocks].
 !> \param[in] full            full element
 !> \param[out] block          block to which full belongs
-!> \param[in] block_start     starting full elements of blocks
-!> \param[out] block_end      ending full elements of blocks
+!> \param[in] block_offsets   starting full elements of blocks
 !> \param[in] hint            where to start looking; ignored if 0
 ! *****************************************************************************
   SUBROUTINE find_block_of_element(full, block, nblocks,&
-       block_start, block_end, hint, error)
+       block_offsets, hint, error)
     INTEGER, INTENT(in)                      :: full
     INTEGER, INTENT(out)                     :: block
     INTEGER, INTENT(in)                      :: nblocks
-    INTEGER, DIMENSION(1:nblocks), &
-      INTENT(in)                             :: block_start, block_end
+    INTEGER, DIMENSION(1:nblocks+1), &
+      INTENT(in)                             :: block_offsets
     INTEGER, INTENT(in)                      :: hint
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: count
 
@@ -126,22 +133,21 @@ CONTAINS
        block = MAX(1,(nblocks+1)/2)
     ENDIF
     count = 0
-    DO WHILE (block_start(block) .GT. full .OR. block_end(block) .LT. full)
-       IF (block_start(block) .GT. full) THEN
+    DO WHILE (block_offsets(block) .GT. full .OR. block_offsets(block+1)-1 .LT. full)
+       IF (block_offsets(block) .GT. full) THEN
           block = block-1
-       ELSEIF (block_end(block) .LT. full) THEN
+       ELSEIF (block_offsets(block+1)-1 .LT. full) THEN
           block = block+1
        ENDIF
        count = count+1
-       IF (count .GT. nblocks .OR. block .LT. 1 .OR. block .GT. nblocks) THEN
-          WRITE(*,'(1X,A,I9,A,I9,A)')"Want to find block",&
-               block," of",nblocks," blocks"
-          !WRITE(*,'(10(1X,I7))')block_start
-          !WRITE(*,'(10(1X,I7))')block_end
-          !WRITE(*,*)"full, nblocks, count, hint", full, nblocks, count, hint
-          CALL dbcsr_assert (count .LE. nblocks, dbcsr_failure_level,&
-               dbcsr_internal_error, "find_block_of_element",&
-               "Too many searches",__LINE__,error)
+       IF (dbg) THEN
+          IF (count .GT. nblocks .OR. block .LT. 1 .OR. block .GT. nblocks) THEN
+             WRITE(*,'(1X,A,I9,A,I9,A)')"Want to find block",&
+                  block," of",nblocks," blocks"
+             CALL dbcsr_assert (count .LE. nblocks, dbcsr_failure_level,&
+                  dbcsr_internal_error, "find_block_of_element",&
+                  "Too many searches",__LINE__,error)
+          ENDIF
        ENDIF
     ENDDO
   END SUBROUTINE find_block_of_element
@@ -221,6 +227,10 @@ CONTAINS
           ENDDO
           IF(SIZE(offsets_start).GT.n) &
                offsets_start(n+1) = offsets_start(n) + sizes(n)
+       ENDIF
+    ELSE
+       IF (.NOT. PRESENT (offsets_stop)) THEN
+          offsets_start(1) = 0
        ENDIF
     ENDIF
   END SUBROUTINE convert_sizes_to_offsets
@@ -339,6 +349,41 @@ CONTAINS
        local_offsets(prev_el+1:nglobal+1) = acc
     ENDIF
   END SUBROUTINE global_offsets_to_local
+
+! *****************************************************************************
+!> \brief Finds internal offsets
+!>
+!> For all local blocks in blk_local_els, it calculates its offset in
+!> the dense block to which it belongs.
+! *****************************************************************************
+  SUBROUTINE get_internal_offsets(blk_local_els, el_map, blk_el_offsets,&
+       dense_el_offsets, internal_offsets)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: blk_local_els, el_map, &
+                                                blk_el_offsets, &
+                                                dense_el_offsets
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: internal_offsets
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_internal_offsets', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_el, d_el, i, ndense, nlblk
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: off_acc
+
+!   ---------------------------------------------------------------------------
+
+    nlblk = SIZE(blk_local_els)
+    ndense = SIZE(dense_el_offsets)
+    ALLOCATE (off_acc (ndense))
+    off_acc(:) = 0
+    internal_offsets(:) = 0
+    DO i = 1, nlblk
+       blk_el = blk_local_els(i)
+       d_el = el_map(blk_el)
+       internal_offsets(blk_el) = off_acc(d_el)
+       off_acc(d_el) = off_acc(d_el) + blk_el_offsets(blk_el+1) - blk_el_offsets(blk_el)
+    ENDDO
+    DEALLOCATE (off_acc)
+  END SUBROUTINE get_internal_offsets
 
 
 ! *****************************************************************************
@@ -459,6 +504,12 @@ CONTAINS
     meta(10) = dbcsr_distribution_nlocal_cols (dist)
     meta(11) = nfullrows_local
     meta(12) = nfullcols_local
+    meta(dbcsr_slot_home_prow) = dbcsr_mp_myprow (dbcsr_distribution_mp (dist))
+    meta(dbcsr_slot_home_rowi) = 1
+    meta(dbcsr_slot_home_pcol) = dbcsr_mp_mypcol (dbcsr_distribution_mp (dist))
+    meta(dbcsr_slot_home_coli) = 1
+    meta(dbcsr_slot_home_vprow) = -1
+    meta(dbcsr_slot_home_vpcol) = -1
   END SUBROUTINE meta_from_dist
 
 
@@ -1067,10 +1118,12 @@ CONTAINS
           !CALL dbcsr_assert(blk_p+mn-1, "LE", m%m%nze,&
           !     dbcsr_warning_level, dbcsr_internal_error, r,&
           !     'Block extends too far',__LINE__,error)
-          CALL dbcsr_assert (ABS(blk_p), "LE", data_size_referenced,&
-               dbcsr_warning_level, dbcsr_internal_error, r,&
-               "Block pointer pointso outside of declared referenced area",&
-               __LINE__, error)
+          IF (mn .GT. 0) THEN
+             CALL dbcsr_assert (ABS(blk_p), "LE", data_size_referenced,&
+                  dbcsr_warning_level, dbcsr_internal_error, r,&
+                  "Block pointer pointso outside of declared referenced area",&
+                  __LINE__, error)
+          ENDIF
           CALL dbcsr_assert (ABS(blk_p)+mn-1, "LE", data_size_referenced,&
                dbcsr_warning_level, dbcsr_internal_error, r,&
                "Block extends outside of declared referenced area",&
@@ -1091,6 +1144,22 @@ CONTAINS
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_verify_matrix
+
+
+  PURE SUBROUTINE count_bins(nelements, bins, nbins, bin_counts)
+    INTEGER, INTENT(IN)                      :: nelements
+    INTEGER, DIMENSION(1:nelements), &
+      INTENT(IN)                             :: bins
+    INTEGER, INTENT(IN)                      :: nbins
+    INTEGER, DIMENSION(1:nbins), INTENT(OUT) :: bin_counts
+
+    INTEGER                                  :: el
+
+    bin_counts(:) = 0
+    DO el = 1, nelements
+       bin_counts(bins(el)) = bin_counts(bins(el)) + 1
+    ENDDO
+  END SUBROUTINE count_bins
 
   SUBROUTINE sort_i4 ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n

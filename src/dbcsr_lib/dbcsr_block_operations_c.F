@@ -458,17 +458,19 @@
 !> \param error     cp2k error
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_inplace_c(extent, rows, columns)
-    COMPLEX(kind=real_4), DIMENSION(:), &
-      INTENT(INOUT)                          :: extent
     INTEGER, INTENT(IN)                      :: rows, columns
+    COMPLEX(kind=real_4), DIMENSION(rows*columns), &
+      INTENT(INOUT)                          :: extent
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_inplace_c', &
       routineP = moduleN//':'//routineN
 
+    INTEGER :: r, c
 !   ---------------------------------------------------------------------------
 
-    extent = RESHAPE(TRANSPOSE(&
-         RESHAPE(extent, (/rows, columns/))), (/rows*columns/))
+    FORALL (r = 1:columns, c = 1:rows)
+       extent(r + (c-1)*columns) = extent(c + (r-1)*rows)
+    END FORALL
   END SUBROUTINE block_transpose_inplace_c
 
 
