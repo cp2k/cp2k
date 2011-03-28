@@ -1673,7 +1673,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: c_nblkcols_local, &
+    INTEGER                                  :: block_estimate, &
+                                                c_nblkcols_local, &
                                                 c_nblkrows_local, &
                                                 error_handler, ithread, &
                                                 nthreads
@@ -1815,13 +1816,14 @@ CONTAINS
     !
     ! Setup the hash tables if needed
     ALLOCATE (carrier%c_hashes (product%nblkrows_local))
+    block_estimate=MAX(product%nblks,left%nblks,right%nblks)/nthreads
     IF (local_indexing) THEN
-       CALL fill_hash_tables (carrier%c_hashes, product,&
+       CALL fill_hash_tables (carrier%c_hashes, product,block_estimate,&
             row_map=array_data(product%global_rows),&
             col_map=array_data(product%global_cols),&
             error=error)
     ELSE
-       CALL fill_hash_tables (carrier%c_hashes, product,&
+       CALL fill_hash_tables (carrier%c_hashes, product,block_estimate,&
             error=error)
     ENDIF
     !
@@ -2935,11 +2937,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Fills row hashtable from an existing matrix.
+!> \param[in] block_estimate guess for the number of blocks in the product matrix, can be zero
 ! *****************************************************************************
-  SUBROUTINE fill_hash_tables(hashes, matrix, row_map, col_map, error)
+  SUBROUTINE fill_hash_tables(hashes, matrix, block_estimate, row_map, col_map, error)
     TYPE(hash_table_type), DIMENSION(:), &
       INTENT(inout)                          :: hashes
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: block_estimate
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_map, col_map
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -2960,8 +2964,9 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Local row count mismatch", __LINE__, error=error)
     DO row = 1, n_local_rows
+       ! create the hash table row with a reasonable initial size
        CALL hash_table_create (hashes(row), &
-            MAX(matrix%nblkcols_local, 5*n_local_rows))
+            MAX(8,(3*block_estimate)/MAX(1,n_local_rows)))
     ENDDO
     ! We avoid using the iterator because we will use the existing
     ! work matrix instead of the BCSR index.
@@ -3192,7 +3197,9 @@ CONTAINS
 
     INTEGER                                  :: j
 
-   j=1
+! guarantee a minimal hash table size (8), so that expansion works
+
+   j=3
    DO WHILE(2**j-1<table_size)
       j=j+1
    ENDDO
@@ -3211,21 +3218,34 @@ CONTAINS
 
   END SUBROUTINE hash_table_release
 
-  SUBROUTINE hash_table_add(hash_table,c,p, error)
+  RECURSIVE SUBROUTINE hash_table_add(hash_table,c,p, error)
     TYPE(hash_table_type), INTENT(INOUT)     :: hash_table
     INTEGER, INTENT(IN)                      :: c, p
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    REAL(KIND=real_8), PARAMETER :: hash_table_expand = 1.5_real_8, &
+      inv_hash_table_fill = 2.5_real_8
+
     INTEGER                                  :: i, j
+    TYPE(ele_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: tmp_hash
+
+! if too small, make a copy and rehash in a larger table
+
+    IF (hash_table%nele*inv_hash_table_fill>hash_table%nmax) THEN
+       ALLOCATE(tmp_hash(LBOUND(hash_table%table,1):UBOUND(hash_table%table,1)))
+       tmp_hash=hash_table%table
+       CALL hash_table_release(hash_table) 
+       CALL hash_table_create(hash_table,INT((UBOUND(tmp_hash,1)+8)*hash_table_expand))
+       DO i=LBOUND(tmp_hash,1),UBOUND(tmp_hash,1)
+          IF (tmp_hash(i)%c.NE.0) THEN
+             CALL hash_table_add(hash_table,tmp_hash(i)%c,tmp_hash(i)%p,error)
+          ENDIF
+       ENDDO
+       DEALLOCATE(tmp_hash)
+    ENDIF
 
    hash_table%nele=hash_table%nele+1
-   IF (hash_table%nele==hash_table%nmax) THEN
-      CALL dbcsr_assert (hash_table%nele, "LE", hash_table%nmax,&
-           dbcsr_fatal_level, dbcsr_unimplemented_error_nr, "hash_table_add",&
-           "Hash table full. "// &
-           "Please contact developers with this message and preceeding lines.",&
-           __LINE__, error=error)
-   ENDIF
    i=IAND(c*hash_table%prime,hash_table%nmax)
 
    DO j=i,hash_table%nmax
