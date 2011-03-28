@@ -385,3 +385,7 @@ si8_pmix_otdiag.inp
 # numerics for g95 sopt
 si8_pulay_off.inp
 c8_kerker.inp
+# Numerics due to new local multiplication. 
+si8_broy_wc.inp
+# Numerics due to new local multiplication. 
+si8_broy_wc_crazy_ene.inp

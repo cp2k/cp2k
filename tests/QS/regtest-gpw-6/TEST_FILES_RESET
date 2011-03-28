@@ -354,3 +354,15 @@ c8_broy.inp
 # numerics for g95 sopt
 si8_pulay_off.inp
 c8_kerker.inp
+# Numerics due to new local multiplication. 
+si8_noort_broy_wc_direct_ene.inp
+# Numerics due to new local multiplication. 
+si8_lsd_broy_wc_ene.inp
+# Numerics due to new local multiplication. 
+si8_lsd_broy_wc.inp
+# Numerics due to new local multiplication. 
+si8_lsd_broy_wc_rst.inp
+# Numerics due to new local multiplication. 
+si8_lsd_broy_wc_list.inp
+# Numerics due to new local multiplication. 
+si8_lsd_broy_wc_list_rst.inp

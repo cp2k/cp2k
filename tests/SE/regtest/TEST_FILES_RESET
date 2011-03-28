@@ -655,3 +655,17 @@ dimer4.inp
 # numerics with refactoring the mopac guess 
 ice-scp-ewald.inp
 ice-scp-ewald.inp
+# Numerics due to new local multiplication. 
+h2po4.inp
+# Numerics due to new local multiplication. 
+dimer.inp
+# Numerics due to new local multiplication. 
+dimer2.inp
+# Numerics due to new local multiplication. 
+dimer3.inp
+# Numerics due to new local multiplication. 
+dimer4.inp
+# Numerics due to new local multiplication. 
+h2o_gks_p.inp
+# Numerics due to new local multiplication. 
+ice-scp-ewald.inp

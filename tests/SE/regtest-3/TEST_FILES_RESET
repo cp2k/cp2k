@@ -354,3 +354,21 @@ Al2O3.inp
 # changed mic pair list build 
 Co_complex.inp
 Periclase.inp
+# Numerics due to new local multiplication. 
+N3-rp_colvar.inp
+# Numerics due to new local multiplication. 
+Periclase.inp
+# Numerics due to new local multiplication. 
+SiO2.inp
+# Numerics due to new local multiplication. 
+H2O-4.inp
+# Numerics due to new local multiplication. 
+SiO2_lr_quad.inp
+# Numerics due to new local multiplication. 
+Co_complex.inp
+# Numerics due to new local multiplication. 
+N3_rp_md.inp
+# Numerics due to new local multiplication. 
+N3_dp_md.inp
+# Numerics due to new local multiplication. 
+N3_rp_dp_md.inp

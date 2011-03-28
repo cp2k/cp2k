@@ -869,3 +869,15 @@ basis_none_1.inp
 h2o-otdiag.inp
 #  
 h2o-otdiag-lsd.inp
+# Numerics due to new local multiplication. 
+spin_restraint.inp
+# Numerics due to new local multiplication. 
+basis_none_1.inp
+# Numerics due to new local multiplication. 
+He3_multi_ddapc.inp
+# Numerics due to new local multiplication. 
+h2o-otdiag.inp
+# Numerics due to new local multiplication. 
+h2o-otdiag-lsd.inp
+# Numerics due to new local multiplication. 
+2H2O_meta_welltemp.inp

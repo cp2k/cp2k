@@ -230,3 +230,11 @@ H2O_Hnopaw_pp.inp
 # making some order in the regtests: getting ready for the new one
 CO_xastpxfh_150Ry.inp
 CO_xastpxfh_locall.inp
+# Numerics due to new local multiplication. 
+H2O_gpw.inp
+# Numerics due to new local multiplication. 
+H2O_gpw_full_gapw.inp
+# Numerics due to new local multiplication. 
+H2O_Onopaw.inp
+# Numerics due to new local multiplication. 
+H2O_Hnopaw_pp.inp

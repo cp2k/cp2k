@@ -180,3 +180,9 @@ graphite2.inp
 graphite3.inp
 # Numerics introduced by major QS refactoring 
 graphite2.inp
+# Numerics due to new local multiplication. 
+graphite.inp
+# Numerics due to new local multiplication. 
+graphite2.inp
+# Numerics due to new local multiplication. 
+graphite3.inp

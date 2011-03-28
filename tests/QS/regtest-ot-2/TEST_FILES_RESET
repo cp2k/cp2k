@@ -948,3 +948,7 @@ CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp
 CH3-BP-MO_NO_DIAG.inp
 c8_kerker_gapw.inp
 c8_broy.inp
+# Numerics due to new local multiplication. 
+H2O.inp
+# Numerics due to new local multiplication. 
+H2_trip.inp

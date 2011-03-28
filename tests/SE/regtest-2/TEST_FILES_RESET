@@ -413,3 +413,7 @@ hcl_ot.inp
 ZrF2-PM6.inp
 # changed mic pair list build 
 H2O-32.inp
+# Numerics due to new local multiplication. 
+ZrF2-PM6.inp
+# Numerics due to new local multiplication. 
+zn_1w_debug.inp

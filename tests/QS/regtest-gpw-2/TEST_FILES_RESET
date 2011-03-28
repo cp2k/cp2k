@@ -724,3 +724,9 @@ hcn_meta_chaincoord_kind.inp
 Au13ico_mtd.inp
 # Numerics introduced by major QS refactoring 
 Au12_rmsd_mtd.inp
+# Numerics due to new local multiplication. 
+hcn_ts_r.inp
+# Numerics due to new local multiplication. 
+Au13ico_mtd.inp
+# Numerics due to new local multiplication. 
+Au12_rmsd_mtd.inp
