@@ -791,6 +791,7 @@ CONTAINS
              CALL dbcsr_release (m2s_right%mats(i,1))
              CALL dbcsr_copy (m2s_right%mats(i,1), matrix_tmp, shallow_data=.TRUE.,&
                   error=error)
+             CALL dbcsr_release (matrix_tmp)
              CALL dbcsr_reset_vlocals (m2s_right%mats(i,1), rdist_right, error=error)
           ENDIF
        ENDDO
@@ -853,6 +854,7 @@ CONTAINS
              CALL dbcsr_release (m2s_left%mats(1,i))
              CALL dbcsr_copy (m2s_left%mats(1,i), matrix_tmp, shallow_data=.TRUE.,&
                   error=error)
+             CALL dbcsr_release (matrix_tmp)
              CALL dbcsr_reset_vlocals (m2s_left%mats(1,i), rdist_left, error=error)
           ENDIF
        ENDDO

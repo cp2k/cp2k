@@ -3619,7 +3619,6 @@ CONTAINS
     new_b_cols = c_cols_total .NE. b_cols_total
     new_b_rows = a_cols_total .NE. b_rows_total
     IF (new_b_rows .OR. new_b_cols) THEN
-       WRITE(*,*)routineN//" Matching B"
        new_b_is_new = .TRUE.
        CALL cp_dbcsr_init (new_b, error=error)
        c_dist = cp_dbcsr_distribution (matrix_c)
@@ -3664,7 +3663,6 @@ CONTAINS
     ! Process matrix A
     new_a_rows = a_rows_total .NE. c_rows_total
     IF (new_a_rows) THEN
-       WRITE(*,*)routineN//" Matching A"
        CALL cp_dbcsr_init (new_a, error=error)
        c_dist = cp_dbcsr_distribution (matrix_c)
        a_dist = cp_dbcsr_distribution (matrix_a)
