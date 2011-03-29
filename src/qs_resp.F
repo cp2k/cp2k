@@ -89,6 +89,11 @@ CONTAINS
     END IF
 
     IF (.NOT. failure .AND. has_resp) THEN
+       IF (.NOT.cell%orthorhombic) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="RESP charges implemented only for orthorhombic cells!", &
+               error=error, error_level=cp_failure_level)
+       END IF
        logger => cp_error_get_logger(error)
        output_unit=cp_print_key_unit_nr(logger,resp_section,"PROGRAM_RUN_INFO",&
                                         extension=".resp",error=error)
