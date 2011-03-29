@@ -157,7 +157,6 @@ CPSourceFileRef,&
        rhs = 0.0_dp
        ALLOCATE(ipiv(nvar))
 
-       ! loop over all grid points that need to be fitted
        v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
        bo=v_hartree_pw%pw_grid%bounds_local
        gbo=v_hartree_pw%pw_grid%bounds
@@ -167,6 +166,7 @@ CPSourceFileRef,&
        shift=-REAL(MODULO(np,2),dp)*dr/2.0_dp
        ALLOCATE(dist(natom))
 
+       ! loop over all grid points that need to be fitted
        mycharge=0.0_dp
        npoints = 0
        DO jz=bo(1,3),bo(2,3)
@@ -194,7 +194,12 @@ CPSourceFileRef,&
           npoints = npoints + 1
 
           ! correct for the fact that v_hartree is scaled by dvol, and has the opposite sign
-          vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol
+          IF (qs_env%qmmm) THEN
+             ! If it's a QM/MM run let's remove the contribution of the MM potential out of the Hartree pot
+             vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol-qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz)
+          ELSE
+             vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol
+          END IF
           dist=1.0_dp/dist
 
           DO i=1,natom
