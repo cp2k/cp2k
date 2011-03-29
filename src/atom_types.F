@@ -640,8 +640,7 @@ CONTAINS
     method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
-    TYPE(atom_state), INTENT(IN), OPTIONAL, &
-      TARGET                                 :: state
+    TYPE(atom_state), OPTIONAL, POINTER      :: state
     TYPE(atom_integrals), OPTIONAL, POINTER  :: integrals
     TYPE(atom_orbitals), OPTIONAL, POINTER   :: orbitals
     TYPE(atom_potential_type), OPTIONAL, &
