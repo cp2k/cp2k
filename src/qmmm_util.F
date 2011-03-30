@@ -22,7 +22,8 @@ MODULE qmmm_util
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_qs_particle_coordinates
   USE qmmm_types,                      ONLY: fist_subsys,&
                                              qs_subsys
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -318,6 +319,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
+    TYPE(section_vals_type), POINTER         :: subsys_section
 
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
@@ -325,7 +327,8 @@ CONTAINS
        max_coord       = -HUGE(0.0_dp)
        failure         = .FALSE.
        logger => cp_error_get_logger(error)
-       NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
+       NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
+               subsys_section, qm_cell, mm_cell)
 
        CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -374,6 +377,9 @@ CONTAINS
        DO ip=1,SIZE(qm_atom_index)
           particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
        END DO
+       subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
+                                                    "SUBSYS",error=error)
+       CALL write_qs_particle_coordinates(particles_qm,subsys_section,"QM/MM",error)
     END SELECT
 
   END SUBROUTINE apply_qmmm_translate
