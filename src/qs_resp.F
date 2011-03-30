@@ -65,7 +65,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist, rhs
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: matrix
-    REAL(KIND=dp), DIMENSION(3)              :: box_hi, box_low
+    REAL(KIND=dp), DIMENSION(3)              :: box_hi, box_low, box_mid
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -129,8 +129,9 @@ CONTAINS
        CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error) 
 
        ! Redefine the box used to sample the potential..
-       box_hi=(/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)/2.0_dp
-       box_low=-box_hi
+       box_hi=(/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
+       box_low=0.0_dp
+       box_mid=box_hi/2.0_dp
        CALL section_vals_val_get(resp_section,"X_HI",explicit=explicit,error=error)
        IF (explicit) CALL section_vals_val_get(resp_section,"X_HI",r_val=box_hi(1),error=error)
        CALL section_vals_val_get(resp_section,"X_LOW",explicit=explicit,error=error)
@@ -143,6 +144,9 @@ CONTAINS
        IF (explicit) CALL section_vals_val_get(resp_section,"Z_HI",r_val=box_hi(3),error=error)
        CALL section_vals_val_get(resp_section,"Z_LOW",explicit=explicit,error=error)
        IF (explicit) CALL section_vals_val_get(resp_section,"Z_LOW",r_val=box_low(3),error=error)
+       ! correct the reference frame: in input we provide values corresponding to the atomic XYZ frame..
+       box_low=box_low-box_mid
+       box_hi=box_hi-box_mid
 
        CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride,error=error) 
        CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
