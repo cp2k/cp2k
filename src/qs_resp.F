@@ -65,6 +65,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist, rhs
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: matrix
+    REAL(KIND=dp), DIMENSION(3)              :: box_hi, box_low
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -75,7 +76,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
                                                 resp_section, rest_section
-    REAL(KIND=dp),DIMENSION(3) :: box_hi, box_low
+
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -202,11 +203,11 @@ CPSourceFileRef,&
 
           ! compute distance from the grid point to all atoms
           r(3)=jz*dr(3)+shift(3)
-          if (r(3)<box_low(3).OR.r(3)>box_hi(3)) CYCLE
+          IF (r(3)<box_low(3).OR.r(3)>box_hi(3)) CYCLE
           r(2)=jy*dr(2)+shift(2)
-          if (r(2)<box_low(2).OR.r(2)>box_hi(2)) CYCLE
+          IF (r(2)<box_low(2).OR.r(2)>box_hi(2)) CYCLE
           r(1)=jx*dr(1)+shift(1)
-          if (r(1)<box_low(1).OR.r(1)>box_hi(1)) CYCLE
+          IF (r(1)<box_low(1).OR.r(1)>box_hi(1)) CYCLE
           DO i=1,natom
              vec=r-particles%els(i)%r
              ! always wrap this 
