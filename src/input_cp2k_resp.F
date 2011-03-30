@@ -91,24 +91,61 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
 
        CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_STRENGTH",&
-            description="The strenght of the restraint on the heavy atoms",&
+            description="If defined, enforce the restraint of non-hydrogen atoms to zero. Its value is the"//&
+            "strenght of the restraint on the heavy atoms.",&
             usage="RESTRAIN_HEAVIES_STRENGTH 0.0001 ",&
             default_r_val=1.0E-6_dp ,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RMIN",&
-            description="specifies the minimum distance a fit point is away from an atom. ",&
-            usage="RMIN 2.1",&
-            default_r_val=cp_unit_to_cp2k(value=2.1_dp, unit_str="angstrom", error=error),&
-            unit_str='angstrom', error=error)
+       CALL keyword_create(keyword, name="X_LOW",&
+            description="Specifies the lower boundary of the box along X used to sample the potential.",&
+            usage="X_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="X_HI",&
+            description="Specifies the upper boundary of the box along X used to sample the potential.",&
+            usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="Y_LOW",&
+            description="Specifies the lower boundary of the box along Y used to sample the potential.",&
+            usage="Y_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="Y_HI",&
+            description="Specifies the upper boundary of the box along Y used to sample the potential.",&
+            usage="Y_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="Z_LOW",&
+            description="Specifies the lower boundary of the box along Z used to sample the potential.",&
+            usage="Z_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="Z_HI",&
+            description="Specifies the upper boundary of the box along Z used to sample the potential.",&
+            usage="Z_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 
        CALL keyword_create(keyword, name="RMAX",&
-            description="specifies the minimum distance a fit point is away from an atom. ",&
+            description="Specifies the maximum distance a fit point is away from an atom. ",&
             usage="RMAX 2.5",&
             default_r_val=cp_unit_to_cp2k(value=2.5_dp, unit_str="angstrom", error=error),&
+            unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="RMIN",&
+            description="Specifies the minimum distance a fit point is away from an atom. ",&
+            usage="RMIN 2.1",&
+            default_r_val=cp_unit_to_cp2k(value=2.1_dp, unit_str="angstrom", error=error),&
             unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    

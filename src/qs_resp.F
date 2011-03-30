@@ -75,7 +75,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
                                                 resp_section, rest_section
-
+    REAL(KIND=dp),DIMENSION(3) :: box_hi, box_low
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -126,6 +126,23 @@ CONTAINS
 
        CALL section_vals_val_get(resp_section,"RMIN",r_val=rmin,error=error) 
        CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error) 
+
+       ! Redefine the box used to sample the potential..
+       box_hi=(/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)/2.0_dp
+       box_low=-box_hi
+       CALL section_vals_val_get(resp_section,"X_HI",explicit=explicit,error=error)
+       IF (explicit) CALL section_vals_val_get(resp_section,"X_HI",r_val=box_hi(1),error=error)
+       CALL section_vals_val_get(resp_section,"X_LOW",explicit=explicit,error=error)
+       IF (explicit) CALL section_vals_val_get(resp_section,"X_LOW",r_val=box_low(1),error=error)
+       CALL section_vals_val_get(resp_section,"Y_HI",explicit=explicit,error=error)
+       IF (explicit) CALL section_vals_val_get(resp_section,"Y_HI",r_val=box_hi(2),error=error)
+       CALL section_vals_val_get(resp_section,"Y_LOW",explicit=explicit,error=error)
+       IF (explicit) CALL section_vals_val_get(resp_section,"Y_LOW",r_val=box_low(2),error=error)
+       CALL section_vals_val_get(resp_section,"Z_HI",explicit=explicit,error=error)
+       IF (explicit) CALL section_vals_val_get(resp_section,"Z_HI",r_val=box_hi(3),error=error)
+       CALL section_vals_val_get(resp_section,"Z_LOW",explicit=explicit,error=error)
+       IF (explicit) CALL section_vals_val_get(resp_section,"Z_LOW",r_val=box_low(3),error=error)
+
        CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride,error=error) 
        CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
             "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
@@ -149,6 +166,8 @@ CPSourceFileRef,&
           ENDIF
           WRITE(output_unit,'(2X,A,F10.5)')  "Rmin [a.u.]: ",rmin
           WRITE(output_unit,'(2X,A,F10.5)')  "Rmax [a.u.]: ",rmax
+          WRITE(output_unit,'(2X,A,3F10.5)') "Box min [a.u.]: ",box_low
+          WRITE(output_unit,'(2X,A,3F10.5)') "Box max [a.u.]: ",box_hi
           WRITE(output_unit,'(2X,A,3I5)')     "Stride: ",stride
        ENDIF
 
@@ -183,8 +202,11 @@ CPSourceFileRef,&
 
           ! compute distance from the grid point to all atoms
           r(3)=jz*dr(3)+shift(3)
+          if (r(3)<box_low(3).OR.r(3)>box_hi(3)) CYCLE
           r(2)=jy*dr(2)+shift(2)
+          if (r(2)<box_low(2).OR.r(2)>box_hi(2)) CYCLE
           r(1)=jx*dr(1)+shift(1)
+          if (r(1)<box_low(1).OR.r(1)>box_hi(1)) CYCLE
           DO i=1,natom
              vec=r-particles%els(i)%r
              ! always wrap this 
