@@ -696,33 +696,33 @@ CPSourceFileRef,&
                'GO CP2K GO! **********************************'
        ELSE
           ! Write seuquential values of quantities of interest
-          WRITE (iw,'( )')
-          WRITE (iw,'( A,A )') ' **************************************', &
-               '*****************************************'
-          WRITE (iw,'( A,T61,A20)') ' ENSEMBLE TYPE                = ', &
-               ADJUSTR(TRIM(enum_i2c(enum,simpar%ensemble,error=error)))
-          WRITE (iw,'( A,T71,I10 )') ' STEP NUMBER                  = ', itimes
+          WRITE (iw,'(/,T2,A)') REPEAT('*',79)
+          WRITE (iw,'(T2,A,T61,A20)')&
+                'ENSEMBLE TYPE                = ',ADJUSTR(TRIM(enum_i2c(enum,simpar%ensemble,error=error)))
+          WRITE (iw,'(T2,A,T71,I10)')&
+                'STEP NUMBER                  = ', itimes
           IF (simpar%variable_dt) THEN
-            WRITE (iw,'( A,T60,1(1X,F20.6) )') ' TIME STEP [FS]               = ', dt*femtoseconds
+             WRITE (iw,'(T2,A,T60,1X,F20.6)')&
+                'TIME STEP [fs]               = ',dt*femtoseconds
           END IF
-          WRITE (iw,'( A,T60,1(1X,F20.6) )') ' TIME [FS]                    = ', time*femtoseconds
-          WRITE (iw,'( A,T60,1(1X,E20.12) )') ' CONSERVED QNTY               = ', &
-               md_ener%constant
-          WRITE (iw,'( )')
-          WRITE (iw,'( T42,A )') 'INSTANTANEOUS        AVERAGES'
-          WRITE (iw,'( A,T39,2(1X,F20.2) )') ' CPU [S]                      = ', &
-               used_time, averages%avecpu
-          WRITE (iw,'( A,T39,2(1X,E20.12) )') ' {E-E0}/{k_b*N_at}            = ', &
-               econs, averages%econs
-          WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' POTENTIAL ENERGY', &
-               '[hartree]', '= ', md_ener%epot, averages%avepot
-          IF(simpar%ensemble/=reftraj_ensemble) THEN
+          WRITE (iw,'(T2,A,T60,1X,F20.6)')&
+                'TIME [fs]                    = ',time*femtoseconds
+          WRITE (iw,'(T2,A,T60,1X,E20.12)')&
+                'CONSERVED QUANTITY [hartree] = ',md_ener%constant
+          WRITE (iw,'(/,T47,A,T73,A)') 'INSTANTANEOUS','AVERAGES'
+          WRITE (iw,'(T2,A,T39,2(1X,F20.2))')&
+                'CPU TIME [s]                 = ',used_time,averages%avecpu
+          WRITE (iw,'(T2,A,T39,2(1X,E20.12))')&
+                'ENERGY DRIFT PER ATOM [K]    = ',econs,averages%econs
+          WRITE (iw,'(T2,A,T39,2(1X,E20.12))')&
+                'POTENTIAL ENERGY[hartree]    = ',md_ener%epot,averages%avepot
+          IF (simpar%ensemble /= reftraj_ensemble) THEN
              IF (.NOT.qmmm) THEN
                 ! No QM/MM info
-                WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' KINETIC ENERGY', &
-                     '[hartree]', '= ', md_ener%ekin, averages%avekin
-                WRITE (iw,'( A,A,T31,A,T39,2(1X,F20.3) )') ' TEMPERATURE', &
-                     '[K]', '= ', md_ener%temp_part, averages%avetemp
+                WRITE (iw,'(T2,A,T39,2(1X,E20.12))')&
+                'KINETIC ENERGY [hartree]     = ',md_ener%ekin,averages%avekin
+                WRITE (iw,'(T2,A,T39,2(1X,F20.3))')&
+                'TEMPERATURE [K]              = ',md_ener%temp_part,averages%avetemp
              ELSE
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' TOTAL KINETIC ENERGY', &
                      '[hartree]', '= ', md_ener%ekin, averages%avekin
@@ -734,9 +734,10 @@ CPSourceFileRef,&
                      '[K]', '= ', md_ener%temp_qm, averages%avetemp_qm
              END IF
           END IF
-          IF ( virial%pv_availability ) &
-               WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' PRESSURE', &
-               '[bar]', '= ', pv_scalar, averages%avepress
+          IF (virial%pv_availability) THEN
+             WRITE (iw,'(T2,A,T39,2(1X,E20.12))')&
+               'PRESSURE [bar]               = ',pv_scalar,averages%avepress
+          END IF
           IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
              WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' P_XX', &
@@ -775,10 +776,7 @@ CPSourceFileRef,&
                      reftraj%msd%drcom(1:3)*angstrom
              END IF
           END IF
-          
-          WRITE (iw,'( A,A )') ' **************************************', &
-               '*****************************************'
-          WRITE (iw,'( )')
+          WRITE (iw,'(T2,A,/)') REPEAT('*',79)
        END IF
     END IF
     CALL section_release(section, error)    

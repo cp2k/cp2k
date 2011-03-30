@@ -167,13 +167,13 @@ CONTAINS
 
     IF (init) THEN 
        ! If the value was not read from input let's set it at the begin of the MD
-       IF (constant/=0.0_dp) THEN
+       IF (constant == 0.0_dp) THEN
           constant = md_ener%constant
-          CALL set_md_env (md_env=md_env, constant=constant, error=error)
+          CALL set_md_env(md_env=md_env, constant=constant, error=error)
        END IF
     ELSE
-       CALL get_md_env (md_env=md_env, constant=constant, error=error)
-       md_ener%delta_cons =  (md_ener%constant-constant)/REAL(natom, KIND=dp)*kelvin
+       CALL get_md_env(md_env=md_env, constant=constant, error=error)
+       md_ener%delta_cons = (md_ener%constant - constant)/REAL(natom,KIND=dp)*kelvin
     END IF
 
   END SUBROUTINE compute_conserved_quantity
