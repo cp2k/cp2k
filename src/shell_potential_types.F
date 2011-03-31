@@ -17,11 +17,12 @@ MODULE shell_potential_types
 
   PRIVATE
 
-! *** Global parameters (only in this module)
+! Global parameters (only in this module)
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_potential_types'
 
-! *** Define the shell types ***
+! *****************************************************************************
+!> \brief Define the shell type
 ! *****************************************************************************
   TYPE shell_kind_type
     INTEGER                                :: ref_count
@@ -30,7 +31,7 @@ MODULE shell_potential_types
     REAL(dp)                               :: mass_core, &
                                               massfrac, &
                                               mass_shell
-    REAL(dp)                               :: k_spring
+    REAL(dp)                               :: k2_spring,k4_spring
     REAL(dp)                               :: max_dist
     REAL(dp)                               :: shell_cutoff
   END TYPE shell_kind_type
@@ -41,12 +42,12 @@ MODULE shell_potential_types
     TYPE(shell_kind_type), POINTER          :: shell
   END TYPE shell_p_type
 
-! *** Public subroutines ***
+! Public subroutines
 
   PUBLIC :: get_shell, shell_create, shell_p_create, &
             shell_p_release, shell_release, shell_retain
 
-! *** Public data types ***
+! Public data types
 
   PUBLIC :: shell_p_type, shell_kind_type
 
@@ -54,29 +55,25 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_shell(shell,charge_core,charge_shell,mass_core,mass_shell,&
-             k_spring,max_dist,shell_cutoff,error)
+             k2_spring,k4_spring,max_dist,shell_cutoff,error)
 
     TYPE(shell_kind_type), POINTER           :: shell
-    REAL(kind=dp), INTENT(out), OPTIONAL     :: charge_core, charge_shell, &
-                                                mass_core, mass_shell, &
-                                                k_spring, max_dist, &
-                                                shell_cutoff
+    REAL(kind=dp), INTENT(OUT), OPTIONAL :: charge_core, charge_shell, &
+      mass_core, mass_shell, k2_spring, k4_spring, max_dist, shell_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_shell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (ASSOCIATED(shell)) THEN 
-      IF(PRESENT(charge_core))  charge_core=shell%charge_core
-      IF(PRESENT(charge_shell)) charge_shell=shell%charge_shell
-      IF(PRESENT(mass_core))    mass_core=shell%mass_core
-      IF(PRESENT(mass_shell))   mass_shell=shell%mass_shell
-      IF(PRESENT(k_spring))     k_spring=shell%k_spring
-      IF(PRESENT(max_dist))     max_dist=shell%max_dist
-      IF(PRESENT(shell_cutoff)) shell_cutoff=shell%shell_cutoff
+    IF (ASSOCIATED(shell)) THEN
+      IF (PRESENT(charge_core)) charge_core = shell%charge_core
+      IF (PRESENT(charge_shell)) charge_shell = shell%charge_shell
+      IF (PRESENT(mass_core)) mass_core = shell%mass_core
+      IF (PRESENT(mass_shell)) mass_shell = shell%mass_shell
+      IF (PRESENT(k2_spring)) k2_spring = shell%k2_spring
+      IF (PRESENT(k4_spring)) k4_spring = shell%k4_spring
+      IF (PRESENT(max_dist)) max_dist = shell%max_dist
+      IF (PRESENT(shell_cutoff)) shell_cutoff = shell%shell_cutoff
     END IF
 
   END SUBROUTINE
@@ -184,18 +181,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
-
-    IF(ASSOCIATED(shell_list)) THEN
+    IF (ASSOCIATED(shell_list)) THEN
       DO i = 1,SIZE(shell_list) 
          CALL shell_release(shell_list(i)%shell,error=error)
       END DO
       DEALLOCATE(shell_list,stat=istat)
       CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
-    NULLIFY(shell_list)
+
+    NULLIFY (shell_list)
 
   END SUBROUTINE shell_p_release
 

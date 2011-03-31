@@ -2386,7 +2386,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Set up shell potential parameters
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_shell  (particle_set, atomic_kind_set,&
+  SUBROUTINE force_field_pack_shell(particle_set, atomic_kind_set,&
        molecule_kind_set, molecule_set, root_section, subsys_section,&
        shell_particle_set, core_particle_set, cell, iw, inp_info, error)
 
@@ -2463,8 +2463,9 @@ CPSourceFileRef,&
                 shell%charge_core=inp_info%shell_list(j)%shell%charge_core
                 shell%charge_shell=inp_info%shell_list(j)%shell%charge_shell
                 shell%massfrac=inp_info%shell_list(j)%shell%massfrac
-                IF(shell%massfrac <EPSILON( 1.0_dp )) null_massfrac = .TRUE.
-                shell%k_spring=inp_info%shell_list(j)%shell%k_spring
+                IF (shell%massfrac < EPSILON(1.0_dp)) null_massfrac = .TRUE.
+                shell%k2_spring = inp_info%shell_list(j)%shell%k2_spring
+                shell%k4_spring = inp_info%shell_list(j)%shell%k4_spring
                 shell%max_dist=inp_info%shell_list(j)%shell%max_dist
                 shell%shell_cutoff=inp_info%shell_list(j)%shell%shell_cutoff
 

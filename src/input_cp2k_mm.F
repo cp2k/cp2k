@@ -1171,7 +1171,7 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="shell",&
+       CALL section_create(section, name="SHELL",&
             description="This section specifies the parameters for shell-model potentials",&
             n_keywords=6, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
@@ -1208,10 +1208,30 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SPRING",&
-            description="Force constant of the spring binding core and shell",&
-            usage="SPRING {real}",&
-            default_r_val=-1._dp,unit_str="hartree*bohr^-2",error=error)
+       CALL keyword_create(keyword, name="K2_SPRING",&
+            variants=s2a("K2","SPRING"),&
+            description="Force constant k2 of the spring potential 1/2*k2*r^2 + 1/24*k4*r^4 "//&
+                        "binding a core-shell pair when a core-shell potential is employed.",&
+            required=.TRUE.,&
+            repeats=.FALSE.,&
+            usage="K2_SPRING {real}",&
+            default_r_val=-1.0_dp,&
+            unit_str="hartree*bohr^-2",&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K4_SPRING",&
+            variants=s2a("K4"),&
+            description="Force constant k4 of the spring potential 1/2*k2*r^2 + 1/24*k4*r^4 "//&
+                        "binding a core-shell pair when a core-shell potential is employed. "//&
+                        "By default a harmonic spring potential is used, i.e. k4 is zero.",&
+            required=.FALSE.,&
+            repeats=.FALSE.,&
+            usage="K4_SPRING {real}",&
+            default_r_val=0.0_dp,&
+            unit_str="hartree*bohr^-4",&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

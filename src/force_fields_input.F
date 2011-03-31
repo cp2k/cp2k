@@ -305,7 +305,7 @@ CPSourceFileRef,&
        IF (explicit) THEN
           ntot=0
           CALL shell_p_create(inp_info%shell_list,nshell,error)
-          CALL read_shell_section(inp_info%shell_list,tmp_section,ntot,error)
+          CALL read_shell_section(inp_info%shell_list,tmp_section,ntot,para_env,error)
        END IF
 
        tmp_section => section_vals_get_subs_vals(ff_section,"BOND",error=error)
@@ -1397,13 +1397,15 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Reads the SHELL section
-!> \author MI
+!> \author Marcella Iannuzzi
 ! *****************************************************************************
-  SUBROUTINE read_shell_section(shell_list, section, start, error)
+  SUBROUTINE read_shell_section(shell_list,section,start,para_env,error)
+
     TYPE(shell_p_type), DIMENSION(:), &
       POINTER                                :: shell_list
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_section', &
@@ -1411,35 +1413,40 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length)     :: atm_name
     INTEGER                                  :: i_rep, n_rep
-    REAL(dp)                                 :: ccharge, cutoff, maxdist, &
-                                                mfrac, scharge, spring
+    REAL(dp)                                 :: ccharge, cutoff, k, maxdist, &
+                                                mfrac, scharge
 
     CALL section_vals_get(section,n_repetition=n_rep,error=error)
+
     DO i_rep = 1, n_rep
        CALL section_vals_val_get(section,"_SECTION_PARAMETERS_",&
             c_val=atm_name,i_rep_section=i_rep,error=error)
        CALL uppercase(atm_name)
        shell_list(start+i_rep)%atm_name = atm_name
-
-       CALL section_vals_val_get(section,"CORE_CHARGE",i_rep_section=i_rep,r_val=ccharge,&
-            error=error)
-       shell_list(start+i_rep)%shell%charge_core=ccharge
-       CALL section_vals_val_get(section,"SHELL_CHARGE",i_rep_section=i_rep,r_val=scharge,&
-            error=error)
-       shell_list(start+i_rep)%shell%charge_shell=scharge
-       CALL section_vals_val_get(section,"MASS_FRACTION",i_rep_section=i_rep,r_val=mfrac,&
-            error=error)
-       shell_list(start+i_rep)%shell%massfrac=mfrac
-       CALL section_vals_val_get(section,"SPRING",i_rep_section=i_rep,r_val=spring,&
-            error=error)
-       shell_list(start+i_rep)%shell%k_spring=spring
-       CALL section_vals_val_get(section,"MAX_DISTANCE",i_rep_section=i_rep,r_val=maxdist,&
-            error=error)
-       shell_list(start+i_rep)%shell%max_dist=maxdist
-       CALL section_vals_val_get(section,"SHELL_CUTOFF",i_rep_section=i_rep,r_val=cutoff,&
-            error=error)
+       CALL section_vals_val_get(section,"CORE_CHARGE",i_rep_section=i_rep,r_val=ccharge,error=error)
+       shell_list(start+i_rep)%shell%charge_core = ccharge
+       CALL section_vals_val_get(section,"SHELL_CHARGE",i_rep_section=i_rep,r_val=scharge,error=error)
+       shell_list(start+i_rep)%shell%charge_shell = scharge
+       CALL section_vals_val_get(section,"MASS_FRACTION",i_rep_section=i_rep,r_val=mfrac,error=error)
+       shell_list(start+i_rep)%shell%massfrac = mfrac
+       CALL section_vals_val_get(section,"K2_SPRING",i_rep_section=i_rep,r_val=k,error=error)
+       IF (k <= 0.0_dp) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "An invalid value was specified for the force constant k2 of the core-shell "//&
+                            "spring potential",para_env)
+       END IF
+       shell_list(start+i_rep)%shell%k2_spring = k
+       CALL section_vals_val_get(section,"K4_SPRING",i_rep_section=i_rep,r_val=k,error=error)
+       IF (k < 0.0_dp) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "An invalid value was specified for the force constant k4 of the core-shell "//&
+                            "spring potential",para_env)
+       END IF
+       shell_list(start+i_rep)%shell%k4_spring = k
+       CALL section_vals_val_get(section,"MAX_DISTANCE",i_rep_section=i_rep,r_val=maxdist,error=error)
+       shell_list(start+i_rep)%shell%max_dist = maxdist
+       CALL section_vals_val_get(section,"SHELL_CUTOFF",i_rep_section=i_rep,r_val=cutoff,error=error)
        shell_list(start+i_rep)%shell%shell_cutoff=cutoff
-
     END DO
 
   END SUBROUTINE read_shell_section

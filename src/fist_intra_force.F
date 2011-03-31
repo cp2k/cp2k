@@ -15,7 +15,6 @@ MODULE fist_intra_force
                                              pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ff_harmonic
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
@@ -81,10 +80,8 @@ CONTAINS
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
       index_a, index_b, index_c, index_d, iopbend, ishell, itorsion, nbends, &
       nbonds, nimptors, nkind, nmol_per_kind, nopbends, nshell, ntorsions, nub
-    REAL(KIND=dp)                            :: d12, d32, dist, dist1, dist2, &
-                                                energy, fscalar, id12, id32, &
-                                                is32, ism, isn, s32, sm, sn, &
-                                                theta
+    REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
+      id32, is32, ism, isn, k2_spring, k4_spring, r2, s32, sm, sn, theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
                                                 k4, rij, t12, t32, t34, t41, &
@@ -171,27 +168,28 @@ CONTAINS
 
           END DO BOND
 
-          SHELL: DO ishell = 1, nshell
-             index_a = shell_list ( ishell ) % a + first_atom - 1
-             index_b = particle_set ( index_a ) % shell_index
-             rij = core_particle_set ( index_b ) % r - shell_particle_set ( index_b ) % r
+          SHELL: DO ishell=1,nshell
+             index_a = shell_list(ishell)%a + first_atom - 1
+             index_b = particle_set(index_a)%shell_index
+             rij = core_particle_set(index_b)%r - shell_particle_set(index_b)%r
              rij = pbc(rij,cell)
-             k1 = 0.0_dp
-             k1(1) = shell_list ( ishell ) % shell_kind % k_spring
-             CALL force_bonds(do_ff_harmonic, rij, 0.0_dp, k1, 0.0_dp, energy, fscalar)
+             k2_spring = shell_list(ishell)%shell_kind%k2_spring
+             k4_spring = shell_list(ishell)%shell_kind%k4_spring
+             r2  = DOT_PRODUCT(rij,rij)
+             energy  = 0.5_dp*(k2_spring + k4_spring*r2/12.0_dp)*r2
+             fscalar = k2_spring + k4_spring*r2/6.0_dp
              pot_shell = pot_shell + energy
-
-             core_particle_set ( index_b )% f(1) = core_particle_set ( index_b ) % f(1)  -rij(1) * fscalar
-             core_particle_set ( index_b )% f(2) = core_particle_set ( index_b ) % f(2)  -rij(2) * fscalar
-             core_particle_set ( index_b )% f(3) = core_particle_set ( index_b ) % f(3)  -rij(3) * fscalar
-             shell_particle_set ( index_b )% f(1) = shell_particle_set ( index_b ) % f(1)  +rij(1) * fscalar
-             shell_particle_set ( index_b )% f(2) = shell_particle_set ( index_b ) % f(2)  +rij(2) * fscalar
-             shell_particle_set ( index_b )% f(3) = shell_particle_set ( index_b ) % f(3)  +rij(3) * fscalar
-
-             ! computing the pressure tensor
-             k1 =  - rij * fscalar
-             IF (use_virial) CALL get_pv_bond  ( k1, rij, pv_bond )
-
+             core_particle_set(index_b)%f(1) = core_particle_set(index_b)%f(1) - rij(1)*fscalar
+             core_particle_set(index_b)%f(2) = core_particle_set(index_b)%f(2) - rij(2)*fscalar
+             core_particle_set(index_b)%f(3) = core_particle_set(index_b)%f(3) - rij(3)*fscalar
+             shell_particle_set(index_b)%f(1) = shell_particle_set(index_b)%f(1) + rij(1)*fscalar
+             shell_particle_set(index_b)%f(2) = shell_particle_set(index_b)%f(2) + rij(2)*fscalar
+             shell_particle_set(index_b)%f(3) = shell_particle_set(index_b)%f(3) + rij(3)*fscalar
+             ! Compute the pressure tensor, if requested
+             IF (use_virial) THEN
+                k1 = -rij*fscalar
+                CALL get_pv_bond(k1,rij,pv_bond)
+             END IF
           END DO SHELL
 
           UREY_BRADLEY: DO ibend = 1, nub
