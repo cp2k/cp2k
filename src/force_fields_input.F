@@ -1430,7 +1430,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(section,"MASS_FRACTION",i_rep_section=i_rep,r_val=mfrac,error=error)
        shell_list(start+i_rep)%shell%massfrac = mfrac
        CALL section_vals_val_get(section,"K2_SPRING",i_rep_section=i_rep,r_val=k,error=error)
-       IF (k <= 0.0_dp) THEN
+       IF (k < 0.0_dp) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "An invalid value was specified for the force constant k2 of the core-shell "//&
                             "spring potential",para_env)
