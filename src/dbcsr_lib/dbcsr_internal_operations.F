@@ -2144,8 +2144,11 @@ CONTAINS
     ENDIF
 
     IF (af-ai+1 .GT. 0 .AND. bf-bi+1 .GT. 0) THEN
-       
-       max_new_nblks = (mf-mi+1) * (nf-ni+1)
+      
+       ! the maximum number of blocks can be safely estimated by considering both the rowxcol,
+       ! but also the blocks the latter can never be larger than norec**2, which is a 'small' constant
+       max_new_nblks = MIN(INT(mf-mi+1,int_8) * INT(nf-ni+1,int_8), &
+                           INT(af-ai+1,int_8) * INT(bf-bi+1,int_8))
        nblks_new = carrier%lastblk + max_new_nblks
        
        CALL dbcsr_error_set ("ensure_array_sizes3i", eh, error)
