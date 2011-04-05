@@ -822,3 +822,5 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # Numerics due to new local multiplication. 
 He2_ddapc_constraint-4.inp
+# Numerics
+H2O-geo-ot-mols.inp

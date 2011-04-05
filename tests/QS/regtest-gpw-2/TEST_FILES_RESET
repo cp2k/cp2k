@@ -730,3 +730,5 @@ hcn_ts_r.inp
 Au13ico_mtd.inp
 # Numerics due to new local multiplication. 
 Au12_rmsd_mtd.inp
+# Numerics
+hcn_ts.inp

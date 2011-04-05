@@ -62,3 +62,7 @@ CH4-HSE06.inp
 CH4-PBE0.inp
 #  
 CH4-PBE0_TC.inp
+# Numerics
+CH4-HSE06.inp
+CH4-PBE0.inp
+CH4-PBE0_TC.inp

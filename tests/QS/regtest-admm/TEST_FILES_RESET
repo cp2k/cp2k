@@ -134,3 +134,9 @@ CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp
 CH3-BP-MO_NO_DIAG.inp
 c8_kerker_gapw.inp
 c8_broy.inp
+# numerical
+CH4-BP-MO_DIAG.inp
+CH4-BP-MO_NO_DIAG.inp
+CH4-BP-NONE.inp
+CH4-BP-CAUCHY_SUBSPACE.inp
+CH4-BP-CAUCHY.inp
