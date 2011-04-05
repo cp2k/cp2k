@@ -74,7 +74,7 @@
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
             "Arrays must start at 1", __LINE__, error=error)
        CALL mem_alloc_z (array, ub, mem_type=mem_type, error=error)
-       IF (pad) CALL mem_zero_z (array, SIZE(array))
+       IF (pad .AND. ub .GT. 0) CALL mem_zero_z (array, SIZE(array))
        IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
@@ -130,13 +130,15 @@
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             dbcsr_failure_level, dbcsr_internal_error, routineP,&
             "Old extent exceeds the new one.",__LINE__,error)
-       !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
-       CALL mem_copy_z (newarray(lb_orig:ub_orig),&
-            array(lb_orig:ub_orig), ub_orig-lb_orig+1)
-       IF (pad) THEN
-          !newarray(ub_orig+1:ub_new) = 0
-          newarray(lb_new:lb_orig-1) = 0
-          CALL mem_zero_z (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
+       IF (ub_orig-lb_orig+1 .GT. 0) THEN
+          !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
+          CALL mem_copy_z (newarray(lb_orig:ub_orig),&
+               array(lb_orig:ub_orig), ub_orig-lb_orig+1)
+          IF (pad) THEN
+             !newarray(ub_orig+1:ub_new) = 0
+             newarray(lb_new:lb_orig-1) = 0
+             CALL mem_zero_z (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
+          ENDIF
        ENDIF
        CALL mem_dealloc_z (array, mem_type=mem_type, error=error)
     ELSEIF (pad) THEN
