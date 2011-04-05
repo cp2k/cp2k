@@ -2194,8 +2194,9 @@ CONTAINS
     ENDIF
     CALL dbcsr_create(matrix%matrix, name, matrix%dbcsr_distribution,&
          matrix_type,&
-       low_rbs, low_cbs, nblks, nze, data_type, .FALSE., reuse,&
-       mutable_work, replication_type, dbcsr_error)
+       low_rbs, low_cbs, nblks, nze, data_type, reuse=reuse,&
+       mutable_work=mutable_work, replication_type=replication_type,&
+       error=dbcsr_error)
     CALL array_release (low_rbs)
     CALL array_release (low_cbs)
     CALL dbcsr_buffers_init (matrix%buffers)
@@ -2261,7 +2262,7 @@ CONTAINS
     CALL dbcsr_create(matrix%matrix, template%matrix,&
          name=name, dist=dist, matrix_type=matrix_type,&
          row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
-         nblks=nblks, nze=nze, data_type=data_type, special=.FALSE.,&
+         nblks=nblks, nze=nze, data_type=data_type,&
          reuse=reuse, mutable_work=mutable_work,&
          replication_type=replication_type,&
          error=dbcsr_error)

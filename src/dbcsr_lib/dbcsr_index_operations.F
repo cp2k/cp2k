@@ -20,15 +20,17 @@ MODULE dbcsr_index_operations
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8
-  USE dbcsr_message_passing,           ONLY: mp_deallocate
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_local_cols, &
        dbcsr_distribution_local_rows, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_thread_dist, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_uses_special_memory, &
-       dbcsr_wm_use_mutable
-  USE dbcsr_ptr_util,                  ONLY: ensure_array_size
+       dbcsr_get_index_memory_type, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_wm_use_mutable
+  USE dbcsr_ptr_util,                  ONLY: default_resize_factor,&
+                                             ensure_array_size,&
+                                             memory_allocate,&
+                                             memory_deallocate
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_prow, &
@@ -49,7 +51,6 @@ MODULE dbcsr_index_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_index_operations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
@@ -433,8 +434,10 @@ CONTAINS
     IF (ub_new .GT. ub) THEN
        IF(debug_mod) WRITE(*,*)routineP//' Reallocating index to ubound', ub_new
        !CALL reallocate(matrix%index, 1, ub_new)
-       CALL ensure_array_size(matrix%index, 1, ub_new, factor=1.0,&
-            nocopy=.FALSE., special=matrix%special_memory,error=error)
+       CALL ensure_array_size(matrix%index, lb=1, ub=ub_new,&
+            factor=default_resize_factor,&
+            nocopy=.FALSE.,&
+            memory_type=matrix%index_memory_type, error=error)
        CALL dbcsr_repoint_index(matrix)
     ENDIF
     IF(debug_mod) WRITE(*,*)routineP//' Adding slot',slot,'at',&
@@ -1631,17 +1634,16 @@ CONTAINS
        ALLOCATE (meta(dbcsr_num_slots))
        meta(:) = matrix%m%index(1:dbcsr_num_slots)
        ! Clear the index.
-       IF (dbcsr_uses_special_memory (matrix)) THEN
-          CALL mp_deallocate (matrix%m%index)
-       ELSE
-          DEALLOCATE (matrix%m%index)
-       ENDIF
+       CALL memory_deallocate (matrix%m%index,&
+            dbcsr_get_index_memory_type (matrix), error=error)
        NULLIFY (matrix%m%index)
+       CALL memory_allocate (matrix%m%index, new_size,&
+            dbcsr_get_index_memory_type (matrix), error=error)
+       !CALL ensure_array_size (matrix%m%index, lb=1, ub=new_size,&
+       !     factor=0.0, nocopy=.TRUE.,&
+       !     memory_type=dbcsr_get_index_memory_type (matrix), zero_pad=.TRUE.,&
+       !     error=error)
        !
-       CALL ensure_array_size (matrix%m%index, lb=1, ub=new_size,&
-            factor=0.0, nocopy=.TRUE.,&
-            special=dbcsr_uses_special_memory (matrix), zero_pad=.TRUE.,&
-            error=error)
        ! Now copy the old index arrays into the index. We must not
        ! copy the positions of the old pointers.
        matrix%m%index(1:dbcsr_meta_size) = meta(1:dbcsr_meta_size)

@@ -51,18 +51,18 @@ MODULE dbcsr_methods
   USE dbcsr_message_passing,           ONLY: mp_cart_create,&
                                              mp_cart_sub,&
                                              mp_comm_free,&
-                                             mp_deallocate,&
                                              mp_sum
+  USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_magic_number, dbcsr_mp_obj, &
-       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
-       dbcsr_work_type
+       dbcsr_imagedistribution_type, dbcsr_magic_number, &
+       dbcsr_memory_default, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
+       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
+       dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&
@@ -113,7 +113,8 @@ MODULE dbcsr_methods
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
-            dbcsr_uses_special_memory, dbcsr_get_occupation,&
+            dbcsr_get_occupation,&
+            dbcsr_get_index_memory_type, dbcsr_get_data_memory_type, &
             dbcsr_is_real, dbcsr_is_complex,&
             dbcsr_name, dbcsr_may_be_dense,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
@@ -157,9 +158,9 @@ MODULE dbcsr_methods
      MODULE PROCEDURE dbcsr_is_initialized_type, dbcsr_is_initialized_obj
   END INTERFACE
 
-  INTERFACE dbcsr_uses_special_memory
-     MODULE PROCEDURE uses_special_memory_matrix, uses_special_memory_area
-  END INTERFACE
+  !INTERFACE dbcsr_uses_special_memory
+  !   MODULE PROCEDURE uses_special_memory_matrix, uses_special_memory_area
+  !END INTERFACE
 
   INTERFACE dbcsr_get_data_size
      !MODULE PROCEDURE get_data_size_area, get_data_size_matrix
@@ -503,11 +504,8 @@ CONTAINS
              CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
              CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
           ENDIF
-          IF (matrix%m%special_memory) THEN
-             CALL MP_DEALLOCATE(matrix%m%index)
-          ELSE
-             DEALLOCATE(matrix%m%index)
-          ENDIF
+          CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type,&
+               error=error)
           !CALL cp_error_init(my_error)
           IF (ASSOCIATED (matrix%m%predistributed)) THEN
              CALL dbcsr_assert (ASSOCIATED (matrix%m%predistributed%mats),&
@@ -1841,6 +1839,36 @@ CONTAINS
     ENDIF
   END FUNCTION dbcsr_is_complex_obj
 
+
+! *****************************************************************************
+!> \brief Returns the type of memory used for data in the matrix
+!> \note It returns the declared data type, not the actually used type
+!> \param[in] matrix           query this matrix
+!> \param[out] same_as_actual  (optional) whether the data actually uses the
+!>                             declared memory type
+!> \result memory_type         memory type used for data
+! *****************************************************************************
+  PURE FUNCTION dbcsr_get_data_memory_type (matrix) &
+       RESULT (memory_type)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: memory_type
+
+    memory_type = matrix%m%data_memory_type
+  END FUNCTION dbcsr_get_data_memory_type
+
+! *****************************************************************************
+!> \brief Returns the type of memory used for the index in the matrix
+!> \param[in] matrix          query this matrix
+!> \result memory_type        memory type used for the index
+! *****************************************************************************
+  PURE FUNCTION dbcsr_get_index_memory_type (matrix) RESULT (memory_type)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: memory_type
+
+    memory_type = matrix%m%index_memory_type
+  END FUNCTION dbcsr_get_index_memory_type
+
+
 ! *****************************************************************************
 !> \brief Returns whether the matrix uses specially-allocated memory
 !> \param[in] matrix          query this matrix
@@ -1851,7 +1879,7 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL                                  :: uses_special
 
-    uses_special = matrix%m%special_memory
+    uses_special = matrix%m%data_memory_type .NE. dbcsr_memory_default
   END FUNCTION uses_special_memory_matrix
 
 
@@ -1866,7 +1894,7 @@ CONTAINS
     LOGICAL                                  :: uses_special
 
     IF (ASSOCIATED (area%d)) THEN
-       uses_special = area%d%special
+       uses_special = area%d%memory_type .NE. dbcsr_memory_default
     ELSE
        uses_special = .FALSE.
     ENDIF

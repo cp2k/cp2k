@@ -32,7 +32,8 @@ MODULE dbcsr_work_operations
                                              dbcsr_buffers_release
   USE dbcsr_block_operations,          ONLY: dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
-       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
+       dbcsr_data_get_memory_type, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_size_referenced
@@ -52,27 +53,27 @@ MODULE dbcsr_work_operations
                                              int_8,&
                                              real_4,&
                                              real_8
-  USE dbcsr_message_passing,           ONLY: mp_allocate
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
        dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
        dbcsr_distribution_make_threads, dbcsr_distribution_ncols, &
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_get_data_size_used, dbcsr_get_data_type, dbcsr_get_matrix_type, &
-       dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_matrix_counter, dbcsr_modify_lock, dbcsr_modify_unlock, &
-       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_name, &
-       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_use_mutable, &
-       dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_get_data_memory_type, dbcsr_get_data_size_used, &
+       dbcsr_get_data_type, dbcsr_get_index_memory_type, &
+       dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_matrix_counter, dbcsr_modify_lock, &
+       dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
+       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
+       dbcsr_name, dbcsr_row_block_sizes, dbcsr_switch_data_area, &
+       dbcsr_use_mutable, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
-       dbcsr_magic_number, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
-       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_coli, &
-       dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
-       dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+       dbcsr_magic_number, dbcsr_memory_default, dbcsr_meta_size, &
+       dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
+       dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
+       dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
+       dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, &
@@ -136,7 +137,9 @@ CONTAINS
 !> \param[in] nze             (optional) number of elements
 !> \param[in] data_type       type of data from [rRcC] for single/double
 !>                            precision real/complex, default is 'R'
-!> \param[in] special         (optional) allocate indices and data using
+!> \param[in] memory_type     (optional) allocate indices and data using
+!>                            special memory
+!> \param[in] index_memory_type     (optional) allocate indices using
 !>                            special memory
 !> \param[in] reuse           (optional) reuses an existing matrix, default
 !>                            is to create a fresh one
@@ -148,15 +151,18 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
+       row_blk_size, col_blk_size, nblks, nze, data_type,&
+       data_memory_type, index_memory_type, reuse,&
        mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type, &
+                                                data_memory_type, &
+                                                index_memory_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -165,7 +171,7 @@ CONTAINS
 
     CHARACTER                                :: matrix_type_l
     INTEGER                                  :: error_handler, my_nblks, &
-                                                my_nze, stat
+                                                my_nze
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, row_blk_offset
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     LOGICAL                                  :: hijack
@@ -314,10 +320,15 @@ CONTAINS
     my_nblks = 0; IF (PRESENT (nblks)) my_nblks = nblks
     matrix%m%nblks = 0
     matrix%m%nze = 0
-    IF (PRESENT (special)) THEN
-       matrix%m%special_memory = special
+    IF (PRESENT (data_memory_type)) THEN
+       matrix%m%data_memory_type = data_memory_type
     ELSE
-       matrix%m%special_memory = .FALSE.
+       matrix%m%data_memory_type = dbcsr_memory_default
+    ENDIF
+    IF (PRESENT (index_memory_type)) THEN
+       matrix%m%index_memory_type = index_memory_type
+    ELSE
+       matrix%m%index_memory_type = dbcsr_memory_default
     ENDIF
     IF (PRESENT (replication_type)) THEN
        CALL dbcsr_assert (replication_type .EQ. dbcsr_repl_none&
@@ -335,22 +346,16 @@ CONTAINS
        matrix%m%replication_type = dbcsr_repl_none
     ENDIF
     !
-    ! Setup the data
+    ! Setup a matrix from scratch
     IF (.NOT. hijack) THEN
        CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, my_nze,&
-            special_memory=matrix%m%special_memory)
+            memory_type=matrix%m%data_memory_type)
        CALL dbcsr_data_set_size_referenced (matrix%m%data_area, 0)
-       IF (matrix%m%special_memory) THEN
-          CALL mp_allocate(matrix%m%index, dbcsr_num_slots, stat=stat)
-          CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-               dbcsr_internal_error, routineN,&
-               "matrix%m%index",__LINE__,error)
-       ELSE
-          ALLOCATE(matrix%m%index(dbcsr_num_slots), stat=stat)
-          CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-               dbcsr_internal_error, routineN,&
-               "matrix%m%index",__LINE__,error)
-       ENDIF
+       !
+       NULLIFY (matrix%m%index)
+       CALL ensure_array_size (matrix%m%index, lb=1, ub=dbcsr_num_slots,&
+            zero_pad = .TRUE., memory_type = matrix%m%index_memory_type,&
+            error=error)
     ENDIF
     CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
          .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
@@ -408,7 +413,8 @@ CONTAINS
   END SUBROUTINE dbcsr_create_new
 
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
+       row_blk_size, col_blk_size, nblks, nze, data_type,&
+       data_memory_type, index_memory_type, reuse,&
        mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: template
@@ -418,8 +424,10 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type, &
+                                                data_memory_type, &
+                                                index_memory_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -429,8 +437,10 @@ CONTAINS
     CHARACTER                                :: new_matrix_type, &
                                                 new_replication_type
     CHARACTER(len=default_string_length)     :: new_name
-    INTEGER                                  :: new_data_type
-    LOGICAL                                  :: new_mutable_work, new_special
+    INTEGER                                  :: new_data_memory_type, &
+                                                new_data_type, &
+                                                new_index_memory_type
+    LOGICAL                                  :: new_mutable_work
     TYPE(array_i1d_obj)                      :: new_col_blk_size, &
                                                 new_row_blk_size
     TYPE(dbcsr_distribution_obj)             :: new_dist
@@ -467,10 +477,15 @@ CONTAINS
     ELSE
        new_data_type = dbcsr_get_data_type (template)
     ENDIF
-    IF (PRESENT (special)) THEN
-       new_special = special
+    IF (PRESENT (data_memory_type)) THEN
+       new_data_memory_type = data_memory_type
     ELSE
-       new_special = dbcsr_uses_special_memory (template)
+       new_data_memory_type = dbcsr_get_data_memory_type (template)
+    ENDIF
+    IF (PRESENT (index_memory_type)) THEN
+       new_index_memory_type = index_memory_type
+    ELSE
+       new_index_memory_type = dbcsr_get_index_memory_type (template)
     ENDIF
     IF (PRESENT (replication_type)) THEN
        new_replication_type = replication_type
@@ -488,7 +503,8 @@ CONTAINS
          col_blk_size = new_col_blk_size,&
          nblks = nblks, nze = nze,&
          data_type = new_data_type,&
-         special = new_special,&
+         data_memory_type = new_data_memory_type,&
+         index_memory_type = new_index_memory_type,&
          mutable_work = new_mutable_work,&
          replication_type = new_replication_type,&
          error=error)
@@ -889,9 +905,10 @@ CONTAINS
        quick = quick .AND. SIZE(matrix%m%wms) .EQ. 1 .AND.&
             .NOT. dbcsr_wm_use_mutable(matrix%m%wms(1))
        IF (quick) THEN
-          quick = quick .AND.&
-               dbcsr_uses_special_memory(matrix%m%wms(1)%data_area) .EQV. &
-               dbcsr_uses_special_memory(matrix%m%data_area)
+          quick = quick .AND. &
+               ( &
+               dbcsr_data_get_memory_type(matrix%m%wms(1)%data_area) .EQ. &
+               dbcsr_data_get_memory_type(matrix%m%data_area))
           quick = quick .AND. &
                ASSOCIATED (matrix%m%wms(1)%row_i)
        ENDIF
@@ -1434,7 +1451,7 @@ CONTAINS
           CALL dbcsr_data_new (matrix%data_area,&
                dbcsr_data_get_type(all_data_areas(1)),&
                data_size = data_starting_offset+data_to_add-1,&
-               special_memory = dbcsr_uses_special_memory(all_data_areas(1)))
+               memory_type = dbcsr_data_get_memory_type(all_data_areas(1)))
        ENDIF
 !$OMP END MASTER
 !$OMP BARRIER

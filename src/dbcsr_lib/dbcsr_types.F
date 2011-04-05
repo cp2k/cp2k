@@ -80,6 +80,7 @@ MODULE dbcsr_types
             dbcsr_type_real_default, dbcsr_type_complex_default,&
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d
+  PUBLIC :: dbcsr_memory_default, dbcsr_memory_MPI
   PUBLIC :: dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
   PUBLIC :: dbcsr_no_transpose, dbcsr_transpose, dbcsr_conjugate_transpose
@@ -232,7 +233,7 @@ MODULE dbcsr_types
 !> \var c_dp        stores complex values in double precision
 !> \var ref_size    last data element in array actually referenced
 !> \var refcount    reference counter for current structure
-!> \var special     these data are specially-allocated
+!> \var memory_type   type of memory where data lives
 !> \var data_type   which of the data types is actually used
 ! *****************************************************************************
   TYPE dbcsr_data_area_type
@@ -246,7 +247,7 @@ MODULE dbcsr_types
      COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: c2_dp
      INTEGER                                  :: ref_size
      INTEGER                                  :: refcount
-     LOGICAL                                  :: special
+     INTEGER                                  :: memory_type
      INTEGER                                  :: data_type
   END TYPE dbcsr_data_area_type
 
@@ -448,7 +449,8 @@ MODULE dbcsr_types
 !>                            is enabled
 !> \var local_rows            Map of global to local rows when local indexing
 !>                            is enabled
-!> \var special_memory        uses special (MPI-allocated) memory
+!> \var index_memory_type     memory type for the index
+!> \var data_memory_type      memory type for data
 !> \var buffers               Block buffers
 !> \var refcount              reference count
 !> \var work_mutable          uses the mutable data for working and not the
@@ -491,7 +493,7 @@ MODULE dbcsr_types
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
      !LOGICAL                 :: transpose
      LOGICAL                 :: bcsc, local_indexing, list_indexing
-     LOGICAL                 :: special_memory
+     INTEGER                 :: data_memory_type, index_memory_type
      TYPE(dbcsr_block_buffer_obj) :: buffers
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
@@ -521,6 +523,11 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER        :: dbcsr_repl_row = 'R'
   CHARACTER, PARAMETER        :: dbcsr_repl_col = 'C'
   CHARACTER, PARAMETER        :: dbcsr_repl_full = 'A'
+
+  !
+  ! Memory types
+  INTEGER, PARAMETER          :: dbcsr_memory_default = 0
+  INTEGER, PARAMETER          :: dbcsr_memory_MPI = 1
 
 ! *****************************************************************************
 !> These specify which array index in the index array is the start of the

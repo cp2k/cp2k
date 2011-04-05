@@ -82,18 +82,18 @@ MODULE dbcsr_operations
        dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
-       dbcsr_image_dist_hold, dbcsr_image_dist_release, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_may_be_dense, dbcsr_mp_grid_setup, dbcsr_mp_group, &
-       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_locals, &
-       dbcsr_row_block_offsets, dbcsr_row_block_sizes, &
-       dbcsr_switch_data_area, dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_get_data_type, dbcsr_get_index_memory_type, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_image_dist_hold, &
+       dbcsr_image_dist_release, dbcsr_init, dbcsr_is_initialized, &
+       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_may_be_dense, &
+       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
+       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
@@ -110,14 +110,14 @@ MODULE dbcsr_operations
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_conjugate_transpose, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_filter_frobenius, &
-       dbcsr_imagedistribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_no_transpose, dbcsr_norm_column, dbcsr_norm_frobenius, &
-       dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, dbcsr_obj, &
-       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
-       dbcsr_scalar_type, dbcsr_transpose, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_symmetric
+       dbcsr_imagedistribution_obj, dbcsr_iterator, dbcsr_memory_MPI, &
+       dbcsr_memory_default, dbcsr_mp_obj, dbcsr_no_transpose, &
+       dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_gershgorin, &
+       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
+       dbcsr_repl_none, dbcsr_repl_row, dbcsr_scalar_type, dbcsr_transpose, &
+       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: ceil_log2,&
                                              dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
@@ -771,11 +771,15 @@ CONTAINS
        IF (.NOT. dbcsr_scalar_are_equal (alpha, dbcsr_scalar_one(alpha%data_type))) THEN
           ! Copy and scale matrix B if alpha is not 1.
           CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-               predistribute="R", special_memory=.FALSE.,&
+               predistribute="R", &
+               data_memory_type = dbcsr_memory_default,&
+               index_memory_type = dbcsr_memory_default,&
                no_copy_data=use_dense_mult, scale_value=alpha, error=error)
        ELSE
           CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-               predistribute="R", special_memory=.FALSE.,&
+               predistribute="R", &
+               data_memory_type = dbcsr_memory_default,&
+               index_memory_type = dbcsr_memory_default,&
                no_copy_data=use_dense_mult, error=error)
        ENDIF
        ! Post-processing of images.
@@ -839,7 +843,9 @@ CONTAINS
     IF (.NOT. left_set_given) THEN
        ALLOCATE (m2s_left)
        CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
-            predistribute="L", special_memory=.FALSE.,&
+            predistribute="L", &
+            data_memory_type = dbcsr_memory_default,&
+            index_memory_type = dbcsr_memory_default,&
             no_copy_data=use_dense_mult, error=error)
        ! Post-processing of images.
        DO i = 1, SIZE (m2s_left%mats,2)
@@ -2043,7 +2049,8 @@ CONTAINS
     CALL dbcsr_create (mat_recv, "Recv buffer for "//matrix%m%name,&
          dbcsr_distribution (matrix), dbcsr_get_matrix_type (matrix),&
          dbcsr_row_block_sizes (matrix), dbcsr_col_block_sizes (matrix),&
-         data_type=data_type, special=.TRUE., error=error)
+         data_type=data_type, data_memory_type=dbcsr_memory_MPI,&
+         index_memory_type=dbcsr_memory_MPI, error=error)
     CALL dbcsr_data_init (data_ptr)
     CALL dbcsr_data_new (data_ptr, data_type)
     !
@@ -2088,7 +2095,8 @@ CONTAINS
           CALL dbcsr_data_ensure_size (mat_comm%m%data_area, get_sizes(i_d),&
                nocopy=.TRUE., zero_pad=.FALSE., error=error)
           CALL ensure_array_size (mat_comm%m%index, lb=1, ub=get_sizes(i_i),&
-               nocopy=.TRUE., special=dbcsr_uses_special_memory(mat_comm),&
+               nocopy=.TRUE.,&
+               memory_type=dbcsr_get_index_memory_type(mat_comm),&
                zero_pad=.TRUE., error=error)
           CALL mp_recv (mat_comm%m%index(1:get_sizes(i_i)), &
                src_p, step, mp_group)
@@ -2457,11 +2465,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_create(diag, 'diag of '//matrix%m%name, &
-         matrix%m%dist, dbcsr_get_matrix_type (matrix),&
-         matrix%m%row_blk_size,&
-         matrix%m%col_blk_size, matrix%m%nblkrows_total, matrix%m%nze,&
-         matrix%m%data_type, matrix%m%special_memory, error=error)
+    CALL dbcsr_create(diag, name='diag of '//TRIM(matrix%m%name), &
+         template=matrix, error=error)
 
     CALL dbcsr_data_init (data_a)
     CALL dbcsr_data_new (data_a, dbcsr_get_data_type(matrix))
@@ -2647,22 +2652,18 @@ CONTAINS
           repl_type = dbcsr_get_replication_type(matrix_a)
        ENDIF
        IF(PRESENT(name)) THEN
-          CALL dbcsr_create(matrix_b, name, &
-               dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
-               matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
-               nblks=matrix_a%m%nblks, data_type=new_type,&
-               special=dbcsr_uses_special_memory(matrix_a), &
-               replication_type=repl_type, error=error)
+          CALL dbcsr_create(matrix_b, name=TRIM(name), &
+               template = matrix_a,&
+               data_type = new_type,&
+               error=error)
        ELSE
-          CALL dbcsr_create(matrix_b,'copy of '//dbcsr_name(matrix_a),&
-               dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
-               matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
-               nblks=matrix_a%m%nblks, data_type=new_type,&
-               special=dbcsr_uses_special_memory(matrix_a),&
-               replication_type=repl_type, error=error)
+          CALL dbcsr_create(matrix_b,&
+               name='copy of '//TRIM(dbcsr_name(matrix_a)),&
+               data_type = new_type,&
+               template = matrix_a, error=error)
        ENDIF
        CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index),&
-            special=dbcsr_uses_special_memory(matrix_b), error=error)
+            memory_type = dbcsr_get_index_memory_type(matrix_b), error=error)
        !
        ! copy index and data
        matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)

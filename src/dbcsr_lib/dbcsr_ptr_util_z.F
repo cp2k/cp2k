@@ -25,18 +25,18 @@
 !>                            enlargements
 !> \param[in] nocopy          (optional) copy array on enlargement; default
 !>                            is to copy
-!> \param[in] special         (optional) use MPI-allocated memory; default
-!>                            is no
+!> \param[in] memory_type     (optional) use special memory
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
 ! *****************************************************************************
   SUBROUTINE ensure_array_size_z(array, lb, ub, factor,&
-       nocopy, special, zero_pad, error)
+       nocopy, memory_type, zero_pad, error)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(IN), OPTIONAL            :: lb
     INTEGER, INTENT(IN)                      :: ub
     REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special, zero_pad
+    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
+    INTEGER, INTENT(IN), OPTIONAL            :: memory_type
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_z', &
@@ -44,9 +44,9 @@
 
     INTEGER                                  :: lb_new, lb_orig, stat, &
                                                 ub_new, ub_orig, old_size,&
-                                                size_increase, error_handler
+                                                size_increase, error_handler,&
+                                                mem_type
     LOGICAL                                  :: dbg, docopy = .TRUE., &
-                                                spec,&
                                                 pad
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: newarray
 
@@ -54,27 +54,28 @@
     CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
 
-    docopy = .TRUE.
-    IF (PRESENT (nocopy)) docopy = .NOT. nocopy
-    spec = .FALSE.
-    IF (PRESENT (special)) spec = special
+    IF (PRESENT (nocopy)) THEN
+       docopy = .NOT. nocopy
+    ELSE
+       docopy = .TRUE.
+    ENDIF
+    IF (PRESENT (memory_type)) THEN
+       mem_type = memory_type
+    ELSE
+       mem_type = dbcsr_memory_default
+    ENDIF
     lb_new = 1
     IF (PRESENT (lb)) lb_new = lb
     pad = .FALSE.
     IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
-       IF (spec) THEN
-          CALL dbcsr_assert (lb.EQ.1, dbcsr_failure_level, dbcsr_internal_error,&
-               routineN, "Special memory can only start at 1.",__LINE__,error)
-          CALL mp_allocate(array, ub-lb_new+1, stat=stat)
-       ELSE
-          ALLOCATE(array(lb_new:ub), stat=stat)
-       ENDIF
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "array",__LINE__,error)
-       IF (pad) array(:) = CMPLX(0.0, 0.0, real_8)
-       CALL dbcsr_error_stop(error_handler, error)
+       CALL dbcsr_assert (lb_new, "EQ", 1, &
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+            "Arrays must start at 1", __LINE__, error=error)
+       CALL mem_alloc_z (array, ub, mem_type=mem_type, error=error)
+       IF (pad) CALL mem_zero_z (array, SIZE(array))
+       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -87,7 +88,7 @@
     ENDIF
     ! A reallocation must be performed
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig,&
-         '; special?',spec
+         '; special?',mem_type
     !CALL timeset(routineN,timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
@@ -112,43 +113,142 @@
        ub_new = ub
     ENDIF
     IF(dbg) WRITE(*,*)routineP//' Resizing to bounds',lb_new,':',ub_new
+    !
+    ! Deallocates the old array if it's not needed to copy the old data.
     IF(.NOT.docopy) THEN
-       IF (spec) THEN
-          CALL mp_deallocate(array)
-       ELSE
-          DEALLOCATE(array)
-       ENDIF
+       CALL mem_dealloc_z (array, mem_type=mem_type, error=error)
     ENDIF
-    IF (spec) THEN
-       CALL dbcsr_assert (lb_new.EQ.1, dbcsr_failure_level, dbcsr_internal_error,&
-            routineN, "Special memory can only start at 1.",__LINE__,error)
-       CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
-    ELSE
-       ALLOCATE(newarray(lb_new:ub_new), stat=stat)
-    ENDIF
-    CALL dbcsr_assert (stat == 0, dbcsr_failure_level, dbcsr_internal_error,&
-         routineN, "newarray",__LINE__,error)
+    !
+    ! Allocates the new array
+    CALL dbcsr_assert (lb_new, "EQ", 1, &
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Arrays must start at 1", __LINE__, error=error)
+    CALL mem_alloc_z (newarray, ub_new-lb_new+1, mem_type, error=error)
+    !
+    ! Now copy and/or zero pad.
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             dbcsr_failure_level, dbcsr_internal_error, routineP,&
             "Old extent exceeds the new one.",__LINE__,error)
-       newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
-       IF (spec) THEN
-          CALL mp_deallocate(array)
-       ELSE
-          DEALLOCATE(array)
-       ENDIF
+       !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
+       CALL mem_copy_z (newarray(lb_orig:ub_orig),&
+            array(lb_orig:ub_orig), ub_orig-lb_orig+1)
        IF (pad) THEN
-          array(ub_orig+1:ub_new) = CMPLX(0.0, 0.0, real_8)
-          array(lb_new:lb_orig-1) = CMPLX(0.0, 0.0, real_8)
+          !newarray(ub_orig+1:ub_new) = 0
+          newarray(lb_new:lb_orig-1) = 0
+          CALL mem_zero_z (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
+       CALL mem_dealloc_z (array, mem_type=mem_type, error=error)
     ELSEIF (pad) THEN
-       array(:) = CMPLX(0.0, 0.0, real_8)
+       !newarray(:) = CMPLX(0.0, 0.0, real_8)
+       CALL mem_zero_z (newarray, SIZE(newarray))
     ENDIF
     array => newarray
     IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE ensure_array_size_z
+
+! *****************************************************************************
+!> \brief Copies memory area
+!> \param[out] dst   destination memory
+!> \param[in] src    source memory
+!> \param[in] n      length of copy
+! *****************************************************************************
+  SUBROUTINE mem_copy_z (dst, src, n)
+    INTEGER, INTENT(IN) :: n
+    COMPLEX(kind=real_8), DIMENSION(1:n), INTENT(OUT) :: dst
+    COMPLEX(kind=real_8), DIMENSION(1:n), INTENT(IN) :: src
+    dst(:) = src(:)
+  END SUBROUTINE mem_copy_z
+
+! *****************************************************************************
+!> \brief Zeros memory area
+!> \param[out] dst   destination memory
+!> \param[in] n      length of elements to zero
+! *****************************************************************************
+  SUBROUTINE mem_zero_z (dst, n)
+    INTEGER, INTENT(IN) :: n
+    COMPLEX(kind=real_8), DIMENSION(1:n), INTENT(OUT) :: dst
+    dst(:) = CMPLX(0.0, 0.0, real_8)
+  END SUBROUTINE mem_zero_z
+
+
+! *****************************************************************************
+!> \brief Allocates memory
+!> \param[out] mem        memory to allocate
+!> \param[in] n           length of elements to allocate
+!> \param[in] mem_type    memory type
+!> \param[in,out] error   error
+! *****************************************************************************
+  SUBROUTINE mem_alloc_z (mem, n, mem_type, error)
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER        :: mem
+    INTEGER, INTENT(IN)                   :: n, mem_type
+    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_z', &
+      routineP = moduleN//':'//routineN
+    INTEGER                               :: stat, error_handle
+!   ---------------------------------------------------------------------------
+    
+    IF (careful_mod) &
+       CALL dbcsr_error_set (routineN, error_handle, error=error)
+    !
+    SELECT CASE (mem_type)
+    CASE (dbcsr_memory_default)
+       ALLOCATE(mem(n), stat=stat)
+    CASE (dbcsr_memory_MPI)
+       CALL mp_allocate(mem, n, stat=stat)
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+            "Unsupported memory type",__LINE__,error)
+    END SELECT
+    !
+    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "memory",__LINE__,error)
+    !
+    IF (careful_mod) &
+       CALL dbcsr_error_stop (error_handle, error=error)
+  END SUBROUTINE mem_alloc_z
+
+
+! *****************************************************************************
+!> \brief Deallocates memory
+!> \param[out] mem        memory to allocate
+!> \param[in] n           length of elements to allocate
+!> \param[in] mem_type    memory type
+!> \param[in,out] error   error
+! *****************************************************************************
+  SUBROUTINE mem_dealloc_z (mem, mem_type, error)
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER        :: mem
+    INTEGER, INTENT(IN)                   :: mem_type
+    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_z', &
+      routineP = moduleN//':'//routineN
+    INTEGER                               :: stat, error_handle
+!   ---------------------------------------------------------------------------
+    
+    IF (careful_mod) &
+       CALL dbcsr_error_set (routineN, error_handle, error=error)
+    !
+    SELECT CASE (mem_type)
+    CASE (dbcsr_memory_default)
+       DEALLOCATE(mem, stat=stat)
+    CASE (dbcsr_memory_MPI)
+       CALL mp_deallocate(mem, stat=stat)
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+               "Unsupported memory type",__LINE__,error)
+    END SELECT
+    !
+    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "memory",__LINE__,error)
+    !
+    IF (careful_mod) &
+       CALL dbcsr_error_stop (error_handle, error=error)
+  END SUBROUTINE mem_dealloc_z
+
+
 
 
 #if defined(__PTR_RANK_REMAP)
@@ -195,4 +295,3 @@
   END SUBROUTINE pointer_z_rank_remap2
 #endif
 #endif
-

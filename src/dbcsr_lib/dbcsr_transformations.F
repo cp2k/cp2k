@@ -31,11 +31,12 @@ MODULE dbcsr_transformations
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
-       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
-       dbcsr_data_get_type, dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_data_set_size_referenced, dbcsr_get_data, dbcsr_scalar_negative, &
-       dbcsr_scalar_one, dbcsr_type_1d_to_2d
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
+       dbcsr_data_get_memory_type, dbcsr_data_get_size, dbcsr_data_get_type, &
+       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
+       dbcsr_get_data, dbcsr_scalar_negative, dbcsr_scalar_one, &
+       dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data
   USE dbcsr_dist_operations,           ONLY: &
        dbcsr_get_local_cols, dbcsr_get_local_rows, dbcsr_get_local_vcols, &
@@ -78,7 +79,7 @@ MODULE dbcsr_transformations
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_switch_data_area, dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
                                              hybrid_alltoall_c1,&
                                              hybrid_alltoall_d1,&
@@ -226,11 +227,13 @@ CONTAINS
        ENDIF
     ENDIF
     ! Create the transposed matrix
-    CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
-         dbcsr_get_matrix_type(normal),&
-         normal%m%col_blk_size, normal%m%row_blk_size,&
-         data_type=normal%m%data_type,&
-         special=dbcsr_uses_special_memory(normal), error=error)
+    CALL dbcsr_create (transposed, name="transposed "//TRIM(normal%m%name),&
+         template = normal, &
+         dist = new_dist,&
+         matrix_type = dbcsr_get_matrix_type(normal),&
+         row_blk_size = normal%m%col_blk_size,&
+         col_blk_size = normal%m%row_blk_size,&
+         error=error)
     CALL dbcsr_distribution_release (new_dist)
     ! Reserve the space for the new indices.
     IF (tr_index) THEN
@@ -443,9 +446,10 @@ CONTAINS
     ALLOCATE (rd_disp(0:numproc-1))
     ALLOCATE (rm_disp(0:numproc-1))
     !vw should be created before calling this procedure
-    CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
-         dbcsr_type_no_symmetry, sm%m%row_blk_size, sm%m%col_blk_size,&
-         0,0, dbcsr_get_data_type(sm), special=dbcsr_uses_special_memory(sm),&
+    CALL dbcsr_create(desm, name='desym '//TRIM(sm%m%name),&
+         template = sm,&
+         dist = sm%m%dist,&
+         matrix_type = dbcsr_type_no_symmetry,&
          error=error)
     IF (dbcsr_get_matrix_type (sm) .EQ. dbcsr_type_antisymmetric) THEN
        desm%m%negate_real = .TRUE.
@@ -715,10 +719,10 @@ CONTAINS
        matrix%m%replication_type = dbcsr_repl_none
     ELSE
        CALL dbcsr_init(distributed)
-       CALL dbcsr_create(distributed, 'Distributed '//matrix%m%name,&
-            matrix%m%dist,&
-            dbcsr_type_no_symmetry, matrix%m%row_blk_size, matrix%m%col_blk_size,&
-            0, 0, matrix%m%data_type, special=dbcsr_uses_special_memory(matrix), &
+       CALL dbcsr_create(distributed, name='Distributed '//TRIM(matrix%m%name),&
+            template = matrix,&
+            matrix_type = dbcsr_type_no_symmetry,&
+            replication_type = dbcsr_repl_none,&
             error=error)
        distributed%m%replication_type = dbcsr_repl_none
        ! First count how many blocks are local.
@@ -834,20 +838,23 @@ CONTAINS
 !> \param[in,out] normalized  image array of the normalized matrix
 !> \param[in] target_image_dist          normalize to this image distribution
 !> \param[in] predistribute   (optional) predistribute data for multiplication
-!> \param[in] special_memory  (optional) whether to use special memory;
-!>                            default is yes
+!> \param[in] data_memory_type     type of memory to use for data
+!> \param[in] index_memory_type    type of memory to use for index
 !> \param[in] no_copy_data    (optional) try to not merge data at the end
 !> \param[in] scale_value     (optional) scale with this value
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_images(source, normalized, target_image_dist,&
-       predistribute, special_memory, no_copy_data, scale_value, error)
+       predistribute, data_memory_type, index_memory_type,&
+       no_copy_data, scale_value, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: source
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: normalized
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: target_image_dist
     CHARACTER, INTENT(IN), OPTIONAL          :: predistribute
-    LOGICAL, INTENT(IN), OPTIONAL            :: special_memory, no_copy_data
+    INTEGER, INTENT(IN)                      :: data_memory_type, &
+                                                index_memory_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: no_copy_data
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: scale_value
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -866,7 +873,9 @@ CONTAINS
     CALL dbcsr_access_flush (source, error=error)
     CALL make_images(source, normalized,&
          target_image_dist, desymmetrize=dbcsr_has_symmetry(source),&
-         predistribute=predistribute, special_memory=special_memory,&
+         predistribute=predistribute,&
+         data_memory_type = data_memory_type,&
+         index_memory_type = index_memory_type,&
          no_copy_data=no_copy_data,&
          scale_value=scale_value,&
          error=error)
@@ -883,21 +892,23 @@ CONTAINS
 !> \param[in] target_imgdist  image distribution to normalize to
 !> \param[in] desymmetrize    (optional) desymmetrize a symmetric matrix
 !> \param[in] predistribute   (optional) predistribute data for multiplication
-!> \param[in] special_memory  (optional) whether to use special memory;
-!>                            default is yes
+!> \param[in] data_memory_type     type of memory to use for data
+!> \param[in] index_memory_type    type of memory to use for index
 !> \param[in] no_copy_data    (optional) try to not merge data at the end
 !> \param[in] scale_value     (optional) scale with this value
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE make_images(ism, ums, target_imgdist, desymmetrize, predistribute,&
-       special_memory, no_copy_data, scale_value, error)
+       data_memory_type, index_memory_type, no_copy_data, scale_value, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: ism
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: ums
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: target_imgdist
     LOGICAL, INTENT(IN), OPTIONAL            :: desymmetrize
     CHARACTER, INTENT(IN), OPTIONAL          :: predistribute
-    LOGICAL, INTENT(IN), OPTIONAL            :: special_memory, no_copy_data
+    INTEGER, INTENT(IN)                      :: data_memory_type, &
+                                                index_memory_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: no_copy_data
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: scale_value
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -924,7 +935,7 @@ CONTAINS
                                                 row_dist, row_img_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: nocopy, predist, release_td, &
-                                                same_dst_p, special, tr
+                                                same_dst_p, tr
     REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: received_data_area, &
                                                 recv_data_area, send_data_area
@@ -940,8 +951,6 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     tstart = m_walltime ()
-    special = .TRUE.
-    IF (PRESENT (special_memory)) special=special_memory
     nocopy = .FALSE.
     IF (PRESENT (no_copy_data)) nocopy = no_copy_data
     sm = ism%m
@@ -1035,7 +1044,10 @@ CONTAINS
           CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name,&
                target_dist,&
                dbcsr_type_no_symmetry, sm%row_blk_size, sm%col_blk_size,&
-               0,0, sm%data_type, special=special, error=dbcsr_error)
+               0,0, sm%data_type,&
+               data_memory_type=data_memory_type,&
+               index_memory_type=index_memory_type,&
+               error=dbcsr_error)
           ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
           ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
           !ums%mats(row_img, col_img)%m%transpose = sm%transpose
@@ -1054,7 +1066,8 @@ CONTAINS
 !$omp          lsmp, lsdp, t) &
 !$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, scale_value, error,&
-!$omp         ums, sm, ism, target_dist, special, predist, predistribute, &
+!$omp         ums, sm, ism, target_dist, predist, predistribute, &
+!$omp         data_memory_type, index_memory_type,&
 !$omp         old_dist, &
 !$omp         mp_obj, target_imgdist, mp_group, numproc, row_dist, col_dist,&
 !$omp         row_img_dist, col_img_dist, blacs2mpi, row_blk_size,&
@@ -1787,7 +1800,7 @@ CONTAINS
     CALL dbcsr_data_init (dense_data)
     CALL dbcsr_data_new (dense_data, dbcsr_data_get_type (und_data),&
          data_size = nfullrows * nfullcols,&
-         special_memory=dbcsr_uses_special_memory (und_data))
+         memory_type=dbcsr_data_get_memory_type (und_data))
     !
     ! Reshuffle the data
     CALL make_dense_data (und_matrix,&
@@ -1967,7 +1980,7 @@ CONTAINS
     CALL dbcsr_data_init (blocked_data)
     CALL dbcsr_data_new (blocked_data, dbcsr_data_get_type (dense_data),&
          data_size = nfullrows_local*nfullcols_local,&
-         special_memory=dbcsr_uses_special_memory (dense_data))
+         memory_type=dbcsr_data_get_memory_type (dense_data))
     CALL dbcsr_switch_data_area (undense_matrix, blocked_data, error=error)
     CALL dbcsr_data_release (blocked_data)
     ! Reshuffle the data
@@ -2358,11 +2371,11 @@ CONTAINS
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
     CALL dbcsr_init (replicated)
-    CALL dbcsr_create(replicated, 'Replicated '//TRIM(matrix%m%name),&
-         matrix%m%dist,&
-         dbcsr_type_no_symmetry, matrix%m%row_blk_size, matrix%m%col_blk_size,&
-         0, 0, matrix%m%data_type, special=dbcsr_uses_special_memory(matrix),&
+    CALL dbcsr_create(replicated, name='Replicated '//TRIM(matrix%m%name),&
+         template = matrix,&
+         matrix_type = dbcsr_type_no_symmetry,&
          replication_type=rep_type, error=error)
+    !
     ! Count initial sizes for sending. Also, ensure that blocks are on their
     ! home processors.
     DBG 'A', " ", rep_type, dbcsr_mp_nprows(mp_obj), dbcsr_mp_npcols(mp_obj)
@@ -2452,8 +2465,10 @@ CONTAINS
     !
     ! Now fill in the data.
     CALL dbcsr_work_create(replicated,&
-            SUM(recv_count(1,:)),&
-            SUM(recv_count(2,:)), n=1, error=error)
+         SUM(recv_count(1,:)),&
+         SUM(recv_count(2,:)), n=1, &
+         work_mutable=.FALSE.,&
+         error=error)
     CALL dbcsr_data_hold (recv_data)
     CALL dbcsr_data_release (replicated%m%wms(1)%data_area)
     replicated%m%wms(1)%data_area = recv_data

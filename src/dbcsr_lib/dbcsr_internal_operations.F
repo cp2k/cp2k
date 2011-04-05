@@ -61,24 +61,24 @@ MODULE dbcsr_internal_operations
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_row_dist, &
        dbcsr_distribution_thread_dist, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_image_dist_init, &
-       dbcsr_init, dbcsr_mp_grid_setup, dbcsr_mp_group, &
-       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_nblkcols_local, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
-       dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
+       dbcsr_get_num_blocks, dbcsr_image_dist_init, dbcsr_init, &
+       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
+       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
+       dbcsr_nfullrows_local, dbcsr_row_block_sizes, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
   USE dbcsr_plasma_interface,          ONLY: dbcsr_use_plasma
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_obj, dbcsr_slot_size, dbcsr_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_work_type
+       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, dbcsr_memory_MPI, &
+       dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_size, dbcsr_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_work_type
   USE dbcsr_util,                      ONLY: count_bins,&
                                              dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -1388,14 +1388,16 @@ CONTAINS
                dbcsr_col_block_sizes (source_matrix),&
                nblks=index_size, nze=data_size, &
                data_type=dbcsr_get_data_type(source_matrix),&
-               special=.TRUE., error=error)
+               data_memory_type=dbcsr_memory_MPI,&
+               index_memory_type=dbcsr_memory_MPI,&
+               error=error)
           CALL dbcsr_data_ensure_size (&
                buffer_set%mats(row_image, col_image)%m%data_area,&
                data_size, nocopy=.TRUE.,error=error)
           CALL ensure_array_size (&
                buffer_set%mats(row_image, col_image)%m%index,&
                ub=index_size, nocopy=.TRUE.,&
-               special=dbcsr_uses_special_memory(buffer_set%mats(row_image, col_image)),&
+               memory_type=dbcsr_get_index_memory_type(buffer_set%mats(row_image, col_image)),&
                error=error)
           buffer_set%mats(row_image, col_image)%m%negate_real&
                = source_matrix%m%negate_real
