@@ -10,3 +10,6 @@ test_pw_04.inp         0
 test_cp_fm_gemm_01.inp 0
 test_cp_fm_gemm_02.inp 0
 eig.inp                0
+dbcsr_ctype.inp        0
+dbcsr_mm_blas.inp      0
+dbcsr_subcomm.inp      0

@@ -34,6 +34,7 @@ MODULE dbcsr_methods
                                              dbcsr_buffers_init,&
                                              dbcsr_buffers_new,&
                                              dbcsr_buffers_release
+  USE dbcsr_config,                    ONLY: use_subcommunicators
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
                                              dbcsr_data_get_type,&
@@ -76,9 +77,6 @@ MODULE dbcsr_methods
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
-
-  ! Workaround for Intel MPI.
-  LOGICAL, PARAMETER, PRIVATE :: use_subcommunicators = .FALSE.
 
   INTEGER, PUBLIC :: dbcsr_matrix_counter = 111111
 

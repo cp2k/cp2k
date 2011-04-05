@@ -46,6 +46,9 @@ MODULE cp_dbcsr_interface
                                              dbcsr_buffers_new
   USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
                                              dbcsr_data_clear
+  USE dbcsr_config,                    ONLY: dbcsr_set_conf_combtypes,&
+                                             dbcsr_set_conf_mm_driver,&
+                                             dbcsr_set_conf_subcomm
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
@@ -103,6 +106,9 @@ MODULE cp_dbcsr_interface
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -125,6 +131,7 @@ MODULE cp_dbcsr_interface
 
   !
   ! Interface to libdbcsr (contains cp2k timing and error)
+  PUBLIC :: cp_dbcsr_config
   PUBLIC :: cp_dbcsr_untranspose_blocks
   PUBLIC :: cp_dbcsr_set
   PUBLIC :: cp_dbcsr_add
@@ -316,6 +323,36 @@ CONTAINS
     CALL cp_dbcsr_mapping_release (saved_ao_map, error=error)
     NULLIFY (saved_ao_map)
   END SUBROUTINE trash_map
+
+
+! *****************************************************************************
+!> \brief Configures options for DBCSR
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_config(root_section, error)
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: mm_driver
+    LOGICAL                                  :: use_combtypes, use_subcomms
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(section_vals_type), POINTER         :: dbcsr_section
+
+    dbcsr_section => section_vals_get_subs_vals(root_section,&
+      "GLOBAL%DBCSR",error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "subcommunicators", l_val=use_subcomms, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "combined_types", l_val=use_combtypes, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "mm_driver", i_val=mm_driver, error=error)
+    CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
+    CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
+    CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
+  END SUBROUTINE cp_dbcsr_config
+
 
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.

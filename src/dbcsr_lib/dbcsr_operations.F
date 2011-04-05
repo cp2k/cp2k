@@ -33,6 +33,8 @@ MODULE dbcsr_operations
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
+  USE dbcsr_config,                    ONLY: mm_driver,&
+                                             mm_driver_plasma
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
@@ -97,8 +99,7 @@ MODULE dbcsr_operations
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
-                                             dbcsr_plasma_init,&
-                                             dbcsr_use_plasma
+                                             dbcsr_plasma_init
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
@@ -710,7 +711,7 @@ CONTAINS
     ! if we need a special core gemm, we set it here
     !
     ! initialize plasma
-    IF (dbcsr_use_plasma) THEN
+    IF (mm_driver .EQ. mm_driver_plasma) THEN
        CALL dbcsr_plasma_init(plasma_is_set, error)
        use_plasma = plasma_is_set.AND.use_dense_mult
     ELSE
@@ -1005,7 +1006,7 @@ CONTAINS
        ENDIF
     ENDIF
     !
-    IF (dbcsr_use_plasma) THEN
+    IF (mm_driver .EQ. mm_driver_plasma) THEN
        ! finalize special core gemm
        CALL dbcsr_plasma_finalize(error)
     ENDIF

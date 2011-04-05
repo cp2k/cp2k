@@ -20,6 +20,13 @@ MODULE input_cp2k
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
+  USE dbcsr_config,                    ONLY: has_blas,&
+                                             has_plasma,&
+                                             has_smm_gemm,&
+                                             mm_driver_blas,&
+                                             mm_driver_matmul,&
+                                             mm_driver_plasma,&
+                                             mm_driver_smm
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_atom_section
@@ -604,7 +611,86 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,sub_section,error=error)
     CALL section_release(sub_section,error=error)
+    ! DBCSR options
+    CALL create_dbcsr_section(sub_section,error)
+    CALL section_add_subsection(section,sub_section,error=error)
+    CALL section_release(sub_section,error=error)
  END SUBROUTINE create_global_section
+
+! *****************************************************************************
+!> \brief   Creates the dbcsr section for configuring DBCSR
+!> \author  Urban Borstnik
+!> \date    2011-04-05
+! *****************************************************************************
+  SUBROUTINE create_dbcsr_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section', &
+      routineP = moduleN//':'//routineN
+    CHARACTER(len=32), PARAMETER             :: has = "", &
+                                                hasnot = " (not available)"
+
+    CHARACTER(len=32)                        :: a_blas, a_plasma, a_smm
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="DBCSR",&
+         description="Configuration options for the DBCSR library.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="subcommunicators",&
+         description="Use MPI subcommunicators for transfers "// &
+         "that are limited to process grid rows and columns.",&
+         usage="subcommunicators T",default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="combined_types",&
+         description="Combine matrix index and data into "// &
+         "a single MPI derived data type for communication.",&
+         usage="combined_types T",default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    IF (has_blas) THEN
+       a_blas = has
+    ELSE
+       a_blas = hasnot
+    ENDIF
+    IF (has_smm_gemm) THEN
+       a_smm = has
+    ELSE
+       a_smm = " (only BLAS wrapper available)"
+    ENDIF
+    IF (has_plasma) THEN
+       a_plasma = has
+    ELSE
+       a_plasma = hasnot
+    ENDIF
+    CALL keyword_create(keyword, name="mm_driver",&
+         description="Select which routines to use "//&
+         "for matrix block multiplications.",&
+         usage="mm_driver blas",default_i_val=mm_driver_smm,&
+         enum_c_vals=s2a("BLAS","MATMUL","SMM","PLASMA"),&
+         enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,mm_driver_plasma/),&
+         enum_desc=s2a(&
+         TRIM("BLAS"//a_blas),&
+         TRIM("Fortran MATMUL"),&
+         TRIM("libsmm: a library for small matrix multiplies"//a_smm),&
+         TRIM("PLASMA"//a_plasma)&
+         ),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+  END SUBROUTINE create_dbcsr_section
+
 
 ! *****************************************************************************
 !> \brief section with the tests of the libraries or external code that cp2k uses

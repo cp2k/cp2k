@@ -74,7 +74,7 @@
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
             "Arrays must start at 1", __LINE__, error=error)
        call mem_alloc_[nametype1] (array, ub, mem_type=mem_type, error=error)
-       IF (pad .AND. ub .GT. 0) call mem_zero_[nametype1] (array, size(array))
+       IF (pad .AND. ub .GT. 0) call mem_zero_[nametype1] (array, ub)
        IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF

@@ -15,6 +15,7 @@ MODULE cp2k_runs
                                              cp2k_version,&
                                              cp2k_year,&
                                              enable_color_tags
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_config
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -274,6 +275,8 @@ CONTAINS
 ! if CUDA is enabled we need to allocate memory on the graphics card
           CALL cuda_device_mem_init(root_section)
 #endif
+
+          CALL cp_dbcsr_config (root_section, error)
 
           SELECT CASE (prog_name_id)
           CASE (do_atom)

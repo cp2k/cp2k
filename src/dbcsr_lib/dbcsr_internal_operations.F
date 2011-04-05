@@ -20,6 +20,12 @@ MODULE dbcsr_internal_operations
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
+  USE dbcsr_config,                    ONLY: mm_driver,&
+                                             mm_driver_blas,&
+                                             mm_driver_matmul,&
+                                             mm_driver_plasma,&
+                                             mm_driver_smm,&
+                                             use_combined_types
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_init, &
@@ -72,7 +78,6 @@ MODULE dbcsr_internal_operations
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
-  USE dbcsr_plasma_interface,          ONLY: dbcsr_use_plasma
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, dbcsr_memory_MPI, &
@@ -100,18 +105,6 @@ MODULE dbcsr_internal_operations
 
   INTEGER :: multrec_calls = 0
 
-
-#if defined (__INTERNAL_GEMM)
-  LOGICAL, PARAMETER                   :: internal_gemm = .TRUE.
-#else
-  LOGICAL, PARAMETER                   :: internal_gemm = .FALSE.
-#endif
-
-#if defined (__HAS_smm_dnn)
-  LOGICAL, PARAMETER                   :: smm_gemm = .TRUE.
-#else
-  LOGICAL, PARAMETER                   :: smm_gemm = .FALSE.
-#endif
 
 #if defined(__HAS_NO_OMP_3)
 #define __COLLAPSE2
@@ -220,8 +213,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: idata = 1, imeta = 2, &
                                                 M_L = 2, M_P = 1, M_R = 3, &
                                                 RC_C = 2, RC_R = 1
-    LOGICAL, PARAMETER                       :: excessive_output = .FALSE., &
-                                                use_combined_types = .FALSE.
+    LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
 
     INTEGER :: data_type, error_handler, error_handler2, flop_metronome, grp, &
       i, ithread, left_col_image, left_col_mult, left_col_nimages, &
@@ -304,11 +296,7 @@ CONTAINS
     t_gemm = 0.0_dp
     mult_id=mult_id+1
 
-    IF (internal_gemm) THEN
-       my_use_plasma = .FALSE.
-    ELSE
-       my_use_plasma = dbcsr_use_plasma
-    ENDIF
+    my_use_plasma = mm_driver_blas .EQ. mm_driver_plasma
     IF (PRESENT (retain_sparsity)) THEN
        keep_sparsity = retain_sparsity
     ELSE
@@ -2686,7 +2674,8 @@ CONTAINS
     ENDIF
     !
     CALL dbcsr_error_set(routineN//"_low", eh_low, error)
-    IF (internal_gemm) THEN
+    SELECT CASE (mm_driver)
+    CASE (mm_driver_matmul)
        SELECT CASE (product_data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL internal_process_mm_stack_s (params, &
@@ -2712,7 +2701,7 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
-    ELSEIF (smm_gemm) THEN
+    CASE (mm_driver_smm)
        SELECT CASE (product_data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL smm_process_mm_stack_s (params, &
@@ -2738,7 +2727,7 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
-    ELSEIF (dbcsr_use_plasma) THEN
+    CASE (mm_driver_plasma)
        SELECT CASE (product_data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL plasma_process_mm_stack_s (params,&
@@ -2764,7 +2753,7 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
-    ELSE
+    CASE (mm_driver_blas)
        SELECT CASE (product_data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL blas_process_mm_stack_s (params,&
@@ -2790,7 +2779,10 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
-    ENDIF
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Invalid multiplication driver",__LINE__,error)
+    END SELECT
     CALL dbcsr_error_stop(eh_low, error)
     stack_size = 0
     CALL dbcsr_error_stop(error_handler, error)
