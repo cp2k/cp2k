@@ -1872,7 +1872,7 @@ CONTAINS
 !> \date 12.2010
 ! *****************************************************************************
   SUBROUTINE force_field_pack_charges(charges, charges_section, particle_set, &
-             my_qmmm, qmmm_env, inp_info, error)
+             my_qmmm, qmmm_env, inp_info, iw4, error)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(section_vals_type), POINTER         :: charges_section
@@ -1881,13 +1881,14 @@ CONTAINS
     LOGICAL                                  :: my_qmmm
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(input_info_type), POINTER           :: inp_info
+    INTEGER                                  :: iw4
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charges', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname
-    INTEGER                                  :: handle, iatom, ilink, iw4, j, &
+    INTEGER                                  :: handle, iatom, ilink, j, &
                                                 nval, stat
     LOGICAL                                  :: failure, found_p, &
                                                 is_link_atom, is_ok, &
@@ -2598,7 +2599,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE force_field_pack_nonbond14(atomic_kind_set, ff_type, qmmm_env, iw, &
        Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond14, ewald_env, &
-       iw2, iw3, iw4, error)
+       iw2, iw3, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2613,7 +2614,7 @@ CPSourceFileRef,&
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond14
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    INTEGER                                  :: iw2, iw3, iw4
+    INTEGER                                  :: iw2, iw3
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond14', &
