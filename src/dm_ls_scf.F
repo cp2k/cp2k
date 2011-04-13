@@ -11,31 +11,32 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf
-  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
-       cp_dbcsr_get_block_p, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
+       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, &
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_nblkrows_total, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
                                              compute_matrix_preconditioner,&
                                              density_matrix_sign,&
                                              density_matrix_sign_fixed_mu
+  USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
+                                             ls_scf_init_qs,&
+                                             matrix_ls_create,&
+                                             matrix_ls_to_qs,&
+                                             matrix_qs_to_ls
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: ls_s_inversion_hotelling,&
+  USE input_constants,                 ONLY: ls_cluster_atomic,&
+                                             ls_cluster_molecular,&
+                                             ls_s_inversion_hotelling,&
                                              ls_s_inversion_sign_sqrt,&
                                              ls_s_preconditioner_atomic,&
                                              ls_s_preconditioner_molecular,&
@@ -49,19 +50,8 @@ MODULE dm_ls_scf
   USE machine,                         ONLY: m_walltime
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
-  USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
-                                             calculate_mopac_dm
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -107,92 +97,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ls_scf
-
-! *****************************************************************************
-!> \brief first link to QS, copy a QS matrix to LS matrix
-!>        used to isolate QS style matrices from LS style
-!>        will be useful for future features (e.g. precision, symmetry, blocking, ...)
-!> \par History
-!>       2010.10 created [Joost VandeVondele]
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE matrix_qs_to_ls(matrix_ls,matrix_qs,error)
-    TYPE(cp_dbcsr_type)                      :: matrix_ls, matrix_qs
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'matrix_qs_to_ls', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,handle)
-
-    CALL cp_dbcsr_copy(matrix_ls,matrix_qs,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE
-
-! *****************************************************************************
-!> \brief second link to QS, copy a LS matrix to QS matrix
-!>        used to isolate QS style matrices from LS style
-!>        will be useful for future features (e.g. precision, symmetry, blocking, ...)
-!> \par History
-!>       2010.10 created [Joost VandeVondele]
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE matrix_ls_to_qs(matrix_qs,matrix_ls,error)
-    TYPE(cp_dbcsr_type)                      :: matrix_qs, matrix_ls
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_to_qs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iblock_col, &
-                                                iblock_row, unit_nr
-    LOGICAL                                  :: found
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_ls, block_qs
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,handle)
-
-    ! get a useful output_unit
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
-    ENDIF
-
-    ! a copy but, does the right thing for symmetric=non-symmetric cases
-    CALL cp_dbcsr_iterator_start(iter, matrix_qs)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_qs)
-       IF (.NOT.(BTEST(iblock_col+iblock_row, 0) .EQV. iblock_col.GT.iblock_row)) THEN
-          CALL cp_dbcsr_get_block_p(matrix=matrix_ls,row=iblock_row,col=iblock_col,&
-             block=block_ls,found=found)
-          IF (found) THEN
-             block_qs=block_ls
-          ELSE
-             block_qs=0
-          ENDIF
-       ELSE
-          CALL cp_dbcsr_get_block_p(matrix=matrix_ls,row=iblock_col,col=iblock_row,&
-               block=block_ls,found=found)
-          IF (found) THEN
-             block_qs=TRANSPOSE(block_ls)
-          ELSE
-             block_qs=0
-          ENDIF
-       ENDIF
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-    CALL cp_dbcsr_finalize(matrix_qs, error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE matrix_ls_to_qs
 
 ! *****************************************************************************
 !> \brief Basic initialization of the LS type.
@@ -243,8 +147,8 @@ CONTAINS
     CALL cp_para_env_retain(ls_scf_env%para_env,error)
 
     ! initialize block to group to defined molecules
-    ALLOCATE(ls_scf_env%block_to_group(ls_scf_env%natoms))
-    CALL molecule_of_atom(molecule_set,atom_to_mol=ls_scf_env%block_to_group,error=error)
+    ALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms))
+    CALL molecule_of_atom(molecule_set,atom_to_mol=ls_scf_env%ls_mstruct%atom_to_molecule,error=error)
 
     ! parse the ls_scf section and set derived quantities
     CALL ls_scf_init_read_write_input(input,ls_scf_env,unit_nr,error)
@@ -252,11 +156,9 @@ CONTAINS
     ! some basic initialization of the QS side of things
     CALL ls_scf_init_qs(qs_env,error)
 
-    ! here we allocate our basic matrices, right now, use QS S as a template
-    ! later, we might want to use our own format (e.g. clustered)
-    CALL cp_dbcsr_init(ls_scf_env%matrix_s,error=error)
-    CALL cp_dbcsr_create(ls_scf_env%matrix_s,template=matrix_s(1)%matrix,&
-                         matrix_type=dbcsr_type_no_symmetry,error=error)
+    ! create the matrix template for use in the ls procedures
+    CALL matrix_ls_create(matrix_ls=ls_scf_env%matrix_s,matrix_qs=matrix_s(1)%matrix,& 
+                          ls_mstruct=ls_scf_env%ls_mstruct,error=error)
 
     nspin=ls_scf_env%nspins
     ALLOCATE(ls_scf_env%matrix_p(nspin))
@@ -279,111 +181,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ls_scf_init
-
-! *****************************************************************************
-!> \brief further required initialization of QS.
-!>        Might be factored-out since this seems common code with the other SCF.
-!> \par History
-!>       2010.10 created [Joost VandeVondele]
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE ls_scf_init_qs(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_qs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ispin, nspin, unit_nr
-    INTEGER, DIMENSION(2)                    :: nelectron_spin
-    LOGICAL                                  :: has_unit_metric
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(section_vals_type), POINTER         :: input
-
-    CALL timeset(routineN,handle)
-
-    ! get a useful output_unit
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
-    ENDIF
-
-    ! get basic quantities from the qs_env
-    CALL get_qs_env(qs_env,dft_control=dft_control,&
-                           matrix_s=matrix_s,&
-                           matrix_ks=matrix_ks,&
-                           ks_env=ks_env,&
-                           input=input,&
-                           energy=energy,&
-                           atomic_kind_set=atomic_kind_set,&
-                           particle_set=particle_set,&
-                           has_unit_metric=has_unit_metric,&
-                           para_env=para_env,&
-                           nelectron_spin=nelectron_spin,error=error)
-
-    nspin=dft_control%nspins
-
-
-    ! we might have to create matrix_ks
-    IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspin,error)
-       DO ispin=1,nspin
-          ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-          CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
-          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
-       ENDDO
-       CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
-    ENDIF
-    ! and ks_env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
-
-    ! create an initial atomic guess
-    DO ispin=1,nspin
-       CALL cp_dbcsr_set(qs_env%rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
-       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-          CALL calculate_mopac_dm(qs_env%rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
-                                  dft_control,particle_set, atomic_kind_set,&
-                                  ispin, nspin, nelectron_spin(ispin),&
-                                  para_env, error)
-       ELSE
-          CALL calculate_atomic_block_dm(qs_env%rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
-                                         particle_set, atomic_kind_set, &
-                                         ispin, nspin, nelectron_spin(ispin), &
-                                         unit_nr, error)
-       ENDIF
-    ENDDO
-
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
-    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-                             just_energy=.FALSE.,error=error)
-
-    IF (unit_nr>0) THEN
-       WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",energy%total
-       WRITE(unit_nr,'()') 
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE ls_scf_init_qs
 
 ! *****************************************************************************
 !> \brief initialize S matrix related properties (sqrt, inverse...)
@@ -420,8 +217,9 @@ CONTAINS
        CALL cp_dbcsr_set(ls_scf_env%matrix_s,0.0_dp,error=error)
        CALL cp_dbcsr_add_on_diag(ls_scf_env%matrix_s,1.0_dp,error=error)
     ELSE
-       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,error=error)
+       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,ls_scf_env%ls_mstruct,error=error)
     ENDIF
+
     CALL cp_dbcsr_filter(ls_scf_env%matrix_s,ls_scf_env%eps_filter,error=error)
 
     ! needs a preconditioner for S
@@ -433,7 +231,7 @@ CONTAINS
        CALL cp_dbcsr_create(ls_scf_env%matrix_bs_sqrt_inv,template=ls_scf_env%matrix_s,&
                             matrix_type=dbcsr_type_no_symmetry, error=error)
        CALL compute_matrix_preconditioner(ls_scf_env%matrix_s,&
-                            ls_scf_env%s_preconditioner_type, ls_scf_env%block_to_group, &
+                            ls_scf_env%s_preconditioner_type, ls_scf_env%ls_mstruct, &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,&
                             ls_scf_env%eps_filter,error)
     ENDIF
@@ -453,8 +251,10 @@ CONTAINS
         CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt_inv,template=ls_scf_env%matrix_s,&
                              matrix_type=dbcsr_type_no_symmetry,error=error) 
 
+
         CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt,ls_scf_env%matrix_s_sqrt_inv,&
                                        ls_scf_env%matrix_s,ls_scf_env%eps_filter,error)
+
         
         IF (.TRUE.) THEN
            CALL cp_dbcsr_init(matrix_tmp1,error=error)
@@ -546,6 +346,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"MIXING_FRACTION",r_val=ls_scf_env%mixing_fraction,error=error)
     CALL section_vals_val_get(ls_scf_section,"MAX_SCF",i_val=ls_scf_env%max_scf,error=error)
     CALL section_vals_val_get(ls_scf_section,"S_PRECONDITIONER",i_val=ls_scf_env%s_preconditioner_type,error=error)
+    CALL section_vals_val_get(ls_scf_section,"MATRIX_CLUSTER_TYPE",i_val=ls_scf_env%ls_mstruct%cluster_type,error=error)
     CALL section_vals_val_get(ls_scf_section,"S_INVERSION",i_val=ls_scf_env%s_inversion_type,error=error)
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities,error=error)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
@@ -587,6 +388,7 @@ CONTAINS
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing inv(S):",ls_scf_env%needs_s_inv
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing sqrt(S):",ls_scf_env%use_s_sqrt
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing s preconditioner ",ls_scf_env%has_s_preconditioner
+
        SELECT CASE(ls_scf_env%s_preconditioner_type)
        CASE(ls_s_preconditioner_none)
            WRITE(unit_nr,'(T2,A,T38,A20)') "S preconditioner type ","NONE"
@@ -595,6 +397,15 @@ CONTAINS
        CASE(ls_s_preconditioner_molecular)
            WRITE(unit_nr,'(T2,A,T38,A20)') "S preconditioner type ","MOLECULAR"
        END SELECT
+
+       SELECT CASE(ls_scf_env%ls_mstruct%cluster_type)
+       CASE(ls_cluster_atomic)
+           WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","ATOMIC"
+       CASE(ls_cluster_molecular)
+           WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","MOLECULAR"
+       END SELECT
+
+
        WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
        WRITE(unit_nr,'()')
     ENDIF
@@ -620,6 +431,7 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, &
                                                 nelectron_spin_real, nspin, &
                                                 unit_nr
+    LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -627,7 +439,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_mixing_old
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_energy_type), POINTER            :: energy
 
     CALL timeset(routineN,handle)
 
@@ -639,7 +450,6 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    CALL get_qs_env(qs_env, matrix_ks=matrix_ks, energy=energy, error=error)
     nspin=ls_scf_env%nspins
 
     ! old quantities, useful for mixing
@@ -650,15 +460,25 @@ CONTAINS
     ENDDO
 
     energy_old=0.0_dp
+    iscf=0
 
     ! the real SCF loop
-    DO iscf=1,ls_scf_env%max_scf
+    DO 
+
+      ! check on max SCF or timing/exit
+      CALL external_control(should_stop,"SCF",start_time=qs_env%start_time,target_time=qs_env%target_time,error=error)
+      IF (should_stop .OR. iscf>=ls_scf_env%max_scf) THEN
+         IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+         EXIT
+      ENDIF
 
       t1 = m_walltime()
+      iscf=iscf+1
 
       ! first get a copy of the current KS matrix
+      CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
       DO ispin=1,nspin
-         CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,error=error)
+         CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,ls_scf_env%ls_mstruct,error=error)
          IF (ls_scf_env%has_s_preconditioner) THEN
              CALL apply_matrix_preconditioner(ls_scf_env%matrix_ks(ispin),"forward", &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
@@ -700,21 +520,13 @@ CONTAINS
          IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
       ENDDO
 
-      ! set the new density matrix 
-      DO ispin=1,nspin
-           CALL matrix_ls_to_qs(qs_env%rho%rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), error=error)
-      END DO 
+      ! compute the corresponding new energy KS matrix and new energy
+      CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,error)
 
-      ! compute the corresponding KS matrix and new energy
-      CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
-      CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-      CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-                               just_energy=.FALSE., print_active=.TRUE., error=error)
-      energy_new=energy%total
+      ! report current SCF loop
       energy_diff=energy_new-energy_old
       energy_old=energy_new
 
-      ! report current SCF loop
       t2 = m_walltime()
       IF (unit_nr>0) THEN
          WRITE(unit_nr,*)
@@ -812,7 +624,7 @@ CONTAINS
 
     CALL cp_para_env_release(ls_scf_env%para_env,error)
 
-    DEALLOCATE(ls_scf_env%block_to_group)
+    DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule)
 
     CALL timestop(handle)
 
@@ -1092,7 +904,7 @@ CONTAINS
                               0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_p(ispin),&
                               0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter,error=error)
-      CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2,  error=error)
+      CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2, ls_scf_env%ls_mstruct, error=error)
     ENDDO
 
     CALL cp_dbcsr_release(matrix_tmp1,error=error)

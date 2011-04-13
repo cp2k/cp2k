@@ -13,6 +13,8 @@
 MODULE dm_ls_scf_types
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: ls_cluster_atomic,&
+                                             ls_cluster_molecular
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
@@ -22,7 +24,12 @@ MODULE dm_ls_scf_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_types'
 
-  PUBLIC :: ls_scf_env_type
+  PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular
+
+  TYPE ls_mstruct_type
+     INTEGER :: cluster_type       
+     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
+  END TYPE
 
   TYPE ls_scf_env_type
      INTEGER               :: nspins, natoms
@@ -30,7 +37,6 @@ MODULE dm_ls_scf_types
      INTEGER, DIMENSION(2) :: nelectron_spin
      REAL(KIND=dp), DIMENSION(2) ::  mu_spin
 
-     INTEGER, DIMENSION(:), ALLOCATABLE :: block_to_group
 
      LOGICAL :: has_unit_metric
 
@@ -50,6 +56,8 @@ MODULE dm_ls_scf_types
      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
 
      LOGICAL  :: report_all_sparsities, perform_mu_scan, use_s_sqrt
+
+     TYPE(ls_mstruct_type) :: ls_mstruct
 
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE ls_scf_env_type

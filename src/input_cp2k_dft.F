@@ -4075,6 +4075,21 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MATRIX_CLUSTER_TYPE",&
+            description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "//&
+                        "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."//&
+                        "Furthermore, since screening is on matrix blocks, "//&
+                        "slightly more accurate results can be expected with molecular.",&
+            usage="MATRIX_CLUSTER_TYPE MOLECULAR",&
+            default_i_val=ls_cluster_atomic,&
+            enum_c_vals=s2a("ATOMIC", "MOLECULAR"),&
+            enum_desc=s2a("Using atomic blocks",&
+                          "Using molecular blocks."),&
+            enum_i_vals=(/ls_cluster_atomic, ls_cluster_molecular /),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="S_INVERSION",&
             description="Method used to compute the inverse of S.",&
             usage="S_PRECONDITIONER MOLECULAR",&

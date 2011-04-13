@@ -20,6 +20,8 @@ MODULE dm_ls_scf_methods
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
   USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
+                                             ls_mstruct_type
   USE f77_blas
   USE input_constants,                 ONLY: ls_s_preconditioner_atomic,&
                                              ls_s_preconditioner_molecular,&
@@ -49,12 +51,12 @@ CONTAINS
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE compute_matrix_preconditioner(matrix_s,preconditioner_type, block_to_group, &
+  SUBROUTINE compute_matrix_preconditioner(matrix_s,preconditioner_type, ls_mstruct, &
              matrix_bs_sqrt,matrix_bs_sqrt_inv,threshold,error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_s
     INTEGER                                  :: preconditioner_type
-    INTEGER, DIMENSION(:), INTENT(IN)        :: block_to_group
+    TYPE(ls_mstruct_type)                    :: ls_mstruct
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_bs_sqrt, &
                                                 matrix_bs_sqrt_inv
     REAL(KIND=dp)                            :: threshold
@@ -84,11 +86,20 @@ CONTAINS
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
           CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_s, blk)
 
-          ! do we need the block
+          ! do we need the block ?
+          ! this depends on the preconditioner, but also the matrix clustering method employed
+          ! for a clustered matrix, right now, we assume that atomic and molecular preconditioners
+          ! are actually the same, and only require that the diagonal blocks (clustered) are present
+
           block_needed=.FALSE.
-          IF (iblock_row==iblock_col) block_needed=.TRUE.
-          IF (preconditioner_type==ls_s_preconditioner_molecular) THEN
-             IF (block_to_group(iblock_row)==block_to_group(iblock_col)) block_needed=.TRUE.
+
+          IF (iblock_row==iblock_col) THEN
+              block_needed=.TRUE.
+          ELSE
+              IF (preconditioner_type==ls_s_preconditioner_molecular .AND. &
+                  ls_mstruct%cluster_type==ls_cluster_atomic) THEN
+                 IF (ls_mstruct%atom_to_molecule(iblock_row)==ls_mstruct%atom_to_molecule(iblock_col)) block_needed=.TRUE.
+              ENDIF
           ENDIF
           
           ! add it 
@@ -201,11 +212,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: increment = 0.05
+    REAL(KIND=dp), PARAMETER                 :: initial_increment = 0.01_dp
 
     INTEGER                                  :: handle, iter, unit_nr
     LOGICAL                                  :: has_mu_high, has_mu_low
-    REAL(KIND=dp)                            :: mu_high, mu_low, trace
+    REAL(KIND=dp)                            :: increment, mu_high, mu_low, &
+                                                trace
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -216,6 +228,8 @@ CONTAINS
     ELSE
        unit_nr=-1
     ENDIF
+
+    increment=initial_increment
 
     has_mu_low=.FALSE.
     has_mu_high=.FALSE.
@@ -228,7 +242,8 @@ CONTAINS
        ENDIF
 
        CALL density_matrix_sign_fixed_mu(matrix_p,trace,mu,matrix_ks,matrix_s,matrix_s_inv,threshold,error)
-       IF (unit_nr>0) WRITE(unit_nr,'(T2,A,I3,F20.12,F20.12)') "Density matrix:  iter, mu, trace: ", iter, mu, trace
+       IF (unit_nr>0) WRITE(unit_nr,'(T2,A,I2,1X,F13.9,1X,F15.9)') &
+             "Density matrix:  iter, mu, trace error: ", iter, mu, trace-nelectron
     
        ! OK, we can skip early if we are as close as possible to the exact result
        ! smaller differences should be considered 'noise' 
@@ -238,10 +253,12 @@ CONTAINS
           mu_low=mu
           mu=mu+increment
           has_mu_low=.TRUE.
+          increment=increment*2
        ELSE
           mu_high=mu
           mu=mu-increment
           has_mu_high=.TRUE.
+          increment=increment*2
        ENDIF
     ENDDO
 

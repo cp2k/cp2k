@@ -165,6 +165,7 @@ OBJECTS_GENERIC =\
  dkh_main.o\
  dm_ls_scf.o\
  dm_ls_scf_methods.o\
+ dm_ls_scf_qs.o\
  dm_ls_scf_types.o\
  efield_utils.o\
  eigenvalueproblems.o\
