@@ -1919,10 +1919,11 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_init_p
 
-  SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, variable_name, error)
+  SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, variable_name, unit_nr, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: nodata, matlab_format
     CHARACTER(*), INTENT(in), OPTIONAL       :: variable_name
+    INTEGER, OPTIONAL                        :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print', &
@@ -1937,7 +1938,7 @@ CONTAINS
 
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
-    CALL dbcsr_print(matrix%matrix, nodata, matlab_format, variable_name, dbcsr_error)
+    CALL dbcsr_print(matrix%matrix, nodata, matlab_format, variable_name, unit_nr, dbcsr_error)
     CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_print

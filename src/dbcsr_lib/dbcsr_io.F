@@ -34,7 +34,6 @@ MODULE dbcsr_io
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug
 
   !$ USE OMP_LIB
 
@@ -56,17 +55,10 @@ MODULE dbcsr_io
   ! Main
   PUBLIC :: dbcsr_print
   ! Low-level printing
-  PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
+! PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Utility printing
   PUBLIC :: all_print
 
-
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
 
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
@@ -81,10 +73,11 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 !> \param[in] nodata          (optional) don't print actual data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_print(matrix, nodata, matlab_format, variable_name, error)
+  SUBROUTINE dbcsr_print(matrix, nodata, matlab_format, variable_name, unit_nr, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: nodata, matlab_format
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: variable_name
+    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print', &
@@ -95,7 +88,7 @@ CONTAINS
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
     INTEGER                                  :: bc, blk, blk_p, br, &
-                                                error_handler, m, mn, n
+                                                error_handler, iunit, m, mn, n
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
                                                 row_blk_offset, row_blk_size
     LOGICAL                                  :: my_matlab_format, tr, yesprint
@@ -103,27 +96,30 @@ CONTAINS
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__,error)
+
+    iunit=6
+    IF (PRESENT(unit_nr)) iunit=unit_nr
+
     my_matlab_format = .FALSE.
     IF(PRESENT(matlab_format)) my_matlab_format = matlab_format
     yesprint = .TRUE.
     IF (PRESENT (nodata)) yesprint = .NOT. nodata
-    WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
-    WRITE(*,*)routineP//' Flags ', matrix%m%symmetry,&
+    WRITE(iunit,*)routineP//' Contents of matrix named ', matrix%m%name
+    WRITE(iunit,*)routineP//' Flags ', matrix%m%symmetry,&
          matrix%m%negate_real, matrix%m%negate_imaginary, "type",&
          dbcsr_get_data_type (matrix)
-    WRITE(*,'(1X,A,3(1X,I9,1X,A))')routineP, matrix%m%nblks, "blocks", &
+    WRITE(iunit,'(1X,A,3(1X,I9,1X,A))')routineP, matrix%m%nblks, "blocks", &
          matrix%m%nze, "nzes,", dbcsr_get_data_size (matrix), "data els", &
          dbcsr_get_data_size_used (matrix, error=error), "used"
-    WRITE(*,'(1X,A,I5,A,I5)')routineP//" Full size",&
+    WRITE(iunit,'(1X,A,I5,A,I5)')routineP//" Full size",&
          matrix%m%nfullrows_total, "x",matrix%m%nfullcols_total
-    WRITE(*,'(1X,A,I5,A,I5)')routineP//" Blocked size",&
+    WRITE(iunit,'(1X,A,I5,A,I5)')routineP//" Blocked size",&
          matrix%m%nblkrows_total, "x",matrix%m%nblkcols_total
     SELECT CASE (matrix%m%data_type)
     CASE (dbcsr_type_real_8)
@@ -135,7 +131,6 @@ CONTAINS
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, c_sp)
     END SELECT
-    DBGV 'index', matrix%m%index
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     row_blk_offset => array_data (matrix%m%row_blk_offset)
@@ -177,9 +172,9 @@ CONTAINS
                 ELSE
                    blk_cs = 0.0_dp
                 ENDIF
-                !WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
+                !WRITE(iunit,*)routineP//' chksum for (',br,',',bc,') at',&
                 !     blk_p,'l',mn,'= ', blk_cs,'size',m,n
-                IF(.not.my_matlab_format) WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
+                IF(.not.my_matlab_format) WRITE(iunit,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
                      !" Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
                      " Checksum for (",br,bc,") at ",matrix%m%blk_p(blk)," size ",m,n,mn,&
                      " checksum=",blk_cs
@@ -187,37 +182,37 @@ CONTAINS
                    IF (mn .GT. 0) THEN
                       SELECT CASE (matrix%m%data_type)
                       CASE (dbcsr_type_real_8)
-                         !WRITE(*,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
+                         !WRITE(iunit,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
                          IF(my_matlab_format) THEN
                             CALL dbcsr_printmat_matlab_d(r_dp(blk_p:blk_p+mn-1),m,n, &
-                                 row_blk_offset(br), col_blk_offset(bc),tr=tr, &
+                                 row_blk_offset(br), col_blk_offset(bc),iunit,tr=tr, &
                                  variable_name=variable_name)
                          ELSE
-                            CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                            CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n,iunit=iunit, tr=tr)
                          ENDIF
                       CASE (dbcsr_type_real_4)
                          IF(my_matlab_format) THEN
                             CALL dbcsr_printmat_matlab_s(r_sp(blk_p:blk_p+mn-1),m,n, &
-                                 row_blk_offset(br), col_blk_offset(bc),tr=tr, &
+                                 row_blk_offset(br), col_blk_offset(bc),iunit,tr=tr, &
                                  variable_name=variable_name)
                          ELSE
-                            CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                            CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n,iunit=iunit, tr=tr)
                          ENDIF
                       CASE (dbcsr_type_complex_8)
                          IF(my_matlab_format) THEN
                             CALL dbcsr_printmat_matlab_z(c_dp(blk_p:blk_p+mn-1),m,n, &
-                                 row_blk_offset(br), col_blk_offset(bc),tr=tr, &
+                                 row_blk_offset(br), col_blk_offset(bc),iunit,tr=tr, &
                                  variable_name=variable_name)
                          ELSE
-                            CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                            CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n,iunit=iunit, tr=tr)
                          ENDIF
                       CASE (dbcsr_type_complex_4)
                          IF(my_matlab_format) THEN
                             CALL dbcsr_printmat_matlab_c(c_sp(blk_p:blk_p+mn-1),m,n, &
-                                 row_blk_offset(br), col_blk_offset(bc),tr=tr, &
+                                 row_blk_offset(br), col_blk_offset(bc),iunit,tr=tr, &
                                  variable_name=variable_name)
                          ELSE
-                            CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                            CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n,iunit=iunit, tr=tr)
                          ENDIF
                       END SELECT
                    ENDIF
@@ -238,10 +233,11 @@ CONTAINS
 !>                  transposed
 ! *****************************************************************************
 
-  SUBROUTINE dbcsr_printmat_matlab_d(matrix, rows, cols, r_offset, c_offset, tr, variable_name)
+  SUBROUTINE dbcsr_printmat_matlab_d(matrix, rows, cols, r_offset, c_offset, iunit, tr, variable_name)
     REAL(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, &
+                                                c_offset, iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: variable_name
 
@@ -270,17 +266,17 @@ CONTAINS
        IF(.NOT.t) THEN
           IF(ABS(matrix(r+(c-1)*rows)).GT.1e-18_real_8) THEN
           IF(PRESENT(variable_name)) THEN
-              WRITE(*,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
+              WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ELSE
-             WRITE(*,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
+             WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ENDIF
           ENDIF
        ELSE
           IF(ABS(matrix((r-1)*cols+c)).GT.1e-18_real_8) THEN
           IF(PRESENT(variable_name)) THEN
-             WRITE(*,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+             WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
           ELSE
-             WRITE(*,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+             WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
           ENDIF
           ENDIF
        ENDIF
@@ -288,10 +284,11 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_printmat_matlab_d
 
-  SUBROUTINE dbcsr_printmat_matlab_s(matrix, rows, cols, r_offset, c_offset, tr, variable_name)
+  SUBROUTINE dbcsr_printmat_matlab_s(matrix, rows, cols, r_offset, c_offset, iunit, tr, variable_name)
     REAL(KIND=real_4), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, &
+                                                c_offset, iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: variable_name
 
@@ -320,17 +317,17 @@ CONTAINS
        IF(.NOT.t) THEN
           IF(ABS(matrix(r+(c-1)*rows)).GT.1e-8_real_4) THEN
           IF(PRESENT(variable_name)) THEN
-              WRITE(*,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
+              WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ELSE
-             WRITE(*,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
+             WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ENDIF
           ENDIF
        ELSE
           IF(ABS(matrix((r-1)*cols+c)).GT.1e-8_real_4) THEN
           IF(PRESENT(variable_name)) THEN
-             WRITE(*,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+             WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
           ELSE
-             WRITE(*,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+             WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
           ENDIF
           ENDIF
        ENDIF
@@ -338,10 +335,11 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_printmat_matlab_s
 
-  SUBROUTINE dbcsr_printmat_matlab_z(matrix, rows, cols, r_offset, c_offset, tr, variable_name)
+  SUBROUTINE dbcsr_printmat_matlab_z(matrix, rows, cols, r_offset, c_offset, iunit, tr, variable_name)
     COMPLEX(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, &
+                                                c_offset, iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: variable_name
 
@@ -369,18 +367,18 @@ CONTAINS
        DO r = 1,rows
           IF(.NOT.t) THEN
              IF(PRESENT(variable_name)) THEN
-                WRITE(*,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix(r+(c-1)*rows)),'+',AIMAG(matrix(r+(c-1)*rows)),'i;'
              ELSE
-                WRITE(*,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix(r+(c-1)*rows)),'+',AIMAG(matrix(r+(c-1)*rows)),'i;'
              ENDIF
           ELSE
              IF(PRESENT(variable_name)) THEN
-                WRITE(*,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix((r-1)*cols+c)),'+',AIMAG(matrix((r-1)*cols+c)),'i;'
              ELSE
-                WRITE(*,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix((r-1)*cols+c)),'+',AIMAG(matrix((r-1)*cols+c)),'i;'
              ENDIF
           ENDIF
@@ -388,10 +386,11 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_printmat_matlab_z
 
-  SUBROUTINE dbcsr_printmat_matlab_c(matrix, rows, cols, r_offset, c_offset, tr, variable_name)
+  SUBROUTINE dbcsr_printmat_matlab_c(matrix, rows, cols, r_offset, c_offset, iunit, tr, variable_name)
     COMPLEX(KIND=real_4), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, &
+                                                c_offset, iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: variable_name
 
@@ -419,18 +418,18 @@ CONTAINS
        DO r = 1,rows
           IF(.NOT.t) THEN
              IF(PRESENT(variable_name)) THEN
-                WRITE(*,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix(r+(c-1)*rows)),'+',AIMAG(matrix(r+(c-1)*rows)),'i;'
              ELSE
-                WRITE(*,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix(r+(c-1)*rows)),'+',AIMAG(matrix(r+(c-1)*rows)),'i;'
              ENDIF
           ELSE
              IF(PRESENT(variable_name)) THEN
-                WRITE(*,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix((r-1)*cols+c)),'+',AIMAG(matrix((r-1)*cols+c)),'i;'
              ELSE
-                WRITE(*,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
+                WRITE(iunit,'(A,I3,A,I3,A,E15.7,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',&
                      REAL(matrix((r-1)*cols+c)),'+',AIMAG(matrix((r-1)*cols+c)),'i;'
              ENDIF
           ENDIF
@@ -446,10 +445,10 @@ CONTAINS
 !> \param[in] tr    (optional) specifies whether the elements are stored
 !>                  transposed
 ! *****************************************************************************
-  SUBROUTINE printmat_s(matrix, rows, cols, title, tr)
+  SUBROUTINE printmat_s(matrix, rows, cols, iunit, title, tr)
     REAL(KIND=real_4), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols
+    INTEGER, INTENT(IN)                      :: rows, cols, iunit
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
@@ -458,14 +457,12 @@ CONTAINS
     LOGICAL                                  :: t
     REAL(KIND=dp)                            :: bit_bucket
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    !IF (.NOT.dbg.OR..NOT.bcsr_verbose) RETURN
+
     m = rows
     n = cols
     t = .FALSE.
-    IF(PRESENT(title)) WRITE(*,*)title
+    IF(PRESENT(title)) WRITE(iunit,*)title
     IF(PRESENT(tr)) THEN
        IF(tr) THEN
           t = .TRUE.
@@ -473,147 +470,144 @@ CONTAINS
           n = rows
        ENDIF
     ENDIF
-    IF (dbg) WRITE(*,*)'Print Matrix 1D:',rows,cols,t,'range',&
-         LBOUND(matrix),':',UBOUND(matrix)
     DO r = LBOUND(matrix,1), UBOUND(matrix,1)
        bit_bucket = matrix(r)
     ENDDO
-    IF (dbg) WRITE(*,*)'Range OK'
     bit_bucket = 0.0_dp
     DO r = LBOUND(matrix,1), UBOUND(matrix,1)
-       !IF (dbg.AND.bcsr_verbose) WRITE(*,*)':@',r,'=',matrix(r)
        bit_bucket = bit_bucket + matrix(r)
     ENDDO
     IF(m.GT.10000) m=0
     IF(n.GT.10000) n=0
     IF(m*n.LT.1 .OR. m*n.GT.SIZE(matrix)) RETURN
-    !WRITE(f,FMT="((I4),(F9.4)))")n
     WRITE(f,FMT="('(',I4,'(F9.4))')")cols
-    !matrix(:) = (/ (real(r), r=1,m*n) /)
     DO r = 1, rows
-       !WRITE(*,FMT=f)matrix(r,1:(n-1)*m+r:n)
        IF(.NOT.t) THEN
-          WRITE(*,FMT=f)matrix(r:r+(cols-1)*rows:rows)
+          WRITE(iunit,FMT=f)matrix(r:r+(cols-1)*rows:rows)
        ELSE
-          WRITE(*,FMT=f)matrix((r-1)*cols+1:r*cols)
+          WRITE(iunit,FMT=f)matrix((r-1)*cols+1:r*cols)
        ENDIF
     ENDDO
   END SUBROUTINE printmat_s
 
-  SUBROUTINE printmat_s_2d(matrix, title, tr)
+  SUBROUTINE printmat_s_2d(matrix, title, iunit, tr)
     REAL(KIND=real_4), DIMENSION(:, :), &
       INTENT(IN)                             :: matrix
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    INTEGER                                  :: iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
   END SUBROUTINE printmat_s_2d
 
 
-  SUBROUTINE printmat_d(matrix, rows, cols, title, tr)
+  SUBROUTINE printmat_d(matrix, rows, cols, iunit, title, tr)
     REAL(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols
+    INTEGER, INTENT(IN)                      :: rows, cols, iunit
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
     IF (PRESENT (title)) THEN
        IF (PRESENT (tr)) THEN
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title, tr)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, title, tr)
        ELSE
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, title)
        ENDIF
     ELSE
        IF (PRESENT (tr)) THEN
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, tr=tr)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, tr=tr)
        ELSE
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit)
        ENDIF
     ENDIF
   END SUBROUTINE printmat_d
 
-  SUBROUTINE printmat_d_2d(matrix, title, tr)
+  SUBROUTINE printmat_d_2d(matrix, title, iunit, tr)
     REAL(KIND=real_8), DIMENSION(:, :), &
       INTENT(IN)                             :: matrix
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    INTEGER                                  :: iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
   END SUBROUTINE printmat_d_2d
 
 
-  SUBROUTINE printmat_c(matrix, rows, cols, title, tr)
+  SUBROUTINE printmat_c(matrix, rows, cols, iunit, title, tr)
     COMPLEX(KIND=real_4), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols
+    INTEGER, INTENT(IN)                      :: rows, cols, iunit
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
     IF (PRESENT (title)) THEN
        IF (PRESENT (tr)) THEN
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title, tr)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, title, tr)
        ELSE
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, title)
        ENDIF
     ELSE
        IF (PRESENT (tr)) THEN
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, tr=tr)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, tr=tr)
        ELSE
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit)
        ENDIF
     ENDIF
   END SUBROUTINE printmat_c
 
-  SUBROUTINE printmat_c_2d(matrix, title, tr)
+  SUBROUTINE printmat_c_2d(matrix, title, iunit, tr)
     COMPLEX(KIND=real_4), DIMENSION(:, :), &
       INTENT(IN)                             :: matrix
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    INTEGER                                  :: iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
   END SUBROUTINE printmat_c_2d
 
-  SUBROUTINE printmat_z(matrix, rows, cols, title, tr)
+  SUBROUTINE printmat_z(matrix, rows, cols, iunit, title, tr)
     COMPLEX(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
-    INTEGER, INTENT(IN)                      :: rows, cols
+    INTEGER, INTENT(IN)                      :: rows, cols, iunit
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
     IF (PRESENT (title)) THEN
        IF (PRESENT (tr)) THEN
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title, tr)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, title, tr)
        ELSE
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, title)
        ENDIF
     ELSE
        IF (PRESENT (tr)) THEN
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, tr=tr)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit, tr=tr)
        ELSE
-          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols)
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, iunit)
        ENDIF
     ENDIF
   END SUBROUTINE printmat_z
 
-  SUBROUTINE printmat_z_2d(matrix, title, tr)
+  SUBROUTINE printmat_z_2d(matrix, title, iunit, tr)
     COMPLEX(KIND=real_8), DIMENSION(:, :), &
       INTENT(IN)                             :: matrix
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    INTEGER                                  :: iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
-         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+         SIZE(matrix, 1), SIZE(matrix, 2), iunit=iunit, title=title, tr=tr)
   END SUBROUTINE printmat_z_2d
 
 
@@ -622,28 +616,25 @@ CONTAINS
 !> rows and columns is the matrix size. tr specifies whether
 !> the elements are stored transposed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_print2dmat(matrix, title, tr)
+  SUBROUTINE dbcsr_print2dmat(matrix, title, iunit, tr)
     REAL(KIND=real_8), DIMENSION(:, :), &
       INTENT(IN)                             :: matrix
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    INTEGER                                  :: iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
 
     CHARACTER(30)                            :: f
     INTEGER                                  :: cols, m, n, r, rows
-    LOGICAL                                  :: dbg, t
+    LOGICAL                                  :: t
 
 !   ---------------------------------------------------------------------------
 
-    dbg = .FALSE.
-    CALL dbcsr_set_debug(dbg, on=.FALSE.)
-    !IF (.NOT.dbg.OR..NOT.bcsr_verbose) RETURN
-    !IF (.NOT.dbg) RETURN
     rows = SIZE(matrix,1)
     cols = SIZE(matrix,2)
     m = rows
     n = cols
     t = .FALSE.
-    IF(PRESENT(title)) WRITE(*,*)title
+    IF(PRESENT(title)) WRITE(iunit,*)title
     IF(PRESENT(tr)) THEN
        IF(tr) THEN
           t = .TRUE.
@@ -651,18 +642,18 @@ CONTAINS
           n = rows
        ENDIF
     ENDIF
-    WRITE(*,*)'Print Matrix 2D:',rows,cols,t,'range',&
+    WRITE(iunit,*)'Print Matrix 2D:',rows,cols,t,'range',&
          LBOUND(matrix),':',UBOUND(matrix)
     IF(m.GT.10000) m=0
     IF(n.GT.10000) n=0
     IF(m*n.LT.1 .OR. m*n.GT.SIZE(matrix)) RETURN
-    WRITE(f,FMT="('(',I4,'(F9.4))')")cols
+    WRITE(iunit,FMT="('(',I4,'(F9.4))')")cols
     DO r = 1, rows
-       !WRITE(*,FMT=f)matrix(r,1:(n-1)*m+r:n)
+       !WRITE(iunit,FMT=f)matrix(r,1:(n-1)*m+r:n)
        IF(.NOT.t) THEN
-          WRITE(*,FMT=f)matrix(r,:)
+          WRITE(iunit,FMT=f)matrix(r,:)
        ELSE
-          WRITE(*,FMT=f)matrix(:,r)
+          WRITE(iunit,FMT=f)matrix(:,r)
        ENDIF
     ENDDO
   END SUBROUTINE dbcsr_print2dmat
