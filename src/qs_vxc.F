@@ -289,22 +289,22 @@ CONTAINS
                CALL cp_unimplemented_error(fromWhere=routineP, &
                     message="tau with finer grids", &
                     error=error, error_level=cp_failure_level)
-                ALLOCATE(tau(dft_control%nspins),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                DO ispin=1,dft_control%nspins
-                   CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
-                        in_space=REALSPACE, use_data=REALDATA3D,error=error)
-
-                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
-                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
-                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                   CALL pw_transfer(tau(ispin)%pw,tmp_g, error=error)
-                   CALL pw_transfer(tmp_g,tmp_g2, error=error)
-                   CALL pw_transfer(tmp_g2,tmp_pw, error=error)
-                   CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
-                   CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
-                END DO
+!                ALLOCATE(tau(dft_control%nspins),stat=stat)
+!                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!                DO ispin=1,dft_control%nspins
+!                   CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
+!                        in_space=REALSPACE, use_data=REALDATA3D,error=error)
+!
+!                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+!                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+!                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+!                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+!                   CALL pw_transfer(tau(ispin)%pw,tmp_g, error=error)
+!                   CALL pw_transfer(tmp_g,tmp_g2, error=error)
+!                   CALL pw_transfer(tmp_g2,tmp_pw, error=error)
+!                   CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+!                   CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+!                END DO
              END IF
           END IF
           !
