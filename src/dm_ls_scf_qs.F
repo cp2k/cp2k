@@ -19,18 +19,17 @@ MODULE dm_ls_scf_qs
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-       cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_nblkrows_total, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_untranspose_blocks
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_init,&
                                              dbcsr_distribution_mp,&
@@ -39,7 +38,6 @@ MODULE dm_ls_scf_qs
                                              dbcsr_distribution_row_dist,&
                                              dbcsr_get_data_type,&
                                              dbcsr_name
-  USE dbcsr_transformations,           ONLY: dbcsr_desymmetrize_deep
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
@@ -98,14 +96,12 @@ CONTAINS
                                                 cl_dist, cluster_sizes, &
                                                 primus_of_mol
     INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
-    LOGICAL                                  :: old_hack
     TYPE(array_i1d_obj)                      :: clustered_blk_sizes, &
                                                 clustered_col_dist, &
                                                 clustered_row_dist
     TYPE(cp_dbcsr_type)                      :: matrix_qs_nosym
     TYPE(dbcsr_distribution_obj)             :: block_distribution, &
                                                 clustered_distribution
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN,handle)
 
@@ -119,15 +115,14 @@ CONTAINS
     CASE(ls_cluster_molecular)
 
        ! desymmetrize the qs matrix
-       ! the old_hack trick seems needed to work around a bug in dbcsr_desymmetrize_deep (FIXME Urban)
-       ! similarly, cp_dbcsr_untranspose_blocks appears required here (FIXME Urban)
+       ! cp_dbcsr_untranspose_blocks appears required here (FIXME Urban)
        CALL cp_dbcsr_init (matrix_qs_nosym, error=error)
-       old_hack= matrix_qs%matrix%m%work_mutable
-       matrix_qs%matrix%m%work_mutable = .FALSE.
-       CALL cp_dbcsr_create (matrix_qs_nosym, template=matrix_qs, mutable_work=.FALSE., error=error)
-       CALL dbcsr_desymmetrize_deep (matrix_qs%matrix, matrix_qs_nosym%matrix, error=dbcsr_error)
-       matrix_qs%matrix%m%work_mutable = old_hack
-       CALL cp_dbcsr_untranspose_blocks( matrix_qs_nosym , error=error)
+       CALL cp_dbcsr_create (matrix_qs_nosym, template=matrix_qs,&
+            matrix_type=dbcsr_type_no_symmetry,&
+            error=error)
+       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
+            untransposed_data=.TRUE., error=error)
+       !CALL cp_dbcsr_untranspose_blocks( matrix_qs_nosym , error=error)
 
        ! create format of the clustered matrix
        natom=cp_dbcsr_nblkrows_total(matrix_qs)
