@@ -29,6 +29,7 @@ MODULE dbcsr_transformations
                                              dbcsr_block_scale,&
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
+                                             dbcsr_data_copy,&
                                              dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
@@ -81,6 +82,7 @@ MODULE dbcsr_transformations
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
        dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
+                                             hybrid_alltoall_any,&
                                              hybrid_alltoall_c1,&
                                              hybrid_alltoall_d1,&
                                              hybrid_alltoall_i1,&
@@ -95,9 +97,9 @@ MODULE dbcsr_transformations
        dbcsr_slot_col_i, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, &
        dbcsr_slot_home_prow, dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, &
        dbcsr_slot_home_vprow, dbcsr_slot_nblks, dbcsr_slot_nze, &
-       dbcsr_slot_row_p, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_slot_row_p, dbcsr_type, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: &
        convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
        dbcsr_set_debug, dbcsr_unpack_meta, dbcsr_verify_matrix, &
@@ -117,6 +119,8 @@ MODULE dbcsr_transformations
   REAL(KIND=dp) :: image_time = 0.0_dp
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
+
+  LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 
   PUBLIC :: dbcsr_desymmetrize_deep,&
             dbcsr_new_transposed,&
@@ -337,22 +341,23 @@ CONTAINS
 !>        structure
 !> \param[in] sm              input symmetric matrix
 !> \param[out] desm           desymmetrized matrix
+!> \param[in] transpose_data  (optional) make all data blocks be non-transposed
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_desymmetrize_deep(sm, desm, error)
+  SUBROUTINE dbcsr_desymmetrize_deep(sm, desm, untransposed_data, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: sm
     TYPE(dbcsr_obj), INTENT(INOUT)           :: desm
+    LOGICAL, INTENT(IN), OPTIONAL            :: untransposed_data
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_desymmetrize_deep', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
+    INTEGER, PARAMETER                       :: debug_level = 0, idata = 2, &
+                                                imeta = 1, metalen = 3
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, dst_p, error_handler, &
-      mp_group, nsymmetries, numproc, nze, pcol, prow, row, src_p, &
-      stored_col, stored_row, symmetry_i
+    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
+      error_handler, mp_group, nsymmetries, numproc, nze, pcol, prow, row, &
+      row_size, src_p, stored_col, stored_row, symmetry_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -362,45 +367,38 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: make_untr, tr
     REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_data, send_data
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    TYPE(dbcsr_data_obj)                     :: recv_data, send_data
     TYPE(dbcsr_distribution_obj)             :: target_dist
+    TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-
     tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Matrix not initialized.",__LINE__,error)
+         "Input matrix is invalid.",__LINE__,error)
+    CALL dbcsr_assert (dbcsr_valid_index (desm),&
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Target matrix must be created.",__LINE__,error)
+    CALL dbcsr_assert ("NOT", dbcsr_has_symmetry (desm),&
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Target matrix must not be symmetric.",__LINE__,error)
     CALL dbcsr_access_flush (sm, error=error)
     CALL dbcsr_access_flush (desm, error=error)
+    IF (PRESENT (untransposed_data)) THEN
+       make_untr = untransposed_data
+    ELSE
+       make_untr = .FALSE.
+    ENDIF
     nsymmetries = 1
     IF (sm%m%symmetry) THEN
        nsymmetries = 2
     ENDIF
-    SELECT CASE (sm%m%data_type)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (sm%m%data_area, r_dp)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (sm%m%data_area, r_sp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__,error)
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (sm%m%data_area, c_dp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__,error)
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (sm%m%data_area, c_sp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__,error)
-    END SELECT
     row_blk_size => array_data (sm%m%row_blk_size)
     col_blk_size => array_data (sm%m%col_blk_size)
     target_dist = sm%m%dist
@@ -410,31 +408,7 @@ CONTAINS
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numproc = dbcsr_mp_numnodes (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
-    DBGV 'row_dist', row_dist
-    DBGV 'col_dist', col_dist
-    DBG 'row, col maxval:', MAXVAL(row_dist), MAXVAL(col_dist)
-    DBG 'blacs2mpi',blacs2mpi
-    DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
-    DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
-    IF (sm%m%symmetry) THEN
-       CALL dbcsr_assert(SIZE(row_dist) .EQ. SIZE(col_dist), dbcsr_warning_level,&
-            dbcsr_wrong_args_error, routineN,&
-            'Unequal row and column distributions for symmetric matrix.',__LINE__,error)
-    ENDIF
-    CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows',__LINE__,error)
-    IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), dbcsr_warning_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Range of row distribution not equal to processor rows',__LINE__,error)
-    CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols',__LINE__,error)
-    IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), dbcsr_warning_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Range of col distribution not equal to processor cols',__LINE__,error)
+    !
     ALLOCATE (send_count(2, 0:numproc-1))
     ALLOCATE (recv_count(2, 0:numproc-1))
     ALLOCATE (total_send_count(2, 0:numproc-1))
@@ -445,58 +419,51 @@ CONTAINS
     ALLOCATE (sm_disp(0:numproc-1))
     ALLOCATE (rd_disp(0:numproc-1))
     ALLOCATE (rm_disp(0:numproc-1))
-    !vw should be created before calling this procedure
-    CALL dbcsr_create(desm, name='desym '//TRIM(sm%m%name),&
-         template = sm,&
-         dist = sm%m%dist,&
-         matrix_type = dbcsr_type_no_symmetry,&
-         error=error)
-    IF (dbcsr_get_matrix_type (sm) .EQ. dbcsr_type_antisymmetric) THEN
-       desm%m%negate_real = .TRUE.
-    ENDIF
+    !
+    desm%m%negate_real = sm%m%negate_real
+    desm%m%negate_imaginary = sm%m%negate_imaginary
     ! Count initial sizes for sending.
-    DBG 'A'
     send_count(:,:) = 0
-    DO row = 1, sm%m%nblkrows_total
-       DO blk = sm%m%row_p(row)+1, sm%m%row_p(row+1)
-          col = sm%m%col_i(blk)
-          DO symmetry_i = 1, nsymmetries
-             IF (symmetry_i .EQ. 1) THEN
-                stored_row = row ; stored_col = col
-             ELSE
-                IF (row .EQ. col) CYCLE
-                stored_row = col ; stored_col = row
-             ENDIF
-             ! Where do we send this block?
-             prow = row_dist(stored_row)
-             pcol = col_dist(stored_col)
-             dst_p = blacs2mpi(prow, pcol)
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_count(1, dst_p) = send_count(1, dst_p) + 1
-             send_count(2, dst_p) = send_count(2, dst_p) + nze
-          ENDDO ! symmetry_i
-       ENDDO ! col_i
-    ENDDO ! row
-    DBG 'B'
+    CALL dbcsr_iterator_start (iter, sm)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, blk,&
+            row_size=row_size, col_size=col_size)
+       DO symmetry_i = 1, nsymmetries
+          IF (symmetry_i .EQ. 1) THEN
+             stored_row = row ; stored_col = col
+          ELSE
+             IF (row .EQ. col) CYCLE
+             stored_row = col ; stored_col = row
+          ENDIF
+          ! Where do we send this block?
+          prow = row_dist(stored_row)
+          pcol = col_dist(stored_col)
+          dst_p = blacs2mpi(prow, pcol)
+          nze = row_size * col_size
+          send_count(imeta, dst_p) = send_count(imeta, dst_p) + 1
+          send_count(idata, dst_p) = send_count(idata, dst_p) + nze
+       ENDDO ! symmetry_i
+    ENDDO ! iter
+    CALL dbcsr_iterator_stop (iter)
+    !
     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
+    !
     ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :))))
-    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :))))
-    ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
-    DBG 'send data len',SIZE (send_data)
-    DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv data len',SIZE (recv_data)
-    DBG 'recv meta len',SIZE (recv_meta)
+    CALL dbcsr_data_init (recv_data)
+    CALL dbcsr_data_new (recv_data, dbcsr_get_data_type (sm),&
+         SUM(recv_count(idata, :)))
+    ALLOCATE (recv_meta(metalen*SUM(recv_count(imeta, :))))
+    CALL dbcsr_data_init (send_data)
+    CALL dbcsr_data_new (send_data, dbcsr_get_data_type (sm),&
+         SUM(send_count(idata, :)))
+    ALLOCATE (send_meta(metalen*SUM(send_count(imeta, :))))
+    !
     ! Fill in the meta data structures and copy the data.
     DO dst_p = 0, numproc-1
-       total_send_count(1, dst_p) = send_count (1, dst_p)
-       total_send_count(2, dst_p) = send_count (2, dst_p)
-       total_recv_count(1, dst_p) = recv_count (1, dst_p)
-       total_recv_count(2, dst_p) = recv_count (2, dst_p)
+       total_send_count(imeta, dst_p) = send_count (imeta, dst_p)
+       total_send_count(idata, dst_p) = send_count (idata, dst_p)
+       total_recv_count(imeta, dst_p) = recv_count (imeta, dst_p)
+       total_recv_count(idata, dst_p) = recv_count (idata, dst_p)
     ENDDO
     sd_disp = -1 ; sm_disp = -1
     rd_disp = -1 ; rm_disp = -1
@@ -504,112 +471,98 @@ CONTAINS
     rd_disp(0) = 1 ; rm_disp(0) = 1
     DO dst_p = 1, numproc-1
        sm_disp(dst_p) = sm_disp(dst_p-1)&
-                        + metalen*total_send_count(1, dst_p-1)
+            + metalen*total_send_count(imeta, dst_p-1)
        sd_disp(dst_p) = sd_disp(dst_p-1)&
-                        + total_send_count(2, dst_p-1)
+            + total_send_count(idata, dst_p-1)
        rm_disp(dst_p) = rm_disp(dst_p-1)&
-                        + metalen*total_recv_count(1, dst_p-1)
+            + metalen*total_recv_count(imeta, dst_p-1)
        rd_disp(dst_p) = rd_disp(dst_p-1)&
-                        + total_recv_count(2, dst_p-1)
+            + total_recv_count(idata, dst_p-1)
     ENDDO
-    !DO dst_p = 0, numproc-1
-    !      sm_disp (dst_p) = sm_disp (dst_p) + metalen*send_count(1, dst_p)
-    !      sd_disp (dst_p) = sd_disp (dst_p) + send_count(2, dst_p)
-    !      rm_disp (dst_p) = rm_disp (dst_p) + metalen*recv_count(1, dst_p)
-    !      rd_disp (dst_p) = rd_disp (dst_p) + recv_count(2, dst_p)
-    !ENDDO
     sdp(:) = sd_disp
     smp(:) = sm_disp
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D'
-    DO row = 1, sm%m%nblkrows_total
-       DO blk = sm%m%row_p(row)+1, sm%m%row_p(row+1)
-          col = sm%m%col_i(blk)
-          blk_p = sm%m%blk_p(blk)
-          DO symmetry_i = 1, nsymmetries
-             IF (symmetry_i .EQ. 1) THEN
-                stored_row = row ; stored_col = col; tr = .FALSE.
-             ELSE                                                
-                IF (row .EQ. col) CYCLE
-                stored_row = col ; stored_col = row; tr = .TRUE.
-             ENDIF
-             ! Where do we send this block?
-             prow = row_dist(stored_row)
-             pcol = col_dist(stored_col)
-             dst_p = blacs2mpi(prow, pcol)
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_meta(smp(dst_p)) = stored_row
-             send_meta(smp(dst_p)+1) = stored_col
-             DBG stored_row, stored_col, blk_p, tr, nze
-             IF (.NOT. tr) THEN
-                send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                     r_dp(blk_p:blk_p+nze-1)
-                !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                !     sm%m%data(blk_p:blk_p+nze-1)
-             ELSE
-                send_meta(smp(dst_p)) = -stored_row
-                send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                     r_dp(blk_p:blk_p+nze-1)
-                !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                !     sm%m%data(blk_p:blk_p+nze-1)
-             ENDIF
-             smp(dst_p) = smp(dst_p) + metalen
-             sdp(dst_p) = sdp(dst_p) + nze
-          ENDDO ! symmetry_i
-       ENDDO ! col_i
-    ENDDO ! row
+    !
+    CALL dbcsr_iterator_start (iter, sm)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, blk, blk_p=blk_p,&
+            row_size=row_size, col_size=col_size)
+       DO symmetry_i = 1, nsymmetries
+          IF (symmetry_i .EQ. 1) THEN
+             stored_row = row ; stored_col = col; tr = .FALSE.
+          ELSE                                                
+             IF (row .EQ. col) CYCLE
+             stored_row = col ; stored_col = row; tr = .TRUE.
+          ENDIF
+          ! Where do we send this block?
+          prow = row_dist(stored_row)
+          pcol = col_dist(stored_col)
+          dst_p = blacs2mpi(prow, pcol)
+          nze = row_size * col_size
+          send_meta(smp(dst_p)) = stored_row
+          send_meta(smp(dst_p)+1) = stored_col
+          send_meta(smp(dst_p)+2) = sdp(dst_p) - sd_disp(dst_p) + 1
+          IF (make_untr) THEN
+             CALL dbcsr_block_partial_copy(dst=send_data,&
+                  dst_rs=row_size, dst_cs=col_size,&
+                  dst_tr=symmetry_i .GT. 1,&
+                  dst_r_lb=1, dst_c_lb=1, dst_offset=sdp(dst_p)-1,&
+                  nrow = row_size, ncol = col_size,&
+                  src=sm%m%data_area,&
+                  src_rs=row_size, src_cs=col_size,&
+                  src_tr=blk_p .LT. 0,&
+                  src_r_lb=1, src_c_lb=1,&
+                  src_offset = ABS(blk_p)-1)
+          ELSE
+             CALL dbcsr_data_copy (send_data, (/ sdp(dst_p) /), (/ nze /),&
+                  sm%m%data_area, (/ ABS(blk_p) /), (/ nze /), error=error)
+             IF (tr) &
+                  send_meta(smp(dst_p)+2) = -send_meta(smp(dst_p)+2)
+          ENDIF
+          smp(dst_p) = smp(dst_p) + metalen
+          sdp(dst_p) = sdp(dst_p) + nze
+       ENDDO ! symmetry_i
+    ENDDO ! iter
+    CALL dbcsr_iterator_stop (iter)
     ! Exchange the data and metadata structures.
-    DBG 'E'
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta',send_meta
-    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
-    DBG 'recv_meta',recv_meta
-    DBG 'G'
+    CALL hybrid_alltoall_any(send_data, dbcsr_data_get_size(send_data),&
+         total_send_count(idata,:), sd_disp(:)-1,&
+         recv_data, dbcsr_data_get_size(recv_data),&
+         total_recv_count(idata,:), rd_disp(:)-1, mp_obj, error=error)
+    CALL mp_alltoall(send_meta(:), metalen*total_send_count(imeta,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(imeta,:), rm_disp(:)-1,&
+         mp_group)
     ! Now fill in the data.
     CALL dbcsr_work_create(desm,&
-            SUM(recv_count(1,:)),&
-            SUM(recv_count(2,:)), n=1, error=error)
-    !DBG 'send disps data',sd_disp
-    !DBG 'send disps meta',sm_disp
-    !DBG 'recv disps data',rd_disp
-    !DBG 'recv disps meta',rm_disp
-    !blk_p = 1
-    !blk = 1
+         SUM(recv_count(imeta,:)),&
+         SUM(recv_count(idata,:)), n=1,&
+         work_mutable=.FALSE.,&
+         error=error)
+    ! Switch data data area of the work matrix with the receieved data
+    ! (avoids copying).
+    CALL dbcsr_data_hold (recv_data)
+    CALL dbcsr_data_release (desm%m%wms(1)%data_area)
+    desm%m%wms(1)%data_area = recv_data
+    !
     blk_ps = 1
     blks = 1
+    WRITE(*,*)rm_disp
+    WRITE(*,*)recv_count
     DO src_p = 0, numproc-1
-       !wm%data(blk_p : blk_p+recv_count(2,src_p)-1) =&
-       !     recv_data(rd_disp(src_p) :&
-       !               rd_disp(src_p)+recv_count(2,src_p)-1)
-       nze = recv_count(2, src_p)
-       CALL dbcsr_data_set (desm%m%wms(1)%data_area, blk_ps, nze,&
-            recv_data, rd_disp(src_p))
-       !desm%m%w%data(blk_ps:blk_ps+nze-1) =&
-       !     recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
-       DBG 'processing from',src_p,'counts',send_count(1, src_p)
-       DO blk_l = 1, recv_count(1, src_p)
+       IF (careful_mod) THEN
+          CALL dbcsr_assert ((blks-1)*3, "EQ", rm_disp(src_p)-1,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Count mismatch", __LINE__, error=error)
+       ENDIF
+       blks = (rm_disp(src_p)-1)/metalen+1
+       DO blk_l = 1, recv_count(imeta, src_p)
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
-          !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
-          !     '; blk_p',blk_p,'; row_rep, imgdist',row_rep,&
-          !     row_rep_dist (ABS (stored_row))
-          DBG 'blk: p',blks,src_p,'; row, col',&
-               stored_row,stored_col,&
-               '; blk_ps',blk_ps
-          !row_rep = row_rep_dist (ABS(stored_row))
-          desm%m%wms(1)%row_i(blks) = ABS(stored_row)
+          blk_p =      recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+2)
+          desm%m%wms(1)%row_i(blks) = stored_row
           desm%m%wms(1)%col_i(blks) = stored_col
-          desm%m%wms(1)%blk_p(blks) = SIGN(blk_ps, stored_row)
+          desm%m%wms(1)%blk_p(blks) = SIGN(ABS(blk_p) + (rd_disp(src_p)-1), blk_p)
           nze = row_blk_size(ABS(stored_row))&
                * col_blk_size(stored_col)
-          !blk_p = blk_p + nze
-          !blk = blk + 1
           blk_ps = blk_ps + nze
           blks = blks + 1
        ENDDO
@@ -617,22 +570,18 @@ CONTAINS
     !
     desm%m%wms(1)%lastblk = blks - 1
     desm%m%wms(1)%datasize = blk_ps - 1
-    DBG 'Finalizing normalization'
     CALL dbcsr_finalize(desm, error=error)
     tstop = m_walltime ()
-    DBG 'time:',tstop-tstart
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
     DEALLOCATE(smp); DEALLOCATE(sm_disp)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
+    CALL dbcsr_data_release (recv_data)
     DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
+    CALL dbcsr_data_release (send_data)
     DEALLOCATE(send_meta)
-    DBG 'desym name',desm%m%name
-    DBG 'Done desymmetrizing!'
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_desymmetrize_deep
 

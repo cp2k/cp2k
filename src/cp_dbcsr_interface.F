@@ -86,6 +86,7 @@ MODULE cp_dbcsr_interface
        dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
        dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
+                                             dbcsr_desymmetrize_deep,&
                                              dbcsr_distribute,&
                                              dbcsr_make_untransposed_blocks,&
                                              dbcsr_new_transposed,&
@@ -141,6 +142,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_transposed
   PUBLIC :: cp_dbcsr_multiply
   PUBLIC :: cp_dbcsr_copy
+  PUBLIC :: cp_dbcsr_desymmetrize
   PUBLIC :: cp_dbcsr_add_on_diag
   PUBLIC :: cp_dbcsr_get_block_diag
   PUBLIC :: cp_dbcsr_set_diag
@@ -2502,6 +2504,36 @@ CONTAINS
          shallow_data, keep_imaginary, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_copy
+
+  SUBROUTINE cp_dbcsr_desymmetrize(matrix_a, matrix_b, untransposed_data, error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
+    LOGICAL, INTENT(IN), OPTIONAL            :: untransposed_data
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_desymmetrize', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle)
+    !call cp_assert (matrix_b%ref_count .gt. 0,&
+    !     cp_warning_level, cp_caller_error, routineN,&
+    !     "Matrix not created.", error=error)
+    CALL cluster_buffer_flush (matrix_b%buffers, error)
+    IF (matrix_b%ref_count .EQ. 0) THEN
+       CALL cp_dbcsr_create (matrix_b, template=matrix_a,&
+            error=error)
+    ENDIF
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error)
+    CALL dbcsr_desymmetrize_deep(matrix_a%matrix, matrix_b%matrix,&
+         untransposed_data=untransposed_data, error=dbcsr_error)
+    CALL timestop(timing_handle)
+  END SUBROUTINE cp_dbcsr_desymmetrize
+
 
   SUBROUTINE cp_dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&

@@ -44,9 +44,10 @@ MODULE dbcsr_mp_operations
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
   ! MP routines
+  PUBLIC :: dbcsr_hybrid_alltoall
   PUBLIC :: hybrid_alltoall_s1, hybrid_alltoall_d1,&
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
-            hybrid_alltoall_i1
+            hybrid_alltoall_i1, hybrid_alltoall_any
   PUBLIC :: dbcsr_allgatherv
   PUBLIC :: dbcsr_send_any, dbcsr_recv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
@@ -64,7 +65,64 @@ MODULE dbcsr_mp_operations
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
 
+  INTERFACE dbcsr_hybrid_alltoall
+     MODULE PROCEDURE hybrid_alltoall_s1, hybrid_alltoall_d1,&
+                      hybrid_alltoall_c1, hybrid_alltoall_z1
+     MODULE PROCEDURE hybrid_alltoall_i1
+     MODULE PROCEDURE hybrid_alltoall_any
+  END INTERFACE
+
 CONTAINS
+
+
+  SUBROUTINE hybrid_alltoall_any (sb, nsb, scount, sdispl,&
+       rb, nrb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid,&
+       error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: sb
+    INTEGER, INTENT(IN)                      :: nsb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: rb
+    INTEGER, INTENT(IN)                      :: nrb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    LOGICAL, INTENT(in), OPTIONAL            :: most_ptp, remainder_ptp, &
+                                                no_hybrid
+    TYPE(dbcsr_error_type)                   :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'hybrid_alltoall_any', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+
+    SELECT CASE (dbcsr_data_get_type (sb))
+    CASE (dbcsr_type_real_4)
+       CALL hybrid_alltoall_s1 (sb%d%r_sp, nsb, scount, sdispl,&
+       rb%d%r_sp, nrb, rcount, rdispl, mp_env,&
+       most_ptp, remainder_ptp, no_hybrid)
+    CASE (dbcsr_type_real_8)
+       CALL hybrid_alltoall_d1 (sb%d%r_dp, nsb, scount, sdispl,&
+       rb%d%r_dp, nrb, rcount, rdispl, mp_env,&
+       most_ptp, remainder_ptp, no_hybrid)
+    CASE (dbcsr_type_complex_4)
+       CALL hybrid_alltoall_c1 (sb%d%c_sp, nsb, scount, sdispl,&
+       rb%d%c_sp, nrb, rcount, rdispl, mp_env,&
+       most_ptp, remainder_ptp, no_hybrid)
+    CASE (dbcsr_type_complex_8)
+       CALL hybrid_alltoall_z1 (sb%d%c_dp, nsb, scount, sdispl,&
+       rb%d%c_dp, nrb, rcount, rdispl, mp_env,&
+       most_ptp, remainder_ptp, no_hybrid)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE hybrid_alltoall_any
+
 
 ! *****************************************************************************
 !> \brief Row/column and global all-to-all
