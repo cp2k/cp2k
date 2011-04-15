@@ -545,8 +545,8 @@ CONTAINS
     !
     blk_ps = 1
     blks = 1
-    WRITE(*,*)rm_disp
-    WRITE(*,*)recv_count
+    ! WRITE(*,*)rm_disp
+    ! WRITE(*,*)recv_count
     DO src_p = 0, numproc-1
        IF (careful_mod) THEN
           CALL dbcsr_assert ((blks-1)*3, "EQ", rm_disp(src_p)-1,&
