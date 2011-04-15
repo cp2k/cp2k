@@ -1490,19 +1490,19 @@ CONTAINS
          END DO
          IF(istate<=homo) THEN
            sp_em(1,istate) = ene_f - ene_i
-           sp_em(2,istate) = dip(1)*dip(1)
-           sp_em(3,istate) = dip(2)*dip(2)
-           sp_em(4,istate) = dip(3)*dip(3)
+           sp_em(2,istate) = dip(1)
+           sp_em(3,istate) = dip(2)
+           sp_em(4,istate) = dip(3)
            sp_em(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3) 
            sp_em(6,istate) = occupation_numbers(istate)
          END IF
          IF(istate>=lfomo ) THEN
            i_abs = istate - lfomo + 1
            sp_ab(1,i_abs) = ene_f - ene_i
-           sp_ab(2,i_abs) = dip(1)*dip(1)
-           sp_ab(3,i_abs) = dip(2)*dip(2)
-           sp_ab(4,i_abs) = dip(3)*dip(3)
-           sp_ab(5,i_abs) =  dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+           sp_ab(2,i_abs) = dip(1)
+           sp_ab(3,i_abs) = dip(2)
+           sp_ab(4,i_abs) = dip(3)
+           sp_ab(5,i_abs) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
            IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
          END IF
 
