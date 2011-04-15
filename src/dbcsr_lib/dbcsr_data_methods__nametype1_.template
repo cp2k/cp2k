@@ -318,9 +318,27 @@
 
 !   ---------------------------------------------------------------------------
 
-    encapsulated_scalar%data_type = [dkind1]
+    encapsulated_scalar = dbcsr_scalar_zero ([dkind1])
     encapsulated_scalar%[base1]_[prec1] = scalar
   END FUNCTION dbcsr_scalar_[nametype1]
+
+! *****************************************************************************
+!> \brief Sets a scalar in an encapsulated data structure
+!> \params[in] encapsulated_scalar          encapsulated scalar
+!> \params[out] value                       value of the scalar
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE dbcsr_scalar_get_value_[nametype1] (encapsulated_scalar, value)
+    TYPE(dbcsr_scalar_type), INTENT(IN) :: encapsulated_scalar
+    [type1], INTENT(OUT)                :: value
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_get_value_[type1]', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    value = encapsulated_scalar%[base1]_[prec1]
+  END SUBROUTINE dbcsr_scalar_get_value_[nametype1]
+
 
 ! *****************************************************************************
 !> \brief Used to determine appropriate type for data.

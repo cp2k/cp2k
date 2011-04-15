@@ -318,9 +318,27 @@
 
 !   ---------------------------------------------------------------------------
 
-    encapsulated_scalar%data_type = dbcsr_type_complex_4
+    encapsulated_scalar = dbcsr_scalar_zero (dbcsr_type_complex_4)
     encapsulated_scalar%c_sp = scalar
   END FUNCTION dbcsr_scalar_c
+
+! *****************************************************************************
+!> \brief Sets a scalar in an encapsulated data structure
+!> \params[in] encapsulated_scalar          encapsulated scalar
+!> \params[out] value                       value of the scalar
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE dbcsr_scalar_get_value_c (encapsulated_scalar, value)
+    TYPE(dbcsr_scalar_type), INTENT(IN) :: encapsulated_scalar
+    COMPLEX(kind=real_4), INTENT(OUT)                :: value
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_get_value_complex(kind=real_4)', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    value = encapsulated_scalar%c_sp
+  END SUBROUTINE dbcsr_scalar_get_value_c
+
 
 ! *****************************************************************************
 !> \brief Used to determine appropriate type for data.

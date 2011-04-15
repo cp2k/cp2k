@@ -141,7 +141,6 @@ MODULE dbcsr_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
-
   PUBLIC :: dbcsr_multiply,&
             dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
@@ -167,10 +166,11 @@ MODULE dbcsr_operations
   END INTERFACE
 
   INTERFACE dbcsr_trace
+     MODULE PROCEDURE dbcsr_trace_a_any
      MODULE PROCEDURE dbcsr_trace_a_s, dbcsr_trace_a_d,&
-          dbcsr_trace_a_c, dbcsr_trace_a_z,&
-          dbcsr_trace_ab_s, dbcsr_trace_a_b_d,&!dbcsr_trace_ab_d,&
-          dbcsr_trace_ab_c, dbcsr_trace_ab_z
+                      dbcsr_trace_a_c, dbcsr_trace_a_z
+     MODULE PROCEDURE dbcsr_trace_ab_s, dbcsr_trace_a_b_d,&
+                      dbcsr_trace_ab_c, dbcsr_trace_ab_z
   END INTERFACE
 
   INTERFACE dbcsr_scale
@@ -4106,6 +4106,38 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_trace_a_b_d
+
+
+
+  SUBROUTINE dbcsr_trace_a_any(matrix_a, trace, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: trace
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_any', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    SELECT CASE (dbcsr_scalar_get_type (trace))
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_trace (matrix_a, trace%r_sp, error)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_trace (matrix_a, trace%r_dp, error)
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_trace (matrix_a, trace%c_sp, error)
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_trace (matrix_a, trace%c_dp, error)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
+    END SELECT
+
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_trace_a_any
 
 
 ! *****************************************************************************

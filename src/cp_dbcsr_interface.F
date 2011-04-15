@@ -49,12 +49,11 @@ MODULE cp_dbcsr_interface
   USE dbcsr_config,                    ONLY: dbcsr_set_conf_combtypes,&
                                              dbcsr_set_conf_mm_driver,&
                                              dbcsr_set_conf_subcomm
-  USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
-                                             dbcsr_data_init,&
-                                             dbcsr_data_new,&
-                                             dbcsr_data_release,&
-                                             dbcsr_data_set_pointer,&
-                                             dbcsr_type_1d_to_2d
+  USE dbcsr_data_methods,              ONLY: &
+       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_scalar, &
+       dbcsr_scalar_fill_all, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
+       dbcsr_type_1d_to_2d
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
@@ -93,13 +92,10 @@ MODULE cp_dbcsr_interface
                                              dbcsr_redistribute,&
                                              dbcsr_replicate,&
                                              dbcsr_replicate_all
-  USE dbcsr_types,                     ONLY: dbcsr_2d_array_type,&
-                                             dbcsr_block_buffer_obj,&
-                                             dbcsr_data_obj,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_iterator,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_no_transpose
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_2d_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
+       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_no_transpose, dbcsr_scalar_type, dbcsr_type_complex_4
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
@@ -132,6 +128,7 @@ MODULE cp_dbcsr_interface
 
   !
   ! Interface to libdbcsr (contains cp2k timing and error)
+  PUBLIC :: cp_dbcsr_conform_scalar
   PUBLIC :: cp_dbcsr_config
   PUBLIC :: cp_dbcsr_untranspose_blocks
   PUBLIC :: cp_dbcsr_set
@@ -209,6 +206,11 @@ MODULE cp_dbcsr_interface
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
      MODULE PROCEDURE cp_dbcsr_create_template
+  END INTERFACE
+
+  INTERFACE cp_dbcsr_conform_scalar
+     MODULE PROCEDURE make_conformant_scalar_r, make_conformant_scalar_d,&
+                      make_conformant_scalar_c, make_conformant_scalar_z
   END INTERFACE
 
   INTERFACE cp_dbcsr_trace
@@ -325,6 +327,86 @@ CONTAINS
     CALL cp_dbcsr_mapping_release (saved_ao_map, error=error)
     NULLIFY (saved_ao_map)
   END SUBROUTINE trash_map
+
+
+! *****************************************************************************
+!> \brief Encapsulates a given scalar value and makes it conformant to the
+!>        type of the matrix.
+! *****************************************************************************
+  FUNCTION make_conformant_scalar_r (scalar, matrix, error) RESULT (encapsulated)
+    REAL(kind=real_4), INTENT(IN)            :: scalar
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_scalar_type)                  :: encapsulated
+
+    encapsulated = dbcsr_scalar (scalar)
+    CALL dbcsr_scalar_fill_all (encapsulated)
+    CALL dbcsr_scalar_set_type (encapsulated,&
+         dbcsr_get_data_type (matrix%matrix))
+  END FUNCTION make_conformant_scalar_r
+! *****************************************************************************
+!> \brief Encapsulates a given scalar value and makes it conformant to the
+!>        type of the matrix.
+! *****************************************************************************
+  FUNCTION make_conformant_scalar_d (scalar, matrix, error) RESULT (encapsulated)
+    REAL(kind=real_8), INTENT(IN)            :: scalar
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_scalar_type)                  :: encapsulated
+
+    encapsulated = dbcsr_scalar (scalar)
+    CALL dbcsr_scalar_fill_all (encapsulated)
+    CALL dbcsr_scalar_set_type (encapsulated,&
+         dbcsr_get_data_type (matrix%matrix))
+  END FUNCTION make_conformant_scalar_d
+! *****************************************************************************
+!> \brief Encapsulates a given scalar value and makes it conformant to the
+!>        type of the matrix.
+! *****************************************************************************
+  FUNCTION make_conformant_scalar_c (scalar, matrix, error) RESULT (encapsulated)
+    COMPLEX(kind=real_4), INTENT(IN)         :: scalar
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_scalar_type)                  :: encapsulated
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_conformant_scalar_c', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_type
+
+    encapsulated = dbcsr_scalar (scalar)
+    CALL dbcsr_scalar_fill_all (encapsulated)
+    data_type = dbcsr_get_data_type (matrix%matrix)
+    CALL cp_assert (data_type .EQ. dbcsr_type_complex_4 .OR.&
+         data_type .EQ. dbcsr_type_complex_4,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Can not conform a complex to a real number", error=error)
+    CALL dbcsr_scalar_set_type (encapsulated, data_type)
+  END FUNCTION make_conformant_scalar_c
+! *****************************************************************************
+!> \brief Encapsulates a given scalar value and makes it conformant to the
+!>        type of the matrix.
+! *****************************************************************************
+  FUNCTION make_conformant_scalar_z (scalar, matrix, error) RESULT (encapsulated)
+    COMPLEX(kind=real_8), INTENT(IN)         :: scalar
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_scalar_type)                  :: encapsulated
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_conformant_scalar_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_type
+
+    encapsulated = dbcsr_scalar (scalar)
+    CALL dbcsr_scalar_fill_all (encapsulated)
+    data_type = dbcsr_get_data_type (matrix%matrix)
+    CALL cp_assert (data_type .EQ. dbcsr_type_complex_4 .OR.&
+         data_type .EQ. dbcsr_type_complex_4,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Can not conform a complex to a real number", error=error)
+    CALL dbcsr_scalar_set_type (encapsulated, data_type)
+  END FUNCTION make_conformant_scalar_z
 
 
 ! *****************************************************************************
@@ -1955,10 +2037,14 @@ CONTAINS
 
     INTEGER                                  :: timing_handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(dbcsr_scalar_type)                  :: trace_scalar
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix_a%buffers, error=error)
-    CALL dbcsr_trace(matrix_a%matrix, trace, dbcsr_error)
+    trace_scalar = cp_dbcsr_conform_scalar(trace, matrix_a, error)
+    CALL dbcsr_trace(matrix_a%matrix, trace_scalar, dbcsr_error)
+    CALL dbcsr_scalar_fill_all (trace_scalar)
+    CALL dbcsr_scalar_get_value (trace_scalar, trace)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_a_d
 
@@ -2469,7 +2555,9 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_add_on_diag(matrix%matrix, alpha_scalar, first_row, last_row, dbcsr_error)
+    CALL dbcsr_add_on_diag(matrix%matrix,&
+         cp_dbcsr_conform_scalar (alpha_scalar, matrix, error),&
+         first_row, last_row, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_on_diag
 

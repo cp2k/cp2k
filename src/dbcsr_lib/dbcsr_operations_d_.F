@@ -19,7 +19,7 @@
 
     INTEGER                                  :: a_blk, a_col, a_col_size, &
                                                 a_nze, a_row, a_row_size, i, &
-                                                mynode
+                                                mynode, error_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size,&
                                                 row_dist, col_dist
     REAL(kind=real_8), DIMENSION(:), POINTER           :: a_data, data_p
@@ -27,9 +27,13 @@
     TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
+    CALL dbcsr_error_set(routineN, error_handle, error)
 
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
+    CALL dbcsr_assert (dbcsr_get_data_type (matrix_a), "EQ", dbcsr_type_real_8,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Incompatible data types", __LINE__, error=error)
     CALL dbcsr_get_data (matrix_a%m%data_area, data_p)
     dist = dbcsr_distribution (matrix_a)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
@@ -42,6 +46,7 @@
     DO a_row = 1, matrix_a%m%nblkrows_total
        a_row_size = row_blk_size(a_row)
        DO a_blk = matrix_a%m%row_p(a_row)+1,matrix_a%m%row_p(a_row+1)
+          IF (a_blk .EQ. 0) CYCLE
           a_col = matrix_a%m%col_i(a_blk)
           IF(a_col.ne.a_row) CYCLE
           ! We must skip non-local blocks in a replicated matrix.
@@ -67,6 +72,7 @@
     ! summe
     CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
+    CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_trace_a_d
 
 ! *****************************************************************************

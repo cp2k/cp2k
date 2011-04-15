@@ -53,7 +53,9 @@ MODULE dbcsr_data_methods
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_i, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
-            dbcsr_scalar_get_type, dbcsr_scalar_fill_all
+            dbcsr_scalar_add, dbcsr_scalar_multiply,&
+            dbcsr_scalar_get_type, dbcsr_scalar_set_type,&
+            dbcsr_scalar_fill_all, dbcsr_scalar_get_value
   PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type,&
             dbcsr_data_reset_type, dbcsr_data_query_type
@@ -74,6 +76,12 @@ MODULE dbcsr_data_methods
   INTERFACE dbcsr_scalar
      MODULE PROCEDURE dbcsr_scalar_s, dbcsr_scalar_d,&
                       dbcsr_scalar_c, dbcsr_scalar_z
+  END INTERFACE
+
+  !> \brief Encapsulates a scalar.
+  INTERFACE dbcsr_scalar_get_value
+     MODULE PROCEDURE dbcsr_scalar_get_value_s, dbcsr_scalar_get_value_d,&
+                      dbcsr_scalar_get_value_c, dbcsr_scalar_get_value_z
   END INTERFACE
 
   INTERFACE dbcsr_data_set_pointer
@@ -1405,7 +1413,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: data_type
     TYPE(dbcsr_scalar_type)                  :: one
 
-    one%data_type = data_type
+    one = dbcsr_scalar_zero (data_type)
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        one%r_sp = 1.0_real_4
@@ -1427,7 +1435,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: data_type
     TYPE(dbcsr_scalar_type)                  :: i
 
-    i%data_type = data_type
+    i = dbcsr_scalar_zero (data_type)
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        i%r_sp = 0.0_real_4
@@ -1450,16 +1458,10 @@ CONTAINS
     TYPE(dbcsr_scalar_type)                  :: zero
 
     zero%data_type = data_type
-    SELECT CASE (data_type)
-    CASE (dbcsr_type_real_4)
-       zero%r_sp = 0.0_real_4
-    CASE (dbcsr_type_real_8)
-       zero%r_dp = 0.0_real_8
-    CASE (dbcsr_type_complex_4)
-       zero%c_sp = CMPLX(0.0, 0.0, real_4)
-    CASE (dbcsr_type_complex_8)
-       zero%c_dp = CMPLX(0.0, 0.0, real_8)
-    END SELECT
+    zero%r_sp = 0.0_real_4
+    zero%r_dp = 0.0_real_8
+    zero%c_sp = CMPLX(0.0, 0.0, real_4)
+    zero%c_dp = CMPLX(0.0, 0.0, real_8)
   END FUNCTION dbcsr_scalar_zero
 
 
@@ -1500,7 +1502,7 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: s
     TYPE(dbcsr_scalar_type)                  :: negated
 
-    negated%data_type = s%data_type
+    negated = dbcsr_scalar_zero (s%data_type)
     SELECT CASE (s%data_type)
     CASE (dbcsr_type_real_4)
        negated%r_sp = -s%r_sp
@@ -1516,6 +1518,55 @@ CONTAINS
   END FUNCTION dbcsr_scalar_negative
 
 ! *****************************************************************************
+!> \brief Returns an encapsulated scalar as a negation of the given
+!> \param[in] v                    given value
+!> \result negated                 negated value
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_add (s1, s2) RESULT (s_sum)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
+    TYPE(dbcsr_scalar_type)                  :: s_sum
+
+    s_sum = dbcsr_scalar_zero (s1%data_type)
+    SELECT CASE (s1%data_type)
+    CASE (dbcsr_type_real_4)
+       s_sum%r_sp = s1%r_sp + s2%r_sp
+    CASE (dbcsr_type_real_8)
+       s_sum%r_dp = s1%r_dp + s2%r_dp
+    CASE (dbcsr_type_complex_4)
+       s_sum%c_sp = s1%c_sp + s2%c_sp
+    CASE (dbcsr_type_complex_8)
+       s_sum%c_dp = s1%c_dp + s2%c_dp
+    CASE default
+       s_sum = dbcsr_scalar_zero (s1%data_type)
+    END SELECT
+  END FUNCTION dbcsr_scalar_add
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar as a negation of the given
+!> \param[in] v                    given value
+!> \result negated                 negated value
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_multiply (s1, s2) RESULT (s_product)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
+    TYPE(dbcsr_scalar_type)                  :: s_product
+
+    s_product = dbcsr_scalar_zero (s1%data_type)
+    SELECT CASE (s1%data_type)
+    CASE (dbcsr_type_real_4)
+       s_product%r_sp = s1%r_sp * s2%r_sp
+    CASE (dbcsr_type_real_8)
+       s_product%r_dp = s1%r_dp * s2%r_dp
+    CASE (dbcsr_type_complex_4)
+       s_product%c_sp = s1%c_sp * s2%c_sp
+    CASE (dbcsr_type_complex_8)
+       s_product%c_dp = s1%c_dp * s2%c_dp
+    CASE default
+       s_product = dbcsr_scalar_zero (s1%data_type)
+    END SELECT
+  END FUNCTION dbcsr_scalar_multiply
+
+
+! *****************************************************************************
 !> \brief Returns data type of a scalar
 !> \param[in] scalar       scalar
 !> \result data_type       data type of the scalar
@@ -1526,6 +1577,19 @@ CONTAINS
 
     data_type = scalar%data_type
   END FUNCTION dbcsr_scalar_get_type
+
+! *****************************************************************************
+!> \brief Returns data type of a scalar
+!> \param[in] scalar       scalar
+!> \result data_type       data type of the scalar
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE dbcsr_scalar_set_type (scalar, data_type)
+    TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
+    INTEGER, INTENT(IN)                      :: data_type
+
+    scalar%data_type = data_type
+  END SUBROUTINE dbcsr_scalar_set_type
+
 
 ! *****************************************************************************
 !> \brief Fills all data and precision types from the set one
@@ -1554,10 +1618,9 @@ CONTAINS
           scalar%r_sp = REAL(scalar%c_dp, KIND=real_4)
           scalar%r_dp = REAL(scalar%c_dp, KIND=real_8)
           scalar%c_sp = CMPLX(scalar%c_dp, KIND=real_4)
-          !scalar%c_dp = CMPLX(scalar%r_dp, 0, KIND=real_8)
+          !scalar%c_dp = CMPLX(scalar%r_dp, KIND=real_8)
     END SELECT
   END SUBROUTINE dbcsr_scalar_fill_all
-
 
 ! *****************************************************************************
 !> \brief Checks whether the data type is 2-D.
