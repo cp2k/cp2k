@@ -121,7 +121,7 @@ CONTAINS
             matrix_type=dbcsr_type_no_symmetry,&
             error=error)
        CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
-            untransposed_data=.TRUE., error=error)
+            error=error)
        !CALL cp_dbcsr_untranspose_blocks( matrix_qs_nosym , error=error)
 
        ! create format of the clustered matrix

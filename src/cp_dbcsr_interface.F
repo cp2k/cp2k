@@ -79,11 +79,12 @@ MODULE cp_dbcsr_interface
        dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
-       dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
-       dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_multiply, dbcsr_norm, &
-       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
+       dbcsr_copy_into_existing, dbcsr_filter, dbcsr_frobenius_norm, &
+       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_diag, &
+       dbcsr_hadamard_product, dbcsr_multiply, dbcsr_norm, dbcsr_scale, &
+       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, &
+       dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_desymmetrize_deep,&
                                              dbcsr_distribute,&
@@ -139,6 +140,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_transposed
   PUBLIC :: cp_dbcsr_multiply
   PUBLIC :: cp_dbcsr_copy
+  PUBLIC :: cp_dbcsr_copy_into_existing
   PUBLIC :: cp_dbcsr_desymmetrize
   PUBLIC :: cp_dbcsr_add_on_diag
   PUBLIC :: cp_dbcsr_get_block_diag
@@ -2593,10 +2595,34 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_copy
 
-  SUBROUTINE cp_dbcsr_desymmetrize(matrix_a, matrix_b, untransposed_data, error)
+  SUBROUTINE cp_dbcsr_copy_into_existing(matrix_b, matrix_a, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy_into_existing', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_b%buffers, error)
+    IF (matrix_b%ref_count .EQ. 0) THEN
+       CALL cp_dbcsr_create (matrix_b, template=matrix_a,&
+            error=error)
+    ENDIF
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error)
+    CALL dbcsr_copy_into_existing(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
+    CALL timestop(timing_handle)
+  END SUBROUTINE cp_dbcsr_copy_into_existing
+
+
+  SUBROUTINE cp_dbcsr_desymmetrize(matrix_a, matrix_b, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
-    LOGICAL, INTENT(IN), OPTIONAL            :: untransposed_data
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_desymmetrize', &
@@ -2618,7 +2644,7 @@ CONTAINS
     buffers = matrix_a%buffers
     CALL cluster_buffer_flush (buffers, error)
     CALL dbcsr_desymmetrize_deep(matrix_a%matrix, matrix_b%matrix,&
-         untransposed_data=untransposed_data, error=dbcsr_error)
+         untransposed_data = .TRUE., error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_desymmetrize
 

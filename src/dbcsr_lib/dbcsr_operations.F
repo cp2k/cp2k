@@ -27,9 +27,10 @@ MODULE dbcsr_operations
                                              dbcsr_remove_block,&
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
+                                             dbcsr_block_conjg,&
                                              dbcsr_block_partial_copy,&
+                                             dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
-                                             dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
@@ -45,10 +46,10 @@ MODULE dbcsr_operations
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: &
-       checker_square_proc, create_bl_distribution, dbcsr_create_image_dist, &
-       dbcsr_find_column, dbcsr_get_stored_coordinates, &
-       dbcsr_make_dists_dense, dbcsr_reset_locals, dbcsr_reset_vlocals, &
-       make_sizes_dense
+       checker_square_proc, checker_tr, create_bl_distribution, &
+       dbcsr_create_image_dist, dbcsr_find_column, &
+       dbcsr_get_stored_coordinates, dbcsr_make_dists_dense, &
+       dbcsr_reset_locals, dbcsr_reset_vlocals, make_sizes_dense
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
                                              dbcsr_index_checksum,&
@@ -144,7 +145,7 @@ MODULE dbcsr_operations
   PUBLIC :: dbcsr_multiply,&
             dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
-            dbcsr_copy_submatrix, &
+            dbcsr_copy_submatrix, dbcsr_copy_into_existing,&
             dbcsr_get_diag, dbcsr_set_diag, &
             dbcsr_get_block_diag, dbcsr_hadamard_product, &
             dbcsr_filter, dbcsr_scale_by_vector,&
@@ -2716,11 +2717,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_size, cs, data_type, &
-                                                dst_col, dst_row, &
-                                                error_handler, rel, row_size, &
-                                                rs, src_col, src_row
-    LOGICAL                                  :: dst_tr, src_tr
+    INTEGER :: col_size, data_type, dst_col, dst_row, error_handler, rel, &
+      row_size, src_col, src_cs, src_row, src_rs
+    LOGICAL                                  :: dst_tr, making_symmetric, &
+                                                neg_imag, neg_real, src_tr
     TYPE(dbcsr_data_obj)                     :: dst_data, src_data
     TYPE(dbcsr_iterator)                     :: dst_iter, src_iter
 
@@ -2731,7 +2731,15 @@ CONTAINS
          .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__,error)
     data_type = dbcsr_get_data_type (matrix_b)
-
+    neg_real = matrix_b%m%negate_real
+    neg_imag = matrix_b%m%negate_imaginary
+    making_symmetric = dbcsr_has_symmetry (matrix_b)&
+         .AND. .NOT. dbcsr_has_symmetry (matrix_a)
+    IF (making_symmetric) THEN
+       CALL dbcsr_copy_into_existing_sym(matrix_b, matrix_a, error)
+       CALL dbcsr_error_stop(error_handler, error)
+       RETURN
+    ENDIF
     CALL dbcsr_data_init (src_data)
     CALL dbcsr_data_init (dst_data)
     CALL dbcsr_data_new (src_data, data_type)
@@ -2756,14 +2764,13 @@ CONTAINS
        rel = pos_relation (dst_row, dst_col, src_row, src_col)
        DO WHILE (rel .EQ. 1 .AND. dbcsr_iterator_blocks_left (src_iter))
           CALL dbcsr_iterator_next_block (src_iter, src_row, src_col,&
-               src_data, src_tr)
+               src_data, src_tr, row_size=src_rs, col_size=src_cs)
           rel = pos_relation (dst_row, dst_col, src_row, src_col)
        ENDDO
        SELECT CASE (rel)
        CASE (-1, 1)
            ! Target lags source or ran out of source
           CALL dbcsr_data_clear (dst_data)
-          !dst_r_dp(:) = 0.0_dp
        CASE (0)
           ! Copy the data
           CALL dbcsr_assert (dbcsr_data_get_size (src_data)&
@@ -2771,14 +2778,20 @@ CONTAINS
                dbcsr_internal_error, routineN, "Block sizes not equal!",__LINE__,error)
           IF (src_tr .EQV. dst_tr) THEN
              CALL dbcsr_data_copyall (dst_data, src_data, error=error)
-             !dst_r_dp(:) = src_r_dp(:)
           ELSE
-             rs = row_size
-             cs = col_size
-             IF (src_tr) CALL swap (rs, cs)
-             CALL dbcsr_block_transpose (dst_data, src_data, rs, cs, &
-                  error=error)
-             !CALL dbcsr_block_transpose (dst_r_dp, src_r_dp, rs, cs)
+             CALL dbcsr_block_partial_copy(dst=dst_data, dst_tr = dst_tr,&
+                  dst_rs = row_size, dst_cs = col_size,&
+                  dst_r_lb = 1, dst_c_lb = 1,&
+                  src = src_data, src_tr = src_tr,&
+                  src_rs = src_rs, src_cs = src_cs,&
+                  src_r_lb = 1, src_c_lb = 1,&
+                  nrow = row_size, ncol = col_size)
+             IF (neg_real) THEN
+                CALL dbcsr_block_real_neg (dst_data, row_size, col_size, error=error)
+             ENDIF
+             IF (neg_imag) THEN
+                CALL dbcsr_block_conjg (dst_data, row_size, col_size, error=error)
+             ENDIF
           ENDIF
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
@@ -2794,6 +2807,91 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_copy_into_existing
+
+! *****************************************************************************
+!> \brief copy a matrix, retaining current sparsity
+!> \param[inout] matrix_b       target DBCSR matrix
+!> \param[in]    matrix_a       source DBCSR matrix
+!> \param[in,out] error         cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy_into_existing_sym(matrix_b, matrix_a, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing_sym', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: col_size, data_type, dst_col, dst_row, error_handler, &
+      row_size, src_col, src_cs, src_row, src_rs
+    LOGICAL                                  :: dst_tr, found, neg_imag, &
+                                                neg_real, src_tr
+    TYPE(dbcsr_data_obj)                     :: dst_data, src_data
+    TYPE(dbcsr_iterator)                     :: dst_iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
+         .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__,error)
+    data_type = dbcsr_get_data_type (matrix_b)
+    CALL dbcsr_assert (dbcsr_has_symmetry (matrix_b)&
+         .AND. .NOT. dbcsr_has_symmetry (matrix_a),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Must copy from non-symmetric to symmetric matrix.",&
+         __LINE__, error=error)
+    neg_real = matrix_b%m%negate_real
+    neg_imag = matrix_b%m%negate_imaginary
+
+    CALL dbcsr_data_init (src_data)
+    CALL dbcsr_data_init (dst_data)
+    CALL dbcsr_data_new (src_data, data_type)
+    CALL dbcsr_data_new (dst_data, data_type)
+    CALL dbcsr_iterator_start (dst_iter, matrix_b)
+    ! Iterate through the blocks of the destination matrix.  For each
+    ! one, try to find an appropriate source matrix block and copy it
+    ! into the destination matrix.
+    DO WHILE (dbcsr_iterator_blocks_left (dst_iter))
+       CALL dbcsr_iterator_next_block (dst_iter, dst_row, dst_col, dst_data,&
+            dst_tr, row_size=row_size, col_size=col_size)
+       src_row = dst_row
+       src_col = dst_col
+       IF (checker_tr (dst_row, dst_col))&
+            CALL swap (src_row, src_col)
+       CALL dbcsr_get_block_p (matrix_a, src_row, src_col, src_data, src_tr,&
+            found=found, row_size=src_rs, col_size=src_cs)
+       IF (.NOT. found) THEN
+          CALL dbcsr_data_clear (dst_data)
+       ELSE
+          IF (checker_tr (dst_row, dst_col)) THEN
+             src_tr = .NOT. src_tr
+             CALL swap (src_rs, src_cs)
+          ENDIF
+          CALL dbcsr_block_partial_copy(dst=dst_data, dst_tr = dst_tr,&
+               dst_rs = row_size, dst_cs = col_size,&
+               dst_r_lb = 1, dst_c_lb = 1,&
+               src = src_data, src_tr = src_tr,&
+               src_rs = src_rs, src_cs = src_cs,&
+               src_r_lb = 1, src_c_lb = 1,&
+               nrow = row_size, ncol = col_size)
+          IF (neg_real) THEN
+             CALL dbcsr_block_real_neg (dst_data, row_size, col_size, error=error)
+          ENDIF
+          IF (neg_imag) THEN
+             CALL dbcsr_block_conjg (dst_data, row_size, col_size, error=error)
+          ENDIF
+       ENDIF
+    END DO
+    CALL dbcsr_iterator_stop (dst_iter)
+    CALL dbcsr_data_clear_pointer (src_data)
+    CALL dbcsr_data_clear_pointer (dst_data)
+    CALL dbcsr_data_release (src_data)
+    CALL dbcsr_data_release (dst_data)
+    CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE dbcsr_copy_into_existing_sym
+
 
 
 ! *****************************************************************************
