@@ -22,6 +22,7 @@ MODULE ewald_spline_util
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
@@ -41,6 +42,7 @@ MODULE ewald_spline_util
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+!NB parallelization
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -142,14 +144,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_pw_TabLR', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: aint_precond, handle, i, is, j, js, k, kg, ks, max_iter, my_i, &
-      my_j, my_k, n1, n2, n3, nxlim, nylim, nzlim, precond_kind
+    INTEGER :: aint_precond, handle, i, iii, is, j, js, k, kg, ks, max_iter, &
+      my_i, my_j, my_k, n1, n2, n3, nxlim, nylim, nzlim, precond_kind
     INTEGER, DIMENSION(2, 3)                 :: gbo
     LOGICAL                                  :: success
     REAL(KIND=dp)                            :: dr1, dr2, dr3, eps_r, eps_x, &
                                                 Term, xs1, xs2, xs3
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
+
+!NB parallelization
 
     CALL timeset(routineN,handle)
     n1  = grid%pw_grid%npts(1)
@@ -171,6 +175,8 @@ CONTAINS
     CALL pw_zero(grid, error=error)
 
     ! Used the full symmetry to reduce the evaluation to 1/64th
+    !NB parallelization
+    iii = 0
     LoopOnGrid: DO k = gbo(1,3), gbo(2,3)
        my_k  = k-gbo(1,3)
        xs3   = REAL(my_k,dp)*dr3
@@ -181,17 +187,23 @@ CONTAINS
           xs1   = 0.0_dp
           DO i  =  gbo(1,1), gbo(2,1)
              IF (i > nxlim ) CYCLE
-             Term  = 0.0_dp
-             ! Sum over k vectors
-             DO kg = 1, SIZE(Lg)
-                Term = Term + lg(kg)*COS(gx(kg)*xs1+gy(kg)*xs2+gz(kg)*xs3)
-             END DO
-             grid%cr3d(i,j,k) = Term
+             !NB parallelization
+             iii = iii + 1
+             IF (MOD(iii,grid%pw_grid%para%group_size) == grid%pw_grid%para%my_pos) THEN
+               Term  = 0.0_dp
+               ! Sum over k vectors
+               DO kg = 1, SIZE(Lg)
+                  Term = Term + lg(kg)*COS(gx(kg)*xs1+gy(kg)*xs2+gz(kg)*xs3)
+               END DO
+               grid%cr3d(i,j,k) = Term
+             ENDIF
              xs1 = xs1 + dr1
           END DO
           xs2 = xs2 + dr2
        END DO
     END DO LoopOnGrid
+    !NB parallelization
+    CALL mp_sum(grid%cr3d(gbo(1,1):nxlim,gbo(1,2):nylim,gbo(1,3):nzlim), grid%pw_grid%para%group)
 
     Fake_LoopOnGrid: DO k = gbo(1,3), gbo(2,3)
        my_k = k

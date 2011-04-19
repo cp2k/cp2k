@@ -16,10 +16,13 @@ MODULE cp_ddapc_util
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                              dft_control_type
   USE cp_ddapc_forces,                 ONLY: evaluate_restraint_functional
+!NB routines to precompute sin(g . r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix()
   USE cp_ddapc_methods,                ONLY: build_A_matrix,&
                                              build_b_vector,&
                                              build_der_A_matrix,&
-                                             build_der_b_vector
+                                             build_der_b_vector,&
+                                             cleanup_g_dot_rvec_sin_cos,&
+                                             prep_g_dot_rvec_sin_cos
   USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
                                              cp_ddapc_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -165,7 +168,9 @@ CONTAINS
        iw2=cp_print_key_unit_nr(logger,density_fit_section,&
             "PROGRAM_RUN_INFO/CONDITION_NUMBER",".FitCharge",error=error)
        ! Initialization of the cp_ddapc_env and of the cp_ddapc_ewald environment
-       CALL cp_ddapc_create(qs_env%cp_ddapc_env,&
+       !NB pass qs_env%para_env for parallelization of ewald_ddapc_pot()
+       CALL cp_ddapc_create(qs_env%para_env,&
+                            qs_env%cp_ddapc_env,&
                             qs_env%cp_ddapc_ewald,&
                             particle_set,&
                             radii,&
@@ -213,18 +218,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: type_of_density
-    INTEGER                                  :: handle, handle2, handle3, i, &
-                                                ii, iparticle, ispin, iw, j, &
-                                                myid, n_rep_val, ndim, &
-                                                num_gauss, stat
+    INTEGER :: handle, handle2, handle3, i, ii, iparticle, ispin, iw, j, &
+      myid, n_rep_val, ndim, num_gauss, pmax, pmin, stat
     LOGICAL                                  :: failure, need_f
-    REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, gcut, &
-                                                pfact, rcmin, Vol
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv, cv, dqv0, qtot, qv
+    REAL(KIND=dp)                            :: c1, c3, ch_dens, gcut, pfact, &
+                                                rcmin, Vol
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: AmI_bv, AmI_cv, bv, cv, &
+                                                cvT_AmI, cvT_AmI_dAmj, &
+                                                dAmj_qv, qtot, qv
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: dbv
+      DIMENSION(:, :)                        :: dbv, g_dot_rvec_cos, &
+                                                g_dot_rvec_sin
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: dAm, dqv
+      DIMENSION(:, :, :)                     :: dAm, dqv, tv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
@@ -238,6 +244,11 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_rho_type), POINTER               :: rho
+
+!NB refactor math in inner loop - no need for dqv0
+!!NB refactor math in inner loop - new temporaries
+
+    EXTERNAL dgemv, dgemm
 
     CALL timeset(routineN,handle)
     failure         = .FALSE.
@@ -395,41 +406,79 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(dbv(ndim,3), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(dqv0(ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)     
-          !
+          !NB refactor math in inner loop - no more dqv0, but new temporaries instead
+          ALLOCATE(cvT_AmI(ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(cvT_AmI_dAmj(ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(tv(ndim,SIZE(particle_set),3), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(AmI_cv(ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          cvT_AmI = MATMUL(cv, cp_ddapc_env%AmI)
+          AmI_cv = MATMUL(cp_ddapc_env%AmI,cv)
+          ALLOCATE(dAmj_qv(ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(AmI_bv(ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          AmI_bv = MATMUL(cp_ddapc_env%AmI,bv)
+
+          !NB call routine to precompute sin(g.r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix()
+          CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
           DO iparticle = 1, SIZE(particle_set)
-             dAm = 0.0_dp
              dbv = 0.0_dp
              CALL build_der_b_vector(dbv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
                   particle_set, radii, rho_tot_g, gcut, iparticle, error);  dbv = dbv / Vol
-             CALL mp_sum(dbv,rho_tot_g%pw_grid%para%group)
              IF (debug_this_module) THEN
                 CALL debug_der_b_vector(dbv, particle_set, radii, rho_tot_g,&
                      gcut, iparticle, Vol, qs_env, error)
                 cp_ddapc_env => qs_env%cp_ddapc_env 
              END IF
              CALL build_der_A_matrix(dAm, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                  particle_set, radii, rho_tot_g, gcut, iparticle, error);  dAm = dAm /(Vol*Vol)
-             CALL mp_sum(dAm,rho_tot_g%pw_grid%para%group)             
+                  particle_set, radii, rho_tot_g, gcut, iparticle, g_dot_rvec_sin, g_dot_rvec_cos, error); 
+             !NB no more reduction of dbv and dAm - instead we go through with each node's contribution
+             !NB and reduce resulting charges/forces once, at the end.  Intermediate speedup can be
+             !NB had by reducing dqv after the inner loop, and then other routines don't need to know
+             !NB that contributions to dqv are distributed over the nodes.
+             !NB also get rid of zeroing of dAm and division by Vol**2 - it's slow, and can be done 
+             !NB more quickly later, to a scalar or vector rather than a matrix
              IF (debug_this_module) THEN
                 CALL debug_der_A_matrix(dAm, particle_set, radii, rho_tot_g,&
                      gcut, iparticle, Vol, qs_env, error)
                 cp_ddapc_env => qs_env%cp_ddapc_env 
              END IF
              DO j = 1, 3
-                dqv0 = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),-qv))
-                c3 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,bv)))) + &
-                       DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
-                c3   = c3 / cp_ddapc_env%c0
-                c4 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,cv)))) / &
-                     cp_ddapc_env%c0
-                dqv(:,iparticle,j) = - ( dqv0 + MATMUL(cp_ddapc_env%AmI,dbv(:,j)) - &
-                     c3 * MATMUL(cp_ddapc_env%AmI,cv) + c4 * c1 * MATMUL(cp_ddapc_env%AmI,cv))
-             END DO
-          END DO
+                !NB dAmj is actually pretty sparse - one block of cols + one block of rows - use this here:
+                pmin = (iparticle-1)*SIZE(radii)+1
+                pmax = iparticle*SIZE(radii)
+                IF (pmin > 1) THEN
+                  dAmj_qv(1:pmin-1)      = MATMUL(dAm(1:pmin-1,pmin:pmax,j),qv(pmin:pmax))
+                  cvT_AmI_dAmj(1:pmin-1) = MATMUL(dAm(1:pmin-1,pmin:pmax,j),cvT_AmI(pmin:pmax))
+                ENDIF
+                dAmj_qv(pmin:pmax)      = MATMUL(dAm(pmin:pmax,:,j),qv(:))
+                cvT_AmI_dAmj(pmin:pmax) = MATMUL(dAm(pmin:pmax,:,j),cvT_AmI(:))
+                IF (pmax < SIZE(particle_set)*SIZE(radii)) THEN
+                  dAmj_qv(pmax+1:)      = MATMUL(dAm(pmax+1:,pmin:pmax,j),qv(pmin:pmax))
+                  cvT_AmI_dAmj(pmax+1:) = MATMUL(dAm(pmax+1:,pmin:pmax,j),cvT_AmI(pmin:pmax))
+                ENDIF
+                dAmj_qv      = dAmj_qv / (Vol*Vol)
+                cvT_AmI_dAmj = cvT_AmI_dAmj / (Vol*Vol)
+                c3 = DOT_PRODUCT(cvT_AmI_dAmj,AmI_bv) - DOT_PRODUCT(cvT_AmI, dbv(:,j)) - c1*DOT_PRODUCT(cvT_AmI_dAmj,AmI_cv)
+                tv(:,iparticle,j) = -(dAmj_qv + dbv(:,j) + c3/cp_ddapc_env%c0*cv)
+             END DO ! j
+             !NB zero relevant parts of dAm here
+             dAm((iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:,:) = 0.0_dp
+             dAm(:,(iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:) = 0.0_dp
+          END DO ! iparticle
+          !NB final part of refactoring of math - one dgemm is faster than many dgemv 
+          CALL dgemm('N','N',SIZE(dqv,1),SIZE(dqv,2)*SIZE(dqv,3),SIZE(cp_ddapc_env%AmI,2),1.0_dp,&
+                     cp_ddapc_env%AmI,SIZE(cp_ddapc_env%AmI,1),tv,SIZE(tv,1),0.0_dp,dqv,SIZE(dqv,1))
+          !NB deallocate g_dot_rvec_sin and g_dot_rvec_cos
+          CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
+          !NB moved reduction out to where dqv is used to compute a force contribution (smaller array to reduce, just size(particle_set) x 3)
+          !NB namely ewald_ddapc_force(), cp_decl_ddapc_forces(), restraint_functional_force()
           CPPostcondition(PRESENT(dq_out),cp_failure_level,routineP,error,failure)
           IF (.NOT.ASSOCIATED(dq_out)) THEN
              ALLOCATE(dq_out(SIZE(dqv,1),SIZE(dqv,2),SIZE(dqv,3)), stat=stat)
@@ -447,11 +496,22 @@ CONTAINS
           END IF
           DEALLOCATE(dqv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(dqv0, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dAm, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dbv, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          !NB deallocate new temporaries
+          DEALLOCATE(cvT_AmI, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(cvT_AmI_dAmj, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(AmI_cv, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(tv, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(dAmj_qv, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(AmI_bv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL timestop(handle3)
        END IF
@@ -743,8 +803,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3), v0
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: Am1, Am2, ddAm
+      DIMENSION(:, :)                        :: Am1, Am2, ddAm, &
+                                                g_dot_rvec_cos, g_dot_rvec_sin
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
+
+!NB new temporaries sin(g.r) and cos(g.r), as used in get_ddapc, to speed up build_der_A_matrix()
 
     failure = .FALSE.
     NULLIFY(cp_ddapc_env)
@@ -760,16 +823,19 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        rvec = particle_set(iparticle)%r                
        cp_ddapc_env => qs_env%cp_ddapc_env
+       CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
        DO i = 1, 3
           Am1 = 0.0_dp
           Am2 = 0.0_dp
           particle_set(iparticle)%r(i) = rvec(i) + dx
           CALL build_A_matrix(Am1, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  Am1 = Am1 /(Vol*Vol)
+               particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, &
+               error);  Am1 = Am1 /(Vol*Vol)
           CALL mp_sum(Am1,rho_tot_g%pw_grid%para%group)
           particle_set(iparticle)%r(i) = rvec(i) - dx
           CALL build_A_matrix(Am2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  Am2 = Am2 /(Vol*Vol)
+               particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, &
+               error);  Am2 = Am2 /(Vol*Vol)
           CALL mp_sum(Am2,rho_tot_g%pw_grid%para%group)
           ddAm = (Am1 - Am2)/(2.0_dp*dx)
           DO kk = 1, SIZE(ddAm,1)
@@ -787,6 +853,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
           END DO
           particle_set(iparticle)%r = rvec
        END DO
+       CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
        DEALLOCATE(Am1, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(Am2, stat=stat)

@@ -79,9 +79,11 @@ CONTAINS
 ! *****************************************************************************
 !> \author Tedoro Laino
 ! *****************************************************************************
-  SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, &
+  !NB receive cp_para_env to pass down to parallelized ewald_ddapc_pot()
+  SUBROUTINE cp_ddapc_create(cp_para_env, cp_ddapc_env, cp_ddapc_ewald, &
        particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw2, Vol,  &
        force_env_section, error)
+    TYPE(cp_para_env_type), POINTER          :: cp_para_env
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
     TYPE(particle_type), DIMENSION(:), &
@@ -136,7 +138,8 @@ CONTAINS
           ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
           !
           param_section => cp_ddapc_ewald%ewald_section
-          CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_qm,&
+          !NB parallelized ewald_ddapc_pot() needs cp_para_env
+          CALL ewald_ddapc_pot(cp_para_env, cp_ddapc_ewald%coeff_qm,&
                                1.0_dp,&
                                cell,&
                                param_section,&
@@ -151,7 +154,8 @@ CONTAINS
                 cp_ddapc_env%Mt = cp_ddapc_env%Md
              ELSE
                 ! QMMM periodic calculation
-                CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_mm,-1.0_dp, super_cell, param_section,&
+                !NB parallelized ewald_ddapc_pot() needs cp_para_env
+                CALL ewald_ddapc_pot(cp_para_env, cp_ddapc_ewald%coeff_mm,-1.0_dp, super_cell, param_section,&
                      particle_set, cp_ddapc_env%Mr, radii, error)
                 cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
              END IF

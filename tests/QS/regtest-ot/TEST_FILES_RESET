@@ -824,3 +824,19 @@ sic_ddapc_rt.inp
 He2_ddapc_constraint-4.inp
 # Numerics
 H2O-geo-ot-mols.inp
+# numerics
+H+-bloechl.inp
+H2O-bloechl-Spl.inp
+H2O-solv.inp
+H+solv1.inp
+He2H-bloechl-md.inp
+H2O-bloechl-restraint.inp
+He2H-bloechl.inp
+H2O-bloechl.inp
+He2_ddapc_constraint-4.inp
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint.inp
+sic_ddapc_rt.inp
+He2_ddapc_constraint-3.inp
+spin_restraint.inp
+He3_multi_ddapc.inp

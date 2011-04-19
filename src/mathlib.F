@@ -467,7 +467,8 @@ CONTAINS
 !>       -            "T" => invert transpose(a)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE invert_matrix_d(a,a_inverse,eval_error,option,error)
+!NB add improve argument, used to disable call to dgerfs
+  SUBROUTINE invert_matrix_d(a,a_inverse,eval_error,option,error,improve)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -475,6 +476,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: eval_error
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: improve
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_matrix_d', &
       routineP = moduleN//':'//routineN
@@ -483,7 +485,7 @@ CONTAINS
     CHARACTER(LEN=80)                        :: message
     INTEGER                                  :: info, iter, n, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_improve, failure
     REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -500,6 +502,12 @@ CONTAINS
     ELSE
       trans = "N"
     END IF
+
+    IF (PRESENT(improve)) THEN
+      do_improve = improve
+    ELSE
+      do_improve = .TRUE.
+    ENDIF
 
     ! Get the dimension of matrix a
     n = SIZE(a,1)
@@ -597,22 +605,24 @@ CONTAINS
 
     eval_error = 0.0_dp
 
-    DO iter=1,10
+    IF (do_improve) THEN
+      DO iter=1,10
 
-      CALL dgerfs(trans,n,n,a,n,a_lu,n,ipiv,b,n,a_inverse,n,ferr,berr,&
-                  work,iwork,info)
+        CALL dgerfs(trans,n,n,a,n,a_lu,n,ipiv,b,n,a_inverse,n,ferr,berr,&
+                    work,iwork,info)
 
-      IF (info /= 0) THEN
-        CALL stop_program(moduleN,routineN,__LINE__,&
-                          "Improving the computed solution in dgerfs failed")
-      END IF
+        IF (info /= 0) THEN
+          CALL stop_program(moduleN,routineN,__LINE__,&
+                            "Improving the computed solution in dgerfs failed")
+        END IF
 
-      old_eval_error = eval_error
-      eval_error = MAXVAL(ferr)
+        old_eval_error = eval_error
+        eval_error = MAXVAL(ferr)
 
-      IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
+        IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
 
-    END DO
+      END DO
+    ENDIF
 
     ! Release work storage
     DEALLOCATE (work,STAT=stat)

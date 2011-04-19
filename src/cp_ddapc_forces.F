@@ -28,6 +28,7 @@ MODULE cp_ddapc_forces
                                              pi,&
                                              rootpi,&
                                              twopi
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_spline_utils,                 ONLY: Eval_d_Interp_Spl3_pbc
   USE pw_types,                        ONLY: pw_type
@@ -38,6 +39,7 @@ MODULE cp_ddapc_forces
                                              legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
+!NB for reducing results of calculations that use dq, which is now spread over nodes
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -128,6 +130,8 @@ CONTAINS
        fvec   = twopi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
        !
        DO iparticle1 = 1, SIZE(particle_set)
+          !NB parallelization
+          IF (MOD(iparticle1, qs_env%para_env%num_pe) /= qs_env%para_env%mepos) CYCLE
           ip1 = (iparticle1-1)*SIZE(radii)
           q1t   = SUM(charges(ip1+1:ip1+SIZE(radii)))
           DO iparticle2 = 1, iparticle1
@@ -207,8 +211,10 @@ CONTAINS
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) + t2 * drvec
                 d_el(1:3,iparticle2) = d_el(1:3,iparticle2) - t2 * drvec
              END IF
-          END DO
-       END DO
+          END DO ! iparticle2
+       END DO ! iparticle1
+       !NB parallelization
+       CALL mp_sum(d_el, qs_env%para_env%group)
        M => qs_env%cp_ddapc_env%Md
        IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
        CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
@@ -275,6 +281,8 @@ CONTAINS
              chf(j,k) =  DOT_PRODUCT(uv,dq(:,k,j))
           END DO
        END DO
+       !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
+       CALL mp_sum(chf, qs_env%para_env%group)
        DO iatom=1,natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
@@ -455,6 +463,8 @@ CONTAINS
              chf(j,k) =  DOT_PRODUCT(uv,dq(:,k,j))
           END DO
        END DO
+       !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
+       CALL mp_sum(chf, qs_env%para_env%group)
        DO iatom=1,natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
