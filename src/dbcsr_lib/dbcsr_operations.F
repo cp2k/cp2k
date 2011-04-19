@@ -41,8 +41,8 @@ MODULE dbcsr_operations
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, &
        dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, &
-       dbcsr_scalar_get_type, dbcsr_scalar_one, dbcsr_scalar_zero, &
-       dbcsr_type_1d_to_2d
+       dbcsr_scalar_get_type, dbcsr_scalar_one, dbcsr_scalar_set_type, &
+       dbcsr_scalar_zero, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: &
@@ -372,6 +372,7 @@ CONTAINS
                                                 rdist_left, rdist_right
     TYPE(dbcsr_obj) :: dense_template_left, dense_template_right, &
       matrix_left, matrix_right, matrix_tmp, product_matrix
+    TYPE(dbcsr_scalar_type)                  :: eps_any
 
 !   ---------------------------------------------------------------------------
 
@@ -988,7 +989,10 @@ CONTAINS
     ENDIF
     !
     IF (PRESENT (filter_eps)) THEN
-       CALL dbcsr_filter (matrix_c, filter_eps, quick=.FALSE., error=error)
+       eps_any = dbcsr_scalar(filter_eps)
+       CALL dbcsr_scalar_fill_all(eps_any)
+       CALL dbcsr_scalar_set_type(eps_any, dbcsr_get_data_type(matrix_c))
+       CALL dbcsr_filter (matrix_c, eps_any, quick=.FALSE., error=error)
     ENDIF
     !
     ! To support the canonical multiply (all non-transposed blocks),

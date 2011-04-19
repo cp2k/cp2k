@@ -2478,7 +2478,8 @@ CONTAINS
     ELSE
        quick = .FALSE.
     ENDIF
-    CALL dbcsr_filter(matrix%matrix, eps, method, use_absolute, filter_diag,&
+    CALL dbcsr_filter(matrix%matrix, cp_dbcsr_conform_scalar (eps, matrix, error),&
+                      method, use_absolute, filter_diag,&
          quick=quick, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_filter
