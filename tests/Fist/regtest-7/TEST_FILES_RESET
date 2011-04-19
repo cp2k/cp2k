@@ -426,3 +426,6 @@ UO2-2x2x2-binary_restart-cs-scaled-1.inp
 UO2-2x2x2-binary_restart-cs-scaled-2.inp
 UO2-2x2x2-binary_restart-cs-scaled-3.inp
 UO2-2x2x2-binary_restart-cs-scaled-4.inp
+# reset numerics
+UO2-2x2x2-binary_restart-cs-8.inp
+UO2-2x2x2-binary_restart-cs-7.inp
