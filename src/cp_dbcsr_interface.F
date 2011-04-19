@@ -53,7 +53,7 @@ MODULE cp_dbcsr_interface
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_scalar, &
        dbcsr_scalar_fill_all, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
-       dbcsr_type_1d_to_2d
+       dbcsr_scalar_zero, dbcsr_type_1d_to_2d
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
@@ -2031,7 +2031,7 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_trace_a_d(matrix_a, trace, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
-    REAL(kind=real_8), INTENT(INOUT)         :: trace
+    REAL(kind=real_8), INTENT(OUT)           :: trace
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_d', &
@@ -2043,7 +2043,7 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix_a%buffers, error=error)
-    trace_scalar = cp_dbcsr_conform_scalar(trace, matrix_a, error)
+    trace_scalar = dbcsr_scalar_zero (cp_dbcsr_get_data_type(matrix_a))
     CALL dbcsr_trace(matrix_a%matrix, trace_scalar, dbcsr_error)
     CALL dbcsr_scalar_fill_all (trace_scalar)
     CALL dbcsr_scalar_get_value (trace_scalar, trace)
