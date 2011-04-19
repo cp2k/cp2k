@@ -18,16 +18,14 @@ MODULE dm_ls_scf_qs
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_nblkrows_total, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
+       cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_init, &
+       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
@@ -36,10 +34,11 @@ MODULE dm_ls_scf_qs
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_release,&
                                              dbcsr_distribution_row_dist,&
-                                             dbcsr_get_data_type,&
                                              dbcsr_name
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_no_symmetry,&
+                                             dbcsr_type_real_4,&
+                                             dbcsr_type_real_8,&
                                              dbcsr_type_symmetric
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular,&
@@ -89,8 +88,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, imol, jatom, &
-                                                natom, nmol
+    INTEGER                                  :: data_type, handle, iatom, &
+                                                imol, jatom, natom, nmol
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_to_cluster, &
                                                 atom_to_cluster_primus, &
                                                 cl_dist, cluster_sizes, &
@@ -99,11 +98,16 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: clustered_blk_sizes, &
                                                 clustered_col_dist, &
                                                 clustered_row_dist
-    TYPE(cp_dbcsr_type)                      :: matrix_qs_nosym
     TYPE(dbcsr_distribution_obj)             :: block_distribution, &
                                                 clustered_distribution
 
     CALL timeset(routineN,handle)
+
+    IF (ls_mstruct%single_precision) THEN
+       data_type=dbcsr_type_real_4
+    ELSE
+       data_type=dbcsr_type_real_8
+    ENDIF
 
     ! here we allocate our basic matrices, right now, use QS S as a template
     ! later, we might want to use our own format (e.g. clustered)
@@ -111,19 +115,9 @@ CONTAINS
     CASE(ls_cluster_atomic)
        CALL cp_dbcsr_init(matrix_ls,error=error)
        CALL cp_dbcsr_create(matrix_ls,template=matrix_qs, &
-                            matrix_type=dbcsr_type_no_symmetry,error=error)
+                            data_type=data_type,&
+                            error=error)
     CASE(ls_cluster_molecular)
-
-       ! desymmetrize the qs matrix
-       ! cp_dbcsr_untranspose_blocks appears required here (FIXME Urban)
-       CALL cp_dbcsr_init (matrix_qs_nosym, error=error)
-       CALL cp_dbcsr_create (matrix_qs_nosym, template=matrix_qs,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
-       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
-            error=error)
-       !CALL cp_dbcsr_untranspose_blocks( matrix_qs_nosym , error=error)
-
        ! create format of the clustered matrix
        natom=cp_dbcsr_nblkrows_total(matrix_qs)
        nmol=MAXVAL(ls_mstruct%atom_to_molecule) 
@@ -178,26 +172,20 @@ CONTAINS
        CALL array_release (clustered_col_dist)
 
        ! the matrix
-           ! dbcsr_get_matrix_type (matrix_qs%matrix),&
        CALL cp_dbcsr_init (matrix_ls, error=error)
        CALL cp_dbcsr_create (matrix_ls, dbcsr_name (matrix_qs%matrix),&
             clustered_distribution,&
-            ! dbcsr_type_no_symmetry,&
             dbcsr_type_symmetric,&
             clustered_blk_sizes, clustered_blk_sizes,&
-            data_type=dbcsr_get_data_type(matrix_qs%matrix),&
+            data_type=data_type,&
             error=error)
        CALL array_release (clustered_blk_sizes)
        CALL dbcsr_distribution_release (clustered_distribution)
        CALL cp_dbcsr_finalize (matrix_ls, error=error)
-
-       ! do the magic copy
-       CALL cp_dbcsr_complete_redistribute(matrix_qs_nosym, matrix_ls, error=error);
-
-       CALL cp_dbcsr_release (matrix_qs_nosym, error=error)
     CASE DEFAULT
        STOP " BUG cluster option"
     END SELECT
+
 
     CALL timestop (handle)
 
@@ -220,23 +208,35 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    TYPE(cp_dbcsr_type)                      :: matrix_qs_nosym, matrix_tmp
 
     CALL timeset(routineN,handle)
 
     SELECT CASE(ls_mstruct%cluster_type)
     CASE(ls_cluster_atomic)
+       ! takes care of an eventual data_type conversion
        CALL cp_dbcsr_copy(matrix_ls,matrix_qs,error=error)
-
-      !old_hack= matrix_qs%matrix%m%work_mutable
-      !matrix_qs%matrix%m%work_mutable = .FALSE.
-      !CALL cp_dbcsr_create (matrix_ls, template=matrix_qs, mutable_work=.FALSE., error=error)
-      !CALL dbcsr_desymmetrize_deep (matrix_qs%matrix, matrix_ls%matrix, error=dbcsr_error)
-      !matrix_qs%matrix%m%work_mutable = old_hack
-      !CALL cp_dbcsr_untranspose_blocks( matrix_ls, error=error)
-
     CASE(ls_cluster_molecular)
-       CALL cp_dbcsr_release(matrix_ls,error)
-       CALL matrix_ls_create(matrix_ls,matrix_qs,ls_mstruct,error)
+       ! desymmetrize the qs matrix
+       CALL cp_dbcsr_init (matrix_qs_nosym, error=error)
+       CALL cp_dbcsr_create (matrix_qs_nosym, template=matrix_qs,&
+            matrix_type=dbcsr_type_no_symmetry, error=error)
+       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
+            error=error)
+
+       ! perform the magic complete redistribute copy
+       IF (ls_mstruct%single_precision) THEN
+          CALL cp_dbcsr_init(matrix_tmp, error=error)
+          CALL cp_dbcsr_create(matrix_tmp,template=matrix_qs_nosym, &
+                               data_type=dbcsr_type_real_4, error=error)
+          CALL cp_dbcsr_copy(matrix_tmp,matrix_qs_nosym,error=error)
+          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_ls, error=error);
+          CALL cp_dbcsr_release(matrix_tmp, error=error)
+       ELSE
+          CALL cp_dbcsr_complete_redistribute(matrix_qs_nosym, matrix_ls, error=error);
+       ENDIF
+       CALL cp_dbcsr_release (matrix_qs_nosym, error=error)
+
     CASE DEFAULT 
        STOP
     END SELECT
@@ -261,56 +261,40 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_to_qs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iblock_col, &
-                                                iblock_row, unit_nr
-    LOGICAL                                  :: found
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_ls, block_qs
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: handle
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp
 
     CALL timeset(routineN,handle)
 
-
-    ! get a useful output_unit
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
+    IF (ls_mstruct%single_precision) THEN
+       CALL cp_dbcsr_init (matrix_tmp, error=error)
+       CALL cp_dbcsr_create (matrix_tmp, template=matrix_ls,&
+            data_type=dbcsr_type_real_8, error=error)
+       CALL cp_dbcsr_copy (matrix_tmp, matrix_ls, error=error)
     ENDIF
+
 
     SELECT CASE(ls_mstruct%cluster_type)
     CASE(ls_cluster_atomic)
-       ! a copy but, does the right thing for symmetric=non-symmetric cases
-       CALL cp_dbcsr_iterator_start(iter, matrix_qs)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_qs)
-          IF (.NOT.(BTEST(iblock_col+iblock_row, 0) .EQV. iblock_col.GT.iblock_row)) THEN
-             CALL cp_dbcsr_get_block_p(matrix=matrix_ls,row=iblock_row,col=iblock_col,&
-                block=block_ls,found=found)
-             IF (found) THEN
-                block_qs=block_ls
-             ELSE
-                block_qs=0
-             ENDIF
-          ELSE
-             CALL cp_dbcsr_get_block_p(matrix=matrix_ls,row=iblock_col,col=iblock_row,&
-                  block=block_ls,found=found)
-             IF (found) THEN
-                block_qs=TRANSPOSE(block_ls)
-             ELSE
-                block_qs=0
-             ENDIF
-          ENDIF
-       ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
-       CALL cp_dbcsr_finalize(matrix_qs, error=error)
+       IF (ls_mstruct%single_precision) THEN
+          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_tmp, error=error)
+       ELSE
+          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_ls, error=error)
+       ENDIF
     CASE(ls_cluster_molecular)
        CALL cp_dbcsr_set(matrix_qs,0.0_dp,error=error)
-       CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE., error=error);
+       IF (ls_mstruct%single_precision) THEN
+          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE., error=error) 
+       ELSE
+          CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE., error=error) 
+       ENDIF
     CASE DEFAULT 
        STOP "BUG"
     END SELECT
+
+    IF (ls_mstruct%single_precision) THEN
+       CALL cp_dbcsr_release(matrix_tmp,error=error)
+    ENDIF
 
     CALL timestop(handle)
 

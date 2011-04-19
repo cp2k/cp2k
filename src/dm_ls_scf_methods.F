@@ -13,13 +13,22 @@ MODULE dm_ls_scf_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, cp_dbcsr_init, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
        cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE dbcsr_block_access,              ONLY: dbcsr_put_block
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
+                                             dbcsr_data_init,&
+                                             dbcsr_data_new,&
+                                             dbcsr_data_release
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_type
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_iterator,&
+                                             dbcsr_type_no_symmetry
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_mstruct_type
   USE f77_blas
@@ -66,12 +75,11 @@ CONTAINS
       routineN = 'compute_matrix_preconditioner', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, handle, iblock_col, &
-                                                iblock_row
-    LOGICAL                                  :: block_needed
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_s
-    TYPE(cp_dbcsr_iterator)                  :: iter
+    INTEGER                                  :: handle, iblock_col, iblock_row
+    LOGICAL                                  :: block_needed, tr
     TYPE(cp_dbcsr_type)                      :: matrix_bs
+    TYPE(dbcsr_data_obj)                     :: block_any
+    TYPE(dbcsr_iterator)                     :: iter
 
     CALL timeset(routineN,handle)
 
@@ -79,12 +87,16 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_bs,error=error)
     CALL cp_dbcsr_create(matrix_bs,template=matrix_s,error=error)
 
+    CALL dbcsr_data_init (block_any)
+    CALL dbcsr_data_new(block_any, dbcsr_get_data_type(matrix_s%matrix))
+
     SELECT CASE(preconditioner_type)
     CASE(ls_s_preconditioner_none)
     CASE(ls_s_preconditioner_atomic, ls_s_preconditioner_molecular)
-       CALL cp_dbcsr_iterator_start(iter, matrix_s)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_s, blk)
+       CALL dbcsr_iterator_start(iter, matrix_s%matrix)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          !CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_s, blk)
+          CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_any, tr)
 
           ! do we need the block ?
           ! this depends on the preconditioner, but also the matrix clustering method employed
@@ -104,14 +116,19 @@ CONTAINS
           
           ! add it 
           IF (block_needed) THEN
-             CALL cp_dbcsr_put_block(matrix=matrix_bs,&
-                                row=iblock_row, col=iblock_col, block=block_s)
+             !CALL cp_dbcsr_put_block(matrix=matrix_bs,&
+             !                   row=iblock_row, col=iblock_col, block=block_s)
+             CALL dbcsr_put_block(matrix=matrix_bs%matrix,&
+                                row=iblock_row, col=iblock_col, block=block_any)
 
           ENDIF
 
        ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
+       CALL dbcsr_iterator_stop(iter)
     END SELECT
+
+    CALL dbcsr_data_clear_pointer (block_any)
+    CALL dbcsr_data_release (block_any)
 
     CALL cp_dbcsr_finalize(matrix_bs,error=error)
 

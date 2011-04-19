@@ -4090,6 +4090,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SINGLE_PRECISION_MATRICES",&
+            description="Matrices used within the LS code can be either double or single precision.",&
+            usage="SINGLE_PRECISION_MATRICES", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL keyword_create(keyword, name="S_INVERSION",&
             description="Method used to compute the inverse of S.",&
             usage="S_PRECONDITIONER MOLECULAR",&

@@ -347,6 +347,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"MAX_SCF",i_val=ls_scf_env%max_scf,error=error)
     CALL section_vals_val_get(ls_scf_section,"S_PRECONDITIONER",i_val=ls_scf_env%s_preconditioner_type,error=error)
     CALL section_vals_val_get(ls_scf_section,"MATRIX_CLUSTER_TYPE",i_val=ls_scf_env%ls_mstruct%cluster_type,error=error)
+    CALL section_vals_val_get(ls_scf_section,"SINGLE_PRECISION_MATRICES",l_val=ls_scf_env%ls_mstruct%single_precision,error=error)
     CALL section_vals_val_get(ls_scf_section,"S_INVERSION",i_val=ls_scf_env%s_inversion_type,error=error)
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities,error=error)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
@@ -388,6 +389,7 @@ CONTAINS
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing inv(S):",ls_scf_env%needs_s_inv
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing sqrt(S):",ls_scf_env%use_s_sqrt
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing s preconditioner ",ls_scf_env%has_s_preconditioner
+       WRITE(unit_nr,'(T2,A,T38,L20)') "Use single precision matrices",ls_scf_env%ls_mstruct%single_precision
 
        SELECT CASE(ls_scf_env%s_preconditioner_type)
        CASE(ls_s_preconditioner_none)

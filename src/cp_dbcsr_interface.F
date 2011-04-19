@@ -3314,7 +3314,7 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
+    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_d
 
@@ -3331,7 +3331,7 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
+    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_s
 
@@ -3348,7 +3348,7 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
+    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_z
 
@@ -3365,7 +3365,7 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
+    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_c
 
