@@ -1,0 +1,27 @@
+NVCC     = nvcc
+NVFLAGS  = $(DFLAGS) -g -arch sm_20
+
+CC       = cc
+CPP      =
+FC       = mpif90
+LD       = $(FC)
+AR       = ar -r
+CPPFLAGS =
+DFLAGS   = -D__GFORTRAN -D__FFTSG  -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_NO_ISO_C_BINDING -D__HAS_BASIC_ISO_C_BINDING -D__DBCSR_CUDA -D__USE_CP2K_TRACE
+FCFLAGS  = -g -O3 -ffast-math -ffree-form -fcray-pointer $(DFLAGS) -I$(GFORTRAN_INC)
+LDFLAGS  = $(FCFLAGS)
+
+CUDAPATH = /usr/local/cuda/lib/
+
+LIBS     = -L/apps/eiger/Cuda-3.2/cuda/lib64\
+           /apps/eiger/scalapack/1.8.0/gnu_432/lib/libscalapack.a\
+           /apps/eiger/blacs/2007.10.04/gnu_432/lib/blacsF77init_MPI-LINUX-0.a\
+           /apps/eiger/blacs/2007.10.04/gnu_432/lib/libblacs.a\
+           /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/liblapack.a\
+	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libcblas.a\
+	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libf77blas.a\
+	   /apps/eiger/ATLAS/3.9.24/gnu_4.3.2/lib/libatlas.a\
+           timings_mp.o\
+           -lcudart
+
+OBJECTS_ARCHITECTURE = machine_gfortran.o

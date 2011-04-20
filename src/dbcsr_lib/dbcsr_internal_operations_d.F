@@ -17,7 +17,7 @@
        stack_size,&
        a_data, b_data, c_data, error)
     INTEGER, INTENT(IN)                       :: stack_size
-    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+    INTEGER, DIMENSION(n_mult_params,1:stack_size), &
       INTENT(IN)                              :: params
     REAL(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
@@ -34,15 +34,15 @@
     DO sp = 1, stack_size
        CALL DGEMM('N',&
             'N',&
-            params(sp)%m, params(sp)%n,& !m, n
-            params(sp)%k,& ! k
+            params(p_m,sp), params(p_n,sp),& !m, n
+            params(p_k,sp),& ! k
             1.0_real_8,& ! alpha
-            a_data(params(sp)%a_first),& ! A
-            params(sp)%m,& !lda
-            b_data(params(sp)%b_first),& ! B
-            params(sp)%k,& !ldb
+            a_data(params(p_a_first,sp)),& ! A
+            params(p_m,sp),& !lda
+            b_data(params(p_b_first,sp)),& ! B
+            params(p_k,sp),& !ldb
             1.0_real_8,& ! beta
-            c_data(params(sp)%c_first), params(sp)%m)
+            c_data(params(p_c_first,sp)), params(p_m,sp))
     ENDDO
   END SUBROUTINE blas_process_mm_stack_d
 
@@ -59,7 +59,7 @@
   SUBROUTINE internal_process_mm_stack_d(params, stack_size,&
        a_data, b_data, c_data, error)
     INTEGER, INTENT(IN)                       :: stack_size
-    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+    INTEGER, DIMENSION(n_mult_params,1:stack_size), &
       INTENT(IN)                              :: params
     REAL(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
@@ -75,12 +75,12 @@
 
     DO sp = 1, stack_size
        CALL internal_mm_d_nn(&
-            params(sp)%m,&
-            params(sp)%n,&
-            params(sp)%k,&
-            a_data(params(sp)%a_first),&
-            b_data(params(sp)%b_first),&
-            c_data(params(sp)%c_first))
+            params(p_m,sp),&
+            params(p_n,sp),&
+            params(p_k,sp),&
+            a_data(params(p_a_first,sp)),&
+            b_data(params(p_b_first,sp)),&
+            c_data(params(p_c_first,sp)))
     ENDDO
   END SUBROUTINE internal_process_mm_stack_d
 
@@ -99,7 +99,7 @@
        stack_size,&
        a_data, b_data, c_data, error)
     INTEGER, INTENT(IN)                       :: stack_size
-    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+    INTEGER, DIMENSION(n_mult_params,1:stack_size), &
       INTENT(IN)                              :: params
     REAL(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
@@ -115,12 +115,12 @@
 
     DO sp = 1, stack_size
        CALL smm_dnn(&
-            params(sp)%m,&
-            params(sp)%n,&
-            params(sp)%k,&
-            a_data(params(sp)%a_first),&
-            b_data(params(sp)%b_first),&
-            c_data(params(sp)%c_first))
+            params(p_m,sp),&
+            params(p_n,sp),&
+            params(p_k,sp),&
+            a_data(params(p_a_first,sp)),&
+            b_data(params(p_b_first,sp)),&
+            c_data(params(p_c_first,sp)))
     ENDDO
   END SUBROUTINE smm_process_mm_stack_d
 
@@ -138,7 +138,7 @@
   SUBROUTINE plasma_process_mm_stack_d(params, stack_size,&
        a_data, b_data, c_data, error)
     INTEGER, INTENT(IN)                       :: stack_size
-    TYPE(multiplication_parameters), DIMENSION(1:stack_size), &
+    INTEGER, DIMENSION(n_mult_params,1:stack_size), &
       INTENT(IN)                              :: params
     REAL(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
@@ -164,15 +164,15 @@
        CALL plasma_DGEMM(&
             'N',&
             'N',&
-            params(sp)%m, params(sp)%n,& !m, n
-            params(sp)%k,& ! k
+            params(p_m,sp), params(p_n,sp),& !m, n
+            params(p_k,sp),& ! k
             1.0_real_8,& ! alpha
-            a_data(params(sp)%a_first),& ! A
-            params(sp)%m,& !lda
-            b_data(params(sp)%b_first),& ! B
-            params(sp)%k,& !ldb
+            a_data(params(p_a_first,sp)),& ! A
+            params(p_m,sp),& !lda
+            b_data(params(p_b_first,sp)),& ! B
+            params(p_k,sp),& !ldb
             1.0_real_8,& ! beta
-            c_data(params(sp)%c_first), params(sp)%m,& !c, ldc
+            c_data(params(p_c_first,sp)), params(p_m,sp),& !c, ldc
             plasma_info)
        CALL dbcsr_assert( plasma_info, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "plasma_gemm failed", __LINE__, error=error)

@@ -15,12 +15,15 @@
 ! *****************************************************************************
 MODULE dbcsr_ptr_util
 
+  USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_host_mem_alloc,&
+                                             dbcsr_cuda_host_mem_dealloc
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate,&
                                              mp_deallocate
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_memory_CUDA_host_pinned,&
                                              dbcsr_memory_MPI,&
                                              dbcsr_memory_default,&
                                              dbcsr_type_complex_4,&
@@ -295,6 +298,8 @@ CONTAINS
        ALLOCATE(mem(n), stat=stat)
     CASE (dbcsr_memory_MPI)
        CALL mp_allocate(mem, n, stat=stat)
+    CASE (dbcsr_memory_CUDA_host_pinned)
+       CALL dbcsr_cuda_host_mem_alloc(mem, n, stat=stat, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
@@ -335,6 +340,8 @@ CONTAINS
        DEALLOCATE(mem, stat=stat)
     CASE (dbcsr_memory_MPI)
        CALL mp_deallocate(mem, stat=stat)
+    CASE (dbcsr_memory_CUDA_host_pinned)
+       CALL dbcsr_cuda_host_mem_dealloc(mem, stat=stat, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
                dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&

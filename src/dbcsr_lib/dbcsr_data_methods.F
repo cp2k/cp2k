@@ -14,6 +14,8 @@
 ! *****************************************************************************
 MODULE dbcsr_data_methods
 
+  USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_host_mem_alloc,&
+                                             dbcsr_cuda_host_mem_dealloc
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -32,8 +34,8 @@ MODULE dbcsr_data_methods
                                              pointer_s_rank_remap2,&
                                              pointer_z_rank_remap2
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memory_MPI, &
-       dbcsr_memory_default, dbcsr_obj, dbcsr_scalar_type, &
+       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memory_CUDA_host_pinned, &
+       dbcsr_memory_MPI, dbcsr_memory_default, dbcsr_obj, dbcsr_scalar_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
@@ -115,7 +117,7 @@ MODULE dbcsr_data_methods
                       query_type_c_2d, query_type_z_2d
   END INTERFACE
 
-  LOGICAL, PARAMETER :: careful_mod = .TRUE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
 CONTAINS
@@ -261,6 +263,30 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
        END SELECT
+    CASE (dbcsr_memory_CUDA_host_pinned)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_cuda_host_mem_alloc (area%r_sp, sizes(1), stat=stat,&
+               error=error)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_cuda_host_mem_alloc (area%r_dp, sizes(1), stat=stat,&
+               error=error)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_cuda_host_mem_alloc (area%c_sp, sizes(1), stat=stat,&
+               error=error)
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_cuda_host_mem_alloc (area%c_dp, sizes(1), stat=stat,&
+               error=error)
+       CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
+            dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Can not use MPI memory with 2D data areas.",&
+               __LINE__, error=error)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
     CASE (dbcsr_memory_default)
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_8)
@@ -319,7 +345,8 @@ CONTAINS
 
     CALL dbcsr_error_set (routineN, error_handler, error)
     stat = 0
-    IF (memory_type .EQ. dbcsr_memory_MPI) THEN
+    SELECT CASE (memory_type)
+    CASE (dbcsr_memory_MPI)
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_4)
           CALL mp_deallocate (area%r_sp, stat=stat)
@@ -343,7 +370,35 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
        END SELECT
-    ELSEIF (memory_type .EQ. dbcsr_memory_default) THEN
+    CASE (dbcsr_memory_CUDA_host_pinned)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_cuda_host_mem_dealloc (area%r_sp, stat=stat,&
+               error=error)
+          NULLIFY (area%r_sp)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_cuda_host_mem_dealloc (area%r_dp, stat=stat,&
+               error=error)
+          NULLIFY (area%r_dp)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_cuda_host_mem_dealloc (area%c_sp, stat=stat,&
+               error=error)
+          NULLIFY (area%c_sp)
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_cuda_host_mem_dealloc (area%c_dp, stat=stat,&
+               error=error)
+          NULLIFY (area%c_dp)
+       CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
+            dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Can not use MPI memory with 2D data areas.",&
+               __LINE__, error=error)
+       CASE default
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+               routineN, "Invalid data type.",__LINE__,error)
+       END SELECT
+    CASE (dbcsr_memory_default)
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_8)
           DEALLOCATE (area%r_dp, stat=stat)
@@ -373,11 +428,11 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type.", __LINE__, error=error)
        END SELECT
-    ELSE
+    CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
             routineN, "Unsupported memory type.", __LINE__, error=error)
-    ENDIF
+    END SELECT
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
          dbcsr_postcondition_failed, routineN,&
          "Error deallocating memory", __LINE__, error=error)
@@ -595,7 +650,7 @@ CONTAINS
          routineN, "Data area is invalid.", __LINE__, error)
     !
     SELECT CASE (area%d%memory_type)
-    CASE (dbcsr_memory_default, dbcsr_memory_MPI)
+    CASE (dbcsr_memory_default, dbcsr_memory_MPI, dbcsr_memory_CUDA_host_pinned)
        SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_real_4)
           valid = ASSOCIATED (area%d%r_sp)
@@ -873,7 +928,9 @@ CONTAINS
        ENDIF
     ELSE
        SELECT CASE (area%d%memory_type)
-       CASE (dbcsr_memory_default, dbcsr_memory_MPI)
+       CASE (dbcsr_memory_default,&
+            dbcsr_memory_MPI,&
+            dbcsr_memory_CUDA_host_pinned)
           SELECT CASE (area%d%data_type)
           CASE (dbcsr_type_real_8)
              CALL ensure_array_size (area%d%r_dp, ub=data_size,&
@@ -1058,7 +1115,7 @@ CONTAINS
     ENDIF
     !
     SELECT CASE (area%d%memory_type)
-    CASE (dbcsr_memory_default, dbcsr_memory_MPI)
+    CASE (dbcsr_memory_default, dbcsr_memory_MPI, dbcsr_memory_CUDA_host_pinned)
        SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL memory_zero (area%d%r_sp(lb(1):), ub(1))
@@ -1236,7 +1293,9 @@ CONTAINS
        valid = dbcsr_data_exists (area, error=error)
        IF (valid) THEN
           SELECT CASE (area%d%memory_type)
-          CASE (dbcsr_memory_default, dbcsr_memory_MPI)
+          CASE (dbcsr_memory_default,&
+               dbcsr_memory_MPI,&
+               dbcsr_memory_CUDA_host_pinned)
              SELECT CASE (area%d%data_type)
              CASE (dbcsr_type_real_8)
                    sizes(1) = SIZE (area%d%r_dp)

@@ -20,12 +20,14 @@ MODULE dbcsr_internal_operations
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
-  USE dbcsr_config,                    ONLY: mm_driver,&
-                                             mm_driver_blas,&
-                                             mm_driver_matmul,&
-                                             mm_driver_plasma,&
-                                             mm_driver_smm,&
-                                             use_combined_types
+  USE dbcsr_config,                    ONLY: &
+       mm_driver, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
+       mm_driver_plasma, mm_driver_smm, mm_stack_size, &
+       use_CUDA_host_pinned_memory, use_MPI_memory, use_combined_types
+  USE dbcsr_cuda_memory
+  USE dbcsr_cuda_methods
+  USE dbcsr_cuda_operations
+  USE dbcsr_cuda_types
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_init, &
@@ -80,7 +82,8 @@ MODULE dbcsr_internal_operations
                                              dbcsr_mp_type_from_anytype
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, dbcsr_memory_MPI, &
+       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, &
+       dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, dbcsr_memory_default, &
        dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_size, dbcsr_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_work_type
@@ -118,7 +121,6 @@ MODULE dbcsr_internal_operations
   PUBLIC :: dbcsr_insert_blocks
 
 
-
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
@@ -133,15 +135,18 @@ MODULE dbcsr_internal_operations
   INTEGER, PARAMETER, PRIVATE :: rpslot_totaloffset = 6
   INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
 
+  INTEGER, PARAMETER, PRIVATE :: n_mult_params = 7
+  INTEGER, PARAMETER, PRIVATE :: p_m = 1
+  INTEGER, PARAMETER, PRIVATE :: p_n = 2
+  INTEGER, PARAMETER, PRIVATE :: p_k = 3
+  INTEGER, PARAMETER, PRIVATE :: p_a_first = 4
+  INTEGER, PARAMETER, PRIVATE :: p_b_first = 5
+  INTEGER, PARAMETER, PRIVATE :: p_c_first = 6
+  INTEGER, PARAMETER, PRIVATE :: p_c_blk = 7
 
-  LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
 
-  INTEGER, PARAMETER :: mm_stack_size = 1000
-
-  TYPE multiplication_parameters
-     INTEGER :: m, n, k
-     INTEGER :: a_first, b_first, c_first
-  END TYPE multiplication_parameters
+  LOGICAL, PARAMETER, PUBLIC  :: detailed_timing = .FALSE.
+  LOGICAL, PARAMETER, PRIVATE :: verbose_acc = .FALSE.
 
   ! Types needed for the hashtable.
   TYPE ele_type
@@ -155,14 +160,13 @@ MODULE dbcsr_internal_operations
      INTEGER :: prime=0
   END TYPE hash_table_type
 
-
+!> \var mult_params    array of ((m, n, k, a_first, b_first, c_first, c_blk),*)
   TYPE carrier_type
      INTEGER :: id
      LOGICAL :: c_has_symmetry, keep_sparsity, use_eps
      LOGICAL :: local_indexing
      TYPE(hash_table_type), DIMENSION(:), POINTER :: c_hashes
-     TYPE(multiplication_parameters), &
-          DIMENSION(:), POINTER                   :: mult_params
+     INTEGER, DIMENSION(:,:), POINTER              :: mult_params
      INTEGER :: mm_stack_p
      INTEGER :: zero_first, zero_last
      INTEGER, DIMENSION(:), POINTER :: m_sizes, n_sizes, k_sizes
@@ -178,6 +182,22 @@ MODULE dbcsr_internal_operations
      TYPE(dbcsr_data_obj)  :: a_data, b_data, c_data
   END TYPE carrier_type
 
+
+
+  TYPE(dbcsr_cuda_mem_type) :: c_dev
+  TYPE(dbcsr_cuda_mem_type), DIMENSION(2) :: a_dev, b_dev
+  TYPE(dbcsr_cuda_mem_type_i4), DIMENSION(2) :: params_dev
+  TYPE(dbcsr_cuda_mem_type_i4)               :: c_locks_dev
+  INTEGER :: data_dev_calc, param_dev_calc, data_dev_xfer, param_dev_xfer,&
+       param_host_fill, param_host_xfer
+
+  REAL(kind=dp), DIMENSION(:), POINTER :: a_pin, b_pin, c_pin
+  INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_p
+  REAL(kind=dp) :: t_xfer_c_in, t_xfer_c_out, t_xfer_a, t_xfer_b,&
+       t_calc, t_xfer_params, t_devdata_resize, t_calc_step, t_process_stack
+  INTEGER :: len_xfer_a, len_xfer_b, len_xfer_c_in, len_xfer_c_out
+  REAL :: t_r
+  REAL(kind=dp), PARAMETER :: factor_mega = 1E6_dp, factor_giga = 1E9_dp
 
 
 CONTAINS
@@ -673,6 +693,130 @@ CONTAINS
     CALL ensure_array_size(product_matrix%m%wms(i)%col_i, ub=1, error=error)
     CALL ensure_array_size(product_matrix%m%wms(i)%blk_p, ub=1, error=error)
 !$omp end parallel
+
+    ! Allocate unresizable data on GPU: Multiplication parameters and
+    ! A and B data.
+    cuda_firstalloc: IF (mm_driver .EQ. mm_driver_cuda) THEN
+       CALL dbcsr_cuda_dev_mem_alloc (params_dev(1), mm_stack_size*n_mult_params,&
+            error=error)
+       CALL dbcsr_cuda_dev_mem_alloc (params_dev(2), mm_stack_size*n_mult_params,&
+            error=error)
+       param_host_fill = 1
+       param_host_xfer = 1
+       param_dev_xfer = 1
+       param_dev_calc = 1
+       !
+       CALL dbcsr_cuda_dev_mem_setup (a_dev(1), data_type)
+       CALL dbcsr_cuda_dev_mem_setup (a_dev(2), data_type)
+       CALL dbcsr_cuda_dev_mem_setup (b_dev(1), data_type)
+       CALL dbcsr_cuda_dev_mem_setup (b_dev(2), data_type)
+       CALL dbcsr_cuda_dev_mem_alloc (a_dev(1), left_max_nze, error=error)
+       CALL dbcsr_cuda_dev_mem_alloc (a_dev(2), left_max_nze, error=error)
+       CALL dbcsr_cuda_dev_mem_alloc (b_dev(1), right_max_nze, error=error)
+       CALL dbcsr_cuda_dev_mem_alloc (b_dev(2), right_max_nze, error=error)
+       data_dev_calc = 1!2
+       data_dev_xfer = 1
+       !
+       ! Allocate C locks on GPU.
+       CALL dbcsr_cuda_dev_mem_alloc (c_locks_dev,&
+            product_matrix%m%wms(1)%lastblk, error=error)
+       CALL dbcsr_cuda_dev_mem_zero (c_locks_dev,&
+            first=1, last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
+            error=error)
+       !
+       ! Send C data to GPU
+       CALL dbcsr_assert (nthreads, "EQ", 1,&
+            dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+            "Multiple threads not supported with GPU.", __LINE__, error=error)
+       i = dbcsr_data_get_size (product_matrix%m%wms(1)%data_area)
+       IF (verbose_acc) WRITE(*,*)routineN//" c data size", i
+       !
+       !IF (.FALSE.) THEN
+       !   ! Time regular allocation.
+       !   t_xfer_c_in = -m_walltime()
+       !   ALLOCATE (c_pin(MAX(1,i)))
+       !   t_xfer_c_in = t_xfer_c_in + m_walltime()
+       !   WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Native Allocation", t_xfer_c_in, "s"
+       !   DEALLOCATE (c_pin)
+       !   !
+       !   ! Time CUDA pinned memory allocation
+       !   t_xfer_c_in = -m_walltime()
+       !   CALL dbcsr_cuda_host_mem_alloc (c_pin, MAX(1,i), error=error)
+       !   t_xfer_c_in = t_xfer_c_in + m_walltime()
+       !   WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Host Pinned Allocation", t_xfer_c_in, "s"
+       !ENDIF
+       !
+       ! Time CUDA device memory allocation
+       IF (verbose_acc) WRITE(*,*)'allocating c_dev'
+       CALL dbcsr_cuda_dev_mem_setup (c_dev, data_type)
+       t_xfer_c_in = -m_walltime()
+       CALL dbcsr_cuda_dev_mem_alloc (c_dev, MAX(1,i), error=error)
+       t_xfer_c_in = t_xfer_c_in + m_walltime()
+       IF (verbose_acc) THEN
+          WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Device Allocation", t_xfer_c_in, "s"
+       ENDIF
+       !
+       ! Time transfer from regular memory to GPU device memory.
+       t_xfer_c_in = -m_walltime()
+       IF (verbose_acc) WRITE(*,*)routineN//" copy in c", i
+       CALL dbcsr_cuda_cp_host_to_dev (&
+            product_matrix%m%wms(1)%data_area,&
+            c_dev, error=error)
+       IF (i .EQ. 0) THEN
+          IF (verbose_acc) WRITE(*,*)'zeroing c_dev'
+          CALL dbcsr_cuda_dev_mem_zero(c_dev, first=1, last=1, error=error)
+       ENDIF
+       len_xfer_c_in = i
+       t_xfer_c_in = m_walltime() + t_xfer_c_in
+       IF (verbose_acc) THEN
+          WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"Cin regular", t_xfer_c_in, "s",&
+               REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_in/factor_mega, "MB/s",&
+               REAL(len_xfer_c_in*8), "B"
+       ENDIF
+       !
+       !IF (.FALSE.) THEN
+       !   ! Time fortran array copy
+       !   t_xfer_c_out = -m_walltime()
+       !   c_pin(1:i) = product_matrix%m%wms(1)%data_area%d%r_dp(1:i)
+       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
+       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"array copy", t_xfer_c_out, "s",&
+       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
+       !        REAL(len_xfer_c_in*8), "B"
+       !   !
+       !   ! Time program array copy
+       !   t_xfer_c_out = -m_walltime()
+       !   CALL memcpy (c_pin, product_matrix%m%wms(1)%data_area%d%r_dp, i)
+       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
+       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"pgmcpy", t_xfer_c_out, "s",&
+       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
+       !        REAL(len_xfer_c_in*8), "B"
+       !   !
+       !   ! Time BLAS F77-style copy
+       !   t_xfer_c_out = -m_walltime()
+       !   CALL dcopy (i, product_matrix%m%wms(1)%data_area%d%r_dp(1), 1, c_pin(1), 1)
+       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
+       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"blas1", t_xfer_c_out, "s",&
+       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
+       !        REAL(len_xfer_c_in*8), "B"
+       !   !
+       !   ! Time BLAS copy
+       !   t_xfer_c_out = -m_walltime()
+       !   CALL dcopy (i, product_matrix%m%wms(1)%data_area%d%r_dp, 1, c_pin, 1)
+       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
+       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"blas", t_xfer_c_out, "s",&
+       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
+       !        REAL(len_xfer_c_in*8), "B"
+       !   !
+       !   ! Time transfer from pinned memory to GPU device memory
+       !   t_xfer_c_out = -m_walltime()
+       !   CALL dbcsr_cuda_cp_host_to_dev (c_pin, c_dev, i, error=error)
+       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
+       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"Cin pinned", t_xfer_c_out, "s",&
+       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
+       !        REAL(len_xfer_c_in*8), "B"
+       !ENDIF
+    ENDIF cuda_firstalloc
+    !-------------
     !
     IF (debug_mod .AND. mynode .EQ. 0) THEN
        WRITE(*,*)routineN//" All sizes"
@@ -737,6 +881,24 @@ CONTAINS
     ALLOCATE (right_send_type (right_row_nimages, right_col_nimages))
     ALLOCATE (right_recv_type (right_row_nimages, right_col_nimages))
     !
+    ! Transfer the initial A and B to the card.
+    tmp_first_ab: IF (.FALSE.) THEN
+       cuda_initial_ab: IF (mm_driver .EQ. mm_driver_cuda) THEN
+          t_xfer_a = -m_walltime()
+          CALL dbcsr_cuda_cp_host_to_dev(&
+               left_buffer_calc%mats(1,1)%m%data_area,&
+               a_dev(data_dev_xfer), error=error)
+          len_xfer_a = left_max_nze
+          t_xfer_a = t_xfer_a + m_walltime()
+          t_xfer_b = -m_walltime()
+          CALL dbcsr_cuda_cp_host_to_dev(&
+               right_buffer_calc%mats(1,1)%m%data_area,&
+               b_dev(data_dev_xfer), error=error)
+          len_xfer_b = right_max_nze
+          t_xfer_b = t_xfer_b + m_walltime()
+       ENDIF cuda_initial_ab
+    ENDIF tmp_first_ab
+    !
 !$omp parallel &
 !$omp default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, product_matrix,&
@@ -781,6 +943,16 @@ CONTAINS
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           CALL mp_waitall (right_data_sr)
           CALL mp_waitall (right_data_rr)
+          tmp_b_i1: IF (.FALSE.) THEN
+             IF (mm_driver .EQ. mm_driver_cuda) THEN
+                t_xfer_b = t_xfer_b - m_walltime()
+                CALL dbcsr_cuda_cp_host_to_dev(&
+                     right_buffer_calc%mats(1,1)%m%data_area,&
+                     b_dev(data_dev_xfer), error=error)
+                len_xfer_b = len_xfer_b + right_max_nze
+                t_xfer_b = t_xfer_b + m_walltime()
+             ENDIF
+          ENDIF tmp_b_i1
           IF (use_combined_types) THEN
              DO v_ki = 1, right_row_nimages
                 CALL mp_type_free (right_recv_type(v_ki, 1))
@@ -979,6 +1151,16 @@ CONTAINS
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
           CALL mp_waitall (left_data_rr)
+          tmp_a_i1: IF (.FALSE.) THEN
+             IF (mm_driver .EQ. mm_driver_cuda) THEN
+                t_xfer_a = t_xfer_a - m_walltime()
+                CALL dbcsr_cuda_cp_host_to_dev(&
+                     left_buffer_calc%mats(1,1)%m%data_area,&
+                     a_dev(data_dev_xfer), error=error)
+                len_xfer_a = len_xfer_a + left_max_nze
+                t_xfer_a = t_xfer_a + m_walltime()
+             ENDIF
+          ENDIF tmp_a_i1
           IF (use_combined_types) THEN
              DO v_ki = 1, left_col_nimages
                 CALL mp_type_free (left_send_type(1, v_ki))
@@ -1178,6 +1360,24 @@ CONTAINS
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
              !
+             !if (mm_driver .eq. mm_driver_cuda .and. v_ki .ge. 1) then
+             tmp_aix_bix: IF (mm_driver .EQ. mm_driver_cuda) THEN
+                t_xfer_a = t_xfer_a - m_walltime()
+                IF (verbose_acc) WRITE(*,*)'copy in a', v_ki, left_max_nze
+                CALL dbcsr_cuda_cp_host_to_dev(&
+                     left_buffer_calc%mats(1,v_ki+1)%m%data_area,&
+                     a_dev(data_dev_xfer), error=error)
+                len_xfer_a = len_xfer_a + left_max_nze
+                t_xfer_a = t_xfer_a + m_walltime()
+                !
+                t_xfer_b = t_xfer_b - m_walltime()
+                IF (verbose_acc) WRITE(*,*)'copy in b', v_ki, right_max_nze
+                CALL dbcsr_cuda_cp_host_to_dev(&
+                     right_buffer_calc%mats(v_ki+1,1)%m%data_area,&
+                     b_dev(data_dev_xfer), error=error)
+                len_xfer_b = len_xfer_b + right_max_nze
+                t_xfer_b = t_xfer_b + m_walltime()
+             ENDIF tmp_aix_bix
              !
              IF (.FALSE.) WRITE(*,*)routineN//" TICK", v_ki
              IF (right_buffer_calc%mats(v_ki+1, 1)%m%local_indexing) THEN
@@ -1231,12 +1431,22 @@ CONTAINS
              flop_total = flop_total + flop_single
              flop_metronome=flop_metronome+flop_single
              tstop = m_walltime ()
-             IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
+             IF (tstop-tstart .EQ. 0) tstop = tstart+EPSILON(tstart)
              IF ((output_unit>0) .AND. detailed_timing) THEN
                 WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
                      "Segment Local Multiplication time ",tstop-tstart," and ",&
                      (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
-                     " MFLOPS", REAL(flop_single), "FLOP"
+                     " MFLOP/s", REAL(flop_single), "FLOP"
+                t_process_stack = MAX (EPSILON (t_process_stack), t_process_stack)
+                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
+                     " Stack Process Multiplication time ",t_process_stack," and ",&
+                     (REAL(flop_single, dp)/1000000.0_dp)/(t_process_stack),&
+                     " MFLOP/s", REAL(flop_single), "FLOP"
+                t_calc_step = MAX (EPSILON (t_calc_step), t_calc_step)
+                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
+                     "Kernel Process Multiplication time ",t_calc_step," and ",&
+                     (REAL(flop_single, dp)/1000000.0_dp)/(t_calc_step),&
+                     " MFLOP/s", REAL(flop_single), "FLOP"
              ENDIF
              trun = trun + (tstop - tstart)
           ENDDO
@@ -1268,15 +1478,43 @@ CONTAINS
        WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
             "  Total Local Multiplication time ",trun,"and ",&
             (REAL(flop_total, dp)/1000000.0_dp)/trun,&
-            "MFLOPS"
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,F9.4,1X,F9.4,"%")')&
-            "  Total Local xGEMM time          ",t_gemm,&
-            "index time ", t_all - t_gemm, 100.0_dp*(t_all-t_gemm)/t_all
+            "MFLOP/s"
+       !WRITE(output_unit,'(1X,A,F9.4,1X,A,F9.4,1X,F9.4,"%")')&
+       !     "  Total Local xGEMM time          ",t_gemm,&
+       !     "index time ", t_all - t_gemm, 100.0_dp*(t_all-t_gemm)/t_all
        WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
             "        Total Multiplication time ",trun_t,"and ",&
             (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
-            "MFLOPS"
+            "MFLOP/s"
     ENDIF
+    !
+    ! Finalize multiplication
+    !
+!$omp parallel &
+!$omp default (none) &
+!$omp shared (product_matrix, error)
+    CALL dbcsr_multrec_finalize (carrier, product_matrix%m, error)
+!$omp end parallel
+    !
+    ! Transfer data from GPU to host.
+    cuda_copyout_c: IF (mm_driver .EQ. mm_driver_cuda) THEN
+       CALL dbcsr_data_ensure_size(product_matrix%m%wms(1)%data_area,&
+            carrier%datasize, error=error)
+       WRITE(*,*)routineN//" copying", carrier%datasize, "doubles"
+       t_xfer_c_out = -m_walltime()
+       CALL dbcsr_cuda_cp_dev_to_host(c_dev,&
+            product_matrix%m%wms(1)%data_area,&
+            error=error)
+       len_xfer_c_out = carrier%datasize
+       t_xfer_c_out = t_xfer_c_out + m_walltime()
+       IF (verbose_acc) THEN
+          WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"Cout regular",&
+               t_xfer_c_out, "s",&
+               REAL(len_xfer_c_out*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
+               REAL(len_xfer_c_out*8), "B"
+       ENDIF
+    ENDIF cuda_copyout_c
+
     !
     IF (ALLOCATED (right_norms)) THEN
        DEALLOCATE (right_norms, stat=stat)
@@ -1317,11 +1555,20 @@ CONTAINS
     CALL dbcsr_data_release(right_data_sp)
     CALL dbcsr_data_release(right_data_rp)
     !
-!$omp parallel &
-!$omp default (none) &
-!$omp shared (product_matrix, error)
-    CALL dbcsr_multrec_finalize (carrier, product_matrix%m, error)
-!$omp end parallel
+    cuda_final_release: IF (mm_driver .EQ. mm_driver_cuda) THEN
+       CALL dbcsr_cuda_dev_mem_dealloc (c_locks_dev, error=error)
+       CALL dbcsr_cuda_dev_mem_dealloc (c_dev, error=error)
+       !
+       CALL dbcsr_cuda_dev_mem_dealloc (params_dev(1), error=error)
+       CALL dbcsr_cuda_dev_mem_dealloc (params_dev(2), error=error)
+       !
+       CALL dbcsr_cuda_dev_mem_dealloc (a_dev(1), error=error)
+       CALL dbcsr_cuda_dev_mem_dealloc (a_dev(2), error=error)
+       CALL dbcsr_cuda_dev_mem_dealloc (b_dev(1), error=error)
+       CALL dbcsr_cuda_dev_mem_dealloc (b_dev(2), error=error)
+    ENDIF cuda_final_release
+    !
+
     !
     t_error = error
     CALL dbcsr_finalize(product_matrix, error=error)
@@ -1359,10 +1606,38 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_buffer_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_image, error_handler, &
-                                                row_image
+    INTEGER                                  :: col_image, data_mem_type, &
+                                                error_handler, &
+                                                index_mem_type, row_image
+    LOGICAL                                  :: use_acc_mem
+
+!   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    !
+    ! Determine which type of memory to use for the buffers.  The
+    ! first priority is given to CUDA, then MPI-allocated.
+    IF (mm_driver .EQ. mm_driver_cuda) THEN
+       use_acc_mem = use_CUDA_host_pinned_memory
+    ELSE
+       use_acc_mem = .FALSE.
+    ENDIF
+    CALL dbcsr_assert (use_acc_mem, "IMP",&
+         mm_driver .EQ. mm_driver_cuda,&
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Should not use CUDA host pinned memory without CUDA support.",&
+         __LINE__, error=error)
+    IF (use_MPI_memory) THEN
+       data_mem_type = dbcsr_memory_MPI
+       index_mem_type = dbcsr_memory_MPI
+    ELSE
+       data_mem_type = dbcsr_memory_default
+       index_mem_type = dbcsr_memory_default
+    ENDIF
+    IF (use_acc_mem) THEN
+       data_mem_type = dbcsr_memory_CUDA_host_pinned
+    ENDIF
+    !
     CALL dbcsr_image_dist_init (buffer_set%image_dist, error=error)
     ALLOCATE (buffer_set%mats(buff_rows, buff_cols))
     DO row_image = 1, buff_rows
@@ -1376,8 +1651,8 @@ CONTAINS
                dbcsr_col_block_sizes (source_matrix),&
                nblks=index_size, nze=data_size, &
                data_type=dbcsr_get_data_type(source_matrix),&
-               data_memory_type=dbcsr_memory_MPI,&
-               index_memory_type=dbcsr_memory_MPI,&
+               data_memory_type=data_mem_type,&
+               index_memory_type=index_mem_type,&
                error=error)
           CALL dbcsr_data_ensure_size (&
                buffer_set%mats(row_image, col_image)%m%data_area,&
@@ -1498,6 +1773,8 @@ CONTAINS
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     epoch = m_walltime()
     carrier%flop = 0
+    t_calc_step = 0.0_dp
+    t_process_stack = 0.0_dp
     !
     local_cols = right%local_indexing
     local_rows = left%local_indexing
@@ -1560,6 +1837,7 @@ CONTAINS
             carrier%a_data, carrier%b_data,&
             carrier%c_data,&
             carrier%zero_first, carrier%zero_last,&
+            carrier%lastblk,&
             error=error)
     ENDIF
     !
@@ -1819,7 +2097,7 @@ CONTAINS
     ENDIF
     !
     ! Setup the MM stack
-    ALLOCATE (carrier%mult_params(mm_stack_size))
+    ALLOCATE (carrier%mult_params(n_mult_params, mm_stack_size))
     carrier%mm_stack_p = 0
     carrier%zero_first = carrier%datasize+1
     carrier%zero_last = carrier%zero_first-1
@@ -2221,9 +2499,8 @@ CONTAINS
                                                 c_local_rows, c_local_cols
     LOGICAL, INTENT(IN)                      :: c_has_symmetry, &
                                                 keep_sparsity, use_eps
-    TYPE(multiplication_parameters), &
-      DIMENSION(mm_stack_size), &
-      INTENT(inout)                          :: mult_params
+    INTEGER, DIMENSION(n_mult_params, &
+      mm_stack_size), INTENT(INOUT)          :: mult_params
     INTEGER, INTENT(INOUT)                   :: stack_p, zero_first, zero_last
     REAL(kind=sp), DIMENSION(*)              :: row_max_epss, left_norms, &
                                                 right_norms
@@ -2238,7 +2515,7 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .FALSE., &
                                                 local_timing = .FALSE.
 
-    INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c_blk_pt, &
+    INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c_blk_id, c_blk_pt, &
       c_col_logical, c_nze, c_row_logical, error_handler, ithread, k_size, &
       m_size, n_size, new_blk
     INTEGER(KIND=int_4)                      :: offset
@@ -2296,26 +2573,27 @@ CONTAINS
              n_size = n_sizes(b_col_l)
              c_nze = m_size * n_size
              !
-             offset = hash_table_get (c_hashes(a_row_l), b_col_l)
+             c_blk_id = hash_table_get (c_hashes(a_row_l), b_col_l)
              IF (.FALSE.) THEN
                 WRITE(*,'(1X,A,3(1X,I7),1X,A,1X,I16)')routineN//" coor",&
-                     a_row_l, a_col_l, b_col_l,"offset", offset
+                     a_row_l, a_col_l, b_col_l,"c blk", c_blk_id
              ENDIF
-             block_exists = offset .GT. 0
+             block_exists = c_blk_id .GT. 0
 
              new_block_case: IF (.NOT. block_exists) THEN
                 sparsity_enforcement: IF (keep_sparsity) THEN
                    CYCLE
                 ENDIF sparsity_enforcement
                 offset = c_blk_pt
+                new_blk = new_blk+1
+                c_blk_id = new_blk
                 IF (dbg) WRITE(*,*)routineN//" new block offset, nze", offset, c_nze
                 CALL hash_table_add(c_hashes(a_row_l),&
-                     b_col_l, offset, error=error)
+                     b_col_l, c_blk_id, error=error)
                 !
                 ! We still keep the linear index because it's
                 ! easier than getting the values out of the
                 ! hashtable in the end.
-                new_blk = new_blk+1
                 c_row_i(new_blk) = a_row_l
                 c_col_i(new_blk) = b_col_l
                 c_blk_p(new_blk) = offset
@@ -2323,6 +2601,8 @@ CONTAINS
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
                 zero_last = c_blk_pt - 1
+             ELSE
+                offset = c_blk_p(c_blk_id)
              ENDIF new_block_case
              !
              ! We should not call certain MM routines (netlib BLAS)
@@ -2339,15 +2619,16 @@ CONTAINS
              !
              stack_p = stack_p + 1
              !
-             mult_params(stack_p)%a_first = a_blk_info(2, a_blk)
+             mult_params(p_a_first,stack_p) = a_blk_info(2, a_blk)
              !
-             mult_params(stack_p)%b_first = b_blk_info(2, b_blk)
+             mult_params(p_b_first,stack_p) = b_blk_info(2, b_blk)
              !
-             mult_params(stack_p)%c_first = offset
+             mult_params(p_c_first,stack_p) = offset
+             mult_params(p_c_blk,stack_p) = c_blk_id
              !
-             mult_params(stack_p)%m = m_size
-             mult_params(stack_p)%n = n_size
-             mult_params(stack_p)%k = k_size
+             mult_params(p_m,stack_p) = m_size
+             mult_params(p_n,stack_p) = n_size
+             mult_params(p_k,stack_p) = k_size
              !
              flop = flop + INT(2, int_8) * &
                   INT(m_size, int_8) * &
@@ -2368,6 +2649,7 @@ CONTAINS
                      a_data, b_data,&
                      c_data,&
                      zero_first, zero_last,&
+                     new_blk,&
                      error=error)
                 IF (local_timing) THEN
                    !$ IF (.TRUE.) THEN
@@ -2585,20 +2867,26 @@ CONTAINS
 !> \param[in] n                Number of parameters
 !> \param[in] left_data_area   Left-matrix data
 !> \param[in] right_data_area  Right-matrix data
+!> \param[in,out] zero_first   Zero product data area starting from this
+!>                             element
+!> \param[in,out] zero_last    Zero product data area up to this element
+!> \param[in] lastblk          Number of blocks in product
 !> \param[in,out] product_data_area  Data for results
 ! *****************************************************************************
   SUBROUTINE process_mm_stack(params,&
        stack_size, &
        left_data_area, right_data_area, product_data_area,&
-       zero_first, zero_last,&
+       zero_first, zero_last, nblks,&
        error)
     INTEGER, INTENT(INOUT)                   :: stack_size
-    TYPE(multiplication_parameters), &
-      DIMENSION(1:stack_size), INTENT(IN)    :: params
+    INTEGER, &
+      DIMENSION(n_mult_params, stack_size), &
+      INTENT(IN)                             :: params
     TYPE(dbcsr_data_obj), INTENT(IN)         :: left_data_area, &
                                                 right_data_area
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
     INTEGER, INTENT(INOUT)                   :: zero_first, zero_last
+    INTEGER, INTENT(IN)                      :: nblks
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'process_mm_stack', &
@@ -2607,13 +2895,14 @@ CONTAINS
                                                 remote_memory = .FALSE.
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
-    INTEGER :: eh_low, error_handler, max_size_a, max_size_b, max_size_c, &
-      maxs, min_size_a, min_size_b, min_size_c, sp
+    INTEGER :: eh_low, error_handler, istat, max_size_a, max_size_b, &
+      max_size_c, maxs, min_size_a, min_size_b, min_size_c, sp, tmp_i
     INTEGER, DIMENSION(6)                    :: bounds
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    t_process_stack = t_process_stack - m_walltime()
     IF (remote_memory) THEN
        min_size_a = dbcsr_data_get_size(left_data_area)
        min_size_b = dbcsr_data_get_size(right_data_area)
@@ -2622,15 +2911,15 @@ CONTAINS
        max_size_b = 1
        max_size_c = 1
        DO sp = 1, stack_size
-          min_size_a = MIN (min_size_a, params(sp)%a_first)
-          max_size_a = MAX (max_size_a, params(sp)%a_first &
-               + params(sp)%m * params(sp)%k)
-          min_size_b = MIN (min_size_b, params(sp)%b_first)
-          max_size_b = MAX (max_size_b, params(sp)%b_first &
-               + params(sp)%k * params(sp)%n)
-          min_size_c = MIN (min_size_c, params(sp)%c_first)
-          max_size_c = MAX (max_size_c, params(sp)%c_first &
-               + params(sp)%m * params(sp)%n)
+          min_size_a = MIN (min_size_a, params(p_a_first,sp))
+          max_size_a = MAX (max_size_a, params(p_a_first,sp) &
+               + params(p_m,sp) * params(p_k,sp))
+          min_size_b = MIN (min_size_b, params(p_b_first,sp))
+          max_size_b = MAX (max_size_b, params(p_b_first,sp) &
+               + params(p_k,sp) * params(p_n,sp))
+          min_size_c = MIN (min_size_c, params(p_c_first,sp))
+          max_size_c = MAX (max_size_c, params(p_c_first,sp) &
+               + params(p_m,sp) * params(p_n,sp))
        ENDDO
        bounds = ((/ min_size_a, max_size_a, min_size_b, max_size_b, min_size_c, max_size_c /))
     ELSE
@@ -2646,27 +2935,65 @@ CONTAINS
        CALL dbcsr_error_set("ensure_array_size_data", eh_low, error)
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor, error=error)
+       cuda_realloc_c: IF (mm_driver .EQ. mm_driver_cuda) THEN
+          tmp_i = maxs
+          CALL dbcsr_cuda_thread_sync(error=error)
+          IF (verbose_acc) WRITE(*,*)routineN//" reallocating c_dev"
+          CALL dbcsr_cuda_dev_mem_realloc (c_dev, tmp_i, stat=istat)
+          IF (istat /= 0) THEN
+             IF (verbose_acc) WRITE(*,*)routineN//" Running out of memory"
+             CALL dbcsr_cuda_dev_mem_realloc (c_dev, maxs, stat=istat)
+          ENDIF
+       ENDIF cuda_realloc_c
        CALL dbcsr_error_stop(eh_low, error)
     ENDIF
     CALL dbcsr_data_set_size_referenced (product_data_area, zero_last)
     !
     ! Zero new blocks
-    IF (zero_last .GE. zero_first) &
+    IF (zero_last .GE. zero_first) THEN
        CALL dbcsr_data_clear (product_data_area, lb=zero_first, ub=zero_last)
+       cuda_clear_c: IF (mm_driver .EQ. mm_driver_cuda) THEN
+          CALL dbcsr_cuda_dev_mem_zero(c_dev,&
+               first=zero_first, last=zero_last, error=error)
+       ENDIF cuda_clear_c
+    ENDIF
     zero_first = zero_last + 1
+    !
+    ! Resize block count.
+    cuda_realloc_locks: IF (mm_driver .EQ. mm_driver_cuda) THEN
+       IF (nblks .GT. dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)) THEN
+          CALL dbcsr_cuda_thread_sync(error=error)
+          CALL dbcsr_cuda_dev_mem_dealloc(c_locks_dev, error=error)
+          tmp_i = INT(REAL(nblks,kind=dp)*default_resize_factor)
+          IF (verbose_acc) WRITE(*,*)routineN//" reallocating locks", tmp_i, &
+               dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
+          CALL dbcsr_cuda_dev_mem_alloc(c_locks_dev, tmp_i, stat=istat)
+          IF (istat /= 0) THEN
+             IF (verbose_acc) WRITE(*,*)routineN//" Trying smaller allocation"
+             tmp_i = nblks
+             CALL dbcsr_cuda_dev_mem_alloc(c_locks_dev, tmp_i, error=error)
+          ENDIF
+          CALL dbcsr_cuda_dev_mem_zero(c_locks_dev,&
+               first=1, last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
+               error=error)
+       ENDIF
+    ENDIF cuda_realloc_locks
     !
     ! Verify stack consistency.  Only the upper bound is verified.
     IF (careful) THEN
        DO sp = 1, stack_size
-          CALL dbcsr_assert (params(sp)%a_first + params(sp)%m * params(sp)%k - 1,&
+          CALL dbcsr_assert (params(p_a_first,sp)&
+               + params(p_m,sp) * params(p_k,sp) - 1,&
                "LE", dbcsr_data_get_size (left_data_area),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "A data out of bounds.", __LINE__, error=error)
-          CALL dbcsr_assert (params(sp)%b_first + params(sp)%k * params(sp)%n - 1,&
+          CALL dbcsr_assert (params(p_b_first,sp)&
+               + params(p_k,sp) * params(p_n,sp) - 1,&
                "LE", dbcsr_data_get_size (right_data_area),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "B data out of bounds.", __LINE__, error=error)
-          CALL dbcsr_assert (params(sp)%c_first + params(sp)%m * params(sp)%n - 1,&
+          CALL dbcsr_assert (params(p_c_first,sp)&
+               + params(p_m,sp) * params(p_n,sp) - 1,&
                "LE", dbcsr_data_get_size (product_data_area),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "C data out of bounds.", __LINE__, error=error)
@@ -2779,6 +3106,42 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
+    CASE (mm_driver_cuda)
+       !CALL swap (param_dev_calc, param_dev_xfer)
+       !CALL swap (data_dev_calc, data_dev_xfer)
+       CALL cuda_process_mm_stack (params,&
+            stack_size,&
+            a_dev(data_dev_calc), b_dev(data_dev_calc), c_dev,&
+            c_locks_dev,&
+            params_dev(param_dev_calc),&
+            error=error)
+       !SELECT CASE (product_data_area%d%data_type)
+       !CASE (dbcsr_type_real_4)
+       !   CALL smm_process_mm_stack_s (params, &
+       !        stack_size, &
+       !        left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area%d%r_sp,&
+       !        error=error)
+       !CASE (dbcsr_type_real_8)
+       !   CALL cuda_process_mm_stack_d (params,&
+       !        stack_size,&
+       !        a_dev(data_dev_calc), b_dev(data_dev_calc), c_dev,&
+       !        c_locks_dev,&
+       !        params_dev(param_dev_calc),&
+       !        error=error)
+       !CASE (dbcsr_type_complex_4)
+       !   CALL smm_process_mm_stack_c (params,&
+       !        stack_size,&
+       !        left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area%d%c_sp,&
+       !        error=error)
+       !CASE (dbcsr_type_complex_8)
+       !   CALL smm_process_mm_stack_z (params,&
+       !        stack_size,&
+       !        left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area%d%c_dp,&
+       !        error=error)
+       !CASE default
+       !   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+       !        routineN, "Invalid data type",__LINE__,error)
+       !END SELECT
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Invalid multiplication driver",__LINE__,error)
@@ -2786,25 +3149,24 @@ CONTAINS
     CALL dbcsr_error_stop(eh_low, error)
     stack_size = 0
     CALL dbcsr_error_stop(error_handler, error)
-    RETURN
+    t_process_stack = t_process_stack + m_walltime()
   END SUBROUTINE process_mm_stack
 
   SUBROUTINE print_gemm_parameters(params)
-    TYPE(multiplication_parameters), &
-      DIMENSION(:), INTENT(in)               :: params
+    INTEGER, DIMENSION(:, :), INTENT(in)     :: params
 
     INTEGER                                  :: sp
 
     DO sp = 1, SIZE(params)
        WRITE(*,*)"SP",sp
-       WRITE(*,'(1X,A,1X,3(1X,2(1X,I4),";"),".",3(1X,2(1X,I7),";"))')&
+       WRITE(*,'(1X,A,1X,3(1X,I4,","),".",3(1X,I7,","))')&
             "GEMM PARAMETERS",&
-               params(sp)%m, params(sp)%k,&
-               params(sp)%k, params(sp)%n,&
-               params(sp)%m, params(sp)%n,&
-               params(sp)%a_first, params(sp)%a_first,&
-               params(sp)%b_first, params(sp)%b_first,&
-               params(sp)%c_first, params(sp)%c_first
+               params(p_m,sp),&
+               params(p_k,sp),&
+               params(p_n,sp),&
+               params(p_a_first,sp),&
+               params(p_b_first,sp),&
+               params(p_c_first,sp)
     ENDDO
   END SUBROUTINE print_gemm_parameters
 
@@ -2949,8 +3311,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fill_hash_tables', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, col, error_handler, i, &
-                                                imat, n_local_rows, row
+    INTEGER                                  :: col, error_handler, i, imat, &
+                                                n_local_rows, row
 
 !   ---------------------------------------------------------------------------
 
@@ -2971,10 +3333,9 @@ CONTAINS
     DO i = 1, matrix%wms(imat)%lastblk
        row = matrix%wms(imat)%row_i(i)
        col = matrix%wms(imat)%col_i(i)
-       blk_p = matrix%wms(imat)%blk_p(i)
        IF (PRESENT (row_map)) row = row_map(row)
        IF (PRESENT (col_map)) col = col_map(col)
-       CALL hash_table_add(hashes(row), col, blk_p, error=error)
+       CALL hash_table_add(hashes(row), col, i, error=error)
     ENDDO
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE fill_hash_tables
@@ -3294,6 +3655,16 @@ CONTAINS
 ! End of hashtable
 ! -----------------------------------------------------------------------------
 
+  pure SUBROUTINE memcpy (out, in, n)
+    REAL(kind=real_8), DIMENSION(*), &
+      INTENT(out)                            :: out
+    REAL(kind=real_8), DIMENSION(*), &
+      INTENT(in)                             :: in
+    INTEGER, INTENT(in)                      :: n
+
+    out(1:n) = in(1:n)
+  END SUBROUTINE memcpy
+
 
   PURE SUBROUTINE local_filter (full_data, nle, local_elements, local_data)
     INTEGER, DIMENSION(:), INTENT(IN)        :: full_data
@@ -3326,6 +3697,98 @@ CONTAINS
 #include "dbcsr_internal_operations_z.F"
 #include "dbcsr_internal_operations_s.F"
 #include "dbcsr_internal_operations_c.F"
+
+
+! *****************************************************************************
+!> \brief Processes MM stack using CUDA.
+!>
+!> \param[in] params           Stack of MM parameters
+!> \param[in] stack_size       Number of parameters
+!> \param[in] a_data           Left-matrix data
+!> \param[in] b_data           Right-matrix data
+!> \param[in,out] c_data       Product data
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE cuda_process_mm_stack(params,&
+       stack_size,&
+       data_a_dev, data_b_dev, data_c_dev,&
+       c_locks,&
+       params_dev,&
+       error)
+    INTEGER, INTENT(IN)                      :: stack_size
+    INTEGER, &
+      DIMENSION(n_mult_params*stack_size), &
+      INTENT(IN), TARGET                     :: params
+    TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: data_a_dev, data_b_dev
+    TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: data_c_dev
+    TYPE(dbcsr_cuda_mem_type_i4), &
+      INTENT(INOUT)                          :: c_locks, params_dev
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cuda_process_mm_stack', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: time_kernel = .FALSE.
+
+    INTEGER                                  :: error_handle, k_max, m_max, &
+                                                n_max, sp
+    INTEGER, DIMENSION(:), POINTER           :: params_p
+    REAL(kind=dp)                            :: kt
+    REAL(kind=dp), SAVE                      :: index_time = 0
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (time_kernel) THEN
+       index_time = index_time + m_walltime()
+       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Index time", index_time, "s"
+    ENDIF
+    params_p => params
+    IF (time_kernel) kt = -m_walltime()
+    m_max = 0
+    n_max = 0
+    k_max = 0
+    !last_c = 0
+    DO sp = 1, stack_size
+       m_max = MAX(m_max, params((sp-1)*n_mult_params+p_m))
+       n_max = MAX(n_max, params((sp-1)*n_mult_params+p_n))
+       k_max = MAX(k_max, params((sp-1)*n_mult_params+p_k))
+    ENDDO
+    IF (time_kernel) THEN
+       kt = kt + m_walltime()
+       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Max size time", kt, "s"
+    ENDIF
+    IF (time_kernel) kt = -m_walltime()
+    CALL dbcsr_cuda_thread_sync (error=error)
+    IF (time_kernel) THEN
+       kt = kt + m_walltime()
+       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Thread sync time", kt, "s"
+    ENDIF
+    !
+    IF (time_kernel) kt = -m_walltime()
+    CALL dbcsr_cuda_cp_host_to_dev (params_p,&
+         params_dev, n_mult_params*stack_size, error=error)
+    IF (time_kernel) THEN
+       kt = kt + m_walltime()
+       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Parameter copy time", kt, "s"
+    ENDIF
+    !
+    !WRITE(*,*)routineN//" calling kernel", stack_size,&
+    !     dbcsr_cuda_dev_mem_get_type(data_c_dev)
+    CALL FLUSH(6)
+    IF (time_kernel) kt = -m_walltime()
+    CALL dbcsr_cuda_do_mm_stack (params_dev, stack_size, n_mult_params,&
+         data_a_dev, data_b_dev, data_c_dev,&
+         c_locks, m_max, n_max, k_max,&
+         error=error)
+    IF (time_kernel) THEN
+       CALL dbcsr_cuda_thread_sync (error=error)
+       kt = kt + m_walltime()
+       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Kernel time", kt, "s"
+       t_calc_step = t_calc_step + kt
+    ENDIF
+    IF (time_kernel) index_time = -m_walltime()
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE cuda_process_mm_stack
 
 
 END MODULE dbcsr_internal_operations

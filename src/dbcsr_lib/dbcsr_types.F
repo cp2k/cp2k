@@ -14,10 +14,10 @@
 ! *****************************************************************************
 MODULE dbcsr_types
   USE array_types,                     ONLY: array_i1d_obj
-  USE btree_I8_k_CP2D_v,               ONLY: btree_2d_c => btree
-  USE btree_I8_k_DP2D_v,               ONLY: btree_2d_d => btree
-  USE btree_I8_k_SP2D_v,               ONLY: btree_2d_s => btree
-  USE btree_I8_k_ZP2D_v,               ONLY: btree_2d_z => btree
+  USE btree_i8_k_cp2d_v,               ONLY: btree_2d_c => btree
+  USE btree_i8_k_dp2d_v,               ONLY: btree_2d_d => btree
+  USE btree_i8_k_sp2d_v,               ONLY: btree_2d_s => btree
+  USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              dp,&
                                              real_4,&
@@ -79,8 +79,10 @@ MODULE dbcsr_types
             dbcsr_type_complex_4, dbcsr_type_complex_8,&
             dbcsr_type_real_default, dbcsr_type_complex_default,&
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
-            dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d
-  PUBLIC :: dbcsr_memory_default, dbcsr_memory_MPI
+            dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d,&
+            dbcsr_type_int_4, dbcsr_type_int_8
+  PUBLIC :: dbcsr_memory_default, dbcsr_memory_MPI,&
+            dbcsr_memory_CUDA_host_pinned
   PUBLIC :: dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
   PUBLIC :: dbcsr_no_transpose, dbcsr_transpose, dbcsr_conjugate_transpose
@@ -255,15 +257,24 @@ MODULE dbcsr_types
      TYPE(dbcsr_data_area_type), POINTER           :: d
   END TYPE dbcsr_data_obj
 
-  INTEGER, PARAMETER          :: dbcsr_type_real_4 = 1
-  INTEGER, PARAMETER          :: dbcsr_type_real_8 = 2
-  INTEGER, PARAMETER          :: dbcsr_type_complex_4 = 4
-  INTEGER, PARAMETER          :: dbcsr_type_complex_8 = 8
+!> Type definitions:
+!> * bit 0: always 1
+!> * bit 1: single (0: 4) vs. double (1: 1)
+!> * bit 2: real (0) vs. complex (1)
+!> * bit 3: dimension (0: 1, 1: 2)
+!> * bit 4: floating point (0) or integer type (1)
+  INTEGER, PARAMETER          :: dbcsr_type_real_4 = 1         !001
+  INTEGER, PARAMETER          :: dbcsr_type_real_8 = 3         !011
+  INTEGER, PARAMETER          :: dbcsr_type_complex_4 = 5      !101
+  INTEGER, PARAMETER          :: dbcsr_type_complex_8 = 7      !111
 
-  INTEGER, PARAMETER          :: dbcsr_type_real_4_2d = 16
-  INTEGER, PARAMETER          :: dbcsr_type_real_8_2d = 32
-  INTEGER, PARAMETER          :: dbcsr_type_complex_4_2d = 64
-  INTEGER, PARAMETER          :: dbcsr_type_complex_8_2d = 128
+  INTEGER, PARAMETER          :: dbcsr_type_real_4_2d = 9      !1001
+  INTEGER, PARAMETER          :: dbcsr_type_real_8_2d = 11     !1011
+  INTEGER, PARAMETER          :: dbcsr_type_complex_4_2d = 13  !1101
+  INTEGER, PARAMETER          :: dbcsr_type_complex_8_2d = 15  !1111
+
+  INTEGER, PARAMETER          :: dbcsr_type_int_4 = 17         !10001
+  INTEGER, PARAMETER          :: dbcsr_type_int_8 = 19         !10011
 
 #ifndef __SGL
   INTEGER, PARAMETER          :: dbcsr_type_real_default = dbcsr_type_real_8
@@ -528,6 +539,7 @@ MODULE dbcsr_types
   ! Memory types
   INTEGER, PARAMETER          :: dbcsr_memory_default = 0
   INTEGER, PARAMETER          :: dbcsr_memory_MPI = 1
+  INTEGER, PARAMETER          :: dbcsr_memory_CUDA_host_pinned = 2
 
 ! *****************************************************************************
 !> These specify which array index in the index array is the start of the

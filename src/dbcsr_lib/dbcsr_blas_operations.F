@@ -61,11 +61,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_lapack_larnv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
-
 !   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handler, error)
+!CALL dbcsr_error_set (routineN, error_handler, error)
 
     SELECT CASE (x%d%data_type)
     CASE (dbcsr_type_real_4)
@@ -81,7 +78,7 @@ CONTAINS
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
 
-    CALL dbcsr_error_stop(error_handler, error)
+    !CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_lapack_larnv
 

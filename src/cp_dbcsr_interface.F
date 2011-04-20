@@ -37,6 +37,10 @@ MODULE cp_dbcsr_interface
                                              dist_blk_to_cluster,&
                                              get4blksizes,&
                                              set_block_pointer_to_cluster
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_logger_would_log,&
+                                             cp_note_level
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
@@ -46,9 +50,15 @@ MODULE cp_dbcsr_interface
                                              dbcsr_buffers_new
   USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
                                              dbcsr_data_clear
-  USE dbcsr_config,                    ONLY: dbcsr_set_conf_combtypes,&
-                                             dbcsr_set_conf_mm_driver,&
-                                             dbcsr_set_conf_subcomm
+  USE dbcsr_config,                    ONLY: &
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_cuda_mem, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, dbcsr_init_conf, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_cuda_mem, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_subcomm, has_cuda, has_mpi, &
+       mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
+       mm_driver_smm
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_scalar, &
@@ -113,7 +123,8 @@ MODULE cp_dbcsr_interface
                                              int_size,&
                                              real_4,&
                                              real_8
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             uppercase
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -130,7 +141,9 @@ MODULE cp_dbcsr_interface
   !
   ! Interface to libdbcsr (contains cp2k timing and error)
   PUBLIC :: cp_dbcsr_conform_scalar
+  PUBLIC :: cp_dbcsr_init_config
   PUBLIC :: cp_dbcsr_config
+  PUBLIC :: cp_dbcsr_print_config
   PUBLIC :: cp_dbcsr_untranspose_blocks
   PUBLIC :: cp_dbcsr_set
   PUBLIC :: cp_dbcsr_add
@@ -203,6 +216,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_gershgorin_norm
   PUBLIC :: cp_dbcsr_frobenius_norm
   PUBLIC :: cp_dbcsr_name
+
+  PUBLIC :: mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_plasma, mm_name_cuda
 
 
   INTERFACE cp_dbcsr_create
@@ -302,6 +317,13 @@ MODULE cp_dbcsr_interface
   END INTERFACE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
+                                 mm_name_matmul = "MATMUL",&
+                                 mm_name_smm    = "SMM",&
+                                 mm_name_plasma = "PLASMA",&
+                                 mm_name_cuda   = "CUDA"
+
 
   TYPE(cp_dbcsr_mapping_type), POINTER, SAVE :: saved_ao_map => NULL()
   INTEGER, SAVE                     :: map_size = -1
@@ -412,6 +434,21 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Initializes DBCSR configuration
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_init_config(error)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_config', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_init_conf(dbcsr_error)
+  END SUBROUTINE cp_dbcsr_init_config
+
+
+! *****************************************************************************
 !> \brief Configures options for DBCSR
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_config(root_section, error)
@@ -421,8 +458,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: mm_driver
-    LOGICAL                                  :: use_combtypes, use_subcomms
+    INTEGER                                  :: mm_driver, mm_ss
+    LOGICAL                                  :: use_combtypes, use_cuda_mem, &
+                                                use_mpi_mem, use_subcomms
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
@@ -433,12 +471,102 @@ CONTAINS
     CALL section_vals_val_get(dbcsr_section,&
          "combined_types", l_val=use_combtypes, error=error)
     CALL section_vals_val_get(dbcsr_section,&
+         "use_mpi_allocation", l_val=use_mpi_mem, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "use_cuda_host_allocation", l_val=use_cuda_mem, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "mm_stack_size", i_val=mm_ss, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
          "mm_driver", i_val=mm_driver, error=error)
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
+    CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
+    CALL dbcsr_set_conf_cuda_mem (use_cuda_mem, error=dbcsr_error)
+    CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
   END SUBROUTINE cp_dbcsr_config
 
+
+! *****************************************************************************
+!> \brief Prints configuration for DBCSR
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_print_config(unit_nr, error)
+    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: o_fmt = '(T2,A,"| ",A,T41,A40)', &
+      plabel = "DBCSR", routineN = 'cp_dbcsr_print_config', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: info_len = 40
+
+    CHARACTER(len=default_string_length) :: mm_name, mm_ss_str, &
+      use_combtypes_str, use_cuda_mem_str, use_mpi_mem_str, use_subcomms_str
+    INTEGER                                  :: mm_driver, mm_ss, unit_num
+    LOGICAL                                  :: use_combtypes, use_cuda_mem, &
+                                                use_mpi_mem, use_subcomms
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    mm_driver = dbcsr_get_conf_mm_driver ()
+    use_subcomms = dbcsr_get_conf_subcomm ()
+    use_combtypes = dbcsr_get_conf_combtypes ()
+    use_mpi_mem = dbcsr_get_conf_mpi_mem ()
+    use_cuda_mem = dbcsr_get_conf_cuda_mem ()
+    mm_ss = dbcsr_get_conf_mm_stacksize ()
+
+    SELECT CASE (mm_driver)
+    CASE(mm_driver_blas)   ; mm_name = mm_name_blas
+    CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
+    CASE(mm_driver_smm)    ; mm_name = mm_name_smm
+    CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
+    CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
+    END SELECT
+
+    mm_name = ADJUSTR(mm_name(:info_len))
+
+    mm_ss_str = int2str_r(mm_ss,info_len)
+    use_subcomms_str = l2str_r(use_subcomms,info_len)
+    use_combtypes_str = l2str_r(use_combtypes,info_len)
+    use_mpi_mem_str = l2str_r(use_mpi_mem,info_len)
+    use_cuda_mem_str = l2str_r(use_cuda_mem,info_len)
+
+    logger => cp_error_get_logger(error)
+    IF (PRESENT (unit_nr)) THEN
+       unit_num = unit_nr
+    ELSE
+       unit_num=cp_logger_get_default_io_unit(logger)
+    ENDIF
+    IF (unit_num>0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
+       WRITE(UNIT=unit_num, FMT=o_fmt) &
+            plabel, "Multiplication driver",     ADJUSTR(mm_name(1:info_len)),&
+            plabel, "Multiplication stack size", mm_ss_str(1:info_len)
+       IF (has_mpi) &
+            WRITE(UNIT=unit_num, FMT=o_fmt) &
+            plabel, "Use subcommunicators",      use_subcomms_str(1:info_len),&
+            plabel, "Use MPI combined types" ,   use_combtypes_str(1:info_len),&
+            plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len)
+       IF (has_cuda) &
+            WRITE(unit_num, FMT=o_fmt) &
+            plabel, "Use CUDA host-pinned memory", use_cuda_mem_str
+    ENDIF
+
+  END SUBROUTINE cp_dbcsr_print_config
+
+  FUNCTION int2str_r(number, str_len) RESULT (string)
+    INTEGER, INTENT(IN)                      :: number, str_len
+    CHARACTER(LEN=str_len)                   :: string
+
+    CALL integer_to_string(number, string)
+    string = ADJUSTR (string)
+  END FUNCTION int2str_r
+
+  FUNCTION l2str_r(lval, str_len) RESULT (string)
+    LOGICAL, INTENT(IN)                      :: lval
+    INTEGER, INTENT(IN)                      :: str_len
+    CHARACTER(LEN=str_len)                   :: string
+
+    WRITE(UNIT=string, FMT='(L1)') lval
+    string = ADJUSTR (string)
+  END FUNCTION l2str_r
 
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.
@@ -2113,9 +2241,9 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_ab_s
 
-  FUNCTION cp_dbcsr_checksum(matrix, local, error) RESULT(checksum)
+  FUNCTION cp_dbcsr_checksum(matrix, local, pos, error) RESULT(checksum)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: local
+    LOGICAL, INTENT(IN), OPTIONAL            :: local, pos
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: checksum
 
@@ -2129,7 +2257,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
-    checksum = dbcsr_checksum(matrix%matrix, local, error=dbcsr_error)
+    checksum = dbcsr_checksum(matrix%matrix,&
+         local=local, pos=pos, error=dbcsr_error)
     CALL timestop(handle)
   END FUNCTION cp_dbcsr_checksum
 

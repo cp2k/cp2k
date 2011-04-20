@@ -207,15 +207,15 @@ CONTAINS
                                                 pcol, prow, test
     INTEGER(kind=int_8)                      :: flop, flop_sum
     CHARACTER(len=*), PARAMETER :: fmt_per_run_total = &
-      '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s",1X,E13.5)', &
+      '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s",2(1X,E13.7))', &
       fmt_per_run_local = &
       '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s")'
 
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
     INTEGER, DIMENSION(2)                    :: myploc, npdims
     LOGICAL                                  :: i_am_alive
-    REAL(kind=real_8)                        :: cs, flops, flops_all, t1, t2, &
-                                                t_max
+    REAL(kind=real_8)                        :: cs, cs_pos, flops, flops_all, &
+                                                t1, t2, t_max
     TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
                                                 col_dist_c, row_dist_a, &
                                                 row_dist_b, row_dist_c
@@ -330,6 +330,7 @@ CONTAINS
        t_max = MAX (t_max, 0.001_real_8)
        flops_all = REAL(flop_sum, KIND=real_8) / t_max
        cs = dbcsr_checksum (m_c, error=dbcsr_error)
+       cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
        ! Release
        IF (io_unit .GT. 0) THEN
           flops = REAL(flop, KIND=real_8) / (t2-t1)
@@ -340,7 +341,7 @@ CONTAINS
           WRITE(io_unit,fmt_per_run_total)&
                "Total Multiplication",&
                numnodes,"processors:",&
-               t_max, flops_all, cs
+               t_max, flops_all, cs, cs_pos
        ENDIF
        CALL dbcsr_mp_release (mp_env)
        CALL dbcsr_release (m_a)

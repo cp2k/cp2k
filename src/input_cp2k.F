@@ -11,6 +11,12 @@
 ! *****************************************************************************
 MODULE input_cp2k
   USE bibliography,                    ONLY: Frigo2005
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_init_config,&
+                                             mm_name_blas,&
+                                             mm_name_cuda,&
+                                             mm_name_matmul,&
+                                             mm_name_plasma,&
+                                             mm_name_smm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -20,13 +26,12 @@ MODULE input_cp2k
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
-  USE dbcsr_config,                    ONLY: has_blas,&
-                                             has_plasma,&
-                                             has_smm_gemm,&
-                                             mm_driver_blas,&
-                                             mm_driver_matmul,&
-                                             mm_driver_plasma,&
-                                             mm_driver_smm
+  USE dbcsr_config,                    ONLY: &
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_cuda_mem, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, has_blas, has_cuda, &
+       has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
+       mm_driver_matmul, mm_driver_plasma, mm_driver_smm
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_atom_section
@@ -631,32 +636,19 @@ CONTAINS
     CHARACTER(len=32), PARAMETER             :: has = "", &
                                                 hasnot = " (not available)"
 
-    CHARACTER(len=32)                        :: a_blas, a_plasma, a_smm
+    CHARACTER(len=32)                        :: a_blas, a_cuda, a_plasma, &
+                                                a_smm
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init_config (error)
     CALL section_create(section,name="DBCSR",&
          description="Configuration options for the DBCSR library.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
-    !
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="subcommunicators",&
-         description="Use MPI subcommunicators for transfers "// &
-         "that are limited to process grid rows and columns.",&
-         usage="subcommunicators T",default_l_val=.FALSE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
-    CALL keyword_create(keyword, name="combined_types",&
-         description="Combine matrix index and data into "// &
-         "a single MPI derived data type for communication.",&
-         usage="combined_types T",default_l_val=.FALSE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
     !
     IF (has_blas) THEN
        a_blas = has
@@ -673,17 +665,74 @@ CONTAINS
     ELSE
        a_plasma = hasnot
     ENDIF
+    IF (has_cuda) THEN
+       a_cuda = has
+    ELSE
+       a_cuda = hasnot
+    ENDIF
+    !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="subcommunicators",&
+         description="Use MPI subcommunicators for transfers "// &
+         "that are limited to process grid rows and columns.",&
+         usage="subcommunicators T",&
+         default_l_val=dbcsr_get_conf_subcomm(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="combined_types",&
+         description="Combine matrix index and data into "// &
+         "a single MPI derived data type for communication.",&
+         usage="combined_types T",&
+         default_l_val=dbcsr_get_conf_combtypes(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="use_MPI_allocation",&
+         description="Allow use of MPI-allocated memory "//&
+         "for potentially faster network communication.",&
+         usage="use_MPI_allocation T",&
+         default_l_val=dbcsr_get_conf_mpi_mem(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="use_CUDA_host_allocation",&
+         description=TRIM("Allow use of CUDA-allocated host-pinned memory "//&
+         "for faster transfers to and from the GPU."//a_cuda),&
+         usage="use_CUDA_allocation T",&
+         default_l_val=dbcsr_get_conf_cuda_mem(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="mm_stack_size",&
+         description="Size of multiplication parameter stack.",&
+         usage="mm_stack_size 1000",&
+         default_i_val=dbcsr_get_conf_mm_stacksize(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
     CALL keyword_create(keyword, name="mm_driver",&
          description="Select which routines to use "//&
          "for matrix block multiplications.",&
-         usage="mm_driver blas",default_i_val=mm_driver_smm,&
-         enum_c_vals=s2a("BLAS","MATMUL","SMM","PLASMA"),&
-         enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,mm_driver_plasma/),&
+         usage="mm_driver blas",&
+         default_i_val=dbcsr_get_conf_mm_driver(),&
+         enum_c_vals=s2a(mm_name_blas,&
+         mm_name_matmul,&
+         mm_name_smm,&
+         mm_name_plasma,&
+         mm_name_cuda),&
+         enum_i_vals=(/&
+         mm_driver_blas,&
+         mm_driver_matmul,&
+         mm_driver_smm,&
+         mm_driver_plasma,&
+         mm_driver_cuda/),&
          enum_desc=s2a(&
          TRIM("BLAS"//a_blas),&
          TRIM("Fortran MATMUL"),&
          TRIM("libsmm: a library for small matrix multiplies"//a_smm),&
-         TRIM("PLASMA"//a_plasma)&
+         TRIM("PLASMA"//a_plasma),&
+         TRIM("CUDA"//a_cuda)&
          ),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)

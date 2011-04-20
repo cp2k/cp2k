@@ -35,7 +35,12 @@ MODULE dbcsr_operations
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
   USE dbcsr_config,                    ONLY: mm_driver,&
+                                             mm_driver_cuda,&
                                              mm_driver_plasma
+  USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
+                                             dbcsr_cuda_dev_mem_dealloc
+  USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_setup
+  USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
@@ -59,7 +64,8 @@ MODULE dbcsr_operations
                                              dbcsr_make_index_local_row,&
                                              dbcsr_repoint_index
   USE dbcsr_internal_operations,       ONLY: dbcsr_insert_blocks,&
-                                             dbcsr_mult_m_e_e
+                                             dbcsr_mult_m_e_e,&
+                                             detailed_timing
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -70,6 +76,8 @@ MODULE dbcsr_operations
                                              real_4,&
                                              real_8,&
                                              sp
+  USE dbcsr_machine,                   ONLY: default_output_unit,&
+                                             m_walltime
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_allgather,&
                                              mp_bcast,&
@@ -261,8 +269,6 @@ MODULE dbcsr_operations
   INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
 
 
-  LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
-
 CONTAINS
 
 
@@ -354,17 +360,19 @@ CONTAINS
 
     CHARACTER                                :: transa_l, transb_l
     INTEGER                                  :: error_handler, f_col, f_k, &
-                                                f_row, i, l_col, l_k, l_row
+                                                f_row, i, l_col, l_k, l_row, &
+                                                output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, left_set_given, &
       new_left, new_right, plasma_is_set, product_reindex, release_tdist, &
       right_set_given, use_dense_mult, use_plasma
-    REAL(KIND=dp)                            :: cs
+    REAL(KIND=dp)                            :: cs, mult_time
     TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, &
       k_vmap, m_map, n_map, old_product_col_blk_offsets, &
       old_product_col_blk_sizes, old_product_row_blk_offsets, &
       old_product_row_blk_sizes
     TYPE(dbcsr_2d_array_type), POINTER       :: m2s_left, m2s_right
+    TYPE(dbcsr_cuda_mem_type)                :: a_tmp
     TYPE(dbcsr_distribution_obj)             :: dense_product_distribution, &
                                                 old_product_distribution
     TYPE(dbcsr_imagedistribution_obj)        :: dense_rdist_left, &
@@ -376,7 +384,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (mm_driver .EQ. mm_driver_cuda) THEN
+       CALL dbcsr_cuda_dev_mem_setup (a_tmp, dbcsr_type_real_8)
+       CALL dbcsr_cuda_dev_mem_alloc(a_tmp, 1, error=error)
+       CALL dbcsr_cuda_dev_mem_dealloc(a_tmp, error=error)
+    ENDIF
+    !
     CALL dbcsr_error_set(routineN, error_handler, error)
+    mult_time = -m_walltime()
     !
     ! check parameters
     transa_l = transa
@@ -495,6 +510,7 @@ CONTAINS
     !
     ! No dense multiplication when filtering is used.
     use_dense_mult = .NOT. PRESENT (filter_eps)
+    IF (mm_driver .EQ. mm_driver_cuda) use_dense_mult = .FALSE.
     ! we skip dense multiply for (anti)symmetric matrices (slowdown for S/H * C)
     IF (use_dense_mult) THEN
        IF(dbcsr_has_symmetry (matrix_left) .OR. &
@@ -1016,6 +1032,14 @@ CONTAINS
        CALL dbcsr_plasma_finalize(error)
     ENDIF
     IF (.FALSE.) WRITE(*,*)"Finished with one multiplication."
+    mult_time = mult_time + m_walltime()
+    output_unit = default_output_unit
+    IF (detailed_timing .AND. (output_unit>0)) THEN
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
+            "     Complete Multiplication time ",mult_time,"and ",&
+            (REAL(my_flop, dp)/1000000.0_dp)/mult_time,&
+            "MFLOP/s"
+    ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multiply_anytype
   
