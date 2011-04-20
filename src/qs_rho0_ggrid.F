@@ -376,11 +376,11 @@ MODULE qs_rho0_ggrid
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), ra(3), rpgf0, &
                                                 scale, zet0
-    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
     REAL(dp), DIMENSION(:, :), POINTER       :: hab, hdab_sph, intloc, pab
     REAL(dp), DIMENSION(:, :, :), POINTER    :: a_hdab_sph, hadb, hdab, Qlm_gg
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: a_hdab 
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: a_hdab
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -412,7 +412,6 @@ MODULE qs_rho0_ggrid
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(virial_type), POINTER               :: virial
-
 
     failure=.FALSE.
     c4pi = fourpi

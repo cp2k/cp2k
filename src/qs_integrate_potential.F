@@ -68,7 +68,6 @@ MODULE qs_integrate_potential
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_8
   USE mathconstants,                   ONLY: fac
   USE memory_utilities,                ONLY: reallocate
@@ -105,8 +104,7 @@ MODULE qs_integrate_potential
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              int2pair
   USE task_list_types,                 ONLY: task_list_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -350,8 +348,8 @@ CONTAINS
                                                 ikind, j, natom_of_kind, &
                                                 npme, stat, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure, paw_atom, skip_fcore, &
-                                                use_virial
+    LOGICAL                                  :: failure, paw_atom, &
+                                                skip_fcore, use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
