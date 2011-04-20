@@ -58,7 +58,8 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_mpi_mem, dbcsr_set_conf_subcomm, has_cuda, has_mpi, &
        mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
-       mm_driver_smm
+       mm_driver_smm, mm_name_blas, mm_name_cuda, mm_name_matmul, &
+       mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_scalar, &
@@ -217,8 +218,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_frobenius_norm
   PUBLIC :: cp_dbcsr_name
 
-  PUBLIC :: mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_plasma, mm_name_cuda
-
 
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
@@ -317,13 +316,6 @@ MODULE cp_dbcsr_interface
   END INTERFACE
 
   PRIVATE
-
-  CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
-                                 mm_name_matmul = "MATMUL",&
-                                 mm_name_smm    = "SMM",&
-                                 mm_name_plasma = "PLASMA",&
-                                 mm_name_cuda   = "CUDA"
-
 
   TYPE(cp_dbcsr_mapping_type), POINTER, SAVE :: saved_ao_map => NULL()
   INTEGER, SAVE                     :: map_size = -1
@@ -512,7 +504,7 @@ CONTAINS
     use_mpi_mem = dbcsr_get_conf_mpi_mem ()
     use_cuda_mem = dbcsr_get_conf_cuda_mem ()
     mm_ss = dbcsr_get_conf_mm_stacksize ()
-
+    
     SELECT CASE (mm_driver)
     CASE(mm_driver_blas)   ; mm_name = mm_name_blas
     CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
@@ -520,15 +512,15 @@ CONTAINS
     CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
     CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
     END SELECT
-
+    
     mm_name = ADJUSTR(mm_name(:info_len))
-
+    
     mm_ss_str = int2str_r(mm_ss,info_len)
     use_subcomms_str = l2str_r(use_subcomms,info_len)
     use_combtypes_str = l2str_r(use_combtypes,info_len)
     use_mpi_mem_str = l2str_r(use_mpi_mem,info_len)
     use_cuda_mem_str = l2str_r(use_cuda_mem,info_len)
-
+    
     logger => cp_error_get_logger(error)
     IF (PRESENT (unit_nr)) THEN
        unit_num = unit_nr

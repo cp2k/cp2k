@@ -19,6 +19,7 @@ MODULE f77_interface
   USE bibliography,                    ONLY: add_all_references
   USE cell_types,                      ONLY: cell_type,&
                                              init_cell
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_init_config
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -214,6 +215,9 @@ CONTAINS
 
        !   *** init the bibliography ***
        CALL add_all_references()
+
+       ! Initialize DBCSR configuration
+       CALL cp_dbcsr_init_config (error=error)
     ELSE
        ierr=cp_failure_level
     END IF

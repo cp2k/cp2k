@@ -35,22 +35,28 @@ MODULE dbcsr_config
 
   ! These are for DBCSR internal use.
   !
+  PUBLIC :: has_MPI
+  PUBLIC :: has_blas,&
+            has_smm_gemm,&
+            has_plasma,&
+            has_cuda
   PUBLIC :: use_subcommunicators
   PUBLIC :: use_combined_types
   PUBLIC :: use_MPI_memory
   PUBLIC :: use_CUDA_host_pinned_memory
   PUBLIC :: mm_stack_size
   PUBLIC :: mm_driver,&
-       mm_driver_blas,&
-       mm_driver_matmul,&
-       mm_driver_smm,&
-       mm_driver_plasma,&
-       mm_driver_cuda,&
-       has_blas,&
-       has_smm_gemm,&
-       has_plasma,&
-       has_cuda
-  PUBLIC :: has_MPI
+            mm_driver_blas,&
+            mm_driver_matmul,&
+            mm_driver_smm,&
+            mm_driver_plasma,&
+            mm_driver_cuda
+  PUBLIC :: mm_name_blas,&
+            mm_name_matmul,&
+            mm_name_smm,&
+            mm_name_plasma,&
+            mm_name_cuda
+
 
   ! First the constants are declared.
 
@@ -60,6 +66,14 @@ MODULE dbcsr_config
   INTEGER, PARAMETER :: mm_driver_smm        = 3
   INTEGER, PARAMETER :: mm_driver_plasma     = 4
   INTEGER, PARAMETER :: mm_driver_cuda       = 5
+
+  CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
+                                 mm_name_matmul = "MATMUL",&
+                                 mm_name_smm    = "SMM",&
+                                 mm_name_plasma = "PLASMA",&
+                                 mm_name_cuda   = "CUDA"
+
+
 
 
   ! Then the capabilities are specified.

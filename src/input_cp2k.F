@@ -11,12 +11,6 @@
 ! *****************************************************************************
 MODULE input_cp2k
   USE bibliography,                    ONLY: Frigo2005
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_init_config,&
-                                             mm_name_blas,&
-                                             mm_name_cuda,&
-                                             mm_name_matmul,&
-                                             mm_name_plasma,&
-                                             mm_name_smm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -31,7 +25,8 @@ MODULE input_cp2k
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, has_blas, has_cuda, &
        has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
-       mm_driver_matmul, mm_driver_plasma, mm_driver_smm
+       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
+       mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_atom_section
@@ -644,7 +639,6 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init_config (error)
     CALL section_create(section,name="DBCSR",&
          description="Configuration options for the DBCSR library.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
