@@ -32,7 +32,9 @@ MODULE qs_gspace_mixing
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_methods,                      ONLY: pw_integrate_function,&
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
@@ -310,6 +312,9 @@ CONTAINS
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: alpha
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_tmp
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -318,11 +323,25 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
+    NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom)
+    CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env,error=error)
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
     alpha = mixing_store%alpha
     gapw = dft_control%qs_control%gapw
+
+    IF(nspin==2) THEN
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+      CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           rho_tmp%pw,&
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE,error=error)
+      CALL pw_zero(rho_tmp%pw, error=error)
+      CALL pw_copy( rho%rho_g(1)%pw, rho_tmp%pw , error=error)
+      CALL pw_axpy(rho%rho_g(2)%pw,rho%rho_g(1)%pw, 1.0_dp, error=error)
+      CALL pw_axpy(rho_tmp%pw,rho%rho_g(2)%pw, -1.0_dp, error=error)
+      CALL pw_scale(rho%rho_g(2)%pw, -1.0_dp, error=error)
+    END IF
 
     IF(scf_env%iter_count+1 <= mixing_store%nskip_mixing) THEN
       ! skip mixing
@@ -346,6 +365,13 @@ CONTAINS
         END DO
       END IF
       mixing_store%iter_method= "NoMix"
+      IF(nspin==2) THEN
+        CALL pw_axpy(rho%rho_g(2)%pw,rho%rho_g(1)%pw, 1.0_dp, error=error)
+        CALL pw_scale(rho%rho_g(1)%pw, 0.5_dp, error=error)
+        CALL pw_axpy(rho%rho_g(1)%pw,rho%rho_g(2)%pw, -1.0_dp, error=error)
+        CALL pw_scale(rho%rho_g(2)%pw,-1.0_dp, error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tmp%pw,error=error)
+      END IF
       RETURN
     END IF
 
@@ -376,9 +402,21 @@ CONTAINS
        END IF
     END IF
 
+    IF(nspin==2) THEN
+        CALL pw_axpy(rho%rho_g(2)%pw,rho%rho_g(1)%pw, 1.0_dp, error=error)
+        CALL pw_scale(rho%rho_g(1)%pw, 0.5_dp, error=error)
+        CALL pw_axpy(rho%rho_g(1)%pw,rho%rho_g(2)%pw, -1.0_dp, error=error)
+        CALL pw_scale(rho%rho_g(2)%pw,-1.0_dp, error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tmp%pw,error=error)
+    END IF
+
+
     DO ispin=1,nspin
       CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw, error=error)
       rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1,error=error)
+!dbg
+!  write(*,*) 'rho int 4', ispin , rho%tot_rho_r(ispin)
+!dbg
     END DO
 
     CALL timestop(handle)
@@ -2061,6 +2099,17 @@ CONTAINS
         END IF
       END IF
     END DO
+
+    IF(nspin==2) THEN
+      mixing_store%rhoin(1)%cc =  rho%rho_g(1)%pw%cc +  rho%rho_g(2)%pw%cc
+      mixing_store%rhoin(2)%cc =  rho%rho_g(1)%pw%cc -  rho%rho_g(2)%pw%cc
+      IF(ASSOCIATED(mixing_store%rhoin_buffer)) THEN
+        mixing_store%rhoin_buffer(1,1)%cc =  rho%rho_g(1)%pw%cc +  rho%rho_g(2)%pw%cc
+        mixing_store%rhoin_buffer(1,2)%cc =  rho%rho_g(1)%pw%cc -  rho%rho_g(2)%pw%cc
+      END IF
+    END IF
+
+
     IF(PRESENT(rho_atom)) THEN
      natom = SIZE(rho_atom)
      DO ispin = 1,nspin
