@@ -1449,7 +1449,7 @@ CONTAINS
           DEALLOCATE ( c_out, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CASE ( "FW_R3DC1D" )
-#if defined ( __CUDA )
+#if defined ( __CUDAPW )
           CALL cuda_pw_fft_wrap_r3dc1d(pw1, pw2, dir, n, norm)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
@@ -1484,7 +1484,7 @@ CONTAINS
           CALL pw_scatter ( pw1, c_out, error=error)
           CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
        CASE ( "BW_C1DR3D" )
-#if defined ( __CUDA )
+#if defined ( __CUDAPW )
           CALL cuda_pw_fft_wrap_c1dr3d(pw1, pw2, dir, n, norm)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)

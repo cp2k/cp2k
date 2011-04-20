@@ -1,4 +1,4 @@
-#if defined ( __FFTCU ) || defined ( __CUDA ) || defined ( __CUBLASDP )
+#if defined ( __FFTCU ) || defined ( __CUDAPW ) || defined ( __CUBLASDP )
 
 /* This file contains memory management routines for device memory.  The goal of these routines is eliminate the need to allocate device memory more than once during a run.  Basically, CP2K allocates a large chunk of memory at the beginning of the job using cuda_device_mem_init_cu_.  The size of this chunk is specified in the input file.  The below routines cuda_device_mem_alloc_cu_ and cuda_device_mem_free_cu_ are used to allocate and free memory from this chunk.  The bookkeeping is done by the static variables below.  Finally, the chunk can be freed at the end of the job using cuda_device_mem_release_cu_ */
 

@@ -44,21 +44,21 @@ CONTAINS
 !> allocated up front to eliminate the cost of allocating repeatedly later.
 !> \author Benjamin G Levine
 ! *****************************************************************************
-  SUBROUTINE cuda_device_mem_init(root_section)
+  SUBROUTINE cuda_device_mem_init(root_section,error)
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_error_type)                      :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_device_mem_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: memory
-    TYPE(cp_error_type)                      :: error
     TYPE(section_vals_type), POINTER         :: cuda_section
 
     cuda_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%CUDA",error=error)
     CALL section_vals_val_get(cuda_section,"MEMORY",i_val=memory,error=error)
 
-#if defined ( __CUDA ) || defined ( __FFTCU ) || defined ( __CUBLASDP )
+#if defined ( __CUDAPW ) || defined ( __FFTCU ) || defined ( __CUBLASDP )
 
     CALL cuda_device_mem_init_cu(memory)
     CALL cublasinit_cu()
@@ -73,7 +73,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cuda_device_mem_release()
 
-#if defined ( __CUDA ) || defined ( __FFTCU )
+#if defined ( __CUDAPW ) || defined ( __FFTCU )
 
     CALL cuda_device_mem_release_cu(device_memory)
     CALL cublasshutdown_cu()

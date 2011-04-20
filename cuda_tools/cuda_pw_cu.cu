@@ -1,4 +1,4 @@
-#if defined ( __CUDA )
+#if defined ( __CUDAPW )
 
 #include <cuda_runtime.h>
 #include <cufft.h>

@@ -52,7 +52,7 @@ CONTAINS
     REAL(kind=sp)                            :: fscale
 
     failure = .FALSE.
-#if defined ( __CUDA )
+#if defined ( __CUDAPW )
     ngpts = SIZE ( pw2%pw_grid%gsq  )
     ALLOCATE ( csp3( n(1), n(2), n(3) ), STAT = ierr )
     ALLOCATE ( csp( ngpts ), STAT = ierr )
@@ -108,7 +108,7 @@ CONTAINS
     REAL(kind=sp)                            :: fscale
 
     failure = .FALSE.
-#if defined ( __CUDA )
+#if defined ( __CUDAPW )
     ngpts = SIZE ( pw1%pw_grid%gsq  )
     ALLOCATE ( csp3( n(1), n(2), n(3) ), STAT = ierr )
     ALLOCATE ( csp( ngpts ), STAT = ierr )

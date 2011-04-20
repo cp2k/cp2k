@@ -1,4 +1,4 @@
-#if defined ( __CUBLASDP ) || defined ( __FFTCU ) || defined ( __CUDA )
+#if defined ( __CUBLASDP ) || defined ( __FFTCU ) || defined ( __CUDAPW )
 
 #include <cuda_runtime.h>
 #include <cublas.h>

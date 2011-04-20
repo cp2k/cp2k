@@ -271,10 +271,8 @@ CONTAINS
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
-#if defined( __FFTCU ) || defined ( __CUDA ) || defined ( __CUBLASDP )
 ! if CUDA is enabled we need to allocate memory on the graphics card
-          CALL cuda_device_mem_init(root_section)
-#endif
+          CALL cuda_device_mem_init(root_section, error)
 
           CALL cp_dbcsr_config (root_section, error)
 
@@ -425,10 +423,8 @@ CONTAINS
 
     END IF
 
-#if defined( __FFTCU ) || defined ( __CUDA )
 ! if CUDA is enabled we need to free memory on the graphics card
-          CALL cuda_device_mem_release()
-#endif
+    CALL cuda_device_mem_release()
 
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)
