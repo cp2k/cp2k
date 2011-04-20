@@ -68,6 +68,7 @@ MODULE qs_rho0_ggrid
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -362,8 +363,8 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, bo(2), handle, iat, iatom, ic, icg, ico, ig1, &
-      ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, &
+    INTEGER :: auxbas_grid, bo(2), handle, i, iat, iatom, ic, icg, ico, ig1, &
+      ig2, igrid, ii, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, &
       ispin, istat, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
       max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1, n2, nat, &
       nch_ik, nch_max, ncurr, nset, nsotot, nspins, num_pe
@@ -371,13 +372,15 @@ MODULE qs_rho0_ggrid
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, grid_distributed, &
-                                                my_tddft, paw_atom
+                                                my_tddft, paw_atom, use_virial
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), ra(3), rpgf0, &
                                                 scale, zet0
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
     REAL(dp), DIMENSION(:, :), POINTER       :: hab, hdab_sph, intloc, pab
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: hadb, hdab, Qlm_gg
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: a_hdab_sph, hadb, hdab, Qlm_gg
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: a_hdab 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -408,6 +411,8 @@ MODULE qs_rho0_ggrid
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(virial_type), POINTER               :: virial
+
 
     failure=.FALSE.
     c4pi = fourpi
@@ -428,7 +433,11 @@ MODULE qs_rho0_ggrid
                     force=force,pw_env=pw_env,&
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
-                    particle_set=particle_set,error=error)
+                    particle_set=particle_set,&
+                    virial=virial,error=error)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+
 
     nspins = dft_control%nspins
 
@@ -524,13 +533,15 @@ MODULE qs_rho0_ggrid
 
     !   *** Allocate work storage ***
 
-    NULLIFY(hab,hab_sph,hdab,hdab_sph,hadb,pab)
+    NULLIFY(hab,hab_sph,hdab,hdab_sph,hadb,pab,a_hdab,a_hdab_sph)
     nch_max = ncoset(lmax0)
     CALL reallocate(hab,1,nch_max,1,1)
     CALL reallocate(hab_sph,1,nch_max)
     CALL reallocate(hdab,1,3,1,nch_max,1,1)
     CALL reallocate(hadb,1,3,1,nch_max,1,1)
     CALL reallocate(hdab_sph,1,3,1,nch_max)
+    CALL reallocate(a_hdab,1,3,1,3,1,nch_max,1,1)
+    CALL reallocate(a_hdab_sph,1,3,1,3,1,nch_max)
     CALL reallocate(pab,1,nch_max,1,1)
 
     ncurr = -1
@@ -587,6 +598,11 @@ MODULE qs_rho0_ggrid
           hab = 0.0_dp
           hdab = 0.0_dp
           intloc = 0._dp
+          IF (use_virial) THEN
+             my_virial_a = 0.0_dp
+             my_virial_b = 0.0_dp
+             a_hdab=0.0_dp
+          END IF
 
           CALL integrate_pgf_product_rspace(&
              l0_ikind,zet0,0,0,0.0_dp,0,&
@@ -596,7 +612,8 @@ MODULE qs_rho0_ggrid
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=0,&
              collocate_rho0=.TRUE.,rpgf0_s=rpgf0,&
-             use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+             use_virial=use_virial,  my_virial_a=my_virial_a, my_virial_b=my_virial_b,&
+             a_hdab=a_hdab,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
           ! Convert from cartesian to spherical
           DO lshell = 0,l0_ikind
@@ -604,6 +621,7 @@ MODULE qs_rho0_ggrid
               iso = is + nsoset(lshell-1)
               hab_sph(iso) = 0.0_dp
               hdab_sph(1:3,iso) = 0.0_dp
+              a_hdab_sph(1:3,1:3,iso) = 0.0_dp
               DO ic = 1,nco(lshell)
                 ico = ic + ncoset(lshell-1)
                 lx = indco(1,ico)
@@ -623,19 +641,22 @@ MODULE qs_rho0_ggrid
                     SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                     dfac(2*lshell+1))
                 END IF
+                IF(use_virial) THEN
+                   DO ii=1,3
+                   DO i=1,3
+                   a_hdab_sph(i,ii,iso) =  a_hdab_sph(i,ii,iso) +&
+                      orbtramat(lshell)%c2s(is,ic)*a_hdab(i,ii,ico,1)*&
+                      norm_l(lshell)/&
+                      SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                      dfac(2*lshell+1))
+                   END DO
+                   END DO
+                END IF
 
               END DO  ! ic
             END DO  ! is
           END DO  ! lshell
 
-          IF (calculate_forces) THEN
-            force_tmp(1:3) = 0.0_dp
-            DO iso = 1,nsoset(l0_ikind)
-              force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
-              force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
-              force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
-            END DO
-          END IF
 
           m1 = 0
           DO iset1 = 1,nset
@@ -684,7 +705,23 @@ MODULE qs_rho0_ggrid
           END IF
 
           IF (calculate_forces) THEN
+            force_tmp(1:3) = 0.0_dp
+            DO iso = 1,nsoset(l0_ikind)
+              force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
+              force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
+              force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
+            END DO
             force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + force_tmp(1:3)
+          END IF
+          IF(use_virial) THEN
+            my_virial_a = 0.0_dp
+            DO iso = 1,nsoset(l0_ikind)
+              DO ii=1,3
+              DO i=1,3
+                virial%pv_virial(i,ii) = virial%pv_virial(i,ii) +  Qlm(iso)*a_hdab_sph(i,ii,iso)
+              END DO
+              END DO
+            END DO
           END IF
 
         END DO
@@ -699,7 +736,7 @@ MODULE qs_rho0_ggrid
 
     CALL rs_grid_release(rs_v, error=error)
 
-    DEALLOCATE (hab,hdab,hadb,hab_sph,hdab_sph,pab,STAT=istat)
+    DEALLOCATE (hab,hdab,hadb,hab_sph,hdab_sph,pab,a_hdab,a_hdab_sph,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)

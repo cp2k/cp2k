@@ -350,7 +350,7 @@ CONTAINS
                                                 ikind, j, natom_of_kind, &
                                                 npme, stat, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: paw_atom, skip_fcore, &
+    LOGICAL                                  :: failure, paw_atom, skip_fcore, &
                                                 use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
@@ -380,14 +380,17 @@ CONTAINS
       IF(.NOT. qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
     END IF
       
+    failure = .FALSE.
     IF(.NOT. skip_fcore) THEN 
         NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
         ALLOCATE (hab(1,1),STAT=stat)
-        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "hab",dp_size)
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+       !                                 "hab",dp_size)
         ALLOCATE (pab(1,1),STAT=stat)
-        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "pab",dp_size)
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+       !                                 "pab",dp_size)
      
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
@@ -484,13 +487,16 @@ CONTAINS
         CALL rs_grid_release(rs_v, error=error)
      
         DEALLOCATE (hab,STAT=stat)
-        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hab")
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+!        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hab")
 
         DEALLOCATE (pab,STAT=stat)
-        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+!        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
         DEALLOCATE (cores,STAT=stat)
-        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+!        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
 
     END IF
 
@@ -1429,7 +1435,7 @@ CONTAINS
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent,&
                                             collocate_rho0,rpgf0_s,use_virial,my_virial_a,&
-                                            my_virial_b,use_subpatch,subpatch_pattern,error)
+                                            my_virial_b,a_hdab,use_subpatch,subpatch_pattern,error)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1458,6 +1464,7 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
     LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
     REAL(KIND=dp), DIMENSION(3,3), OPTIONAL  :: my_virial_a, my_virial_b
+    REAL(KIND=dp), DIMENSION(:,:,:,:), OPTIONAL, POINTER  :: a_hdab
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, OPTIONAL                        :: use_subpatch
     INTEGER(KIND=int_8), INTENT(IN), OPTIONAL :: subpatch_pattern
@@ -1466,7 +1473,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
-      ico, icoef, ig, ithread_l, jco, k, l, la, la_max_local, la_min_local, lb, &
+      ico, icoef, ig, ithread_l, j, jco, k, l, la, la_max_local, la_min_local, lb, &
       lb_cube_min, lb_max_local, lb_min_local, length, lx, lx_max, lxa, lxb, lxy, &
       lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start, ub_cube_max
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
@@ -1694,6 +1701,15 @@ CONTAINS
                   CALL hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
                   hdab(1:3,o1+ico,o2+jco) = der_a(1:3)
                   hadb(1:3,o1+ico,o2+jco) = der_b(1:3)
+                  pabval=1.0_dp
+                  IF (my_use_virial .AND. PRESENT(a_hdab)) THEN
+                    my_virial_a =0.0_dp
+                    my_virial_b =0.0_dp
+                    CALL virial_update(my_virial_a,my_virial_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
+                    DO j=1,3
+                      a_hdab(1:3,j,o1+ico,o2+jco) = a_hdab(1:3,j,o1+ico,o2+jco) + my_virial_a(1:3,j)
+                    END DO
+                  ENDIF
                 END IF
               END DO
             END DO
