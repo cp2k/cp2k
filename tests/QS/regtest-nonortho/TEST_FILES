@@ -3,3 +3,5 @@ graphite2.inp 2
 graphite3.inp 2
 graphite-stm.inp 0
 graphite-lumo.inp 30
+graph_b111.inp 30
+graph_b111_gapw.inp 30
