@@ -417,3 +417,11 @@ LM-KSDO.inp
 Al2O3.inp
 #
 si8_lsd_broy_fm0.2.inp
+#
+si8_lsd_broy_wc_ene.inp
+si8_lsd_broy_wc.inp
+si8_lsd_broy_wc_rst.inp
+si8_lsd_broy_wc_list.inp
+si8_lsd_broy_wc_list_rst.inp
+si8_lsd_broy_fm0.2.inp
+
