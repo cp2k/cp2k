@@ -3774,7 +3774,7 @@ CONTAINS
     !
     !WRITE(*,*)routineN//" calling kernel", stack_size,&
     !     dbcsr_cuda_dev_mem_get_type(data_c_dev)
-    CALL FLUSH(6)
+    CALL m_flush(6)
     IF (time_kernel) kt = -m_walltime()
     CALL dbcsr_cuda_do_mm_stack (params_dev, stack_size, n_mult_params,&
          data_a_dev, data_b_dev, data_c_dev,&
