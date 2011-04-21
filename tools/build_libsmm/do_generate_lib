@@ -271,7 +271,7 @@ SUBROUTINE testit(M,N,K)
      CALL ${gemm}("$ta","$tb",M,N,K,one,A,LDA,B,LDB,one,C1,M) 
      CALL smm_${filetrans}(M,N,K,A,B,C2)
 
-     IF (MAXVAL(ABS(C2-C1))>100*EPSILON(A(1,1))) THEN
+     IF (MAXVAL(ABS(C2-C1))>100*EPSILON(REAL(1.0,KIND=KIND(A(1,1))))) THEN
         write(6,*) "Matrix size",M,N,K
         write(6,*) "A=",A
         write(6,*) "B=",B

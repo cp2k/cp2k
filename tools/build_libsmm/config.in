@@ -12,8 +12,8 @@ transpose_flavor=1
 
 # 1) d => double precision real
 # 2) s => single precision real
-# 3) z => double precision complex (not implemented)
-# 4) c => single precision complex (not implemented)
+# 3) z => double precision complex
+# 4) c => single precision complex 
 #
 # select a data_type from the list 1 2 3 4
 #
