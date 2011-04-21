@@ -4,7 +4,7 @@ IMPLICIT NONE
 
 INTEGER :: M,N,K
 CHARACTER(LEN=80) :: arg
-INTEGER :: mi,mf,ni,nf,ki,kf,iloop,ku,nu,mu,transpose_flavor
+INTEGER :: mi,mf,ni,nf,ki,kf,iloop,ku,nu,mu,transpose_flavor, data_type
 
 CALL GET_COMMAND_ARGUMENT(1,arg)
 READ(arg,*) M
@@ -14,21 +14,23 @@ CALL GET_COMMAND_ARGUMENT(3,arg)
 READ(arg,*) K
 CALL GET_COMMAND_ARGUMENT(4,arg)
 READ(arg,*) transpose_flavor
+CALL GET_COMMAND_ARGUMENT(5,arg)
+READ(arg,*) data_type
 
    CALL loop_variants(1)
 
-   CALL write_test_fun(M,N,K,transpose_flavor)
+   CALL write_test_fun(M,N,K,transpose_flavor,data_type)
 
   write(6,*)                    " PROGRAM tiny_find"
   write(6,*)                    "    IMPLICIT NONE"
   write(6,'(A,I0,A,I0,A,I0,A)') "    INTEGER, PARAMETER :: M=",M,",N=",N,",K=",K,",Nmin=2"
-  CALL write_matrix_defs(M,N,K,transpose_flavor)
+  CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
   write(6,*)                    "    REAL         :: timing(6,M,N,K), best_time, test"
   write(6,*)                    "    REAL(KIND=KIND(0.D0)) :: flops,gflop"
   write(6,*)                    "    INTEGER      :: imin,Niter,iloop,i,j,l, best_loop,best_mu, best_nu, best_ku"
   write(6,*)                    "    INTERFACE"
   write(6,*)                    "      SUBROUTINE X(A,B,C)"
-  CALL write_matrix_defs(M,N,K,transpose_flavor)
+  CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
   write(6,*)                    "      END SUBROUTINE"
   write(6,*)                    "    END INTERFACE"
   CALL loop_variants(2)
@@ -86,19 +88,19 @@ CONTAINS
        SELECT CASE(itype)
        CASE(1)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-              "   SUBROUTINE smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,"_",iloop,"_",mu,"_",nu,"_",ku,"(A,B,C)"
-         CALL write_matrix_defs(M,N,K,transpose_flavor)
+              "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",M,"_",N,"_",K,"_",iloop,"_",mu,"_",nu,"_",ku,"(A,B,C)"
+         CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
          write(6,'(A)')                "      INTEGER ::i,j,l"
-         CALL smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor)
+         CALL smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type)
          write(6,*) "   END SUBROUTINE"
        CASE(2)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A,I0)') &
-              "   PROCEDURE(X) :: smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,"_",iloop,"_",mu,"_",nu,"_",ku
+              "   PROCEDURE(X) :: smm_"//trstr(transpose_flavor,data_type)//"_",M,"_",N,"_",K,"_",iloop,"_",mu,"_",nu,"_",ku
        CASE(3)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "       timing(",iloop,",",mu,",",nu,",",ku,")= &"
          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "       MIN(timing(",iloop,",",mu,",",nu,",",ku,"), &"
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-              "   TEST(smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,"_",iloop,"_",mu,"_",nu,"_",ku,",A,B,C,Niter))"
+              "   TEST(smm_"//trstr(transpose_flavor,data_type)//"_",M,"_",N,"_",K,"_",iloop,"_",mu,"_",nu,"_",ku,",A,B,C,Niter))"
          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') 'write(6,''(4I4,F12.6,F12.3)'') ',iloop,",",mu,",",nu,",",ku,",& "
          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "timing(",iloop,",",mu,",",nu,",",ku,"),&"
          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "flops*Niter/gflop/timing(",iloop,",",mu,",",nu,",",ku,")"

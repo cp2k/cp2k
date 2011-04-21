@@ -8,7 +8,7 @@ PROGRAM lib_gen
    REAL :: tmp
    INTEGER, DIMENSION(:,:), ALLOCATABLE ::  small_opts
    REAL, DIMENSION(:), ALLOCATABLE :: small_perf
-   INTEGER :: opt,iline,nline,transpose_flavor
+   INTEGER :: opt,iline,nline,transpose_flavor,data_type
    
    CALL GET_COMMAND_ARGUMENT(1,arg)
    READ(arg,*) M
@@ -18,6 +18,8 @@ PROGRAM lib_gen
    READ(arg,*) K
    CALL GET_COMMAND_ARGUMENT(4,arg)
    READ(arg,*) transpose_flavor
+   CALL GET_COMMAND_ARGUMENT(5,arg)
+   READ(arg,*) data_type
 
    !
    ! filename is the result of small optimization (cat small_gen_optimal.out )
@@ -44,7 +46,7 @@ PROGRAM lib_gen
    CALL find_small_opt(opt,small_opts,m,n,k)
 
    label=""
-   CALL mult_versions(M,N,K,opt,label,transpose_flavor)
+   CALL mult_versions(M,N,K,opt,label,transpose_flavor,data_type)
 
 CONTAINS
 

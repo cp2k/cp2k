@@ -14,7 +14,7 @@ PROGRAM small_gen
    USE multrec_gen
    IMPLICIT NONE
    
-   INTEGER :: M,N,K,nline,iline,max_dim, best_square(4),i,isquare, opts(4), transpose_flavor
+   INTEGER :: M,N,K,nline,iline,max_dim, best_square(4),i,isquare, opts(4), transpose_flavor, data_type
    INTEGER, DIMENSION(:,:), ALLOCATABLE :: tiny_opts
    REAL, DIMENSION(:), ALLOCATABLE :: tiny_perf,square_perf
    REAL :: tmp
@@ -28,43 +28,47 @@ PROGRAM small_gen
    READ(arg,*) K
    CALL GET_COMMAND_ARGUMENT(4,arg)
    READ(arg,*) transpose_flavor
+   CALL GET_COMMAND_ARGUMENT(5,arg)
+   READ(arg,*) data_type
    
    ! generation of the tiny version
    write(label,'(A,I0)') "_",1
-   CALL mult_versions(M,N,K,1,label,transpose_flavor)
+   CALL mult_versions(M,N,K,1,label,transpose_flavor,data_type)
 
    ! generation of the matmul version
    write(label,'(A,I0)') "_",2
-   CALL mult_versions(M,N,K,2,label,transpose_flavor)
+   CALL mult_versions(M,N,K,2,label,transpose_flavor,data_type)
 
    ! generation of the dgemm version
    write(label,'(A,I0)') "_",3
-   CALL mult_versions(M,N,K,3,label,transpose_flavor)
+   CALL mult_versions(M,N,K,3,label,transpose_flavor,data_type)
 
    ! generation of the multrec versions (4)
    DO isquare=1,4
       write(label,'(A,I0)') "_",3+isquare
-      CALL mult_versions(M,N,K,3+isquare,label,transpose_flavor)
+      CALL mult_versions(M,N,K,3+isquare,label,transpose_flavor,data_type)
    ENDDO
 
    ! test function
-   CALL write_test_fun(M,N,K,transpose_flavor)
+   CALL write_test_fun(M,N,K,transpose_flavor,data_type)
 
    ! test program
    write(6,*)                    " PROGRAM small_find"
    write(6,*)                    "    IMPLICIT NONE"
-   write(6,'(A,I0,A,I0,A,I0,A,I0)') "    INTEGER, PARAMETER :: M=",M,",N=",N,",K=",K,",Nmin=5,versions=",3+SIZE(best_square)
-   CALL write_matrix_defs(M,N,K,transpose_flavor)
+   write(6,'(A,I0,A,I0,A,I0,A,I0)') "    INTEGER, PARAMETER :: M=",&
+         M,",N=",N,",K=",K,",Nmin=5,versions=",3+SIZE(best_square)
+   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
    write(6,*)                    "    REAL         :: timing(versions), best_time, test"
    write(6,*)                    "    REAL(KIND=KIND(0.D0)) :: flops,gflop"
    write(6,*)                    "    INTEGER      :: imin,Niter,iloop,i,j,l, best_loop,best_mu, best_nu, best_ku"
    write(6,*)                    "    INTERFACE"
    write(6,*)                    "      SUBROUTINE X(A,B,C)"
-   CALL write_matrix_defs(M,N,K,transpose_flavor)
+   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
    write(6,*)                    "      END SUBROUTINE"
    write(6,*)                    "    END INTERFACE"
    DO i=1,3+SIZE(best_square)
-      write(6,'(A,I0,A,I0,A,I0,A,I0)') "PROCEDURE(X) :: smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,"_",i
+      write(6,'(A,I0,A,I0,A,I0,A,I0)') "PROCEDURE(X) :: smm_"//trstr(transpose_flavor,data_type)//"_",&
+          M,"_",N,"_",K,"_",i
    ENDDO
    write(6,*)                    ""
    write(6,*)                    "    flops=2*REAL(M,KIND=KIND(0.D0))*N*K"
@@ -80,7 +84,8 @@ PROGRAM small_gen
    DO i=1,3+SIZE(best_square)
           write(6,*) "       timing(",i,")= &"
           write(6,*) "       MIN(timing(",i,"), &"
-          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "   TEST(smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,"_",i,",A,B,C,Niter))"
+          write(6,'(A,I0,A,I0,A,I0,A,I0,A)') "   TEST(smm_"//trstr(transpose_flavor,data_type)//"_",&
+     M,"_",N,"_",K,"_",i,",A,B,C,Niter))"
           write(6,*) 'write(6,''(1I4,F12.6,F12.3)'') ',i,',&'
           write(6,*) "timing(",i,"),&"
           write(6,*) "flops*Niter/gflop/timing(",i,")"

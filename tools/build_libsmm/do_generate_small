@@ -52,7 +52,7 @@ for n in ${dims_small}  ; do
 for k in ${dims_small}  ; do
     printf "comp_${m}_${n}_${k}:\n"
     printf "\t mkdir -p run_small_${m}_${n}_${k}\n"
-    printf "\t ./small_gen.x ${m} ${n} ${k} ${transpose_flavor} > run_small_${m}_${n}_${k}/small_find.f90\n"
+    printf "\t ./small_gen.x ${m} ${n} ${k} ${transpose_flavor} ${data_type}  > run_small_${m}_${n}_${k}/small_find.f90\n"
     printf "\t cd run_small_${m}_${n}_${k} ; ${target_compile} small_find.f90 -o small_find.x ${blas_linking} \n\n"
 done ; done ; done
 

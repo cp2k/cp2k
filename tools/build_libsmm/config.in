@@ -10,6 +10,15 @@
 #
 transpose_flavor=1
 
+# 1) d => double precision real
+# 2) s => single precision real
+# 3) z => double precision complex (not implemented)
+# 4) c => single precision complex (not implemented)
+#
+# select a data_type from the list 1 2 3 4
+#
+data_type=1
+
 #
 # target compiler... this are the options used for building the library.
 # They should be aggessive enough to e.g. perform vectorization for the specific CPU (e.g. -ftree-vectorize -march=native),

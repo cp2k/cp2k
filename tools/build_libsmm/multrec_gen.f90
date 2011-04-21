@@ -24,8 +24,8 @@ CONTAINS
      ENDDO
   END SUBROUTINE find_tiny_opts
 
-  RECURSIVE SUBROUTINE MULTREC(mi,mf,ni,nf,ki,kf,block_size,tiny_opts,transpose_flavor)
-    INTEGER :: mi,mf,ni,nf,ki,kf,block_size, tiny_opts(:,:), transpose_flavor
+  RECURSIVE SUBROUTINE MULTREC(mi,mf,ni,nf,ki,kf,block_size,tiny_opts,transpose_flavor,data_type)
+    INTEGER :: mi,mf,ni,nf,ki,kf,block_size, tiny_opts(:,:), transpose_flavor,data_type
     INTEGER :: M,N,K,opts(4)
     INTEGER :: cut,s1
 
@@ -36,7 +36,7 @@ CONTAINS
     ! small sizes are done directly, otherwise we recurse
     IF (M<=block_size .AND. N<=block_size .AND. K<=block_size) THEN
        CALL find_tiny_opts(opts,tiny_opts,m,n,k)
-       CALL smm_inner(mi,mf,ni,nf,ki,kf,opts(1),opts(2),opts(3),opts(4),transpose_flavor)
+       CALL smm_inner(mi,mf,ni,nf,ki,kf,opts(1),opts(2),opts(3),opts(4),transpose_flavor,data_type)
     ELSE
        ! a three case recursion
        IF (M>=MAX(N,K)) cut=1
@@ -45,22 +45,22 @@ CONTAINS
        SELECT CASE(cut)
        CASE(1)
           s1=((M/2+block_size-1)/block_size)*block_size
-          CALL MULTREC(mi,mi+s1-1,ni,nf,ki,kf,block_size,tiny_opts,transpose_flavor)
-          CALL MULTREC(mi+s1,mf,ni,nf,ki,kf,block_size,tiny_opts,transpose_flavor)
+          CALL MULTREC(mi,mi+s1-1,ni,nf,ki,kf,block_size,tiny_opts,transpose_flavor,data_type)
+          CALL MULTREC(mi+s1,mf,ni,nf,ki,kf,block_size,tiny_opts,transpose_flavor,data_type)
        CASE(2)
           s1=((K/2+block_size-1)/block_size)*block_size
-          CALL MULTREC(mi,mf,ni,nf,ki,ki+s1-1,block_size,tiny_opts,transpose_flavor)
-          CALL MULTREC(mi,mf,ni,nf,ki+s1,kf,block_size,tiny_opts,transpose_flavor)
+          CALL MULTREC(mi,mf,ni,nf,ki,ki+s1-1,block_size,tiny_opts,transpose_flavor,data_type)
+          CALL MULTREC(mi,mf,ni,nf,ki+s1,kf,block_size,tiny_opts,transpose_flavor,data_type)
        CASE(3)
           s1=((N/2+block_size-1)/block_size)*block_size
-          CALL MULTREC(mi,mf,ni,ni+s1-1,ki,kf,block_size,tiny_opts,transpose_flavor)
-          CALL MULTREC(mi,mf,ni+s1,nf,ki,kf,block_size,tiny_opts,transpose_flavor)
+          CALL MULTREC(mi,mf,ni,ni+s1-1,ki,kf,block_size,tiny_opts,transpose_flavor,data_type)
+          CALL MULTREC(mi,mf,ni+s1,nf,ki,kf,block_size,tiny_opts,transpose_flavor,data_type)
        END SELECT
     ENDIF
   END SUBROUTINE MULTREC
 
-  SUBROUTINE mult_versions(M,N,K,version,label,transpose_flavor)
-     INTEGER :: m,n,k,version,transpose_flavor
+  SUBROUTINE mult_versions(M,N,K,version,label,transpose_flavor,data_type)
+     INTEGER :: m,n,k,version,transpose_flavor,data_type
      INTEGER, ALLOCATABLE, DIMENSION(:,:) :: tiny_opts
      INTEGER :: best_square(4)
      REAL, ALLOCATABLE, DIMENSION(:)      :: tiny_perf,square_perf
@@ -115,16 +115,18 @@ CONTAINS
      SELECT CASE(version)
      CASE(1) 
        ! generation of the tiny version
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor)
+       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+              M,"_",N,"_",K,TRIM(label),"(A,B,C)"
+       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        write(6,'(A)')                     "      INTEGER ::i,j,l"
        CALL find_tiny_opts(opts,tiny_opts,m,n,k)
-       CALL smm_inner(1,M,1,N,1,K,opts(1),opts(2),opts(3),opts(4),transpose_flavor)
+       CALL smm_inner(1,M,1,N,1,K,opts(1),opts(2),opts(3),opts(4),transpose_flavor,data_type)
        write(6,'(A)') "   END SUBROUTINE"
      CASE(2)
        ! generation of the matmul version
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor)
+       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+              M,"_",N,"_",K,TRIM(label),"(A,B,C)"
+       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        SELECT CASE(transpose_flavor)
        CASE(1)
           write(6,'(A)')                         "      C = C + MATMUL(A,B) ! so easy"
@@ -137,32 +139,35 @@ CONTAINS
        END SELECT
        write(6,'(A)') "   END SUBROUTINE"
      CASE(3)
-       ! generation of the dgemm version
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor)
+       ! generation of the gemm version
+       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+                                          M,"_",N,"_",K,TRIM(label),"(A,B,C)"
+       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
+       WRITE(6,'(A)') "      "//trdat(data_type)//", PARAMETER :: one=1"
        SELECT CASE(transpose_flavor)
        CASE(1)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-               "      CALL DGEMM('N','N',",M,",",N,",",K,",1.0D0,A,",M,",B,",K,",1.0D0,C,",M,")"
+               "      CALL "//trgemm(data_type)//"('N','N',",M,",",N,",",K,",one,A,",M,",B,",K,",one,C,",M,")"
        CASE(2)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-               "      CALL DGEMM('T','N',",M,",",N,",",K,",1.0D0,A,",K,",B,",K,",1.0D0,C,",M,")"
+               "      CALL "//trgemm(data_type)//"('T','N',",M,",",N,",",K,",one,A,",K,",B,",K,",one,C,",M,")"
        CASE(3)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-               "      CALL DGEMM('N','T',",M,",",N,",",K,",1.0D0,A,",M,",B,",N,",1.0D0,C,",M,")"
+               "      CALL "//trgemm(data_type)//"('N','T',",M,",",N,",",K,",one,A,",M,",B,",N,",one,C,",M,")"
        CASE(4)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-               "      CALL DGEMM('T','T',",M,",",N,",",K,",1.0D0,A,",K,",B,",N,",1.0D0,C,",M,")"
+               "      CALL "//trgemm(data_type)//"('T','T',",M,",",N,",",K,",one,A,",K,",B,",N,",one,C,",M,")"
        END SELECT
        write(6,'(A)') "   END SUBROUTINE"
      CASE(4,5,6,7)
        isquare=version-3
        ! generation of the multrec versions
-       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_d"//trstr(transpose_flavor)//"_",M,"_",N,"_",K,TRIM(label),"(A,B,C)"
-       CALL write_matrix_defs(M,N,K,transpose_flavor)
+       write(6,'(A,I0,A,I0,A,I0,A,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_", &
+                                          M,"_",N,"_",K,TRIM(label),"(A,B,C)"
+       CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
        write(6,'(A)')                     "      INTEGER ::i,j,l"
        blocksize=best_square(isquare)
-       CALL MULTREC(1,M,1,N,1,K,blocksize,tiny_opts,transpose_flavor)
+       CALL MULTREC(1,M,1,N,1,K,blocksize,tiny_opts,transpose_flavor,data_type)
        write(6,'(A)') "   END SUBROUTINE"
      CASE DEFAULT
        STOP "MISSING CASE mult_versions"

@@ -55,6 +55,27 @@ do
 done
 eles="$eles/)"
 
+if [[ "$data_type" == "1" ]]; then
+    filetype="d"
+    gemm="DGEMM"
+    strdat="REAL(KIND=KIND(0.0D0))"
+fi
+if [[ "$data_type" == "2" ]]; then
+    filetype="s"
+    gemm="SGEMM"
+    strdat="REAL(KIND=KIND(0.0))"
+fi
+if [[ "$data_type" == "3" ]]; then
+    filetype="z"
+    gemm="ZGEMM"
+    strdat="COMPLEX(KIND=KIND(0.0D0))"
+fi
+if [[ "$data_type" == "4" ]]; then
+    filetype="c"
+    gemm="CGEMM"
+    strdat="COMPLEX(KIND=KIND(0.0))"
+fi
+
 
 
 if [[ "$transpose_flavor" == "1" ]]; then
@@ -85,14 +106,17 @@ if [[ "$transpose_flavor" == "4" ]]; then
     decl="A(K,M), B(N,K)"
     lds="LDA=K ; LDB=N"
 fi
-file="smm_d${filetrans}.f90"
+
+filetrans="${filetype}${filetrans}"
+file="smm_${filetrans}.f90"
 
 cd lib
 
 rm -f ${file}
-printf "SUBROUTINE smm_d${filetrans}(M,N,K,A,B,C)\n INTEGER :: M,N,K,LDA,LDB\n REAL(KIND=KIND(0.0D0)) :: C(M,N), ${decl}\n" >> ${file}
+printf "SUBROUTINE smm_${filetrans}(M,N,K,A,B,C)\n INTEGER :: M,N,K,LDA,LDB\n ${strdat} :: C(M,N), ${decl}\n" >> ${file}
 printf " INTEGER, PARAMETER :: indx(0:$maxsize)=&\n $eles\n" >> ${file}
 printf " INTEGER :: im,in,ik,itot\n" >> ${file}
+printf " $strdat, PARAMETER :: one=1\n" >> ${file}
 printf " ${lds}\n" >> ${file}
 printf " IF (M<=$maxsize) THEN\n   im=indx(M)\n ELSE\n   im=0\n ENDIF\n" >> ${file}
 printf " IF (N<=$maxsize) THEN\n   in=indx(N)\n ELSE\n   in=0\n ENDIF\n" >> ${file}
@@ -112,7 +136,7 @@ prod=$((myk*myn*mym))
 if [[ "$prod" == "0" ]]; then
   printf '   GOTO 999\n' >> ${file}
 else
-  printf "   CALL smm_d${filetrans}_${mym}_${myn}_${myk}(A,B,C)\n" >> ${file}
+  printf "   CALL smm_${filetrans}_${mym}_${myn}_${myk}(A,B,C)\n" >> ${file}
 fi
 count=$((count+1))
 done
@@ -120,9 +144,9 @@ done
 done
 printf " END SELECT\n" >> ${file}
 printf " RETURN\n" >> ${file}
-printf '999 CONTINUE \n CALL DGEMM("%s","%s",M,N,K,1.0D0,A,LDA,B,LDB,1.0D0,C,M)\n' $ta $tb >> ${file}
+printf "999 CONTINUE \n CALL ${gemm}('%s','%s',M,N,K,one,A,LDA,B,LDB,one,C,M)\n" $ta $tb >> ${file}
 
-printf "END SUBROUTINE smm_d${filetrans}" >> ${file}
+printf "END SUBROUTINE smm_${filetrans}" >> ${file}
 
 cd ..
 
@@ -154,7 +178,7 @@ printf "driver:\n"
 printf "\t cd lib/ ; $target_compile -c ${file} \n\n"
 
 printf "archive: compile driver \n"
-printf "\t cd lib/ ; ar -r libsmm_d${filetrans}.a smm_d${filetrans}*.o \n\n"
+printf "\t cd lib/ ; ar -r libsmm_${filetrans}.a smm_${filetrans}*.o \n\n"
 
 printf "compile: "
 for pf in $postfixes ; do
@@ -169,8 +193,8 @@ for m in ${dims_small}  ; do
 for n in ${dims_small}  ; do
 for k in ${dims_small}  ; do
     printf "comp_${m}_${n}_${k}: \n"
-    printf "\t ./lib_gen.x ${m} ${n} ${k} ${transpose_flavor} > lib/smm_d${filetrans}_${m}_${n}_${k}.f90\n"
-    printf "\t cd lib/ ; $target_compile -c smm_d${filetrans}_${m}_${n}_${k}.f90 \n\n"
+    printf "\t ./lib_gen.x ${m} ${n} ${k} ${transpose_flavor} ${data_type} > lib/smm_${filetrans}_${m}_${n}_${k}.f90\n"
+    printf "\t cd lib/ ; $target_compile -c smm_${filetrans}_${m}_${n}_${k}.f90 \n\n"
 done ; done ; done
 
 ) > Makefile.lib
@@ -185,13 +209,47 @@ make -j $tasks -f Makefile.lib all
 # a final test program. Checking correctness and final performance comparison
 #
 
-cat << EOF > test_smm_d${filetrans}.f90
+cat << EOF > test_smm_${filetrans}.f90
+MODULE WTF
+  INTERFACE MYRAND
+    MODULE PROCEDURE SMYRAND, DMYRAND, CMYRAND, ZMYRAND
+  END INTERFACE
+CONTAINS
+  SUBROUTINE DMYRAND(A)
+    REAL(KIND=KIND(0.0D0)), DIMENSION(:,:) :: A
+    REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq
+    CALL RANDOM_NUMBER(Aeq)
+    A=Aeq
+  END SUBROUTINE
+  SUBROUTINE SMYRAND(A)
+    REAL(KIND=KIND(0.0)), DIMENSION(:,:) :: A
+    REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq
+    CALL RANDOM_NUMBER(Aeq)
+    A=Aeq
+  END SUBROUTINE
+  SUBROUTINE CMYRAND(A)
+    COMPLEX(KIND=KIND(0.0)), DIMENSION(:,:) :: A
+    REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq,Beq
+    CALL RANDOM_NUMBER(Aeq)
+    CALL RANDOM_NUMBER(Beq)
+    A=CMPLX(Aeq,Beq,KIND=KIND(0.0))
+  END SUBROUTINE
+  SUBROUTINE ZMYRAND(A)
+    COMPLEX(KIND=KIND(0.0D0)), DIMENSION(:,:) :: A
+    REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq,Beq
+    CALL RANDOM_NUMBER(Aeq)
+    CALL RANDOM_NUMBER(Beq)
+    A=CMPLX(Aeq,Beq,KIND=KIND(0.0D0))
+  END SUBROUTINE
+END MODULE
 SUBROUTINE testit(M,N,K)
+  USE WTF
   IMPLICIT NONE
   INTEGER :: M,N,K
 
-  REAL(KIND=KIND(0.0D0)) :: C1(M,N), C2(M,N)
-  REAL(KIND=KIND(0.0D0)) :: ${decl}
+  $strdat :: C1(M,N), C2(M,N)
+  $strdat :: ${decl}
+  $strdat, PARAMETER :: one=1
   INTEGER :: i,LDA,LDB
 
   REAL(KIND=KIND(0.0D0)) :: flops,gflop
@@ -205,13 +263,13 @@ SUBROUTINE testit(M,N,K)
   ${lds}
 
   DO i=1,10
-     CALL RANDOM_NUMBER(A)
-     CALL RANDOM_NUMBER(B)
-     CALL RANDOM_NUMBER(C1)
+     CALL MYRAND(A)
+     CALL MYRAND(B)
+     CALL MYRAND(C1)
      C2=C1
 
-     CALL DGEMM("$ta","$tb",M,N,K,1.0D0,A,LDA,B,LDB,1.0D0,C1,M) 
-     CALL smm_d${filetrans}(M,N,K,A,B,C2)
+     CALL ${gemm}("$ta","$tb",M,N,K,one,A,LDA,B,LDB,one,C1,M) 
+     CALL smm_${filetrans}(M,N,K,A,B,C2)
 
      IF (MAXVAL(ABS(C2-C1))>100*EPSILON(A(1,1))) THEN
         write(6,*) "Matrix size",M,N,K
@@ -228,13 +286,13 @@ SUBROUTINE testit(M,N,K)
  
   CALL CPU_TIME(t1) 
   DO i=1,Niter
-     CALL DGEMM("$ta","$tb",M,N,K,1.0D0,A,LDA,B,LDB,1.0D0,C1,M) 
+     CALL ${gemm}("$ta","$tb",M,N,K,one,A,LDA,B,LDB,one,C1,M) 
   ENDDO
   CALL CPU_TIME(t2) 
 
   CALL CPU_TIME(t3)
   DO i=1,Niter
-     CALL smm_d${filetrans}(M,N,K,A,B,C2)
+     CALL smm_${filetrans}(M,N,K,A,B,C2)
   ENDDO
   CALL CPU_TIME(t4)
 
@@ -252,10 +310,10 @@ EOF
 for m in ${dims_small}  ; do
 for n in ${dims_small}  ; do
 for k in ${dims_small}  ; do
-  echo "   CALL testit(${m},${n},${k})" >> test_smm_d${filetrans}.f90
+  echo "   CALL testit(${m},${n},${k})" >> test_smm_${filetrans}.f90
 done ; done ; done
 
-cat << EOF >> test_smm_d${filetrans}.f90
+cat << EOF >> test_smm_${filetrans}.f90
   ! checking 'peak' performance (and a size likely outside of the library)
   CALL testit(1000,1000,1000)
 END PROGRAM
@@ -264,23 +322,23 @@ EOF
 #
 # compile the benchmarking and testing program for the smm library
 #
-${target_compile} test_smm_d${filetrans}.f90 -o test_smm_d${filetrans}.x -Llib -lsmm_d${filetrans} ${blas_linking}
+${target_compile} test_smm_${filetrans}.f90 -o test_smm_${filetrans}.x -Llib -lsmm_${filetrans} ${blas_linking}
 
 #
 # run and compile the final test
 #
-./test_smm_d${filetrans}.x | tee ./test_smm_d${filetrans}.out
+./test_smm_${filetrans}.x | tee ./test_smm_${filetrans}.out
 
 #
 # We're done... protect the user from bad compilers
 #
-grep 'BLAS and smm yield different results' ./test_smm_d${filetrans}.out >& /dev/null
+grep 'BLAS and smm yield different results' ./test_smm_${filetrans}.out >& /dev/null
 if [ "$?" == "0" ]; then
-   echo "Library is miscompiled ... removing lib/libsmm_d${filetrans}.a"
-   rm -f lib/libsmm_d${filetrans}.a
+   echo "Library is miscompiled ... removing lib/libsmm_${filetrans}.a"
+   rm -f lib/libsmm_${filetrans}.a
 else
    pathhere=`pwd`
-   echo "Done... check performance looking at test_smm_d${filetrans}.out"
-   echo "Final library can be linked as -L${pathhere}/lib -lsmm_d${filetrans}"
+   echo "Done... check performance looking at test_smm_${filetrans}.out"
+   echo "Final library can be linked as -L${pathhere}/lib -lsmm_${filetrans}"
 fi
 

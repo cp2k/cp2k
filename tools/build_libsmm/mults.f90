@@ -3,48 +3,87 @@ MODULE mults
   IMPLICIT NONE
 
 CONTAINS
-  FUNCTION trstr(tranpose_flavor)
-    INTEGER :: tranpose_flavor
-    CHARACTER(LEN=2) :: trstr
+  FUNCTION trdat(data_type)
+    INTEGER :: data_type
+    CHARACTER(LEN=25) :: trdat
+    SELECT CASE(data_type)
+    CASE(1)
+      trdat="REAL(KIND=KIND(0.0D0))"
+    CASE(2)
+      trdat="REAL(KIND=KIND(0.0))"
+    CASE(3)
+      trdat="COMPLEX(KIND=KIND(0.0D0))"
+    CASE(4)
+      trdat="COMPLEX(KIND=KIND(0.0))"
+    END SELECT
+  END FUNCTION
+  FUNCTION trgemm(data_type)
+    INTEGER :: data_type
+    CHARACTER(LEN=5) :: trgemm
+    SELECT CASE(data_type)
+    CASE(1)
+      trgemm="DGEMM"
+    CASE(2)
+      trgemm="SGEMM"
+    CASE(3)
+      trgemm="ZGEMM"
+    CASE(4)
+      trgemm="CGEMM"
+    END SELECT
+  END FUNCTION
+  FUNCTION trstr(tranpose_flavor,data_type)
+    INTEGER :: tranpose_flavor, data_type
+    CHARACTER(LEN=3) :: trstr
+    CHARACTER(LEN=1) :: dstr
+    SELECT CASE(data_type)
+    CASE(1)
+     dstr="d"
+    CASE(2)
+     dstr="s"
+    CASE(3)
+     dstr="z"
+    CASE(4)
+     dstr="c"
+    END SELECT
     SELECT CASE(tranpose_flavor)
     CASE(1)
-     trstr="nn"
+     trstr=dstr//"nn"
     CASE(2)
-     trstr="tn"
+     trstr=dstr//"tn"
     CASE(3)
-     trstr="nt"
+     trstr=dstr//"nt"
     CASE(4)
-     trstr="tt"
+     trstr=dstr//"tt"
     END SELECT
   END FUNCTION trstr
 
-  SUBROUTINE write_matrix_defs(M,N,K,tranpose_flavor)
-   INTEGER M,N,K,tranpose_flavor
+  SUBROUTINE write_matrix_defs(M,N,K,tranpose_flavor,data_type)
+   INTEGER M,N,K,tranpose_flavor,data_type
    SELECT CASE(tranpose_flavor)
    CASE(1)
      write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-        "      REAL(KIND=KIND(0.0D0)) :: C(",M,",",N,"), B(",K,",",N,"), A(",M,",",K,")"
+        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",K,",",N,"), A(",M,",",K,")"
    CASE(2)
      write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-        "      REAL(KIND=KIND(0.0D0)) :: C(",M,",",N,"), B(",K,",",N,"), A(",K,",",M,")"
+        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",K,",",N,"), A(",K,",",M,")"
    CASE(3)
      write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-        "      REAL(KIND=KIND(0.0D0)) :: C(",M,",",N,"), B(",N,",",K,"), A(",M,",",K,")"
+        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",N,",",K,"), A(",M,",",K,")"
    CASE(4)
      write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') & 
-        "      REAL(KIND=KIND(0.0D0)) :: C(",M,",",N,"), B(",N,",",K,"), A(",K,",",M,")"
+        "      "//trdat(data_type)//":: C(",M,",",N,"), B(",N,",",K,"), A(",K,",",M,")"
    END SELECT
   END SUBROUTINE write_matrix_defs
 
-  SUBROUTINE write_test_fun(M,N,K,transpose_flavor)
-   INTEGER :: M,N,K,transpose_flavor
+  SUBROUTINE write_test_fun(M,N,K,transpose_flavor,data_type)
+   INTEGER :: M,N,K,transpose_flavor,data_type
    write(6,*)                    "FUNCTION TEST(X,A,B,C,N) RESULT(res)"
-   write(6,*)                    "   REAL(KIND=KIND(0.0D0)) :: C(*), A(*), B(*)"
+   write(6,*)                    "      "//trdat(data_type)//" ::C(*), A(*), B(*)"
    write(6,*)                    "   INTEGER :: N"
    write(6,*)                    "   REAL :: t2,t1,res"
    write(6,*)                    "   INTERFACE"
    write(6,*)                    "     SUBROUTINE X(A,B,C)"
-   CALL write_matrix_defs(M,N,K,transpose_flavor)
+   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type)
    write(6,*)                    "     END SUBROUTINE"
    write(6,*)                    "   END INTERFACE"
    write(6,*)                    "   INTEGER :: i"
@@ -58,8 +97,8 @@ CONTAINS
    write(6,*)                    "END FUNCTION"
   END SUBROUTINE
 
-  SUBROUTINE smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor)
-     INTEGER :: mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor
+  SUBROUTINE smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type)
+     INTEGER :: mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type
      INTEGER :: im,in,ik,ido
      INTEGER :: loop_order(3,6),have_loops
 
