@@ -98,8 +98,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: explicit, failure, is_x(2), &
                                                 is_y(2), is_z(2)
-    REAL(KIND=dp)                            :: skin
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: skin
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
@@ -114,10 +114,11 @@ CONTAINS
        walls_section => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%QMMM%WALLS",error=error)
        CALL section_vals_get(walls_section, explicit=explicit, error=error)
        IF (explicit) THEN
-          CALL section_vals_val_get(walls_section,"WALL_SKIN",r_val=skin,error=error)
+          NULLIFY(skin)
+          CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=skin,error=error)
           CALL section_vals_val_get(walls_section,"TYPE",i_val=iwall_type,error=error)
        ELSE
-          skin = 0.0_dp
+          skin(:) = 0.0_dp
        END IF
        CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -142,12 +143,12 @@ CONTAINS
              IF (explicit) THEN
                 IF (iwall_type==do_qmmm_wall_reflective) THEN
                    ! Apply Walls
-                   is_x(1) = (coord(1)<skin)
-                   is_x(2) = (coord(1)>(qm_cell_diag(1)-skin))
-                   is_y(1) = (coord(2)<skin)                  
-                   is_y(2) = (coord(2)>(qm_cell_diag(2)-skin))
-                   is_z(1) = (coord(3)<skin)                  
-                   is_z(2) = (coord(3)>(qm_cell_diag(3)-skin))
+                   is_x(1) = (coord(1)<skin(1))
+                   is_x(2) = (coord(1)>(qm_cell_diag(1)-skin(1)))
+                   is_y(1) = (coord(2)<skin(2))                  
+                   is_y(2) = (coord(2)>(qm_cell_diag(2)-skin(2)))
+                   is_z(1) = (coord(3)<skin(3))                  
+                   is_z(2) = (coord(3)>(qm_cell_diag(3)-skin(3)))
                    IF (ANY(is_x)) THEN
                       ! X coordinate
                       IF      (is_x(1)) THEN
@@ -210,15 +211,17 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: failure, is_x(2), is_y(2), &
                                                 is_z(2)
-    REAL(KIND=dp)                            :: k, skin, wallenergy, wallforce
+    REAL(KIND=dp)                            :: k, wallenergy, wallforce
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: skin
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
     TYPE(qs_energy_type), POINTER            :: energy
 
-    CALL section_vals_val_get(walls_section,"WALL_SKIN",r_val=skin,error=error)
+    NULLIFY(skin)
+    CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=skin,error=error)
     CALL section_vals_val_get(walls_section,"K",r_val=k,error=error)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -240,49 +243,49 @@ CONTAINS
        qm_index = qm_atom_index(ip)
        coord = particles_mm(qm_index)%r
        IF (ANY(coord<skin).OR.ANY(coord>(qm_cell_diag-skin))) THEN
-          is_x(1) = (coord(1)<skin)
-          is_x(2) = (coord(1)>(qm_cell_diag(1)-skin))
-          is_y(1) = (coord(2)<skin)                  
-          is_y(2) = (coord(2)>(qm_cell_diag(2)-skin))
-          is_z(1) = (coord(3)<skin)                  
-          is_z(2) = (coord(3)>(qm_cell_diag(3)-skin))
+          is_x(1) = (coord(1)<skin(1))
+          is_x(2) = (coord(1)>(qm_cell_diag(1)-skin(1)))
+          is_y(1) = (coord(2)<skin(2))                  
+          is_y(2) = (coord(2)>(qm_cell_diag(2)-skin(2)))
+          is_z(1) = (coord(3)<skin(3))                  
+          is_z(2) = (coord(3)>(qm_cell_diag(3)-skin(3)))
           IF (is_x(1)) THEN
-            wallforce=2.0_dp*k*(skin-coord(1))
+            wallforce=2.0_dp*k*(skin(1)-coord(1))
             particles_mm(qm_index)%f(1)=particles_mm(qm_index)%f(1)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*(skin-coord(1))*0.5_dp
+            wallenergy=wallenergy+wallforce*(skin(1)-coord(1))*0.5_dp
           ENDIF
           IF (is_x(2)) THEN
-            wallforce=2.0_dp*k*((qm_cell_diag(1)-skin)-coord(1))
+            wallforce=2.0_dp*k*((qm_cell_diag(1)-skin(1))-coord(1))
             particles_mm(qm_index)%f(1)=particles_mm(qm_index)%f(1)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*((qm_cell_diag(1)-skin)-&
+            wallenergy=wallenergy+wallforce*((qm_cell_diag(1)-skin(1))-&
                   coord(1))*0.5_dp
           ENDIF
           IF (is_y(1)) THEN
-            wallforce=2.0_dp*k*(skin-coord(2))
+            wallforce=2.0_dp*k*(skin(2)-coord(2))
             particles_mm(qm_index)%f(2)=particles_mm(qm_index)%f(2)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*(skin-coord(2))*0.5_dp
+            wallenergy=wallenergy+wallforce*(skin(2)-coord(2))*0.5_dp
           ENDIF
           IF (is_y(2)) THEN
-            wallforce=2.0_dp*k*((qm_cell_diag(2)-skin)-coord(2))
+            wallforce=2.0_dp*k*((qm_cell_diag(2)-skin(2))-coord(2))
             particles_mm(qm_index)%f(2)=particles_mm(qm_index)%f(2)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*((qm_cell_diag(2)-skin)-&
+            wallenergy=wallenergy+wallforce*((qm_cell_diag(2)-skin(2))-&
                   coord(2))*0.5_dp
           ENDIF
           IF (is_z(1)) THEN
-            wallforce=2.0_dp*k*(skin-coord(3))
+            wallforce=2.0_dp*k*(skin(3)-coord(3))
             particles_mm(qm_index)%f(3)=particles_mm(qm_index)%f(3)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*(skin-coord(3))*0.5_dp
+            wallenergy=wallenergy+wallforce*(skin(3)-coord(3))*0.5_dp
           ENDIF
           IF (is_z(2)) THEN
-            wallforce=2.0_dp*k*((qm_cell_diag(3)-skin)-coord(3))
+            wallforce=2.0_dp*k*((qm_cell_diag(3)-skin(3))-coord(3))
             particles_mm(qm_index)%f(3)=particles_mm(qm_index)%f(3)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*((qm_cell_diag(3)-skin)-&
+            wallenergy=wallenergy+wallforce*((qm_cell_diag(3)-skin(3))-&
                   coord(3))*0.5_dp
           ENDIF
        ENDIF

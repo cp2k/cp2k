@@ -45,7 +45,7 @@
       MM_INDEX 1
     &END QM_KIND
     &WALLS
-      WALL_SKIN [angstrom] 1.5
+      WALL_SKIN [angstrom] 1.5 1.5 1.5
     &END
   &END
   &SUBSYS

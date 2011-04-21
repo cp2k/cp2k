@@ -341,10 +341,12 @@ CONTAINS
             error=error)    
 
        CALL keyword_create(keyword, name="WALL_SKIN",&
-            description="Specify the value of the skin of the Wall. The wall's effect is felt"//&
-            " when atoms fall within the skin of the Wall.",&
-            usage="WALL_SKIN <real>",n_var=1,&
-            default_r_val=cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
+            description="Specify the value of the skin of the Wall in each dimension. "//&
+            "The wall's effect is felt when atoms fall within the skin of the Wall.",&
+            usage="WALL_SKIN <real> <real> <real>",n_var=3,type_of_var=real_t,&
+            default_r_vals=(/ cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
+                              cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
+                              cp_unit_to_cp2k(0.5_dp,"angstrom",error=error) /),&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
