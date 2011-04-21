@@ -1500,7 +1500,6 @@ CONTAINS
     cuda_copyout_c: IF (mm_driver .EQ. mm_driver_cuda) THEN
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(1)%data_area,&
             carrier%datasize, error=error)
-       WRITE(*,*)routineN//" copying", carrier%datasize, "doubles"
        t_xfer_c_out = -m_walltime()
        CALL dbcsr_cuda_cp_dev_to_host(c_dev,&
             product_matrix%m%wms(1)%data_area,&
