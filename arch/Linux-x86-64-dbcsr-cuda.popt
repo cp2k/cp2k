@@ -7,7 +7,7 @@ FC       = mpif90
 LD       = $(FC)
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__GFORTRAN -D__FFTSG  -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_NO_ISO_C_BINDING -D__HAS_BASIC_ISO_C_BINDING -D__DBCSR_CUDA -D__USE_CP2K_TRACE
+DFLAGS   = -D__GFORTRAN -D__FFTSG  -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_NO_ISO_C_BINDING -D__DBCSR_CUDA -D__USE_CP2K_TRACE
 FCFLAGS  = -g -O3 -ffast-math -ffree-form -fcray-pointer $(DFLAGS) -I$(GFORTRAN_INC)
 LDFLAGS  = $(FCFLAGS)
 

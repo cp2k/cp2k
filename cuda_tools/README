@@ -5,15 +5,28 @@ These tools are intended to allow CP2K to perform portions of the calculation on
 
 To compile CP2K with CUDA support, three modifications must be made to the arch file.  An example is provided in arch/Linux-x86-64-cuda.sopt.  The necessary modifications are:
 
+BASIC:
+
 1)  Add a line "NVCC = nvcc" pointing the makefile to the nvcc compiler.
 
-2)  Add -D__CUDA and -D__FFTSGL to the DFLAGS and NVFLAGS environmental variables
+2)  Add -D__CUDAPW and -D__FFTSGL to the DFLAGS and NVFLAGS environmental variables
 
 3)  Add libcudart.so, libcufft.so, and cublas to the LIBS variable.
 
+DBCSR (experimental, with limitations):
+
+1. Add __DBCSR_CUDA to DFLAGS.
+
+2. Add -lcudart and -lrt to the LIBS variable (ensuring the
+   libcudart.so is in the library path; use -L/path/to/libcudart.so to
+   define it).
+
+3. Consult the input reference manual for input file options that
+   modify DBCSR CUDA behavior.
+
 Then, compile as normal.
 
-Alternatively one can comile with support for running DGEMM and DSYMM on the gpu, but nothing else.  This is accomplised as above, but instead of __CUDA and __FFTSGL one should include __CUBLASDP.
+Alternatively one can comile with support for running DGEMM and DSYMM on the gpu, but nothing else.  This is accomplised as above, but instead of __CUDAPW and __FFTSGL one should include __CUBLASDP.
 
 Features
 --------

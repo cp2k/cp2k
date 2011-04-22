@@ -59,6 +59,16 @@ How to compile CP2K code
      http://www.chem.vt.edu/chem-dept/valeev/software/libint/libint.html
      Note, do *NOT* use libinit-1.1.3.
 
+ 2g) CUDA support:
+
+     * (Experimental): Use the __DBCSR_CUDA to compile with CUDA
+       support for matrix multiplication.  Also add -lcudart and -lrt
+       to LIBS.  The compiler must support ISO_C_BINDING.
+     * Use __CUDAPW and/or __FFTCU for CUDA support to for PW and FFT
+       calculations.  The Fortran compiler must use an appended
+       underscore for linking C subroutines.
+     * Consult cuda_tools/README for more information.
+
  3) to compile the code:
 
  3a) The location of compiler and libraries needs to be specified. For a number of common architectures,
