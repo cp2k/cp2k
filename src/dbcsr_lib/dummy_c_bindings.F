@@ -27,8 +27,8 @@ MODULE dummy_c_bindings
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dummy_c_bindings'
 
   PUBLIC :: c_ptr
+  PUBLIC :: c_int
   PUBLIC :: c_size_t
-
 
   TYPE c_ptr
      INTEGER :: dummy

@@ -166,7 +166,9 @@
             __LINE__, error=error)
        NULLIFY (host_mem)
     ELSE
+#if defined (__DBCSR_CUDA)
        CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
+#endif
     ENDIF
     IF (PRESENT (stat)) stat = istat
     IF (PRESENT (error)) CALL dbcsr_error_stop (error_handle, error)
@@ -189,11 +191,11 @@
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
     IF (SIZE (host_mem) .GT. 0) THEN
        host_first_el => host_mem(1)
        host_mem_c_ptr = C_LOC (host_first_el)
     ENDIF
-#if defined (__DBCSR_CUDA)
     IF (SIZE (host_mem) .GT. 0) THEN
        istat = cuda_host_mem_dealloc_cu (host_mem_c_ptr)
     ENDIF

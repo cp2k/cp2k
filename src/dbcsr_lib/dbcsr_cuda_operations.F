@@ -13,7 +13,11 @@
 !> - Created 2011-04-06
 ! *****************************************************************************
 MODULE dbcsr_cuda_operations
+#if ! defined (__HAS_NO_ISO_C_BINDING) || defined (__HAS_BASIC_ISO_C_BINDING)
   USE ISO_C_BINDING
+#else
+  USE dummy_c_bindings
+#endif
   USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_get_type
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type,&
                                              dbcsr_cuda_mem_type_c4,&

@@ -65,11 +65,11 @@
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Device memory too small for copy.",&
          __LINE__, error=error)
+#if defined (__DBCSR_CUDA)
     IF (n .GT. 0) THEN
        host_first_el => host_mem(1)
        host_mem_c_ptr = C_LOC (host_first_el)
     ENDIF
-#if defined (__DBCSR_CUDA)
     IF (n .GT. 0) THEN
        istat = cuda_memcpy_h2d_cu(host_mem_c_ptr, dev_mem%ref,&
             INT(n*(2*real_8_size), KIND=C_SIZE_T))
@@ -111,11 +111,11 @@
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Device memory too small for copy.",&
          __LINE__, error=error)
+#if defined (__DBCSR_CUDA)
     IF (n .GT. 0) THEN
        host_first_el => host_mem(1)
        host_mem_c_ptr = C_LOC (host_first_el)
     ENDIF
-#if defined (__DBCSR_CUDA)
     IF (n .GT. 0) THEN
        istat = cuda_memcpy_d2h_cu(dev_mem%ref, host_mem_c_ptr,&
             INT(n*(2*real_8_size), KIND=C_SIZE_T))
