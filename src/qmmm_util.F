@@ -98,8 +98,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: explicit, failure, is_x(2), &
                                                 is_y(2), is_z(2)
-    REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: skin
+    REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag, skin
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: list
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
@@ -114,9 +114,10 @@ CONTAINS
        walls_section => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%QMMM%WALLS",error=error)
        CALL section_vals_get(walls_section, explicit=explicit, error=error)
        IF (explicit) THEN
-          NULLIFY(skin)
-          CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=skin,error=error)
+          NULLIFY(list)
+          CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=list,error=error)
           CALL section_vals_val_get(walls_section,"TYPE",i_val=iwall_type,error=error)
+          skin(:) = list(:)
        ELSE
           skin(:) = 0.0_dp
        END IF
@@ -212,16 +213,16 @@ CONTAINS
     LOGICAL                                  :: failure, is_x(2), is_y(2), &
                                                 is_z(2)
     REAL(KIND=dp)                            :: k, wallenergy, wallforce
-    REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: skin
+    REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag, skin
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: list
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
     TYPE(qs_energy_type), POINTER            :: energy
 
-    NULLIFY(skin)
-    CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=skin,error=error)
+    NULLIFY(list)
+    CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=list,error=error)
     CALL section_vals_val_get(walls_section,"K",r_val=k,error=error)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -233,6 +234,8 @@ CONTAINS
                        cell=qm_cell,subsys=subsys_qm,error=error)
     qm_atom_index   => force_env%qmmm_env%qm_atom_index
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+
+    skin(:) = list(:)
   
     qm_cell_diag = (/qm_cell%hmat(1,1),&
                      qm_cell%hmat(2,2),&
