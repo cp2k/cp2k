@@ -230,6 +230,11 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
          displacement=rmvolume,lbias=.FALSE.,format_string=format_string,&
          string3=string3)
 
+! Hybrid MC moves (basically short MD runs)
+    string2="Attempted       Accepted       Percent"
+    string1="HMC Moves"
+    CALL final_move_write(all_moves(1)%moves%hmc,string1,string2,iw)
+
 ! Quickstep moves (a series of moves with one potential, and then corrected for
 ! by another potential
     string2="Attempted       Accepted       Percent"

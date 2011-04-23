@@ -77,7 +77,8 @@ MODULE mc_types
             get_mc_molecule_info,&
             mc_input_file_type,mc_input_file_create,&
             get_mc_input_file,mc_input_file_destroy,&
-            mc_input_parameters_check
+            mc_input_parameters_check,&
+            mc_ekin_type
 
 ! *****************************************************************************
   TYPE mc_simpar_type
@@ -127,6 +128,7 @@ MODULE mc_types
       REAL ( dp ) :: pmavbmc
       REAL ( dp ) :: pmswap
       REAL ( dp ) :: pmvolume,pmvol_box
+      REAL ( dp ) :: pmhmc,pmhmc_box
       REAL ( dp ) :: pmtraion
       REAL ( dp ) :: pmtrans
       REAL ( dp ) :: BETA
@@ -140,6 +142,11 @@ MODULE mc_types
       REAL ( dp ) :: exp_min_val, exp_max_val, min_val, max_val
   END TYPE mc_simpar_type
 
+! *****************************************************************************
+  TYPE mc_ekin_type
+! contains the kinetic energy of an MD sequence from hybrid MC
+     REAL ( dp ) :: initial_ekin,final_ekin
+   END TYPE mc_ekin_type
 ! *****************************************************************************
   TYPE mc_input_file_type
 ! contains all the text of the input file
@@ -202,6 +209,7 @@ MODULE mc_types
       TYPE ( accattempt ), POINTER :: rot
       TYPE ( accattempt ), POINTER :: swap
       TYPE ( accattempt ), POINTER :: volume
+      TYPE ( accattempt ), POINTER :: hmc
       TYPE ( accattempt ), POINTER :: avbmc_inin
       TYPE ( accattempt ), POINTER :: avbmc_outin
       TYPE ( accattempt ), POINTER :: avbmc_inout
@@ -280,7 +288,7 @@ CONTAINS
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
        pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps,&
-       exp_min_val, exp_max_val, min_val, max_val, eta)
+       exp_min_val, exp_max_val, min_val, max_val, eta, pmhmc, pmhmc_box)
 
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_parameters_type
@@ -300,7 +308,7 @@ CONTAINS
                                                 rmtrans
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, &
                                                 pmswap, pmvolume, pmtraion, &
-                                                pmtrans
+                                                pmtrans, pmhmc, pmhmc_box
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
@@ -373,6 +381,8 @@ CONTAINS
     IF ( PRESENT ( min_val ) ) min_val = mc_par % min_val
     IF ( PRESENT ( pmswap ) ) pmswap = mc_par % pmswap
     IF ( PRESENT ( pmvolume) ) pmvolume = mc_par % pmvolume
+    IF ( PRESENT ( pmhmc) ) pmhmc = mc_par % pmhmc
+    IF ( PRESENT ( pmhmc_box) ) pmhmc_box = mc_par % pmhmc_box
     IF ( PRESENT ( pmvol_box) ) pmvol_box = mc_par % pmvol_box
     IF ( PRESENT ( pmtraion ) ) pmtraion = mc_par % pmtraion
     IF ( PRESENT ( pmtrans ) ) pmtrans = mc_par % pmtrans
@@ -472,7 +482,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
       avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,eta,&
-      mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val)
+      mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val,&
+      pmhmc,pmhmc_box)
 
 ! *****************************************************************************
 !> \brief changes the private elements of the mc_parameters_type
@@ -492,7 +503,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temperature, pressure
     INTEGER, INTENT(IN), OPTIONAL            :: iuptrans, iupvolume
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmswap, pmvolume, pmtraion, &
-                                                pmtrans, BETA, rcut
+                                                pmtrans, BETA, rcut, pmhmc,&
+                                                pmhmc_box
     INTEGER, INTENT(IN), OPTIONAL            :: iprint
     LOGICAL, INTENT(IN), OPTIONAL            :: lbias
     INTEGER, INTENT(IN), OPTIONAL            :: nstep
@@ -550,6 +562,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( rcut ) ) mc_par % rcut = rcut
     IF ( PRESENT ( pressure ) ) mc_par % pressure = pressure
     IF ( PRESENT ( pmvolume ) ) mc_par % pmvolume = pmvolume
+    IF ( PRESENT ( pmhmc ) ) mc_par % pmhmc = pmhmc
+    IF ( PRESENT ( pmhmc_box ) ) mc_par % pmhmc_box = pmhmc_box
     IF ( PRESENT ( pmvol_box ) ) mc_par % pmvol_box = pmvol_box
     IF ( PRESENT ( pmswap ) ) mc_par % pmswap = pmswap
     IF ( PRESENT ( pmtrans ) ) mc_par % pmtrans = pmtrans
@@ -1210,6 +1224,10 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
 ! now an integer array
       CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_vals=temp_i_array,error=error)
+      IF(SIZE(temp_i_array) .NE. nmol_types)THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'AVBMC_ATOM must have as many values as there are molecule types.')
+      ENDIF
       DO imol=1,SIZE(temp_i_array)
          mc_par%avbmc_atom(imol)=temp_i_array(imol)
       ENDDO
@@ -1218,6 +1236,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
       CALL section_vals_val_get(mc_section,"TEMPERATURE",r_val=mc_par%temperature,error=error)
       CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
+      CALL section_vals_val_get(mc_section,"PMHMC",r_val=mc_par%pmhmc,error=error)
+      CALL section_vals_val_get(mc_section,"PMHMC_BOX",r_val=mc_par%pmhmc_box,error=error)
       CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_val=mc_par%pmvol_box,error=error)
       CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
       CALL section_vals_val_get(mc_section,"PMAVBMC",r_val=mc_par%pmavbmc,error=error)
@@ -1394,6 +1414,10 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             mc_par % pmvolume
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmvol_box ', &
             mc_par % pmvol_box
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmhmc ', &
+            mc_par % pmhmc
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmhmc_box ', &
+            mc_par % pmhmc_box
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
             mc_par % pmswap
          WRITE ( iw, format_string ) ' MC| pmswap_mol ', &

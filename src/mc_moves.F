@@ -27,6 +27,7 @@ MODULE mc_moves
                                              force_env_set_cell,&
                                              force_env_type,&
                                              use_fist_force
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
@@ -39,7 +40,9 @@ MODULE mc_moves
                                              get_mc_par,&
                                              mc_molecule_info_type,&
                                              mc_moves_type,&
-                                             mc_simpar_type
+                                             mc_simpar_type,&
+                                             mc_ekin_type
+  USE md_run,                          ONLY: qs_mol_dyn
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: bend_type,&
@@ -67,7 +70,8 @@ MODULE mc_moves
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_moves'
 
   PUBLIC :: mc_conformation_change,mc_molecule_translation,&
-            mc_molecule_rotation,mc_volume_move,mc_avbmc_move
+            mc_molecule_rotation,mc_volume_move,mc_avbmc_move,&
+            mc_hmc_move
 
 CONTAINS
 
@@ -2464,5 +2468,164 @@ END SUBROUTINE mc_conformation_change
 
   END SUBROUTINE mc_avbmc_move
 
+! *****************************************************************************
+!> \brief performs a hybrid Monte Carlo move that runs a short MD sequence
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment whose cell we're changing
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated
+!> \param nnstep the total number of "outer moves" already performed
+!> \param old_energy the energy of the last accepted move involving an
+!>                    unbiased calculation
+!> \param box_number the box we're changing the volume of
+!> \param energy_check the running total of how much the energy has changed
+!>                      since the initial configuration
+!> \param r_old the coordinates of the last accepted move involving an
+!>               unbiased calculation
+!> \param iw the unit number that writes to the screen
+!> \param rng_stream the random number stream that we draw from
+!> \param error the cp error type
+!> 
+!>      Designed for parallel use.
+!> \author MJM
+! *****************************************************************************
+  SUBROUTINE mc_hmc_move ( mc_par,force_env, globenv, moves,move_updates,&
+                        old_energy,box_number,&
+                        energy_check,r_old,iw,rng_stream,error)
+
+    TYPE(mc_simpar_type), POINTER            :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    INTEGER, INTENT(IN)                      :: box_number
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: r_old
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: group, handle, iatom, istat, source
+    INTEGER, DIMENSION(:), POINTER           :: nunits_tot
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp) :: BETA, energy_term, exp_max_val, &
+      exp_min_val, new_energy, rand, &
+      value, w
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r
+    TYPE(cp_subsys_type), POINTER            :: oldsys
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    TYPE(particle_list_type), POINTER        :: particles_old
+    TYPE(mc_ekin_type),POINTER               :: hmc_ekin
+
+
+! begin the timing of the subroutine
+
+      CALL timeset(routineN,handle)
+
+! get a bunch of stuff from mc_par
+      CALL get_mc_par(mc_par,ionode=ionode,&
+         BETA=BETA,exp_max_val=exp_max_val,&
+         exp_min_val=exp_min_val,source=source,group=group,&
+         mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits_tot=nunits_tot)
+
+! nullify some pointers
+      NULLIFY(particles_old,oldsys,hmc_ekin)
+
+! do some allocation
+      ALLOCATE (r(1:3,1:nunits_tot(box_number)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "r",3*nunits_tot(box_number)*dp_size)
+      ALLOCATE (hmc_ekin,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "hmc_ekin")
+
+! record the attempt
+      moves%hmc%attempts=moves%hmc%attempts+1
+      move_updates%hmc%attempts=move_updates%hmc%attempts+1
+
+! now let's grab the particle positions
+      CALL force_env_get(force_env,subsys=oldsys,&
+         error=error)
+      CALL cp_subsys_get(oldsys,particles=particles_old, &
+         error=error)
+
+! save the old coordinates
+      DO iatom=1,nunits_tot(box_number)
+         r(1:3,iatom)=particles_old%els(iatom)%r(1:3)
+      ENDDO
+
+! now run the MD simulation
+      CALL qs_mol_dyn(force_env,globenv,error=error,hmc_ekin=hmc_ekin)
+
+
+! get the energy
+      CALL force_env_get(force_env,&
+         potential_energy=new_energy,error=error)
+
+! accept or reject the move
+! to prevent overflows
+      energy_term=new_energy+hmc_ekin%final_ekin-old_energy-hmc_ekin%initial_ekin
+
+      value=-BETA*(energy_term)
+      IF    (value .GT. exp_max_val) THEN
+         w=10.0_dp
+      ELSEIF(value .LT. exp_min_val) THEN
+         w=0.0_dp
+      ELSE
+         w=EXP(value)
+      ENDIF
+
+      IF ( w .GE. 1.0E0_dp ) THEN
+         w=1.0E0_dp
+         rand=0.0E0_dp
+      ELSE
+         IF(ionode) rand=next_random_number(rng_stream,error=error)
+         CALL mp_bcast(rand,source,group)
+      ENDIF
+
+      IF (rand .LT. w) THEN
+
+! accept the move
+         moves%hmc%successes=moves%hmc%successes+1
+         move_updates%hmc%successes=move_updates%hmc%successes+1
+
+! update energies
+         energy_check=energy_check+(new_energy-old_energy)
+         old_energy=new_energy
+
+         DO iatom=1,nunits_tot(box_number)
+            r_old(1:3,iatom)=particles_old%els(iatom)%r(1:3)
+         ENDDO
+
+      ELSE
+
+! reset the cell and particle positions
+         DO iatom=1,nunits_tot(box_number)
+            particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
+         ENDDO
+
+      ENDIF
+
+! deallocate some stuff
+      DEALLOCATE(r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "r")
+      DEALLOCATE(hmc_ekin,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "hmc_ekin")
+
+! end the timing
+      CALL timestop(handle)
+
+    END SUBROUTINE mc_hmc_move
 END MODULE mc_moves
 

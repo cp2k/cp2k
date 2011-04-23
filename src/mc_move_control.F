@@ -98,6 +98,9 @@ CONTAINS
       ALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%volume",0)
+      ALLOCATE (moves%hmc,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "moves%hmc",0)
       ALLOCATE (moves%avbmc_inin,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_inin",0)
@@ -163,6 +166,9 @@ CONTAINS
       moves%volume%attempts=0
       moves%volume%successes=0
       moves%volume%qsuccesses=0
+      moves%hmc%attempts=0
+      moves%hmc%successes=0
+      moves%hmc%qsuccesses=0
       moves%swap%attempts=0
       moves%swap%successes=0
       moves%swap%qsuccesses=0
@@ -236,6 +242,9 @@ CONTAINS
       DEALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%volume",0)
+      DEALLOCATE (moves%hmc,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "moves%hmc",0)
       DEALLOCATE (moves%avbmc_inin,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_inin",0)
@@ -304,6 +313,7 @@ SUBROUTINE move_q_reinit ( moves , lbias )
          moves%trans%qsuccesses=0
          moves%rot%qsuccesses=0
          moves%volume%qsuccesses=0
+         moves%hmc%qsuccesses=0
          moves%qtrans_dis=0.0E0_dp
       ENDIF
 
@@ -361,6 +371,8 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%trans%qsuccesses
          moves%rot%successes=moves%rot%successes&
             +moves%rot%qsuccesses
+         moves%hmc%successes=moves%hmc%successes&
+            +moves%hmc%qsuccesses
          moves%volume%successes=moves%volume%successes&
             +moves%volume%qsuccesses
          moves%avbmc_inin%successes=moves%avbmc_inin%successes&
@@ -435,6 +447,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       moves%empty_conf
     WRITE(unit,1000) nnstep,' volume    ',&
       moves%volume%successes,moves%volume%attempts
+    WRITE(unit,1000) nnstep,' HMC    ',&
+      moves%hmc%successes,moves%hmc%attempts
     WRITE(unit,1000) nnstep,' avbmc_inin  ',&
       moves%avbmc_inin%successes,moves%avbmc_inin%attempts
     WRITE(unit,1000) nnstep,' avbmc_inout  ',&

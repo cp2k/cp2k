@@ -61,6 +61,7 @@ MODULE mc_ensembles
                                              mc_conformation_change,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
+                                             mc_hmc_move,&
                                              mc_volume_move
   USE mc_types,                        ONLY: get_mc_molecule_info,&
                                              get_mc_par,&
@@ -153,12 +154,13 @@ CONTAINS
                                                 should_stop
     REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
                                                 pmrot_mol, pmtraion_mol, &
-                                                pmtrans_mol, pmvol_box
+                                                pmtrans_mol, pmvol_box,&
+                                                pmhmc_box
     REAL(dp), DIMENSION(:, :), POINTER       :: conf_prob, mass
     REAL(KIND=dp)                            :: discrete_step, pmavbmc, &
                                                 pmswap, pmtraion, pmtrans, &
                                                 pmvolume, rand, test_energy, &
-                                                unit_conv
+                                                unit_conv, pmhmc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_temp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -213,6 +215,8 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (pmvol_box(1:nboxes),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (pmhmc_box(1:nboxes),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO ibox=1,nboxes
        CALL get_mc_env ( mc_env(ibox)%mc_env, &
@@ -232,7 +236,7 @@ CONTAINS
          data_file=data_file(1),moves_file=moves_file(1),&
          cell_file=cell_file(1),coords_file=coords_file(1),&
          energy_file=energy_file(1),displacement_file=displacement_file(1),&
-         lstop=lstop,nstep=nstep,nstart=nstart,pmvolume=pmvolume,&
+         lstop=lstop,nstep=nstep,nstart=nstart,pmvolume=pmvolume,pmhmc=pmhmc,&
          molecules_file=molecules_file(1),pmswap=pmswap,nmoves=nmoves,&
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
          iupvolume=iupvolume,ldiscrete=ldiscrete,pmtraion_mol=pmtraion_mol,&
@@ -240,7 +244,7 @@ CONTAINS
          discrete_step=discrete_step,fft_lib=fft_lib,avbmc_atom=avbmc_atom,&
          pmavbmc=pmavbmc,pbias=pbias,mc_molecule_info=mc_molecule_info,&
          pmrot_mol=pmrot_mol,pmtrans_mol=pmtrans_mol,pmvol_box=pmvol_box(1),&
-         ensemble=ensemble)
+         ensemble=ensemble,pmhmc_box=pmhmc_box(1))
 
     ! get some data from the molecule types
     CALL get_mc_molecule_info(mc_molecule_info,conf_prob=conf_prob,&
@@ -262,14 +266,19 @@ CONTAINS
                cell_file=cell_file(ibox),coords_file=coords_file(ibox),&
                energy_file=energy_file(ibox),&
                displacement_file=displacement_file(ibox),&
-               molecules_file=molecules_file(ibox),pmvol_box=pmvol_box(ibox))
+               molecules_file=molecules_file(ibox),pmvol_box=pmvol_box(ibox),&
+               pmhmc_box=pmhmc_box(ibox))
        ENDDO
     ENDIF
 
     ! this is a check we can't do in the input checking
-    IF(pmvol_box(nboxes) .LT. 0.9999E0_dp) THEN
+    IF(pmvol_box(nboxes) .LT. 1.0E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
             'The last value of PMVOL_BOX needs to be 1.0')       
+    ENDIF
+    IF(pmhmc_box(nboxes) .LT. 1.0E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMHMC_BOX needs to be 1.0')       
     ENDIF
 
     ! allocate the particle positions array for broadcasting
@@ -594,6 +603,32 @@ CONTAINS
                nchains=nchains,nmol_types=nmol_types,nunits_tot=nunits_tot,&
                mol_type=mol_type,nchain_total=nchain_total,nunits=nunits,&
                atom_names=atom_names,mass=mass)
+
+       ELSEIF ( rand .LT. pmhmc) THEN
+! try hybrid Monte Carlo
+          IF(MOD(nnstep,iprint) == 0 .AND. (iw>0)) THEN
+             WRITE(iw,*) "Attempting a hybrid Monte Carlo move"
+             WRITE(iw,*)
+          ENDIF
+
+! pick a box at random
+          IF (ionode) rand=next_random_number(rng_stream,error=error)
+          CALL mp_bcast(rand,source,group)               
+          
+          DO ibox=1,nboxes
+             IF(rand .LE. pmhmc_box(ibox)) THEN
+                box_number=ibox
+                EXIT
+             ENDIF
+          ENDDO
+          
+          CALL mc_hmc_move( mc_par(box_number)%mc_par,&
+               force_env(box_number)%force_env,globenv,&
+               moves(1,box_number)%moves,&
+               move_updates(1,box_number)%moves,&
+               old_energy(box_number),box_number,&
+               energy_check(box_number),r_old(:,:,box_number),iw,&
+               rng_stream,error=error)
 
        ELSEIF ( rand .LT. pmavbmc) THEN
           ! try an AVBMC move
@@ -1126,6 +1161,8 @@ CONTAINS
        CALL mc_averages_release(averages(ibox)%averages)
     ENDDO
 
+    DEALLOCATE(pmhmc_box,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(pmvol_box,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(r_old,STAT=stat)

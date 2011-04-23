@@ -47,6 +47,7 @@ MODULE md_run
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
+  USE mc_types,                        ONLY: mc_ekin_type
   USE md_ener_types,                   ONLY: create_md_ener,&
                                              md_ener_type,&
                                              release_md_ener
@@ -109,13 +110,14 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_ekin, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
     LOGICAL, INTENT(IN), OPTIONAL            :: rm_restart_info
+    TYPE(mc_ekin_type),POINTER,OPTIONAL      :: hmc_ekin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
@@ -137,7 +139,12 @@ CONTAINS
     ! Real call to MD driver - Low Level
     CALL md_env_create(md_env, md_section, para_env, force_env=force_env, error=error)
     CALL set_md_env(md_env, averages=averages, error=error)
-    CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
+    IF(PRESENT(hmc_ekin))THEN
+       CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, &
+            error, hmc_ekin=hmc_ekin)
+    ELSE
+       CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
+    ENDIF
     CALL md_env_release(md_env, error=error)
 
     ! Clean restartable sections..
@@ -152,12 +159,13 @@ CONTAINS
 !>      Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
+  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error, hmc_ekin)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(mc_ekin_type),POINTER,OPTIONAL      :: hmc_ekin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
@@ -405,6 +413,9 @@ CONTAINS
     CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
          constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
 
+! if we need the initial kinetic energy for Hybrid Monte Carlo
+    IF(PRESENT(hmc_ekin)) hmc_ekin%initial_ekin=md_ener%ekin
+
     ! Real MD Loop
     DO istep=1, simpar%nsteps, md_stride
        ! Increase counters
@@ -478,6 +489,9 @@ CONTAINS
           CALL write_output_reftraj(md_env,error=error) 
        END IF
     END DO
+
+! if we need the final kinetic energy for Hybrid Monte Carlo
+    IF(PRESENT(hmc_ekin)) hmc_ekin%final_ekin=md_ener%ekin
 
     ! Remove the iteration level
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
