@@ -500,6 +500,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PMHMC",&
+            description="The probability of attempting a hybrid MC move.",&
+            usage="PMHMC {real}",&
+            type_of_var=real_t, default_r_val=0.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMHMC_BOX",&
+            description="The probability of attempting a HMC move on this box.",&
+            usage="PMHMC_BOX {real}",&
+            type_of_var=real_t, default_r_val=1.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PMVOLUME",&
             description="The probability of attempting a volume move.",&
             usage="PMVOLUME {real}",&
