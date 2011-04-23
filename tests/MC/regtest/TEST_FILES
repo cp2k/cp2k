@@ -30,3 +30,6 @@ canonical.inp 6
 canonical_bias.inp 6
 # computes the second virial coefficient of SCP/E water at 300.0 K
 virial.inp 12
+# does a hybrid Monte Carlo simulation on classical argon at 70.0 K
+# there are no other types of MC moves in this simulation
+hmc.inp 6

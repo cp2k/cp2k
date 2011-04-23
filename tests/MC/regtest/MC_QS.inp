@@ -78,6 +78,8 @@
     PMTRANS 0.00
     PMVOLUME 1.00
     PMVOL_BOX 1.00
+    PMHMC 0.0
+    PMHMC_BOX 1.0
     PRESSURE 1.013
     ENSEMBLE traditional
     RESTART no
