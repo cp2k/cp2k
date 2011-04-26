@@ -119,7 +119,7 @@
       &MOL_SET
         &MOLECULE
           NMOL 7
-          CONN_FILE_NAME top_blah.psf
+          CONN_FILE_NAME topology_fist_WAT.psf
         &END
         &MOLECULE
           NMOL 6
