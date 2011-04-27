@@ -308,7 +308,7 @@ CONTAINS
                                                 rmtrans
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, &
                                                 pmswap, pmvolume, pmtraion, &
-                                                pmtrans, pmhmc, pmhmc_box
+                                                pmtrans
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
@@ -341,6 +341,7 @@ CONTAINS
                                                 min_val, max_val
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eta
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmhmc, pmhmc_box
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -503,8 +504,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temperature, pressure
     INTEGER, INTENT(IN), OPTIONAL            :: iuptrans, iupvolume
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmswap, pmvolume, pmtraion, &
-                                                pmtrans, BETA, rcut, pmhmc,&
-                                                pmhmc_box
+                                                pmtrans, BETA, rcut
     INTEGER, INTENT(IN), OPTIONAL            :: iprint
     LOGICAL, INTENT(IN), OPTIONAL            :: lbias
     INTEGER, INTENT(IN), OPTIONAL            :: nstep
@@ -527,7 +527,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     TYPE(mc_input_file_type), OPTIONAL, &
       POINTER                                :: mc_input_file, mc_bias_file
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: exp_max_val, exp_min_val, &
-                                                min_val, max_val
+                                                min_val, max_val, pmhmc, &
+                                                pmhmc_box
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN

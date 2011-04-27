@@ -117,7 +117,7 @@ CONTAINS
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
     LOGICAL, INTENT(IN), OPTIONAL            :: rm_restart_info
-    TYPE(mc_ekin_type),POINTER,OPTIONAL      :: hmc_ekin
+    TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
@@ -165,8 +165,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(mc_ekin_type),POINTER,OPTIONAL      :: hmc_ekin
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN

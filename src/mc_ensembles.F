@@ -59,9 +59,9 @@ MODULE mc_ensembles
                                              write_move_stats
   USE mc_moves,                        ONLY: mc_avbmc_move,&
                                              mc_conformation_change,&
+                                             mc_hmc_move,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
-                                             mc_hmc_move,&
                                              mc_volume_move
   USE mc_types,                        ONLY: get_mc_molecule_info,&
                                              get_mc_par,&
@@ -153,14 +153,12 @@ CONTAINS
                                                 loverlap, lreject, lstop, &
                                                 should_stop
     REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
-                                                pmrot_mol, pmtraion_mol, &
-                                                pmtrans_mol, pmvol_box,&
-                                                pmhmc_box
+                                                pmhmc_box, pmrot_mol, &
+                                                pmtraion_mol, pmtrans_mol, &
+                                                pmvol_box
     REAL(dp), DIMENSION(:, :), POINTER       :: conf_prob, mass
-    REAL(KIND=dp)                            :: discrete_step, pmavbmc, &
-                                                pmswap, pmtraion, pmtrans, &
-                                                pmvolume, rand, test_energy, &
-                                                unit_conv, pmhmc
+    REAL(KIND=dp) :: discrete_step, pmavbmc, pmhmc, pmswap, pmtraion, &
+      pmtrans, pmvolume, rand, test_energy, unit_conv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_temp
     REAL(KIND=dp), ALLOCATABLE, &

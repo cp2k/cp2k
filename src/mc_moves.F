@@ -38,10 +38,10 @@ MODULE mc_moves
                                              get_center_of_mass
   USE mc_types,                        ONLY: get_mc_molecule_info,&
                                              get_mc_par,&
+                                             mc_ekin_type,&
                                              mc_molecule_info_type,&
                                              mc_moves_type,&
-                                             mc_simpar_type,&
-                                             mc_ekin_type
+                                             mc_simpar_type
   USE md_run,                          ONLY: qs_mol_dyn
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -2512,19 +2512,19 @@ END SUBROUTINE mc_conformation_change
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, handle, iatom, istat, source
+    INTEGER                                  :: group, handle, iatom, istat, &
+                                                source
     INTEGER, DIMENSION(:), POINTER           :: nunits_tot
     LOGICAL                                  :: ionode
-    REAL(KIND=dp) :: BETA, energy_term, exp_max_val, &
-      exp_min_val, new_energy, rand, &
-      value, w
+    REAL(KIND=dp)                            :: BETA, energy_term, &
+                                                exp_max_val, exp_min_val, &
+                                                new_energy, rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     TYPE(cp_subsys_type), POINTER            :: oldsys
+    TYPE(mc_ekin_type), POINTER              :: hmc_ekin
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles_old
-    TYPE(mc_ekin_type),POINTER               :: hmc_ekin
-
 
 ! begin the timing of the subroutine
 
