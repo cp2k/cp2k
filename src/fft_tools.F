@@ -114,7 +114,7 @@ MODULE fft_tools
      COMPLEX(KIND=sp), DIMENSION(:, :), POINTER &
                                           :: ss, tt
      INTEGER, DIMENSION(:,:), POINTER     :: pgrid
-     INTEGER, DIMENSION(:), POINTER       :: xcor, zcor
+     INTEGER, DIMENSION(:), POINTER       :: xcor, zcor, pzcoord
      TYPE(fft_scratch_sizes)              :: sizes
      TYPE(fft_plan_type), DIMENSION (6)   :: fft_plan
      INTEGER                              :: last_tick
@@ -1731,9 +1731,8 @@ CONTAINS
                                                 ir, ix, iz, jj, jx, jy, jz, &
                                                 myx, myz, np, npx, npz, nx, &
                                                 nz, rs_pos
-    INTEGER, DIMENSION(2)                    :: xzcoord
-    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
-                                                sdispl, xcor, zcor
+    INTEGER, DIMENSION(:), POINTER           :: pzcoord, rcount, rdispl, &
+                                                scount, sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
     CALL timeset(routineN,handle)
@@ -1754,6 +1753,7 @@ CONTAINS
     pgrid  => fft_scratch%pgrid
     xcor   => fft_scratch%xcor
     zcor   => fft_scratch%zcor
+    pzcoord=> fft_scratch%pzcoord
     scount => fft_scratch%scount
     rcount => fft_scratch%rcount
     sdispl => fft_scratch%sdispl
@@ -1826,19 +1826,18 @@ CONTAINS
 
 ! Do the actual packing
 !$omp parallel do default(none), &
-!$omp             private(ipl,xzcoord,jj,nx,ir,jx,jy,jz),&
-!$omp             shared(np,p2p,group,bo,nray,yzp,zcor),&
+!$omp             private(ipl,jj,nx,ir,jx,jy,jz),&
+!$omp             shared(np,p2p,pzcoord,bo,nray,yzp,zcor),&
 !$omp             shared(yzbuf,sb,scount,sdispl,my_pos),&
 !$omp             shared(yzbuf_sgl,alltoall_sgl)
     DO ip = 0, np - 1
        IF (scount(ip) == 0) CYCLE
        ipl = p2p(ip)
-       CALL mp_cart_coords(group,ipl,xzcoord)
        jj = 0
        nx = bo (2, 1, ipl) - bo (1, 1, ipl) + 1
        DO ir = 1, nray(my_pos)
          jz = yzp( 2, ir, my_pos )
-         IF ( zcor ( jz ) == xzcoord(2) ) THEN
+         IF ( zcor ( jz ) == pzcoord(ipl) ) THEN
            jj = jj + 1
            jy = yzp (1, ir, my_pos )
            IF( alltoall_sgl ) THEN
@@ -1934,9 +1933,8 @@ CONTAINS
                                                 ix, ixx, iz, jj, jx, jy, jz, &
                                                 mp, myx, myz, np, npx, npz, &
                                                 nx, nz
-    INTEGER, DIMENSION(2)                    :: xzcoord
-    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
-                                                sdispl, xcor, zcor
+    INTEGER, DIMENSION(:), POINTER           :: pzcoord, rcount, rdispl, &
+                                                scount, sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
     CALL timeset(routineN,handle)
@@ -1955,6 +1953,7 @@ CONTAINS
     pgrid  => fft_scratch%pgrid
     xcor   => fft_scratch%xcor
     zcor   => fft_scratch%zcor
+    pzcoord=> fft_scratch%pzcoord
     scount => fft_scratch%scount
     rcount => fft_scratch%rcount
     sdispl => fft_scratch%sdispl
@@ -2064,19 +2063,18 @@ CONTAINS
     END IF
 
 !$omp parallel do default(none), &
-!$omp             private(ipl,xzcoord,jj,nx,ir,jx,jy,jz),&
-!$omp             shared(p2p,group,bo,nray,my_pos,yzp),&
+!$omp             private(ipl,jj,nx,ir,jx,jy,jz),&
+!$omp             shared(p2p,pzcoord,bo,nray,my_pos,yzp),&
 !$omp             shared(rcount,rdispl,tb,yzbuf,zcor),&
 !$omp             shared(yzbuf_sgl,alltoall_sgl,np)
     DO ip = 0, np - 1
        IF (rcount(ip) == 0) CYCLE
        ipl = p2p(ip)
-       CALL mp_cart_coords(group,ipl,xzcoord)
        jj = 0
        nx = bo (2, 1, ipl) - bo (1, 1, ipl) + 1
        DO ir = 1, nray(my_pos)
          jz = yzp( 2, ir, my_pos )
-         IF ( zcor ( jz ) == xzcoord(2) ) THEN
+         IF ( zcor ( jz ) == pzcoord(ipl)) THEN
            jj = jj + 1
            jy = yzp (1, ir, my_pos )
            IF ( alltoall_sgl ) THEN
@@ -2704,6 +2702,7 @@ CONTAINS
     NULLIFY(fft_scratch_first%fft_scratch%pgrid) 
     NULLIFY(fft_scratch_first%fft_scratch%pgcube) 
     NULLIFY(fft_scratch_first%fft_scratch%xcor, fft_scratch_first%fft_scratch%zcor)
+    NULLIFY(fft_scratch_first%fft_scratch%pzcoord) 
     NULLIFY(fft_scratch_first%fft_scratch%xzcount, fft_scratch_first%fft_scratch%yzcount,&
          fft_scratch_first%fft_scratch%xzdispl, fft_scratch_first%fft_scratch%yzdispl)
     NULLIFY(fft_scratch_first%fft_scratch%rbuf1,fft_scratch_first%fft_scratch%rbuf2,&
@@ -2849,6 +2848,10 @@ CONTAINS
     END IF
     IF(ASSOCIATED(fft_scratch%xcor)) THEN
        DEALLOCATE(fft_scratch%xcor,fft_scratch%zcor,STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%pzcoord)) THEN
+       DEALLOCATE(fft_scratch%pzcoord,STAT=ierr)
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%xzcount)) THEN
@@ -3026,6 +3029,7 @@ CONTAINS
     INTEGER :: DIM(2), handle, i, ierr, ix, iz, lg, lmax, m1, m2, mcx2, mcy3, &
       mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, &
       nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
+    INTEGER, DIMENSION(3)                    :: pcoord
     LOGICAL                                  :: equal, failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
@@ -3111,6 +3115,7 @@ CONTAINS
           NULLIFY(fft_scratch_new%fft_scratch%pgcube) 
           NULLIFY(fft_scratch_new%fft_scratch%pgrid) 
           NULLIFY(fft_scratch_new%fft_scratch%xcor, fft_scratch_new%fft_scratch%zcor)
+          NULLIFY(fft_scratch_new%fft_scratch%pzcoord) 
           NULLIFY(fft_scratch_new%fft_scratch%xzcount, fft_scratch_new%fft_scratch%yzcount)
           NULLIFY(fft_scratch_new%fft_scratch%xzdispl, fft_scratch_new%fft_scratch%yzdispl)
           NULLIFY(fft_scratch_new%fft_scratch%rbuf1, fft_scratch_new%fft_scratch%rbuf2,&
@@ -3340,6 +3345,8 @@ CONTAINS
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%zcor(nbz),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE ( fft_scratch_new%fft_scratch%pzcoord(0:np-1),STAT=ierr)
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%xzcount(0:np-1), &
                   fft_scratch_new%fft_scratch%yzcount(0:np-1) )
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -3373,6 +3380,12 @@ CONTAINS
                 DO iz = 0, m2 - 1
                    CALL mp_cart_rank ( fft_sizes%rs_group, (/ix, iz/), fft_scratch_new%fft_scratch%pgrid ( ix, iz ) )
                 END DO
+             END DO
+
+             !initialise pzcoord
+             DO i = 0, np -1
+                CALL mp_cart_coords( fft_sizes%rs_group, i, pcoord)
+                fft_scratch_new%fft_scratch%pzcoord(i) = pcoord(2)
              END DO
 
              !set up fft plans
