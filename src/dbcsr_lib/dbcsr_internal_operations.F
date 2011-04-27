@@ -731,21 +731,6 @@ CONTAINS
        i = dbcsr_data_get_size (product_matrix%m%wms(1)%data_area)
        IF (verbose_acc) WRITE(*,*)routineN//" c data size", i
        !
-       !IF (.FALSE.) THEN
-       !   ! Time regular allocation.
-       !   t_xfer_c_in = -m_walltime()
-       !   ALLOCATE (c_pin(MAX(1,i)))
-       !   t_xfer_c_in = t_xfer_c_in + m_walltime()
-       !   WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Native Allocation", t_xfer_c_in, "s"
-       !   DEALLOCATE (c_pin)
-       !   !
-       !   ! Time CUDA pinned memory allocation
-       !   t_xfer_c_in = -m_walltime()
-       !   CALL dbcsr_cuda_host_mem_alloc (c_pin, MAX(1,i), error=error)
-       !   t_xfer_c_in = t_xfer_c_in + m_walltime()
-       !   WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Host Pinned Allocation", t_xfer_c_in, "s"
-       !ENDIF
-       !
        ! Time CUDA device memory allocation
        IF (verbose_acc) WRITE(*,*)'allocating c_dev'
        CALL dbcsr_cuda_dev_mem_setup (c_dev, data_type)
@@ -774,47 +759,6 @@ CONTAINS
                REAL(len_xfer_c_in*8), "B"
        ENDIF
        !
-       !IF (.FALSE.) THEN
-       !   ! Time fortran array copy
-       !   t_xfer_c_out = -m_walltime()
-       !   c_pin(1:i) = product_matrix%m%wms(1)%data_area%d%r_dp(1:i)
-       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
-       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"array copy", t_xfer_c_out, "s",&
-       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
-       !        REAL(len_xfer_c_in*8), "B"
-       !   !
-       !   ! Time program array copy
-       !   t_xfer_c_out = -m_walltime()
-       !   CALL memcpy (c_pin, product_matrix%m%wms(1)%data_area%d%r_dp, i)
-       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
-       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"pgmcpy", t_xfer_c_out, "s",&
-       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
-       !        REAL(len_xfer_c_in*8), "B"
-       !   !
-       !   ! Time BLAS F77-style copy
-       !   t_xfer_c_out = -m_walltime()
-       !   CALL dcopy (i, product_matrix%m%wms(1)%data_area%d%r_dp(1), 1, c_pin(1), 1)
-       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
-       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"blas1", t_xfer_c_out, "s",&
-       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
-       !        REAL(len_xfer_c_in*8), "B"
-       !   !
-       !   ! Time BLAS copy
-       !   t_xfer_c_out = -m_walltime()
-       !   CALL dcopy (i, product_matrix%m%wms(1)%data_area%d%r_dp, 1, c_pin, 1)
-       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
-       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"blas", t_xfer_c_out, "s",&
-       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
-       !        REAL(len_xfer_c_in*8), "B"
-       !   !
-       !   ! Time transfer from pinned memory to GPU device memory
-       !   t_xfer_c_out = -m_walltime()
-       !   CALL dbcsr_cuda_cp_host_to_dev (c_pin, c_dev, i, error=error)
-       !   t_xfer_c_out = t_xfer_c_out + m_walltime()
-       !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"Cin pinned", t_xfer_c_out, "s",&
-       !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_out/factor_mega, "MB/s",&
-       !        REAL(len_xfer_c_in*8), "B"
-       !ENDIF
     ENDIF cuda_firstalloc
     !-------------
     !
@@ -881,24 +825,6 @@ CONTAINS
     ALLOCATE (right_send_type (right_row_nimages, right_col_nimages))
     ALLOCATE (right_recv_type (right_row_nimages, right_col_nimages))
     !
-    ! Transfer the initial A and B to the card.
-    tmp_first_ab: IF (.FALSE.) THEN
-       cuda_initial_ab: IF (mm_driver .EQ. mm_driver_cuda) THEN
-          t_xfer_a = -m_walltime()
-          CALL dbcsr_cuda_cp_host_to_dev(&
-               left_buffer_calc%mats(1,1)%m%data_area,&
-               a_dev(data_dev_xfer), error=error)
-          len_xfer_a = left_max_nze
-          t_xfer_a = t_xfer_a + m_walltime()
-          t_xfer_b = -m_walltime()
-          CALL dbcsr_cuda_cp_host_to_dev(&
-               right_buffer_calc%mats(1,1)%m%data_area,&
-               b_dev(data_dev_xfer), error=error)
-          len_xfer_b = right_max_nze
-          t_xfer_b = t_xfer_b + m_walltime()
-       ENDIF cuda_initial_ab
-    ENDIF tmp_first_ab
-    !
 !$omp parallel &
 !$omp default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, product_matrix,&
@@ -943,16 +869,6 @@ CONTAINS
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           CALL mp_waitall (right_data_sr)
           CALL mp_waitall (right_data_rr)
-          tmp_b_i1: IF (.FALSE.) THEN
-             IF (mm_driver .EQ. mm_driver_cuda) THEN
-                t_xfer_b = t_xfer_b - m_walltime()
-                CALL dbcsr_cuda_cp_host_to_dev(&
-                     right_buffer_calc%mats(1,1)%m%data_area,&
-                     b_dev(data_dev_xfer), error=error)
-                len_xfer_b = len_xfer_b + right_max_nze
-                t_xfer_b = t_xfer_b + m_walltime()
-             ENDIF
-          ENDIF tmp_b_i1
           IF (use_combined_types) THEN
              DO v_ki = 1, right_row_nimages
                 CALL mp_type_free (right_recv_type(v_ki, 1))
@@ -1151,16 +1067,6 @@ CONTAINS
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
           CALL mp_waitall (left_data_rr)
-          tmp_a_i1: IF (.FALSE.) THEN
-             IF (mm_driver .EQ. mm_driver_cuda) THEN
-                t_xfer_a = t_xfer_a - m_walltime()
-                CALL dbcsr_cuda_cp_host_to_dev(&
-                     left_buffer_calc%mats(1,1)%m%data_area,&
-                     a_dev(data_dev_xfer), error=error)
-                len_xfer_a = len_xfer_a + left_max_nze
-                t_xfer_a = t_xfer_a + m_walltime()
-             ENDIF
-          ENDIF tmp_a_i1
           IF (use_combined_types) THEN
              DO v_ki = 1, left_col_nimages
                 CALL mp_type_free (left_send_type(1, v_ki))
