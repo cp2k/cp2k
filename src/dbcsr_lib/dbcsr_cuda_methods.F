@@ -13,10 +13,8 @@
 !> - Created 2011-04-06
 ! *****************************************************************************
 MODULE dbcsr_cuda_methods
-#if defined (__DBCSR_CUDA)
+#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#else
-  USE dummy_c_bindings
 #endif
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type,&
                                              dbcsr_cuda_mem_type_c4,&
@@ -32,6 +30,7 @@ MODULE dbcsr_cuda_methods
                                              dbcsr_type_int_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
+  USE dummy_c_bindings
 
   IMPLICIT NONE
 

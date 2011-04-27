@@ -26,6 +26,11 @@ MODULE dummy_c_bindings
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dummy_c_bindings'
 
+#if defined (__HAS_NO_ISO_C_BINDING)
+#if defined (__DBCSR_CUDA)
+  ! Compile-time error.  These two flags are incompatible.
+  STOP "CUDA needs ISO_C_BINDING.  Compile without __HAS_NO_ISO_C_BINDING"
+#endif
   PUBLIC :: c_ptr
   PUBLIC :: c_int
   PUBLIC :: c_size_t
@@ -36,5 +41,6 @@ MODULE dummy_c_bindings
 
   INTEGER, PARAMETER :: c_int    = KIND(0)
   INTEGER, PARAMETER :: c_size_t = KIND(0)
+#endif
 
 END MODULE dummy_c_bindings

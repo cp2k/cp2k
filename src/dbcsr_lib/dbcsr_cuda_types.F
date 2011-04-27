@@ -13,12 +13,11 @@
 !> - Created 2011-04-06
 ! *****************************************************************************
 MODULE dbcsr_cuda_types
-#if defined (__DBCSR_CUDA)
+#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#else
-  USE dummy_c_bindings
 #endif
   USE dbcsr_error_handling
+  USE dummy_c_bindings
 
   IMPLICIT NONE
 
