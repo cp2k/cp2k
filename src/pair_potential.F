@@ -106,7 +106,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE spline_nonbond_control(spline_env, potparm, atomic_kind_set, &
        eps_spline, max_energy, rlow_nb, emax_spline, iw, iw2, iw3, do_zbl, &
-       shift_cutoff, error)
+       shift_cutoff, nonbonded_type, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -116,7 +116,8 @@ CONTAINS
                                                 rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
     LOGICAL, INTENT(IN)                      :: do_zbl, shift_cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: nonbonded_type
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
@@ -135,10 +136,12 @@ CONTAINS
 
     ntype = SIZE ( atomic_kind_set )
     CALL timeset(routineN,handle)
-    IF (iw3>0) THEN
-       WRITE(iw3,'(T2,A,I0,A,I0,A)') 'SPLINE_INFO| Generating: ',&
-            (ntype*(ntype+1))/2,' splines due to ',ntype,' different atomic kinds'
-    ENDIF
+    IF (iw3 > 0) THEN
+       WRITE (iw3,"(/,T2,A,I0,A,I0,A)")&
+        "SPLINE_INFO| Generating ",(ntype*(ntype+1))/2," splines for the "//&
+        TRIM(ADJUSTL(nonbonded_type))//" interactions due to ",ntype,&
+        " different atomic kinds"
+    END IF
     CALL init_genpot(potparm, ntype)
     ! Real computation of splines
     DO i = 1, ntype
@@ -191,7 +194,8 @@ CONTAINS
           ! Real Generation of the Spline
           CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, &
                hicut, eps_spline, iw, iw2, i, j, n, ncount, max_energy, pot, &
-               energy_cutoff, found_locut, do_zbl, atomic_kind_set, error)
+               energy_cutoff, found_locut, do_zbl, atomic_kind_set, &
+               nonbonded_type, error)
 
           pot%undef = .FALSE.
           ! Unique Spline working only for a pure LJ potential..
@@ -213,19 +217,19 @@ CONTAINS
        END DO
     END DO
     CALL finalizef()
-    IF (iw3>0) THEN
-       WRITE(iw3,'()')
-    ENDIF
-    IF (iw>0) THEN
-       WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of pair potential Splines allocated:",&
-            MAXVAL(spline_env % spltab)
+
+    IF (iw > 0) THEN
+       WRITE(iw,'(/,T2,A,I0)')&
+        "SPLINE_INFO| Number of pair potential splines allocated:   ",MAXVAL(spline_env%spltab)
     END IF
-    IF (iw3>0) THEN
-       WRITE(iw3,'(T2,A,I7)') 'SPLINE_INFO| Number of unique splines computed:',&
-            MAXVAL(spline_env % spltab)
-       WRITE(iw3,'(T2,A,I0)') 'SPLINE_INFO| Done'
-    ENDIF
+    IF (iw3 > 0) THEN
+       WRITE (iw3,'(/,T2,A,I0)')&
+        "SPLINE_INFO| Number of unique splines computed:            ",MAXVAL(spline_env%spltab),&
+        "SPLINE_INFO| Done"
+    END IF
+
     CALL timestop(handle)
+
   END SUBROUTINE spline_nonbond_control
 
 ! *****************************************************************************
@@ -284,7 +288,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE generate_spline_low(spl_p, npoints, locut, hicut,  eps_spline, &
        iw, iw2, i, j, n, ncount, max_energy, pot, energy_cutoff, &
-       found_locut, do_zbl, atomic_kind_set, error)
+       found_locut, do_zbl, atomic_kind_set, nonbonded_type, error)
 
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -298,7 +302,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: found_locut, do_zbl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: nonbonded_type
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
@@ -306,15 +311,13 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: message
     CHARACTER(LEN=default_string_length)     :: file_name, tmp
     INTEGER                                  :: jx, mfac, nx, unit_number
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: diffmax, dx2, e, e_spline, x, &
                                                 x2, xdum, xdum1, xsav
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_factor_type), POINTER        :: spl_f
 
-    failure = .FALSE.
-    NULLIFY(logger, spl_f)
+    NULLIFY (logger,spl_f)
     logger => cp_error_get_logger(error)
 
     CALL spline_factor_create(spl_f, error)
@@ -372,27 +375,26 @@ CPSourceFileRef,&
           EXIT
        END IF
     END DO
-    ! Print Spline info
-    IF (iw>0) THEN
-       WRITE(iw,*)
-       WRITE(iw,'("SPLINE_INFO|",5X,A,I7,A)')"Spline number:",i*(i-1)/2+j
-       WRITE(iw,'("SPLINE_INFO|",5X,2(A,I7,2X),A,2I7)')"Spline number",ncount,&
-            "Unique number",n," Kinds involved:",i,j
-       WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
-       WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
-       WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy achieved: ",diffmax
-       WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX  used for spline (bohr):               ",&
-            locut,hicut
-       WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
-            xsav,hicut
+    ! Print spline info to STDOUT if requested
+    IF (iw > 0) THEN
+       WRITE (UNIT=iw,&
+              FMT="(/,A,I0,/,A,I0,/,A,I0,1X,I0,/,A,/,A,I0,2(/,A,ES13.6),2(/,A,2ES13.6))")&
+        " SPLINE_INFO| Spline number:                                ",ncount,&
+        " SPLINE_INFO| Unique spline number:                         ",n,&
+        " SPLINE_INFO| Atomic kind numbers:                          ",i,j,&
+        " SPLINE_INFO| Atomic kind names:                            "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
+                                                                        TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
+        " SPLINE_INFO| Number of spline points:                      ",npoints,&
+        " SPLINE_INFO| Requested accuracy:                          ",eps_spline,&
+        " SPLINE_INFO| Achieved accuracy:                           ",diffmax,&
+        " SPLINE_INFO| Spline range [bohr]:                         ",locut,hicut,&
+        " SPLINE_INFO| Spline range used to achieve accuracy [bohr]:",xsav,hicut
        dx2 = (hicut - locut)/REAL(npoints+1,KIND=dp)
        x  = locut + dx2
-       WRITE(iw,'("SPLINE_INFO|",5X,A,ES17.9)') "Spline value at RMIN (Hartree):",&
-            potential_s(spl_p,x*x,xdum,spl_f,logger)
-       WRITE(iw,'("SPLINE_INFO|",5X,A,ES17.9)') "Spline value at RMAX (Hartree):",&
-            potential_s(spl_p,hicut*hicut,xdum,spl_f,logger)
-       WRITE(iw,'("SPLINE_INFO|",5X,A,ES17.9)') "Non-bonded cutoff:             ",&
-            energy_cutoff
+       WRITE (UNIT=iw,FMT='(A,ES17.9)')&
+        " SPLINE_INFO| Spline value at RMIN [Hartree]:             ",potential_s(spl_p,x*x,xdum,spl_f,logger),&
+        " SPLINE_INFO| Spline value at RMAX [Hartree]:             ",potential_s(spl_p,hicut*hicut,xdum,spl_f,logger),&
+        " SPLINE_INFO| Non-bonded cutoff:                          ",energy_cutoff
     END IF
     ! Print spline data on file if requested
     IF (iw2 > 0) THEN
@@ -402,7 +404,7 @@ CPSourceFileRef,&
        file_name = ""
        tmp=ADJUSTL(cp_to_string(n))
        WRITE (UNIT=file_name,FMT="(A,I0,A)")&
-         "SPLINE_"//TRIM(tmp)//"_"//&
+         TRIM(ADJUSTL(nonbonded_type))//"_SPLINE_"//TRIM(tmp)//"_"//&
          TRIM(ADJUSTL(atomic_kind_set(i)%name))//"_"//&
          TRIM(ADJUSTL(atomic_kind_set(j)%name))
        CALL open_file(file_name=file_name,&
@@ -411,16 +413,17 @@ CPSourceFileRef,&
                       file_action="WRITE",&
                       unit_number=unit_number)
        WRITE (UNIT=unit_number,&
-              FMT="(A,I0,/,A,I0,/,A,I0,1X,I0,/,A,/,A,I0,2(/,A,ES13.6),/,A,2ES13.6,/,A,I0,A,/,A)")&
-         "# Spline number: ",ncount,&
-         "# Unique spline number: ",n,&
-         "# Atomic kind numbers: ",i,j,&
-         "# Atomic kind names: "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
-                                  TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
-         "# Number of spline points: ",npoints,&
-         "# Requested accuracy: ",eps_spline,&
-         "# Achieved accuracy:  ",diffmax,&
-         "# Spline range:       ",locut,hicut,&
+              FMT="(A,I0,/,A,I0,/,A,I0,1X,I0,/,A,/,A,I0,2(/,A,ES13.6),2(/,A,2ES13.6),/,A,I0,A,/,A)")&
+         "# Spline number:                                ",ncount,&
+         "# Unique spline number:                         ",n,&
+         "# Atomic kind numbers:                          ",i,j,&
+         "# Atomic kind names:                            "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
+                                                             TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
+         "# Number of spline points:                      ",npoints,&
+         "# Requested accuracy:                          ",eps_spline,&
+         "# Achieved accuracy:                           ",diffmax,&
+         "# Spline range [bohr]:                         ",locut,hicut,&
+         "# Spline range used to achieve accuracy [bohr]:",xsav,hicut,&
          "# Test spline using ",nx," points:",&
          "# Point      Abscissa [bohr]          Energy [a.u.]            Splined energy           1st derivative"
        DO jx=1,nx

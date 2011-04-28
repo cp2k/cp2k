@@ -293,7 +293,7 @@ CONTAINS
        ! Create the spline data
        CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
        CALL force_field_pack_splines(atomic_kind_set, ff_type, iw2, iw3, iw4, &
-            potparm_nonbond14, do_zbl, error)
+            potparm_nonbond14, do_zbl, nonbonded_type="NONBONDED14", error=error)
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
        ! 18. Set up potparm_nonbond
@@ -307,7 +307,7 @@ CONTAINS
        ! Create the spline data
        CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
        CALL force_field_pack_splines(atomic_kind_set, ff_type, iw2, iw3, iw4, &
-            potparm_nonbond, do_zbl, error)
+            potparm_nonbond, do_zbl, nonbonded_type="NONBONDED", error=error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

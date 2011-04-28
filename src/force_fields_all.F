@@ -3216,7 +3216,7 @@ CPSourceFileRef,&
 !> \brief create the pair potential spline environment
 ! *****************************************************************************
   SUBROUTINE force_field_pack_splines(atomic_kind_set, ff_type, iw2, iw3, iw4, &
-       potparm, do_zbl, error)
+       potparm, do_zbl, nonbonded_type, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -3224,6 +3224,7 @@ CPSourceFileRef,&
     INTEGER                                  :: iw2, iw3, iw4
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     LOGICAL, INTENT(IN)                      :: do_zbl
+    CHARACTER(LEN=*), INTENT(IN)             :: nonbonded_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_splines', &
@@ -3247,7 +3248,8 @@ CPSourceFileRef,&
          atomic_kind_set, eps_spline=ff_type%eps_spline, &
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
-         do_zbl=do_zbl, shift_cutoff=ff_type%shift_cutoff, error=error)
+         do_zbl=do_zbl, shift_cutoff=ff_type%shift_cutoff, &
+         nonbonded_type=nonbonded_type, error=error)
     ! Let the pointers on potparm point to the splines generated in
     ! spline_nonbond_control.
     DO ikind = 1, SIZE ( potparm%pot, 1 )
