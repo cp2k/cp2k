@@ -7,9 +7,11 @@
 !> \par History
 !>      - m_flush added (12.06.2002,MK)
 !>      - print_memory changed (24.09.2002,MK)
+!>      - m_memory implemented (28.04.2011,IB)
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_aix
+  USE ISO_C_BINDING
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -30,6 +32,25 @@ MODULE machine_aix
   INTERFACE m_loc_c
      MODULE PROCEDURE m_loc_c1,m_loc_c2,m_loc_c3,m_loc_c4
   END INTERFACE
+
+  TYPE, BIND(C) :: timeval 
+     INTEGER(C_LONG) :: tv_sec, tv_usec
+  END TYPE
+
+  TYPE, BIND(C) :: rusage
+     TYPE(timeval) :: ru_utime, ru_stime
+     INTEGER(C_LONG) :: ru_maxrss, ru_ixrss, ru_idrss, ru_isrss, ru_minflt, ru_majflt, &
+                     ru_nswap, ru_inblock, ru_oublock, ru_msgsnd, ru_msgrcv, &
+                     ru_nsignals, ru_nvcsw, ru_nivcsw 
+  END TYPE
+
+  INTERFACE
+    INTEGER(C_INT) FUNCTION getrusage (who, rusage) BIND(C, name='getrusage')
+    USE ISO_C_BINDING
+      INTEGER(C_INT), VALUE :: who
+      TYPE(C_PTR),    VALUE :: rusage
+    END FUNCTION getrusage
+  END INTERFACE 
 
 CONTAINS
 ! *** get more detailed memory info, all units are bytes.
@@ -170,7 +191,11 @@ END FUNCTION m_cputime
   FUNCTION m_memory()
     INTEGER(KIND=int_8)                      :: m_memory
 
-    m_memory=0
+    INTEGER(C_INT)                           :: ret
+    TYPE(rusage), TARGET                     :: usage
+
+    ret = getrusage(0, C_LOC(usage))
+    m_memory = usage%ru_maxrss * 1024
   END FUNCTION m_memory
 
 ! *****************************************************************************
