@@ -186,12 +186,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_buffers_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, n = 1
+    INTEGER                                  :: error_handler, i, n
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
-    !$OMP CRITICAL (oc_buffers_release)
+    !$OMP MASTER
     CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
          error=error)
@@ -199,8 +199,9 @@ CONTAINS
          dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Should not release dirty buffers.",&
          __LINE__, error=error)
-    !$OMP ATOMIC
     buffers%b%refcount = buffers%b%refcount - 1
+    n = 1
+    !$ n = omp_get_max_threads()
     IF (buffers%b%refcount .LE. 0) THEN
        DO i = 1, n
           CALL dbcsr_data_release (buffers%b%buffers(i))
@@ -223,7 +224,7 @@ CONTAINS
        DEALLOCATE (buffers%b)
        NULLIFY (buffers%b)
     ENDIF
-    !$OMP END CRITICAL (oc_buffers_release)
+    !$OMP END MASTER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_buffers_release
 
