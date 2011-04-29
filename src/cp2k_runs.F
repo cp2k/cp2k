@@ -544,6 +544,7 @@ CONTAINS
     group_distribution=-1
     IF (slave) THEN
         IF (farming_env%group_size_wish_set) THEN
+           farming_env%group_size_wish=MIN(farming_env%group_size_wish,para_env%num_pe)
            CALL mp_comm_split(slave_group,new_group,ngroups,group_distribution,&
                    subgroup_min_size=farming_env%group_size_wish)
         ELSE IF (farming_env%ngroup_wish_set) THEN
