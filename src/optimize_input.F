@@ -69,6 +69,7 @@ MODULE optimize_input
      REAL(KIND=dp) :: shift_mm
      REAL(KIND=dp) :: shift_qm
      LOGICAL       :: shift_average
+     INTEGER :: frame_start,frame_stop,frame_stride
   END TYPE
 
   TYPE variable_type
@@ -172,10 +173,10 @@ CONTAINS
                                                 re, rf, shift_mm, shift_qm, &
                                                 t1, t2, t3, t4, t5
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: force, free_vars, pos
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_traj, energy_var
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: cell_traj, force_traj, &
-                                                force_var, pos_traj
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_traj, &
+                                                energy_traj_read, energy_var
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: cell_traj, cell_traj_read, &
+      force_traj, force_traj_read, force_var, pos_traj, pos_traj_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(opt_state_type)                     :: ostate
     TYPE(section_vals_type), POINTER         :: oi_section, variable_section
@@ -191,10 +192,28 @@ CONTAINS
     ENDIF
 
     ! do IO of ref traj / frc / cell
-    CALL read_reference_data(oi_env,para_env,force_traj,pos_traj,energy_traj,cell_traj,error)
+    NULLIFY(cell_traj_read,force_traj_read,pos_traj_read,energy_traj_read)
+    CALL read_reference_data(oi_env,para_env,force_traj_read,pos_traj_read,energy_traj_read,cell_traj_read,error)
+    n_atom=SIZE(pos_traj_read,2)
 
-    n_frames=SIZE(pos_traj,3)
-    n_atom=SIZE(pos_traj,2)
+    ! adjust read data with respect to start/stop/stride
+    IF (oi_env%fm_env%frame_stop<0) oi_env%fm_env%frame_stop=SIZE(pos_traj,3)
+    n_frames=(oi_env%fm_env%frame_stop-oi_env%fm_env%frame_start+oi_env%fm_env%frame_stride)/oi_env%fm_env%frame_stride
+
+    ALLOCATE(force_traj(3,n_atom,n_frames),pos_traj(3,n_atom,n_frames),energy_traj(n_frames))
+    IF (ASSOCIATED(cell_traj_read)) ALLOCATE(cell_traj(3,3,n_frames))
+
+    n_frames=0
+    DO i_frame=oi_env%fm_env%frame_start,oi_env%fm_env%frame_stop,oi_env%fm_env%frame_stride
+       n_frames=n_frames+1
+       force_traj(:,:,n_frames)=force_traj_read(:,:,i_frame)
+       pos_traj(:,:,n_frames)=pos_traj_read(:,:,i_frame)
+       energy_traj(n_frames)=energy_traj_read(i_frame)
+       IF (ASSOCIATED(cell_traj)) cell_traj(:,:,n_frames)=cell_traj_read(:,:,i_frame)
+    ENDDO
+    DEALLOCATE(force_traj_read,pos_traj_read,energy_traj_read)
+    IF (ASSOCIATED(cell_traj_read)) DEALLOCATE(cell_traj_read)
+
     n_el=3*n_atom
     ALLOCATE(pos(n_el), force(n_el))
     ALLOCATE(energy_var(n_frames),force_var(3,n_atom,n_frames))
@@ -630,6 +649,9 @@ CONTAINS
        CALL section_vals_val_get(fm_section,"REF_FORCE_FILE_NAME",c_val=oi_env%fm_env%ref_force_file_name,error=error)
        CALL section_vals_val_get(fm_section,"REF_CELL_FILE_NAME",c_val=oi_env%fm_env%ref_cell_file_name,error=error)
        CALL section_vals_val_get(fm_section,"OPTIMIZE_FILE_NAME",c_val=oi_env%fm_env%optimize_file_name,error=error)
+       CALL section_vals_val_get(fm_section,"FRAME_START",i_val=oi_env%fm_env%frame_start,error=error)
+       CALL section_vals_val_get(fm_section,"FRAME_STOP",i_val=oi_env%fm_env%frame_stop,error=error)
+       CALL section_vals_val_get(fm_section,"FRAME_STRIDE",i_val=oi_env%fm_env%frame_stride,error=error)
 
        CALL section_vals_val_get(fm_section,"GROUP_SIZE",i_val=oi_env%fm_env%group_size,error=error)
 

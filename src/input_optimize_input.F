@@ -194,6 +194,24 @@ CONTAINS
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
 
+         CALL keyword_create(keyword, name="FRAME_START",&
+              description="starting frame to be used from the reference trajectory",&
+              usage="FRAME_START 1", default_i_val=1, error=error)
+         CALL section_add_keyword(sub_section,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+
+         CALL keyword_create(keyword, name="FRAME_STOP",&
+              description="final frame to be used from the reference trajectory (all=-1)",&
+              usage="FRAME_STOP -1", default_i_val=1, error=error)
+         CALL section_add_keyword(sub_section,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+
+         CALL keyword_create(keyword, name="FRAME_STRIDE",&
+              description="stride when using the reference trajectory",&
+              usage="FRAME_STRIDE 1", default_i_val=1, error=error)
+         CALL section_add_keyword(sub_section,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+       
          CALL keyword_create(keyword, name="ENERGY_WEIGHT",&
               description="Relative weight of the energy RMSD vs the force RMSD",&
               usage="ENERGY_WEIGHT 0.1", default_r_val=0.1_dp, error=error)
