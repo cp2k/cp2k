@@ -200,6 +200,12 @@ CONTAINS
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
 
+         CALL keyword_create(keyword, name="SHIFT_AVERAGE",&
+              description="Shift averages of the energies before computing energy RMSD.",&
+              usage="SHIFT_AVERAGE", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+         CALL section_add_keyword(sub_section,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+
          CALL keyword_create(keyword, name="SHIFT_QM",&
               description="Shift of the reference energies applied before computing energy RMSD.",&
               usage="SHIFT_QM -17.0", default_r_val=0.0_dp, error=error)

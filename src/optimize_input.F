@@ -68,6 +68,7 @@ MODULE optimize_input
      REAL(KIND=dp) :: energy_weight
      REAL(KIND=dp) :: shift_mm
      REAL(KIND=dp) :: shift_qm
+     LOGICAL       :: shift_average
   END TYPE
 
   TYPE variable_type
@@ -204,6 +205,7 @@ CONTAINS
     num_pe_master  =para_env%num_pe
     mepos_master   =para_env%mepos
     ALLOCATE(group_distribution(0:num_pe_master-1))
+    IF (oi_env%fm_env%group_size>para_env%num_pe) oi_env%fm_env%group_size=para_env%num_pe
 
     CALL mp_comm_split(mpi_comm_master,mpi_comm_slave,n_groups,group_distribution,subgroup_min_size=oi_env%fm_env%group_size)
     CALL mp_environ(num_pe_slave,mepos_slave,mpi_comm_slave)
@@ -260,6 +262,7 @@ CONTAINS
        WRITE(output_unit,'(T2,A,T60,F20.12)') 'FORCE_MATCHING| accuracy',ostate%rhoend
        WRITE(output_unit,'(T2,A,T60,F20.12)') 'FORCE_MATCHING| step size',ostate%rhobeg
        WRITE(output_unit,'(T2,A,T60,I20)')    'FORCE_MATCHING| max function evaluation',ostate%maxfun
+       WRITE(output_unit,'(T2,A,T60,L20)')    'FORCE_MATCHING| shift average',oi_env%fm_env%shift_average
        WRITE(output_unit,'(T2,A)')            'FORCE_MATCHING| initial values:'
        DO i_var=1,n_var
           WRITE(output_unit,'(T2,A,1X,E28.16)') TRIM(oi_env%variables(i_var)%label),oi_env%variables(i_var)%value
@@ -348,6 +351,10 @@ CONTAINS
          ! now evaluate the target function to be minimized (only valid on mepos_slave==0)
          IF (para_env%mepos==para_env%source) THEN
              rf = SQRT(SUM((force_var-force_traj)**2)/(REAL(n_frames,KIND=dp) * REAL(n_atom,KIND=dp)))
+             IF (oi_env%fm_env%shift_average) THEN
+                shift_mm=SUM(energy_var)/n_frames
+                shift_qm=SUM(energy_traj)/n_frames
+             ENDIF
              re = SQRT(SUM(((energy_var-shift_mm)-(energy_traj-shift_qm))**2)/n_frames)
              ostate%f= energy_weight * re + rf
              t2 = m_walltime()
@@ -629,6 +636,7 @@ CONTAINS
        CALL section_vals_val_get(fm_section,"ENERGY_WEIGHT",r_val=oi_env%fm_env%energy_weight,error=error)
        CALL section_vals_val_get(fm_section,"SHIFT_MM",r_val=oi_env%fm_env%shift_mm,error=error)
        CALL section_vals_val_get(fm_section,"SHIFT_QM",r_val=oi_env%fm_env%shift_qm,error=error)
+       CALL section_vals_val_get(fm_section,"SHIFT_AVERAGE",l_val=oi_env%fm_env%shift_average,error=error)
     CASE DEFAULT
       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT

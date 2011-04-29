@@ -1501,8 +1501,8 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     IF (PRESENT(subgroup_min_size)) THEN
-       IF (subgroup_min_size<0) THEN
-          CALL mp_abort(routineP//" subgroup_min_size too small")
+       IF (subgroup_min_size<0 .OR. subgroup_min_size>nnodes) THEN
+          CALL mp_abort(routineP//" subgroup_min_size too small or too large")
        ENDIF
        ngroups= nnodes / subgroup_min_size
        my_subgroup_min_size = subgroup_min_size
