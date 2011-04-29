@@ -1185,7 +1185,6 @@ CONTAINS
             = all_total_send_offset(1,:) + metalen*myt_total_send_count(1,:)
        all_total_send_offset(2,:) &
             = all_total_send_offset(2,:) + myt_total_send_count(2,:)
-!$omp flush
 !$omp end critical
     ENDIF
     DEALLOCATE (myt_total_send_count)
@@ -1200,10 +1199,8 @@ CONTAINS
     ! Prepares the work matrices used in the last DO loop. Placed
     ! early.
     CALL dbcsr_data_init (received_data_area)
-    ! This is an ugly cuckoo.
     received_data_area = recv_data_area
     CALL dbcsr_data_hold(received_data_area)
-    !received_data_area%d%r_dp => recv_data
 !$omp end master
 !$omp barrier
 !$omp master
@@ -1214,11 +1211,13 @@ CONTAINS
        DO col_img = 1, ncol_images
           CALL dbcsr_work_create(ums%mats(row_img, col_img),&
                SUM(recv_count(1,row_img,col_img,:)), n=1, error=t_error)
+!$omp barrier
 !$omp master
           CALL dbcsr_data_hold (received_data_area)
           CALL dbcsr_data_release (ums%mats(row_img,col_img)%m%wms(1)%data_area)
           ums%mats(row_img,col_img)%m%wms(1)%data_area = received_data_area
 !$omp end master
+!$omp barrier
        ENDDO
     ENDDO
 !$omp barrier

@@ -663,7 +663,6 @@ CONTAINS
        END DO
     ENDIF
     matrix%m%valid = .FALSE.
-!$OMP FLUSH
 !$  CALL dbcsr_modify_unlock (matrix)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_work_create
@@ -1466,9 +1465,9 @@ CONTAINS
        IF (sort_data) THEN
           all_data_areas(mt_data_offsets(which_wm)) &
                = matrix%wms(which_wm)%data_area
-          !$OMP CRITICAL
+          !$OMP CRITICAL (crit_data)
           CALL dbcsr_data_hold (all_data_areas(mt_data_offsets(which_wm)))
-          !$OMP END CRITICAL
+          !$OMP END CRITICAL (crit_data)
        ENDIF
        !$OMP MASTER
        ! Creates new index array.
@@ -1523,6 +1522,7 @@ CONTAINS
        DEALLOCATE (my_blk_p)
        DEALLOCATE (additions_per_row)
     ENDDO
+    !$OMP BARRIER
     !$OMP MASTER
     IF (sort_data) THEN
        DO i = 1, nwms+1
@@ -1594,11 +1594,10 @@ CONTAINS
           new_nblks = additions_per_row(row)
           ! Find where in the col_i and blk_p arrays to add this
           ! thread's blocks.
-          !$OMP CRITICAL
+          !$OMP CRITICAL (crit_row_size_counter)
           blk = row_size_counter(row)
-          !$OMP ATOMIC
           row_size_counter(row) = row_size_counter(row) + new_nblks
-          !$OMP END CRITICAL
+          !$OMP END CRITICAL (crit_row_size_counter)
           old_nblks = old_row_p(row+1) - old_row_p(row)
           new_first_blk = new_row_p(row)+1 + old_nblks + blk
           new_last_blk = new_first_blk + new_nblks - 1

@@ -425,8 +425,10 @@
     !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
+       !$OMP MASTER
        matrix%m%valid = .FALSE.
-!$omp flush
+       !$OMP END MASTER
+       !$OMP BARRIER
     ENDIF
 
     NULLIFY (data_block%p)

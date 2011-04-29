@@ -116,6 +116,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
+!$OMP BARRIER
 !$OMP MASTER
     ALLOCATE (buffers%b)
     n = 1
@@ -139,6 +140,7 @@ CONTAINS
             dbcsr_type_1d_to_2d(dbcsr_data_get_type (data_backing)))
     ENDDO
 !$OMP END MASTER
+!$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_buffers_new
 
@@ -166,7 +168,6 @@ CONTAINS
          CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
          error=error)
-    !$OMP ATOMIC
     buffers%b%refcount = buffers%b%refcount + 1
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_buffers_hold
@@ -191,6 +192,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
+    !$OMP BARRIER
     !$OMP MASTER
     CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
@@ -225,6 +227,7 @@ CONTAINS
        NULLIFY (buffers%b)
     ENDIF
     !$OMP END MASTER
+    !$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_buffers_release
 

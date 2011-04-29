@@ -11,6 +11,8 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine
+
+  !$ USE OMP_LIB
   USE  kinds,  ONLY        : dp
 #if defined ( __AIX )
   USE machine_aix, ONLY    : & 
@@ -142,7 +144,7 @@ FUNCTION m_walltime() RESULT (wt)
     INTEGER, SAVE                            :: count_max, count_rate, &
                                                 cycles = -1, last_count
 
-!$OMP CRITICAL
+    !$ IF (.FALSE.) THEN
 ! count lies in [0,count_max] and increases monotonically
 
     IF (cycles == -1) THEN ! get parameters of system_clock and initialise
@@ -171,7 +173,9 @@ FUNCTION m_walltime() RESULT (wt)
 
     wt = ( REAL(count,KIND=dp)+REAL(cycles,KIND=dp)*(1.0_dp+REAL(count_max,KIND=dp)) ) &
          / REAL(count_rate,KIND=dp)
-!$OMP END CRITICAL
+    !$ ELSE
+    !$    wt = OMP_GET_WTIME ()
+    !$ ENDIF
 END FUNCTION m_walltime
 
 ! *****************************************************************************

@@ -162,6 +162,9 @@ CONTAINS
 !>        then shared should be set to .FALSE.. (E.g., when called
 !>        from an enclosing MASTER region or when each thread has its
 !>        own matrix.)
+!>      - It is safe to use an iterator in non-shared mode with only
+!>        one thread.  No thread synchronization constructs are used
+!>        in this case)
 !> \par Threading in shared mode
 !>      When in shared mode there are three possibilities to select
 !>      how the blocks are distributed to the threads.
@@ -301,10 +304,10 @@ CONTAINS
     iterator%row_p => matrix%m%row_p
     iterator%col_i => matrix%m%col_i
     iterator%blk_p => matrix%m%blk_p
-!$omp critical
+    !$OMP CRITICAL (crit_data)
     iterator%data_area = matrix%m%data_area
     CALL dbcsr_data_hold (iterator%data_area)
-!$omp end critical
+    !$OMP END CRITICAL (crit_data)
     iterator%row_size = 0
     IF (.NOT. iterator%dynamic) THEN
        iterator%tdist => array_data (dbcsr_distribution_thread_dist (dist))
@@ -314,7 +317,9 @@ CONTAINS
     CALL dbcsr_buffers_init (iterator%buffer_2d)
     IF (dbcsr_buffers_2d_needed) THEN
        iterator%buffer_2d = matrix%m%buffers
+       !$OMP CRITICAL (crit_buffers)
        CALL dbcsr_buffers_hold (iterator%buffer_2d, error=error)
+       !$OMP END CRITICAL (crit_buffers)
        CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
     ENDIF
     !
@@ -346,7 +351,6 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
-!CALL dbcsr_release (iterator%matrix)
 
     CALL dbcsr_error_set (routineN, error_handle, error)
     iterator%row = 0
@@ -357,10 +361,9 @@ CONTAINS
        CALL dbcsr_buffers_release (iterator%buffer_2d, error=error)
     ENDIF
     NULLIFY (iterator%tdist)
-    !CALL dbcsr_release (iterator%matrix)
-!$omp critical
+    !$OMP CRITICAL (crit_data)
     CALL dbcsr_data_release (iterator%data_area)
-!$omp end critical
+    !$OMP END CRITICAL (crit_data)
     IF (iterator%dynamic) THEN
        !$OMP BARRIER
        !$OMP MASTER
@@ -369,8 +372,8 @@ CONTAINS
        NULLIFY (common_int_pointer)
        !$OMP FLUSH (common_int_pointer)
        !$OMP END MASTER
-       !$OMP BARRIER
        NULLIFY (iterator%common_pos)
+       !$OMP BARRIER
     ENDIF
     IF (iterator%local_indexing) THEN
        NULLIFY (iterator%local_rows)
@@ -552,13 +555,13 @@ CONTAINS
              jumped_row = iterator%row .GT. my_old_row
              advance = jumped_row
              IF (jumped_row) THEN
-                !$OMP CRITICAL (common_row)
+                !$OMP CRITICAL (crit_common_pos)
                 ! Set the common_pos to the next available row.
                 next_row = MAX (iterator%common_pos + 1,  iterator%row)
                 next_row = next_row - iterator%common_pos
-                !$OMP ATOMIC
                 iterator%common_pos = iterator%common_pos + next_row
                 iterator%row = iterator%common_pos
+                !$OMP END CRITICAL (crit_common_pos)
                 IF (iterator%row .GT. iterator%nblkrows_total) THEN
                    iterator%pos = 0
                    iterator%row = 0
@@ -571,21 +574,18 @@ CONTAINS
                       iterator%pos = iterator%row_p(iterator%global_rows(iterator%row))
                    ENDIF
                 ENDIF
-                !$OMP END CRITICAL (common_row)
              ENDIF
           ENDDO
        ELSE
           ! In this case common_pos holds the last-assigned block.
           !
-          !$OMP CRITICAL
-          !$OMP ATOMIC
+          !$OMP CRITICAL (crit_common_pos)
           iterator%common_pos = iterator%common_pos + 1
           iterator%pos = iterator%common_pos
           CALL find_proper_position_caller(iterator)
           p = iterator%pos
-          !$OMP ATOMIC
           iterator%common_pos = MAX(iterator%common_pos, p)
-          !$OMP END CRITICAL
+          !$OMP END CRITICAL (crit_common_pos)
        ENDIF
     ELSEIF (iterator%shared) THEN
        iterator%pos = iterator%pos+1

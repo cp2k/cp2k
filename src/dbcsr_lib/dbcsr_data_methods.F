@@ -518,25 +518,26 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (.NOT. ASSOCIATED (area%d)) THEN
-       RETURN
-    ENDIF
-    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
+    CALL dbcsr_assert (ASSOCIATED (area%d), &
+         dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Data seems to be unreferenced.",__LINE__,error)
-    IF (area%d%refcount .GT. 0) THEN
-       !$OMP ATOMIC
+    IF (ASSOCIATED (area%d)) THEN
+       !
+       IF (careful_mod) &
+            CALL dbcsr_assert (area%d%refcount, "GT", 0,&
+            dbcsr_warning_level, dbcsr_caller_error,&
+            routineN, "Data seems to be unreferenced.",__LINE__,error)
+       !
        area%d%refcount = area%d%refcount - 1
-    ELSE
-       RETURN
-    ENDIF
-    ! If we're releasing the last reference, then free the memory.
-    IF (area%d%refcount .EQ. 0) THEN
-       IF (dbcsr_data_exists (area, error)) THEN
-          CALL internal_data_deallocate (area%d, area%d%data_type,&
-               area%d%memory_type, error)
+       ! If we're releasing the last reference, then free the memory.
+       IF (area%d%refcount .EQ. 0) THEN
+          IF (dbcsr_data_exists (area, error)) THEN
+             CALL internal_data_deallocate (area%d, area%d%data_type,&
+                  area%d%memory_type, error)
+          ENDIF
+          DEALLOCATE (area%d)
+          NULLIFY (area%d)
        ENDIF
-       DEALLOCATE (area%d)
-       NULLIFY (area%d)
     ENDIF
   END SUBROUTINE dbcsr_data_release
 
@@ -697,14 +698,18 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_caller_error, dbcsr_warning_level,&
-         routineN, "Can't hold an empty data area.",__LINE__,error)
-    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_caller_error, dbcsr_warning_level,&
-         routineN, "Should not hold an area with zero references.",__LINE__,error)
+    IF (careful_mod) THEN
+       CALL dbcsr_assert (ASSOCIATED (area%d),&
+            dbcsr_caller_error, dbcsr_fatal_level,&
+            routineN, "Can't hold an empty data area.",__LINE__,error)
+       CALL dbcsr_assert (area%d%refcount, "GT", 0,&
+            dbcsr_caller_error, dbcsr_fatal_level,&
+            routineN, "Should not hold an area with zero references.",&
+            __LINE__,error)
+    ENDIF
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
-    !$OMP ATOMIC
     area%d%refcount = area%d%refcount + 1
   END SUBROUTINE dbcsr_data_hold
 
