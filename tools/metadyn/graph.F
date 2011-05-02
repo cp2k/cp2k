@@ -405,9 +405,9 @@ PROGRAM graph
   ELSE IF (l_cpmd) THEN
      OPEN(11,file="parvar_mtd",status='old')
      DO i = 1, nt
-        READ(10,*)dum,(ss0(i_map(id),i),id=1,ndim)
+        READ(10,*)dum,(ss0(i_map(id),i),id=1,ndim),(delta_s(id,i),id=1,ndim)
         READ(11,*)dum,dum,delta_s_glob,ww(i)
-        delta_s(:,i)=delta_s_glob
+        delta_s(1:ndim,i)=delta_s_glob*delta_s(1:ndim,i)
      END DO
      CLOSE(11)
   END IF
