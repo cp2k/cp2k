@@ -290,3 +290,20 @@ crys_per_qmmm_anal.inp
 crys_per_qmmm_spln.inp
 acn-qmmm-re.inp
 acn-conn-1.inp
+# numerics
+H+-bloechl.inp
+H2O-bloechl-Spl.inp
+H2O-solv.inp
+He2H-bloechl-md.inp
+H2O-bloechl-restraint.inp
+He2H-bloechl.inp
+H2O-bloechl.inp
+sic_ddapc_rt.inp
+He2_ddapc_constraint-3.inp
+spin_restraint.inp
+He3_multi_ddapc.inp
+crys_per_qmmm_spln.inp
+acn-conn-1.inp
+crys_per_qmmm_anal.inp
+driver.inp
+driver-restart.inp

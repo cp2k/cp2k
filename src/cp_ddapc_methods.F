@@ -612,7 +612,7 @@ CONTAINS
           DEALLOCATE(AmE, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       CALL invert_matrix(Am, AmI, inv_error, "N",error=error)
+       CALL invert_matrix(Am, AmI, inv_error, "N",error=error, improve=.FALSE.)
        IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error
        END IF
