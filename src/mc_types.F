@@ -152,7 +152,8 @@ MODULE mc_types
 ! contains all the text of the input file
       PRIVATE
       INTEGER :: run_type_row,run_type_column,coord_row_start,coord_row_end,&
-           cell_row,cell_column,global_row_end,in_use,nunits_empty
+           cell_row,cell_column,global_row_end,in_use,nunits_empty,&
+           motion_row_end,motion_row_start
       INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
       CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: text
       CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: atom_names_empty
@@ -246,11 +247,12 @@ CONTAINS
  SUBROUTINE get_mc_input_file ( mc_input_file,run_type_row,run_type_column,&
       coord_row_start,coord_row_end,cell_row,cell_column,global_row_end,&
       mol_set_nmol_row,mol_set_nmol_column,in_use,text,atom_names_empty,&
-      nunits_empty,coordinates_empty)
+      nunits_empty,coordinates_empty,motion_row_end,motion_row_start)
 
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     INTEGER, INTENT(OUT), OPTIONAL :: run_type_row, run_type_column, &
-      coord_row_start, coord_row_end, cell_row, cell_column, global_row_end
+      coord_row_start, coord_row_end, cell_row, cell_column, global_row_end,&
+      motion_row_end, motion_row_start
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: mol_set_nmol_row, &
                                                 mol_set_nmol_column
     INTEGER, INTENT(OUT), OPTIONAL           :: in_use
@@ -269,7 +271,9 @@ CONTAINS
    IF(PRESENT(cell_column)) cell_column=mc_input_file%cell_column
    IF(PRESENT(global_row_end)) global_row_end=mc_input_file%global_row_end
    IF(PRESENT(nunits_empty)) nunits_empty=mc_input_file%nunits_empty
-   
+   IF(PRESENT(motion_row_start)) motion_row_start=mc_input_file%motion_row_start
+   IF(PRESENT(motion_row_end)) motion_row_end=mc_input_file%motion_row_end
+
    IF(PRESENT(mol_set_nmol_row)) mol_set_nmol_row=> mc_input_file%mol_set_nmol_row
    IF(PRESENT(mol_set_nmol_column)) mol_set_nmol_column=> mc_input_file%mol_set_nmol_column
    IF(PRESENT(text)) text=> mc_input_file%text
@@ -903,7 +907,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 ! now we need to find the row and column numbers of a variety of things
 ! first, Let's find the first END after GLOBAL
-    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&GLOBAL",.TRUE.,&
+    CALL mc_parse_text(mc_input_file%text,1,nlines,"&GLOBAL",.TRUE.,&
          mc_input_file%global_row_end,idum)
     IF(mc_input_file%global_row_end == 0) THEN
        IF (iw>0) THEN
@@ -914,10 +918,24 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
             'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
     ENDIF
 
+! Let's find the first END after MOTION...we might need this whole section 
+! because of hybrid MD/MC moves, which requires the MD information to always
+! be attached to the force env
+    CALL mc_parse_text(mc_input_file%text,1,nlines,"&MOTION",.TRUE.,&
+         mc_input_file%motion_row_end,idum,start_row_number=mc_input_file%motion_row_start)
+    IF(mc_input_file%motion_row_end == 0) THEN
+       IF (iw>0) THEN
+          WRITE(iw,*)
+          WRITE(iw,*) 'File name ',input_file_name,mc_input_file%motion_row_start
+       END IF
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'Could not find &END after &MOTION (make sure & is in the same column) and last line is blank')
+    ENDIF
+
 ! first, let's find the first END after &COORD, and the line of &COORD
-    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.TRUE.,&
+    CALL mc_parse_text(mc_input_file%text,1,nlines,"&COORD",.TRUE.,&
          mc_input_file%coord_row_end,idum)
-    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.FALSE.,&
+    CALL mc_parse_text(mc_input_file%text,1,nlines,"&COORD",.FALSE.,&
          mc_input_file%coord_row_start,idum)
 
     IF(mc_input_file%coord_row_end == 0) THEN
@@ -930,7 +948,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ENDIF
 
 ! now the RUN_TYPE
-    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"RUN_TYPE",.FALSE.,&
+    CALL mc_parse_text(mc_input_file%text,1,nlines,"RUN_TYPE",.FALSE.,&
          mc_input_file%run_type_row, mc_input_file%run_type_column)
     mc_input_file%run_type_column=mc_input_file%run_type_column+9
     IF(mc_input_file%run_type_row == 0) THEN
@@ -944,10 +962,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 ! now the CELL stuff..we don't care about REF_CELL since that should
 ! never change if it's there
-    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&CELL",.FALSE.,&
+    CALL mc_parse_text(mc_input_file%text,1,nlines,"&CELL",.FALSE.,&
          mc_input_file%cell_row, mc_input_file%cell_column)
 ! now find the ABC input line after CELL
-    CALL mc_parse_text(mc_input_file%text,mc_input_file%cell_row+1,nlines-1,&
+    CALL mc_parse_text(mc_input_file%text,mc_input_file%cell_row+1,nlines,&
          "ABC",.FALSE.,abc_row,abc_column)
 ! is there a &CELL inbetween?  If so, that ABC will be for the ref_cell
 ! and we need to find the next one
@@ -957,7 +975,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
        mc_input_file%cell_row=abc_row
        mc_input_file%cell_column=abc_column+4
     ELSE
-       CALL mc_parse_text(mc_input_file%text,abc_row+1,nlines-1,&
+       CALL mc_parse_text(mc_input_file%text,abc_row+1,nlines,&
             "ABC",.FALSE.,mc_input_file%cell_row, mc_input_file%cell_column)
     ENDIF
     IF(mc_input_file%cell_row == 0) THEN
@@ -973,12 +991,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     irep=0
     nstart=1
     DO
-       CALL mc_parse_text(mc_input_file%text,nstart,nlines-1,"&MOLECULE",&
+       CALL mc_parse_text(mc_input_file%text,nstart,nlines,"&MOLECULE",&
          .FALSE.,row_number, idum)
        IF(row_number == 0) EXIT
        nstart=row_number+1
        irep=irep+1
-       CALL mc_parse_text(mc_input_file%text,nstart,nlines-1,"NMOL",&
+       CALL mc_parse_text(mc_input_file%text,nstart,nlines,"NMOL",&
             .FALSE.,mc_input_file%mol_set_nmol_row(irep), &
             mc_input_file%mol_set_nmol_column(irep))   
        mc_input_file%mol_set_nmol_column(irep)=mc_input_file%mol_set_nmol_column(irep)+5
@@ -997,7 +1015,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 ! now let's find the type of force_env...right now, I'm only concerned with
 ! QS, and Fist, though it should be trivial to add others
-    CALL mc_parse_text(mc_input_file%text,1,nlines-1,&
+    CALL mc_parse_text(mc_input_file%text,1,nlines,&
          "METHOD",.FALSE.,line_number, idum)
     READ(mc_input_file%text(line_number),*) cdum,method_name
     CALL uppercase(method_name)
@@ -1060,7 +1078,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !> \author MJM
 ! *****************************************************************************
 SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
-     row_number,column_number)
+     row_number,column_number,start_row_number)
 
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(IN)                             :: text
@@ -1068,7 +1086,7 @@ SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
     CHARACTER(LEN=*), INTENT(IN)             :: string_search
     LOGICAL, INTENT(IN)                      :: lend
     INTEGER, INTENT(OUT)                     :: row_number, column_number
-
+    INTEGER,INTENT(OUT),OPTIONAL             :: start_row_number
     CHARACTER(default_string_length)         :: text_temp
     INTEGER                                  :: iline, index_string, jline, &
                                                 string_size
@@ -1090,6 +1108,7 @@ SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
            row_number=iline
            column_number=index_string
         ELSE
+           IF(PRESENT(start_row_number)) start_row_number=iline
            column_number=index_string
            DO jline=iline+1,nend
 ! now we find the &END that matches up with this one...

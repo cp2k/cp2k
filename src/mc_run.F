@@ -119,7 +119,7 @@ CONTAINS
                                                 istat, iw, nboxes, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits_tot
     LOGICAL                                  :: lbias, lrestart, lskip_box, &
-                                                lterminate
+                                                lterminate, failure
     REAL(dp)                                 :: rcut
     REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
     TYPE(cp_logger_type), POINTER            :: logger
@@ -137,7 +137,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 mc_section, root_section
-
+  
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
          root_section,mc_molecule_info)
       para_env=>force_env_1%para_env
@@ -289,7 +289,6 @@ CONTAINS
       DO ibox=1,nboxes
          CALL set_mc_par(mc_par(ibox)%mc_par,mc_molecule_info=mc_molecule_info)
       ENDDO
-
 ! if we're doing a classical simulation, figure out the largest
 ! potential cutoff and write it to the screen
       IF(force_env(1)%force_env%in_use .EQ. use_fist_force) THEN
@@ -319,6 +318,9 @@ CONTAINS
 
       ENDDO
 
+! check to see if all the MC stuff setup correctly
+      CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
+
 ! if we're computing the second virial coefficient, do that instead
 ! of running a simulation
       SELECT CASE(ensemble)
@@ -327,6 +329,9 @@ CONTAINS
       CASE DEFAULT
          CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,rng_stream,error)
       END SELECT
+
+! check to see if all the MC stuff ran correctly
+      CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
 
 ! get rid of all the MC molecule information
       CALL get_mc_env( mc_env(1)%mc_env, mc_par = mc_par(1)%mc_par)
@@ -354,6 +359,7 @@ CONTAINS
             force_env_1 => force_env(1)%force_env
          ENDIF
       ENDDO
+
 
       DEALLOCATE ( empty_coordinates, STAT = isos )
       CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)

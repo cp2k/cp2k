@@ -399,6 +399,9 @@ CONTAINS
     ! parse the input
     root_section => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables,&
                                               para_env=para_env,error=error)
+    ! it has been a problem that the .dat file is written incorrectly...
+    ! this will help check that
+    CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
 
     CALL check_cp2k_input(root_section,para_env=para_env,error=error)
 
@@ -414,6 +417,7 @@ CONTAINS
        CALL fist_create_force_env(force_env, root_section, para_env, globenv,&
             force_env_section=force_env_section, subsys_section=subsys_section,&
             use_motion_section=.TRUE., error=error)
+
     CASE ( do_qs )
        CALL quickstep_create_force_env(force_env, root_section,  para_env,globenv, &
             force_env_section=force_env_section, subsys_section=subsys_section,&
