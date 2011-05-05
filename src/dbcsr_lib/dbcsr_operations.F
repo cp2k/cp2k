@@ -34,7 +34,8 @@ MODULE dbcsr_operations
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
-  USE dbcsr_config,                    ONLY: mm_driver,&
+  USE dbcsr_config,                    ONLY: detailed_timing,&
+                                             mm_driver,&
                                              mm_driver_cuda,&
                                              mm_driver_plasma
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
@@ -64,8 +65,7 @@ MODULE dbcsr_operations
                                              dbcsr_make_index_local_row,&
                                              dbcsr_repoint_index
   USE dbcsr_internal_operations,       ONLY: dbcsr_insert_blocks,&
-                                             dbcsr_mult_m_e_e,&
-                                             detailed_timing
+                                             dbcsr_mult_m_e_e
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&

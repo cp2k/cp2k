@@ -205,7 +205,7 @@ CONTAINS
     ENDIF
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (c_data))
     CASE (dbcsr_type_real_4)
-        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
+       CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_r, b_data%d_r, c_data%d_r,&
              c_locks, m_max, n_max, k_max, error=error)
     CASE (dbcsr_type_real_8)
@@ -214,11 +214,11 @@ CONTAINS
              c_locks, m_max, n_max, k_max, error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
-             a_data%d_d, b_data%d_d, c_data%d_d,&
+             a_data%d_c, b_data%d_c, c_data%d_c,&
              c_locks, m_max, n_max, k_max, error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
-             a_data%d_d, b_data%d_d, c_data%d_d,&
+             a_data%d_z, b_data%d_z, c_data%d_z,&
              c_locks, m_max, n_max, k_max, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
@@ -309,7 +309,7 @@ CONTAINS
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (host_mem, d_r4)
-       CALL cp_dev_to_host_r (dev_mem%d_r,&
+       CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_r,&
             d_r4, n, error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (host_mem, d_r8)

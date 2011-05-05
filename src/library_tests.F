@@ -1962,7 +1962,8 @@ CONTAINS
 
     CHARACTER(LEN=1)                         :: transa, transb
     CHARACTER, DIMENSION(3)                  :: types
-    INTEGER                                  :: i_rep, k, m, n, N_loop, n_rep
+    INTEGER                                  :: data_type, i_rep, k, m, n, &
+                                                N_loop, n_rep
     INTEGER, DIMENSION(:), POINTER           :: bs_k, bs_m, bs_n, nproc
     LOGICAL                                  :: keep_sparsity, transa_p, &
                                                 transb_p
@@ -1977,6 +1978,7 @@ CONTAINS
        CALL section_vals_val_get(input_section,"N_loop",i_rep_section=i_rep,i_val=N_loop,error=error )
        
        ! matrices def.
+       CALL section_vals_val_get(input_section,"DATA_TYPE",i_rep_section=i_rep,i_val=data_type,error=error )
        CALL section_vals_val_get(input_section,"K",i_rep_section=i_rep,i_val=k,error=error )
        CALL section_vals_val_get(input_section,"N",i_rep_section=i_rep,i_val=n,error=error )
        CALL section_vals_val_get(input_section,"M",i_rep_section=i_rep,i_val=m,error=error )
@@ -2010,6 +2012,7 @@ CONTAINS
             bs_m, bs_n, bs_k,&
             (/ s_a, s_b, s_c /),&
             alpha, beta,&
+            data_type=data_type,&
             error=error)
     END DO
   END SUBROUTINE cp_dbcsr_tests

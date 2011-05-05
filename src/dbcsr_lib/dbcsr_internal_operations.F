@@ -21,9 +21,10 @@ MODULE dbcsr_internal_operations
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
   USE dbcsr_config,                    ONLY: &
-       mm_driver, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_stack_size, &
-       use_CUDA_host_pinned_memory, use_MPI_memory, use_combined_types
+       detailed_timing, kernel_timing, mm_driver, mm_driver_blas, &
+       mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
+       mm_stack_size, use_CUDA_host_pinned_memory, use_MPI_memory, &
+       use_combined_types
   USE dbcsr_cuda_memory
   USE dbcsr_cuda_methods
   USE dbcsr_cuda_operations
@@ -145,7 +146,6 @@ MODULE dbcsr_internal_operations
   INTEGER, PARAMETER, PRIVATE :: p_c_blk = 7
 
 
-  LOGICAL, PARAMETER, PUBLIC  :: detailed_timing = .FALSE.
   LOGICAL, PARAMETER, PRIVATE :: verbose_acc = .FALSE.
 
   ! Types needed for the hashtable.
@@ -3632,7 +3632,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_process_mm_stack', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: time_kernel = .FALSE.
 
     INTEGER                                  :: error_handle, k_max, m_max, &
                                                 n_max, sp
@@ -3643,12 +3642,12 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
-    IF (time_kernel) THEN
+    IF (kernel_timing) THEN
        index_time = index_time + m_walltime()
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Index time", index_time, "s"
     ENDIF
     params_p => params
-    IF (time_kernel) kt = -m_walltime()
+    IF (kernel_timing) kt = -m_walltime()
     m_max = 0
     n_max = 0
     k_max = 0
@@ -3658,21 +3657,21 @@ CONTAINS
        n_max = MAX(n_max, params((sp-1)*n_mult_params+p_n))
        k_max = MAX(k_max, params((sp-1)*n_mult_params+p_k))
     ENDDO
-    IF (time_kernel) THEN
+    IF (kernel_timing) THEN
        kt = kt + m_walltime()
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Max size time", kt, "s"
     ENDIF
-    IF (time_kernel) kt = -m_walltime()
+    IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_thread_sync (error=error)
-    IF (time_kernel) THEN
+    IF (kernel_timing) THEN
        kt = kt + m_walltime()
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Thread sync time", kt, "s"
     ENDIF
     !
-    IF (time_kernel) kt = -m_walltime()
+    IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_cp_host_to_dev (params_p,&
          params_dev, n_mult_params*stack_size, error=error)
-    IF (time_kernel) THEN
+    IF (kernel_timing) THEN
        kt = kt + m_walltime()
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Parameter copy time", kt, "s"
     ENDIF
@@ -3680,18 +3679,18 @@ CONTAINS
     !WRITE(*,*)routineN//" calling kernel", stack_size,&
     !     dbcsr_cuda_dev_mem_get_type(data_c_dev)
     CALL m_flush(6)
-    IF (time_kernel) kt = -m_walltime()
+    IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_do_mm_stack (params_dev, stack_size, n_mult_params,&
          data_a_dev, data_b_dev, data_c_dev,&
          c_locks, m_max, n_max, k_max,&
          error=error)
-    IF (time_kernel) THEN
+    IF (kernel_timing) THEN
        CALL dbcsr_cuda_thread_sync (error=error)
        kt = kt + m_walltime()
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Kernel time", kt, "s"
        t_calc_step = t_calc_step + kt
     ENDIF
-    IF (time_kernel) index_time = -m_walltime()
+    IF (kernel_timing) index_time = -m_walltime()
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE cuda_process_mm_stack
 

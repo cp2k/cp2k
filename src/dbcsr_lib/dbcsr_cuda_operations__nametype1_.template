@@ -7,8 +7,8 @@
        a_data, b_data, c_data, c_locks, m_max, n_max, k_max, error)
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: param_stack
     INTEGER, INTENT(IN)                      :: stack_size, nparams
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), INTENT(IN) :: a_data, b_data
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), &
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), INTENT(IN) :: a_data, b_data
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), &
       INTENT(INOUT)                          :: c_data
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: c_locks
     INTEGER, INTENT(IN)                      :: m_max, n_max, k_max
@@ -25,7 +25,7 @@
 #if defined (__DBCSR_CUDA)
     istat = cuda_do_stack_cu(param_stack%ref, INT(stack_size, KIND=C_INT),&
          INT(nparams, KIND=C_INT),&
-         INT(dbcsr_type_[kind1], KIND=C_INT),&
+         INT(dbcsr_type_[fulltype1], KIND=C_INT),&
          a_data%ref, b_data%ref, c_data%ref, c_locks%ref,&
          INT(m_max,KIND=C_INT), INT(n_max,KIND=C_INT), INT(k_max,KIND=C_INT))
 #else
@@ -45,7 +45,7 @@
 
   SUBROUTINE cp_host_to_dev_[nametype1] (host_mem, dev_mem, n, error)
     INTEGER, INTENT(IN)                         :: n
-    TYPE(dbcsr_cuda_mem_type_[basetype1]),&
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]),&
          INTENT(INOUT)                          :: dev_mem
     [type1], DIMENSION(1:n), INTENT(IN), TARGET :: host_mem
     TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
@@ -90,7 +90,7 @@
 
 
   SUBROUTINE cp_dev_to_host_[nametype1] (dev_mem, host_mem, n, error)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), INTENT(IN) :: dev_mem
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), INTENT(IN) :: dev_mem
     INTEGER, INTENT(IN)                      :: n
     [type1], DIMENSION(1:n), INTENT(OUT),&
       TARGET                                 :: host_mem

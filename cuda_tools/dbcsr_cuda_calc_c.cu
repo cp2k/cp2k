@@ -53,39 +53,42 @@ __global__ void stack_mm_c
   n = our_params[1];
   k = our_params[2];
 
-  /* Load in the buffers. */
+  /* Load in the buffers.  The first mk threads load in A while the
+     last kn threads load in B. */
   mk = m*k;
   kn = k*n;
   if (cr < mk) {
-    buff[2*cr] = a_data[2*(our_params[3]-1+cr)];
-    buff[2*(mk+cr)+1] = a_data[2*(our_params[3]-1+cr)+1];
+    buff[2*cr  ] = a_data[2*(our_params[3]-1+cr)  ];
+    buff[2*cr+1] = a_data[2*(our_params[3]-1+cr)+1];
   }
-  if (cr >= blockDim.x - kn)
-    buff[2*(mk+(cr-(blockDim.x-kn)))] = b_data[2*(our_params[4]-1+(cr-(blockDim.x-kn)))];
+  if (cr >= blockDim.x - kn) {
+    buff[2*(mk+(cr-(blockDim.x-kn)))  ] = b_data[2*(our_params[4]-1+(cr-(blockDim.x-kn)))];
     buff[2*(mk+(cr-(blockDim.x-kn)))+1] = b_data[2*(our_params[4]-1+(cr-(blockDim.x-kn)))+1];
+  }
 
   /* Calculate who I am. */
   syncthreads();
+
   mn = m*n;
 
   /* Do actual multiplication. */
   if (cr < mn) {
     r = cr % m;
     c = cr / m;
-    myc_r = 0.0;
-    myc_i = 0.0;
+    myc_r = 0.0f;
+    myc_i = 0.0f;
 
     for (l = 0; l < k; l++) {
       myc_r = myc_r +
-	buff[2*(   l*m+r)] *
-	buff[2*(mk+c*k+l)] -
+	buff[2*(   l*m+r)  ] *
+	buff[2*(mk+c*k+l)  ] -
 	buff[2*(   l*m+r)+1] *
 	buff[2*(mk+c*k+l)+1];
       myc_i = myc_i +
-	buff[2*(   l*m+r)] *
+	buff[2*(   l*m+r)  ] *
 	buff[2*(mk+c*k+l)+1] +
 	buff[2*(   l*m+r)+1] *
-	buff[2*(mk+c*k+l)];
+	buff[2*(mk+c*k+l)  ];
     }
   }
 
@@ -102,7 +105,7 @@ __global__ void stack_mm_c
   /* Add our results to the C block. */
   syncthreads();
   if (cr < mn) {
-    c_data[2*(our_params[5]-1+cr)] += myc_r;
+    c_data[2*(our_params[5]-1+cr)  ] += myc_r;
     c_data[2*(our_params[5]-1+cr)+1] += myc_i;
   }
 

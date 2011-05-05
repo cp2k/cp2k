@@ -9,8 +9,6 @@
 
 #include "dbcsr_cuda.h"
 
-#define MAX(a,b) ((a > b) ? (a) : (b))
-
 
 int cuda_error_check (cudaError_t cudaError) {
   if (cudaError != cudaSuccess) {
@@ -51,7 +49,6 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
   int myDevice;
   size_t shared_size;
   struct cudaDeviceProp devProperties;
-  int test[1];
 
   maxt = MAX(MAX(m_max*n_max, m_max*k_max), k_max*n_max);
 
@@ -68,7 +65,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
   case 1:
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(float);
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
-    stack_mm_r <<< stack_size, maxt >>>
+    stack_mm_r <<< stack_size, maxt, shared_size >>>
       (param_stack, stack_size, nparams,
        (float *) a_data, (float *) b_data, (float *) c_data,
        c_locks);
@@ -84,7 +81,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
   case 5:
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(float)*2;
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
-    stack_mm_c <<< stack_size, maxt >>>
+    stack_mm_c <<< stack_size, maxt, shared_size >>>
       (param_stack, stack_size, nparams,
        (float *) a_data, (float *) b_data, (float *) c_data,
        c_locks);
@@ -92,7 +89,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
   case 7:
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(double)*2;
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
-    stack_mm_z <<< stack_size, maxt >>>
+    stack_mm_z <<< stack_size, maxt, shared_size >>>
       (param_stack, stack_size, nparams,
        (double *) a_data, (double *) b_data, (double *) c_data,
        c_locks);

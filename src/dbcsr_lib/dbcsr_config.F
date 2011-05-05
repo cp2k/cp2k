@@ -56,6 +56,8 @@ MODULE dbcsr_config
             mm_name_smm,&
             mm_name_plasma,&
             mm_name_cuda
+  !
+  PUBLIC :: detailed_timing, kernel_timing
 
 
   ! First the constants are declared.
@@ -72,9 +74,6 @@ MODULE dbcsr_config
                                  mm_name_smm    = "SMM",&
                                  mm_name_plasma = "PLASMA",&
                                  mm_name_cuda   = "CUDA"
-
-
-
 
   ! Then the capabilities are specified.
 
@@ -126,6 +125,11 @@ MODULE dbcsr_config
 
   ! Stack size to use for multiplication parameters
   INTEGER :: mm_stack_size = 1000
+
+  ! Whether to print extra timing
+  LOGICAL :: detailed_timing = .FALSE.
+  LOGICAL :: kernel_timing = .FALSE.
+
 
 CONTAINS
 

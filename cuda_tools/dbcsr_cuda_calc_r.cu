@@ -55,7 +55,8 @@ __global__ void stack_mm_r
   n = our_params[1];
   k = our_params[2];
 
-  /* Load in the buffers. */
+  /* Load in the buffers.  The first mk threads load in A while the
+     last kn threads load in B. */
   mk = m*k;
   kn = k*n;
   if (cr < mk)
@@ -73,7 +74,7 @@ __global__ void stack_mm_r
   if (cr < mn) {
     r = cr % m;
     c = cr / m;
-    myc = 0.0;
+    myc = 0.0f;
 
     for (l = 0; l < k; l++) {
       myc = myc +
@@ -102,7 +103,5 @@ __global__ void stack_mm_r
   syncthreads();
   if (cr == 0)
     c_locks[c_id] = 0;
-
-  if (mn == 16) return;
 
 };

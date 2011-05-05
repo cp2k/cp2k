@@ -67,11 +67,12 @@ CONTAINS
 !> \param[in] bs_m, bs_n, bs_k  block sizes of the 3 dimensions
 !> \param[in] sparsities        sparsities of matrices to create
 !> \param[in] alpha, beta       alpha and beta values to use in multiply
+!> \param[in] data_type         matrix data type
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE cp_test_multiplies (mp_group, io_unit, nproc,&
        matrix_sizes, matrix_types, trs, &
-       bs_m, bs_n, bs_k, sparsities, alpha, beta, error)
+       bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, error)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
     INTEGER, DIMENSION(:), INTENT(in)        :: matrix_sizes
@@ -80,6 +81,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: bs_m, bs_n, bs_k
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: sparsities
     REAL(kind=dp), INTENT(in)                :: alpha, beta
+    INTEGER, INTENT(IN)                      :: data_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -124,24 +126,24 @@ CONTAINS
     ! Create the undistributed matrices.
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group, error=dbcsr_error)
+         mp_group, data_type=data_type, error=dbcsr_error)
     IF (trs(1)) THEN
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, error=dbcsr_error)
+            mp_group, data_type=data_type, error=dbcsr_error)
     ELSE
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, error=dbcsr_error)
+            mp_group, data_type=data_type, error=dbcsr_error)
     ENDIF
     IF (trs(2)) THEN
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, error=dbcsr_error)
+            mp_group, data_type=data_type, error=dbcsr_error)
     ELSE
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, error=dbcsr_error)
+            mp_group, data_type=data_type, error=dbcsr_error)
     ENDIF
     CALL array_release (sizes_m)
     CALL array_release (sizes_n)

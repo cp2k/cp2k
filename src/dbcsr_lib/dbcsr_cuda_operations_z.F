@@ -25,7 +25,7 @@
 #if defined (__DBCSR_CUDA)
     istat = cuda_do_stack_cu(param_stack%ref, INT(stack_size, KIND=C_INT),&
          INT(nparams, KIND=C_INT),&
-         INT(dbcsr_type_real_8, KIND=C_INT),&
+         INT(dbcsr_type_complex_8, KIND=C_INT),&
          a_data%ref, b_data%ref, c_data%ref, c_locks%ref,&
          INT(m_max,KIND=C_INT), INT(n_max,KIND=C_INT), INT(k_max,KIND=C_INT))
 #else

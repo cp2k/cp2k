@@ -4,14 +4,14 @@
 !-----------------------------------------------------------------------------!
 
   PURE FUNCTION dev_mem_get_alloc_[nametype1] (dev_mem) RESULT (data_size)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), INTENT(IN) :: dev_mem
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), INTENT(IN) :: dev_mem
     INTEGER                                  :: data_size
 
     data_size = dev_mem%len
   END FUNCTION dev_mem_get_alloc_[nametype1]
 
   PURE FUNCTION dev_mem_get_size_[nametype1] (dev_mem) RESULT (data_size)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), INTENT(IN) :: dev_mem
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), INTENT(IN) :: dev_mem
     INTEGER                                  :: data_size
 
     data_size = dev_mem%req_len

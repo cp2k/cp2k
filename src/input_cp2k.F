@@ -27,6 +27,10 @@ MODULE input_cp2k
        has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
        mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
        mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
+  USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
+                                             dbcsr_type_complex_8,&
+                                             dbcsr_type_real_4,&
+                                             dbcsr_type_real_8
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_atom_section
@@ -732,6 +736,21 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
+    CALL keyword_create(keyword, name="detailed_timing",&
+         description="Output multiplication timing (development)",&
+         usage="detailed_timing T",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="kernel_timing",&
+         description="Time multiplication kernel (development)",&
+         usage="kernel_timing T",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    !
   END SUBROUTINE create_dbcsr_section
 
 
@@ -1160,6 +1179,22 @@ CONTAINS
     CALL keyword_create(keyword, name="N_LOOP",&
          description="Number of operations being timed (useful for small matrices).",&
          usage="N_LOOP 10",default_i_val=10,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="DATA_TYPE",&
+         description="Data type of the matrices",&
+         usage="DATA_TYPE real_4",&
+         default_i_val=dbcsr_type_real_8,&
+         enum_c_vals=s2a("real_4", "real_8", "complex_4", "complex_8"),&
+         enum_i_vals=(/dbcsr_type_real_4, dbcsr_type_real_8, &
+                       dbcsr_type_complex_4, dbcsr_type_complex_8 /),&
+         enum_desc=s2a(&
+         "Real (Single Precision)",&
+         "Real (Double Precision)",&
+         "Complex (Single Precision)",&
+         "Complex (Double Precision)"),&
+         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE dev_mem_alloc_[nametype1] (dev_mem, n, error, stat)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), &
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), &
       INTENT(OUT)                                   :: dev_mem
     INTEGER, INTENT(IN)                             :: n
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL :: error
@@ -41,7 +41,7 @@
 
 
   SUBROUTINE dev_mem_dealloc_[nametype1] (dev_mem, error, stat)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), INTENT(INOUT) :: dev_mem
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), INTENT(INOUT) :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL      :: error
     INTEGER, INTENT(OUT), OPTIONAL                       :: stat
     
@@ -77,7 +77,7 @@
 
 
   SUBROUTINE dev_mem_realloc_[nametype1] (dev_mem, n, error, stat, memory_crunch)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), &
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), &
       INTENT(INOUT)                          :: dev_mem
     INTEGER, INTENT(IN)                      :: n
     TYPE(dbcsr_error_type), INTENT(INOUT), &
@@ -215,7 +215,7 @@
 
 
   SUBROUTINE dev_mem_zero_[nametype1] (dev_mem, first, last, error)
-    TYPE(dbcsr_cuda_mem_type_[basetype1]), &
+    TYPE(dbcsr_cuda_mem_type_[shorttype1]), &
       INTENT(INOUT)                          :: dev_mem
     INTEGER, INTENT(IN)                      :: first, last
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
