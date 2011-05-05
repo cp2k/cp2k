@@ -118,8 +118,8 @@ CONTAINS
     INTEGER                                  :: box_number, ibox, isos, &
                                                 istat, iw, nboxes, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits_tot
-    LOGICAL                                  :: lbias, lrestart, lskip_box, &
-                                                lterminate, failure
+    LOGICAL                                  :: failure, lbias, lrestart, &
+                                                lskip_box, lterminate
     REAL(dp)                                 :: rcut
     REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
     TYPE(cp_logger_type), POINTER            :: logger
@@ -137,7 +137,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 mc_section, root_section
-  
+
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
          root_section,mc_molecule_info)
       para_env=>force_env_1%para_env

@@ -251,8 +251,7 @@ CONTAINS
 
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     INTEGER, INTENT(OUT), OPTIONAL :: run_type_row, run_type_column, &
-      coord_row_start, coord_row_end, cell_row, cell_column, global_row_end,&
-      motion_row_end, motion_row_start
+      coord_row_start, coord_row_end, cell_row, cell_column, global_row_end
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: mol_set_nmol_row, &
                                                 mol_set_nmol_column
     INTEGER, INTENT(OUT), OPTIONAL           :: in_use
@@ -261,6 +260,8 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: nunits_empty
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: coordinates_empty
+    INTEGER, INTENT(OUT), OPTIONAL           :: motion_row_end, &
+                                                motion_row_start
 
    IF(PRESENT(in_use)) in_use=mc_input_file%in_use
    IF(PRESENT(run_type_row)) run_type_row=mc_input_file%run_type_row
@@ -1086,7 +1087,8 @@ SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
     CHARACTER(LEN=*), INTENT(IN)             :: string_search
     LOGICAL, INTENT(IN)                      :: lend
     INTEGER, INTENT(OUT)                     :: row_number, column_number
-    INTEGER,INTENT(OUT),OPTIONAL             :: start_row_number
+    INTEGER, INTENT(OUT), OPTIONAL           :: start_row_number
+
     CHARACTER(default_string_length)         :: text_temp
     INTEGER                                  :: iline, index_string, jline, &
                                                 string_size

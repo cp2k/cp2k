@@ -9,44 +9,11 @@
 !> \author MJM
 ! *****************************************************************************
 MODULE mc_misc
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE ewald_environment_types,         ONLY: ewald_env_get,&
-                                             ewald_environment_type
-  USE external_potential_types,        ONLY: fist_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type
   USE f77_blas
-  USE fist_environment_types,          ONLY: fist_env_get,&
-                                             fist_environment_type
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-                                             fist_nonbond_env_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
-                                             use_fist_force,&
+  USE force_env_types,                 ONLY: use_fist_force,&
                                              use_qs_force
-  USE global_types,                    ONLY: DEBUG,&
-                                             HIGH,&
-                                             LOW,&
-                                             MEDIUM,&
-                                             SILENT
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
@@ -54,20 +21,8 @@ MODULE mc_misc
        accattempt, get_mc_input_file, get_mc_molecule_info, get_mc_par, &
        mc_averages_type, mc_input_file_type, mc_molecule_info_type, &
        mc_moves_p_type, mc_moves_type, mc_simpar_type
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: atom_type,&
-                                             bend_type,&
-                                             bond_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             torsion_type
-  USE pair_potential_types,            ONLY: pair_potential_pp_type
-  USE physcon,                         ONLY: angstrom,&
-                                             kelvin
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE physcon,                         ONLY: angstrom
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -497,8 +452,9 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
     CHARACTER(default_string_length), &
       DIMENSION(:), POINTER                  :: atom_names_empty, text
     INTEGER :: cell_column, cell_row, coord_row_end, coord_row_start, &
-      global_row_end, iline, in_use, itype, iunit, nmol_types, nunits_empty, &
-      run_type_row, start_line, unit, motion_row_start, motion_row_end
+      global_row_end, iline, in_use, itype, iunit, motion_row_end, &
+      motion_row_start, nmol_types, nunits_empty, run_type_row, start_line, &
+      unit
     INTEGER, DIMENSION(:), POINTER           :: mol_set_nmol_column, &
                                                 mol_set_nmol_row
     REAL(dp), DIMENSION(:, :), POINTER       :: coordinates_empty
