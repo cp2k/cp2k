@@ -98,7 +98,7 @@ pretty: dirs
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
 
 deptool: dirs
-	+$(MAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
+	+$(MAKE) LDFLAGS=$(MAKDEPF90_LDFLAGS) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
 
 libs:
 	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
