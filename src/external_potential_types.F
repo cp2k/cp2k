@@ -423,6 +423,33 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
+       IF (ASSOCIATED(potential%alpha_lpot)) THEN
+          DEALLOCATE (potential%alpha_lpot,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (potential%nct_lpot,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (potential%cval_lpot,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+       IF (ASSOCIATED(potential%alpha_lsd)) THEN
+          DEALLOCATE (potential%alpha_lsd,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (potential%nct_lsd,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (potential%cval_lsd,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+       IF (ASSOCIATED(potential%alpha_nlcc)) THEN
+          DEALLOCATE (potential%alpha_nlcc,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (potential%nct_nlcc,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (potential%cval_nlcc,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
        DEALLOCATE (potential,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
