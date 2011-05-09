@@ -481,7 +481,7 @@ CONTAINS
        IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_world_init" )
 !$  ELSE
 !$OMP MASTER
-!$     CALL mpi_init_thread (MPI_THREAD_MULTIPLE, provided_tsl, ierr)
+!$     CALL mpi_init_thread (MPI_THREAD_FUNNELED, provided_tsl, ierr)
 !$     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init_thread @ mp_world_init" )
 !$     IF (provided_tsl .LT. MPI_THREAD_FUNNELED) THEN
 !$        CALL mp_stop (0, "Inadequate level of thread support is provided.")
