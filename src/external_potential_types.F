@@ -311,6 +311,16 @@ CONTAINS
     NULLIFY (potential%vprj_ppnl)
     NULLIFY (potential%hprj_ppnl)
 
+    NULLIFY (potential%alpha_lpot)
+    NULLIFY (potential%nct_lpot)
+    NULLIFY (potential%cval_lpot)
+    NULLIFY (potential%alpha_lsd)
+    NULLIFY (potential%nct_lsd)
+    NULLIFY (potential%cval_lsd)
+    NULLIFY (potential%alpha_nlcc)
+    NULLIFY (potential%nct_nlcc)
+    NULLIFY (potential%cval_nlcc)
+
     potential%description(1) = "Goedecker-Teter-Hutter pseudopotential"
     potential%description(2) = "Goedecker et al., PRB 54, 1703 (1996)"
     potential%description(3) = "Hartwigsen et al., PRB 58, 3641 (1998)"
