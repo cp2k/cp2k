@@ -438,3 +438,15 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+# extended GTH pseudopotentials 
+si8_pulay_inverse.inp
+# extended GTH pseudopotentials 
+si8_pulay_off.inp
+# extended GTH pseudopotentials 
+si8_broy_kry.inp
+# extended GTH pseudopotentials 
+si8_broy_kry_r.inp
+# extended GTH pseudopotentials 
+si8_broy_wc.inp
+# extended GTH pseudopotentials 
+si8_broy_wc_crazy.inp

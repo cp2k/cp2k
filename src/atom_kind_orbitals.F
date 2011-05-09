@@ -155,15 +155,6 @@ CONTAINS
           potential%gth_pot%cl(i) = ce(i)/(2._dp*ac)**(i-1) 
         END DO
       END IF
-      potential%gth_pot%nl(:)     = 0 
-      potential%gth_pot%rcnl(:)   = 0._dp
-      potential%gth_pot%hnl(:,:,:)= 0._dp
-      DO l=0,lm
-        n = nppnl(l)
-        potential%gth_pot%nl(l)     = n
-        potential%gth_pot%rcnl(l)   = SQRT(0.5_dp/ap(l))
-        potential%gth_pot%hnl(1:n,1:n,l)= hp(1:n,1:n,l)
-      END DO
       !extended type
       potential%gth_pot%lpotextended = .FALSE.
       potential%gth_pot%lsdpot = .FALSE.
@@ -183,9 +174,14 @@ CONTAINS
                            cval_lpot=cval_lpot)
         potential%gth_pot%lpotextended = .TRUE. 
         potential%gth_pot%nexp_lpot = nexp_lpot
-        potential%gth_pot%alpha_lpot(1:nexp_lpot) = alpha_lpot(1:nexp_lpot)
+        potential%gth_pot%alpha_lpot(1:nexp_lpot) = SQRT(0.5_dp/alpha_lpot(1:nexp_lpot))
         potential%gth_pot%nct_lpot(1:nexp_lpot) = nct_lpot(1:nexp_lpot)
-        potential%gth_pot%cval_lpot(1:4,1:nexp_lpot) = cval_lpot(1:4,1:nexp_lpot)
+        DO j=1,nexp_lpot
+          ac = alpha_lpot(j)
+          DO i=1,4
+            potential%gth_pot%cval_lpot(i,j) = cval_lpot(i,j)/(2._dp*ac)**(i-1)
+          END DO
+        END DO
       END IF
       IF (lsd_present) THEN
         CALL get_potential(gth_potential,&
@@ -195,10 +191,27 @@ CONTAINS
                            cval_lsd=cval_lsd)
         potential%gth_pot%lsdpot = .TRUE.
         potential%gth_pot%nexp_lsd = nexp_lsd
-        potential%gth_pot%alpha_lsd(1:nexp_lsd) = alpha_lsd(1:nexp_lsd)
+        potential%gth_pot%alpha_lsd(1:nexp_lsd) = SQRT(0.5_dp/alpha_lsd(1:nexp_lsd))
         potential%gth_pot%nct_lsd(1:nexp_lsd) = nct_lsd(1:nexp_lsd)
-        potential%gth_pot%cval_lsd(1:4,1:nexp_lsd) = cval_lsd(1:4,1:nexp_lsd)
+        DO j=1,nexp_lpot
+          ac = alpha_lsd(j)
+          DO i=1,4
+            potential%gth_pot%cval_lsd(i,j) = cval_lsd(i,j)/(2._dp*ac)**(i-1)
+          END DO
+        END DO
       END IF
+
+      ! nonlocal part
+      potential%gth_pot%nl(:)     = 0 
+      potential%gth_pot%rcnl(:)   = 0._dp
+      potential%gth_pot%hnl(:,:,:)= 0._dp
+      DO l=0,lm
+        n = nppnl(l)
+        potential%gth_pot%nl(l)     = n
+        potential%gth_pot%rcnl(l)   = SQRT(0.5_dp/ap(l))
+        potential%gth_pot%hnl(1:n,1:n,l)= hp(1:n,1:n,l)
+      END DO
+
       IF (nlcc_present) THEN
         CALL get_potential(gth_potential,&
                            nexp_nlcc=nexp_nlcc,&

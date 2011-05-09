@@ -915,3 +915,9 @@ He3_multi_ddapc.inp
 crys_per_qmmm_spln.inp
 acn-conn-1.inp
 crys_per_qmmm_anal.inp
+# extended GTH pseudopotentials 
+H2O-bloechl-restraint.inp
+# extended GTH pseudopotentials 
+H2O-ata.inp
+# extended GTH pseudopotentials 
+dynamics.inp

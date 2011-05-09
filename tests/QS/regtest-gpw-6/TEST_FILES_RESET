@@ -425,3 +425,17 @@ si8_lsd_broy_wc_list.inp
 si8_lsd_broy_wc_list_rst.inp
 si8_lsd_broy_fm0.2.inp
 
+# extended GTH pseudopotentials 
+si8_noort_broy_wc_jacobi_ene1.inp
+# extended GTH pseudopotentials 
+si8_noort_broy_wc_direct_ene.inp
+# extended GTH pseudopotentials 
+si8_lsd_broy_wc_ene.inp
+# extended GTH pseudopotentials 
+si8_lsd_broy_wc.inp
+# extended GTH pseudopotentials 
+si8_lsd_broy_wc_rst.inp
+# extended GTH pseudopotentials 
+si8_lsd_broy_wc_list.inp
+# extended GTH pseudopotentials 
+si8_lsd_broy_wc_list_rst.inp

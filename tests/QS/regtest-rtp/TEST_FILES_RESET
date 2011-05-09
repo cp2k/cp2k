@@ -198,3 +198,5 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 # Numerics due to new local multiplication. 
 wfn_mix_1.inp
+# extended GTH pseudopotentials 
+wfn_mix_1.inp

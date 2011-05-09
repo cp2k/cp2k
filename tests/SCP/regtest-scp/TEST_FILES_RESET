@@ -257,3 +257,9 @@ w2.inp
 w2-r1.inp
 # Numerics due to new local multiplication. 
 w2-r2.inp
+# extended GTH pseudopotentials 
+w2.inp
+# extended GTH pseudopotentials 
+w2-r1.inp
+# extended GTH pseudopotentials 
+w2-r2.inp

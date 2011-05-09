@@ -459,6 +459,28 @@ CONTAINS
                     omat(1:m,1:m) = potential%gth_pot%cl(i)*omat(1:m,1:m)
                     CALL contract2add(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
                   END DO
+                  IF (potential%gth_pot%lpotextended) THEN
+                    DO k=1,potential%gth_pot%nexp_lpot
+                      DO i=1,potential%gth_pot%nct_lpot(k)
+                        omat = 0._dp
+                        CALL sg_gpot ( omat(1:m,1:m), i-1, potential%gth_pot%alpha_lpot(k), l, &
+                                       basis%am(1:m,l), basis%am(1:m,l) )
+                        omat(1:m,1:m) = potential%gth_pot%cval_lpot(i,k)*omat(1:m,1:m)
+                        CALL contract2add(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+                      END DO
+                    END DO
+                  END IF
+                  IF (potential%gth_pot%lsdpot) THEN
+                    DO k=1,potential%gth_pot%nexp_lsd
+                      DO i=1,potential%gth_pot%nct_lsd(k)
+                        omat = 0._dp
+                        CALL sg_gpot ( omat(1:m,1:m), i-1, potential%gth_pot%alpha_lsd(k), l, &
+                                       basis%am(1:m,l), basis%am(1:m,l) )
+                        omat(1:m,1:m) = potential%gth_pot%cval_lsd(i,k)*omat(1:m,1:m)
+                        CALL contract2add(integrals%clsd(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+                      END DO
+                    END DO
+                  END IF
 
                   spmat = 0._dp
                   k = potential%gth_pot%nl(l)

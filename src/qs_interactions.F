@@ -89,20 +89,20 @@ CONTAINS
 
     INTEGER :: handle, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, &
       istat, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, &
-      nset
+      nset, nexp_lpot, nexp_lsd, i, j
     INTEGER, DIMENSION(:), POINTER           :: ls, npgf, nprj, nprj_ppnl, &
-                                                nshell
+                                                nshell, nct_lpot, nct_lsd
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
     LOGICAL                                  :: p_aux, p_ccr, p_gem, p_orb, &
                                                 p_paw, p_ppl, p_ppnl, p_soft, &
-                                                paw_atom
+                                                paw_atom, lpot, llsd
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
       core_charge_radius, eps_reduce, gcca, kind_radius, ppl_radius, &
       ppnl_radius, rcprj, short_radius, zab, zd, zeta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppnl, cexp_ppl, &
-                                                set_radius
+                                                set_radius, alpha_lpot, alpha_lsd
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, pgf_radius, &
-                                                rzetprj, zet
+                                                rzetprj, zet, cval_lpot, cval_lsd
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
@@ -239,6 +239,8 @@ CONTAINS
                            cerf_ppl=cerf_ppl,&
                            nexp_ppl=nexp_ppl,&
                            cexp_ppl=cexp_ppl,&
+                           lpot_present=lpot,&
+                           lsd_present=llsd,&
                            lppnl=lppnl,&
                            alpha_ppnl=alpha_ppnl,&
                            nprj_ppnl=nprj_ppnl,&
@@ -260,6 +262,36 @@ CONTAINS
                                       qs_control%eps_ppl,&
                                       cexp_ppl(iexp_ppl)))
         END DO
+        IF(lpot) THEN
+          ! extended local potential
+          CALL get_potential(potential=gth_potential,&
+                             nexp_lpot = nexp_lpot,&
+                             alpha_lpot = alpha_lpot,&
+                             nct_lpot = nct_lpot,&
+                             cval_lpot = cval_lpot)
+          DO j=1,nexp_lpot
+            DO i=1,nct_lpot(j)
+              lppl = 2*(i-1)
+              ppl_radius = MAX(ppl_radius,&
+                           exp_radius(lppl,alpha_lpot(j),qs_control%eps_ppl,cval_lpot(i,j)))
+            END DO
+          END DO
+        END IF
+        IF(llsd) THEN
+          ! lsd local potential
+          CALL get_potential(potential=gth_potential,&
+                             nexp_lsd = nexp_lsd,&
+                             alpha_lsd = alpha_lsd,&
+                             nct_lsd = nct_lsd,&
+                             cval_lsd = cval_lsd)
+          DO j=1,nexp_lsd
+            DO i=1,nct_lsd(j)
+              lppl = 2*(i-1)
+              ppl_radius = MAX(ppl_radius,&
+                           exp_radius(lppl,alpha_lsd(j),qs_control%eps_ppl,cval_lsd(i,j)))
+            END DO
+          END DO
+        END IF
 
         ! Calculate the radii of the non-local part
         ! of the Goedecker pseudopotential (GTH)

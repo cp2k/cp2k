@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE core_ppl
 
-  USE ai_overlap_ppl,                  ONLY: overlap_ppl
+  USE ai_overlap_ppl,                  ONLY: ppl_integral
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -78,19 +78,21 @@ CONTAINS
     INTEGER :: atom_a, atom_b, atom_c, handle, iatom, icol, ikind, inode, &
       irow, iset, jatom, jkind, jset, katom, kkind, last_jatom, ldai, ldsab, &
       maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, natom, ncoa, &
-      ncob, nkind, nseta, nsetb, sgfa, sgfb, stat
+      ncob, nkind, nseta, nsetb, sgfa, sgfb, stat, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found, new_atom_b
-    REAL(KIND=dp)                            :: alpha_ppl, dab, dac, dbc, f0, &
+    REAL(KIND=dp)                            :: alpha, dab, dac, dbc, f0, &
                                                 ppl_radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: ai_work, hab, pab
+      DIMENSION(:, :, :)                     :: ppl_fwork, ppl_work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: hab, pab
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
                                                 rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl, set_radius_a, &
@@ -105,6 +107,18 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator
+
+    INTEGER                                  :: nexp_lpot
+    LOGICAL                                  :: lpotextended
+    INTEGER, DIMENSION(:), POINTER           :: nct_lpot
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: cval_lpot
+
+    INTEGER,PARAMETER                        :: nexp_max=10
+    INTEGER                                  :: nexp_ppl
+    INTEGER, DIMENSION(nexp_max)             :: nct_ppl 
+    REAL(KIND=dp), DIMENSION(nexp_max)       :: alpha_ppl 
+    REAL(KIND=dp), DIMENSION(4,nexp_max)     :: cval_ppl 
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -141,10 +155,14 @@ CONTAINS
     ldai = ncoset(maxl+nder+1)
     ALLOCATE(hab(ldsab,ldsab,maxnset,maxnset),work(ldsab,ldsab*maxder),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
+    ldai = ncoset(2*maxlgto+2*nder)
+    ALLOCATE (ppl_work(ldai,ldai,MAX(maxder,2*maxlgto+2*nder+1)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (calculate_forces) THEN
        ALLOCATE(pab(maxco,maxco,maxnset,maxnset),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ldai = ncoset(maxlgto)
+       ALLOCATE (ppl_fwork(ldai,ldai,maxder),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -267,7 +285,23 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
           IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
           CALL get_potential(potential=gth_potential,&
-                             alpha_ppl=alpha_ppl,cexp_ppl=cexp_ppl,ppl_radius=ppl_radius)
+               alpha_ppl=alpha,cexp_ppl=cexp_ppl,&
+               lpot_present=lpotextended,ppl_radius=ppl_radius)
+               nexp_ppl=1
+               alpha_ppl(1)=alpha
+               nct_ppl(1)=SIZE(cexp_ppl)
+               cval_ppl(1:nct_ppl(1),1)=cexp_ppl(1:nct_ppl(1))
+          IF (lpotextended) THEN
+            CALL get_potential(potential=gth_potential,&
+                 nexp_lpot=nexp_lpot,alpha_lpot=alpha_lpot,nct_lpot=nct_lpot,cval_lpot=cval_lpot)
+            CPPrecondition(nexp_lpot<nexp_max,cp_failure_level,routineP,error,failure)
+            nexp_ppl=nexp_lpot+1
+            alpha_ppl(2:nexp_lpot+1) = alpha_lpot(1:nexp_lpot)
+            nct_ppl(2:nexp_lpot+1) = nct_lpot(1:nexp_lpot)
+            DO i=1,nexp_lpot
+              cval_ppl(1:nct_lpot(i),i+1) = cval_lpot(1:nct_lpot(i),i)
+            END DO
+          ENDIF
           CALL nl_set_sub_iterator(ap_iterator,ikind,kkind,iatom)
           DO WHILE (nl_sub_iterate(ap_iterator)==0)
              CALL get_iterator_info(ap_iterator,jatom=katom,r=rac)
@@ -292,15 +326,15 @@ CONTAINS
                    ! *** Calculate the GTH pseudo potential forces ***
                    IF (calculate_forces) THEN
 
-                      CALL overlap_ppl(&
+                      CALL ppl_integral(&
                               la_max(iset),la_min(iset),npgfa(iset),&
                               rpgfa(:,iset),zeta(:,iset),&
                               lb_max(jset),lb_min(jset),npgfb(jset),&
                               rpgfb(:,jset),zetb(:,jset),&
-                              cexp_ppl,alpha_ppl,ppl_radius,&
+                              nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,ppl_radius,&
                               rab,dab,rac,dac,rbc,dbc,&
-                              hab(:,:,iset,jset),nder,nder,.FALSE.,ai_work,&
-                              pab(:,:,iset,jset),force_a,force_b)
+                              hab(:,:,iset,jset),ppl_work,pab(:,:,iset,jset),&
+                              force_a,force_b,ppl_fwork,error=error)
 
                       ! *** The derivatives w.r.t. atomic center c are    ***
                       ! *** calculated using the translational invariance ***
@@ -325,14 +359,14 @@ CONTAINS
                          CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
                       END IF
                    ELSE
-                      CALL overlap_ppl(&
+                      CALL ppl_integral(&
                            la_max(iset),la_min(iset),npgfa(iset),&
                            rpgfa(:,iset),zeta(:,iset),&
                            lb_max(jset),lb_min(jset),npgfb(jset),&
                            rpgfb(:,jset),zetb(:,jset),&
-                           cexp_ppl,alpha_ppl,ppl_radius,&
-                           rab,dab,rac,dac,rbc,dbc,&
-                           hab(:,:,iset,jset),0,0,.FALSE.,ai_work)
+                           nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,ppl_radius,&
+                           rab,dab,rac,dac,rbc,dbc,hab(:,:,iset,jset),ppl_work,&
+                           error=error)
                    END IF
                 END DO
              END DO
@@ -371,14 +405,12 @@ CONTAINS
 
     DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(hab,work,ai_work,STAT=stat)
+    DEALLOCATE(hab,work,ppl_work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF (calculate_forces) THEN
-       DEALLOCATE(pab,STAT=stat)
+       DEALLOCATE(pab,ppl_fwork,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
        IF (SIZE(matrix_p) == 2) THEN

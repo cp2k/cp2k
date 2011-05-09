@@ -186,3 +186,9 @@ graphite.inp
 graphite2.inp
 # Numerics due to new local multiplication. 
 graphite3.inp
+# extended GTH pseudopotentials 
+graphite.inp
+# extended GTH pseudopotentials 
+graphite2.inp
+# extended GTH pseudopotentials 
+graphite3.inp

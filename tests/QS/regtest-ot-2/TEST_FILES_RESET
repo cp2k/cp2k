@@ -1001,3 +1001,23 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+# extended GTH pseudopotentials 
+N3-2.inp
+# extended GTH pseudopotentials 
+N3-3.inp
+# extended GTH pseudopotentials 
+N3-4.inp
+# extended GTH pseudopotentials 
+N3-5.inp
+# extended GTH pseudopotentials 
+N3-6.inp
+# extended GTH pseudopotentials 
+N3-7.inp
+# extended GTH pseudopotentials 
+N3-8.inp
+# extended GTH pseudopotentials 
+N3-9.inp
+# extended GTH pseudopotentials 
+N3-10.inp
+# extended GTH pseudopotentials 
+H2O.inp

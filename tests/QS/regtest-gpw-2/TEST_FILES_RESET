@@ -732,3 +732,11 @@ Au13ico_mtd.inp
 Au12_rmsd_mtd.inp
 # Numerics
 hcn_ts.inp
+# extended GTH pseudopotentials 
+hcn_ts.inp
+# extended GTH pseudopotentials 
+hcn_ts_r.inp
+# extended GTH pseudopotentials 
+Au13ico_mtd.inp
+# extended GTH pseudopotentials 
+Au12_rmsd_mtd.inp

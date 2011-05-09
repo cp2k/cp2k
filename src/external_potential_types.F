@@ -121,8 +121,11 @@ MODULE external_potential_types
                                                    nexp_ppl,nppnl,&
                                                    nprj_ppnl_max,z
      REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl
-     INTEGER, DIMENSION(:), POINTER             :: elec_conf,nprj_ppnl
+     INTEGER, DIMENSION(:), POINTER             :: elec_conf
+     ! nonlocal projectors
+     INTEGER, DIMENSION(:), POINTER             :: nprj_ppnl
      REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj,cprj_ppnl,vprj_ppnl
+     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
      ! type extensions
      ! NLCC
      LOGICAL                                    :: nlcc
@@ -142,7 +145,6 @@ MODULE external_potential_types
      REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_lpot
      INTEGER, DIMENSION(:), POINTER             :: nct_lpot
      REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cval_lpot
-     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
 
   END TYPE gth_potential_type
 
@@ -1257,12 +1259,15 @@ CONTAINS
                       is_ok=cp_sll_val_next(list,val,error=error)
                       CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
                       CALL val_get(val,c_val=line_att,error=error)
-                      READ(line_att,*) potential%alpha_lpot(ipot)
+                      READ(line_att,*) r
+                      potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
                       CALL remove_word(line_att)
                       READ(line_att,*) potential%nct_lpot(ipot)
                       CALL remove_word(line_att)
                       DO ic=1,potential%nct_lpot(ipot)
-                        READ(line_att,*) potential%cval_lpot(ic,ipot)
+                        READ(line_att,*) ci
+                        rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic-1)
+                        potential%cval_lpot(ic,ipot) = ci*rc2
                         CALL remove_word(line_att)
                       END DO
                    END DO
@@ -1299,12 +1304,15 @@ CONTAINS
                       is_ok=cp_sll_val_next(list,val,error=error)
                       CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
                       CALL val_get(val,c_val=line_att,error=error)
-                      READ(line_att,*) potential%alpha_lsd(ipot)
+                      READ(line_att,*) r
+                      potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
                       CALL remove_word(line_att)
                       READ(line_att,*) potential%nct_lsd(ipot)
                       CALL remove_word(line_att)
                       DO ic=1,potential%nct_lsd(ipot)
-                        READ(line_att,*) potential%cval_lsd(ic,ipot)
+                        READ(line_att,*) ci
+                        rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic-1)
+                        potential%cval_lsd(ic,ipot) = ci*rc2
                         CALL remove_word(line_att)
                       END DO
                    END DO
@@ -1329,10 +1337,13 @@ CONTAINS
                      CALL reallocate(potential%nct_lpot,1,n)
                      CALL reallocate(potential%cval_lpot,1,4,1,n)
                      DO ipot=1,potential%nexp_lpot
-                       CALL parser_get_object(parser,potential%alpha_lpot(ipot),newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                       potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
                        CALL parser_get_object(parser,potential%nct_lpot(ipot),error=error)
                        DO ic=1,potential%nct_lpot(ipot)
-                         CALL parser_get_object(parser,potential%cval_lpot(ic,ipot),error=error)
+                         CALL parser_get_object(parser,ci,error=error)
+                         rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic-1)
+                         potential%cval_lpot(ic,ipot) = ci*rc2
                        END DO
                      END DO
                    ELSEIF(INDEX(LINE,"NLCC") /= 0) THEN
@@ -1361,10 +1372,13 @@ CONTAINS
                      CALL reallocate(potential%nct_lsd,1,n)
                      CALL reallocate(potential%cval_lsd,1,4,1,n)
                      DO ipot=1,potential%nexp_lsd
-                       CALL parser_get_object(parser,potential%alpha_lsd(ipot),newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                       potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
                        CALL parser_get_object(parser,potential%nct_lsd(ipot),error=error)
                        DO ic=1,potential%nct_lsd(ipot)
-                         CALL parser_get_object(parser,potential%cval_lsd(ic,ipot),error=error)
+                         CALL parser_get_object(parser,ci,error=error)
+                         rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic-1)
+                         potential%cval_lsd(ic,ipot) = ci*rc2
                        END DO
                      END DO
                    ELSE
@@ -1378,14 +1392,9 @@ CONTAINS
              !         *** Read the parameters for the non-local  ***
              !         *** part of the GTH pseudopotential (ppnl) ***
              IF (read_from_input) THEN
-!deb            is_ok=cp_sll_val_next(list,val,error=error)
-!deb            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-!deb                                              "Error reading the Potential from input file!!")
-!deb            CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)n
                 CALL remove_word(line_att)
              ELSE
-!deb            CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
                 CALL parser_get_object(parser,n,error=error)
                 irep = irep + 1
                 WRITE(line_att,'(1X,I0)')n

@@ -100,7 +100,7 @@ CONTAINS
     END DO
     IF ( zz /= 1 ) zval = zz
 
-    ! read and set up inofrmation on the basis sets
+    ! read and set up information on the basis sets
     ALLOCATE(ae_basis,pp_basis,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS",error=error)

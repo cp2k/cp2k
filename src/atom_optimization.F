@@ -4,8 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief routines that build the integrals of the Vxc potential calculated
-!>      for the atomic code
+!> \brief Optimizer for the atomic code
 ! *****************************************************************************
 MODULE atom_optimization
   USE atom_types,                      ONLY: atom_optimization_type

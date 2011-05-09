@@ -106,3 +106,5 @@ H2O_tddfpt-t-1.inp
 H2O_tddfpt-t-1.inp
 # Numerics due to new local multiplication. 
 H2O_tddfpt-t-1.inp
+# extended GTH pseudopotentials 
+NO_tddfpt-t-1.inp
