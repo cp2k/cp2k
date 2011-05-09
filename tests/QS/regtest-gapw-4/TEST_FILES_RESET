@@ -287,3 +287,5 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+#
+H2O_Hnopaw_pp.inp

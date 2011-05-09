@@ -740,3 +740,5 @@ hcn_ts_r.inp
 Au13ico_mtd.inp
 # extended GTH pseudopotentials 
 Au12_rmsd_mtd.inp
+hcn_meta_chaincoord.inp 
+hcn_meta_chaincoord_kind.inp
