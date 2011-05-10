@@ -1487,6 +1487,7 @@ CONTAINS
        output_unit= cp_logger_get_default_io_unit(logger)
        conn_info => topology%conn_info
        nbond = 0
+       ntheta = 0
        natom = topology%natoms
        ! This call is for connectivity off
        IF(ASSOCIATED(conn_info%bond_a)) THEN
@@ -1495,55 +1496,55 @@ CONTAINS
           CALL reallocate(conn_info%bond_a,1,nbond)
           CALL reallocate(conn_info%bond_b,1,nbond)
        END IF
-       ntheta = 0
-       nsize  = INT(5+1.2*ntheta)
-       CALL reallocate(conn_info%theta_a,1,nsize)
-       CALL reallocate(conn_info%theta_b,1,nsize)
-       CALL reallocate(conn_info%theta_c,1,nsize)
-       ! Get list of bonds to pre-process theta
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
+       IF (nbond/=0) THEN
+          nsize  = INT(5+1.2*ntheta)
+          CALL reallocate(conn_info%theta_a,1,nsize)
+          CALL reallocate(conn_info%theta_b,1,nsize)
+          CALL reallocate(conn_info%theta_c,1,nsize)
+          ! Get list of bonds to pre-process theta
+          ALLOCATE(bond_list(natom),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
-       ! All the dirty job is handled by this routine.. for bends it_levl is equal 3
-       CALL timeset(routineN//"_1",handle2)
-       CALL match_iterative_path(Iarray1=bond_list,&
-                                 Iarray2=bond_list,&
-                                 max_levl=3,&
-                                 nvar=ntheta,&
-                                 Oarray1 =conn_info%theta_a,&
-                                 Oarray2 =conn_info%theta_b,&
-                                 Oarray3 =conn_info%theta_c,&
-                                 error=error)
-       CALL timestop(handle2)
-       DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
+          DO I = 1, natom
+             ALLOCATE(bond_list(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+          ! All the dirty job is handled by this routine.. for bends it_levl is equal 3
+          CALL timeset(routineN//"_1",handle2)
+          CALL match_iterative_path(Iarray1=bond_list,&
+                                    Iarray2=bond_list,&
+                                    max_levl=3,&
+                                    nvar=ntheta,&
+                                    Oarray1 =conn_info%theta_a,&
+                                    Oarray2 =conn_info%theta_b,&
+                                    Oarray3 =conn_info%theta_c,&
+                                    error=error)
+          CALL timestop(handle2)
+          DO I = 1, natom
+             DEALLOCATE(bond_list(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(bond_list,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Bends generated:",&
-               ntheta
-       END IF
-       ! External defined bends (useful for complex connectivity)
-       bend_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%ANGLE",error=error)
-       CALL connectivity_external_control(section=bend_section,&
-                                          Iarray1=conn_info%theta_a,&
-                                          Iarray2=conn_info%theta_b,&
-                                          Iarray3=conn_info%theta_c,&
-                                          nvar=ntheta,&
-                                          topology=topology,&
-                                          output_unit=output_unit,&
-                                          error=error)
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Bends generated:",&
+                  ntheta
+          END IF
+          ! External defined bends (useful for complex connectivity)
+          bend_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%ANGLE",error=error)
+          CALL connectivity_external_control(section=bend_section,&
+                                             Iarray1=conn_info%theta_a,&
+                                             Iarray2=conn_info%theta_b,&
+                                             Iarray3=conn_info%theta_c,&
+                                             nvar=ntheta,&
+                                             topology=topology,&
+                                             output_unit=output_unit,&
+                                             error=error)
+       END IF 
        ! Resize arrays to their proper size..
        CALL reallocate(conn_info%theta_a,1,ntheta)
        CALL reallocate(conn_info%theta_b,1,ntheta)
        CALL reallocate(conn_info%theta_c,1,ntheta)
-       
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Bends generated:",&
                ntheta
