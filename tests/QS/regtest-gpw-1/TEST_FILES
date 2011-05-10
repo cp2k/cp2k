@@ -53,10 +53,10 @@ Ar-fine-1.inp 1
 # a basis none first kind
 H2O-none.inp 1
 # extended pseudopotentials
-h4.t1.inp
-h4.t2.inp
-h4.t3.inp
-h4.t4.inp
-h4.t5.inp
-h2.t1.inp
-h2.t2.inp
+h4.t1.inp 1
+h4.t2.inp 1
+h4.t3.inp 1
+h4.t4.inp 1
+h4.t5.inp 1
+h2.t1.inp 1
+h2.t2.inp 1
