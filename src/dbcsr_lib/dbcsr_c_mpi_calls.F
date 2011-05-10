@@ -55,6 +55,9 @@
 MODULE dbcsr_c_mpi_calls
   USE dbcsr_kinds,                           ONLY: dp, sp, real_4, real_8,&
                                              int_4, int_8
+#ifdef __CRAY_POINTERS
+#define __cray_pointers
+#endif
 ! Do not use C bindings if we can use CRAY pointers.
 #ifdef __cray_pointers
 #undef __c_bindings
