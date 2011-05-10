@@ -441,3 +441,5 @@ si8_lsd_broy_wc_list.inp
 si8_lsd_broy_wc_list_rst.inp
 si8_noort_broy_wc_jacobi_all.inp
 c8_broy_gapw_gop.inp.out
+# extended GTH pseudopotentials 
+c8_broy_gapw_gop.inp
