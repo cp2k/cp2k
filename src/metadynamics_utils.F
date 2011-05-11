@@ -41,6 +41,7 @@ MODULE metadynamics_utils
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_mov
+  USE message_passing,                 ONLY: mp_bcast
   USE metadynamics_types,              ONLY: hills_env_type,&
                                              meta_env_type,&
                                              metadyn_create,&
@@ -493,15 +494,19 @@ CPSourceFileRef,&
     LOGICAL                                  :: exist, failure
     REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: delta_s_ss0_buf
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     logger  => cp_error_get_logger(error)
+    para_env => logger%para_env
 
     ! Locally dump information on file..
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
+    IF (para_env%mepos==para_env%source) THEN
        ! Generate file name for the specific Hill
        i = multiple_walkers%walker_id
        filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"//&
@@ -526,6 +531,9 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        ALLOCATE(delta_s_save(n_colvar),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(delta_s_ss0_buf(2,0:n_colvar),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       delta_s_ss0_buf=0
        DO i = 1, n_colvar
           ss0_save(i)     = colvars(i)%ss0
           delta_s_save(i) = colvars(i)%delta_s
@@ -542,21 +550,34 @@ CPSourceFileRef,&
           i_hills  = multiple_walkers%walkers_status(i) + 1
           filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"//&
                      TRIM(ADJUSTL(cp_to_string(i_hills)))
-          INQUIRE(FILE=TRIM(filename),EXIST=exist)
+
+          IF (para_env%mepos==para_env%source) THEN
+             INQUIRE(FILE=TRIM(filename),EXIST=exist)
+          ENDIF
+          CALL mp_bcast(exist,para_env%source,para_env%group)
           DO WHILE (exist)
              ! Read information from the walker's file
              ! We shouldn't care too much about the concurrency of these I/O instructions..
              ! In case, they can be fixed in the future..
-             CALL open_file(file_name=filename,file_status="OLD",&
-                  file_form="FORMATTED",file_action="READ",&
-                  file_position="REWIND",unit_number=unit_nr)
-             READ(unit_nr,*)ww
+             IF (para_env%mepos==para_env%source) THEN
+                CALL open_file(file_name=filename,file_status="OLD",&
+                     file_form="FORMATTED",file_action="READ",&
+                     file_position="REWIND",unit_number=unit_nr)
+                READ(unit_nr,*) delta_s_ss0_buf(1,0)
+                DO ih = 1, n_colvar
+                   READ(unit_nr,*) delta_s_ss0_buf(1,ih)
+                   READ(unit_nr,*) delta_s_ss0_buf(2,ih)
+                END DO
+                IF (hills_env%wtcontrol) READ(unit_nr,*) delta_s_ss0_buf(2,0)
+                CALL close_file(unit_nr)
+             ENDIF
+             CALL mp_bcast(delta_s_ss0_buf,para_env%source,para_env%group)
+             ww=delta_s_ss0_buf(1,0)
+             IF (hills_env%wtcontrol) invdt=delta_s_ss0_buf(2,0)
              DO ih = 1, n_colvar
-                READ(unit_nr,*)colvars(ih)%ss0
-                READ(unit_nr,*)colvars(ih)%delta_s
-             END DO
-             IF (hills_env%wtcontrol) READ(unit_nr,*)invdt
-             CALL close_file(unit_nr)
+                colvars(ih)%ss0=delta_s_ss0_buf(1,ih)
+                colvars(ih)%delta_s=delta_s_ss0_buf(2,ih)
+             ENDDO
 
              ! Add this hill to the history dependent terms
              IF (hills_env%wtcontrol) THEN
@@ -568,7 +589,10 @@ CPSourceFileRef,&
              i_hills  = i_hills + 1
              filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"//&
                         TRIM(ADJUSTL(cp_to_string(i_hills)))
-             INQUIRE(FILE=TRIM(filename),EXIST=exist)
+             IF (para_env%mepos==para_env%source) THEN
+                INQUIRE(FILE=TRIM(filename),EXIST=exist)
+             ENDIF
+             CALL mp_bcast(exist,para_env%source,para_env%group)
           END DO
 
           delta_hills = i_hills - 1 - multiple_walkers%walkers_status(i)
