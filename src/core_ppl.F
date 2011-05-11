@@ -74,17 +74,20 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nexp_max = 10
 
-    INTEGER :: atom_a, atom_b, atom_c, handle, iatom, icol, ikind, inode, &
+    INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, inode, &
       irow, iset, jatom, jkind, jset, katom, kkind, last_jatom, ldai, ldsab, &
       maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, natom, ncoa, &
-      ncob, nkind, nseta, nsetb, sgfa, sgfb, stat, i
+      ncob, nexp_lpot, nexp_ppl, nkind, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
+                                                lb_min, nct_lpot, npgfa, &
+                                                npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b
+    INTEGER, DIMENSION(nexp_max)             :: nct_ppl
+    LOGICAL                                  :: failure, found, lpotextended, &
+                                                new_atom_b
     REAL(KIND=dp)                            :: alpha, dab, dac, dbc, f0, &
                                                 ppl_radius
     REAL(KIND=dp), ALLOCATABLE, &
@@ -95,11 +98,13 @@ CONTAINS
       DIMENSION(:, :, :, :)                  :: hab, pab
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
                                                 rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl, set_radius_a, &
-                                                set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, rpgfa, &
-                                                rpgfb, sphi_a, sphi_b, zeta, &
-                                                zetb
+    REAL(KIND=dp), DIMENSION(4, nexp_max)    :: cval_ppl
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, cexp_ppl, &
+                                                set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval_lpot, h_block, p_block, &
+                                                rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    REAL(KIND=dp), DIMENSION(nexp_max)       :: alpha_ppl
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_p_type), &
@@ -107,18 +112,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator
-
-    INTEGER                                  :: nexp_lpot
-    LOGICAL                                  :: lpotextended
-    INTEGER, DIMENSION(:), POINTER           :: nct_lpot
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: cval_lpot
-
-    INTEGER,PARAMETER                        :: nexp_max=10
-    INTEGER                                  :: nexp_ppl
-    INTEGER, DIMENSION(nexp_max)             :: nct_ppl 
-    REAL(KIND=dp), DIMENSION(nexp_max)       :: alpha_ppl 
-    REAL(KIND=dp), DIMENSION(4,nexp_max)     :: cval_ppl 
 
     failure = .FALSE.
     IF (calculate_forces) THEN

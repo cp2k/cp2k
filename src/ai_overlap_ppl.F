@@ -66,7 +66,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nexp_ppl
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: alpha_ppl
     INTEGER, DIMENSION(:), INTENT(IN)        :: nct_ppl
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN):: cexp_ppl
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cexp_ppl
     REAL(KIND=dp), INTENT(IN)                :: rpgfc
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: dab
@@ -89,8 +90,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ij, ipgf, istat, jpgf, mmax, &
-                                                iexp, nexp
+    INTEGER                                  :: iexp, ij, ipgf, istat, jpgf, &
+                                                mmax, nexp
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: rho, sab, t, zetc
     REAL(KIND=dp), ALLOCATABLE, &

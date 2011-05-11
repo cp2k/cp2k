@@ -87,22 +87,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, &
-      istat, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, &
-      nset, nexp_lpot, nexp_lsd, i, j
-    INTEGER, DIMENSION(:), POINTER           :: ls, npgf, nprj, nprj_ppnl, &
-                                                nshell, nct_lpot, nct_lsd
+    INTEGER :: handle, i, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, &
+      istat, j, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_lpot, &
+      nexp_lsd, nexp_ppl, nkind, nset
+    INTEGER, DIMENSION(:), POINTER           :: ls, nct_lpot, nct_lsd, npgf, &
+                                                nprj, nprj_ppnl, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    LOGICAL                                  :: p_aux, p_ccr, p_gem, p_orb, &
-                                                p_paw, p_ppl, p_ppnl, p_soft, &
-                                                paw_atom, lpot, llsd
+    LOGICAL                                  :: llsd, lpot, p_aux, p_ccr, &
+                                                p_gem, p_orb, p_paw, p_ppl, &
+                                                p_ppnl, p_soft, paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
       core_charge_radius, eps_reduce, gcca, kind_radius, ppl_radius, &
       ppnl_radius, rcprj, short_radius, zab, zd, zeta
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppnl, cexp_ppl, &
-                                                set_radius, alpha_lpot, alpha_lsd
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, pgf_radius, &
-                                                rzetprj, zet, cval_lpot, cval_lsd
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
+                                                alpha_ppnl, cexp_ppl, &
+                                                set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, cval_lpot, &
+                                                cval_lsd, pgf_radius, &
+                                                rzetprj, zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
