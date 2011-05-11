@@ -14,6 +14,9 @@
 !> - 2010-06-18 Moved all pointer methods into here.
 ! *****************************************************************************
 MODULE dbcsr_ptr_util
+#if !defined (__HAS_NO_ISO_C_BINDING)
+  USE ISO_C_BINDING
+#endif
 
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_host_mem_alloc,&
                                              dbcsr_cuda_host_mem_dealloc
@@ -43,18 +46,18 @@ MODULE dbcsr_ptr_util
 
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-#if defined(__PTR_RANK_REMAP)
-  ! True pointer rank remapping can be used.
+#if defined(__PTR_RANK_REMAP) || !defined(__HAS_NO_ISO_C_BINDING)
+  ! True pointer rank remapping or safe pointer rank remapping using
+  ! ISO_C_BINDING can be used.
   LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
-#else
-#if defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+#elif defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
   ! Use buffers
   LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .FALSE.
+  ERROR "CP2K must have some way of mapping rank-2 pointers onto rank-1 pointers."
 #else
   ! Use crazy Fortran hacks.
   ! This can be very unsafe!
   LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
-#endif
 #endif
 
 

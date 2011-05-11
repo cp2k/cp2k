@@ -271,8 +271,19 @@
 
     r2p(1:d1,1:d2) => r1p(1:d1*d2)
   END SUBROUTINE pointer_[nametype1]_rank_remap2
-#else
-#if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+#elif !defined(__HAS_NO_ISO_C_BINDING)
+  SUBROUTINE pointer_[nametype1]_rank_remap2 (r2p, d1, d2, r1p)
+    INTEGER, INTENT(IN)                      :: d1, d2
+    [type1], DIMENSION(:, :), &
+      POINTER                                :: r2p
+    [type1], DIMENSION(:), &
+      POINTER                                :: r1p
+    TYPE(C_PTR)                              :: fe_loc
+
+    fe_loc = C_LOC (r1p(1))
+    CALL C_F_POINTER (fe_loc, r2p, (/ d1, d2 /))
+  END SUBROUTINE pointer_[nametype1]_rank_remap2
+#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
 ! *****************************************************************************
@@ -297,7 +308,7 @@
       TARGET                                 :: r1p
 
 !    r2p(1:d1,1:d2) => r1p(1:d1*d2)
+    STOP "Pointer rank remapping needed but not supported directly or with hacks."
     NULLIFY (r2p)
   END SUBROUTINE pointer_[nametype1]_rank_remap2
-#endif
 #endif

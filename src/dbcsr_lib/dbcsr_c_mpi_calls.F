@@ -6,136 +6,100 @@
 ! *****************************************************************************
 !> \brief Wrapper for various memory allocation methods and bindings
 !> \par Purpose
-!>       An MPI implementation may require memory allocation throught its own
-!>      interface for remote memory access. Using its memory allocation may
-!>      also be more efficient for other, non-RMA routines.
+!>      An MPI implementation may require memory allocation throught
+!>      its own mpi_alloc_mem subroutine for remote memory
+!>      access. Using its memory allocation may also be more efficient
+!>      for other, non-RMA routines.
 !> \par Choices
-!>      There are four possible memory (de)allocation calling scenarios
+!>      There are three possible memory (de)allocation calling scenarios
 !>      selected by compile-time options.
-!>      <ol>
-!> <li> By default memory management is not handled by MPI but regular
-!>           ALLOCATE and DEALLOCATE statements.
-!> <li> If __cray_pointers is declared, then the MPI MPI_ALLOC_MEM and
-!>            MPI_FREE_MEM routine is called through its default
-!>            binding as present in mpif.h, but the fortran compiler
-!>            must support the Cray pointers extension.
-!> <li> If __c_bindings and __mpi_f_bindings are declared, then the
-!>           allocation is performed by a call to the assumed binding
-!>           MPI_ALLOC_MEM_; this name can be overidden with the
-!>           __MPI_F_ALLOC_DECL declaration. Deallocation is through
-!>           the default binding MPI_FREE_MEM as present in
-!>           mpif.h. This option is a type-safe alternative to
-!>           CRAY-pointers.
-!> <li> If __c_bindings and __mpi_c_bindings are declared, then the
-!>           allocation is performed by a direct call to the
-!>           mpi_alloc_mem C function. While in this case the function
-!>           name should exist in a correctly-linked program, the
-!>           parameter types are not guaranteed to match the ones
-!>           declared in the C header.
-!>      </ol>
-!> \par Multiple declarations
-!>      In case of multiple declarations, Cray pointers are preferred
-!>      to the fortran or C bindings using the C binding interface. In
-!>      case the C binding interface is used, the fortran binding is
-!>      preferred due to its type safety.
-!> \par Suggested choice
-!>      The suggested choice is either Cray pointers or __c_bindings
-!>      and __mpi_f_bindings. The routines themselves are meant to be
-!>      called from the mp_allocate and mp_deallocate routines
-!>      declared in message_passing.F
+!>      <ul>
+!> <li> (No MPI Memory) Memory management is not handled by MPI but
+!>           regular ALLOCATE and DEALLOCATE statements.
+!>           (__no_mpi_allocation)
+!> <li> (C bindings) Memory management is handled by calling
+!>           MPI_ALLOC_MEM using a TYPE(C_PTR) type as the formal
+!>           argument to the BASEPTR dummy argument.  Deallocation is
+!>           also done by calling MPI_FREE_MEM. (__c_bindings)
+!> <li> (CRAY pointers) Memory management is handled by calling
+!>           MPI_ALLOC_MEM using a CRAY pointer as the formal argument
+!>           to the BASEPTR dummy argument.  Deallocation is also done
+!>           by calling MPI_FREE_MEM. (__c_bindings)
+!>      </ul>
+!> \par Precedence of options
+!> <ol>
+!> <li> If __NO_MPI_MEMORY is defined, then the No MPI Memory mode
+!>      is used; otherwise,
+!> <li> The C binding interface is used unless either
+!>      __HAS_NO_ISO_C_BINDING or __cray_pointers is defined;
+!>      otherwise,
+!> <lI> CRAY pointers are used unless
+!>       __NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION is set.; otherwise the
+!>       compilation aborts with an error.
+!> </ol>
 !> \author  Urban Borstnik
 !> \date    2009-05-12
-!> \version 1.1
+!> \version 1.9
 !>
 !> <b>Modification history:</b>
 !> - Created 2009-05-12
 !> - 2009-06-09 Fixes for the C interface to the C routines.
+!> - 2011-05-11 Removes the C binding routine interfaces and the
+!>              interface to C MPI.
 ! *****************************************************************************
 
 MODULE dbcsr_c_mpi_calls
   USE dbcsr_kinds,                           ONLY: dp, sp, real_4, real_8,&
                                              int_4, int_8
-#ifdef __CRAY_POINTERS
-#define __cray_pointers
-#endif
-! Do not use C bindings if we can use CRAY pointers.
-#ifdef __cray_pointers
-#undef __c_bindings
-#endif
 
-! Do not use fortran or C bindings if we can not use C bindings at all.
-#ifndef __c_bindings
-#undef __mpi_f_bindings
-#undef __mpi_c_bindings
-#endif
-
-! Can only use fortran or C bindings, not both. fortran takes precedence
-#if defined(__c_bindings) && !defined(__mpi_f_bindings) && !defined(__mpi_c_bindings)
-#define __mpi_f_bindings
-#endif
-
-! Must use either fortran or C bindings, not both. fortran takes precedence
-#if defined(__mpi_f_bindings) && defined(__mpi_c_bindings)
-#undef __mpi_c_bindings
-#endif
-
-! The fortran binding of the MPI_Alloc_mem subroutine
-#ifndef __MPI_F_ALLOC_DECL
-#define __MPI_F_ALLOC_DECL "mpi_alloc_mem_"
+! Reset the settings for code selection
+#ifdef __mpi_allocation
+#undef __mpi_allocation
 #endif
 
 #ifdef __c_bindings
+#undef __c_bindings
+#endif
+
+! Logic for code selection
+#if !defined(__NO_MPI_MEMORY)
+
+#define __mpi_allocation
+
+#if !defined(__HAS_NO_ISO_C_BINDING) && !defined(__cray_pointers)
+
+#define __c_bindings
+
+#else   /* ==IF HAS_NO_ISO_C_BINDING || cray_pointers */
+
+#ifndef __cray_pointers
+#define __cray_pointers
+#endif
+
+#if defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+  ERROR "MPI memory allocation can not be used given your compilation defines."
+#endif
+
+#endif  /* !HAS_NO_ISO_C_BINDING && !cray_pointers */
+
+#endif  /* !NO_MPI_MEMORY */
+                              
+
+! Real code starts here
+
+#ifndef __HAS_NO_ISO_C_BINDING
   USE ISO_C_BINDING
 #endif
 
   IMPLICIT NONE
 
+  PRIVATE
 
   PUBLIC :: mp_alloc_mem, mp_free_mem
 
-  PRIVATE 
-
-#if defined(__c_bindings) || defined(__cray_pointers)
+#if defined(__mpi_allocation)
   INCLUDE "mpif.h"
 #endif
-
-#ifdef __c_bindings
-
-#ifndef __mpi_f_bindings
-  INTERFACE
-     !> We assume that the type for the argument size corresponds to intptr_t.
-     !> It is MPI_ADDRESS_TYPE in fortran.
-     FUNCTION mpi_alloc_mem_c(size, info, baseptr)&
-          RESULT(res) BIND(C, name="MPI_Alloc_mem")
-         USE ISO_C_BINDING
-    INTEGER(KIND=C_INTPTR_T), INTENT(IN), &
-      VALUE                                  :: size
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: info
-    TYPE(C_PTR), INTENT(INOUT)               :: baseptr
-    INTEGER(KIND=C_INT)                      :: res
-
-     END FUNCTION mpi_alloc_mem_c
-  END INTERFACE
-
-#else /* !__mpi_f_bindings */
-
-  INTERFACE
-     !> We guess the name of the fortran binding name.
-     SUBROUTINE mpi_alloc_mem_f(size, info, baseptr, ierr)&
-          BIND(C, name=__MPI_F_ALLOC_DECL)
-        USE ISO_C_BINDING
-    INTEGER(KIND=MPI_ADDRESS_KIND), &
-      INTENT(IN)                             :: size
-    INTEGER, INTENT(IN)                      :: info
-    TYPE(C_PTR), INTENT(INOUT)               :: baseptr
-    INTEGER, INTENT(INOUT)                   :: ierr
-
-     END SUBROUTINE mpi_alloc_mem_f
-  END INTERFACE
-
-#endif /* !__mpi_f_bindings */
-
-#endif /* __c_bindings */
 
 
   INTERFACE mp_alloc_mem
@@ -157,15 +121,17 @@ CONTAINS
 !> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] iarray     data array
+!> \param[in] n          elemements in data array
 !> \param fp             pointer to assign
 ! *****************************************************************************
-  SUBROUTINE array_to_fp_i(iarray, fp)
-    INTEGER(KIND=int_4), DIMENSION(:), &
+  SUBROUTINE array_to_fp_i(iarray, n, fp)
+    INTEGER(KIND=int_4), DIMENSION(*), &
       INTENT(IN), TARGET                     :: iarray
+    INTEGER, INTENT(IN)                      :: n
     INTEGER(KIND=int_4), DIMENSION(:), &
       POINTER                                :: fp
 
-    fp => iarray
+    fp => iarray(1:n)
   END SUBROUTINE array_to_fp_i
 
 ! *****************************************************************************
@@ -173,15 +139,17 @@ CONTAINS
 !> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] iarray     data array
+!> \param[in] n          elemements in data array
 !> \param fp             pointer to assign
 ! *****************************************************************************
-  SUBROUTINE array_to_fp_l(iarray, fp)
-    INTEGER(KIND=int_8), DIMENSION(:), &
+  SUBROUTINE array_to_fp_l(iarray, n, fp)
+    INTEGER(KIND=int_8), DIMENSION(*), &
       INTENT(IN), TARGET                     :: iarray
+    INTEGER, INTENT(IN)                      :: n
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: fp
 
-    fp => iarray
+    fp => iarray(1:n)
   END SUBROUTINE array_to_fp_l
 
 ! *****************************************************************************
@@ -189,14 +157,16 @@ CONTAINS
 !> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] darray     data array
+!> \param[in] n          elemements in data array
 !> \param fp             pointer to assign
 ! *****************************************************************************
-  SUBROUTINE array_to_fp_d(darray, fp)
-    REAL(KIND=real_8), DIMENSION(:), &
+  SUBROUTINE array_to_fp_d(darray, n, fp)
+    REAL(KIND=real_8), DIMENSION(*), &
       INTENT(IN), TARGET                     :: darray
+    INTEGER, INTENT(IN)                      :: n
     REAL(KIND=real_8), DIMENSION(:), POINTER :: fp
 
-    fp => darray
+    fp => darray(1:n)
   END SUBROUTINE array_to_fp_d
 
 ! *****************************************************************************
@@ -205,15 +175,17 @@ CONTAINS
 !> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] darray     data array
+!> \param[in] n          elemements in data array
 !> \param fp             pointer to assign
 ! *****************************************************************************
-  SUBROUTINE array_to_fp_z(darray, fp)
-    COMPLEX(KIND=real_8), DIMENSION(:), &
+  SUBROUTINE array_to_fp_z(darray, n, fp)
+    COMPLEX(KIND=real_8), DIMENSION(*), &
       INTENT(IN), TARGET                     :: darray
+    INTEGER, INTENT(IN)                      :: n
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: fp
 
-    fp => darray
+    fp => darray(1:n)
   END SUBROUTINE array_to_fp_z
 
 ! *****************************************************************************
@@ -221,14 +193,16 @@ CONTAINS
 !> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] darray     data array
+!> \param[in] n          elemements in data array
 !> \param fp             pointer to assign
 ! *****************************************************************************
-  SUBROUTINE array_to_fp_r(darray, fp)
-    REAL(KIND=real_4), DIMENSION(:), &
+  SUBROUTINE array_to_fp_r(darray, n, fp)
+    REAL(KIND=real_4), DIMENSION(*), &
       INTENT(IN), TARGET                     :: darray
+    INTEGER, INTENT(IN)                      :: n
     REAL(KIND=real_4), DIMENSION(:), POINTER :: fp
 
-    fp => darray
+    fp => darray(1:n)
   END SUBROUTINE array_to_fp_r
 
 ! *****************************************************************************
@@ -237,16 +211,19 @@ CONTAINS
 !> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] darray     data array
+!> \param[in] n          elemements in data array
 !> \param fp             pointer to assign
 ! *****************************************************************************
-  SUBROUTINE array_to_fp_c(darray, fp)
-    COMPLEX(KIND=real_4), DIMENSION(:), &
+  SUBROUTINE array_to_fp_c(darray, n, fp)
+    COMPLEX(KIND=real_4), DIMENSION(*), &
       INTENT(IN), TARGET                     :: darray
+    INTEGER, INTENT(IN)                      :: n
     COMPLEX(KIND=real_4), DIMENSION(:), &
       POINTER                                :: fp
 
-    fp => darray
+    fp => darray(1:n)
   END SUBROUTINE array_to_fp_c
+
 
 #if defined(__c_bindings) || defined(__cray_pointers)
 ! *****************************************************************************
@@ -264,13 +241,8 @@ CONTAINS
 
 #ifdef __c_bindings
      TYPE(C_PTR)              :: mp_baseptr
-#ifndef __mpi_f_bindings
-     INTEGER(KIND=C_INTPTR_T) :: mp_size
-     INTEGER(KIND=C_INT)      :: mp_info, mp_res
-#else
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
-#endif
 #else /* (__c_bindings) */
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
@@ -282,23 +254,14 @@ CONTAINS
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_INTEGER, integer_size, ierr)
      mp_size = length * integer_size
-!> The C bindings may use a different value for MPI_INFO_NULL
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
-#ifndef __mpi_f_bindings
-     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
-#else
-     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
-#endif
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_i(dynmem(1:len), DATA)
+     CALL array_to_fp_i(dynmem(1), len, DATA)
 #endif 
-     !write(6,*)'int allocation', ASSOCIATED(data), (/length/), &
-     !     mp_res
-     !IF (ASSOCIATED (data)) &
-     !     write(6,*)'int allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_i
 
@@ -317,13 +280,8 @@ CONTAINS
 
 #ifdef __c_bindings
      TYPE(C_PTR)              :: mp_baseptr
-#ifndef __mpi_f_bindings
-     INTEGER(KIND=C_INTPTR_T) :: mp_size
-     INTEGER(KIND=C_INT)      :: mp_info, mp_res
-#else
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
-#endif
 #else /* (__c_bindings) */
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
@@ -335,23 +293,14 @@ CONTAINS
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_INTEGER8, integer_size, ierr)
      mp_size = length * integer_size
-!> The C bindings may use a different value for MPI_INFO_NULL
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
-#ifndef __mpi_f_bindings
-     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
-#else
-     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
-#endif
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_l(dynmem(1:len), DATA)
+     CALL array_to_fp_l(dynmem(1), len, DATA)
 #endif 
-     !write(6,*)'int allocation', ASSOCIATED(data), (/length/), &
-     !     mp_res
-     !IF (ASSOCIATED (data)) &
-     !     write(6,*)'int allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
   END SUBROUTINE mp_alloc_mem_l
 
@@ -371,13 +320,8 @@ CONTAINS
 
 #ifdef __c_bindings     
      TYPE(C_PTR)                           :: mp_baseptr
-#ifndef __mpi_f_bindings
-     INTEGER(KIND=C_INTPTR_T)              :: mp_size
-     INTEGER(KIND=C_INT)                   :: mp_info, mp_res
-#else
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
-#endif
 #else
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
@@ -389,23 +333,14 @@ CONTAINS
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
      mp_size = length * double_size
-!> The C bindings may use a different value for MPI_INFO_NULL
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
-#ifndef __mpi_f_bindings
-     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
-#else
-     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
-#endif
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_d(dynmem(1:len), DATA)
+     CALL array_to_fp_d(dynmem(1), len, DATA)
 #endif
-     !write(6,*)'double allocation', ASSOCIATED(data), (/length/),&
-     !     mp_res
-     !IF (ASSOCIATED (data)) &
-     !     write(6,*)'double allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_d
 
@@ -424,13 +359,8 @@ CONTAINS
 
 #ifdef __c_bindings     
      TYPE(C_PTR)                             :: mp_baseptr
-#ifndef __mpi_f_bindings
-     INTEGER(KIND=C_INTPTR_T)                :: mp_size
-     INTEGER(KIND=C_INT)                     :: mp_info, mp_res
-#else
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res
-#endif
 #else
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res
@@ -442,23 +372,14 @@ CONTAINS
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_DOUBLE_COMPLEX, double_size, ierr)
      mp_size = length * double_size
-!> The C bindings may use a different value for MPI_INFO_NULL
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
-#ifndef __mpi_f_bindings
-     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
-#else
-     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
-#endif
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_z(dynmem(1:len), DATA)
+     CALL array_to_fp_z(dynmem(1), len, DATA)
 #endif
-     !write(6,*)'double allocation', ASSOCIATED(data), (/length/),&
-     !     mp_res
-     !IF (ASSOCIATED (data)) &
-     !     write(6,*)'double allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
   END SUBROUTINE mp_alloc_mem_z
 
@@ -477,13 +398,8 @@ CONTAINS
 
 #ifdef __c_bindings     
      TYPE(C_PTR)                           :: mp_baseptr
-#ifndef __mpi_f_bindings
-     INTEGER(KIND=C_INTPTR_T)              :: mp_size
-     INTEGER(KIND=C_INT)                   :: mp_info, mp_res
-#else
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
-#endif
 #else
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
@@ -495,23 +411,14 @@ CONTAINS
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_REAL, single_size, ierr)
      mp_size = length * single_size
-!> The C bindings may use a different value for MPI_INFO_NULL
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
-#ifndef __mpi_f_bindings
-     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
-#else
-     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
-#endif
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_r(dynmem(1:len), DATA)
+     CALL array_to_fp_r(dynmem(1), len, DATA)
 #endif
-     !write(6,*)'single allocation', ASSOCIATED(data), (/length/),&
-     !     mp_res
-     !IF (ASSOCIATED (data)) &
-     !     write(6,*)'single allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_s
 
@@ -530,13 +437,8 @@ CONTAINS
 
 #ifdef __c_bindings     
      TYPE(C_PTR)                             :: mp_baseptr
-#ifndef __mpi_f_bindings
-     INTEGER(KIND=C_INTPTR_T)                :: mp_size
-     INTEGER(KIND=C_INT)                     :: mp_info, mp_res
-#else
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res
-#endif
 #else
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res
@@ -548,25 +450,17 @@ CONTAINS
      length = MAX(len,1)
      CALL MPI_TYPE_SIZE(MPI_COMPLEX, single_size, ierr)
      mp_size = length * single_size
-!> The C bindings may use a different value for MPI_INFO_NULL
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
-#ifndef __mpi_f_bindings
-     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
-#else
-     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
-#endif
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, mp_baseptr, mp_res)
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_c(dynmem(1:len), DATA)
+     CALL array_to_fp_c(dynmem(1), len, DATA)
 #endif
-     !write(6,*)'single allocation', ASSOCIATED(data), (/length/),&
-     !     mp_res
-     !IF (ASSOCIATED (data)) &
-     !     write(6,*)'single allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_c
+
 
 ! *****************************************************************************
 !> \brief Deallocates an integer array, version with either C bindings or CRAY
@@ -620,7 +514,6 @@ CONTAINS
     INTEGER                                  :: mp_res
 
      CALL MPI_FREE_MEM(DATA, mp_res)
-     !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_d
 
@@ -639,7 +532,6 @@ CONTAINS
     INTEGER                                  :: mp_res
 
      CALL MPI_FREE_MEM(DATA, mp_res)
-     !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_z
 
@@ -676,7 +568,6 @@ CONTAINS
     INTEGER                                  :: mp_res
 
      CALL MPI_FREE_MEM(DATA, mp_res)
-     !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_c
 
@@ -918,4 +809,3 @@ CONTAINS
 #endif /* __c_bindings */
 
 END MODULE dbcsr_c_mpi_calls
-

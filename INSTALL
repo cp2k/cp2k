@@ -136,7 +136,8 @@ How to compile CP2K code
      to remove everything for a given ARCH/VERSION use, e.g.,
      > make ARCH=Linux-x86-64-g95 VERSION=sopt realclean
 
- 3b) The following flags should be present (or not) in the arch file:
+ 3b) The following flags should be present (or not) in the arch file
+     (see also 3c, next)
      -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
      -D__LIBINT: use libint (needed for HF exchange)
      various FFTs (use __FFTW3 if possible) :
@@ -161,21 +162,68 @@ How to compile CP2K code
                              be selected.  Reasonable defaults are provided
                              (see src/lib/collocate_fast.F) but trial-and-error
 			     might yield (a small ~10%) speedup.
+     Some options controlling MPI behavior and capabilities:
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
                              not declare they are thread safe but you want to
                              use them with OpenMP code anyways.
-     Compiler language capability and support:
-     -D__HAS_NO_OMP_3      - CP2K assumes that compilers support OpenMP 3.0.
-                             If this is not the case specify this flag to
-                             compile.  Runtime performance will be poorer on
-                             low numbers of processors
-     -D__CRAY_POINTERS     - compiler supports cray pointers
+     -D__NO_MPI_MEMORY     - Do not use MPI memory allocation/deallocation
+                             routines.
+     And others...
+     -D__FFTSGL            - Use single precision FFT (unsure of status)
+
+ 3c) CP2K currently assumes full Fortran 95 compliance and expects the
+     ISO_C_BINDING module of Fortran 2003 to be present, which
+     commonly is available even in current compilers.  For OpenMP,
+     version 3.0 is assumed.
+
+     If you you get compilation errors about unsupported language
+     features, then some flags may be used to reduce the language
+     features required.
+
+     In addition, some flags are used to declare compiler support for
+     additional language features that the compiler supports.
+
      Subparts of Fortran 2003 or later that help various aspects of the code:
      -D__PTR_RANK_REMAP    - compiler supports pointer rank remapping
      -D__HAS_NO_ISO_C_BINDING  - compiler does not support ISO_C_BINDING. The
                              default is to assume support.
- 
- 3c) The `I'm feeling lucky' version of building will try to guess what
+     Other language capabilities and support:
+     -D__HAS_NO_OMP_3      - CP2K assumes that compilers support OpenMP 3.0.
+                             If this is not the case specify this flag to
+                             compile.  Runtime performance will be poorer on
+                             low numbers of processors
+     -D__CRAY_POINTERS     - compiler supports CRAY pointers
+
+ 3d) Additional esoteric, development, and debugging options.  This
+     section can be safely skipped over.  Listed here just for
+     completeness besides the flags described in this document.
+     -D__USE_CP2K_TRACE     - The DBCSR library should use CP2K's stack &
+                              error tracing.  If enabled, add
+                              timings_mp.o to LIBS.
+     -D__NO_STATM_ACCESS    - Do not try to read from /proc/self/statm to
+                              get memory usage information.  This is
+                              otherwise attempted on several
+                              Linux-based architectures or using with
+                              the NAG, gfortran, and g95 compilers.
+     -D__mp_timeset__       - Timing of MPI routines.
+     -D__USE_LEGACY_WEIGHTS - Use legacy atomic weights (?)
+     -D__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION - Do not assume that
+                              assumed-sized dummy arguments will
+                              always be passed in by reference.
+                              Unless the ISO_C_BINDINGS is present,
+                              CP2K will not compile with this option.
+     -D__cray_pointers      - cray pointers will be be used in preference
+                              to the ISO_C_BINDINGS call to
+                              MPI_ALLOC_MEM.
+     -D__SGL                - use single precision as the default real type
+                              (abandoned, probably does not work)
+     -D__PLASMA             - plasma support for DBCSR (neglected, may not work)
+     -D__USE_PAT            - craypat profiling (?)
+     -D__HMD                - ?
+     -D__HPM                - ?
+     
+
+ 3e) The `I'm feeling lucky' version of building will try to guess what
      architecture you're on.
      Just type
      > make sopt
@@ -184,11 +232,13 @@ How to compile CP2K code
      part of the architecture string.
      > export FORT_C_NAME=g95
 
- 4) If things fail, take a break... and go back to 3a (or skip to step 7)
+ 4) If things fail, take a break... have a look at section 3c and go back
+    to 3a (or skip to step 7).
 
  5) If your compiler/machine is really special, it shouldn't be too difficult
     to support it.
-    Only ~/cp2k/src/machine*.F should be affected.
+    Only ~/cp2k/src/machine*.F (and possibly src/dbcsr_lib/machine.F) should
+    be affected.
 
  6) If compilation works fine, you can run one of the test cases 
     to try out the executable (most inputs in any of the cp2k/tests/*regtest*/
