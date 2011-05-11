@@ -47,6 +47,8 @@ MODULE metadynamics_utils
                                              metavar_type,&
                                              multiple_walkers_type
   USE physcon,                         ONLY: kelvin
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -82,8 +84,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: walkers_file_name
-    INTEGER                                  :: i, id_method, n_colvar, &
-                                                n_rep, &
+    INTEGER                                  :: handle, i, id_method, &
+                                                n_colvar, n_rep, &
                                                 number_allocated_colvars, stat
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     LOGICAL                                  :: check, explicit, failure
@@ -91,6 +93,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: md_section, metadyn_section, &
                                                 metavar_section, &
                                                 walkers_section
+
+    CALL timeset(routineN,handle)  
 
     failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit,error=error)
@@ -100,7 +104,10 @@ CONTAINS
           number_allocated_colvars = SIZE(force_env%subsys%colvar_p)
        END IF
        CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method,error=error)
-       IF (id_method/=do_fe_meta) RETURN
+       IF (id_method/=do_fe_meta) THEN
+          CALL timestop(handle)
+          RETURN
+       ENDIF
        metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN",error=error)
        CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
 
@@ -235,6 +242,8 @@ CPSourceFileRef,&
        CALL print_metadyn_info(meta_env, n_colvar, metadyn_section, error)
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE metadyn_read
 
 ! *****************************************************************************
@@ -251,12 +260,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: my_id, my_tag
-    INTEGER                                  :: i, iw, j
+    INTEGER                                  :: handle, i, iw, j
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section, wall_section, &
                                                 work_section
+
+    CALL timeset(routineN,handle)  
 
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,metadyn_section,&
@@ -377,6 +388,8 @@ CPSourceFileRef,&
     CALL section_release(section,error=error)
     CALL cp_print_key_finished_output(iw,logger,metadyn_section,"PRINT%PROGRAM_RUN_INFO", error=error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE print_metadyn_info
 
 ! *****************************************************************************
@@ -397,9 +410,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n_walls, stat
+    INTEGER                                  :: handle, i, n_walls, stat
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: wall_section, work_section
+
+    CALL timeset(routineN,handle)  
 
     failure=.FALSE.
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar,error=error)
@@ -451,6 +466,8 @@ CPSourceFileRef,&
        END IF
     ENDIF
 
+    CALL timestop(handle)
+
   END SUBROUTINE metavar_read
 
 ! *****************************************************************************
@@ -471,12 +488,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, tmpname
-    INTEGER                                  :: delta_hills, i, i_hills, ih, &
-                                                iw, stat, unit_nr
+    INTEGER                                  :: delta_hills, handle, i, &
+                                                i_hills, ih, iw, stat, unit_nr
     LOGICAL                                  :: exist, failure
     REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
     TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     logger  => cp_error_get_logger(error)
@@ -574,6 +593,9 @@ CPSourceFileRef,&
        DEALLOCATE(delta_s_save,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE synchronize_multiple_walkers
 
 ! *****************************************************************************
@@ -593,10 +615,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'add_hill_single', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure, wtcontrol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tnp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.; wtcontrol=PRESENT(invdt)
     NULLIFY(tmp, tnp)
@@ -650,6 +674,9 @@ CPSourceFileRef,&
     ENDDO
     hills_env%ww_history(n_hills)           = ww
     IF (wtcontrol) hills_env%invdt_history(n_hills) = invdt
+
+    CALL timestop(handle)
+
   END SUBROUTINE add_hill_single
 
 ! *****************************************************************************
@@ -672,11 +699,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_hills', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, ndum, stat
+    INTEGER                                  :: handle, i, j, ndum, stat
     LOGICAL                                  :: explicit, failure, wtcontrol
     REAL(KIND=dp)                            :: rval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(section_vals_type), POINTER         :: hills_history
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.; wtcontrol=PRESENT(invdt_history)
     NULLIFY(rvals)
@@ -794,6 +823,8 @@ CPSourceFileRef,&
           END IF
        END IF
     ENDIF
+
+    CALL timestop(handle)
 
   END SUBROUTINE restart_hills
   

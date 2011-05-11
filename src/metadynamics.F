@@ -81,7 +81,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_integrator', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     ! Apply Metadynamics
@@ -104,6 +107,9 @@ CONTAINS
        !    *** Write down COVAR informations
        CALL metadyn_write_colvar(force_env, error=error)
     ENDIF
+
+    CALL timestop(handle)
+
   END SUBROUTINE metadyn_integrator
 
 ! *****************************************************************************
@@ -590,7 +596,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_hills, ih, &
+    INTEGER                                  :: handle, i, i_hills, ih, &
                                                 intermeta_steps, iter_nr, iw, &
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
@@ -603,6 +609,8 @@ CONTAINS
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
     TYPE(multiple_walkers_type), POINTER     :: multiple_walkers
+
+    CALL timeset(routineN,handle)
 
     failure   = .FALSE.
     NULLIFY(hills_env, multiple_walkers, logger, colvars, ddp, local_last_hills)
@@ -793,6 +801,9 @@ CONTAINS
     DEALLOCATE(ddp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)    
+
+    CALL timestop(handle)
+
   END SUBROUTINE hills
 
 END MODULE metadynamics
