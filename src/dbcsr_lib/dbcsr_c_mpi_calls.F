@@ -62,20 +62,19 @@ MODULE dbcsr_c_mpi_calls
 #endif
 
 ! Logic for code selection
-#if !defined(__NO_MPI_MEMORY)
 
+#if defined(__NO_MPI_MEMORY) || !defined(__parallel)
+! Do nothing if not in parallel or explicitly not wanting MPI memory.
+#elif !defined(__HAS_NO_ISO_C_BINDING) && !defined(__cray_pointers)
+! Use C binding features.
 #define __mpi_allocation
-
-#if !defined(__HAS_NO_ISO_C_BINDING) && !defined(__cray_pointers)
-
 #define __c_bindings
-
-#elif defined(__CRAY_POINTERS)
-
+#elif defined (__CRAY_POINTERS) || defined (__cray_pointers)
+! Use CRAY pointers
+#define __mpi_allocation
 #ifndef __cray_pointers
 #define __cray_pointers
 #endif
-
 #if defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
   ERROR "Unable to do MPI memory allocation.  Use -D__NO_MPI_MEMORY"
 #endif
@@ -83,11 +82,7 @@ MODULE dbcsr_c_mpi_calls
 #else
   ! Technically MPI memory is not needed anymore.
   !ERROR "Unable to do MPI memory allocation.  Use -D__NO_MPI_MEMORY"
-#undef __mpi_allocation
-
-#endif  /* !HAS_NO_ISO_C_BINDING && !cray_pointers  /  CRAY_POINTERS*/
-
-#endif  /* !NO_MPI_MEMORY */
+#endif
                               
 
 ! Real code starts here
