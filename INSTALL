@@ -185,8 +185,11 @@ How to compile CP2K code
 
      Subparts of Fortran 2003 or later that help various aspects of the code:
      -D__PTR_RANK_REMAP    - compiler supports pointer rank remapping
-     -D__HAS_NO_ISO_C_BINDING  - compiler does not support ISO_C_BINDING. The
-                             default is to assume support.
+     -D__HAS_NO_ISO_C_BINDING - compiler does not support all needed
+                             ISO_C_BINDING features. The default is to
+                             assume support.  (At least g95 0.91
+                             silently fails with segfaults since it
+                             does not support C_F_POINTER.)
      Other language capabilities and support:
      -D__HAS_NO_OMP_3      - CP2K assumes that compilers support OpenMP 3.0.
                              If this is not the case specify this flag to

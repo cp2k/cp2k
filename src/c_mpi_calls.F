@@ -70,17 +70,22 @@ MODULE c_mpi_calls
 
 #define __c_bindings
 
-#else   /* ==IF HAS_NO_ISO_C_BINDING || cray_pointers */
+#elif defined(__CRAY_POINTERS)
 
 #ifndef __cray_pointers
 #define __cray_pointers
 #endif
 
 #if defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-  ERROR "MPI memory allocation can not be used given your compilation defines."
+  ERROR "Unable to do MPI memory allocation.  Use -D__NO_MPI_MEMORY"
 #endif
 
-#endif  /* !HAS_NO_ISO_C_BINDING && !cray_pointers */
+#else
+  ! Technically MPI memory is not needed anymore.
+  !ERROR "Unable to do MPI memory allocation.  Use -D__NO_MPI_MEMORY"
+#undef __mpi_allocation
+
+#endif  /* !HAS_NO_ISO_C_BINDING && !cray_pointers  /  CRAY_POINTERS*/
 
 #endif  /* !NO_MPI_MEMORY */
                               
