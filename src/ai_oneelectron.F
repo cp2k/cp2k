@@ -122,12 +122,14 @@ CONTAINS
 
     IF( calculate_force_a ) THEN
        da_max = 1
+       force_a = 0.0_dp
     ELSE
        da_max = 0
     END IF
 
     IF( calculate_force_b ) THEN
        db_max = 1
+       force_b = 0.0_dp
     ELSE
        db_max = 0
     END IF
