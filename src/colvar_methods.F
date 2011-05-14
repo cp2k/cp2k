@@ -1494,8 +1494,12 @@ CPSourceFileRef)
     i=colvar%xyz_diag_param%i_atom
     ! Atom coordinates
     CALL get_coordinates(colvar, i, xpi, my_particles)
+    ! Use the current coordinates as initial coordinates, if no initialization
+    ! was performed yet
+    IF (ALL(colvar%xyz_diag_param%r0 == HUGE(0.0_dp))) THEN
+       colvar%xyz_diag_param%r0 = xpi
+    END IF
     r0 = colvar%xyz_diag_param%r0
-    IF (ALL(colvar%xyz_diag_param%r0==HUGE(0.0_dp))) r0=xpi
 
     IF(colvar%xyz_diag_param%use_pbc)THEN
        ss=MATMUL(cell%h_inv,xpi-r0)
