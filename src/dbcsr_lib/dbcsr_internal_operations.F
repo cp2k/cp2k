@@ -16,8 +16,7 @@ MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data,&
                                              array_equality,&
                                              array_exists,&
-                                             array_hold,&
-                                             array_i1d_obj
+                                             array_hold
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
@@ -66,29 +65,28 @@ MODULE dbcsr_internal_operations
                                              mp_type_make,&
                                              mp_waitall
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_thread_dist, dbcsr_get_data_type, &
-       dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
+       dbcsr_destroy_array, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist, &
+       dbcsr_get_data_type, dbcsr_get_index_memory_type, &
        dbcsr_get_num_blocks, dbcsr_image_dist_init, dbcsr_init, &
        dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
        dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
        dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
-       dbcsr_nfullrows_local, dbcsr_row_block_sizes, dbcsr_valid_index
+       dbcsr_nfullrows_local, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_iterator, dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, &
-       dbcsr_memory_default, dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_size, &
-       dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_work_type
+       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, &
+       dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, dbcsr_memory_default, &
+       dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_size, dbcsr_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_work_type
   USE dbcsr_util,                      ONLY: count_bins,&
                                              dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -1512,15 +1510,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_buffer_matrices', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: mt
-    CHARACTER(len=80)                        :: new_name
-    INTEGER                                  :: col_image, data_mem_type, dt, &
+    INTEGER                                  :: col_image, data_mem_type, &
                                                 error_handler, &
                                                 index_mem_type, row_image
     INTEGER, DIMENSION(:), POINTER           :: i1
     LOGICAL                                  :: use_acc_mem
-    TYPE(array_i1d_obj)                      :: cbs, rbs
-    TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
 
@@ -1554,27 +1548,16 @@ CONTAINS
     DO row_image = 1, buff_rows
        DO col_image = 1, buff_cols
           CALL dbcsr_init(buffer_set%mats(row_image, col_image))
-          dist = dbcsr_distribution (source_matrix)
-          mt = dbcsr_get_matrix_type (source_matrix)
-          dt = dbcsr_get_data_type (source_matrix)
-          rbs = dbcsr_row_block_sizes (source_matrix)
-          cbs = dbcsr_col_block_sizes (source_matrix)
-          new_name = TRIM("Buffer of "//TRIM(source_matrix%m%name))
-          ! Only needed for NAG (at least for 5.1(327))
+          ! Dummy allocation only needed for NAG (at least for 5.1(327))
           ALLOCATE(i1(10000))
           CALL dbcsr_create(buffer_set%mats(row_image, col_image),&
-               name = new_name,&
-               dist = dist,&
-               matrix_type = mt,&
-               row_blk_size = rbs,&
-               col_blk_size = cbs,&
-               nblks=index_size, nze=data_size, &
-               data_type = dt,&
+               template = source_matrix,&
+               name = TRIM("Buffer of "//TRIM(source_matrix%m%name)),&
+               nblks = index_size, nze = data_size, &
                data_memory_type = data_mem_type,&
                index_memory_type = index_mem_type,&
-               reuse = .FALSE.,&
                error = error)
-          ! Only needed for NAG (at least for 5.1(327))
+          ! Dummy allocation only needed for NAG (at least for 5.1(327))
           DEALLOCATE(i1)
           CALL dbcsr_data_ensure_size (&
                buffer_set%mats(row_image, col_image)%m%data_area,&
