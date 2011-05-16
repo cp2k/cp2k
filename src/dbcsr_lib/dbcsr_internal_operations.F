@@ -16,7 +16,8 @@ MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data,&
                                              array_equality,&
                                              array_exists,&
-                                             array_hold
+                                             array_hold,&
+                                             array_i1d_obj
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
@@ -83,11 +84,11 @@ MODULE dbcsr_internal_operations
                                              dbcsr_mp_type_from_anytype
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, &
-       dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, dbcsr_memory_default, &
-       dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_work_type
+       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
+       dbcsr_iterator, dbcsr_memory_CUDA_host_pinned, dbcsr_memory_MPI, &
+       dbcsr_memory_default, dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_size, &
+       dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_work_type
   USE dbcsr_util,                      ONLY: count_bins,&
                                              dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -830,8 +831,8 @@ CONTAINS
 !$omp shared (left_buffer_calc, right_buffer_calc, product_matrix,&
 !$omp         keep_sparsity, filter_eps, row_max_epss, error)
     CALL dbcsr_multrec_init(&
-         left_buffer_calc%mats(1, 1)%m,&
-         right_buffer_calc%mats(1, 1)%m,&
+         left_set%mats(1, 1)%m,&
+         right_set%mats(1, 1)%m,&
          product_matrix%m,&
          carrier,&
          keep_sparsity=keep_sparsity,&
@@ -1511,10 +1512,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_buffer_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_image, data_mem_type, &
+    CHARACTER                                :: mt
+    CHARACTER(len=80)                        :: new_name
+    INTEGER                                  :: col_image, data_mem_type, dt, &
                                                 error_handler, &
                                                 index_mem_type, row_image
+    INTEGER, DIMENSION(:), POINTER           :: i1
     LOGICAL                                  :: use_acc_mem
+    TYPE(array_i1d_obj)                      :: cbs, rbs
+    TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
 
@@ -1548,17 +1554,28 @@ CONTAINS
     DO row_image = 1, buff_rows
        DO col_image = 1, buff_cols
           CALL dbcsr_init(buffer_set%mats(row_image, col_image))
+          dist = dbcsr_distribution (source_matrix)
+          mt = dbcsr_get_matrix_type (source_matrix)
+          dt = dbcsr_get_data_type (source_matrix)
+          rbs = dbcsr_row_block_sizes (source_matrix)
+          cbs = dbcsr_col_block_sizes (source_matrix)
+          new_name = TRIM("Buffer of "//TRIM(source_matrix%m%name))
+          ! Only needed for NAG (at least for 5.1(327))
+          ALLOCATE(i1(10000))
           CALL dbcsr_create(buffer_set%mats(row_image, col_image),&
-               "Buffer of "//source_matrix%m%name,&
-               dbcsr_distribution (source_matrix),&
-               dbcsr_get_matrix_type (source_matrix),&
-               dbcsr_row_block_sizes (source_matrix),&
-               dbcsr_col_block_sizes (source_matrix),&
+               name = new_name,&
+               dist = dist,&
+               matrix_type = mt,&
+               row_blk_size = rbs,&
+               col_blk_size = cbs,&
                nblks=index_size, nze=data_size, &
-               data_type=dbcsr_get_data_type(source_matrix),&
-               data_memory_type=data_mem_type,&
-               index_memory_type=index_mem_type,&
-               error=error)
+               data_type = dt,&
+               data_memory_type = data_mem_type,&
+               index_memory_type = index_mem_type,&
+               reuse = .FALSE.,&
+               error = error)
+          ! Only needed for NAG (at least for 5.1(327))
+          DEALLOCATE(i1)
           CALL dbcsr_data_ensure_size (&
                buffer_set%mats(row_image, col_image)%m%data_area,&
                data_size, nocopy=.TRUE.,error=error)
