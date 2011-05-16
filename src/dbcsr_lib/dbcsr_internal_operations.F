@@ -831,8 +831,8 @@ CONTAINS
 !$omp shared (left_buffer_calc, right_buffer_calc, product_matrix,&
 !$omp         keep_sparsity, filter_eps, row_max_epss, error)
     CALL dbcsr_multrec_init(&
-         left_set%mats(1, 1)%m,&
-         right_set%mats(1, 1)%m,&
+         left_buffer_calc%mats(1, 1)%m,&
+         right_buffer_calc%mats(1, 1)%m,&
          product_matrix%m,&
          carrier,&
          keep_sparsity=keep_sparsity,&
