@@ -14,7 +14,7 @@
       &END
       &OT
          MINIMIZER DIIS
-         PRECONDITIONER FULL_KINETIC
+         PRECONDITIONER NONE
       &END
     &END SCF
   &END DFT
