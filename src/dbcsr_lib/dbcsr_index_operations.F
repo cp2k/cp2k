@@ -868,97 +868,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'transpose_index_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: curcol, mincol, nblks, &
-                                                new_ncols, old_max_col, &
-                                                old_nrows, old_row, prev_col, &
-                                                prev_nblks
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_p
-    LOGICAL                                  :: column_le
+    INTEGER                                  :: error_handle, nblks, &
+                                                ncols_new, nrows_old
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: new_col_i
+    LOGICAL                                  :: blks
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-1323 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
-    new_ncols = SIZE (new_col_p)-1
-    old_nrows = SIZE (old_row_p)-1
-    ALLOCATE (row_p (SIZE (old_row_p)))
-    row_p(:) = old_row_p(:)+1
-    IF (SIZE (old_col_i) .GT. 0) THEN
-       old_max_col = MAXVAL (old_col_i)
-    ELSE
-       old_max_col = 0
-    ENDIF
-    mincol = old_max_col
-    IF (debug_mod) THEN
-       WRITE(*,*)'old index'
-       WRITE(*,1323)old_row_p
-       WRITE(*,1323)old_col_i
-       IF (PRESENT (old_blk_p)) THEN
-          WRITE(*,*)'old blkp'
-          WRITE(*,1323)old_blk_p
-       ENDIF
-    ENDIF
-    ! Scan through the columns of the given matrix.
-    ! row_p is an index, for each row, of the current column scanning position
-    ! appropriate to the column being scanned.
-    ! mincol is use to jump ahead for very sparse matrices
-    nblks = 0
-    prev_nblks = 0
-    new_col_p(1) = 0
-    prev_col = 0
-    curcol = 1
-    DO WHILE (curcol .LE. new_ncols)
-       IF (debug_mod) THEN
-          WRITE(*,*)'rowp'
-          WRITE(*,1323)row_p
-       ENDIF
-       DO old_row = 1, old_nrows
-          ! Condition 1:
-          ! row_p(old_row) .LE. old_row_p(old_row+1)
-          !           => there are still blocks in the row
-          ! Condition 2:
-          ! old_col_i(row_p(old_row)) .LE. curcol
-          !           => the examined column in this row is <= to the
-          !              curcol current column
-          column_le = row_p(old_row) .LE. old_row_p(old_row+1)
-          IF (column_le) column_le = old_col_i(row_p(old_row)) .LE. curcol
-          ! In every row, try to find the column appropriate to the current
-          ! column.
-          DO WHILE (column_le)
-             IF (old_col_i(row_p(old_row)) .EQ. curcol) THEN
-                nblks = nblks + 1
-                new_row_i(nblks) = old_row
-                IF (PRESENT (new_blk_p) .AND. PRESENT (old_blk_p)) THEN
-                   new_blk_p (nblks) = old_blk_p(row_p(old_row))
-                ENDIF
-             ENDIF
-             row_p(old_row) = row_p(old_row) + 1
-             ! We've come to the end of this row
-             column_le = row_p(old_row) .LE. old_row_p(old_row+1)
-             IF (column_le) column_le = old_col_i(row_p(old_row)) .LE. curcol
-          ENDDO
-          IF (row_p(old_row) .LE. old_row_p(old_row+1)) THEN
-             mincol = MIN (mincol, old_col_i(row_p(old_row)))
-          ENDIF
-       ENDDO
-       !! Fill in missing indices.
-       new_col_p(prev_col+1:MIN(mincol+1,new_ncols+1)-1) = prev_nblks
-       new_col_p(MIN(mincol+1,new_ncols+1)) = nblks
-       prev_nblks = nblks
-       prev_col = curcol
-       curcol = MAX (mincol, curcol+1)
-       !curcol = mincol
-       mincol = mincol+1
-    ENDDO
-    new_col_p(new_ncols+1) = nblks
-    IF (debug_mod) THEN
-       WRITE(*,*)'new index'
-       WRITE(*,1323)new_col_p
-       WRITE(*,1323)new_row_i
-       IF (PRESENT (new_blk_p)) THEN
-          WRITE(*,*)'new blkp'
-          WRITE(*,1323)new_blk_p
-       ENDIF
-    ENDIF
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    blks = PRESENT (new_blk_p) .AND. PRESENT (old_blk_p)
+    nblks = SIZE (old_col_i)
+    nrows_old = SIZE (old_row_p)-1
+    ncols_new = SIZE (new_col_p)-1
+    IF (blks) new_blk_p(:) = old_blk_p(:)
+    ALLOCATE (new_col_i(nblks))
+    CALL dbcsr_expand_row_index(old_row_p, new_row_i, nrows_old, nblks)
+    new_col_i(:) = old_col_i(:)
+    CALL dbcsr_sort_indices (nblks, new_col_i, new_row_i, new_blk_p)
+    CALL dbcsr_make_dbcsr_index (new_col_p, new_col_i, ncols_new, nblks)
+    DEALLOCATE(new_col_i)
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE transpose_index_local
 
 
