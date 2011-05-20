@@ -1789,53 +1789,55 @@ CONTAINS
     IF (.NOT.failure) THEN
        conn_info => topology%conn_info
        nphi   = 0
-       nsize  = INT(5+1.2*nphi)
-       CALL reallocate(conn_info%phi_a,1,nsize)
-       CALL reallocate(conn_info%phi_b,1,nsize)
-       CALL reallocate(conn_info%phi_c,1,nsize)
-       CALL reallocate(conn_info%phi_d,1,nsize)
-       ! Get list of bonds to pre-process phi
-       natom = topology%natoms
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
        nbond = SIZE(conn_info%bond_a)
-       CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
-       ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
-       CALL match_iterative_path(Iarray1=bond_list,&
-                                 Iarray2=bond_list,&
-                                 Iarray3=bond_list,&
-                                 max_levl=4,&
-                                 nvar=nphi,&
-                                 Oarray1 =conn_info%phi_a,&
-                                 Oarray2 =conn_info%phi_b,&
-                                 Oarray3 =conn_info%phi_c,&
-                                 Oarray4 =conn_info%phi_d,&
-                                 error=error)
-       DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
+       IF (nbond/=0) THEN
+          nsize  = INT(5+1.2*nphi)
+          CALL reallocate(conn_info%phi_a,1,nsize)
+          CALL reallocate(conn_info%phi_b,1,nsize)
+          CALL reallocate(conn_info%phi_c,1,nsize)
+          CALL reallocate(conn_info%phi_d,1,nsize)
+          ! Get list of bonds to pre-process phi
+          natom = topology%natoms
+          ALLOCATE(bond_list(natom),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Torsions generated:",&
-               nphi
+          DO I = 1, natom
+             ALLOCATE(bond_list(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+          ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
+          CALL match_iterative_path(Iarray1=bond_list,&
+                                    Iarray2=bond_list,&
+                                    Iarray3=bond_list,&
+                                    max_levl=4,&
+                                    nvar=nphi,&
+                                    Oarray1 =conn_info%phi_a,&
+                                    Oarray2 =conn_info%phi_b,&
+                                    Oarray3 =conn_info%phi_c,&
+                                    Oarray4 =conn_info%phi_d,&
+                                    error=error)
+          DO I = 1, natom
+             DEALLOCATE(bond_list(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(bond_list,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Torsions generated:",&
+                  nphi
+          END IF
+          ! External defined torsions (useful for complex connectivity)
+          torsion_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%TORSION",error=error)
+          CALL connectivity_external_control(section=torsion_section,&
+                                             Iarray1=conn_info%phi_a,&
+                                             Iarray2=conn_info%phi_b,&
+                                             Iarray3=conn_info%phi_c,&
+                                             Iarray4=conn_info%phi_d,&
+                                             nvar=nphi,&
+                                             topology=topology,&
+                                             output_unit=output_unit,&
+                                             error=error)
        END IF
-       ! External defined torsions (useful for complex connectivity)
-       torsion_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%TORSION",error=error)
-       CALL connectivity_external_control(section=torsion_section,&
-                                          Iarray1=conn_info%phi_a,&
-                                          Iarray2=conn_info%phi_b,&
-                                          Iarray3=conn_info%phi_c,&
-                                          Iarray4=conn_info%phi_d,&
-                                          nvar=nphi,&
-                                          topology=topology,&
-                                          output_unit=output_unit,&
-                                          error=error)
        ! Resize arrays to their proper size..
        CALL reallocate(conn_info%phi_a,1,nphi)
        CALL reallocate(conn_info%phi_b,1,nphi)
@@ -1890,70 +1892,71 @@ CONTAINS
        natom  = topology%natoms
        nbond = SIZE(conn_info%bond_a)
        nimpr  = 0 
-       nsize  = INT(5+1.2*nimpr)
-       CALL reallocate(conn_info%impr_a,1,nsize)
-       CALL reallocate(conn_info%impr_b,1,nsize)
-       CALL reallocate(conn_info%impr_c,1,nsize)
-       CALL reallocate(conn_info%impr_d,1,nsize)
-       ! Get list of bonds to pre-process phi
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
+       IF (nbond/=0) THEN
+          nsize  = INT(5+1.2*nimpr)
+          CALL reallocate(conn_info%impr_a,1,nsize)
+          CALL reallocate(conn_info%impr_b,1,nsize)
+          CALL reallocate(conn_info%impr_c,1,nsize)
+          CALL reallocate(conn_info%impr_d,1,nsize)
+          ! Get list of bonds to pre-process phi
+          ALLOCATE(bond_list(natom),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       nbond = SIZE(conn_info%bond_a)
-       CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
-       DO I = 1, natom
-          ! Count all atoms with three bonds
-          IF (SIZE(bond_list(I)%array1)==3) THEN
-             ! Problematic cases::
-             ! Nitrogen 
-             accept_impr = .TRUE.
-             atm_symbol  = atom_info%element(i)
-             CALL uppercase(atm_symbol)
-             IF (atm_symbol=="N ") THEN
-                accept_impr = .FALSE.
-                ! Impropers on Nitrogen only when there is another atom close to it
-                ! with other 3 bonds 
-                DO j = 1, 3
-                   ind = bond_list(I)%array1(j)
-                   IF (SIZE(bond_list(ind)%array1)==3) accept_impr = .TRUE.
-                END DO
+          DO I = 1, natom
+             ALLOCATE(bond_list(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+          DO I = 1, natom
+             ! Count all atoms with three bonds
+             IF (SIZE(bond_list(I)%array1)==3) THEN
+                ! Problematic cases::
+                ! Nitrogen 
+                accept_impr = .TRUE.
+                atm_symbol  = atom_info%element(i)
+                CALL uppercase(atm_symbol)
+                IF (atm_symbol=="N ") THEN
+                   accept_impr = .FALSE.
+                   ! Impropers on Nitrogen only when there is another atom close to it
+                   ! with other 3 bonds 
+                   DO j = 1, 3
+                      ind = bond_list(I)%array1(j)
+                      IF (SIZE(bond_list(ind)%array1)==3) accept_impr = .TRUE.
+                   END DO
+                END IF
+                IF (.NOT.accept_impr) CYCLE
+                nimpr = nimpr + 1
+                IF (nimpr>SIZE(conn_info%impr_a)) THEN
+                   nsize  = INT(5+1.2*nimpr)
+                   CALL reallocate(conn_info%impr_a,1,nsize)
+                   CALL reallocate(conn_info%impr_b,1,nsize)
+                   CALL reallocate(conn_info%impr_c,1,nsize)
+                   CALL reallocate(conn_info%impr_d,1,nsize)
+                END IF
+                conn_info%impr_a(nimpr) = i
+                conn_info%impr_b(nimpr) = bond_list(I)%array1(1)
+                conn_info%impr_c(nimpr) = bond_list(I)%array1(2)
+                conn_info%impr_d(nimpr) = bond_list(I)%array1(3)
              END IF
-             IF (.NOT.accept_impr) CYCLE
-             nimpr = nimpr + 1
-             IF (nimpr>SIZE(conn_info%impr_a)) THEN
-                nsize  = INT(5+1.2*nimpr)
-                CALL reallocate(conn_info%impr_a,1,nsize)
-                CALL reallocate(conn_info%impr_b,1,nsize)
-                CALL reallocate(conn_info%impr_c,1,nsize)
-                CALL reallocate(conn_info%impr_d,1,nsize)
-             END IF
-             conn_info%impr_a(nimpr) = i
-             conn_info%impr_b(nimpr) = bond_list(I)%array1(1)
-             conn_info%impr_c(nimpr) = bond_list(I)%array1(2)
-             conn_info%impr_d(nimpr) = bond_list(I)%array1(3)
-          END IF
-       END DO
-       DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
-       ! External defined impropers (useful for complex connectivity)
-       impr_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%IMPROPER",error=error)
-       CALL connectivity_external_control(section=impr_section,&
-                                          Iarray1=conn_info%impr_a,&
-                                          Iarray2=conn_info%impr_b,&
-                                          Iarray3=conn_info%impr_c,&
-                                          Iarray4=conn_info%impr_d,&
-                                          nvar=nimpr,&
-                                          topology=topology,&
-                                          output_unit=output_unit,&
-                                          is_impr=.TRUE.,&
-                                          error=error)
+          END DO
+          DO I = 1, natom
+             DEALLOCATE(bond_list(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(bond_list,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+          ! External defined impropers (useful for complex connectivity)
+          impr_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%IMPROPER",error=error)
+          CALL connectivity_external_control(section=impr_section,&
+                                             Iarray1=conn_info%impr_a,&
+                                             Iarray2=conn_info%impr_b,&
+                                             Iarray3=conn_info%impr_c,&
+                                             Iarray4=conn_info%impr_d,&
+                                             nvar=nimpr,&
+                                             topology=topology,&
+                                             output_unit=output_unit,&
+                                             is_impr=.TRUE.,&
+                                             error=error)
+       END IF
        ! Resize arrays to their proper size..
        CALL reallocate(conn_info%impr_a,1,nimpr)
        CALL reallocate(conn_info%impr_b,1,nimpr)
