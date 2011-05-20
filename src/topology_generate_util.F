@@ -1991,7 +1991,6 @@ CONTAINS
        atom_info => topology%atom_info
        conn_info => topology%conn_info       
        natom  = topology%natoms
-       nbond = SIZE(conn_info%bond_a)
        nimpr  = 0 
        nbond = SIZE(conn_info%bond_a)
        IF (nbond/=0) THEN
