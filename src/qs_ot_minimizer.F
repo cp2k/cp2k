@@ -22,7 +22,8 @@ MODULE qs_ot_minimizer
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_operations,                ONLY: dbcsr_init_random
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
@@ -727,8 +728,8 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
    ENDIF
 ! **** SCP
    ! Handling the case of no free variables to optimize
-   IF (n*k+nscp+nener /= 0) THEN
-      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp+nener))
+   IF (INT(n,KIND=int_8)*INT(k,KIND=int_8)+nscp+nener /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n,KIND=int_8)*INT(k,KIND=int_8)+nscp+nener))
       qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
    ELSE
       qs_ot_env(1)%delta=0.0_dp
@@ -917,8 +918,8 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
       ENDDO
    ENDIF
    ! Handling the case of no free variables to optimize
-   IF (n*k+nscp+nener /= 0) THEN
-      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp+nener))
+   IF (INT(n,KIND=int_8)*INT(k,KIND=int_8)+nscp+nener /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n,KIND=int_8)*INT(k,KIND=int_8)+nscp+nener))
       beta_pr=(qs_ot_env(1)%gnorm-gnorm_cross)/qs_ot_env(1)%gnorm_old
    ELSE
       qs_ot_env(1)%delta=0.0_dp      
@@ -1170,8 +1171,8 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
      ENDDO
    ENDIF
    ! Handling the case of no free variables to optimize
-   IF (n*k+nscp+nener /= 0) THEN
-      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp+nener))
+   IF (INT(n,KIND=int_8)*INT(k,KIND=int_8)+nscp+nener /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n,KIND=int_8)*INT(k,KIND=int_8)+nscp+nener))
       qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
    ELSE
       qs_ot_env(1)%delta = 0.0_dp
@@ -1558,8 +1559,8 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
     ENDDO
 
     ! Handling the case of no free variables to optimize
-    IF (n*k /= 0) THEN
-        qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k))
+    IF (INT(n,KIND=int_8)*INT(k,KIND=int_8) /= 0) THEN
+        qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n,KIND=int_8)*INT(k,KIND=int_8)))
         qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
     ELSE
         qs_ot_env(1)%delta = 0.0_dp
