@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2010  CP2K developers group                          !
+!   Copyright (C) 2000 - 2011  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,6 +26,7 @@ MODULE topology_generate_util
                                              do_bondparm_covalent,&
                                              do_bondparm_vdw,&
                                              do_conn_off,&
+                                             do_conn_user,&
                                              do_remove
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -66,6 +67,8 @@ MODULE topology_generate_util
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_generate_util'
 
   PRIVATE
+  LOGICAL, PARAMETER                   :: debug_this_module=.FALSE.
+
   PUBLIC :: topology_generate_bend,&
             topology_generate_bond,&
             topology_generate_dihe,&
@@ -83,11 +86,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
-                                       label_molname, error)
+                                       id_molname, error)
     TYPE(connectivity_info_type), POINTER    :: conn_info
     INTEGER, INTENT(IN)                      :: natom, natom_prev, nbond_prev
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), INTENT(INOUT)            :: label_molname
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: id_molname
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname', &
@@ -97,7 +99,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: molname
     INTEGER                                  :: i, N, nmol, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check, failure
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
 
@@ -116,10 +118,12 @@ CONTAINS
                            conn_info%bond_b(nbond_prev+1:)-natom_prev, N, error)
     
     nmol=0
+    check=ALL(id_molname==str2id(s2s("__UNDEF__"))).OR.ALL(id_molname/=str2id(s2s("__UNDEF__")))
+    CPPostcondition(check,cp_failure_level,routineP,error,failure)
     DO i = 1, natom
-       IF (label_molname(i)=="__UNDEF__") THEN
+       IF (id2str(id_molname(i))=="__UNDEF__") THEN
           molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
-          CALL generate_molname_low(i, atom_bond_list, molname, label_molname, error)
+          CALL generate_molname_low(i, atom_bond_list, molname, id_molname, error)
           nmol = nmol + 1
        END IF
     END DO
@@ -137,26 +141,40 @@ CONTAINS
 !>        provide them
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE generate_molname_low(i, atom_bond_list, molname, label_molname, error)
+  RECURSIVE SUBROUTINE generate_molname_low(i, atom_bond_list, molname, id_molname, error)
     INTEGER, INTENT(IN)                      :: i
     TYPE(array1_list_type), DIMENSION(:)     :: atom_bond_list
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: molname
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), INTENT(INOUT)            :: label_molname
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: id_molname
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j
+    INTEGER                                  :: j, k
+    LOGICAL                                  :: failure
 
-    label_molname(i) = molname
+    failure = .FALSE.
+    IF (debug_this_module) THEN
+       WRITE(*,*)"Entered with :",i
+       WRITE(*,*)TRIM(molname)//": entering with i:",i," full series to test:: ",atom_bond_list(i)%array1
+       IF ((TRIM(id2str(id_molname(i)))/="__UNDEF__").AND.&
+           (TRIM(id2str(id_molname(i)))/=TRIM(molname))) THEN
+          WRITE(*,*)"Atom (",i,") has already a molecular name assigned ! ("//TRIM(id2str(id_molname(i)))//")."
+          WRITE(*,*)"New molecular name would be: ("//TRIM(molname)//")."
+          WRITE(*,*)"Detecting something wrong in the molecular setup!"
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+    id_molname(i) = str2id(molname)
     DO j = 1, SIZE(atom_bond_list(i)%array1)
-       IF (atom_bond_list(i)%array1(j)<=i) CYCLE
-       CALL generate_molname_low(atom_bond_list(i)%array1(j), atom_bond_list, molname,&
-                                 label_molname, error)
+       k=atom_bond_list(i)%array1(j)
+       IF (debug_this_module) WRITE(*,*)"entering with i:",i,"testing :",k
+       IF (k==-1) CYCLE
        atom_bond_list(i)%array1(j)=-1
+       WHERE (atom_bond_list(k)%array1==i) atom_bond_list(k)%array1=-1
+       CALL generate_molname_low(k, atom_bond_list, molname, id_molname, error)
     END DO
   END SUBROUTINE generate_molname_low
 
@@ -174,13 +192,15 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock = 100
 
     INTEGER :: atom_in_kind, atom_in_mol, first, handle, handle2, i, iatm, &
-      iatom, iend, ifirst, ilast, inum, istart, iw, j, jump1, jump2, last, &
-      max_mol_num, mol_num, mol_res, mol_typ, myind, N, natom, nlocl, ntype, &
-      stat
+      iatom, iend, ifirst, ilast, inum, istart, itype, iw, j, jump1, jump2, &
+      last, max_mol_num, mol_num, mol_res, mol_typ, myind, N, natom, nlocl, &
+      ntype, resid, stat
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, wrk1, wrk2
-    LOGICAL                                  :: do_again, failure, my_qmmm
+    LOGICAL                                  :: do_again, failure, found, &
+                                                my_qmmm
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -193,7 +213,9 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,handle)
-    NULLIFY(qm_atom_index)
+    NULLIFY (qm_atom_index)
+    NULLIFY (wrk1)
+    NULLIFY (wrk2)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
@@ -220,28 +242,65 @@ CONTAINS
     ALLOCATE (atom_info%map_mol_res(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    !Zero the arrays
+    ! Initialisation
     atom_info%map_mol_typ(:) =  0
     atom_info%map_mol_num(:) = -1
     atom_info%map_mol_res(:) =  1
-    
-    !Parse the atoms list to see how many different molecule types there are
+
+    ! Parse the atom list to find the different molecule types and residues
     ntype = 1
-    atom_info%map_mol_typ(1)=1
+    atom_info%map_mol_typ(1) = 1
+    resid = 1
+    CALL reallocate(wrk1,1,nblock)
+    wrk1(1) = atom_info%id_molname(1)
     DO iatom=2,natom
-       IF (topology%conn_type == do_conn_off ) THEN
-          ntype=ntype+1
-          atom_info%map_mol_typ(iatom)=ntype        
-       ELSE
-          IF(atom_info%label_molname(iatom-1)==atom_info%label_molname(iatom)) THEN
-             atom_info%map_mol_typ(iatom)=ntype
+       IF (topology%conn_type == do_conn_off) THEN
+          ! No connectivity: each atom becomes a molecule of its own molecule kind
+          ntype = ntype + 1
+          atom_info%map_mol_typ(iatom) = ntype
+       ELSE IF (topology%conn_type == do_conn_user) THEN
+          ! User-defined connectivity: 5th column of COORD section or molecule
+          ! or residue name in the case of PDB files
+          IF (atom_info%id_molname(iatom) == atom_info%id_molname(iatom-1)) THEN
+             atom_info%map_mol_typ(iatom) = atom_info%map_mol_typ(iatom-1)
+             IF (atom_info%id_resname(iatom) == atom_info%id_resname(iatom-1)) THEN
+                atom_info%map_mol_res(iatom) = atom_info%map_mol_res(iatom-1)
+             ELSE
+                resid = resid + 1
+                atom_info%map_mol_res(iatom) = resid
+             END IF
           ELSE
-             ntype=ntype+1
-             atom_info%map_mol_typ(iatom)=ntype
+             ! Check if the type is already known
+             found = .FALSE.
+             DO itype=1,ntype
+                IF (atom_info%id_molname(iatom) == wrk1(itype)) THEN
+                   atom_info%map_mol_typ(iatom) = itype
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+             IF (.NOT.found) THEN
+                ntype = ntype + 1
+                atom_info%map_mol_typ(iatom) = ntype
+                IF (ntype > SIZE(wrk1)) CALL reallocate(wrk1,1,2*SIZE(wrk1))
+                wrk1(ntype) = atom_info%id_molname(iatom)
+             END IF
+             resid = resid + 1
+             atom_info%map_mol_res(iatom) = resid
+          END IF
+       ELSE
+          IF (atom_info%id_molname(iatom-1) == atom_info%id_molname(iatom)) THEN
+             atom_info%map_mol_typ(iatom) = ntype
+          ELSE
+             ntype = ntype + 1
+             atom_info%map_mol_typ(iatom) = ntype
           END IF
        END IF
     END DO
-    IF(iw>0) WRITE(iw,'(/,A)') "Start of molecule generation"
+    DEALLOCATE (wrk1,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (iw > 0) WRITE (iw,'(/,T2,A)') "Start of molecule generation"
 
     ! convert a simple list of bonds to a list of bonds per atom
     ! (each bond is present in the forward and backward direction
@@ -254,24 +313,30 @@ CONTAINS
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
     CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
-    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%label_molname)   
+    CALL find_molecule(atom_bond_list,atom_info%map_mol_num,atom_info%id_molname)   
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    !
+    IF (iw > 0) WRITE (iw,'(/,T2,A)') "End of molecule generation"
+
     ! Modify according map_mol_typ the array map_mol_num
-    !
-    IF(iw>0) WRITE(iw,'(/,A)') "End of molecule generation"
-    IF(iw>0) WRITE(iw,'(/,A)') "Checking for non-continuous generated molecules"
+    IF (iw > 0) WRITE (iw,'(/,T2,A)') "Checking for non-continuous generated molecules"
     ! Check molecule number
     ALLOCATE(wrk1(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(wrk2(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     wrk1 = atom_info%map_mol_num
+
+    IF (debug_this_module) THEN
+       DO i=1,natom
+        WRITE(*,'(2I10)')i, atom_info%map_mol_num(i)
+       END DO
+    END IF
+
     CALL sort(wrk1,natom,wrk2)
     istart  = 1
     mol_typ = wrk1(istart)
@@ -282,12 +347,17 @@ CONTAINS
           last  = MAXVAL(wrk2(istart:iend))
           nlocl = last-first+1
           IF (iend-istart+1 /= nlocl) THEN
-             CALL stop_program ("topology_generate_molecule",&
-                  "Detected a non contiguous molecule!! "//&
+             IF (debug_this_module) WRITE(*,*)iend, istart, iend-istart+1, first, last, nlocl
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "//&
+                  "In particular a molecule defined from index ("//cp_to_string(first)//") to ("//&
+                  cp_to_string(last)//") contains other molecules, not connected! "//&
                   "Too late at this stage everything should be already ordered! "//&
-                  "Try with the keyword reordering.. It may help!")
+                  "If you have not yet employed the REORDERING keyword, please do so."//&
+                  "It may help to fix this issue.")
           END IF
           istart = i
+          mol_typ = wrk1(istart)
        END IF
     END DO
     iend  = i-1
@@ -295,64 +365,102 @@ CONTAINS
     last  = MAXVAL(wrk2(istart:iend))
     nlocl = last-first+1
     IF (iend-istart+1 /= nlocl) THEN
-       CALL stop_program ("topology_generate_molecule",&
-            "Detected a non contiguous molecule!! "//&
+       IF (debug_this_module) WRITE(*,*)iend, istart, iend-istart+1, first, last, nlocl
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "CP2K requires molecules to be contiguous and we have detected a non contiguous one!! "//&
+            "In particular a molecule defined from index ("//cp_to_string(first)//") to ("//&
+            cp_to_string(last)//") contains other molecules, not connected! "//&
             "Too late at this stage everything should be already ordered! "//&
-            "Try with the keyword reordering.. It may help!")
+            "If you have not yet employed the REORDERING keyword, please do so."//&
+            "It may help to fix this issue.")
     END IF
     DEALLOCATE(wrk1, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wrk2,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-    IF(iw>0) WRITE(iw,'(/,A)') "End of check"
-    IF(iw>0) WRITE(iw,'(/,A)') "Start of renumbering molecules"
-    mol_typ = atom_info%map_mol_typ(1)
-    mol_num = atom_info%map_mol_num(1)
-    DO i = 2, natom
-       IF (atom_info%map_mol_typ(i)/=mol_typ) THEN
-          myind   = atom_info%map_mol_num(i) - mol_num + 1
-          CPPostcondition(myind/=atom_info%map_mol_num(i-1),cp_failure_level,routineP,error,failure)
-          mol_typ = atom_info%map_mol_typ(i)
-          mol_num = atom_info%map_mol_num(i)
-       END IF
-       atom_info%map_mol_num(i) = atom_info%map_mol_num(i) - mol_num + 1
-    END DO
-    IF(iw>0) WRITE(iw,'(/,A)') "End of renumbering molecules"
-    !
-    ! Residues
-    !
-    CALL timeset(routineN//"_PARA_RES",handle2)
-    IF(iw>0) WRITE(iw,'(/,A,L2)') "Starting PARA_RES: ",topology%para_res
-    IF(topology%para_res) THEN
-       mol_res = 1
+    IF (iw > 0) WRITE (iw,'(/,T2,A)') "End of check"
+
+    IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A)") "Start of renumbering molecules"
+    IF (topology%conn_type == do_conn_user) THEN
+       mol_num = 1
+       atom_info%map_mol_num(1) = 1
+       DO iatom=2,natom
+          IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom-1)) THEN
+             mol_num = 1
+          ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom-1)) THEN
+             mol_num = mol_num + 1
+          END IF
+          atom_info%map_mol_num(iatom) = mol_num
+       END DO
+    ELSE
        mol_typ = atom_info%map_mol_typ(1)
        mol_num = atom_info%map_mol_num(1)
-       atom_info%map_mol_res(1) = mol_res
-       DO i = 2, natom
-          IF((atom_info%label_resid(i-1)/=atom_info%label_resid(i)).OR.&
-             (TRIM(atom_info%label_resname(i-1))/=TRIM(atom_info%label_resname(i))))THEN
-             mol_res = mol_res + 1
-          END IF
-          IF (atom_info%map_mol_typ(i)/=mol_typ.OR.atom_info%map_mol_num(i)/=mol_num) THEN
+       DO i=2,natom
+          IF (atom_info%map_mol_typ(i) /= mol_typ) THEN
+             myind = atom_info%map_mol_num(i) - mol_num + 1
+             CPPostcondition(myind/=atom_info%map_mol_num(i-1),cp_failure_level,routineP,error,failure)
              mol_typ = atom_info%map_mol_typ(i)
              mol_num = atom_info%map_mol_num(i)
-             mol_res = 1
           END IF
-          atom_info%map_mol_res(i) = mol_res
+          atom_info%map_mol_num(i) = atom_info%map_mol_num(i) - mol_num + 1
        END DO
     END IF
-    IF(iw>0) WRITE(iw,'(/,A)') "End of PARA_RES"
+    IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A)") "End of renumbering molecules"
+
+    ! Optionally, use the residues as molecules
+    CALL timeset(routineN//"_PARA_RES",handle2)
+    IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A,L2)") "Starting PARA_RES: ",topology%para_res
+    IF (topology%para_res) THEN
+       IF (topology%conn_type == do_conn_user) THEN
+          atom_info%id_molname(:) = atom_info%id_resname(:)
+          ntype = 1
+          atom_info%map_mol_typ(1) = 1
+          mol_num = 1
+          atom_info%map_mol_num(1) = 1
+          DO iatom=2,natom
+             IF (atom_info%id_molname(iatom) /= atom_info%id_molname(iatom-1)) THEN
+                ntype = ntype + 1
+                mol_num = 1
+             ELSE IF (atom_info%map_mol_res(iatom) /= atom_info%map_mol_res(iatom-1)) THEN
+                mol_num = mol_num + 1
+             END IF
+             atom_info%map_mol_typ(iatom) = ntype
+             atom_info%map_mol_num(iatom) = mol_num
+          END DO
+       ELSE
+          mol_res = 1
+          mol_typ = atom_info%map_mol_typ(1)
+          mol_num = atom_info%map_mol_num(1)
+          atom_info%map_mol_res(1) = mol_res
+          DO i=2,natom
+             IF ((atom_info%resid(i-1) /= atom_info%resid(i)).OR.&
+                 (atom_info%id_resname(i-1) /= atom_info%id_resname(i))) THEN
+                mol_res = mol_res + 1
+             END IF
+             IF ((atom_info%map_mol_typ(i) /= mol_typ).OR.&
+                 (atom_info%map_mol_num(i) /= mol_num)) THEN
+                mol_typ = atom_info%map_mol_typ(i)
+                mol_num = atom_info%map_mol_num(i)
+                mol_res = 1
+             END IF
+             atom_info%map_mol_res(i) = mol_res
+          END DO
+       END IF
+    END IF
+    IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A)") "End of PARA_RES"
     CALL timestop(handle2)
+
     IF(iw>0) THEN
        DO iatom=1,natom
           WRITE(iw,'(4(1X,A,":",I0),2(1X,A,1X,A))') "iatom",iatom,&
                                        "map_mol_typ",atom_info%map_mol_typ(iatom),&
                                        "map_mol_num",atom_info%map_mol_num(iatom),&
                                        "map_mol_res",atom_info%map_mol_res(iatom),&
-                                       "mol_name:",TRIM(atom_info%label_molname(iatom)),&
-                                       "res_name:",TRIM(atom_info%label_resname(iatom))
+                                       "mol_name:",TRIM(id2str(atom_info%id_molname(iatom))),&
+                                       "res_name:",TRIM(id2str(atom_info%id_resname(iatom)))
        END DO
     END IF
+
     IF (my_qmmm) THEN
        do_again = .FALSE.
        IF (iw>0) WRITE(iw,*)"MAP_MOL_NUM ",atom_info%map_mol_num
@@ -371,9 +479,9 @@ CONTAINS
           IF (iw>0) WRITE(iw,*)"qm fragment:: ifirst, ilast",ifirst,ilast
           CPPostcondition(((ifirst/=0).OR.(ilast/=natom)),cp_failure_level,routineP,error,failure)
           DO iatm = ifirst, ilast
-             atom_info%label_molname(iatm) = "_QM_"//&
-                  TRIM(atom_info%label_molname(iatm))
-             IF (iw>0) WRITE(iw,*)"QM Molecule name :: ", atom_info%label_molname(iatm)
+             atom_info%id_molname(iatm) = str2id(s2s("_QM_"//&
+                  TRIM(id2str(atom_info%id_molname(iatm)))))
+             IF (iw>0) WRITE(iw,*)"QM Molecule name :: ", id2str(atom_info%id_molname(iatm))
              WHERE (qm_atom_index == iatm) qm_atom_index = 0
           END DO
           DO iatm = 1, ifirst-1
@@ -383,7 +491,6 @@ CONTAINS
              IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
           END DO
           IF (iw>0) WRITE(iw,*)" Another QM fragment? :: ",do_again
-
           IF (ifirst /= 1) THEN
              jump1 = atom_info%map_mol_typ(ifirst)  - atom_info%map_mol_typ(ifirst-1)
              CPPostcondition(jump1<=1.AND.jump1>=0,cp_failure_level,routineP,error,failure)
@@ -406,7 +513,6 @@ CONTAINS
           DO iatm = ilast+1, natom
              atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm) + jump2
           END DO
-
           IF (jump1 == 1) THEN
              DO iatm = ifirst, ilast
                 atom_info%map_mol_num(iatm) = 1
@@ -442,30 +548,31 @@ CONTAINS
     ! Further check : see if the number of atoms belonging to same molecule kinds
     !                 are equal
     IF (iw>0) THEN 
-       WRITE(iw,*)"SUMMARY:: Number of molecules type found:",ntype
+       WRITE(iw,*) "SUMMARY:: Number of molecule kinds found:",ntype
        ntype = MAXVAL(atom_info%map_mol_typ)
        DO i = 1, ntype
-          atom_in_kind   = COUNT(atom_info%map_mol_typ == i)
-          WRITE(iw,*)"Molecule type: ",i,"contains ",atom_in_kind,' atoms'
+          atom_in_kind = COUNT(atom_info%map_mol_typ == i)
+          WRITE(iw,*) "Molecule kind:",i," contains",atom_in_kind," atoms"
           IF (atom_in_kind <= 1) CYCLE
           CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
-          WRITE(iw,*)"Boundary atoms: ",first, last
+          WRITE(iw,*) "Boundary atoms:",first,last
           CPPostcondition(last-first+1==atom_in_kind,cp_failure_level,routineP,error,failure)
-          max_mol_num    = MAXVAL(atom_info%map_mol_num(first:last))
-          WRITE(iw,*)"Number of molecules of type ",i," is ::",max_mol_num       
-          atom_in_mol    = atom_in_kind / max_mol_num
-          WRITE(iw,*)"Number of atoms per each molecule: ",atom_in_mol
-          WRITE(iw,*)"MAP_MOL_TYP:: ",atom_info%map_mol_typ(first:last)
-          WRITE(iw,*)"MAP_MOL_NUM:: ",atom_info%map_mol_num(first:last)
-          WRITE(iw,*)"MAP_MOL_RES:: ",atom_info%map_mol_res(first:last)
+          max_mol_num = MAXVAL(atom_info%map_mol_num(first:last))
+          WRITE(iw,*)"Number of molecules of kind",i,"is ::",max_mol_num       
+          atom_in_mol = atom_in_kind / max_mol_num
+          WRITE(iw,*)"Number of atoms per each molecule:",atom_in_mol
+          WRITE(iw,*)"MAP_MOL_TYP::",atom_info%map_mol_typ(first:last)
+          WRITE(iw,*)"MAP_MOL_NUM::",atom_info%map_mol_num(first:last)
+          WRITE(iw,*)"MAP_MOL_RES::",atom_info%map_mol_res(first:last)
           !
           DO j = 1, max_mol_num
              IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
                 WRITE(iw,*)"molecule type:",i,"molecule num:",j," has ",&
                      COUNT(atom_info%map_mol_num(first:last)==j),&
                      " atoms instead of ",atom_in_mol," ."
-                CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
-                     " have been created with different numbers of atoms!")
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Two molecules of the same kind have "//&
+                                  "been created with different numbers of atoms!")
              END IF
           END DO
        END DO
@@ -480,12 +587,11 @@ CONTAINS
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE topology_generate_bond(topology,para_env,subsys_section,&
-       force_env_section,error)
+       error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
@@ -563,13 +669,14 @@ CONTAINS
        CALL timeset(TRIM(routineN)//"_1",handle2)
        DO iatom=1,natom
           list(iatom) = iatom
-          upper_sym_1 = atom_info%element(iatom)
+          upper_sym_1 = id2str(atom_info%id_element(iatom))
           IF(topology%bondparm_type==do_bondparm_covalent) THEN
              CALL get_ptable_info(symbol=upper_sym_1, covalent_radius=radius(iatom))
           ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
              CALL get_ptable_info(symbol=upper_sym_1, vdw_radius=radius(iatom))
           ELSE
-             CALL stop_program ("topology_generate_bond","illegal bondparm_type")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Illegal bondparm_type")
           END IF
           IF (upper_sym_1=="H ") h_list(iatom) = .TRUE.
           ! isolated atoms? put the radius to 0.0_dp
@@ -611,22 +718,17 @@ CONTAINS
           particle_set(i)%r(2) = atom_info%r(2,i)
           particle_set(i)%r(3) = atom_info%r(3,i)
           pbc_coord(:,i) = pbc(atom_info%r(:,i),topology%cell)
-          NULLIFY(particle_set(i)%list_exclude_vdw)
-          NULLIFY(particle_set(i)%list_exclude_ei)
-          ALLOCATE(particle_set(i)%list_exclude_vdw(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(particle_set(i)%list_exclude_ei(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
        END DO
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MIN",r_val=tmp,&
             error=error)
        r_minsq = tmp*tmp
        CALL timestop(handle2)
        CALL timeset(TRIM(routineN)//"_3",handle2)
-       CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-            cell=topology%cell, r_max=r_max, r_minsq=r_minsq, nonbonded=nonbonded,&
-            para_env=para_env, build_from_scratch=.TRUE.,geo_check=.TRUE.,&
-            mm_section=generate_section,error=error)
+       CALL build_fist_neighbor_lists(atomic_kind_set, particle_set, &
+            cell=topology%cell, r_max=r_max, r_minsq=r_minsq, &
+            ei_scale14=1.0_dp, vdw_scale14=1.0_dp, nonbonded=nonbonded, &
+            para_env=para_env, build_from_scratch=.TRUE., geo_check=.TRUE., &
+            mm_section=generate_section, error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,"GENERATE| Number of prescreened bonds (neighbors):",T71,I10)')&
                nonbonded%neighbor_kind_pairs(1)%npairs
@@ -678,7 +780,7 @@ CONTAINS
        ! No need to check consistency between provided molecule name and
        ! generated connectivity since we overrided the molecule definition.
        IF (topology%create_molecules) THEN
-          atom_info%label_molname = "TO_DEFINE_LATER"
+          atom_info%id_molname = str2id(s2s("TO_DEFINE_LATER"))
           ! A real name assignment will then be performed in the reorder module..
        END IF
        ! It may happen that the connectivity created is fault for the missing
@@ -691,7 +793,7 @@ CONTAINS
              IF (h_list(iatm1)) CYCLE
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
-                IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
+                IF (atom_info%id_molname(iatm1)/=atom_info%id_molname(iatm2)) CYCLE
                 IF(h_list(iatm2).OR.(iatm2<=iatm1)) CYCLE
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
@@ -701,7 +803,7 @@ CONTAINS
                 dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
                 r2 = DOT_PRODUCT(dr,dr)
                 IF(r2 <= r_minsq(1,1)) THEN
-                   CALL stop_program ("topology_generate_bond",&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                         "bond distance between atoms less then the smallest distance provided "//&
                         "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
@@ -736,7 +838,7 @@ CONTAINS
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
                 print_info = .FALSE.
-                IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
+                IF (atom_info%id_molname(iatm1)/=atom_info%id_molname(iatm2)) CYCLE
                 IF (h_list(iatm2).AND.(iatm2<=iatm1)) CYCLE
                 ! Screen isolated atoms
                 IF ((ANY(isolated_atoms==iatm1)).OR.(ANY(isolated_atoms==iatm2))) CYCLE
@@ -749,7 +851,7 @@ CONTAINS
                 dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
                 r2 = DOT_PRODUCT(dr,dr)
                 IF(r2 <= r_minsq(1,1)) THEN
-                   CALL stop_program ("topology_generate_bond",&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                         "bond distance between atoms less then the smallest distance provided "//&
                         "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
@@ -851,9 +953,9 @@ CONTAINS
           DO ibond=1,SIZE(conn_info%bond_a)
              iatom = conn_info%bond_a(ibond)
              jatom = conn_info%bond_b(ibond)
-             IF((atom_info%label_molname(iatom)  /=atom_info%label_molname(jatom)).OR.&
-                  (atom_info%label_resid(iatom)  /=atom_info%label_resid(jatom)).OR.&
-                  (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+             IF((atom_info%id_molname(iatom)  /=atom_info%id_molname(jatom)).OR.&
+                  (atom_info%resid(iatom)  /=atom_info%resid(jatom)).OR.&
+                  (atom_info%id_resname(iatom)/=atom_info%id_resname(jatom)))THEN
                 IF(iw>0) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
                      iatom,jatom
                 cbond = cbond + 1
@@ -862,9 +964,9 @@ CONTAINS
                 conn_info%c_bond_a(cbond) = iatom
                 conn_info%c_bond_b(cbond) = jatom
              ELSE
-                IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
-                   CALL stop_program ("topology_generate_bond",&
-                     "bonds between different molecule types??? ")
+                IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "Bonds between different molecule types?")
                 END IF
              END IF
           END DO
@@ -909,7 +1011,7 @@ CONTAINS
     conn_ok = .TRUE.
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       natom   = SIZE(atom_info%label_atmname)
+       natom   = SIZE(atom_info%id_atmname)
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I = 1, natom
@@ -926,7 +1028,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO i = 1, natom
-          mol_map(i) = str2id(s2s(TRIM(atom_info%label_molname(i))))
+          mol_map(i) = atom_info%id_molname(i)
        END DO
        mol_map_o = mol_map
 
@@ -1768,7 +1870,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock = 1000
 
     INTEGER                                  :: handle, i, iw, natom, nbond, &
                                                 nphi, nsize, output_unit, stat
@@ -1789,53 +1890,55 @@ CONTAINS
     IF (.NOT.failure) THEN
        conn_info => topology%conn_info
        nphi   = 0
-       nsize  = INT(5+1.2*nphi)
-       CALL reallocate(conn_info%phi_a,1,nsize)
-       CALL reallocate(conn_info%phi_b,1,nsize)
-       CALL reallocate(conn_info%phi_c,1,nsize)
-       CALL reallocate(conn_info%phi_d,1,nsize)
-       ! Get list of bonds to pre-process phi
-       natom = topology%natoms
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
        nbond = SIZE(conn_info%bond_a)
-       CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
-       ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
-       CALL match_iterative_path(Iarray1=bond_list,&
-                                 Iarray2=bond_list,&
-                                 Iarray3=bond_list,&
-                                 max_levl=4,&
-                                 nvar=nphi,&
-                                 Oarray1 =conn_info%phi_a,&
-                                 Oarray2 =conn_info%phi_b,&
-                                 Oarray3 =conn_info%phi_c,&
-                                 Oarray4 =conn_info%phi_d,&
-                                 error=error)
-       DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
+       IF (nbond/=0) THEN
+          nsize  = INT(5+1.2*nphi)
+          CALL reallocate(conn_info%phi_a,1,nsize)
+          CALL reallocate(conn_info%phi_b,1,nsize)
+          CALL reallocate(conn_info%phi_c,1,nsize)
+          CALL reallocate(conn_info%phi_d,1,nsize)
+          ! Get list of bonds to pre-process phi
+          natom = topology%natoms
+          ALLOCATE(bond_list(natom),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Torsions generated:",&
-               nphi
+          DO I = 1, natom
+             ALLOCATE(bond_list(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+          ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
+          CALL match_iterative_path(Iarray1=bond_list,&
+                                    Iarray2=bond_list,&
+                                    Iarray3=bond_list,&
+                                    max_levl=4,&
+                                    nvar=nphi,&
+                                    Oarray1 =conn_info%phi_a,&
+                                    Oarray2 =conn_info%phi_b,&
+                                    Oarray3 =conn_info%phi_c,&
+                                    Oarray4 =conn_info%phi_d,&
+                                    error=error)
+          DO I = 1, natom
+             DEALLOCATE(bond_list(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(bond_list,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Torsions generated:",&
+                  nphi
+          END IF
+          ! External defined torsions (useful for complex connectivity)
+          torsion_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%TORSION",error=error)
+          CALL connectivity_external_control(section=torsion_section,&
+                                             Iarray1=conn_info%phi_a,&
+                                             Iarray2=conn_info%phi_b,&
+                                             Iarray3=conn_info%phi_c,&
+                                             Iarray4=conn_info%phi_d,&
+                                             nvar=nphi,&
+                                             topology=topology,&
+                                             output_unit=output_unit,&
+                                             error=error)
        END IF
-       ! External defined torsions (useful for complex connectivity)
-       torsion_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%TORSION",error=error)
-       CALL connectivity_external_control(section=torsion_section,&
-                                          Iarray1=conn_info%phi_a,&
-                                          Iarray2=conn_info%phi_b,&
-                                          Iarray3=conn_info%phi_c,&
-                                          Iarray4=conn_info%phi_d,&
-                                          nvar=nphi,&
-                                          topology=topology,&
-                                          output_unit=output_unit,&
-                                          error=error)
        ! Resize arrays to their proper size..
        CALL reallocate(conn_info%phi_a,1,nphi)
        CALL reallocate(conn_info%phi_b,1,nphi)
@@ -1890,70 +1993,72 @@ CONTAINS
        natom  = topology%natoms
        nbond = SIZE(conn_info%bond_a)
        nimpr  = 0 
-       nsize  = INT(5+1.2*nimpr)
-       CALL reallocate(conn_info%impr_a,1,nsize)
-       CALL reallocate(conn_info%impr_b,1,nsize)
-       CALL reallocate(conn_info%impr_c,1,nsize)
-       CALL reallocate(conn_info%impr_d,1,nsize)
-       ! Get list of bonds to pre-process phi
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
        nbond = SIZE(conn_info%bond_a)
-       CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
-       DO I = 1, natom
-          ! Count all atoms with three bonds
-          IF (SIZE(bond_list(I)%array1)==3) THEN
-             ! Problematic cases::
-             ! Nitrogen 
-             accept_impr = .TRUE.
-             atm_symbol  = atom_info%element(i)
-             CALL uppercase(atm_symbol)
-             IF (atm_symbol=="N ") THEN
-                accept_impr = .FALSE.
-                ! Impropers on Nitrogen only when there is another atom close to it
-                ! with other 3 bonds 
-                DO j = 1, 3
-                   ind = bond_list(I)%array1(j)
-                   IF (SIZE(bond_list(ind)%array1)==3) accept_impr = .TRUE.
-                END DO
-             END IF
-             IF (.NOT.accept_impr) CYCLE
-             nimpr = nimpr + 1
-             IF (nimpr>SIZE(conn_info%impr_a)) THEN
-                nsize  = INT(5+1.2*nimpr)
-                CALL reallocate(conn_info%impr_a,1,nsize)
-                CALL reallocate(conn_info%impr_b,1,nsize)
-                CALL reallocate(conn_info%impr_c,1,nsize)
-                CALL reallocate(conn_info%impr_d,1,nsize)
-             END IF
-             conn_info%impr_a(nimpr) = i
-             conn_info%impr_b(nimpr) = bond_list(I)%array1(1)
-             conn_info%impr_c(nimpr) = bond_list(I)%array1(2)
-             conn_info%impr_d(nimpr) = bond_list(I)%array1(3)
-          END IF
-       END DO
-       DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
+       IF (nbond/=0) THEN
+          nsize  = INT(5+1.2*nimpr)
+          CALL reallocate(conn_info%impr_a,1,nsize)
+          CALL reallocate(conn_info%impr_b,1,nsize)
+          CALL reallocate(conn_info%impr_c,1,nsize)
+          CALL reallocate(conn_info%impr_d,1,nsize)
+          ! Get list of bonds to pre-process phi
+          ALLOCATE(bond_list(natom),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
-       ! External defined impropers (useful for complex connectivity)
-       impr_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%IMPROPER",error=error)
-       CALL connectivity_external_control(section=impr_section,&
-                                          Iarray1=conn_info%impr_a,&
-                                          Iarray2=conn_info%impr_b,&
-                                          Iarray3=conn_info%impr_c,&
-                                          Iarray4=conn_info%impr_d,&
-                                          nvar=nimpr,&
-                                          topology=topology,&
-                                          output_unit=output_unit,&
-                                          is_impr=.TRUE.,&
-                                          error=error)
+          DO I = 1, natom
+             ALLOCATE(bond_list(I)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+          DO I = 1, natom
+             ! Count all atoms with three bonds
+             IF (SIZE(bond_list(I)%array1)==3) THEN
+                ! Problematic cases::
+                ! Nitrogen 
+                accept_impr = .TRUE.
+                atm_symbol  = id2str(atom_info%id_element(i))
+                CALL uppercase(atm_symbol)
+                IF (atm_symbol=="N ") THEN
+                   accept_impr = .FALSE.
+                   ! Impropers on Nitrogen only when there is another atom close to it
+                   ! with other 3 bonds 
+                   DO j = 1, 3
+                      ind = bond_list(I)%array1(j)
+                      IF (SIZE(bond_list(ind)%array1)==3) accept_impr = .TRUE.
+                   END DO
+                END IF
+                IF (.NOT.accept_impr) CYCLE
+                nimpr = nimpr + 1
+                IF (nimpr>SIZE(conn_info%impr_a)) THEN
+                   nsize  = INT(5+1.2*nimpr)
+                   CALL reallocate(conn_info%impr_a,1,nsize)
+                   CALL reallocate(conn_info%impr_b,1,nsize)
+                   CALL reallocate(conn_info%impr_c,1,nsize)
+                   CALL reallocate(conn_info%impr_d,1,nsize)
+                END IF
+                conn_info%impr_a(nimpr) = i
+                conn_info%impr_b(nimpr) = bond_list(I)%array1(1)
+                conn_info%impr_c(nimpr) = bond_list(I)%array1(2)
+                conn_info%impr_d(nimpr) = bond_list(I)%array1(3)
+             END IF
+          END DO
+          DO I = 1, natom
+             DEALLOCATE(bond_list(I)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(bond_list,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+          ! External defined impropers (useful for complex connectivity)
+          impr_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%IMPROPER",error=error)
+          CALL connectivity_external_control(section=impr_section,&
+                                             Iarray1=conn_info%impr_a,&
+                                             Iarray2=conn_info%impr_b,&
+                                             Iarray3=conn_info%impr_c,&
+                                             Iarray4=conn_info%impr_d,&
+                                             nvar=nimpr,&
+                                             topology=topology,&
+                                             output_unit=output_unit,&
+                                             is_impr=.TRUE.,&
+                                             error=error)
+       END IF
        ! Resize arrays to their proper size..
        CALL reallocate(conn_info%impr_a,1,nimpr)
        CALL reallocate(conn_info%impr_b,1,nimpr)
@@ -1982,9 +2087,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iphi, iw, nphi, &
-                                                output_unit
+    INTEGER                                  :: atom_a, atom_b, handle, i, &
+                                                ionfo, iw, natom, nbond, &
+                                                nphi, ntheta, output_unit, &
+                                                stat
     LOGICAL                                  :: failure
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list, phi_list, &
+                                                theta_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1995,18 +2105,92 @@ CONTAINS
          extension=".subsysLog",error=error) 
     output_unit= cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN,handle)    
-    conn_info => topology%conn_info    
+
+    conn_info => topology%conn_info
+    natom  = topology%natoms
+
+    ! Get list of bonds (sic). Get a list of bonded neighbors for every atom.
+    ALLOCATE(bond_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       ALLOCATE(bond_list(i)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    nbond = SIZE(conn_info%bond_a)
+    CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+
+    ! Get a list of next nearest neighbors for every atom.
+    ALLOCATE(theta_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       ALLOCATE(theta_list(i)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    ntheta = SIZE(conn_info%theta_a)
+    CALL reorder_structure(theta_list, conn_info%theta_a, conn_info%theta_c, ntheta, error)
+
+    ! Get a list of next next nearest neighbors for every atom.
+    ALLOCATE(phi_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       ALLOCATE(phi_list(i)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
     nphi = SIZE(conn_info%phi_a)
+    CALL reorder_structure(phi_list, conn_info%phi_a, conn_info%phi_d, nphi, error)
+
+    ! Allocate enough (possible too much)
     CALL reallocate(conn_info%onfo_a,1,nphi)
     CALL reallocate(conn_info%onfo_b,1,nphi)
 
-    DO iphi=1,nphi
-       conn_info%onfo_a(iphi) = conn_info%phi_a(iphi)
-       conn_info%onfo_b(iphi) = conn_info%phi_d(iphi)
+    ionfo = 0
+    DO atom_a = 1, natom
+       DO i = 1, SIZE(phi_list(atom_a)%array1)
+          atom_b = phi_list(atom_a)%array1(i)
+          ! Avoid trivial duplicates.
+          IF (atom_a > atom_b) CYCLE
+          ! Avoid onfo's in 4-rings.
+          IF (ANY(atom_b==bond_list(atom_a)%array1)) CYCLE
+          ! Avoid onfo's in 5-rings.
+          IF (ANY(atom_b==theta_list(atom_a)%array1)) CYCLE
+          ! Avoid onfo's in 6-rings.
+          IF (ANY(atom_b==phi_list(atom_a)%array1(:i-1))) CYCLE
+          ionfo = ionfo + 1
+          conn_info%onfo_a(ionfo) = atom_a
+          conn_info%onfo_b(ionfo) = atom_b
+       END DO
     END DO
+
+    ! Reallocate such that just enough memory is used.
+    CALL reallocate(conn_info%onfo_a,1,ionfo)
+    CALL reallocate(conn_info%onfo_b,1,ionfo)
+
+    ! Deallocate bond_list
+    DO i = 1, natom
+       DEALLOCATE(bond_list(i)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Deallocate theta_list
+    DO i = 1, natom
+       DEALLOCATE(theta_list(i)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(theta_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Deallocate phi_list
+    DO i = 1, natom
+       DEALLOCATE(phi_list(i)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(phi_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Final output
     IF (output_unit>0) THEN
        WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of 1-4 interactions generated:",&
-            nphi
+            ionfo
     END IF
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
