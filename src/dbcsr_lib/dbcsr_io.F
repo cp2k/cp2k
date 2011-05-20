@@ -58,6 +58,7 @@ MODULE dbcsr_io
 ! PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Utility printing
   PUBLIC :: all_print
+  PUBLIC :: print_xfer_timings
 
 
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
@@ -683,7 +684,32 @@ CONTAINS
     WRITE(*,fmt)desc,infos
   END SUBROUTINE all_print
 
+  SUBROUTINE print_xfer_timings (timings)
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      INTENT(in)                             :: timings
 
+    INTEGER, PARAMETER                       :: id_bytes = 3, id_recv = 2, &
+                                                id_send = 1, id_time = 1, &
+                                                id_waittime = 2
+
+    INTEGER                                  :: tick
+
+    DO tick = 1, SIZE(timings,4)-1
+       WRITE(*,*)"Tick", tick
+       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Left recv",&
+            timings(1,id_send,:,tick),&
+            timings(2,id_send,:,tick)
+       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Left send",&
+            timings(1,id_recv,:,tick),&
+            timings(2,id_recv,:,tick)
+       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Right recv",&
+            timings(3,id_send,:,tick),&
+            timings(4,id_send,:,tick)
+       WRITE(*,'(A12,3(1X,EN12.3),1X,3(1X,EN12.3))')"Right send",&
+            timings(3,id_recv,:,tick),&
+            timings(4,id_recv,:,tick)
+    ENDDO
+  END SUBROUTINE print_xfer_timings
 
 
 END MODULE dbcsr_io

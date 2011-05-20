@@ -35,24 +35,22 @@ MODULE dbcsr_internal_operations
        dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
        dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
-  USE dbcsr_dist_operations,           ONLY: dbcsr_reset_vlocals
+  USE dbcsr_dist_operations,           ONLY: dbcsr_reset_vlocals,&
+                                             image_calculator
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                              dbcsr_expand_row_index,&
                                              dbcsr_has_local_row_index,&
                                              dbcsr_repoint_index
-  USE dbcsr_io,                        ONLY: all_print,&
-                                             dbcsr_print
+  USE dbcsr_io,                        ONLY: dbcsr_print,&
+                                             print_xfer_timings
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
+  USE dbcsr_kinds,                     ONLY: &
+       dp, int_4, int_4_size, int_8, real_4, real_4_size, real_8, &
+       real_8_size, sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush,&
                                              m_walltime
@@ -90,8 +88,7 @@ MODULE dbcsr_internal_operations
   USE dbcsr_util,                      ONLY: count_bins,&
                                              dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
-                                             dbcsr_finalize,&
-                                             dbcsr_work_create
+                                             dbcsr_finalize
 
   !$ USE OMP_LIB
 
@@ -229,36 +226,41 @@ CONTAINS
     CHARACTER(LEN=80), PARAMETER :: &
       fdata = '(A,1X,I4,"(",2(I3),"x",2(I3),")","(",I3,"x",I3,")")', fxfer = &
       '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")")'
-    INTEGER, PARAMETER                       :: idata = 1, imeta = 2, &
-                                                M_L = 2, M_P = 1, M_R = 3, &
-                                                RC_C = 2, RC_R = 1
-    LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
+    INTEGER, PARAMETER :: id_bytes = 3, id_recv = 2, id_send = 1, &
+      id_time = 1, id_waittime = 2, idata = 1, ileft = 0, imeta = 2, &
+      iright = 2, M_L = 2, M_P = 1, M_R = 3, RC_C = 2, RC_R = 1
+    LOGICAL, PARAMETER                       :: excessive_output = .FALSE., &
+                                                time_xfers = .FALSE.
 
     INTEGER :: data_type, error_handler, error_handler2, flop_metronome, grp, &
       i, ithread, left_col_image, left_col_mult, left_col_nimages, &
-      left_col_v_offset, left_data_send_size, left_dst_icol, left_dst_irow, &
-      left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
-      left_dst_v_row, left_index_send_size, left_max_nze, left_recv_icol, &
-      left_recv_irow, left_recv_p, left_recv_pcol, left_recv_prow, &
-      left_recv_v_col, left_recv_v_row, left_row_image, left_row_mult, &
-      left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
-      left_send_pcol, left_send_prow, left_send_v_col, left_send_v_row, &
-      left_src_icol, left_src_irow
-    INTEGER :: left_src_p, left_src_pcol, left_src_prow, left_src_v_col, &
-      left_src_v_row, max_nblks, max_nze, metronome, min_nimages, mp_group, &
-      mynode, nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, &
-      nvirt_k, output_unit, right_col_image, right_col_mult, &
-      right_col_nimages, right_data_send_size, right_dst_icol, &
+      left_data_recv_size, left_data_send_size, left_dst_icol, left_dst_irow, &
+      left_dst_p, left_dst_pcol, left_dst_prow, left_dst_vcol, left_dst_vrow, &
+      left_index_recv_size, left_index_send_size, left_max_nblks, &
+      left_max_nze, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
+      left_myprow, left_npcols, left_nprows, left_recv_icol, left_recv_irow, &
+      left_recv_p, left_recv_pcol, left_recv_prow, left_recv_vcol, &
+      left_recv_vrow, left_row_image, left_row_mult, left_row_nimages, &
+      left_send_icol
+    INTEGER :: left_send_irow, left_send_p, left_send_pcol, left_send_prow, &
+      left_send_vcol, left_send_vrow, left_src_icol, left_src_irow, &
+      left_src_p, left_src_pcol, left_src_prow, left_src_vcol, left_src_vrow, &
+      metronome, min_nimages, mp_group, mynode, nblkrows_total, &
+      nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, output_unit, &
+      right_col_image, right_col_mult, right_col_nimages, &
+      right_data_recv_size, right_data_send_size, right_dst_icol, &
       right_dst_irow, right_dst_p, right_dst_pcol, right_dst_prow, &
-      right_dst_v_col, right_dst_v_row, right_index_send_size, right_max_nze, &
-      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
-      right_recv_prow, right_recv_v_col, right_recv_v_row, right_row_image, &
-      right_row_mult, right_row_nimages
-    INTEGER :: right_row_v_offset, right_send_icol, right_send_irow, &
-      right_send_p, right_send_pcol, right_send_prow, right_send_v_col, &
-      right_send_v_row, right_src_icol, right_src_irow, right_src_p, &
-      right_src_pcol, right_src_prow, right_src_v_col, right_src_v_row, row, &
-      size_guess, stat, v_k, v_ki
+      right_dst_vcol, right_dst_vrow, right_index_recv_size, &
+      right_index_send_size, right_max_nblks, right_max_nze
+    INTEGER :: right_myfirstvcol, right_myfirstvrow, right_mypcol, &
+      right_myprow, right_npcols, right_nprows, right_recv_icol, &
+      right_recv_irow, right_recv_p, right_recv_pcol, right_recv_prow, &
+      right_recv_vcol, right_recv_vrow, right_row_image, right_row_mult, &
+      right_row_nimages, right_send_icol, right_send_irow, right_send_p, &
+      right_send_pcol, right_send_prow, right_send_vcol, right_send_vrow, &
+      right_src_icol, right_src_irow, right_src_p, right_src_pcol, &
+      right_src_prow, right_src_vcol, right_src_vrow, row, size_guess, stat, &
+      v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
@@ -279,6 +281,8 @@ CONTAINS
                                                 my_use_plasma, otf_filtering
     REAL(KIND=dp)                            :: checksum, t_all, t_gemm, &
                                                 trun, trun_t, tstart, tstop
+    REAL(kind=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: xfer_timings
     REAL(KIND=real_8)                        :: fill_guess, left_fill, &
                                                 right_fill
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
@@ -326,14 +330,17 @@ CONTAINS
 !$omp parallel if( .NOT. my_use_plasma ) &
 !$omp default (none) &
 !$omp shared (nthreads, product_matrix, error)
-!$omp single
+!$omp master
     nthreads = 1
     !$ nthreads = OMP_GET_NUM_THREADS ()
-!$omp end single
-    CALL dbcsr_work_create(product_matrix,&
-         work_mutable=.FALSE., n=nthreads, error=error)
+    CALL dbcsr_assert (ASSOCIATED (product_matrix%m%wms),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Work matrices do not exist",__LINE__,error)
+    CALL dbcsr_assert (SIZE (product_matrix%m%wms), "EQ", nthreads,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Work matrices not correctly sized.",__LINE__,error)
+!$omp end master
 !$omp end parallel
-
 
     output_unit = default_output_unit
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
@@ -344,6 +351,10 @@ CONTAINS
     right_index_send_size=0
     left_data_send_size=0
     right_data_send_size=0
+    left_index_recv_size=0
+    right_index_recv_size=0
+    left_data_recv_size=0
+    right_data_recv_size=0
     trun_t = m_walltime ()
     ! Set up variables
     data_type = dbcsr_get_data_type (product_matrix)
@@ -355,11 +366,23 @@ CONTAINS
     right_row_mult =    right_set%image_dist%i%row_multiplicity
     right_col_nimages = right_set%image_dist%i%col_decimation
     right_col_mult =    right_set%image_dist%i%col_multiplicity
-    left_mp_obj = dbcsr_distribution_mp (left_set%image_dist%i%main)
-    right_mp_obj = dbcsr_distribution_mp (right_set%image_dist%i%main)
+    left_mp_obj    = dbcsr_distribution_mp (left_set%image_dist%i%main)
+    right_mp_obj   = dbcsr_distribution_mp (right_set%image_dist%i%main)
     product_mp_obj = dbcsr_distribution_mp (product_matrix%m%dist)
-    numnodes = dbcsr_mp_numnodes (product_mp_obj)
-    mynode = dbcsr_mp_mynode (product_mp_obj)
+    numnodes          = dbcsr_mp_numnodes (product_mp_obj)
+    mynode            = dbcsr_mp_mynode (product_mp_obj)
+    left_nprows       = dbcsr_mp_nprows(left_mp_obj)
+    left_npcols       = dbcsr_mp_npcols(left_mp_obj)
+    left_myprow       = dbcsr_mp_myprow(left_mp_obj)
+    left_mypcol       = dbcsr_mp_mypcol(left_mp_obj)
+    left_myfirstvrow  = dbcsr_mp_myprow(left_mp_obj)*left_row_nimages
+    left_myfirstvcol  = dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages
+    right_nprows      = dbcsr_mp_nprows(right_mp_obj)
+    right_npcols      = dbcsr_mp_npcols(right_mp_obj)
+    right_myprow      = dbcsr_mp_myprow(right_mp_obj)
+    right_mypcol      = dbcsr_mp_mypcol(right_mp_obj)
+    right_myfirstvrow = dbcsr_mp_myprow(right_mp_obj)*right_row_nimages
+    right_myfirstvcol = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
     mp_group = dbcsr_mp_group (product_mp_obj)
     left_pgrid => dbcsr_mp_pgrid (left_mp_obj)
     right_pgrid => dbcsr_mp_pgrid (right_mp_obj)
@@ -379,24 +402,7 @@ CONTAINS
        mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
             dbcsr_mp_my_col_group (right_mp_obj) /)
     ENDIF
-    !CALL dbcsr_mp_grid_setup (product_mp_obj)
-    !CALL dbcsr_assert (dbcsr_mp_has_subgroups (product_mp_obj),&
-    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-    !     "Row/column subgroups must be defined",__LINE__,error)
-    !mp_rc_groups(M_P, 1:2) = (/ dbcsr_mp_my_row_group (product_mp_obj),&
-    !                            dbcsr_mp_my_col_group (product_mp_obj) /)
-    !CALL dbcsr_mp_grid_setup (left_mp_obj)
-    !CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
-    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-    !     "Row/column subgroups must be defined",__LINE__,error)
-    !mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
-    !                            dbcsr_mp_my_col_group (left_mp_obj) /)
-    !CALL dbcsr_mp_grid_setup (right_mp_obj)
-    !CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
-    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-    !     "Row/column subgroups must be defined",__LINE__,error)
-    !mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
-    !                            dbcsr_mp_my_col_group (right_mp_obj) /)
+    !
     ! Dummy checks
     ! left/right matching
     CALL dbcsr_assert (left_col_nimages, "EQ", right_row_mult,&
@@ -405,18 +411,18 @@ CONTAINS
     CALL dbcsr_assert (left_col_mult, "EQ", right_row_nimages,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Left/Right image mismatch",__LINE__,error)
-    CALL dbcsr_assert (left_col_nimages * dbcsr_mp_npcols (left_mp_obj),&
-         "EQ", right_row_nimages * dbcsr_mp_nprows (right_mp_obj), &
+    CALL dbcsr_assert (left_col_nimages * left_npcols,&
+         "EQ", right_row_nimages * right_nprows, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Left/Right total mismatch",__LINE__,error)
     ! product/left matching
     CALL dbcsr_assert (left_row_mult * dbcsr_mp_nprows (product_mp_obj), &
-         "EQ", left_row_nimages * dbcsr_mp_nprows (left_mp_obj), &
+         "EQ", left_row_nimages * left_nprows, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Product/Left total mismatch",__LINE__,error)
     ! product/left matching
     CALL dbcsr_assert (right_col_mult * dbcsr_mp_npcols (product_mp_obj), &
-         "EQ", right_col_nimages * dbcsr_mp_npcols (right_mp_obj), &
+         "EQ", right_col_nimages * right_npcols, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Product/Right total mismatch",__LINE__,error)
     ! Limitations
@@ -439,20 +445,20 @@ CONTAINS
     my_sizes(:,:,:) = 0
     DO left_row_image = 1, left_row_nimages
        DO left_col_image = 1, left_col_nimages
-          my_sizes(idata, left_row_image, left_col_image) &
+          my_sizes(idata+ileft, left_row_image, left_col_image) &
                = dbcsr_data_get_size_referenced (&
                left_set%mats(left_row_image, left_col_image)%m%data_area)
-          my_sizes(imeta, left_row_image, left_col_image) = &
+          my_sizes(imeta+ileft, left_row_image, left_col_image) = &
                left_set%mats(left_row_image, left_col_image)%m%index&
                (dbcsr_slot_size)
        ENDDO
     ENDDO
     DO right_row_image = 1, right_row_nimages
        DO right_col_image = 1, right_col_nimages
-          my_sizes(idata+2, right_row_image, right_col_image) &
+          my_sizes(idata+iright, right_row_image, right_col_image) &
                = dbcsr_data_get_size_referenced (&
                right_set%mats(right_row_image, right_col_image)%m%data_area)
-          my_sizes(imeta+2, right_row_image, right_col_image) = &
+          my_sizes(imeta+iright, right_row_image, right_col_image) = &
                right_set%mats(right_row_image, right_col_image)%m%index&
                (dbcsr_slot_size)
        ENDDO
@@ -488,15 +494,11 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory for left epsilons",&
             __LINE__, error=error)
-       IF (stat .NE. 0) &
-            otf_filtering = .FALSE.
        ALLOCATE (row_counts (nblkrows_used), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory for left row counts",&
             __LINE__, error=error)
-       IF (stat .NE. 0) &
-            otf_filtering = .FALSE.
        ! The summation could be done prow-locally but it would
        ! complicate the pre-row eps calculation.
        ALLOCATE (total_row_counts (nblkrows_total), stat=stat)
@@ -556,84 +558,82 @@ CONTAINS
                / REAL(MAX(1, total_row_counts(row)), KIND=KIND(row_max_epss)),&
                KIND=KIND(row_max_epss))
        END FORALL
-    ENDIF per_row_eps
-    IF (ALLOCATED (row_counts)) THEN
+       !
        DEALLOCATE (row_counts, stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error, routineN,&
             "Could not deallocate memory for right matrix row counts",&
             __LINE__, error=error)
-    ENDIF
-    IF (ALLOCATED (total_row_counts)) THEN
        DEALLOCATE (total_row_counts, stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error, routineN,&
             "Could not deallocate memory for right matrix row counts",&
             __LINE__, error=error)
-    ENDIF
+    ENDIF per_row_eps
     !
-    ! The main transfer loop goes through the virtual
-    ! rows/columns. They are grouped together according to the process
-    ! coordinate with the smallest number of images.
+    ! The main transfer loop goes through the virtual rows/columns.
+    ! The number of steps may be smaller if the grid dimension is very
+    ! non-optimal (both left column images and right row images are >
+    ! 1).
     min_nimages = MIN (left_col_nimages, right_row_nimages)
-    nvirt_k = dbcsr_mp_npcols(left_mp_obj) * left_col_nimages
+    nvirt_k = left_npcols * left_col_nimages
     nsteps_k = nvirt_k / min_nimages
-    left_col_v_offset = MOD (dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages,&
-         left_col_mult)
-    right_row_v_offset = MOD (dbcsr_mp_myprow(right_mp_obj)*right_row_nimages,&
-         right_row_mult)
     !
-    ! Translate the all_sizes to account for pre-distribution
-    ALLOCATE (left_sizes(2, 0:dbcsr_mp_nprows(left_mp_obj)*left_row_nimages-1, 0:nvirt_k-1))
+    ! Timings
+    ALLOCATE (xfer_timings(4, 2, 3, nsteps_k))
+    xfer_timings = 0.0_dp
+    !
+    ! Translate the all_sizes to account for pre-distribution.  This
+    ! is just done to simplify lookups.
+    ALLOCATE (left_sizes(2, 0:left_nprows*left_row_nimages-1, 0:nvirt_k-1))
     left_sizes = -1
-    DO left_src_pcol = 0, dbcsr_mp_npcols(left_mp_obj)-1
-       DO left_col_image = 1, left_col_nimages
-          DO left_src_prow = 0, dbcsr_mp_nprows(left_mp_obj)-1
-             left_src_p = left_pgrid (left_src_prow, left_src_pcol)
-             DO left_row_image = 1, left_row_nimages
-                left_src_v_row = left_src_prow*left_row_nimages + left_row_image-1
-                left_src_v_col = left_src_pcol*left_col_nimages + left_col_image-1
-                ! Rewind the column
-                left_src_v_col = left_src_v_col + left_src_prow*left_col_mult
-                left_src_v_col = MODULO(left_src_v_col, nvirt_k)
-                left_sizes(idata, left_src_v_row, left_src_v_col) = all_sizes(&
-                     idata, left_row_image, left_col_image, left_src_p)
-                left_sizes(imeta, left_src_v_row, left_src_v_col) = all_sizes(&
-                     imeta, left_row_image, left_col_image, left_src_p)
-             ENDDO
-          ENDDO
+    DO left_src_vcol = 0, left_col_nimages*left_npcols-1
+       DO left_src_vrow = 0, left_row_nimages*left_nprows-1
+          ! Calculate what was shifted.  The left_src_v{row,col} are
+          ! the "source" rows/columns; the left_dst are the shifted
+          ! targets where the data was placed in make_images.
+          CALL image_calculator(left_set%image_dist,&
+               prow = left_dst_prow, pcol = left_dst_pcol,&
+               rowi = left_dst_irow, coli = left_dst_icol,&
+               myvprow = left_src_vrow, myvpcol = left_src_vcol,&
+               shifting = 'l', error=error)
+          left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
+          left_sizes(idata, left_src_vrow, left_src_vcol) =&
+               all_sizes(&
+               idata+ileft, left_dst_irow, left_dst_icol, left_dst_p)
+          left_sizes(imeta, left_src_vrow, left_src_vcol) =&
+               all_sizes(&
+               imeta+ileft, left_dst_irow, left_dst_icol, left_dst_p)
        ENDDO
     ENDDO
-    !write(*,*)"left sizes"
-    !write(*,'(2(1X,I7))')left_sizes
-    ALLOCATE (right_sizes(2, 0:nvirt_k-1, 0:dbcsr_mp_npcols(right_mp_obj)*right_col_nimages-1))
+    !
+    ALLOCATE (right_sizes(2, 0:nvirt_k-1, 0:right_npcols*right_col_nimages-1))
     right_sizes = -1
-    DO right_src_pcol = 0, dbcsr_mp_npcols(right_mp_obj)-1
-       DO right_col_image = 1, right_col_nimages
-          DO right_src_prow = 0, dbcsr_mp_nprows(right_mp_obj)-1
-             right_src_p = right_pgrid (right_src_prow, right_src_pcol)
-             DO right_row_image = 1, right_row_nimages
-                right_src_v_row = right_src_prow*right_row_nimages + right_row_image-1
-                right_src_v_col = right_src_pcol*right_col_nimages + right_col_image-1
-                ! Rewind the row
-                right_src_v_row = right_src_v_row + right_src_pcol*right_row_mult
-                right_src_v_row = MODULO(right_src_v_row, nvirt_k)
-                right_sizes(idata, right_src_v_row, right_src_v_col) =&
-                     all_sizes(&
-                     idata+2, right_row_image, right_col_image, right_src_p)
-                right_sizes(imeta, right_src_v_row, right_src_v_col) =&
-                     all_sizes(&
-                     imeta+2, right_row_image, right_col_image, right_src_p)
-             ENDDO
-          ENDDO
+    DO right_src_vcol = 0, right_col_nimages*right_npcols-1
+       DO right_src_vrow = 0, right_row_nimages*right_nprows-1
+          ! Calculate what was shifted.  The right_src_v{row,col} are
+          ! the "source" rows/columns; the right_dst are the shifted
+          ! targets where the data was placed in make_images.
+          CALL image_calculator(right_set%image_dist,&
+               prow = right_dst_prow, pcol = right_dst_pcol,&
+               rowi = right_dst_irow, coli = right_dst_icol,&
+               myvprow = right_src_vrow, myvpcol = right_src_vcol,&
+               shifting = 'r', error=error)
+          right_dst_p = right_pgrid (right_dst_prow, right_dst_pcol)
+          right_sizes(idata, right_src_vrow, right_src_vcol) =&
+               all_sizes(&
+               idata+iright, right_dst_irow, right_dst_icol, right_dst_p)
+          right_sizes(imeta, right_src_vrow, right_src_vcol) =&
+               all_sizes(&
+               imeta+iright, right_dst_irow, right_dst_icol, right_dst_p)
        ENDDO
     ENDDO
-    !write(*,*)"right sizes"
-    !write(*,'(2(1X,I7))')right_sizes
     !
     ! Setup product work areas
-    left_max_nze = MAXVAL (all_sizes(idata, :, :, :))
-    right_max_nze = MAXVAL (all_sizes(idata+2, :, :, :))
+    left_max_nze    = MAXVAL (all_sizes(idata+ileft, :, :, :))
+    left_max_nblks  = MAXVAL (all_sizes(imeta+ileft, :, :, :))
+    right_max_nze   = MAXVAL (all_sizes(idata+iright, :, :, :))
+    right_max_nblks = MAXVAL (all_sizes(imeta+iright, :, :, :))
     !!
     ithread = 0
 !$omp parallel default(none) &
@@ -716,7 +716,8 @@ CONTAINS
        data_dev_calc = 1!2
        data_dev_xfer = 1
        !
-       ! Allocate C locks on GPU.
+       ! Allocate C locks on GPU.  Locks should be cleared as soon as
+       ! allocated.
        CALL dbcsr_cuda_dev_mem_alloc (c_locks_dev,&
             product_matrix%m%wms(1)%lastblk, error=error)
        CALL dbcsr_cuda_dev_mem_zero (c_locks_dev,&
@@ -767,21 +768,19 @@ CONTAINS
     ENDIF
     !
     ! Setup the left buffer matrices
-    max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
-    max_nze = MAXVAL (all_sizes(idata, :, :, :))
     !
     IF (debug_mod .AND. mynode .EQ. 0) THEN
        WRITE(*,*)routineN//" All sizes"
        WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
     ENDIF
     CALL setup_buffer_matrices (left_buffer_1, left_row_mult, left_col_nimages,&
-         left_set%mats(1,1), index_size=max_nblks,&
-         data_size=max_nze, error=error)
+         left_set%mats(1,1), index_size=left_max_nblks,&
+         data_size=left_max_nze, error=error)
     CALL setup_buffer_matrices (left_buffer_2, left_row_mult, left_col_nimages,&
-         left_set%mats(1,1), index_size=max_nblks,&
-         data_size=max_nze, error=error)
+         left_set%mats(1,1), index_size=left_max_nblks,&
+         data_size=left_max_nze, error=error)
     IF (otf_filtering) THEN
-       ALLOCATE (left_norms (max_nblks), stat=stat)
+       ALLOCATE (left_norms (left_max_nblks), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error,&
             routineN, "Could not allocate memory for left norms", __LINE__,&
@@ -798,16 +797,14 @@ CONTAINS
     ALLOCATE (left_send_type (left_row_nimages, left_col_nimages))
     ALLOCATE (left_recv_type (left_row_nimages, left_col_nimages))
     ! Setup buffers for right matrix
-    max_nblks = MAXVAL (all_sizes (imeta+2, :,:,:))
-    max_nze = MAXVAL (all_sizes(idata+2, :,:,:))
     CALL setup_buffer_matrices (right_buffer_1, right_row_nimages, right_col_mult,&
-         right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
+         right_set%mats(1,1), index_size=right_max_nblks, data_size=right_max_nze,&
          error=error)
     CALL setup_buffer_matrices (right_buffer_2, right_row_nimages, right_col_mult,&
-         right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
+         right_set%mats(1,1), index_size=right_max_nblks, data_size=right_max_nze,&
          error=error)
     IF (otf_filtering) THEN
-       ALLOCATE (right_norms (max_nblks), stat=stat)
+       ALLOCATE (right_norms (right_max_nblks), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
             dbcsr_internal_error,&
             routineN, "Could not allocate memory for right norms", __LINE__,&
@@ -853,9 +850,11 @@ CONTAINS
     CALL dbcsr_data_new(right_data_sp, data_type)
     CALL dbcsr_data_new(right_data_rp, data_type)
     !
+    ! Here is the main loop.
+    !
     ! In the first loop iteration, the data is fetched from the
     ! sources. In the remaining iterations, the data are exchanged
-    ! among neighbors.
+    ! among neighbors.  In the last loop only calculations take place.
     grouped_k_index: DO metronome = 1, nsteps_k
        IF (debug_mod) WRITE(*,'(1X,A,3(1X,A,1X,I5))')routineN,&
             "step",metronome,&
@@ -866,16 +865,42 @@ CONTAINS
        CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
+          !
+          CALL xtime_set (xfer_timings(&
+               idata+iright, id_send, id_waittime, metronome-1))
           CALL mp_waitall (right_data_sr)
+          CALL xtime_stop (xfer_timings(&
+               idata+iright, id_send, id_waittime, metronome-1))
+          CALL xtime_stop (xfer_timings(&
+               idata+iright, id_send, id_time, metronome-1))
+          !
+          CALL xtime_set (xfer_timings(&
+               idata+iright, id_recv, id_waittime, metronome-1))
           CALL mp_waitall (right_data_rr)
+          CALL xtime_stop (xfer_timings(&
+               idata+iright, id_recv, id_waittime, metronome-1))
+          CALL xtime_stop (xfer_timings(&
+               idata+iright, id_recv, id_time, metronome-1))
           IF (use_combined_types) THEN
              DO v_ki = 1, right_row_nimages
                 CALL mp_type_free (right_recv_type(v_ki, 1))
                 CALL mp_type_free (right_send_type(v_ki, 1))
              ENDDO
           ELSE
+             CALL xtime_set (xfer_timings(&
+                  imeta+iright, id_send, id_waittime, metronome-1))
              CALL mp_waitall (right_index_sr)
+             CALL xtime_stop (xfer_timings(&
+                  imeta+iright, id_send, id_waittime, metronome-1))
+             CALL xtime_stop (xfer_timings(&
+                  imeta+iright, id_send, id_time, metronome-1))
+             CALL xtime_set (xfer_timings(&
+                  imeta+iright, id_recv, id_waittime, metronome-1))
              CALL mp_waitall (right_index_rr)
+             CALL xtime_stop (xfer_timings(&
+                  imeta+iright, id_recv, id_waittime, metronome-1))
+             CALL xtime_stop (xfer_timings(&
+                  imeta+iright, id_recv, id_time, metronome-1))
           ENDIF
        ENDIF wait_right
        CALL dbcsr_error_stop(error_handler2, error)
@@ -884,134 +909,76 @@ CONTAINS
        xfer_right: IF (metronome .LT. nsteps_k) THEN
           DO v_ki = 0, right_row_nimages-1
              v_k = metronome*min_nimages + v_ki
-             ! Calculate the process to send to.
-             right_send_v_row = v_ki &
-                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
-                  - min_nimages
-             right_send_v_row = MODULO (right_send_v_row, nvirt_k)
-             right_send_prow = right_send_v_row / right_row_nimages
-             right_send_irow = MODULO (right_send_v_row, right_row_nimages)
-             CALL dbcsr_assert (&
-                  right_send_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong right send prow",__LINE__,error)
-
-             right_send_pcol = dbcsr_mp_mypcol(right_mp_obj)
-             right_send_icol = 1
-             right_send_v_col = dbcsr_mp_mypcol(right_mp_obj)
+             ! Calculate the process to send to.  It's the virtual
+             ! process row -min_nimages up (i.e., smaller row number)
+             ! from me.
+             CALL image_calculator (right_set%image_dist,&
+                  prow=right_send_prow, rowi=right_send_irow,&   ! output
+                  pcol=right_send_pcol, coli=right_send_icol,&   ! output
+                  vprow=right_send_vrow, vpcol=right_send_vcol,& ! output
+                  ! myvprow goes through all of my (process row) images
+                  myvprow=v_ki+right_myfirstvrow,&
+                  myvpcol=right_myfirstvcol,& ! nothing happens in the columns
+                  ! send to process min_nimages up in the grid
+                  vprow_shift=-min_nimages,&
+                  shifting='0', error=error)
              ! Calculate which data I send.
-             right_dst_v_row = v_k &
-                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
-                  + dbcsr_mp_mypcol(right_mp_obj)*right_row_mult &
-                  - min_nimages
-             right_dst_v_row = MODULO (right_dst_v_row, nvirt_k)
-             right_dst_prow = right_dst_v_row / right_row_nimages
-             right_dst_irow = 1 + MODULO (right_dst_v_row, right_row_nimages)
-             CALL dbcsr_assert(&
-                  right_dst_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong right dst prow",__LINE__,error)
-             CALL dbcsr_assert(&
-                  right_dst_irow, "LE", right_row_nimages,&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong right dst row image",__LINE__,error)
-             right_dst_pcol = dbcsr_mp_mypcol(right_mp_obj)
-             right_dst_icol = 1
-             right_dst_v_col =&
-                  dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
-             !
+             CALL image_calculator (right_set%image_dist,&
+                  prow=right_dst_prow, rowi=right_dst_irow,&
+                  pcol=right_dst_pcol, coli=right_dst_icol,&
+                  vprow=right_dst_vrow, vpcol=right_dst_vcol,&
+                  ! myvprows goes through all of my (process row) images
+                  myvprow=v_ki+right_myfirstvrow,&
+                  myvpcol=right_myfirstvcol,& ! nothing happens in the columns
+                  ! send what I got from min_nimages down, appropriate
+                  ! to the metronome tick
+                  vprow_shift=-min_nimages + metronome*min_nimages,&
+                  ! This is with relative shifting.
+                  shifting='R', error=error)
              right_dst_p = right_pgrid(right_dst_prow, right_dst_pcol)
              CALL dbcsr_data_set_pointer(&
                   area=right_data_sp,&
-                  rsize=right_sizes(idata, right_dst_v_row, right_dst_v_col),&
+                  rsize=right_sizes(idata, right_dst_vrow, right_dst_vcol),&
                   csize=1,&
                   pointee=right_buffer_calc%mats(v_ki+1, 1)%m%data_area)
-             !right_data_sp => pointer_view (&
-             !     dbcsr_get_data_p (right_buffer_calc%mats(&
-             !     v_ki+1, 1&
-             !     )%m%data_area, 0.0_dp),&
-             !     1, right_sizes(idata, right_dst_v_row, right_dst_v_col))
              right_index_sp => right_buffer_calc%mats(&
                   v_ki+1, 1&
                   )%m%index(1:&
-                  right_sizes(imeta, right_dst_v_row, right_dst_v_col))
+                  right_sizes(imeta, right_dst_vrow, right_dst_vcol))
              !
              ! Calculate the process to receive from
-             right_recv_v_row = v_ki &
-                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
-                  + min_nimages
-             right_recv_v_row = MOD(right_recv_v_row + nvirt_k, nvirt_k)
-             right_recv_prow = right_recv_v_row / right_row_nimages
-             right_recv_irow = MOD(right_recv_v_row, right_row_nimages)
-             CALL dbcsr_assert (&
-                  right_recv_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong right receive prow",__LINE__,error)
-             right_recv_pcol = dbcsr_mp_mypcol (right_mp_obj)
-             right_recv_icol = 1
-             right_recv_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
+             CALL image_calculator (right_set%image_dist,&
+                  prow=right_recv_prow, rowi=right_recv_irow,&
+                  pcol=right_recv_pcol, coli=right_recv_icol,&
+                  vprow=right_recv_vrow, vpcol=right_recv_vcol,&
+                  myvprow=v_ki+right_myfirstvrow,&
+                  myvpcol=right_myfirstvcol,&
+                  vprow_shift=+min_nimages,& ! just the opposite as "send to"
+                  shifting='0', error=error)
              ! Calculate which data I receive
-             right_src_v_row = v_k &
-                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
-                  + dbcsr_mp_mypcol(right_mp_obj)*right_row_mult
-             right_src_v_row = MODULO (right_src_v_row, nvirt_k)
-             right_src_prow = right_src_v_row / right_row_nimages
-             right_src_irow = 1 + MODULO (right_src_v_row, right_row_nimages)
-             CALL dbcsr_assert(&
-                  right_src_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong right src prow",__LINE__,error)
-             CALL dbcsr_assert(&
-                  right_src_irow, "LE", right_row_nimages,&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong right src row image",__LINE__,error)
-             right_src_pcol = dbcsr_mp_mypcol(right_mp_obj)
-             right_src_icol = 1
-             right_src_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
+             CALL image_calculator (right_set%image_dist,&
+                  prow=right_src_prow, rowi=right_src_irow,&
+                  pcol=right_src_pcol, coli=right_src_icol,&
+                  vprow=right_src_vrow, vpcol=right_src_vcol,&
+                  myvprow=v_ki+right_myfirstvrow,&
+                  myvpcol=right_myfirstvcol,&
+                  ! receive window moves with the metronome
+                  vprow_shift=metronome*min_nimages,&
+                  shifting='R', error=error)
              !
              right_src_p = right_pgrid(right_src_prow, right_src_pcol)
              CALL dbcsr_data_set_pointer(&
                   area=right_data_rp,&
-                  rsize=right_sizes(idata, right_src_v_row, right_src_v_col),&
+                  rsize=right_sizes(idata, right_src_vrow, right_src_vcol),&
                   csize=1,&
                   pointee=right_buffer_comm%mats(v_ki+1, 1)%m%data_area)
-             !right_data_rp => pointer_view (&
-             !     dbcsr_get_data_p (right_buffer_comm%mats(&
-             !        v_ki+1, 1&
-             !     )%m%data_area, 0.0_dp),&
-             !     1, right_sizes(idata, right_src_v_row, right_src_v_col))
              right_index_rp => right_buffer_comm%mats(&
                      v_ki+1, 1&
                   )%m%index(1:&
-                     right_sizes(imeta, right_src_v_row, right_src_v_col))
+                     right_sizes(imeta, right_src_vrow, right_src_vcol))
              !
              right_send_p = right_pgrid (right_send_prow, right_send_pcol)
              right_recv_p = right_pgrid (right_recv_prow, right_recv_pcol)
-             IF (debug_mod) THEN
-                CALL all_print (right_send_p, "R SEND P", product_mp_obj)
-                CALL all_print (right_recv_p, "R RECV P", product_mp_obj)
-                CALL all_print (right_src_p, "R SRC P ", product_mp_obj)
-                CALL all_print (right_dst_p, "R DST P ", product_mp_obj)
-                WRITE(*,fxfer)"SEND RIGHT",mynode,right_send_p,&
-                     dbcsr_mp_myprow(right_mp_obj),dbcsr_mp_mypcol(right_mp_obj),&
-                     right_send_prow, right_send_pcol,&
-                     right_send_v_row, right_send_v_col
-                WRITE(*,fdata)"WHAT RIGHT",right_dst_p,&
-                     right_dst_prow, right_dst_irow,&
-                     right_dst_pcol, right_dst_icol
-                WRITE(*,fxfer)"RECV RIGHT",right_recv_p,mynode,&
-                     right_recv_prow, right_recv_pcol,&
-                     dbcsr_mp_myprow(right_mp_obj),dbcsr_mp_mypcol(right_mp_obj),&
-                     right_recv_v_row, right_recv_v_col
-                WRITE(*,fdata)"WHAT RIGHT",right_src_p,&
-                     right_src_prow, right_src_irow,&
-                     right_src_pcol, right_src_icol
-             ENDIF
-             IF (debug_mod) &
-                  WRITE(*,fdata)"CALC RIGHT",right_dst_p,&
-                  right_dst_prow, right_dst_irow,&
-                  right_dst_pcol, right_dst_icol,&
-                  right_dst_v_row, right_dst_v_col
              ! These are column-communicator relative
              IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
                 right_send_p = right_send_prow
@@ -1029,23 +996,49 @@ CONTAINS
                 right_recv_subtypes(2) = mp_type_make (right_index_rp)
                 right_send_type(v_ki+1, 1) = mp_type_make (right_send_subtypes)
                 right_recv_type(v_ki+1, 1) = mp_type_make (right_recv_subtypes)
+                CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
                 CALL mp_isend (right_send_type(v_ki+1, 1), right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow)
+                CALL xtime_set(xfer_timings(idata+iright, id_recv, id_time, metronome))
                 CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow)
              ELSE
-                IF (excessive_output) right_data_send_size=right_data_send_size+SIZE(right_data_sp%d%r_dp)
+                CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
                 CALL dbcsr_isend_any (right_data_sp, right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row,&
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow,&
                      error=error)
+                CALL xtime_set(xfer_timings(idata+iright, id_recv, id_time, metronome))
                 CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row,&
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow,&
                      error=error)
-                IF (excessive_output) right_index_send_size=right_index_send_size+SIZE(right_index_sp)
+                CALL xtime_set(xfer_timings(imeta+iright, id_send, id_time, metronome))
                 CALL mp_isend (right_index_sp, right_send_p,&
-                     grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
+                     grp, right_index_sr(v_ki+1, 1), tag=right_dst_vrow)
+                CALL xtime_set(xfer_timings(imeta+iright, id_recv, id_time, metronome))
                 CALL mp_irecv (right_index_rp, right_recv_p,&
-                     grp, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
+                     grp, right_index_rr(v_ki+1, 1), tag=right_src_vrow)
+             ENDIF
+             xfer_timings(idata+iright, id_send, id_bytes, metronome) = &
+                xfer_timings(idata+iright, id_send, id_bytes, metronome) + &
+                dbcsr_data_get_size(right_data_sp)
+             xfer_timings(idata+iright, id_recv, id_bytes, metronome) = &
+                xfer_timings(idata+iright, id_recv, id_bytes, metronome) + &
+                dbcsr_data_get_size(right_data_rp)
+             xfer_timings(imeta+iright, id_send, id_bytes, metronome) = &
+                xfer_timings(imeta+iright, id_send, id_bytes, metronome) + &
+                SIZE(right_index_sp)
+             xfer_timings(imeta+iright, id_recv, id_bytes, metronome) = &
+                xfer_timings(imeta+iright, id_recv, id_bytes, metronome) + &
+                SIZE(right_index_rp)
+             IF (excessive_output) THEN
+                right_data_send_size = right_data_send_size +&
+                     dbcsr_data_get_size(right_data_sp)
+                right_data_recv_size = right_data_send_size +&
+                     dbcsr_data_get_size(right_data_rp)
+                right_index_send_size = right_index_send_size +&
+                     SIZE(right_index_sp)
+                right_index_recv_size = right_index_send_size +&
+                     SIZE(right_index_rp)
              ENDIF
              CALL dbcsr_error_stop(error_handler2, error)
           ENDDO
@@ -1064,16 +1057,41 @@ CONTAINS
        CALL dbcsr_error_set(routineN//"_metrocomm", error_handler2, error)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
+          CALL xtime_set (xfer_timings(&
+               idata+ileft, id_send, id_waittime, metronome-1))
           CALL mp_waitall (left_data_sr)
+          CALL xtime_stop (xfer_timings(&
+               idata+ileft, id_send, id_waittime, metronome-1))
+          CALL xtime_stop (xfer_timings(&
+               idata+ileft, id_send, id_time, metronome-1))
+          !
+          CALL xtime_set (xfer_timings(&
+               idata+ileft, id_recv, id_waittime, metronome-1))
           CALL mp_waitall (left_data_rr)
+          CALL xtime_stop (xfer_timings(&
+               idata+ileft, id_recv, id_waittime, metronome-1))
+          CALL xtime_stop (xfer_timings(&
+               idata+ileft, id_recv, id_time, metronome-1))
           IF (use_combined_types) THEN
              DO v_ki = 1, left_col_nimages
                 CALL mp_type_free (left_send_type(1, v_ki))
                 CALL mp_type_free (left_recv_type(1, v_ki))
              ENDDO
           ELSE
+             CALL xtime_set (xfer_timings(&
+                  imeta+ileft, id_send, id_waittime, metronome-1))
              CALL mp_waitall (left_index_sr)
+             CALL xtime_stop (xfer_timings(&
+                  imeta+ileft, id_send, id_waittime, metronome-1))
+             CALL xtime_stop (xfer_timings(&
+                  imeta+ileft, id_send, id_time, metronome-1))
+             CALL xtime_set (xfer_timings(&
+                  imeta+ileft, id_recv, id_waittime, metronome-1))
              CALL mp_waitall (left_index_rr)
+             CALL xtime_stop (xfer_timings(&
+                  imeta+ileft, id_recv, id_waittime, metronome-1))
+             CALL xtime_stop (xfer_timings(&
+                  imeta+ileft, id_recv, id_time, metronome-1))
           ENDIF
        ENDIF wait_left
        CALL dbcsr_error_stop(error_handler2, error)
@@ -1083,135 +1101,74 @@ CONTAINS
           DO v_ki = 0, left_col_nimages-1
              v_k = metronome*min_nimages + v_ki
              ! Calculate the process to send to.
-             left_send_prow = dbcsr_mp_myprow(left_mp_obj)
-             left_send_irow = 1
-             left_send_v_row = dbcsr_mp_myprow(left_mp_obj)
-             !
-             left_send_v_col = dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
-                  - min_nimages + v_ki
-             left_send_v_col = MODULO (left_send_v_col, nvirt_k)
-             left_send_pcol = left_send_v_col / left_col_nimages
-             left_send_icol = 1
-             CALL dbcsr_assert (&
-                  left_send_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong left send pcol",__LINE__,error)
+             CALL image_calculator (left_set%image_dist,&
+                  prow=left_send_prow, rowi=left_send_irow,&   ! output
+                  pcol=left_send_pcol, coli=left_send_icol,&   ! output
+                  vprow=left_send_vrow, vpcol=left_send_vcol,& ! output
+                  myvprow=left_myfirstvrow,& ! nothing happens in the rows
+                  ! go through all my column images
+                  myvpcol=v_ki+left_myfirstvcol,& 
+                  ! send to process min_nimages left in the grid
+                  vpcol_shift=-min_nimages,&
+                  shifting='0', error=error)
              ! Calculate which data I send.
-             left_dst_prow = dbcsr_mp_myprow(left_mp_obj)
-             left_dst_irow = 1
-             left_dst_v_row = dbcsr_mp_myprow(left_mp_obj)*left_row_nimages
-             !
-             left_dst_v_col = v_k &
-                  + dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
-                  + dbcsr_mp_myprow(left_mp_obj)*left_col_mult &
-                  - min_nimages
-             left_dst_v_col = MODULO (left_dst_v_col, nvirt_k)
-             left_dst_pcol = left_dst_v_col / left_col_nimages
-             left_dst_icol = 1 + MODULO (left_dst_v_col, left_col_nimages)
-             CALL dbcsr_assert(&
-                  left_dst_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong left dst pcol",__LINE__,error)
-             CALL dbcsr_assert(&
-                  left_dst_icol, "LE", left_col_nimages,&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong left dst col image",__LINE__,error)
+             CALL image_calculator (left_set%image_dist,&
+                  prow=left_dst_prow, rowi=left_dst_irow,&
+                  pcol=left_dst_pcol, coli=left_dst_icol,&
+                  vprow=left_dst_vrow, vpcol=left_dst_vcol,&
+                  myvprow=left_myfirstvrow,&
+                  ! go through all my column images
+                  myvpcol=v_ki+left_myfirstvcol,&
+                  ! send what I got from min_nimages left, appropriate
+                  ! to the metronome tick
+                  vpcol_shift=-min_nimages + metronome*min_nimages,&
+                  ! This is with relative shifting.
+                  shifting='L', error=error)
              !
              left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
              CALL dbcsr_data_set_pointer(&
                   area=left_data_sp,&
-                  rsize=left_sizes(idata, left_dst_v_row, left_dst_v_col),&
+                  rsize=left_sizes(idata, left_dst_vrow, left_dst_vcol),&
                   csize=1,&
                   pointee=left_buffer_calc%mats(1, v_ki+1)%m%data_area)
-             !left_data_sp => pointer_view (&
-             !     dbcsr_get_data_p (left_buffer_calc%mats(&
-             !        1, v_ki+1&
-             !     )%m%data_area, 0.0_dp),&
-             !     1, left_sizes(idata, left_dst_v_row, left_dst_v_col))
              left_index_sp => left_buffer_calc%mats(&
                      1, v_ki+1&
                   )%m%index(1:&
-                     left_sizes(imeta, left_dst_v_row, left_dst_v_col))
+                     left_sizes(imeta, left_dst_vrow, left_dst_vcol))
              !
              ! Calculate the process to receive from
-             left_recv_prow = dbcsr_mp_myprow (left_mp_obj)
-             left_recv_irow = 1
-             left_recv_v_row = dbcsr_mp_myprow (left_mp_obj)
-             !
-             left_recv_v_col = dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
-                  + min_nimages + v_ki
-             left_recv_v_col = MOD(left_recv_v_col + nvirt_k, nvirt_k)
-             left_recv_pcol = left_recv_v_col / left_col_nimages
-             left_recv_icol = 1
-             CALL dbcsr_assert (&
-                  left_recv_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong receive pcol",__LINE__,error)
+             CALL image_calculator (left_set%image_dist,&
+                  prow=left_recv_prow, rowi=left_recv_irow,&
+                  pcol=left_recv_pcol, coli=left_recv_icol,&
+                  vprow=left_recv_vrow, vpcol=left_recv_vcol,&
+                  myvprow=left_myfirstvrow,&
+                  myvpcol=v_ki+left_myfirstvcol,&
+                  vpcol_shift=+min_nimages,& ! just the opposite as "send to"
+                  shifting='0', error=error)
              ! Calculate which data I receive
-             left_src_prow = dbcsr_mp_myprow (left_mp_obj)
-             left_src_irow = 1
-             left_src_v_row = dbcsr_mp_myprow(left_mp_obj)*left_row_nimages
-             !
-             left_src_v_col = v_k &
-                  !+ dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
-                  !+ dbcsr_mp_mypcol(right_mp_obj)*right_row_mult
-                  + dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
-                  + dbcsr_mp_myprow(left_mp_obj)*left_col_mult
-             left_src_v_col = MODULO (left_src_v_col, nvirt_k)
-             left_src_pcol = left_src_v_col / left_col_nimages
-             left_src_icol = 1 + MODULO (left_src_v_col, left_col_nimages)
-             CALL dbcsr_assert(&
-                  left_src_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong left src pcol",__LINE__,error)
-             CALL dbcsr_assert(&
-                  left_src_icol, "LE", left_col_nimages,&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Wrong left src column image",__LINE__,error)
+             CALL image_calculator (left_set%image_dist,&
+                  prow=left_src_prow, rowi=left_src_irow,&
+                  pcol=left_src_pcol, coli=left_src_icol,&
+                  vprow=left_src_vrow, vpcol=left_src_vcol,&
+                  myvprow=left_myfirstvrow,&
+                  myvpcol=v_ki+left_myfirstvcol,&
+                  ! receive window moves with the metronome
+                  vpcol_shift=metronome*min_nimages,&
+                  shifting='L', error=error)
              !
              left_src_p = left_pgrid (left_src_prow, left_src_pcol)
              CALL dbcsr_data_set_pointer(&
                   area=left_data_rp,&
-                  rsize=left_sizes(idata, left_src_v_row, left_src_v_col),&
+                  rsize=left_sizes(idata, left_src_vrow, left_src_vcol),&
                   csize=1,&
                   pointee=left_buffer_comm%mats(1, v_ki+1)%m%data_area)
-             !left_data_rp => pointer_view (&
-             !     dbcsr_get_data_p (left_buffer_comm%mats(&
-             !        1, v_ki+1&
-             !     )%m%data_area, 0.0_dp),&
-             !     1, left_sizes(idata, left_src_v_row, left_src_v_col))
              left_index_rp => left_buffer_comm%mats(&
                      1, v_ki+1&
                   )%m%index(1:&
-                     left_sizes(imeta, left_src_v_row, left_src_v_col))
+                     left_sizes(imeta, left_src_vrow, left_src_vcol))
              !
              left_send_p = left_pgrid (left_send_prow, left_send_pcol)
              left_recv_p = left_pgrid (left_recv_prow, left_recv_pcol)
-             IF (debug_mod) THEN
-                CALL all_print (left_send_p, "L SEND P", product_mp_obj)
-                CALL all_print (left_recv_p, "L RECV P", product_mp_obj)
-                CALL all_print (left_src_p, "L SRC P ", product_mp_obj)
-                CALL all_print (left_dst_p, "L DST P ", product_mp_obj)
-                WRITE(*,fxfer)"SEND LEFT ",mynode,left_send_p,&
-                     left_send_prow, left_send_pcol,&
-                     dbcsr_mp_myprow(left_mp_obj),dbcsr_mp_mypcol(left_mp_obj),&
-                     left_send_v_row, left_send_v_col
-                WRITE(*,fdata)"WHAT LEFT ",left_dst_p,&
-                     left_dst_prow, left_dst_irow,&
-                     left_dst_pcol, left_dst_icol
-                WRITE(*,fxfer)"RECV LEFT ",left_recv_p,mynode,&
-                     left_recv_prow,left_recv_pcol,&
-                     dbcsr_mp_myprow(left_mp_obj),dbcsr_mp_mypcol(left_mp_obj),&
-                     left_recv_v_row, left_recv_v_col
-                WRITE(*,fdata)"WHAT LEFT ",left_src_p,&
-                     left_src_prow, left_src_irow,&
-                     left_src_pcol, left_src_icol
-             ENDIF
-             IF (debug_mod) &
-                  WRITE(*,fdata)"CALC LEFT ",left_dst_p,&
-                  left_dst_prow, left_dst_irow,&
-                  left_dst_pcol, left_dst_icol,&
-                  left_dst_v_row, left_dst_v_col
              ! These are column-communicator relative
              IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
                 left_send_p = left_send_pcol
@@ -1229,23 +1186,49 @@ CONTAINS
                 left_recv_subtypes(2) = mp_type_make (left_index_rp)
                 left_send_type(1, v_ki+1) = mp_type_make (left_send_subtypes)
                 left_recv_type(1, v_ki+1) = mp_type_make (left_recv_subtypes)
+                CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
                 CALL mp_isend (left_send_type(1, v_ki+1), left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol)
+                CALL xtime_set(xfer_timings(idata+ileft, id_recv, id_time, metronome))
                 CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_vcol)
              ELSE
-                IF (excessive_output) left_data_send_size=left_data_send_size+SIZE(left_data_sp%d%r_dp)
+                CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
                 CALL dbcsr_isend_any (left_data_sp, left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col,&
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol,&
                      error=error)
+                CALL xtime_set(xfer_timings(idata+ileft, id_recv, id_time, metronome))
                 CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col,&
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_vcol,&
                      error=error)
-                IF (excessive_output) left_index_send_size=left_index_send_size+SIZE(left_index_sp)
+                CALL xtime_set(xfer_timings(imeta+ileft, id_send, id_time, metronome))
                 CALL mp_isend (left_index_sp, left_send_p,&
-                     grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
+                     grp, left_index_sr(1, v_ki+1), tag=left_dst_vcol)
+                CALL xtime_set(xfer_timings(imeta+ileft, id_recv, id_time, metronome))
                 CALL mp_irecv (left_index_rp, left_recv_p,&
-                     grp, left_index_rr(1, v_ki+1), tag=left_src_v_col)
+                     grp, left_index_rr(1, v_ki+1), tag=left_src_vcol)
+             ENDIF
+             xfer_timings(idata+ileft, id_send, id_bytes, metronome) = &
+                xfer_timings(idata+ileft, id_send, id_bytes, metronome) + &
+                dbcsr_data_get_size(left_data_sp)
+             xfer_timings(idata+ileft, id_recv, id_bytes, metronome) = &
+                xfer_timings(idata+ileft, id_recv, id_bytes, metronome) + &
+                dbcsr_data_get_size(left_data_rp)
+             xfer_timings(imeta+ileft, id_send, id_bytes, metronome) = &
+                xfer_timings(imeta+ileft, id_send, id_bytes, metronome) + &
+                SIZE(left_index_sp)
+             xfer_timings(imeta+ileft, id_recv, id_bytes, metronome) = &
+                xfer_timings(imeta+ileft, id_recv, id_bytes, metronome) + &
+                SIZE(left_index_rp)
+             IF (excessive_output) THEN
+                left_data_send_size = left_data_send_size +&
+                     dbcsr_data_get_size(left_data_sp)
+                left_data_recv_size = left_data_send_size +&
+                     dbcsr_data_get_size(left_data_rp)
+                left_index_send_size = left_index_send_size +&
+                     SIZE(left_index_sp)
+                left_index_recv_size = left_index_send_size +&
+                     SIZE(left_index_rp)
              ENDIF
              CALL dbcsr_error_stop(error_handler2, error)
           ENDDO
@@ -1265,7 +1248,6 @@ CONTAINS
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
              !
-             !if (mm_driver .eq. mm_driver_cuda .and. v_ki .ge. 1) then
              tmp_aix_bix: IF (mm_driver .EQ. mm_driver_cuda) THEN
                 t_xfer_a = t_xfer_a - m_walltime()
                 IF (verbose_acc) WRITE(*,*)'copy in a', v_ki, left_max_nze
@@ -1357,9 +1339,10 @@ CONTAINS
           ENDDO
 
           IF (excessive_output) THEN
-             WRITE(1000000+mynode,*) mult_id, metronome,flop_metronome, &
-                                     left_index_send_size,right_index_send_size, &
-                                     left_data_send_size,right_data_send_size
+             WRITE(1000000+mynode,*) mult_id,&
+                  metronome,flop_metronome,&
+                  left_index_send_size,right_index_send_size, &
+                  left_data_send_size,right_data_send_size
           ENDIF
           flop_metronome=0
           left_index_send_size=0
@@ -1475,7 +1458,6 @@ CONTAINS
 
     !
     t_error = error
-    CALL dbcsr_finalize(product_matrix, error=error)
     !
     IF (debug_mod) THEN
        v_ki = 0
@@ -1495,6 +1477,29 @@ CONTAINS
     !
     flop = flop_total
     DEALLOCATE (left_buffer_1, left_buffer_2, right_buffer_1, right_buffer_2)
+    !
+    ! Handle timings
+    xfer_timings(imeta+ileft,:,id_bytes,:) =&
+         xfer_timings(imeta+ileft,:,id_bytes,:) * int_4_size
+    xfer_timings(imeta+iright,:,id_bytes,:) =&
+         xfer_timings(imeta+iright,:,id_bytes,:) * int_4_size
+    SELECT CASE (dbcsr_get_data_type (product_matrix))
+    CASE (dbcsr_type_real_4)
+       i = real_4_size
+    CASE (dbcsr_type_real_8)
+       i = real_8_size
+    CASE (dbcsr_type_complex_4)
+       i = real_4_size * 2
+    CASE (dbcsr_type_complex_8)
+       i = real_8_size * 2
+    END SELECT
+    xfer_timings(idata+ileft,:,id_bytes,:) =&
+         xfer_timings(idata+ileft,:,id_bytes,:) * i
+    xfer_timings(idata+iright,:,id_bytes,:) =&
+         xfer_timings(idata+iright,:,id_bytes,:) * i
+    IF (time_xfers) &
+         CALL print_xfer_timings(xfer_timings)
+    DEALLOCATE (xfer_timings)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mult_m_e_e
 
@@ -3198,6 +3203,16 @@ CONTAINS
 
   END FUNCTION my_checker_tr
 
+  SUBROUTINE xtime_set(timer)
+    REAL(kind=dp), INTENT(out)               :: timer
+
+    timer = -m_walltime()
+  END SUBROUTINE xtime_set
+  SUBROUTINE xtime_stop(timer)
+    REAL(kind=dp), INTENT(inout)             :: timer
+
+    timer = timer + m_walltime()
+  END SUBROUTINE xtime_stop
 
 
 ! *****************************************************************************

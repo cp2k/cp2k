@@ -762,6 +762,10 @@ CONTAINS
        ! canonical form.
        CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
 !$omp end parallel
+    ELSE
+       !$omp parallel if (.NOT. use_plasma)
+       CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., error=error)
+       !$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
     product_matrix%m%nblks = 0
@@ -952,6 +956,7 @@ CONTAINS
          retain_sparsity=retain_sparsity,&
          filter_eps=filter_eps, error=error,&
          flop=my_flop)
+    CALL dbcsr_finalize(product_matrix, error=error)
     IF (PRESENT (flop)) flop = my_flop
     !
     IF (new_left) CALL dbcsr_release (matrix_left)

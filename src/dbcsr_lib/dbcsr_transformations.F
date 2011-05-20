@@ -866,6 +866,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 5
 
+    CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, data_p, &
       data_type, dst_p, error_handler, i, ithread, j, mp_group, ncol_images, &
       nrow_images, nsymmetries, nthreads, numproc, nze, pcol, prev_blk_p, &
@@ -909,8 +910,24 @@ CONTAINS
           nsymmetries = 2
        ENDIF
     ENDIF
-    predist = .FALSE.
-    IF (PRESENT (predistribute)) predist = .TRUE.
+    IF (PRESENT (predistribute)) THEN
+       predist = .TRUE.
+       SELECT CASE (predistribute)
+       CASE('L','l')
+          predist_type = 'L'
+          predist_type_fwd = 'l'
+       CASE('R','r')
+          predist_type = 'R'
+          predist_type_fwd = 'r'
+       CASE default
+          CALL dbcsr_assert (.FALSE.,&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Incorrect pre-shift specifier.", __LINE__, error=error)
+       END SELECT
+    ELSE
+       predist = .FALSE.
+       predist_type = '0'
+    ENDIF
     data_type = sm%data_type
     CALL dbcsr_assert (data_type .EQ. dbcsr_type_real_8&
          .or.data_type .EQ. dbcsr_type_real_4&
@@ -1015,7 +1032,8 @@ CONTAINS
 !$omp          lsmp, lsdp, t) &
 !$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, scale_value, error,&
-!$omp         ums, sm, ism, target_dist, predist, predistribute, &
+!$omp         ums, sm, ism, target_dist, predist, predistribute, predist_type, &
+!$omp         predist_type_fwd,&
 !$omp         data_memory_type, index_memory_type,&
 !$omp         old_dist, &
 !$omp         mp_obj, target_imgdist, mp_group, numproc, row_dist, col_dist,&
@@ -1061,39 +1079,17 @@ CONTAINS
           ! Where do we send this block?
           row_img = 1
           col_img = 1
-          prow = row_dist(stored_row)
-          pcol = col_dist(stored_col)
           IF (nrow_images .GT. 1) row_img = row_img_dist (stored_row)
           IF (ncol_images .GT. 1) col_img = col_img_dist (stored_col)
-          IF (predist) THEN
-             IF (dbg) THEN
-                WRITE(*,'(1X,A,2(1X,I5))')routineN//" Block", stored_row, stored_col
-             ENDIF
-             vcol = pcol*target_imgdist%i%col_decimation + col_img - 1
-             vrow = prow*target_imgdist%i%row_decimation + row_img - 1
-             i = vrow ; j = vcol
-             IF (predistribute.eq."R") THEN
-                ! shift = vpcol
-                ! vrow = vrow - shift
-                vrow = vrow - pcol*target_imgdist%i%row_multiplicity
-                vrow = MODULO(vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%i%row_decimation)
-                prow = vrow / target_imgdist%i%row_decimation
-                row_img = 1+MODULO (vrow, target_imgdist%i%row_decimation)
-                IF (dbg) &
-                     WRITE(*,'(2(1X,A,2(1X,I5)))')routineN//" R shift from",&
-                     i,j, "to", vrow, vcol
-             ELSEIF (predistribute.eq."L") THEN
-                ! shift = vprow
-                ! vcol = vcol - shift
-                vcol = vcol - prow*target_imgdist%i%col_multiplicity
-                vcol = MODULO(vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%i%col_decimation)
-                pcol = vcol / target_imgdist%i%col_decimation
-                col_img = 1+MODULO (vcol, target_imgdist%i%col_decimation)
-                IF (dbg) &
-                     WRITE(*,'(2(1X,A,2(1X,I5)))')routineN//" L shift from",&
-                     i,j, "to", vrow, vcol
-             ENDIF
-          ENDIF
+          CALL image_calculator(target_imgdist,&
+               prow = prow, rowi = i,&
+               pcol = pcol, coli = j,&
+               vprow = vrow, vpcol = vcol,&
+               myprow = row_dist(stored_row), myrowi = row_img,&
+               mypcol = col_dist(stored_col), mycoli = col_img,&
+               shifting = predist_type_fwd, error=error)
+          row_img = i
+          col_img = j
           dst_p = blacs2mpi(prow, pcol)
           same_dst_p = prev_dst_p .EQ. dst_p
           ! To allow normalization to non-transposed blocks, every
@@ -1238,31 +1234,19 @@ CONTAINS
              stored_row = col ; stored_col = row; tr = blk_p .GT. 0
           ENDIF
           ! Where do we send this block?
-          prow = row_dist(stored_row)
-          pcol = col_dist(stored_col)
           row_img = 1
-          IF (nrow_images .GT. 1) row_img = row_img_dist (stored_row)
           col_img = 1
+          IF (nrow_images .GT. 1) row_img = row_img_dist (stored_row)
           IF (ncol_images .GT. 1) col_img = col_img_dist (stored_col)
-          IF (predist) THEN
-             vcol = pcol*target_imgdist%i%col_decimation + col_img - 1
-             vrow = prow*target_imgdist%i%row_decimation + row_img - 1
-             IF (predistribute.eq."R") THEN
-                ! shift = vpcol
-                ! vrow = vrow + shift
-                vrow = vrow - pcol*target_imgdist%i%row_multiplicity
-                vrow = MODULO (vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%i%row_decimation)
-                prow = vrow / target_imgdist%i%row_decimation
-                row_img = 1+MODULO (vrow, target_imgdist%i%row_decimation)
-             ELSEIF (predistribute.eq."L") THEN
-                ! shift = vprow
-                ! vcol = vcol + shift
-                vcol = vcol - prow*target_imgdist%i%col_multiplicity
-                vcol = MODULO (vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%i%col_decimation)
-                pcol = vcol / target_imgdist%i%col_decimation
-                col_img = 1+MODULO (vcol, target_imgdist%i%col_decimation)
-             ENDIF
-          ENDIF
+          CALL image_calculator(target_imgdist,&
+               prow = prow, rowi = i,&
+               pcol = pcol, coli = j,&
+               vprow = vrow, vpcol = vcol,&
+               myprow = row_dist(stored_row), myrowi = row_img,&
+               mypcol = col_dist(stored_col), mycoli = col_img,&
+               shifting = predist_type_fwd, error=error)
+          row_img = i
+          col_img = j
           dst_p = blacs2mpi(prow, pcol)
           same_dst_p = dst_p .EQ. prev_dst_p
           ! To allow normalization to non-transposed blocks, every
@@ -1396,44 +1380,15 @@ CONTAINS
              CALL dbcsr_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.,error=dbcsr_error)
           ENDIF
           ! Save the home process and image row and column
-          IF (predist) THEN
-             SELECT CASE (predistribute)
-             CASE ("R")
-                CALL image_calculator (target_imgdist,&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
-                     myrowi=row_img, mycoli=col_img,&
-                     vprow = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vprow),&
-                     vpcol = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vpcol),&
-                     shifting=predistribute)
-             CASE ("L")
-                CALL image_calculator (target_imgdist,&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
-                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
-                     myrowi=row_img, mycoli=col_img,&
-                     vprow = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vprow),&
-                     vpcol = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vpcol),&
-                     shifting=predistribute)
-             CASE default
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
-                     dbcsr_wrong_args_error, routineN,&
-                     "Incorrect pre-shift specifier.", __LINE__, error=error)
-             END SELECT
-          ELSE
-             CALL image_calculator (target_imgdist,&
-                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
-                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
-                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
-                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
-                  myrowi=row_img, mycoli=col_img,&
-                  vprow = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vprow),&
-                  vpcol = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vpcol),&
-                  shifting='0')
-          ENDIF
+          CALL image_calculator (target_imgdist,&
+               ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
+               ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
+               ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
+               ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
+               vprow = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vprow),&
+               vpcol = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vpcol),&
+               myrowi=row_img, mycoli=col_img,&
+               shifting=predist_type, error=error)
        ENDDO
     ENDDO
     DEALLOCATE(send_count)

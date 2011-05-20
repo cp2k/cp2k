@@ -2778,18 +2778,31 @@ CONTAINS
   END FUNCTION mostly_non_transposed
 
 
+! *****************************************************************************
+!> \brief Transform between virtual process rows/columns and actual process rows/columns and images therein.
+!> \par Shifting
+!>  (L)eft and (R)ight shifting are "shifts from", (l)eft and (r)ight
+!>  are "shifts to".  A caller (or the my* specifications) would use
+!>  L/R to see which data he has (i.e., from where his data was
+!>  shifted).  To see where the caller's data goes to, use l/r.
+! *****************************************************************************
   SUBROUTINE image_calculator (image_dist,&
-       prow, rowi, pcol, coli,&
-       myprow, mypcol, myrowi, mycoli,&
-       vprow, vpcol,&
-       shifting)
+       prow, rowi, pcol, coli, vprow, vpcol,&
+       myprow, mypcol, myrowi, mycoli, myvprow, myvpcol,&
+       vprow_shift, vpcol_shift,&
+       shifting, error)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: image_dist
-    INTEGER, INTENT(OUT)                     :: prow, rowi, pcol, coli
-    INTEGER, INTENT(in), OPTIONAL            :: myprow, mypcol
-    INTEGER, INTENT(in)                      :: myrowi, mycoli
-    INTEGER, INTENT(OUT), OPTIONAL           :: vprow, vpcol
-    CHARACTER, INTENT(IN)                    :: shifting
+    INTEGER, INTENT(OUT), OPTIONAL           :: prow, rowi, pcol, coli, &
+                                                vprow, vpcol
+    INTEGER, INTENT(IN), OPTIONAL            :: myprow, mypcol, myrowi, &
+                                                mycoli, myvprow, myvpcol, &
+                                                vprow_shift, vpcol_shift
+    CHARACTER, INTENT(IN), OPTIONAL          :: shifting
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'image_calculator', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: col_mult, my_pcol, my_prow, ncol_images, npcols, nprows, &
       nrow_images, nvpcols, nvprows, row_mult, vcol, vrow
@@ -2797,10 +2810,27 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_assert (.not.PRESENT (myvprow), "IMP",&
+         PRESENT(mycoli),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Must specify either (process row and row image) or (virtual process row)",&
+         __LINE__, error=error)
+    CALL dbcsr_assert (.not.PRESENT (myvpcol), "IMP",&
+         PRESENT(mycoli),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Must specify either (process col and col image) or (virtual process col)",&
+         __LINE__, error=error)
+    !
     mp = image_dist%i%main%d%mp_env
-    !mp = dbcsr_distribution_mp (image_dist%i%main)
     nprows = dbcsr_mp_nprows (mp)
     npcols = dbcsr_mp_npcols (mp)
+    nrow_images = image_dist%i%row_decimation
+    ncol_images = image_dist%i%col_decimation
+    row_mult = image_dist%i%row_multiplicity
+    col_mult = image_dist%i%col_multiplicity
+    nvprows = nprows * nrow_images
+    nvpcols = npcols * ncol_images
+    !
     IF (PRESENT (myprow)) THEN
        my_prow = myprow
     ELSE
@@ -2812,31 +2842,40 @@ CONTAINS
        my_pcol = dbcsr_mp_mypcol (mp)
     ENDIF
     !
-    nrow_images = image_dist%i%row_decimation
-    ncol_images = image_dist%i%col_decimation
-    row_mult = image_dist%i%row_multiplicity
-    col_mult = image_dist%i%col_multiplicity
-    nvprows = nprows * nrow_images
-    nvpcols = npcols * ncol_images
+    IF (.NOT. PRESENT (myvprow)) THEN
+       vrow = my_prow*nrow_images+myrowi-1
+    ELSE
+       vrow = myvprow
+    ENDIF
+    IF (.NOT.PRESENT (myvpcol)) THEN
+       vcol = my_pcol*ncol_images+mycoli-1
+    ELSE
+       vcol = myvpcol
+    ENDIF
     !
-    vrow = my_prow*nrow_images+myrowi-1
-    vcol = my_pcol*ncol_images+mycoli-1
-    SELECT CASE (shifting)
-    CASE ('R')
-       vrow = MODULO (&
-            vrow + my_pcol*row_mult,&
-            nvprows)
-    CASE ('L')
-       vcol = MODULO (&
-            vcol + my_prow*col_mult,&
-            nvpcols)
-    END SELECT
-    prow = vrow / nrow_images
-    rowi = MODULO (vrow, nrow_images)+1
-    pcol = vcol / ncol_images
-    coli = MODULO (vcol, ncol_images)+1
+    IF (PRESENT (vprow_shift)) vrow = vrow + vprow_shift
+    IF (PRESENT (vpcol_shift)) vcol = vcol + vpcol_shift
+    IF (PRESENT (shifting)) THEN
+       SELECT CASE (shifting)
+       CASE ('R')
+          vrow = vrow + my_pcol*row_mult
+       CASE ('L')
+          vcol = vcol + my_prow*col_mult
+       CASE ('r')
+          vrow = vrow - my_pcol*row_mult
+       CASE ('l')
+          vcol = vcol - my_prow*col_mult
+       END SELECT
+    ENDIF
+    vrow = MODULO (vrow, nvprows)
+    vcol = MODULO (vcol, nvpcols)
+    IF (PRESENT (prow)) prow = vrow / nrow_images
+    IF (PRESENT (rowi)) rowi = MODULO (vrow, nrow_images)+1
+    IF (PRESENT (pcol)) pcol = vcol / ncol_images
+    IF (PRESENT (coli)) coli = MODULO (vcol, ncol_images)+1
     IF (PRESENT (vprow)) vprow = vrow
     IF (PRESENT (vpcol)) vpcol = vcol
   END SUBROUTINE image_calculator
+
 
 END MODULE dbcsr_dist_operations
