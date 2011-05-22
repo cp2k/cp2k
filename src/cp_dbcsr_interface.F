@@ -3879,6 +3879,8 @@ CONTAINS
 !> <li> The rows of matrix_a are adjusted to fit the rows of matrix_c.
 !> </ul>
 !> Transformations are skipped if the sizes are already compatible.
+!>
+!> Some copies could be avoided with more code.
 ! *****************************************************************************
   SUBROUTINE matrix_match_sizes (matrix_c, matrix_a, tr_a, matrix_b, tr_b,&
        new_a, new_b, new_a_is_new, new_b_is_new,&
@@ -3900,10 +3902,11 @@ CONTAINS
     LOGICAL                                  :: atr, btr, new_a_rows, &
                                                 new_b_cols, new_b_rows
     TYPE(array_i1d_obj)                      :: new_col_dist, new_col_size, &
-                                                new_row_dist, new_row_size, &
-                                                tmp_array
-    TYPE(dbcsr_distribution_obj)             :: a_dist, c_dist, new_dist
+                                                new_row_dist, new_row_size
+    TYPE(dbcsr_distribution_obj)             :: a_dist, b_dist, c_dist, &
+                                                new_dist
 
+!type(dbcsr_imagedistribution_obj) :: b_imgdist
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, handle)
@@ -3929,33 +3932,72 @@ CONTAINS
     ! column sizes.
     new_b_cols = c_cols_total .NE. b_cols_total
     new_b_rows = a_cols_total .NE. b_rows_total
+    a_dist = cp_dbcsr_distribution (matrix_a)
+    b_dist = cp_dbcsr_distribution (matrix_b)
+    c_dist = cp_dbcsr_distribution (matrix_c)
     IF (new_b_rows .OR. new_b_cols) THEN
        new_b_is_new = .TRUE.
        CALL cp_dbcsr_init (new_b, error=error)
-       c_dist = cp_dbcsr_distribution (matrix_c)
-       a_dist = cp_dbcsr_distribution (matrix_a)
-       IF (atr) THEN
-          new_row_dist = dbcsr_distribution_row_dist (a_dist)
-          new_row_size = cp_dbcsr_row_block_sizes (matrix_a)
+       IF (.NOT. btr) THEN
+          IF (new_b_cols) THEN
+             CALL match_1_dist (new_col_dist,&
+                  dbcsr_distribution_col_dist (b_dist),&
+                  dbcsr_distribution_col_dist (c_dist))
+          ELSE
+             new_col_dist = dbcsr_distribution_col_dist (b_dist)
+             CALL array_hold (new_col_dist)
+          ENDIF
+          new_col_size = cp_dbcsr_col_block_sizes (matrix_c)
+          IF (new_b_rows) THEN
+             IF (.NOT. atr) THEN
+                CALL match_1_dist (new_row_dist,&
+                     dbcsr_distribution_row_dist(b_dist),&
+                     dbcsr_distribution_col_dist(a_dist))
+                new_row_size = cp_dbcsr_col_block_sizes(matrix_a)
+             ELSE
+                CALL match_1_dist (new_row_dist,&
+                     dbcsr_distribution_row_dist(b_dist),&
+                     dbcsr_distribution_row_dist(a_dist))
+                new_row_size = cp_dbcsr_row_block_sizes(matrix_a)
+             ENDIF
+          ELSE
+             new_row_dist = dbcsr_distribution_row_dist(b_dist)
+             CALL array_hold (new_row_dist)
+             new_row_size = cp_dbcsr_row_block_sizes (matrix_b)
+          ENDIF
        ELSE
-          new_row_dist = dbcsr_distribution_col_dist (a_dist)
-          new_row_size = cp_dbcsr_col_block_sizes (matrix_a)
-       ENDIF
-       new_col_dist = dbcsr_distribution_col_dist (c_dist)
-       new_col_size = cp_dbcsr_col_block_sizes (matrix_c)
-       IF (btr) THEN
-          ! swap rows/columns
-          tmp_array = new_row_dist
-          new_row_dist = new_col_dist
-          new_col_dist = tmp_array
-          !
-          tmp_array = new_row_size
-          new_row_size = new_col_size
-          new_col_size = tmp_array
+          IF (new_b_cols) THEN
+             CALL match_1_dist (new_row_dist,&
+                  dbcsr_distribution_row_dist (b_dist),&
+                  dbcsr_distribution_col_dist (c_dist))
+          ELSE
+             new_row_dist = dbcsr_distribution_row_dist (b_dist)
+             CALL array_hold (new_row_dist)
+          ENDIF
+          new_row_size = cp_dbcsr_col_block_sizes (matrix_c)
+          IF (new_b_rows) THEN
+             IF (.not.atr) THEN
+                CALL match_1_dist (new_col_dist,&
+                     dbcsr_distribution_col_dist (b_dist),&
+                     dbcsr_distribution_col_dist (a_dist))
+                new_col_size = cp_dbcsr_col_block_sizes (matrix_a)
+             ELSE
+                CALL match_1_dist (new_col_dist,&
+                     dbcsr_distribution_col_dist (b_dist),&
+                     dbcsr_distribution_row_dist (a_dist))
+                new_col_size = cp_dbcsr_row_block_sizes (matrix_a)
+             ENDIF
+          ELSE
+             new_col_dist = dbcsr_distribution_col_dist(b_dist)
+             CALL array_hold (new_col_dist)
+             new_col_size = cp_dbcsr_col_block_sizes (matrix_b)
+          ENDIF
        ENDIF
        CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (c_dist),&
             row_dist=new_row_dist,&
             col_dist=new_col_dist)
+       CALL array_release (new_row_dist)
+       CALL array_release (new_col_dist)
        CALL cp_dbcsr_create (new_b, template=matrix_b,&
             dist = new_dist,&
             row_blk_size = new_row_size,&
@@ -3975,22 +4017,28 @@ CONTAINS
     new_a_rows = a_rows_total .NE. c_rows_total
     IF (new_a_rows) THEN
        CALL cp_dbcsr_init (new_a, error=error)
-       c_dist = cp_dbcsr_distribution (matrix_c)
-       a_dist = cp_dbcsr_distribution (matrix_a)
        IF (atr) THEN
           new_row_dist = dbcsr_distribution_row_dist (a_dist)
+          CALL array_hold (new_row_dist)
           new_row_size = cp_dbcsr_row_block_sizes (matrix_a)
-          new_col_dist = dbcsr_distribution_row_dist (c_dist)
+          CALL match_1_dist (new_col_dist,&
+               dbcsr_distribution_col_dist (a_dist),&
+               dbcsr_distribution_row_dist (c_dist))
           new_col_size = cp_dbcsr_row_block_sizes (matrix_c)
        ELSE
-          new_row_dist = dbcsr_distribution_row_dist (c_dist)
+          CALL match_1_dist (new_row_dist,&
+               dbcsr_distribution_row_dist (a_dist),&
+               dbcsr_distribution_row_dist (c_dist))
           new_row_size = cp_dbcsr_row_block_sizes (matrix_c)
           new_col_dist = dbcsr_distribution_col_dist (a_dist)
+          CALL array_hold (new_col_dist)
           new_col_size = cp_dbcsr_col_block_sizes (matrix_a)
        ENDIF
        CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (a_dist),&
             row_dist = new_row_dist,&
             col_dist = new_col_dist)
+       CALL array_release (new_row_dist)
+       CALL array_release (new_col_dist)
        CALL cp_dbcsr_create (new_a, template=matrix_a,&
             dist=new_dist,&
             row_blk_size = new_row_size,&
@@ -4008,6 +4056,31 @@ CONTAINS
     CALL timestop (handle)
   END SUBROUTINE matrix_match_sizes
 
+! *****************************************************************************
+!> \brief Matches a 1-D distribution
+!> 
+!> Forms a new distribution new_dist of size template_dist.  As much data as
+!> possible is taken from old_dist.
+! *****************************************************************************
+  SUBROUTINE match_1_dist (new_dist, old_dist, template_dist)
+    TYPE(array_i1d_obj), INTENT(out)         :: new_dist
+    TYPE(array_i1d_obj), INTENT(in)          :: old_dist, template_dist
 
+    INTEGER                                  :: i, max_bin, new_size, &
+                                                old_size, sz
+    INTEGER, DIMENSION(:), POINTER           :: new_data, old_data
+
+    old_size = array_size (old_dist)
+    new_size = array_size (template_dist)
+    sz = MIN(old_size, new_size)
+    old_data => array_data (old_dist)
+    CALL array_new (new_dist, array_data (template_dist), lb=1)
+    new_data => array_data (new_dist)
+    new_data(1:sz) = old_data(1:sz)
+    max_bin = MAXVAL (old_data)
+    FORALL (i = sz+1 : new_size)
+       new_data(i) = MOD (i, max_bin)
+    END FORALL
+  END SUBROUTINE match_1_dist
 
 END MODULE cp_dbcsr_interface

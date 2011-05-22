@@ -2553,19 +2553,19 @@ CONTAINS
     numnodes = dbcsr_mp_numnodes (mp_obj_new)
     mp_group = dbcsr_mp_group (mp_obj_new)
     !
-    CALL dbcsr_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), dbcsr_failure_level,&
+    CALL dbcsr_assert(MAXVAL(row_dist_new),"LE",UBOUND(pgrid,1), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows',__LINE__,error)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(row_dist_new).EQ.UBOUND(pgrid,1),&
+       CALL dbcsr_assert(MAXVAL(row_dist_new),"EQ",UBOUND(pgrid,1),&
             dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
             'Range of row distribution not equal to processor rows',__LINE__,error)
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), dbcsr_failure_level,&
+    CALL dbcsr_assert(MAXVAL(col_dist_new),"LE",UBOUND(pgrid,2), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols',__LINE__,error)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(col_dist_new).EQ.UBOUND(pgrid,2),&
+       CALL dbcsr_assert(MAXVAL(col_dist_new),"EQ",UBOUND(pgrid,2),&
             dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
             'Range of col distribution not equal to processor cols',__LINE__,error)
     ENDIF
