@@ -878,3 +878,5 @@ sic_ddapc_rt.inp
 # extended GTH pseudopotentials 
 He2_ddapc_constraint-4.inp
 He2_ddapc_constraint.inp
+# Sensitive to multiplication order
+sic_ddapc_rt.inp
