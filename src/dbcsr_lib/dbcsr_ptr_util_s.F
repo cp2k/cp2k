@@ -272,6 +272,10 @@
     r2p(1:d1,1:d2) => r1p(1:d1*d2)
   END SUBROUTINE pointer_s_rank_remap2
 #elif !defined(__HAS_NO_ISO_C_BINDING)
+! *****************************************************************************
+!> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
+!>        ISO_C_BINDING.
+! *****************************************************************************
   SUBROUTINE pointer_s_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
     REAL(kind=real_4), DIMENSION(:, :), &
@@ -280,7 +284,11 @@
       POINTER                                :: r1p
     TYPE(C_PTR)                              :: fe_loc
 
-    fe_loc = C_LOC (r1p(1))
+    IF (SIZE(r1p) .EQ. 0) THEN
+       fe_loc = C_NULL_PTR
+    ELSE
+       fe_loc = C_LOC (r1p(1))
+    ENDIF
     CALL C_F_POINTER (fe_loc, r2p, (/ d1, d2 /))
   END SUBROUTINE pointer_s_rank_remap2
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
