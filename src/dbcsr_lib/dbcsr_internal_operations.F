@@ -213,8 +213,7 @@ CONTAINS
   SUBROUTINE dbcsr_mult_m_e_e (left_set, right_set, product_matrix,&
        error, retain_sparsity, &
        filter_eps, flop)
-    TYPE(dbcsr_2d_array_type), &
-      INTENT(INOUT), POINTER                 :: left_set, right_set
+    TYPE(dbcsr_2d_array_type), POINTER       :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT)           :: product_matrix
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
