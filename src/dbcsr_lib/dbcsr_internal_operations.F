@@ -2315,7 +2315,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
     IF (dbg) THEN
        WRITE(*,'(I7,1X,5(A,2(1X,I7)))')0,"uwr", mi, mf,",",ni,nf,",",ki,kf,"/",ai,af,",",bi,bf
     ENDIF
@@ -2328,14 +2327,12 @@ CONTAINS
                            INT(af-ai+1,int_8) * INT(bf-bi+1,int_8))
        nblks_new = carrier%lastblk + max_new_nblks
        
-       CALL dbcsr_error_set ("ensure_array_sizes3i", eh, error)
        CALL ensure_array_size(carrier%my_wm%row_i, ub=nblks_new,&
             factor=default_resize_factor, error=error)
        CALL ensure_array_size(carrier%my_wm%col_i, ub=nblks_new,&
             factor=default_resize_factor, error=error)
        CALL ensure_array_size(carrier%my_wm%blk_p, ub=nblks_new,&
             factor=default_resize_factor, error=error)
-       CALL dbcsr_error_stop (eh, error)
 
        ALLOCATE (a_row_p(mi:mf+1))
        ALLOCATE (b_row_p(ki:kf+1))
@@ -2351,12 +2348,10 @@ CONTAINS
        ENDIF
        !
        ! Build the indices
-       CALL dbcsr_error_set ("build_csr_index", error_handler_build, error)
        CALL build_csr_index (mi,mf,ai,af,a_row_p, a_blk_info, a_index,&
             n_a_norms, csr_a_norms, carrier%a_norms)
        CALL build_csr_index (ki,kf,bi,bf,b_row_p, b_blk_info, b_index,&
             n_b_norms, csr_b_norms, carrier%b_norms)
-       CALL dbcsr_error_stop (error_handler_build, error)
        !
        CALL csr_multiply (mi, mf, ni, nf, ki, kf,&
             ai, af, a_row_p, a_blk_info, bi, bf, b_row_p, b_blk_info,&
@@ -2377,7 +2372,6 @@ CONTAINS
        DEALLOCATE (a_blk_info)
        DEALLOCATE (b_blk_info)
     ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE csr_multiply_unwrap
 
 ! *****************************************************************************
@@ -2433,8 +2427,6 @@ CONTAINS
     REAL(kind=sp)                            :: a_norm, a_row_eps, b_norm
 
 !   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
 
     ithread = 0
     !$ ithread = omp_get_thread_num()
@@ -2578,7 +2570,6 @@ CONTAINS
     !
     t_gemm = t_gemm + t_gemm_me
     !
-    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE csr_multiply
 
 ! *****************************************************************************
@@ -2810,7 +2801,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
     t_process_stack = t_process_stack - m_walltime()
     IF (remote_memory) THEN
        min_size_a = dbcsr_data_get_size(left_data_area)
@@ -2841,7 +2831,6 @@ CONTAINS
        maxs = zero_last
        IF (debug_mod) &
             WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
-       CALL dbcsr_error_set("ensure_array_size_data", eh_low, error)
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor, error=error)
        cuda_realloc_c: IF (mm_driver .EQ. mm_driver_cuda) THEN
@@ -2854,7 +2843,6 @@ CONTAINS
              CALL dbcsr_cuda_dev_mem_realloc (c_dev, maxs, stat=istat)
           ENDIF
        ENDIF cuda_realloc_c
-       CALL dbcsr_error_stop(eh_low, error)
     ENDIF
     CALL dbcsr_data_set_size_referenced (product_data_area, zero_last)
     !
@@ -2909,7 +2897,6 @@ CONTAINS
        ENDDO
     ENDIF
     !
-    CALL dbcsr_error_set(routineN//"_low", eh_low, error)
     SELECT CASE (mm_driver)
     CASE (mm_driver_matmul)
        SELECT CASE (product_data_area%d%data_type)
@@ -3055,9 +3042,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Invalid multiplication driver",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop(eh_low, error)
     stack_size = 0
-    CALL dbcsr_error_stop(error_handler, error)
     t_process_stack = t_process_stack + m_walltime()
   END SUBROUTINE process_mm_stack
 
