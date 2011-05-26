@@ -24,11 +24,11 @@ MODULE xas_env_types
                                              cp_fm_type
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
+                                             mixing_storage_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
-  USE qs_scf_types,                    ONLY: mixing_storage_release,&
-                                             mixing_storage_type
   USE scf_control_types,               ONLY: smear_type
 #include "cp_common_uses.h"
 

@@ -426,7 +426,8 @@ MODULE input_constants
                                               ot_precond_solver_sainv=4
 
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
-                                              diag_ot=2, diag_block_krylov=3
+                                              diag_ot=2, diag_block_krylov=3,&
+                                              diag_block_davidson=4
 
   INTEGER, PUBLIC, PARAMETER               :: default_lbfgs_method_id=1,&
                                               default_bfgs_method_id=2,&
@@ -705,7 +706,8 @@ MODULE input_constants
                                               mix_minimum=702, &
                                               mix_coupled=703, &
                                               mix_restrained=704,&
-                                              mix_generic=705
+                                              mix_generic=705,&
+                                              mix_mymix=706
 
   ! cost models for distribution 2d
   INTEGER, PARAMETER, PUBLIC               :: model_block_count=453, &

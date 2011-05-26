@@ -45,10 +45,10 @@ MODULE qs_scf_methods
                                              cholesky_restore
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
+  USE qs_density_mixing_types,         ONLY: mixing_storage_type
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              mo_set_type
-  USE qs_scf_types,                    ONLY: mixing_storage_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -268,7 +268,7 @@ CONTAINS
          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
        ELSE
          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
-!         CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+ !        CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
        END IF
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
@@ -283,6 +283,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE eigensolver
+
 
 ! *****************************************************************************
   SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,do_level_shift,&

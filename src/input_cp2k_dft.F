@@ -3993,6 +3993,13 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"Davidson",&
+            description="Controls the printing of information on Davidson iterations.", &
+            print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -5557,11 +5564,12 @@ CONTAINS
             description="Algorithm to be used for diagonalization",&
             usage="ALGORITHM STANDARD",&
             default_i_val=diag_standard,&
-            enum_c_vals=s2a( "STANDARD","OT", "LANCZOS" ),&
+            enum_c_vals=s2a( "STANDARD","OT", "LANCZOS","DAVIDSON" ),&
             enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi.",&
                           "Iterative diagonalization using OT method",&
-                          "Block Krylov-space approach to self-consistent diagonalisation"),&
-            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov/),& 
+                          "Block Krylov-space approach to self-consistent diagonalisation",&
+                          "Preconditioned blocked Davidson"),&
+            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov, diag_block_davidson/),& 
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5614,6 +5622,137 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+
+       NULLIFY(subsection)
+       CALL create_ot_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+
+       NULLIFY(subsection)
+       CALL create_krylov_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
+       CALL create_diag_subspace_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
+       CALL create_davidson_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_diagonalization_section
+
+
+  SUBROUTINE create_davidson_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_davidson_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure = .FALSE. 
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"DAVIDSON",&
+            description=" ",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="PRECONDITIONER",&
+            description="Type of preconditioner to be used with all minimization schemes. ",&
+            usage="PRECONDITIONER FULL_ALL",&
+            default_i_val=ot_precond_full_all,&
+            enum_c_vals=s2a("FULL_ALL","NONE"),&
+            enum_desc=s2a("Most effective state selective preconditioner based on diagonalization ",&
+            "skip preconditioning"),&
+            enum_i_vals=(/ot_precond_full_all,ot_precond_none/),&
+            citations=(/VandeVondele2003/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PRECOND_SOLVER",&
+            description="How the preconditioner is applied to the residual.",&
+            usage="PRECOND_SOLVER DIRECT",&
+            default_i_val=ot_precond_solver_default,&
+            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY","SAINV"),&
+            enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
+            "Cholesky decomposition followed by explicit inversion "//&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
+            "SAINV inversion (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
+            enum_i_vals=(/ot_precond_solver_default,&
+            ot_precond_solver_direct,&
+            ot_precond_solver_inv_chol,&
+            ot_precond_solver_sainv/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ENERGY_GAP",&
+            description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "//&
+            "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "//&
+            "of the gap (0.001 doing normally fine). For the other preconditioners, making this value larger (0.2)"//&
+            " will tame the preconditioner in case of poor initial guesses.",&
+            usage="ENERGY_GAP 0.001",&
+            default_r_val=0.2_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NEW_PREC_EACH",&
+            description="Number of SCF iterations after which a new Preconditioner is computed",&
+            usage="NEW_PREC_EACH 10", default_i_val=20,error=error) 
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FIRST_PREC",&
+            description="First SCF iteration at which a Preconditioner is employed",&
+            usage="FIRST_PREC 1", default_i_val=1,error=error) 
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CONV_MOS_PERCENT",&
+            description="Minimal percent of MOS that have to converge within the Davidson loop"//&
+            " before the SCF iteration is completed and a new Hamiltonian is computed",&
+            usage="CONV_MOS_PERCENT 0.8", default_r_val=0.5_dp,error=error) 
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_davidson_section
+
+  SUBROUTINE create_krylov_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_krylov_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure = .FALSE. 
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"KRYLOV",&
+            description=" ",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
        CALL keyword_create(keyword, name="NKRYLOV",&
             description="Dimension of the Krylov space used for the Lanczos refinement",&
             usage="NKRYLOV 20",&
@@ -5622,9 +5761,9 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="NBLOCK_KRYLOV",&
+       CALL keyword_create(keyword, name="NBLOCK",&
             description="Size of the block of vectors refined simultaneously by the Lanczos procedure",&
-            usage="NBLOCK_KRYLOV 1",&
+            usage="NBLOCK 1",&
             default_i_val=32,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -5658,18 +5797,10 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
-       CALL create_ot_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
-       CALL create_diag_subspace_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
     END IF
+  END SUBROUTINE create_krylov_section
 
-  END SUBROUTINE create_diagonalization_section
 
   SUBROUTINE create_diag_subspace_section(section,error)
     TYPE(section_type), POINTER              :: section

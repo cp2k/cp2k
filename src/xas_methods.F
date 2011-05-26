@@ -75,6 +75,8 @@ MODULE xas_methods
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt
+  USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
+                                             mixing_storage_create
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
                                              qs_diis_b_create
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -102,9 +104,7 @@ MODULE xas_methods
                                              rRc_xyz_ao
   USE qs_scf,                          ONLY: init_scf_run,&
                                              scf_env_cleanup
-  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
-                                             general_diag_method_nr,&
-                                             mixing_storage_create,&
+  USE qs_scf_types,                    ONLY: general_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: init_smear,&

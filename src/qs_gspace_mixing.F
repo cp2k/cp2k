@@ -47,6 +47,13 @@ MODULE qs_gspace_mixing
                                              RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
+  USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
+                                             broyden_mixing_nr,&
+                                             cp_1d_z_p_type,&
+                                             gspace_mixing_nr,&
+                                             mixing_storage_type,&
+                                             multisecant_mixing_nr,&
+                                             pulay_mixing_nr
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -54,14 +61,7 @@ MODULE qs_gspace_mixing
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
-  USE qs_scf_types,                    ONLY: broyden_mixing_new_nr,&
-                                             broyden_mixing_nr,&
-                                             cp_1d_z_p_type,&
-                                             gspace_mixing_nr,&
-                                             mixing_storage_type,&
-                                             multisecant_mixing_nr,&
-                                             pulay_mixing_nr,&
-                                             qs_scf_env_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

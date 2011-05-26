@@ -51,6 +51,13 @@ MODULE xas_tp_scf
                                              init_preconditioner,&
                                              preconditioner_type
   USE qs_charges_types,                ONLY: qs_charges_type
+  USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
+                                             broyden_mixing_nr,&
+                                             direct_mixing_nr,&
+                                             gspace_mixing_nr,&
+                                             multisecant_mixing_nr,&
+                                             no_mixing_nr,&
+                                             pulay_mixing_nr
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -77,14 +84,7 @@ MODULE xas_tp_scf
                                              scf_env_do_scf
   USE qs_scf_diagonalization,          ONLY: do_general_diag
   USE qs_scf_methods,                  ONLY: scf_env_density_mixing
-  USE qs_scf_types,                    ONLY: broyden_mixing_new_nr,&
-                                             broyden_mixing_nr,&
-                                             direct_mixing_nr,&
-                                             gspace_mixing_nr,&
-                                             multisecant_mixing_nr,&
-                                             no_mixing_nr,&
-                                             pulay_mixing_nr,&
-                                             qs_scf_env_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop

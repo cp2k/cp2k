@@ -78,7 +78,8 @@ MODULE qs_initial_guess
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
-  USE qs_scf_types,                    ONLY: block_krylov_diag_method_nr,&
+  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
+                                             block_krylov_diag_method_nr,&
                                              ot_diag_method_nr,&
                                              qs_scf_env_type
   USE qs_wf_history_methods,           ONLY: wfi_update
@@ -299,10 +300,7 @@ CPSourceFileRef,&
        ENDDO
        IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
 
-        CALL set_mo_occupation(mo_array,&
-                                 smear=qs_env%scf_control%smear,&
-                                 error=error)
-
+       CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear,error=error)
 
        DO ispin=1,nspin
 
@@ -388,7 +386,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        DO ispin=1,nspin
 
           IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+              CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                   mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
           ENDIF!fm->dbcsr
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
@@ -474,7 +473,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
              IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
                   (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
-                  .OR. dft_control%do_admm) THEN
+                  .OR. dft_control%do_admm .OR. scf_env%method==block_davidson_diag_method_nr) THEN
                 IF (dft_control%restricted.AND.(ispin == 2)) THEN
                    CALL mo_set_restrict(mo_array,error=error)
                 ELSE
@@ -508,7 +507,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                        smear=qs_env%scf_control%smear,&
                                        error=error)
 
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                      mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
 
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                               p_rmpv(ispin)%matrix,&
@@ -784,7 +784,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                  smear=qs_env%scf_control%smear,&
                                  error=error)
 
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+          CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                         p_rmpv(ispin)%matrix,&
@@ -848,7 +849,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                     smear=qs_env%scf_control%smear,&
                                     error=error)
-             CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)
+             CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                   mo_array(ispin)%mo_set%mo_coeff_b,error=error)
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                            p_rmpv(ispin)%matrix,&

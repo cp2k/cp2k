@@ -36,6 +36,7 @@ MODULE preconditioner
        packed_vec_bcast, packed_vec_bif_tech2, packed_vec_build_u, &
        packed_vec_ini, packed_vec_scale
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -74,7 +75,7 @@ MODULE preconditioner
                                              dbcsr_type_real_default
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_s_inverse, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
@@ -85,9 +86,14 @@ MODULE preconditioner
                                              sp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max
-  USE preconditioner_types,            ONLY: preconditioner_type
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                             init_preconditioner,&
+                                             preconditioner_p_type,&
+                                             preconditioner_type
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
                                              mo_set_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -101,8 +107,8 @@ MODULE preconditioner
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
 
-  PUBLIC  :: make_preconditioner
-  PUBLIC  :: apply_preconditioner
+  PUBLIC  :: make_preconditioner, restart_preconditioner
+  PUBLIC  :: apply_preconditioner, prepare_preconditioner, apply_full_all
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
 
@@ -2633,6 +2639,184 @@ WRITE(*,*) 'tend',t(13)-t(12)
   CALL timestop(handle)
 
   END SUBROUTINE make_sparse_kinetic
+
+  SUBROUTINE restart_preconditioner(qs_env,preconditioner,prec_type,nspins,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(preconditioner_p_type), &
+      DIMENSION(:), POINTER                  :: preconditioner
+    INTEGER, INTENT(IN)                      :: prec_type, nspins
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_preconditioner', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: failure
+
+    IF (ASSOCIATED(preconditioner)) THEN
+       SELECT CASE(prec_type)
+       CASE(ot_precond_full_all,ot_precond_full_single, ot_precond_full_single_inverse) ! these depend on the ks matrix
+         DO ispin=1,SIZE(preconditioner)
+            CALL destroy_preconditioner(preconditioner(ispin)%preconditioner,error=error)
+            DEALLOCATE(preconditioner(ispin)%preconditioner)
+         ENDDO
+         DEALLOCATE(preconditioner,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
+             ot_precond_sparse_diag,ot_precond_sparse_kinetic) ! these are 'independent'
+         ! do nothing
+       CASE DEFAULT
+           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    END IF
+
+    ! add an OT preconditioner if none is present
+    IF (.NOT.ASSOCIATED(preconditioner)) THEN
+         SELECT CASE(prec_type)
+         CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+            ALLOCATE(preconditioner(nspins), stat=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CASE DEFAULT
+            ALLOCATE(preconditioner(1), stat=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         END SELECT
+         DO ispin=1,SIZE(preconditioner)
+            ALLOCATE(preconditioner(ispin)%preconditioner)
+            CALL init_preconditioner(preconditioner(ispin)%preconditioner,&
+                                     para_env=qs_env%para_env,&
+                                     blacs_env=qs_env%blacs_env,error=error)
+         ENDDO
+    END IF
+
+  END SUBROUTINE restart_preconditioner
+
+  SUBROUTINE prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,&
+                                    ot_preconditioner,prec_type,solver_type,&
+                                    energy_gap,nspins,has_unit_metric,mixed_precision,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(preconditioner_p_type), &
+      DIMENSION(:), POINTER                  :: ot_preconditioner
+    INTEGER, INTENT(IN)                      :: prec_type, solver_type
+    REAL(dp), INTENT(IN)                     :: energy_gap
+    INTEGER, INTENT(IN)                      :: nspins
+    LOGICAL, INTENT(IN), OPTIONAL            :: has_unit_metric, &
+                                                mixed_precision
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=80)                        :: msg
+    INTEGER                                  :: handle, ispin
+    LOGICAL :: do_co_rotate, do_rotation, failure, my_has_unit_metric, &
+      my_mixed_precision, use_mo_coeff_b
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_t, mo_coeff_b
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    my_has_unit_metric = .FALSE.
+    IF(PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
+    my_mixed_precision = .FALSE.
+    IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
+
+    NULLIFY(matrix_t, mo_coeff_b, mo_coeff)
+
+    IF(qs_env%dft_control%qs_control%semi_empirical .OR. qs_env%dft_control%qs_control%dftb) THEN
+      IF(prec_type==ot_precond_full_kinetic) THEN
+          msg="Full_kinetic not available for semi-empirical methods"
+          CPErrorMessage(cp_failure_level,routineP,TRIM(msg),error)
+      END IF
+      matrix_t => matrix_s(1)%matrix
+    ELSE
+      CPPrecondition(.NOT. my_has_unit_metric,cp_failure_level,routineP,error,failure)
+      matrix_t => qs_env%kinetic(1)%matrix
+    END IF
+
+    SELECT CASE(prec_type)
+        CASE(ot_precond_none)
+           !
+        CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+           do_co_rotate = ASSOCIATED(qs_env%mo_derivs)
+           
+           DO ispin=1,nspins
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b,mo_coeff=mo_coeff)
+             use_mo_coeff_b =mos(ispin)%mo_set%use_mo_coeff_b
+             IF(use_mo_coeff_b .AND. do_co_rotate) THEN
+               CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
+                    do_rotation = .TRUE., &
+                    co_rotate=qs_env%mo_derivs(ispin)%matrix,&
+                    para_env=qs_env%para_env,&
+                    blacs_env=qs_env%blacs_env,error=error)
+             ELSEIF(use_mo_coeff_b) THEN
+               CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
+                    do_rotation = .TRUE., &
+                    para_env=qs_env%para_env,&
+                    blacs_env=qs_env%blacs_env,error=error)
+             ELSE
+               CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                    do_rotation = .TRUE., error=error)
+             END IF
+             IF(my_has_unit_metric) THEN
+               CALL make_preconditioner(ot_preconditioner(ispin)%preconditioner, &
+                          prec_type, &
+                          solver_type, &
+                          matrix_h=matrix_ks(ispin)%matrix, &
+                          mo_set=mos(ispin)%mo_set, &
+                          energy_gap=energy_gap, &
+                          convert_precond_to_dbcsr=.TRUE.,&
+                          error=error)
+             ELSE
+               CALL make_preconditioner(ot_preconditioner(ispin)%preconditioner, &
+                        prec_type, &
+                        solver_type, &
+                        matrix_h=matrix_ks(ispin)%matrix,&
+                        matrix_s=matrix_s(1)%matrix,&
+                        matrix_t=matrix_t, &
+                        mo_set=mos(ispin)%mo_set,&
+                        energy_gap=energy_gap,&
+                        mixed_precision=my_mixed_precision,&
+                        convert_precond_to_dbcsr=.TRUE.,&
+                        error=error)
+             END IF
+           ENDDO
+
+        CASE DEFAULT
+          IF(my_has_unit_metric) THEN
+            CALL make_preconditioner(ot_preconditioner(1)%preconditioner, &
+                     prec_type, &
+                     solver_type, &
+                     matrix_h=matrix_ks(1)%matrix,&
+                     mo_set=mos(1)%mo_set,&
+                     energy_gap=energy_gap,&
+                     convert_precond_to_dbcsr=.TRUE.,&
+                     error=error)
+          ELSE
+            CALL make_preconditioner(ot_preconditioner(1)%preconditioner, &
+                     prec_type, &
+                     solver_type, &
+                     matrix_h=matrix_ks(1)%matrix,&
+                     matrix_s=matrix_s(1)%matrix,&
+                     matrix_t=matrix_t, &
+                     mo_set=mos(1)%mo_set,&
+                     energy_gap=energy_gap,&
+                     mixed_precision=my_mixed_precision,&
+                     convert_precond_to_dbcsr=.TRUE.,&
+                     error=error)
+          END IF
+
+    END SELECT
+
+    CALL timestop(handle)
+
+  END SUBROUTINE prepare_preconditioner
 
 END MODULE preconditioner
 

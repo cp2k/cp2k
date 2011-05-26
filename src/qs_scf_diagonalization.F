@@ -55,6 +55,10 @@ MODULE qs_scf_diagonalization
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE preconditioner,                  ONLY: prepare_preconditioner,&
+                                             restart_preconditioner
+  USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
+                                             gspace_mixing_nr
   USE qs_diis,                         ONLY: qs_diis_b_step
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -76,15 +80,14 @@ MODULE qs_scf_diagonalization
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf_block_davidson,           ONLY: generate_extended_space
   USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
                                              lanczos_refinement_2v
   USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                              eigensolver,&
                                              scf_env_density_mixing,&
                                              simple_eigensolver
-  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
-                                             gspace_mixing_nr,&
-                                             qs_scf_env_type,&
+  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              subspace_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
@@ -101,7 +104,7 @@ MODULE qs_scf_diagonalization
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_diagonalization'
 
   PUBLIC :: do_general_diag, do_roks_diag, &
-            do_special_diag, do_ot_diag, &
+            do_special_diag, do_ot_diag, do_block_davidson_diag, &
             do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate
             
 
@@ -1063,6 +1066,7 @@ END SUBROUTINE diag_subspace_allocate
         scf_env%iter_param = scf_env%p_mix_alpha
         scf_env%iter_method = "P_Mix/Lanczos"
     ELSE
+!        scf_env%iter_param = scf_env%mixing_store%alpha
         scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Lanc."
     END IF
 
@@ -1196,5 +1200,107 @@ END SUBROUTINE diag_subspace_allocate
     CALL timestop(handle)
 
   END SUBROUTINE do_block_krylov_diag
+
+! *****************************************************************************
+!> \brief iterative diagonalization using the block davidson space approach
+!> \param 
+!> \par History
+!>      05.2011 created [MI]
+! *****************************************************************************
+
+  SUBROUTINE do_block_davidson_diag (qs_env,scf_env,mos,matrix_ks,matrix_s,&
+                     scf_control,scf_section, check_moconv_only, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, ispin, nspins, &
+                                                output_unit
+    LOGICAL                                  :: failure, my_check_moconv_only
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    CALL timeset(routineN,handle)
+
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DAVIDSON",&
+            extension=".scfLog",error=error)
+
+    IF(output_unit > 0) &
+        WRITE(output_unit ,"(/T15,A)") '<<<<<<<<<  DAVIDSON ITERATIONS   <<<<<<<<<<'
+
+    IF(scf_env%mixing_method ==1) THEN
+        scf_env%iter_param = scf_env%p_mix_alpha
+        scf_env%iter_method = "P_Mix/Dav."
+    ELSE
+        scf_env%iter_param = scf_env%mixing_store%alpha
+        scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Dav."
+    END IF
+
+
+    my_check_moconv_only = .FALSE.
+    IF(PRESENT(check_moconv_only)) my_check_moconv_only=check_moconv_only
+
+    nspins = SIZE(matrix_ks)
+!    scf_env%block_davidson_env(:)%niter_new_prec = 20
+!    scf_env%block_davidson_env(:)%first_prec = 2
+!dbg
+ ! write(*,*) scf_env%iter_count, scf_env%block_davidson_env%niter_new_prec, &
+ !         MODULO(scf_env%iter_count,scf_env%block_davidson_env%niter_new_prec),&
+ !         (MODULO(scf_env%iter_count,scf_env%block_davidson_env%niter_new_prec)==0)
+ !stop
+    IF( scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
+          MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0) THEN
+
+       CALL restart_preconditioner(qs_env,scf_env%ot_preconditioner,&
+            prec_type=scf_env%block_davidson_env(1)%prec_type,nspins=nspins,error=error)
+       CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&
+            scf_env%block_davidson_env(1)%prec_type, &
+            scf_env%block_davidson_env(1)%solver_type,&
+            scf_env%block_davidson_env(1)%energy_gap,nspins,error=error)
+
+    END IF
+
+    DO ispin = 1,nspins
+      IF(scf_env%iter_count<scf_env%block_davidson_env(ispin)%first_prec) THEN
+        CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
+           matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
+           error=error)
+      ELSE
+        CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
+           matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
+           scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+      END IF
+
+      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                             smear=scf_control%smear,&
+                             error=error)
+
+      CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                    scf_env%p_mix_new(ispin)%matrix,&
+                                    error=error)
+    END DO
+    IF (output_unit > 0) THEN
+          WRITE(output_unit,"(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
+    END IF
+
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%DAVIDSON", error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE  do_block_davidson_diag
 
 END MODULE qs_scf_diagonalization

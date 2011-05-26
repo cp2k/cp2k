@@ -425,9 +425,9 @@ CONTAINS
                r_val=scf_control%diagonalization%eps_iter,error=error)
           CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
                r_val=scf_control%diagonalization%eps_adapt,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%NKRYLOV",&
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NKRYLOV",&
                i_val=scf_control%diagonalization%nkrylov,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%NBLOCK_KRYLOV",&
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NBLOCK",&
                i_val=scf_control%diagonalization%nblock_krylov,error=error)
           IF ( scf_control%diagonalization%method == diag_ot ) THEN
             ! read OT section
