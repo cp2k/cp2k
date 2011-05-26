@@ -38,11 +38,13 @@
       CHOLESKY INVERSE
       &DIAGONALIZATION
         ALGORITHM LANCZOS
-        NKRYLOV 8
-        NBLOCK_KRYLOV 1
         MAX_ITER 20
-        EPS_KRYLOV 1.E-9
         EPS_ADAPT  0.0001
+        &KRYLOV
+          NKRYLOV 8
+          NBLOCK 1
+          EPS_KRYLOV 1.E-9
+        &END
       &END DIAGONALIZATION
 
       &SMEAR
