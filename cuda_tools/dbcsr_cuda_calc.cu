@@ -27,13 +27,34 @@ extern __shared__ double cache[];
 
 /* These file are included here to avoid linking issues. */
 
-#include "dbcsr_cuda_calc_d.cu"
-
-#include "dbcsr_cuda_calc_r.cu"
-
-#include "dbcsr_cuda_calc_z.cu"
-
-#include "dbcsr_cuda_calc_c.cu"
+__global__ void stack_mm_r
+                   (const int *__restrict__ param_stack,
+		    int stack_size, int nparams,
+		    const float *__restrict__ a_data,
+		    const float *__restrict__ b_data,
+		    float *__restrict__ c_data,
+		    int *__restrict__ c_locks);
+__global__ void stack_mm_d
+                   (const int *__restrict__ param_stack,
+		    int stack_size, int nparams,
+		    const double *__restrict__ a_data,
+		    const double *__restrict__ b_data,
+		    double *__restrict__ c_data,
+		    int *__restrict__ c_locks);
+__global__ void stack_mm_c
+                   (const int *__restrict__ param_stack,
+		    int stack_size, int nparams,
+		    const float *__restrict__ a_data,
+		    const float *__restrict__ b_data,
+		    float *__restrict__ c_data,
+		    int *__restrict__ c_locks);
+__global__ void stack_mm_z
+                   (const int *__restrict__ param_stack,
+		    int stack_size, int nparams,
+		    const double *__restrict__ a_data,
+		    const double *__restrict__ b_data,
+		    double *__restrict__ c_data,
+		    int *__restrict__ c_locks);
 
 
 /**
@@ -50,7 +71,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
   size_t shared_size;
   struct cudaDeviceProp devProperties;
 
-  maxt = MAX(MAX(m_max*n_max, m_max*k_max), k_max*n_max);
+  maxt = m_max * n_max;
 
   cErr = cudaGetDevice(&myDevice);
   if (cuda_error_check (cErr)) return 1;
@@ -62,7 +83,10 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
     return 3;
 
   switch (which_data) {
+    /* The data type identifier numbers correspond to the values
+       defined in dbcsr_types.F. */
   case 1:
+    /* Real, single precision */
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(float);
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
     stack_mm_r <<< stack_size, maxt, shared_size >>>
@@ -71,6 +95,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
        c_locks);
     break;
   case 3:
+    /* Real, double precision */
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(double);
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
     stack_mm_d <<< stack_size, maxt, shared_size >>>
@@ -79,6 +104,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
        c_locks);
     break;
   case 5:
+    /* Complex, single precision */
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(float)*2;
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
     stack_mm_c <<< stack_size, maxt, shared_size >>>
@@ -87,6 +113,7 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
        c_locks);
     break;
   case 7:
+    /* Complex, single precision */
     shared_size = (m_max*k_max + k_max*n_max)*sizeof(double)*2;
     if (shared_size > devProperties.sharedMemPerBlock) return 4;
     stack_mm_z <<< stack_size, maxt, shared_size >>>

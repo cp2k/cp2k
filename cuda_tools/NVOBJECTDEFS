@@ -3,5 +3,9 @@ cuda_memory_cu.o \
 cuda_pw_cu.o \
 cublas.o \
 dbcsr_cuda_calc.o \
+dbcsr_cuda_calc_r.o \
+dbcsr_cuda_calc_d.o \
+dbcsr_cuda_calc_c.o \
+dbcsr_cuda_calc_z.o \
 dbcsr_cuda_mem.o \
 dbcsr_cuda_timing.o
