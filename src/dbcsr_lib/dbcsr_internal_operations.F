@@ -2304,9 +2304,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: eh, error_handler, &
-                                                error_handler_build, &
-                                                max_new_nblks, n_a_norms, &
+    INTEGER                                  :: max_new_nblks, n_a_norms, &
                                                 n_b_norms, nblks_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: a_row_p, b_row_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: a_blk_info, b_blk_info
@@ -2419,8 +2417,8 @@ CONTAINS
                                                 local_timing = .FALSE.
 
     INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c_blk_id, c_blk_pt, &
-      c_col_logical, c_nze, c_row_logical, error_handler, ithread, k_size, &
-      m_size, n_size, new_blk
+      c_col_logical, c_nze, c_row_logical, ithread, k_size, m_size, n_size, &
+      new_blk
     INTEGER(KIND=int_4)                      :: offset
     LOGICAL                                  :: block_exists, flush_stack
     REAL(kind=dp)                            :: t_gemm_me
@@ -2795,8 +2793,8 @@ CONTAINS
                                                 remote_memory = .FALSE.
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
-    INTEGER :: eh_low, error_handler, istat, max_size_a, max_size_b, &
-      max_size_c, maxs, min_size_a, min_size_b, min_size_c, sp, tmp_i
+    INTEGER :: istat, max_size_a, max_size_b, max_size_c, maxs, min_size_a, &
+      min_size_b, min_size_c, sp, tmp_i
     INTEGER, DIMENSION(6)                    :: bounds
 
 !   ---------------------------------------------------------------------------
