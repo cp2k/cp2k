@@ -150,7 +150,6 @@ Note: This is max_am + 1 as specified in the configure script. These values can
 ---------------------------------------------
 
 - gfortran 4.4.1
-- g95
 - intel 11.1.056
 - crayftn 7.1.2
 - xlf 11.1 (compiles, but bug in execution) 
@@ -169,6 +168,8 @@ Note: This is max_am + 1 as specified in the configure script. These values can
 
 - other compilers might need -fno-second-underscore or similar flags in order
   to avoid problems
+
+- g95 needs two trailing underscores instead of one as provided in the file
 
 5.2.2 Cross compilation
 -----------------------
