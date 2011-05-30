@@ -50,6 +50,10 @@ MODULE dbcsr_block_operations
   PUBLIC :: block_chol_inv
   PUBLIC :: dbcsr_block_norm_frob
 
+  ! For quick access
+  PUBLIC :: block_copy_s, block_copy_d,&
+            block_copy_c, block_copy_z
+
   INTERFACE dbcsr_block_transpose
      MODULE PROCEDURE block_transpose_inplace_s, block_transpose_inplace_d,&
                       block_transpose_inplace_c, block_transpose_inplace_z
@@ -76,6 +80,7 @@ MODULE dbcsr_block_operations
      MODULE PROCEDURE block_copy_2d2d_s, block_copy_2d2d_d,&
                       block_copy_2d2d_c, block_copy_2d2d_z
   END INTERFACE
+
 
   INTERFACE dbcsr_block_partial_copy
      MODULE PROCEDURE block_partial_copy_a

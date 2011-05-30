@@ -308,6 +308,28 @@
 
 
 ! *****************************************************************************
+!> \brief Copy a block
+!> \param[out] extent_out     output data
+!> \param[in] extent_in       input data
+!> \param[in] n               number of elements to copy
+!> \param[in] in_fe           first element of input
+!> \param[in] out_fe          first element of output
+! *****************************************************************************
+  PURE SUBROUTINE block_copy_s(extent_out, extent_in, n, out_fe, in_fe)
+    INTEGER, INTENT(IN)                           :: n, out_fe, in_fe
+    REAL(kind=real_4), DIMENSION(*), INTENT(OUT)  :: extent_out
+    REAL(kind=real_4), DIMENSION(*), INTENT(IN)   :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_d', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out(out_fe : out_fe+n-1) = extent_in(in_fe : in_fe+n-1)
+  END SUBROUTINE block_copy_s
+
+
+! *****************************************************************************
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array

@@ -30,13 +30,18 @@ MODULE dbcsr_work_operations
                                              dbcsr_buffers_init,&
                                              dbcsr_buffers_new,&
                                              dbcsr_buffers_release
-  USE dbcsr_block_operations,          ONLY: dbcsr_data_set
+  USE dbcsr_block_operations,          ONLY: block_copy_c,&
+                                             block_copy_d,&
+                                             block_copy_s,&
+                                             block_copy_z,&
+                                             dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
        dbcsr_data_get_memory_type, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_size_referenced
+       dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
+       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
   USE dbcsr_error_handling
