@@ -1009,7 +1009,9 @@ CONTAINS
        CALL array_release (n_map)
     ENDIF
     !
-    IF (PRESENT (filter_eps)) THEN
+    ! if filtering is requested remove small blocks, unless the sparsity needs to be kept.
+    !
+    IF (PRESENT (filter_eps) .AND. .NOT. keep_sparsity) THEN
        eps_any = dbcsr_scalar(filter_eps)
        CALL dbcsr_scalar_fill_all(eps_any)
        CALL dbcsr_scalar_set_type(eps_any, dbcsr_get_data_type(matrix_c))
