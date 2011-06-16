@@ -151,7 +151,7 @@ CONTAINS
     LOGICAL                                  :: failure, ionode, lbias, &
                                                 ldiscrete, lnew_bias_env, &
                                                 loverlap, lreject, lstop, &
-                                                should_stop
+                                                should_stop, lhmc
     REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
                                                 pmhmc_box, pmrot_mol, &
                                                 pmtraion_mol, pmtrans_mol, &
@@ -242,7 +242,7 @@ CONTAINS
          discrete_step=discrete_step,fft_lib=fft_lib,avbmc_atom=avbmc_atom,&
          pmavbmc=pmavbmc,pbias=pbias,mc_molecule_info=mc_molecule_info,&
          pmrot_mol=pmrot_mol,pmtrans_mol=pmtrans_mol,pmvol_box=pmvol_box(1),&
-         ensemble=ensemble,pmhmc_box=pmhmc_box(1))
+         ensemble=ensemble,pmhmc_box=pmhmc_box(1),lhmc=lhmc)
 
     ! get some data from the molecule types
     CALL get_mc_molecule_info(mc_molecule_info,conf_prob=conf_prob,&
@@ -320,16 +320,20 @@ CONTAINS
        ENDIF
        initial_energy(ibox)=old_energy(ibox)
 
-       ! check for overlaps
-       start_mol=1
-       DO jbox=1,ibox-1
-          start_mol=start_mol+SUM(nchains(:,jbox))
-       ENDDO
-       end_mol=start_mol+SUM(nchains(:,ibox))-1
-       CALL check_for_overlap(force_env(ibox)%force_env,nchains(:,ibox),&
-            nunits,loverlap,mol_type(start_mol:end_mol))
-       IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
-            "overlap in an initial configuration")
+! don't care about overlaps if we're only doing HMC
+       
+       IF(.NOT. lhmc)THEN
+          ! check for overlaps
+          start_mol=1
+          DO jbox=1,ibox-1
+             start_mol=start_mol+SUM(nchains(:,jbox))
+          ENDDO
+          end_mol=start_mol+SUM(nchains(:,ibox))-1
+          CALL check_for_overlap(force_env(ibox)%force_env,nchains(:,ibox),&
+               nunits,loverlap,mol_type(start_mol:end_mol))
+          IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
+               "overlap in an initial configuration")
+       ENDIF
 
        ! get the subsystems and the cell information
        CALL force_env_get(force_env(ibox)%force_env,&
@@ -989,60 +993,63 @@ CONTAINS
        ENDDO
 
        ! check to see if there are any overlaps in the boxes, and fold coordinates
-       DO ibox=1,nboxes
-          IF(SUM(nchains(:,ibox)) .NE. 0) THEN
-             start_mol=1
-             DO jbox=1,ibox-1
-                start_mol=start_mol+SUM(nchains(:,jbox))
-             ENDDO
-             end_mol=start_mol+SUM(nchains(:,ibox))-1
-             CALL check_for_overlap(force_env(ibox)%force_env,&
-                  nchains(:,ibox),nunits,loverlap,&
-                  mol_type(start_mol:end_mol))
-             IF(loverlap) THEN
-                IF(iw>0) WRITE(iw,*) nnstep
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                     'coordinate overlap at the end of the above step')
+! don't care about overlaps if we're only doing HMC
+       IF(.NOT. lhmc)THEN
+          DO ibox=1,nboxes
+             IF(SUM(nchains(:,ibox)) .NE. 0) THEN
+                start_mol=1
+                DO jbox=1,ibox-1
+                   start_mol=start_mol+SUM(nchains(:,jbox))
+                ENDDO
+                end_mol=start_mol+SUM(nchains(:,ibox))-1
+                CALL check_for_overlap(force_env(ibox)%force_env,&
+                     nchains(:,ibox),nunits,loverlap,&
+                     mol_type(start_mol:end_mol))
+                IF(loverlap) THEN
+                   IF(iw>0) WRITE(iw,*) nnstep
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                        'coordinate overlap at the end of the above step')
                 ! now fold the coordinates...don't do this anywhere but here, because
                 ! we can get screwed up with the mc_molecule_info stuff (like in swap move)...
                 ! this is kind of ugly, with allocated and deallocating every time
-                ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)),STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-                DO iunit=1,nunits_tot(ibox)
-                   r_temp(1:3,iunit)=&
-                        particles_old(ibox)%list%els(iunit)%r(1:3)
-                ENDDO
-
-                CALL mc_coordinate_fold(r_temp(:,:),&
-                     SUM(nchains(:,ibox)),mol_type(start_mol:end_mol),&
-                     mass,nunits,abc(1:3,ibox))
+                   ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)),STAT=stat)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                   
+                   DO iunit=1,nunits_tot(ibox)
+                      r_temp(1:3,iunit)=&
+                           particles_old(ibox)%list%els(iunit)%r(1:3)
+                   ENDDO
+                   
+                   CALL mc_coordinate_fold(r_temp(:,:),&
+                        SUM(nchains(:,ibox)),mol_type(start_mol:end_mol),&
+                        mass,nunits,abc(1:3,ibox))
 
                 ! save the folded coordinates
-                DO iunit=1,nunits_tot(ibox)
-                   r_old(1:3,iunit,ibox)=r_temp(1:3,iunit)
-                   particles_old(ibox)%list%els(iunit)%r(1:3)=&
-                        r_temp(1:3,iunit)
-                ENDDO
-
-                ! if we're biasing, we need to do the same
-                IF(lbias) THEN
-                   CALL force_env_get(bias_env(ibox)%force_env,&
-                        subsys=biassys,error=error)
-                   CALL cp_subsys_get(biassys,&
-                        particles=particles_bias, error=error)
-
                    DO iunit=1,nunits_tot(ibox)
-                      particles_bias%els(iunit)%r(1:3)=&
+                      r_old(1:3,iunit,ibox)=r_temp(1:3,iunit)
+                      particles_old(ibox)%list%els(iunit)%r(1:3)=&
                            r_temp(1:3,iunit)
                    ENDDO
-                ENDIF
 
-                DEALLOCATE (r_temp,STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                ! if we're biasing, we need to do the same
+                   IF(lbias) THEN
+                      CALL force_env_get(bias_env(ibox)%force_env,&
+                           subsys=biassys,error=error)
+                      CALL cp_subsys_get(biassys,&
+                           particles=particles_bias, error=error)
+                      
+                      DO iunit=1,nunits_tot(ibox)
+                         particles_bias%els(iunit)%r(1:3)=&
+                              r_temp(1:3,iunit)
+                      ENDDO
+                   ENDIF
+                   
+                   DEALLOCATE (r_temp,STAT=stat)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                ENDIF
              ENDIF
-          ENDIF
-       ENDDO
+          ENDDO
+       ENDIF
 
        !debug code
        IF(debug_this_module) THEN

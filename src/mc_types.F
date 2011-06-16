@@ -104,6 +104,7 @@ MODULE mc_types
       LOGICAL :: ionode
       LOGICAL :: lrestart
       LOGICAL :: lstop
+      LOGICAL :: lhmc
       CHARACTER ( LEN = 20 ) :: ensemble
       CHARACTER ( LEN = default_path_length ) :: restart_file_name
       CHARACTER ( LEN = default_path_length ) :: molecules_file
@@ -293,7 +294,7 @@ CONTAINS
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
        pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps,&
-       exp_min_val, exp_max_val, min_val, max_val, eta, pmhmc, pmhmc_box)
+       exp_min_val, exp_max_val, min_val, max_val, eta, pmhmc, pmhmc_box, lhmc)
 
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_parameters_type
@@ -347,6 +348,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eta
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmhmc, pmhmc_box
+    LOGICAL, INTENT(OUT), OPTIONAL           :: lhmc
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -387,6 +389,7 @@ CONTAINS
     IF ( PRESENT ( min_val ) ) min_val = mc_par % min_val
     IF ( PRESENT ( pmswap ) ) pmswap = mc_par % pmswap
     IF ( PRESENT ( pmvolume) ) pmvolume = mc_par % pmvolume
+    IF ( PRESENT ( lhmc) ) lhmc = mc_par % lhmc
     IF ( PRESENT ( pmhmc) ) pmhmc = mc_par % pmhmc
     IF ( PRESENT ( pmhmc_box) ) pmhmc_box = mc_par % pmhmc_box
     IF ( PRESENT ( pmvol_box) ) pmvol_box = mc_par % pmvol_box
@@ -489,7 +492,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
       avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,eta,&
       mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val,&
-      pmhmc,pmhmc_box)
+      pmhmc,pmhmc_box,lhmc)
 
 ! *****************************************************************************
 !> \brief changes the private elements of the mc_parameters_type
@@ -534,6 +537,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: exp_max_val, exp_min_val, &
                                                 min_val, max_val, pmhmc, &
                                                 pmhmc_box
+    LOGICAL, INTENT(IN), OPTIONAL            :: lhmc
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN
@@ -568,6 +572,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( rcut ) ) mc_par % rcut = rcut
     IF ( PRESENT ( pressure ) ) mc_par % pressure = pressure
     IF ( PRESENT ( pmvolume ) ) mc_par % pmvolume = pmvolume
+    IF ( PRESENT ( lhmc ) ) mc_par % lhmc = lhmc
     IF ( PRESENT ( pmhmc ) ) mc_par % pmhmc = pmhmc
     IF ( PRESENT ( pmhmc_box ) ) mc_par % pmhmc_box = pmhmc_box
     IF ( PRESENT ( pmvol_box ) ) mc_par % pmvol_box = pmvol_box
@@ -835,12 +840,13 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_input_file_create (mc_input_file,input_file_name,&
-       mc_molecule_info,empty_coords,error)
+       mc_molecule_info,empty_coords,lhmc,error)
 
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     REAL(dp), DIMENSION(:, :)                :: empty_coords
+    LOGICAL, INTENT(IN)                      :: lhmc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_create', &
@@ -989,29 +995,31 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ENDIF
 
 ! now we need all the MOL_SET NMOLS indicies
-    irep=0
-    nstart=1
-    DO
-       CALL mc_parse_text(mc_input_file%text,nstart,nlines,"&MOLECULE",&
-         .FALSE.,row_number, idum)
-       IF(row_number == 0) EXIT
-       nstart=row_number+1
-       irep=irep+1
-       CALL mc_parse_text(mc_input_file%text,nstart,nlines,"NMOL",&
-            .FALSE.,mc_input_file%mol_set_nmol_row(irep), &
-            mc_input_file%mol_set_nmol_column(irep))   
-       mc_input_file%mol_set_nmol_column(irep)=mc_input_file%mol_set_nmol_column(irep)+5
-
-    ENDDO
-    IF(irep .NE. nmol_types) THEN
-       IF (iw>0) THEN
-          WRITE(iw,*)
-          WRITE(iw,*) 'File name ',input_file_name
-          WRITE(iw,*) 'Number of molecule types ',nmol_types
-          WRITE(iw,*) '&MOLECULE sections found ',irep
-       END IF
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
+    IF(.NOT. lhmc)THEN
+       irep=0
+       nstart=1
+       DO
+          CALL mc_parse_text(mc_input_file%text,nstart,nlines,"&MOLECULE",&
+               .FALSE.,row_number, idum)
+          IF(row_number == 0) EXIT
+          nstart=row_number+1
+          irep=irep+1
+          CALL mc_parse_text(mc_input_file%text,nstart,nlines,"NMOL",&
+               .FALSE.,mc_input_file%mol_set_nmol_row(irep), &
+               mc_input_file%mol_set_nmol_column(irep))   
+          mc_input_file%mol_set_nmol_column(irep)=mc_input_file%mol_set_nmol_column(irep)+5
+          
+       ENDDO
+       IF(irep .NE. nmol_types) THEN
+          IF (iw>0) THEN
+             WRITE(iw,*)
+             WRITE(iw,*) 'File name ',input_file_name
+             WRITE(iw,*) 'Number of molecule types ',nmol_types
+             WRITE(iw,*) '&MOLECULE sections found ',irep
+          END IF
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
+       ENDIF
     ENDIF
 
 ! now let's find the type of force_env...right now, I'm only concerned with
@@ -1246,9 +1254,22 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
 ! now an integer array
       CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_vals=temp_i_array,error=error)
-      IF(SIZE(temp_i_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'AVBMC_ATOM must have as many values as there are molecule types.')
+      
+! find out if we're only doing HMC moves...we can ignore a lot of extra information
+! then, which would ordinarily be cause for concern
+      CALL section_vals_val_get(mc_section,"PMHMC",r_val=mc_par%pmhmc,error=error)
+      CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
+      IF(mc_par%pmhmc - mc_par%pmswap >= 1.0_dp .AND. mc_par%pmhmc == 1.0_dp)THEN
+         mc_par%lhmc=.TRUE.
+      ELSE
+         mc_par%lhmc=.FALSE.
+      ENDIF
+
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_i_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'AVBMC_ATOM must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_i_array)
          mc_par%avbmc_atom(imol)=temp_i_array(imol)
@@ -1258,10 +1279,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
       CALL section_vals_val_get(mc_section,"TEMPERATURE",r_val=mc_par%temperature,error=error)
       CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
-      CALL section_vals_val_get(mc_section,"PMHMC",r_val=mc_par%pmhmc,error=error)
       CALL section_vals_val_get(mc_section,"PMHMC_BOX",r_val=mc_par%pmhmc_box,error=error)
       CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_val=mc_par%pmvol_box,error=error)
-      CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
       CALL section_vals_val_get(mc_section,"PMAVBMC",r_val=mc_par%pmavbmc,error=error)
       CALL section_vals_val_get(mc_section,"PMTRANS",r_val=mc_par%pmtrans,error=error)
       CALL section_vals_val_get(mc_section,"PMTRAION",r_val=mc_par%pmtraion,error=error)
@@ -1294,117 +1313,145 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       END IF
 ! all of these arrays should have one value for each type of molecule...so check that
       CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'AVBMC_RMIN must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'AVBMC_RMIN must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmin(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"AVBMC_RMAX",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'AVBMC_RMAXL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'AVBMC_RMAXL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmax(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"PBIAS",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'PBIAS must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'PBIAS must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pbias(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"PMAVBMC_MOL",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'PMAVBMC_MOL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'PMAVBMC_MOL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmavbmc_mol(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"ETA",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'ETA must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'ETA must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%eta(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMBOND",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'RMBOND must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'RMBOND must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmbond(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMANGLE",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'RMANGLE must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'RMANGLE must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmangle(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMDIHEDRAL",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'RMDIHEDRAL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'RMDIHEDRAL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmdihedral(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMROT",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'RMROT must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'RMROT must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmrot(imol)=temp_r_array(imol)
       ENDDO
       CALL section_vals_val_get(mc_section,"RMTRANS",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'RMTRANS must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'RMTRANS must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmtrans(imol)=temp_r_array(imol)
       ENDDO
 
       CALL section_vals_val_get(mc_section,"PMTRAION_MOL",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'PMTRAION_MOL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'PMTRAION_MOL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmtraion_mol(imol)=temp_r_array(imol)
       ENDDO
 
       CALL section_vals_val_get(mc_section,"PMTRANS_MOL",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'PMTRANS_MOL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'PMTRANS_MOL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmtrans_mol(imol)=temp_r_array(imol)
       ENDDO
 
       CALL section_vals_val_get(mc_section,"PMROT_MOL",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'PMROT_MOL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'PMROT_MOL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmrot_mol(imol)=temp_r_array(imol)
       ENDDO
 
       CALL section_vals_val_get(mc_section,"PMSWAP_MOL",r_vals=temp_r_array,error=error)
-      IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              'PMSWAP_MOL must have as many values as there are molecule types.')
+      IF( .NOT. mc_par%lhmc)THEN
+         IF(SIZE(temp_r_array) .NE. nmol_types)THEN
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                 'PMSWAP_MOL must have as many values as there are molecule types.')
+         ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmswap_mol(imol)=temp_r_array(imol)
@@ -1442,24 +1489,12 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             mc_par % pmhmc_box
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
             mc_par % pmswap
-         WRITE ( iw, format_string ) ' MC| pmswap_mol ', &
-            mc_par % pmswap_mol
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmavbmc ', &
             mc_par % pmavbmc
-         WRITE ( iw, format_string ) ' MC| pmavbmc_mol ', &
-            mc_par % pmavbmc_mol
-         WRITE ( iw, format_string ) ' MC| pbias ', &
-            mc_par % pbias
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtraion ', &
             mc_par % pmtraion
-         WRITE ( iw, format_string ) ' MC| pmtraion_mol ', &
-            mc_par % pmtraion_mol
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtrans ', &
             mc_par % pmtrans
-         WRITE ( iw, format_string ) ' MC| pmtrans_mol ', &
-            mc_par % pmtrans_mol
-         WRITE ( iw, format_string ) ' MC| pmrot_mol ', &
-            mc_par % pmrot_mol
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iupvolume ', &
             mc_par % iupvolume
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| nvirial ', &
@@ -1470,6 +1505,40 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             mc_par % iprint
          WRITE ( iw, '( A,T61,A20 )' ) ' MC| ensemble ', &
             ADJUSTR(mc_par % ensemble)
+! format string may not be valid if all the molecules are atomic,
+! like in HMC
+       IF(.NOT. mc_par % lhmc)THEN
+            WRITE ( iw, format_string ) ' MC| pmswap_mol ', &
+                 mc_par % pmswap_mol
+            WRITE ( iw, format_string ) ' MC| pmavbmc_mol ', &
+                 mc_par % pmavbmc_mol
+            WRITE ( iw, format_string ) ' MC| pbias ', &
+                 mc_par % pbias
+            WRITE ( iw, format_string ) ' MC| pmtraion_mol ', &
+                 mc_par % pmtraion_mol
+            WRITE ( iw, format_string ) ' MC| pmtrans_mol ', &
+                 mc_par % pmtrans_mol
+            WRITE ( iw, format_string ) ' MC| pmrot_mol ', &
+                 mc_par % pmrot_mol
+            WRITE ( iw, format_string ) ' MC| eta [K]', &
+                 mc_par % eta
+            WRITE ( iw, format_string ) ' MC| rmbond [angstroms]', &
+                 mc_par % rmbond
+            WRITE ( iw, format_string ) ' MC| rmangle [degrees]', &
+                 mc_par % rmangle
+            WRITE ( iw, format_string ) ' MC| rmdihedral [degrees]', &
+                 mc_par % rmdihedral
+            WRITE ( iw, format_string ) ' MC| rmtrans [angstroms]', &
+                 mc_par % rmtrans
+            WRITE ( iw, format_string ) ' MC| rmrot [degrees]', &
+                 mc_par % rmrot
+            WRITE ( iw, format_string_int ) ' MC| AVBMC target atom ', &
+                 mc_par % avbmc_atom
+            WRITE ( iw, format_string ) ' MC| AVBMC inner cutoff [ang]', &
+                 mc_par % avbmc_rmin
+            WRITE ( iw, format_string ) ' MC| AVBMC outer cutoff [ang]', &
+                 mc_par % avbmc_rmax
+         ENDIF
          IF (mc_par%ensemble .EQ. 'GEMC-NVT') THEN
             WRITE ( iw, '( A,T58,A)' ) ' MC| Box 2 file', &
             TRIM(mc_par % box2_file)
@@ -1502,28 +1571,10 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             '[cubic angstroms]', &
             mc_par % rmvolume
          ENDIF
-         WRITE ( iw, format_string ) ' MC| eta [K]', &
-            mc_par % eta
-         WRITE ( iw, format_string ) ' MC| rmbond [angstroms]', &
-            mc_par % rmbond
-         WRITE ( iw, format_string ) ' MC| rmangle [degrees]', &
-            mc_par % rmangle
-         WRITE ( iw, format_string ) ' MC| rmdihedral [degrees]', &
-            mc_par % rmdihedral
-         WRITE ( iw, format_string ) ' MC| rmtrans [angstroms]', &
-            mc_par % rmtrans
-         WRITE ( iw, format_string ) ' MC| rmrot [degrees]', &
-            mc_par % rmrot
          WRITE ( iw, '( A,T71,F10.2 )' ) ' MC| Temperature [K] ', &
             mc_par % temperature
          WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| Pressure [bar] ', &
             mc_par % pressure
-         WRITE ( iw, format_string_int ) ' MC| AVBMC target atom ', &
-            mc_par % avbmc_atom
-         WRITE ( iw, format_string ) ' MC| AVBMC inner cutoff [ang]', &
-            mc_par % avbmc_rmin
-         WRITE ( iw, format_string ) ' MC| AVBMC outer cutoff [ang]', &
-            mc_par % avbmc_rmax
          IF ( mc_par % lrestart ) THEN
             WRITE ( iw, '(A,A)') ' MC| Initial data will be read from a',&
             ' restart file.'
@@ -1547,6 +1598,12 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
               ' swap insertions will be attempted ',&
               'per molecular swap move'
 
+         IF(mc_par % lhmc)THEN
+            WRITE(iw,'(A)') '********************************************************'
+            WRITE(iw,'(A)') '************** ONLY DOING HYBRID MONTE CARLO MOVES **************************'
+            WRITE(iw,'(A)') '********************************************************'
+
+         ENDIF
       END IF
 
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)
@@ -1958,12 +2015,16 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     INTEGER                                  :: imol_type, nboxes, &
                                                 nchain_total, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits
+    LOGICAL                                  :: lhmc
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
 
-    CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info)
+    CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info,lhmc=lhmc)
 
     CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
          nboxes=nboxes,nunits=nunits,nchain_total=nchain_total)
+
+! if we're only doing HMC, we can skip these checks
+    IF(lhmc) RETURN
 
 ! the final value of these arrays needs to be 1.0, otherwise there is
 ! a chance we won't select a molecule type for a move

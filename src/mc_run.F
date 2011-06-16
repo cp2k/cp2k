@@ -118,8 +118,9 @@ CONTAINS
     INTEGER                                  :: box_number, ibox, isos, &
                                                 istat, iw, nboxes, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits_tot
-    LOGICAL                                  :: failure, lbias, lrestart, &
-                                                lskip_box, lterminate
+    LOGICAL                                  :: failure, lbias, lhmc, &
+                                                lrestart, lskip_box, &
+                                                lterminate
     REAL(dp)                                 :: rcut
     REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
     TYPE(cp_logger_type), POINTER            :: logger
@@ -235,21 +236,21 @@ CONTAINS
 ! this is also used in the swap move, or anytime we need to make a dat file
 ! always judge based on lbias from box 1...in case someone only changes the value
 ! for box 1
-         CALL get_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
+         CALL get_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file,lhmc=lhmc)
          CALL get_mc_par(mc_par(1)%mc_par,lbias=lbias)
          IF(ibox == 1) THEN
             CALL mc_input_file_create ( mc_input_file,&
-                 input_file_name,mc_molecule_info,empty_coordinates,error)
+                 input_file_name,mc_molecule_info,empty_coordinates,lhmc,error)
          ELSE
             CALL mc_input_file_create ( mc_input_file,&
-                 box2_file,mc_molecule_info,empty_coordinates,error)
+                 box2_file,mc_molecule_info,empty_coordinates,lhmc,error)
          ENDIF
          CALL set_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
 
          IF(lbias) THEN
             CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
             CALL mc_input_file_create ( mc_bias_file,&
-                 "bias_template.inp",mc_molecule_info,empty_coordinates,error)
+                 "bias_template.inp",mc_molecule_info,empty_coordinates,lhmc,error)
             CALL set_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
          ENDIF
 
