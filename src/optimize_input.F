@@ -197,7 +197,7 @@ CONTAINS
     n_atom=SIZE(pos_traj_read,2)
 
     ! adjust read data with respect to start/stop/stride
-    IF (oi_env%fm_env%frame_stop<0) oi_env%fm_env%frame_stop=SIZE(pos_traj,3)
+    IF (oi_env%fm_env%frame_stop<0) oi_env%fm_env%frame_stop=SIZE(pos_traj_read,3)
     n_frames=(oi_env%fm_env%frame_stop-oi_env%fm_env%frame_start+oi_env%fm_env%frame_stride)/oi_env%fm_env%frame_stride
 
     ALLOCATE(force_traj(3,n_atom,n_frames),pos_traj(3,n_atom,n_frames),energy_traj(n_frames))

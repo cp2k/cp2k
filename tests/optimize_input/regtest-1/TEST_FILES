@@ -1,3 +1,4 @@
 argon-ref.inp         0
 driver.inp            45
 driver-restart.inp    45
+driver-stride.inp    45
