@@ -202,7 +202,7 @@ CONTAINS
 
          CALL keyword_create(keyword, name="FRAME_STOP",&
               description="final frame to be used from the reference trajectory (all=-1)",&
-              usage="FRAME_STOP -1", default_i_val=1, error=error)
+              usage="FRAME_STOP -1", default_i_val=-1, error=error)
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
 
