@@ -1992,7 +1992,7 @@ CONTAINS
     !
     CALL dbcsr_make_1dist_dense (k_nbins, old_k_vdist, new_k_vdist, k_vmap, 0)
     CALL v_to_p_i_dist_o (new_k_vdist,&
-         right_rdist%i%row_decimation, new_k_pdist, new_k_idist)
+         left_rdist%i%col_decimation, new_k_pdist, new_k_idist)
     ! Left
     CALL dbcsr_distribution_new (dense_left_dist, left_rdist%i%main%d%mp_env,&
          new_m_dist, new_k_pdist)
@@ -2010,7 +2010,12 @@ CONTAINS
     CALL array_hold (new_m_dist)
     dense_left_rdist%i%vcol_dist = new_k_vdist
     CALL array_hold (new_k_vdist)
+    !
+    CALL array_release (new_k_pdist)
+    CALL array_release (new_k_idist)
     ! Right
+    CALL v_to_p_i_dist_o (new_k_vdist,&
+         right_rdist%i%row_decimation, new_k_pdist, new_k_idist)
     CALL dbcsr_distribution_new (dense_right_dist, right_rdist%i%main%d%mp_env,&
          new_k_pdist, new_n_dist)
     CALL dbcsr_new_image_dist (dense_right_rdist, dense_right_dist, right_rdist, error)

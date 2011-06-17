@@ -930,8 +930,12 @@ CONTAINS
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: local_rows, local_cols
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, mypcoor, seq
     INTEGER, DIMENSION(:), POINTER           :: dd, ld
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -943,6 +947,18 @@ CONTAINS
     CALL array_hold (dist%d%col_dist)
     dist%d%mp_env = mp_env
     CALL dbcsr_mp_hold (dist%d%mp_env)
+    ! Verify given process row distribution.
+    dd => array_data (row_dist)
+    CALL dbcsr_assert (MAXVAL (dd), "LT", dbcsr_mp_nprows (mp_env),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "A process row is too big for process grid",&
+         __LINE__, error=error)
+    ! Verify given process column distribution.
+    dd => array_data (col_dist)
+    CALL dbcsr_assert (MAXVAL (dd), "LT", dbcsr_mp_npcols (mp_env),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "A process column is too big for process grid",&
+         __LINE__, error=error)
     IF (PRESENT (local_rows)) THEN
        dist%d%local_rows = local_rows
        CALL array_hold (dist%d%local_rows)
