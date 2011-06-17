@@ -149,9 +149,9 @@ CONTAINS
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
     LOGICAL                                  :: failure, ionode, lbias, &
-                                                ldiscrete, lnew_bias_env, &
-                                                loverlap, lreject, lstop, &
-                                                should_stop, lhmc
+                                                ldiscrete, lhmc, &
+                                                lnew_bias_env, loverlap, &
+                                                lreject, lstop, should_stop
     REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
                                                 pmhmc_box, pmrot_mol, &
                                                 pmtraion_mol, pmtrans_mol, &
