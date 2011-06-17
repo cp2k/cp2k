@@ -1302,6 +1302,19 @@ CONTAINS
          usage="BETA 1.0",default_r_val=0.0_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="FILTER_EPS",&
+         description="Threshold for on-the-fly and final filtering.",&
+         usage="FILTER_EPS 1.0",default_r_val=-1.0_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="DETERMINISTIC",&
+         description="Attempt deterministic behavior (turn off for speed).",&
+         usage="DETERMINISTIC",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
   END SUBROUTINE create_cp_dbcsr_section
 
 

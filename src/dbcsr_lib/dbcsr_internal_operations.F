@@ -667,12 +667,14 @@ CONTAINS
           WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
                left_fill, right_fill
        ENDIF
+       ! Old guess: fill_guess = 7 * MAX(left_fill,right_fill)
        fill_guess = 7 * MAX(left_fill,right_fill)
+       ! New guess: fill_guess = 2.4_real_8 * MAX(left_fill,right_fill)
        fill_guess = MIN (1.0_real_8, MAX (0.0_real_8, fill_guess))
        IF (nthreads .GT. 1) THEN
           fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
        ENDIF
-       IF (debug_mod.AND. mynode .EQ. 0) THEN
+       IF (debug_mod .AND. mynode .EQ. 0) THEN
           WRITE(*,*)routineN//" fill guess=", fill_guess
        ENDIF
        size_guess = MAX(product_matrix%m%wms(i)%datasize,&
@@ -1400,7 +1402,6 @@ CONTAINS
                REAL(len_xfer_c_out*8), "B"
        ENDIF
     ENDIF cuda_copyout_c
-
     !
     IF (ALLOCATED (right_norms)) THEN
        DEALLOCATE (right_norms, stat=stat)

@@ -32,6 +32,7 @@ MODULE dbcsr_test_methods
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d, &
        dbcsr_type_2d_to_1d
+  USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -48,11 +49,12 @@ MODULE dbcsr_test_methods
   USE dbcsr_message_passing,           ONLY: mp_comm_null,&
                                              mp_environ
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_get_matrix_type, dbcsr_init, &
-       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, &
-       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total
+       dbcsr_distribution_hold, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_get_matrix_type, dbcsr_init, dbcsr_max_col_size, &
+       dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_release, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total
 !  USE dbcsr_transformations, only:dbcsr_put_block
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
@@ -339,9 +341,10 @@ CONTAINS
 
 
 !> \brief Creates a random matrix.
-!>        Only the master process gets the data.
+!> \param[in] nondet     (optional) Specifies that deterministic behavior is
+!>                       unneeded.
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
-       name, sparsity, mp_group, data_type, symmetry, error)
+       name, sparsity, mp_group, data_type, symmetry, dist, nondet, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
     TYPE(array_i1d_obj), INTENT(in)          :: row_blk_sizes, col_blk_sizes
     CHARACTER(len=*), INTENT(in)             :: name
@@ -349,33 +352,50 @@ CONTAINS
     INTEGER, INTENT(in)                      :: mp_group
     INTEGER, INTENT(in), OPTIONAL            :: data_type
     CHARACTER, INTENT(in), OPTIONAL          :: symmetry
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(IN), OPTIONAL                   :: dist
+    LOGICAL, INTENT(in), OPTIONAL            :: nondet
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_random_matrix', &
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: my_symmetry
-    INTEGER                                  :: col, max_nze, my_data_type, &
-                                                nze, row
+    INTEGER                                  :: col, error_handle, max_nze, &
+                                                my_data_type, my_proc, nze, &
+                                                p, row
     INTEGER, DIMENSION(4)                    :: iseed = (/4,3,2,1/)
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    LOGICAL                                  :: quick, tr
     REAL(kind=real_8)                        :: my_sparsity
     REAL(kind=real_8), DIMENSION(1)          :: value
     TYPE(dbcsr_data_obj)                     :: data_values, data_values_tr
-    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_distribution_obj)             :: new_dist
 
 !   ---------------------------------------------------------------------------
-! Create the matrix
 
-    CALL dbcsr_make_null_dist (dist, array_size (row_blk_sizes),&
-         array_size (col_blk_sizes), group=mp_group)
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    !
+    ! Create the matrix
+    IF (PRESENT (dist)) THEN
+       new_dist = dist
+       CALL dbcsr_distribution_hold (new_dist)
+    ELSE
+       CALL dbcsr_make_null_dist (new_dist, array_size (row_blk_sizes),&
+            array_size (col_blk_sizes), group=mp_group)
+    ENDIF
+    IF (PRESENT (nondet)) THEN
+       quick = nondet
+    ELSE
+       quick = .FALSE.
+    ENDIF
     CALL dbcsr_init (matrix)
     my_data_type = dbcsr_type_real_default
     IF(PRESENT(data_type)) my_data_type = data_type
     my_symmetry = dbcsr_type_no_symmetry
     IF(PRESENT(symmetry)) my_symmetry = symmetry
     CALL dbcsr_create (matrix, name,&
-         dist, my_symmetry,&
+         new_dist, my_symmetry,&
          row_blk_sizes,&
          col_blk_sizes,&
          data_type=my_data_type,&
@@ -388,71 +408,89 @@ CONTAINS
     ELSE
        my_sparsity = sparsity
     ENDIF
-    IF (dbcsr_mp_mynode (dbcsr_distribution_mp (dist)) .EQ. 0) THEN
-       max_nze = dbcsr_max_row_size (matrix) * dbcsr_max_col_size (matrix)
-       CALL dbcsr_work_create (matrix,&
-            nblks_guess=INT(dbcsr_nblkrows_total(matrix)*dbcsr_nblkcols_total(matrix)*(1.0-sparsity)),&
-            sizedata_guess=INT(dbcsr_nfullrows_total(matrix)*dbcsr_nfullcols_total(matrix)*(1.0-sparsity)),&
-            work_mutable = .TRUE.,error=error)
+    max_nze = dbcsr_max_row_size (matrix) * dbcsr_max_col_size (matrix)
+    CALL dbcsr_work_create (matrix,&
+         nblks_guess=INT(REAL(dbcsr_nblkrows_total(matrix))&
+                        *REAL(dbcsr_nblkcols_total(matrix))&
+                        *(1.0-sparsity)*1.1),&
+         sizedata_guess=INT(REAL(dbcsr_nfullrows_total(matrix))&
+                           *REAL(dbcsr_nfullcols_total(matrix))&
+                           *(1.0-sparsity)*1.1),&
+         work_mutable = .TRUE.,error=error)
 
-       CALL dbcsr_data_init (data_values)
-       CALL dbcsr_data_new (data_values, my_data_type, data_size=max_nze)
-       CALL dbcsr_data_init (data_values_tr)
-       CALL dbcsr_data_new (data_values_tr, my_data_type, data_size=max_nze)
-
-       DO row = 1, dbcsr_nblkrows_total (matrix)
-          DO col = 1, dbcsr_nblkcols_total (matrix)
-             !
-             ! build the upper matrix if some symmetry
-             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
-
+    CALL dbcsr_data_init (data_values)
+    CALL dbcsr_data_new (data_values, my_data_type, data_size=max_nze)
+    CALL dbcsr_data_init (data_values_tr)
+    CALL dbcsr_data_new (data_values_tr, my_data_type, data_size=max_nze)
+    my_proc = dbcsr_mp_mynode (dbcsr_distribution_mp (new_dist))
+    DO row = 1, dbcsr_nblkrows_total (matrix)
+       DO col = 1, dbcsr_nblkcols_total (matrix)
+          ! We have to extract random number generation outside so
+          ! that results are the same regardless of the process count.
+          IF (.NOT. quick) THEN
              CALL dlarnv( 1, iseed, 1, value )
-             IF (value(1) .LT. my_sparsity) CYCLE
              nze = rbs(row) * cbs(col)
              CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
-             CALL dbcsr_put_block (matrix, row, col, data_values)
-             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.EQ.row) THEN
-                SELECT CASE(my_symmetry)
-                CASE(dbcsr_type_symmetric)
-                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
-                        error=error)
-                CASE(dbcsr_type_antisymmetric)
-                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
-                        scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
-                        error=error)
-                CASE(dbcsr_type_hermitian)
-                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
-                        error=error)
-                   CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
-                        lb=1, error=error)
-                CASE(dbcsr_type_antihermitian)
-                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
-                        scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
-                        error=error)
-                   CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
-                        lb=1, error=error)
-                CASE DEFAULT
-                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
-                        dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",&
-                        __LINE__,error)
-                END SELECT
-                CALL dbcsr_put_block (matrix, row, col, data_values_tr, summation=.TRUE.)
-             ENDIF
-          ENDDO
+          ENDIF
+          !
+          ! build the upper matrix if some symmetry.
+          IF (PRESENT (dist)) THEN
+             tr = .FALSE.
+             CALL dbcsr_get_stored_coordinates(matrix, row, col, tr, p)
+             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
+             IF (p .NE. my_proc) CYCLE
+          ELSE
+             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
+          ENDIF
+          IF (quick) CALL dlarnv( 1, iseed, 1, value )
+          IF (value(1) .LT. my_sparsity) CYCLE
+          IF (quick) THEN
+             nze = rbs(row) * cbs(col)
+             CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
+          ENDIF
+          CALL dbcsr_put_block (matrix, row, col, data_values)
+          IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.EQ.row) THEN
+             SELECT CASE(my_symmetry)
+             CASE(dbcsr_type_symmetric)
+                CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     error=error)
+             CASE(dbcsr_type_antisymmetric)
+                CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
+                     error=error)
+             CASE(dbcsr_type_hermitian)
+                CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     error=error)
+                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
+                     lb=1, error=error)
+             CASE(dbcsr_type_antihermitian)
+                CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                     row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                     scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
+                     error=error)
+                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
+                     lb=1, error=error)
+             CASE DEFAULT
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
+                     dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",&
+                     __LINE__,error)
+             END SELECT
+             CALL dbcsr_put_block (matrix, row, col, data_values_tr, summation=.TRUE.)
+          ENDIF
        ENDDO
+    ENDDO
 
-       CALL dbcsr_data_release (data_values)
-       CALL dbcsr_data_release (data_values_tr)
+    CALL dbcsr_data_release (data_values)
+    CALL dbcsr_data_release (data_values_tr)
 
-    ENDIF
-    CALL dbcsr_distribution_release (dist)
+    CALL dbcsr_distribution_release (new_dist)
     CALL dbcsr_finalize (matrix, error=error)
     CALL dbcsr_verify_matrix (matrix, error=error)
-
+    !
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_make_random_matrix
 
   SUBROUTINE dbcsr_make_random_block_sizes(block_sizes, size_sum, size_mix)
