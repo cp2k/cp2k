@@ -1148,7 +1148,13 @@ END SUBROUTINE mc_conformation_change
 ! now for the not discrete volume move
 !!!!!!!!!!!!!!!! for E_V curves
          vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
-!     vol_dis=5.0E0_dp/angstrom**3
+!         WRITE(output_unit,*) '************************ be sure to change back!',&
+!                 old_cell_length(1),14.64_dp/angstrom
+!         vol_dis=-56.423592_dp/angstrom**3
+!         IF(old_cell_length(1) .LE. 14.64_dp/angstrom) THEN
+!            vol_dis=0.0_dp
+!            WRITE(output_unit,*) 'Found the correct box length!'
+!         ENDIF
 
          temp_var=vol_dis+&
               old_cell_length(1)*old_cell_length(2)*&
@@ -1239,6 +1245,11 @@ END SUBROUTINE mc_conformation_change
             "Volume move rejected due to overlap.",vol_dis
 !     end the timing
          CALL timestop(handle)
+! reset the cell and particle positions
+         CALL force_env_set_cell(force_env,cell_old,error=error)
+         DO iatom=1,nunits_tot(box_number)
+            particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
+         ENDDO
          RETURN
       ENDIF
 
