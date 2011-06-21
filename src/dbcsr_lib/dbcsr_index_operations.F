@@ -1502,6 +1502,7 @@ CONTAINS
        ENDIF
        !$OMP END PARALLEL
     ELSE
+       IF (nblks>0) &
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
             DATA=RESHAPE(blki, ((/3*nblks/))), error=error)
     ENDIF
