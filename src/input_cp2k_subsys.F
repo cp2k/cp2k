@@ -2311,6 +2311,19 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword,&
+                          name="INIT_U_RAMPING_EACH_SCF",&
+                          description="Set the initial U ramping value to zero before each wavefunction optimisation. "//&
+                                      "The default is to apply U ramping only for the initial wavefunction optimisation.",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          usage="INIT_U_RAMPING_EACH_SCF on",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       NULLIFY (subsection)
 
       CALL section_create(subsection,&

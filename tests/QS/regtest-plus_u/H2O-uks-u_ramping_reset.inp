@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT H2O-uks-u_ramping
+  PROJECT H2O-uks-u_ramping_reset
   PRINT_LEVEL low
   RUN_TYPE GEO_OPT
 &END GLOBAL
@@ -70,6 +70,7 @@
       POTENTIAL GTH-PBE-q6
       &DFT_PLUS_U
         EPS_U_RAMPING 1.0E-3
+        INIT_U_RAMPING_EACH_SCF on
         L 1
         U_MINUS_J [eV] 2.0
         U_RAMPING [eV] 0.7

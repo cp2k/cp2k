@@ -42,7 +42,9 @@ MODULE qs_scf
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set,&
+                                             set_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
@@ -1631,13 +1633,16 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, iw, nao, &
-                                                ndep, nelectron_spin, nmo, &
+    INTEGER                                  :: handle, homo, ikind, ispin, &
+                                                iw, nao, ndep, &
+                                                nelectron_spin, nmo, &
                                                 output_unit
-    LOGICAL :: cho_inverse, failure, gth_potential_present, &
-      my_transition_potential, s_minus_half_available
+    LOGICAL :: cho_inverse, dft_plus_u_atom, failure, gth_potential_present, &
+      init_u_ramping_each_scf, my_transition_potential, s_minus_half_available
+    REAL(KIND=dp)                            :: u_ramping
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1767,6 +1772,19 @@ CPSourceFileRef)
                            scf_control%eps_eigval,ndep,error=error)
         END IF
       END IF
+      DO ikind=1,SIZE(atomic_kind_set)
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             dft_plus_u_atom=dft_plus_u_atom,&
+                             u_ramping=u_ramping,&
+                             init_u_ramping_each_scf=init_u_ramping_each_scf)
+        IF (dft_plus_u_atom.AND.(u_ramping /= 0.0_dp)) THEN
+           IF (init_u_ramping_each_scf) THEN
+              CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                                   u_minus_j=0.0_dp)
+           END IF
+        END IF
+      END DO
     END IF
 
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&

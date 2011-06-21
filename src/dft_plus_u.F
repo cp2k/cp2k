@@ -55,7 +55,8 @@ MODULE dft_plus_u
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
-  USE input_constants,                 ONLY: plus_u_lowdin,&
+  USE input_constants,                 ONLY: low_print_level,&
+                                             plus_u_lowdin,&
                                              plus_u_mulliken,&
                                              plus_u_mulliken_charges
   USE input_section_types,             ONLY: section_vals_type
@@ -106,7 +107,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, output_unit
+    INTEGER                                  :: handle, output_unit, &
+                                                print_level
     LOGICAL                                  :: failure, orthonormal_basis, &
                                                 should_output
     TYPE(cp_logger_type), POINTER            :: logger
@@ -135,6 +137,7 @@ CONTAINS
 
     ! Setup print control
 
+    print_level = logger%iter_info%print_level
     should_output = (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                           "DFT%PRINT%PLUS_U",error=error),cp_p_file).AND.&
                      (.NOT.PRESENT(matrix_w)))
@@ -152,17 +155,17 @@ CONTAINS
         ! For an orthonormal basis the Lowdin method and the Mulliken method
         ! are equivalent
         CALL mulliken(qs_env,orthonormal_basis,matrix_h,&
-                      should_output,output_unit,error)
+                      should_output,output_unit,print_level,error)
       ELSE
         CALL lowdin(qs_env,matrix_h,matrix_w,&
-                    should_output,output_unit,error)
+                    should_output,output_unit,print_level,error)
       END IF
     CASE (plus_u_mulliken)
       CALL mulliken(qs_env,orthonormal_basis,matrix_h,&
-                    should_output,output_unit,error)
+                    should_output,output_unit,print_level,error)
     CASE (plus_u_mulliken_charges)
       CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                            should_output,output_unit,error)
+                            should_output,output_unit,print_level,error)
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Invalid DFT+U method requested",only_ionode=.TRUE.)
@@ -203,13 +206,14 @@ CONTAINS
 !> \date          02.07.2008
 !> \version       1.0
 ! *****************************************************************************
-  SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,error)
+  SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,&
+                    print_level,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_w
     LOGICAL, INTENT(IN)                      :: should_output
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit, print_level
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin', &
@@ -504,8 +508,9 @@ CONTAINS
             CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,F0.3,A)")&
-              "U(eff) = U - J = ",u_minus_j*evolt," eV"
+            WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
+              "Kind name: "//TRIM(ADJUSTL(atomic_kind_name)),&
+              "U(eff) = ",u_minus_j*evolt," eV"
           END IF
         END IF
 
@@ -538,7 +543,7 @@ CONTAINS
 
         ! Print headline if requested
 
-        IF (should_output) THEN
+        IF (should_output.AND.(print_level > low_print_level)) THEN
           IF (output_unit > 0) THEN
             ALLOCATE (symbol(nsbsize),STAT=stat)
             CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
@@ -720,7 +725,7 @@ CONTAINS
 
           ! Consider print requests
 
-          IF (should_output) THEN
+          IF (should_output.AND.(print_level > low_print_level)) THEN
             CALL mp_sum(q_matrix,qs_env%para_env%group)
             IF (output_unit > 0) THEN
               ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
@@ -827,7 +832,7 @@ CONTAINS
 
       IF (ASSOCIATED(sm_w)) THEN
 
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                        "Forces are not yet fully implemented for DFT+U method LOWDIN",&
                        only_ionode=.TRUE.)
 
@@ -892,15 +897,15 @@ CONTAINS
 !> \date          03.07.2008
 !> \version       1.0
 ! *****************************************************************************
-  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,&
-                      should_output,output_unit,error)
+  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,should_output,&
+                      output_unit,print_level,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h
     LOGICAL, INTENT(IN)                      :: should_output
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit, print_level
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken', &
@@ -1151,8 +1156,9 @@ CONTAINS
             CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,F0.3,A)")&
-              "U(eff) = U - J = ",u_minus_j*evolt," eV"
+            WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
+              "Kind name: "//TRIM(ADJUSTL(atomic_kind_name)),&
+              "U(eff) = ",u_minus_j*evolt," eV"
           END IF
         END IF
 
@@ -1187,7 +1193,7 @@ CONTAINS
 
         ! Print headline if requested
 
-        IF (should_output) THEN
+        IF (should_output.AND.(print_level > low_print_level)) THEN
           IF (output_unit > 0) THEN
             ALLOCATE (symbol(nsbsize),STAT=stat)
             CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
@@ -1369,7 +1375,7 @@ CONTAINS
 
           ! Consider print requests
 
-          IF (should_output) THEN
+          IF (should_output.AND.(print_level > low_print_level)) THEN
             CALL mp_sum(q_matrix,qs_env%para_env%group)
             IF (output_unit > 0) THEN
               ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
@@ -1573,14 +1579,14 @@ CONTAINS
 !>                calls are performed
 ! *****************************************************************************
   SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                              should_output,output_unit,error)
+                              should_output,output_unit,print_level,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_w
     LOGICAL, INTENT(IN)                      :: should_output
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit, print_level
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_charges', &
@@ -1836,8 +1842,9 @@ CONTAINS
             CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,F0.3,A)")&
-              "U(eff) = U - J = ",u_minus_j*evolt," eV"
+            WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
+              "Kind name: "//TRIM(ADJUSTL(atomic_kind_name)),&
+              "U(eff) = ",u_minus_j*evolt," eV"
           END IF
         END IF
 
@@ -1866,7 +1873,7 @@ CONTAINS
 
         ! Print headline if requested
 
-        IF (should_output) THEN
+        IF (should_output.AND.(print_level > low_print_level)) THEN
           IF (output_unit > 0) THEN
             ALLOCATE (symbol(2*lu+1),STAT=stat)
             CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
@@ -1936,7 +1943,7 @@ CONTAINS
 
           ! Consider print requests
 
-          IF (should_output) THEN
+          IF (should_output.AND.(print_level > low_print_level)) THEN
             CALL mp_sum(q_ii,qs_env%para_env%group)
             IF (output_unit > 0) THEN
               DO isb=1,nsb

@@ -108,7 +108,8 @@ MODULE atomic_kind_types
                                                u_minus_j,&
                                                u_ramping
      INTEGER, DIMENSION(:), POINTER         :: orbitals
-     LOGICAL                                :: smear
+     LOGICAL                                :: init_u_ramping_each_scf,&
+                                               smear
   END TYPE dft_plus_u_type
 
 !> Provides all information about an atomic kind
@@ -396,7 +397,8 @@ CONTAINS
        ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active, damping, &
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id, &
        npgf, bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
-       max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping)
+       max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
+       init_u_ramping_each_scf)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -468,6 +470,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: smear
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_ramping, u_minus_j_target, &
                                                 eps_u_ramping
+    LOGICAL, OPTIONAL                        :: init_u_ramping_each_scf
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -723,6 +726,13 @@ CONTAINS
              u_minus_j_target = atomic_kind%dft_plus_u%u_minus_j_target
           ELSE
              u_minus_j_target = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(init_u_ramping_each_scf)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             init_u_ramping_each_scf = atomic_kind%dft_plus_u%init_u_ramping_each_scf
+          ELSE
+             init_u_ramping_each_scf = .FALSE.
           END IF
        END IF
        IF (PRESENT(u_ramping)) THEN
@@ -1841,6 +1851,10 @@ CONTAINS
                                     keyword_name="U_RAMPING",&
                                     r_val=atomic_kind%dft_plus_u%u_ramping,&
                                     error=error)
+          CALL section_vals_val_get(dft_plus_u_section,&
+                                    keyword_name="INIT_U_RAMPING_EACH_SCF",&
+                                    l_val=atomic_kind%dft_plus_u%init_u_ramping_each_scf,&
+                                    error=error)
           IF (atomic_kind%dft_plus_u%u_ramping > 0.0_dp) THEN
              atomic_kind%dft_plus_u%u_minus_j = 0.0_dp
           ELSE
@@ -2354,6 +2368,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=3)                         :: yon
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -2394,9 +2409,15 @@ CONTAINS
                "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
                "U(eff) = (U - J) value in [eV]:",atomic_kind%dft_plus_u%u_minus_j_target*evolt
              IF (atomic_kind%dft_plus_u%u_ramping > 0.0_dp) THEN
-                WRITE (UNIT=output_unit,FMT="(T8,A,T73,F8.3,/,T8,A,T73,ES8.1)")&
+                IF (atomic_kind%dft_plus_u%init_u_ramping_each_scf) THEN
+                   yon = "YES"
+                ELSE
+                   yon = " NO"
+                END IF
+                WRITE (UNIT=output_unit,FMT="(T8,A,T73,F8.3,/,T8,A,T73,ES8.1,/,T8,A,T78,A3)")&
                   "Increment for U ramping in [eV]:",atomic_kind%dft_plus_u%u_ramping*evolt,&
-                  "SCF threshold value for U ramping:",atomic_kind%dft_plus_u%eps_u_ramping
+                  "SCF threshold value for U ramping:",atomic_kind%dft_plus_u%eps_u_ramping,&
+                  "Set U ramping value to zero before each wavefunction optimisation:",yon
              END IF
              IF (ASSOCIATED(atomic_kind%dft_plus_u%orbitals)) THEN
                 WRITE (UNIT=output_unit,FMT="(T8,A)")&
