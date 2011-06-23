@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 MODULE optimize_input
   USE cell_types,                      ONLY: parse_cell_line
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -69,7 +70,7 @@ MODULE optimize_input
      REAL(KIND=dp) :: shift_mm
      REAL(KIND=dp) :: shift_qm
      LOGICAL       :: shift_average
-     INTEGER :: frame_start,frame_stop,frame_stride
+     INTEGER :: frame_start,frame_stop,frame_stride,frame_count
   END TYPE
 
   TYPE variable_type
@@ -88,6 +89,7 @@ MODULE optimize_input
      INTEGER       :: maxfun
      INTEGER       :: iter_start_val
      REAL(KIND=dp) :: randomize_variables
+     REAL(KIND=dp) :: start_time,target_time
   END TYPE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_input'
@@ -115,6 +117,8 @@ CONTAINS
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
+
+    oi_env%start_time=m_walltime()
 
     CALL parse_input(oi_env,root_section,error)
 
@@ -169,6 +173,7 @@ CONTAINS
       num_pe_slave, output_unit, restart_unit, state
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: free_var_index
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
+    LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: e1, e2, e_pot, energy_weight, &
                                                 re, rf, shift_mm, shift_qm, &
                                                 t1, t2, t3, t4, t5
@@ -198,6 +203,11 @@ CONTAINS
 
     ! adjust read data with respect to start/stop/stride
     IF (oi_env%fm_env%frame_stop<0) oi_env%fm_env%frame_stop=SIZE(pos_traj_read,3)
+
+    IF (oi_env%fm_env%frame_count>0) THEN
+       oi_env%fm_env%frame_stride=(oi_env%fm_env%frame_stop-oi_env%fm_env%frame_start+1+ &
+                                   oi_env%fm_env%frame_count-1)/(oi_env%fm_env%frame_count)
+    ENDIF
     n_frames=(oi_env%fm_env%frame_stop-oi_env%fm_env%frame_start+oi_env%fm_env%frame_stride)/oi_env%fm_env%frame_stride
 
     ALLOCATE(force_traj(3,n_atom,n_frames),pos_traj(3,n_atom,n_frames),energy_traj(n_frames))
@@ -424,6 +434,10 @@ CONTAINS
 
       IF ( state == -1 ) EXIT
 
+      CALL external_control(should_stop,"OPTIMIZE_INPUT",target_time=oi_env%target_time,start_time=oi_env%start_time,error=error)
+
+      IF (should_stop) EXIT
+
       ! do a powell step if needed
       IF (para_env%mepos==para_env%source) THEN
          CALL powell_optimize (ostate%nvar, free_vars , ostate)
@@ -618,6 +632,7 @@ CONTAINS
 
     CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=oi_env%project_name,error=error)
     CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=oi_env%seed,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%WALLTIME",r_val=oi_env%target_time,error=error)
 
     oi_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_INPUT",error=error)
     variable_section  => section_vals_get_subs_vals(oi_section,"VARIABLE",error=error)
@@ -652,6 +667,7 @@ CONTAINS
        CALL section_vals_val_get(fm_section,"FRAME_START",i_val=oi_env%fm_env%frame_start,error=error)
        CALL section_vals_val_get(fm_section,"FRAME_STOP",i_val=oi_env%fm_env%frame_stop,error=error)
        CALL section_vals_val_get(fm_section,"FRAME_STRIDE",i_val=oi_env%fm_env%frame_stride,error=error)
+       CALL section_vals_val_get(fm_section,"FRAME_COUNT",i_val=oi_env%fm_env%frame_count,error=error)
 
        CALL section_vals_val_get(fm_section,"GROUP_SIZE",i_val=oi_env%fm_env%group_size,error=error)
 
