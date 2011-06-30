@@ -19,8 +19,10 @@ MODULE f77_interface
   USE bibliography,                    ONLY: add_all_references
   USE cell_types,                      ONLY: cell_type,&
                                              init_cell
+  USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_init_config
-  USE cp_files,                        ONLY: open_file
+  USE cp_files,                        ONLY: init_preconnection_list,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -176,6 +178,13 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (.NOT. module_initialized) THEN
+
+       ! Initialise preconnection list
+       CALL init_preconnection_list()
+
+       ! get runtime information
+       CALL get_runtime_info
+
        ! initialize with a default error (a proper error will be initialized later)
        CALL cp_error_init(error)
 

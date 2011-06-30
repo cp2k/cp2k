@@ -70,12 +70,6 @@ PROGRAM cp2k
   ! output goes to the screen by default
   output_unit=default_output_unit
 
-  ! Initialise preconnection list
-  CALL init_preconnection_list()
-
-  ! get runtime information
-  CALL get_runtime_info
-
   ! initialize with a default error (a proper error will be initialized later)
   CALL cp_error_init(error)
 
