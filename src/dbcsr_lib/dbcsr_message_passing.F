@@ -504,11 +504,12 @@ CONTAINS
     CHARACTER(LEN=*)                         :: prg_code
 
     INTEGER                                  :: istat, len
-    CHARACTER(LEN=512)                       :: full_error
 #if defined(__parallel)
     CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
+    CHARACTER(LEN=MPI_MAX_ERROR_STRING+512)  :: full_error
 #else
     CHARACTER ( LEN = 512 )                  :: error_string
+    CHARACTER(LEN=512)                       :: full_error
 #endif
 
 #if defined(__parallel)
