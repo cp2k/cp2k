@@ -1198,6 +1198,8 @@ PROGRAM main
         CALL read_cube(cube_espot,iunit_cube_in)
         CLOSE(iunit_cube_in)
         write(6,*) "Done"
+     ELSE
+        NULLIFY(cube_espot)
      END IF
 
      IF (input%do_xyz) THEN  
