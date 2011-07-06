@@ -1502,6 +1502,16 @@ CONTAINS
        ENDIF
        !$OMP END PARALLEL
     ELSE
+       ! Small price to pay for avoiding infinite recursions.
+       DO blk = 2, nblks
+          IF (       blki(1, blk) .EQ. blki(1, blk-1)&
+               .AND. blki(2, blk) .EQ. blki(2, blk-1)) &
+               ! Weird assertion to give some idea of the two blocks.
+               CALL dbcsr_assert (-blki(1,blk), "EQ", blki(2,blk),&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+      "Should not have duplicate matrix blocks. (-row, col) is duplicated.",&
+               __LINE__, error=error)
+       ENDDO
        IF (nblks>0) &
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
             DATA=RESHAPE(blki, ((/3*nblks/))), error=error)
