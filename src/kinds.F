@@ -59,7 +59,7 @@ MODULE kinds
   INTEGER, PARAMETER :: int_4_size = 4
   INTEGER, PARAMETER :: int_8_size = 8
   INTEGER, PARAMETER :: default_string_length=80
-  INTEGER, PARAMETER :: default_path_length=250
+  INTEGER, PARAMETER :: default_path_length=1024
   INTEGER, PARAMETER :: max_line_length = 2*default_path_length
   CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_blank_character(2) = (/" ",CHAR(9)/)
 
