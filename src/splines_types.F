@@ -13,6 +13,8 @@ MODULE splines_types
 
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -269,8 +271,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isize, j, ntab, stat
+    INTEGER                                  :: handle, i, isize, j, ntab, &
+                                                stat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -304,6 +309,9 @@ CONTAINS
           END DO
        END DO
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE spline_env_create
 
 ! *****************************************************************************

@@ -70,9 +70,14 @@ CONTAINS
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: ntype
 
-    INTEGER                                  :: i, j, k, ngp
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_genpot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, k, ngp
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(pot)
     ngp    = 0
@@ -97,6 +102,8 @@ CONTAINS
           END DO
        END DO
     END DO
+    CALL timestop(handle)
+
   END SUBROUTINE init_genpot
 
 ! *****************************************************************************
@@ -819,8 +826,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_potparm_index', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, min_val, nvalues, stat, &
-                                                tmpij(2), value, zi, zj
+    INTEGER                                  :: handle, i, min_val, nvalues, &
+                                                stat, tmpij(2), value, zi, zj
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: hicut0, l_epsilon, l_sigma6, &
@@ -830,6 +837,8 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot, pot_ref
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(pot, pot_ref)
     failure = .FALSE.
@@ -877,7 +886,7 @@ CPSourceFileRef,&
        hicut0 = SQRT(pot%rcutsq)
        IF (ABS(hicut0) <= MIN_HICUT_VALUE) hicut0 = DEFAULT_HICUT_VALUE
     END IF
-    IF (pot_target==gp_type) CALL init_genpot(potparm, ntype)
+    CALL init_genpot(potparm, ntype)
     DO i = 1, nvalues
        value = my_index(i)
        CALL get_indexes(value,ntype,tmpij)
@@ -938,7 +947,10 @@ CPSourceFileRef,&
           pot%spl_f%cutoff = pot_ref%spl_f%cutoff*pot%spl_f%fscale(1) - pot%spl_f%cutoff
        END DO
     END IF
-    IF (pot_target==gp_type) CALL finalizef()
+    CALL finalizef()
+
+    CALL timestop(handle)
+
   END SUBROUTINE set_potparm_index
 
 ! *****************************************************************************
