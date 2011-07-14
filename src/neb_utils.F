@@ -346,15 +346,6 @@ CPSourceFileRef,&
        END DO
        DEALLOCATE (distance,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Update shell positions with the core positions
-!MK       DO iatom=1,natom
-!MK          shell_index = particle_set(iatom)%shell_index
-!MK          IF (shell_index /= 0) THEN
-!MK             ic = 3*(iatom - 1)
-!MK             is = 3*(natom + shell_index - 1)
-!MK             coords%xyz(is+1:is+3,:) = coords%xyz(ic+1:ic+3,:)
-!MK          END IF
-!MK       END DO
     END IF
 
     CALL timestop(handle)
