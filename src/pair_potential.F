@@ -336,9 +336,9 @@ CONTAINS
     ELSE
        fixed_spline_points=.FALSE.
        npoints = 20
+       IF (.NOT. found_locut) npoints = 2
     ENDIF
     spline_data => spl_p(1)%spline_data
-    IF (.NOT. found_locut) npoints = 2
     DO WHILE (.TRUE.)
        CALL init_splinexy ( spline_data, npoints+1)
        dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
