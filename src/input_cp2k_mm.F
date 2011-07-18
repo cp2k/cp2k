@@ -460,6 +460,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NPOINTS",&
+            description="Override the default search for an accurate spline by specifying a fixed number of spline points.",&
+            usage="NPOINTS 1024", default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="UNIQUE_SPLINE",&
             description="For few potentials (Lennard-Jones) one global optimal spline is generated instead"//&
             " of different optimal splines for each kind of potential",&

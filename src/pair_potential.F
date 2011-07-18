@@ -112,7 +112,7 @@ CONTAINS
 !>      Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
 ! *****************************************************************************
   SUBROUTINE spline_nonbond_control(spline_env, potparm, atomic_kind_set, &
-       eps_spline, max_energy, rlow_nb, emax_spline, iw, iw2, iw3, do_zbl, &
+       eps_spline, max_energy, rlow_nb, emax_spline, npoints, iw, iw2, iw3, do_zbl, &
        shift_cutoff, nonbonded_type, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
@@ -121,7 +121,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
                                                 rlow_nb, emax_spline
-    INTEGER, INTENT(IN)                      :: iw, iw2, iw3
+    INTEGER, INTENT(IN)                      :: npoints, iw, iw2, iw3
     LOGICAL, INTENT(IN)                      :: do_zbl, shift_cutoff
     CHARACTER(LEN=*), INTENT(IN)             :: nonbonded_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -130,7 +130,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, k, n, ncount, &
-                                                npoints, ntype
+                                                npoints_spline, ntype
     LOGICAL                                  :: failure, found_locut
     REAL(KIND=dp)                            :: energy_cutoff, hicut, hicut0, &
                                                 locut
@@ -199,7 +199,8 @@ CONTAINS
           locut=MAX(locut*SQRT(pot%spl_f%rcutsq_f),rlow_nb)
 
           ! Real Generation of the Spline
-          CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, &
+          npoints_spline=npoints
+          CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints_spline, locut, &
                hicut, eps_spline, iw, iw2, i, j, n, ncount, max_energy, pot, &
                energy_cutoff, found_locut, do_zbl, atomic_kind_set, &
                nonbonded_type, error)
@@ -318,6 +319,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: message
     CHARACTER(LEN=default_string_length)     :: file_name, tmp
     INTEGER                                  :: jx, mfac, nx, unit_number
+    LOGICAL                                  :: fixed_spline_points
     REAL(KIND=dp)                            :: diffmax, dx2, e, e_spline, x, &
                                                 x2, xdum, xdum1, xsav
     TYPE(cp_logger_type), POINTER            :: logger
@@ -329,7 +331,12 @@ CONTAINS
 
     CALL spline_factor_create(spl_f, error)
     mfac    =  5
-    npoints = 20
+    IF (npoints>0) THEN
+       fixed_spline_points=.TRUE.
+    ELSE
+       fixed_spline_points=.FALSE.
+       npoints = 20
+    ENDIF
     spline_data => spl_p(1)%spline_data
     IF (.NOT. found_locut) npoints = 2
     DO WHILE (.TRUE.)
@@ -351,8 +358,10 @@ CONTAINS
        ! This is the check for required accuracy on spline setup
        dx2 = (hicut - locut)/REAL(mfac*npoints+1,KIND=dp)
        x2  = locut + dx2
-       diffmax = 0.0_dp
+       diffmax = -1.0_dp
        xsav = hicut
+       ! if a fixed number of points is requested, no check on its error
+       IF (fixed_spline_points) EXIT
        DO jx = 1, mfac*npoints
           x = x2
           e = ener_pot(pot, x, energy_cutoff)

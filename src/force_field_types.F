@@ -234,6 +234,7 @@ MODULE force_field_types
                                                  max_energy,&
                                                  emax_spline,&
                                                  rlow_nb
+    INTEGER                                   :: npoints
     CHARACTER (LEN=default_path_length)       :: ff_file_name
     TYPE (input_info_type),POINTER            :: inp_info
     TYPE (charmm_info_type),POINTER           :: chm_info

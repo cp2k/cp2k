@@ -3247,7 +3247,7 @@ CPSourceFileRef,&
     CALL spline_nonbond_control(spline_env, potparm, &
          atomic_kind_set, eps_spline=ff_type%eps_spline, &
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
+         emax_spline=ff_type%emax_spline, npoints=ff_type%npoints, iw=iw2, iw2=iw3, iw3=iw4, &
          do_zbl=do_zbl, shift_cutoff=ff_type%shift_cutoff, &
          nonbonded_type=nonbonded_type, error=error)
     ! Let the pointers on potparm point to the splines generated in
