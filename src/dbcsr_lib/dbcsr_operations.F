@@ -34,7 +34,8 @@ MODULE dbcsr_operations
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
-  USE dbcsr_config,                    ONLY: detailed_timing,&
+  USE dbcsr_config,                    ONLY: dbcsr_init_conf,&
+                                             detailed_timing,&
                                              mm_driver,&
                                              mm_driver_cuda,&
                                              mm_driver_plasma
@@ -71,11 +72,9 @@ MODULE dbcsr_operations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
+  USE dbcsr_kinds,                     ONLY: &
+       dp, int_1_size, int_2_size, int_4_size, int_8, int_8_size, real_4, &
+       real_8, sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_walltime
   USE dbcsr_message_passing,           ONLY: dmp_max,&
@@ -150,6 +149,7 @@ MODULE dbcsr_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+  PUBLIC :: dbcsr_init_lib, dbcsr_finalize_lib
   PUBLIC :: dbcsr_multiply,&
             dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
@@ -4444,6 +4444,66 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_lanczos_extremal_eig
 
+! *****************************************************************************
+!> \brief Initialize the DBCSR library
+!>
+!> Prepares the DBCSR library for use.
+!> \param[in,out] error     error
+! *****************************************************************************
+  SUBROUTINE dbcsr_init_lib (error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_lib', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    !
+    CALL dbcsr_assert (int_1_size, "EQ", 1,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Incorrect assumption of an 8-bit integer size!",&
+         __LINE__, error=error)
+    CALL dbcsr_assert (int_2_size, "EQ", 2,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Incorrect assumption of a 16-bit integer size!",&
+         __LINE__, error=error)
+    CALL dbcsr_assert (int_4_size, "EQ", 4,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Incorrect assumption of a 32-bit integer size!",&
+         __LINE__, error=error)
+    CALL dbcsr_assert (int_8_size, "EQ", 8,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Incorrect assumption of a 64-bit integer size!",&
+         __LINE__, error=error)
+    !
+    CALL dbcsr_init_conf (error)
+    !
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_init_lib
+
+
+! *****************************************************************************
+!> \brief Finalize the DBCSR library
+!>
+!> Cleans up after the DBCSR library.  Used to deallocate persistent objects.
+!> \param[in,out] error     error
+! *****************************************************************************
+  SUBROUTINE dbcsr_finalize_lib (error)
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize_lib', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_finalize_lib
 
 
 #include "dbcsr_operations_d_.F"

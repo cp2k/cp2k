@@ -32,6 +32,8 @@ MODULE dbcsr_config
 
   PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver
 
+  PUBLIC :: dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
+
 
   ! These are for DBCSR internal use.
   !
@@ -56,6 +58,8 @@ MODULE dbcsr_config
             mm_name_smm,&
             mm_name_plasma,&
             mm_name_cuda
+  PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers, nstackmemregions
+
   !
   PUBLIC :: detailed_timing, kernel_timing
 
@@ -130,6 +134,13 @@ MODULE dbcsr_config
   LOGICAL :: detailed_timing = .FALSE.
   LOGICAL :: kernel_timing = .FALSE.
 
+  ! Number of stacks to use
+  INTEGER :: nm_stacks = 0
+  INTEGER :: nn_stacks = 0
+  INTEGER :: nk_stacks = 0
+  INTEGER :: nstackbuffers = 1
+  INTEGER :: nstackmemregions = 1
+
 
 CONTAINS
 
@@ -156,6 +167,7 @@ CONTAINS
        mm_driver = mm_driver_cuda
        mm_stack_size = 10000
     ENDIF
+    !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf
 
@@ -327,6 +339,49 @@ CONTAINS
 
     use_mm_stacksize = mm_stack_size
   END FUNCTION dbcsr_get_conf_mm_stacksize
+
+
+  SUBROUTINE dbcsr_set_conf_nstacks (nstacks, nbuffers, nmemregs, error)
+    INTEGER, INTENT(IN)                      :: nstacks(:), nbuffers, nmemregs
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_nstacks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_assert (SIZE(nstacks) ,"EQ", 3,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "ntacks size must be 3", __LINE__, error=error)
+    nm_stacks        = nstacks(1)
+    nn_stacks        = nstacks(2)
+    nk_stacks        = nstacks(3)
+    nstackbuffers    = nbuffers
+    nstackmemregions = nmemregs
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_nstacks
+
+  SUBROUTINE dbcsr_get_conf_nstacks (nstacks, nbuffers, nmemregs, error)
+    INTEGER, INTENT(OUT)                     :: nstacks(:), nbuffers, nmemregs
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_nstacks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_assert (SIZE(nstacks) ,"EQ", 3,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "ntacks size must be 3", __LINE__, error=error)
+    nstacks(1) = nm_stacks
+    nstacks(2) = nn_stacks
+    nstacks(3) = nk_stacks
+    nbuffers   = nstackbuffers 
+    nmemregs   = nstackmemregions
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_get_conf_nstacks
 
 
 END MODULE dbcsr_config

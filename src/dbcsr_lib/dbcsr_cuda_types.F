@@ -72,6 +72,7 @@ MODULE dbcsr_cuda_types
      TYPE(dbcsr_cuda_mem_type_r8) :: d_d
      TYPE(dbcsr_cuda_mem_type_c4) :: d_c
      TYPE(dbcsr_cuda_mem_type_c8) :: d_z
+     INTEGER :: refcount
   END TYPE dbcsr_cuda_mem_type
 
 

@@ -53,13 +53,14 @@ MODULE cp_dbcsr_interface
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_cuda_mem, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, dbcsr_init_conf, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, &
        dbcsr_set_conf_combtypes, dbcsr_set_conf_cuda_mem, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_subcomm, detailed_timing, &
-       has_cuda, has_mpi, kernel_timing, mm_driver_blas, mm_driver_cuda, &
-       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
-       mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, detailed_timing, has_cuda, has_mpi, &
+       kernel_timing, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
+       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
+       mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_scalar, &
@@ -67,7 +68,9 @@ MODULE cp_dbcsr_interface
        dbcsr_scalar_zero, dbcsr_type_1d_to_2d
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -91,11 +94,12 @@ MODULE cp_dbcsr_interface
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_filter, dbcsr_frobenius_norm, &
-       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_diag, &
-       dbcsr_hadamard_product, dbcsr_multiply, dbcsr_norm, dbcsr_scale, &
-       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, &
-       dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_copy_into_existing, dbcsr_filter, dbcsr_finalize_lib, &
+       dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
+       dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_init_lib, &
+       dbcsr_multiply, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
+       dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
+       dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_desymmetrize_deep,&
                                              dbcsr_distribute,&
@@ -142,7 +146,7 @@ MODULE cp_dbcsr_interface
   !
   ! Interface to libdbcsr (contains cp2k timing and error)
   PUBLIC :: cp_dbcsr_conform_scalar
-  PUBLIC :: cp_dbcsr_init_config
+  PUBLIC :: cp_dbcsr_init_lib, cp_dbcsr_finalize_lib
   PUBLIC :: cp_dbcsr_config
   PUBLIC :: cp_dbcsr_print_config
   PUBLIC :: cp_dbcsr_untranspose_blocks
@@ -426,18 +430,32 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Initializes DBCSR configuration
+!> \brief Initializes DBCSR
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_init_config(error)
+  SUBROUTINE cp_dbcsr_init_lib (error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_config', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_lib', &
       routineP = moduleN//':'//routineN
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_init_conf(dbcsr_error)
-  END SUBROUTINE cp_dbcsr_init_config
+    CALL dbcsr_init_lib (dbcsr_error)
+  END SUBROUTINE cp_dbcsr_init_lib
+
+! *****************************************************************************
+!> \brief Finalizes DBCSR
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_finalize_lib (error)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize_lib', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_finalize_lib (dbcsr_error)
+  END SUBROUTINE cp_dbcsr_finalize_lib
 
 
 ! *****************************************************************************
@@ -450,12 +468,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: mm_driver, mm_ss
+    INTEGER                                  :: error_handle, mm_driver, &
+                                                mm_ss, n_mem_regions, &
+                                                n_stack_buffers
+    INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_combtypes, use_cuda_mem, &
                                                 use_mpi_mem, use_subcomms
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
+    CALL dbcsr_error_set (routineN, error_handle, dbcsr_error)
     dbcsr_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%DBCSR",error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -474,12 +496,25 @@ CONTAINS
          "detailed_timing", l_val=detailed_timing, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "kernel_timing", l_val=kernel_timing, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "n_size_m_stacks", i_val=nstacks(1), error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "n_size_n_stacks", i_val=nstacks(2), error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "n_size_k_stacks", i_val=nstacks(3), error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "n_stack_buffers", i_val=n_stack_buffers, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "n_stack_memory_regions", i_val=n_mem_regions, error=error)
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
     CALL dbcsr_set_conf_cuda_mem (use_cuda_mem, error=dbcsr_error)
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
+    CALL dbcsr_set_conf_nstacks(nstacks, n_stack_buffers, n_mem_regions,&
+         error=dbcsr_error)
+    CALL dbcsr_error_stop (error_handle, dbcsr_error)
   END SUBROUTINE cp_dbcsr_config
 
 

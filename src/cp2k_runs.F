@@ -15,7 +15,9 @@ MODULE cp2k_runs
                                              cp2k_version,&
                                              cp2k_year,&
                                              enable_color_tags
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_config
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_config,&
+                                             cp_dbcsr_finalize_lib,&
+                                             cp_dbcsr_init_lib
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -172,6 +174,8 @@ CONTAINS
     NULLIFY(para_env, f_env)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
+
+    CALL cp_dbcsr_init_lib (error=error)
 
     NULLIFY(globenv, force_env)
 
@@ -425,6 +429,8 @@ CONTAINS
 
 ! if CUDA is enabled we need to free memory on the graphics card
     CALL cuda_device_mem_release()
+
+    CALL cp_dbcsr_finalize_lib (error=error)
 
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)

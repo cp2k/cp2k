@@ -20,7 +20,8 @@ MODULE f77_interface
   USE cell_types,                      ONLY: cell_type,&
                                              init_cell
   USE cp2k_info,                       ONLY: get_runtime_info
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_init_config
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
+                                             cp_dbcsr_init_lib
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_iterate
@@ -225,8 +226,8 @@ CONTAINS
        !   *** init the bibliography ***
        CALL add_all_references()
 
-       ! Initialize DBCSR configuration
-       CALL cp_dbcsr_init_config (error=error)
+       ! Initialize the DBCSR configuration
+       CALL cp_dbcsr_init_lib (error=error)
     ELSE
        ierr=cp_failure_level
     END IF
@@ -252,6 +253,8 @@ CONTAINS
     IF (.NOT.module_initialized) THEN
        ierr=cp_failure_level
     ELSE
+       ! Finalize the DBCSR configuration
+       CALL cp_dbcsr_finalize_lib (error=error)
        CALL cp_error_init(error, stop_level=cp_fatal_level)
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)

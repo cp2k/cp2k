@@ -23,10 +23,12 @@ MODULE input_cp2k
   USE dbcsr_config,                    ONLY: &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_cuda_mem, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, has_blas, has_cuda, &
-       has_plasma, has_smm_gemm, mm_driver_blas, mm_driver_cuda, &
-       mm_driver_matmul, mm_driver_plasma, mm_driver_smm, mm_name_blas, &
-       mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, has_blas, has_cuda, has_plasma, has_smm_gemm, &
+       mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
+       mm_driver_smm, mm_name_blas, mm_name_cuda, mm_name_matmul, &
+       mm_name_plasma, mm_name_smm
+  USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
@@ -637,7 +639,10 @@ CONTAINS
 
     CHARACTER(len=32)                        :: a_blas, a_cuda, a_plasma, &
                                                 a_smm
+    INTEGER                                  :: n_buffers, n_mem_regions
+    INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: failure
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
@@ -733,6 +738,44 @@ CONTAINS
          TRIM("CUDA"//a_cuda)&
          ),&
          error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL dbcsr_get_conf_nstacks (nstacks, n_buffers, n_mem_regions, dbcsr_error)
+    CALL keyword_create(keyword, name="n_size_m_stacks",&
+         description="Number of stacks to use for distinct m (row) sizes" &
+         // " (e.g., 2 for a system of mostly waters).",&
+         usage="n_size_m_stacks 2",&
+         default_i_val=nstacks(1),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="n_size_n_stacks",&
+         description="Number of stacks to use for distinct n (col) sizes" &
+         // " (e.g., 2 for a system of mostly waters).",&
+         usage="n_size_n_stacks 2",&
+         default_i_val=nstacks(2),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="n_size_k_stacks",&
+         description="Number of stacks to use for distinct k" &
+         // " (common row and column) sizes" &
+         // " (e.g., 2 for a system of mostly waters).",&
+         usage="n_size_k_stacks 2",&
+         default_i_val=nstacks(2),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="n_stack_buffers",&
+         description="Number of stack buffers to use" &
+         // " (e.g., 2 when using GPUs)",&
+         usage="n_stack_buffers 2",&
+         default_i_val=n_buffers,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="n_stack_memory_regions",&
+         description="Number of memory regions to use for stacks" &
+         // " (e.g., number of GPU cards per MPI process)",&
+         usage="n_stack_memory_regions 2",&
+         default_i_val=n_mem_regions,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !

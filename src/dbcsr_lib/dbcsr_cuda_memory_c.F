@@ -95,13 +95,13 @@
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (error)) CALL dbcsr_error_set (routineN, error_handle, error)
-    old_size = MAX(1, dev_mem%req_len*(2*real_4_size))
+    old_size = MAX(1, dev_mem%req_len) * (2*real_4_size)
     dev_mem%req_len = n
     dev_mem%len = MAX(1, n)
 #if defined (__DBCSR_CUDA)
     istat = cuda_dev_mem_realloc_cu(dev_mem%ref,&
          INT(dev_mem%len*(2*real_4_size), KIND=C_SIZE_T),&
-         old_size,&
+         INT(old_size, KIND=C_SIZE_T),&
          mem_crunch)
     IF (PRESENT (memory_crunch)) &
        memory_crunch = mem_crunch .NE. 0

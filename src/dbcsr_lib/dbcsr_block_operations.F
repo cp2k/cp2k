@@ -15,11 +15,12 @@
 MODULE dbcsr_block_operations
 
   USE dbcsr_data_methods,              ONLY: &
-       dbcsr_data_exists, dbcsr_data_get_type, dbcsr_data_verify_bounds, &
-       dbcsr_get_data_p_2d_c, dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, &
-       dbcsr_get_data_p_2d_z, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
-       dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, &
-       dbcsr_type_is_2d
+       dbcsr_data_exists, dbcsr_data_get_size, &
+       dbcsr_data_get_size_referenced, dbcsr_data_get_type, &
+       dbcsr_data_verify_bounds, dbcsr_get_data_p_2d_c, &
+       dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, &
+       dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
+       dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              real_4,&
@@ -49,6 +50,8 @@ MODULE dbcsr_block_operations
   PUBLIC :: block_add_on_diag
   PUBLIC :: block_chol_inv
   PUBLIC :: dbcsr_block_norm_frob
+
+  PUBLIC :: block_add
 
   ! For quick access
   PUBLIC :: block_copy_s, block_copy_d,&
@@ -165,6 +168,11 @@ MODULE dbcsr_block_operations
      MODULE PROCEDURE block_norm_frob_s_s, block_norm_frob_d_s,&
                       block_norm_frob_c_s, block_norm_frob_z_s
   END INTERFACE
+
+  INTERFACE block_add
+     MODULE PROCEDURE block_add_anytype
+     MODULE PROCEDURE block_add_s, block_add_d, block_add_c, block_add_z
+  END INTERFACE block_add
 
 
   LOGICAL, PARAMETER :: debug_mod    = .FALSE.
@@ -1653,6 +1661,65 @@ CONTAINS
             routineN, "Invalid data type!",__LINE__,error)
     END SELECT
   END SUBROUTINE block_add_on_diag_anytype
+
+! *****************************************************************************
+!> \brief Adds two blocks
+!> \param[in,out] block_a      Block to add to
+!> \param[in] block_b          Block to add to block_a
+!> \param[inout] error         error
+! *****************************************************************************
+  SUBROUTINE block_add_anytype (block_a, block_b, len, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: block_a
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: block_b
+    INTEGER, INTENT(IN), OPTIONAL            :: len
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_add_anytype', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) &
+         CALL dbcsr_assert (dbcsr_data_get_type(block_a), "EQ",&
+         dbcsr_data_get_type(block_a),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Mismatched data types.", __LINE__, error=error)
+    IF (PRESENT (len)) THEN
+       n = len
+       CALL dbcsr_assert (dbcsr_data_get_size (block_b), "GE", n,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Block B too small.", __LINE__, error=error)
+    ELSE
+       n = dbcsr_data_get_size_referenced (block_b)
+    ENDIF
+    CALL dbcsr_assert (dbcsr_data_get_size (block_a), "GE", n,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Block A too small.", __LINE__, error=error)
+    SELECT CASE (dbcsr_data_get_type(block_a))
+    CASE (dbcsr_type_real_4)
+       CALL block_add_s (block_a%d%r_sp, block_b%d%r_sp, n)
+    CASE (dbcsr_type_real_8)
+       CALL block_add_d (block_a%d%r_dp, block_b%d%r_dp, n)
+    CASE (dbcsr_type_complex_4)
+       CALL block_add_c (block_a%d%c_sp, block_b%d%c_sp, n)
+    CASE (dbcsr_type_complex_8)
+       CALL block_add_z (block_a%d%c_dp, block_b%d%c_dp, n)
+    CASE (dbcsr_type_real_4_2d)
+       CALL block_add_s (block_a%d%r2_sp, block_b%d%r2_sp, n)
+    CASE (dbcsr_type_real_8_2d)
+       CALL block_add_d (block_a%d%r2_dp, block_b%d%r2_dp, n)
+    CASE (dbcsr_type_complex_4_2d)
+       CALL block_add_c (block_a%d%c2_sp, block_b%d%c2_sp, n)
+    CASE (dbcsr_type_complex_8_2d)
+       CALL block_add_z (block_a%d%c2_dp, block_b%d%c2_dp, n)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type!",__LINE__,error)
+    END SELECT
+  END SUBROUTINE block_add_anytype
+
 
 
 ! *****************************************************************************

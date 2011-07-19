@@ -112,7 +112,9 @@ __global__ void stack_mm_r
 
   /* Release the lock on the C block. */
   syncthreads();
-  if (tn == 0)
+  if (tn == 0) {
     c_locks[c_id] = 0;
+    //threadfence();
+  }
 
 };

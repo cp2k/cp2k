@@ -73,6 +73,9 @@ MODULE dbcsr_cuda_operations
 
   INTERFACE dbcsr_cuda_cp_host_to_dev
      MODULE PROCEDURE cp_host_to_dev_any
+     MODULE PROCEDURE cp_host_to_dev_i0, cp_host_to_dev_l0
+     MODULE PROCEDURE cp_host_to_dev_r0, cp_host_to_dev_d0
+     MODULE PROCEDURE cp_host_to_dev_c0, cp_host_to_dev_z0
      MODULE PROCEDURE cp_host_to_dev_i, cp_host_to_dev_l
      MODULE PROCEDURE cp_host_to_dev_r, cp_host_to_dev_d
      MODULE PROCEDURE cp_host_to_dev_c, cp_host_to_dev_z
@@ -80,6 +83,9 @@ MODULE dbcsr_cuda_operations
 
   INTERFACE dbcsr_cuda_cp_dev_to_host
      MODULE PROCEDURE cp_dev_to_host_any
+     MODULE PROCEDURE cp_dev_to_host_i0, cp_dev_to_host_l0
+     MODULE PROCEDURE cp_dev_to_host_r0, cp_dev_to_host_d0
+     MODULE PROCEDURE cp_dev_to_host_c0, cp_dev_to_host_z0
      MODULE PROCEDURE cp_dev_to_host_i, cp_dev_to_host_l
      MODULE PROCEDURE cp_dev_to_host_r, cp_dev_to_host_d
      MODULE PROCEDURE cp_dev_to_host_c, cp_dev_to_host_z
@@ -88,24 +94,28 @@ MODULE dbcsr_cuda_operations
 
 #if defined (__DBCSR_CUDA)
   INTERFACE
-     FUNCTION cuda_memcpy_h2d_cu(host, dev, count) RESULT (istat) BIND(C, name="dc_memcpy_h2d_cu")
+     FUNCTION cuda_memcpy_h2d_cu(host, dev, count, async_type) RESULT (istat) &
+          BIND(C, name="dc_memcpy_h2d_cu")
        USE ISO_C_BINDING
     TYPE(C_PTR), INTENT(IN), VALUE           :: host
     TYPE(C_PTR), VALUE                       :: dev
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: count
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_memcpy_h2d_cu
   END INTERFACE
 
   INTERFACE
-     FUNCTION cuda_memcpy_d2h_cu(dev, host, count) RESULT (istat) BIND(C, name="dc_memcpy_d2h_cu")
+     FUNCTION cuda_memcpy_d2h_cu(dev, host, count, async_type) RESULT (istat) &
+          BIND(C, name="dc_memcpy_d2h_cu")
        USE ISO_C_BINDING
     TYPE(C_PTR), INTENT(IN), VALUE           :: dev
     TYPE(C_PTR), VALUE                       :: host
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: count
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_memcpy_d2h_cu
@@ -229,9 +239,10 @@ CONTAINS
   END SUBROUTINE do_mm_stack_any
 
 
-  SUBROUTINE cp_host_to_dev_any (host_mem, dev_mem, error)
+  SUBROUTINE cp_host_to_dev_any (host_mem, dev_mem, async, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: host_mem
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
+    LOGICAL, INTENT(IN), OPTIONAL            :: async
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -254,19 +265,19 @@ CONTAINS
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_s(host_mem),&
-            dev_mem%d_r, n,&
+            dev_mem%d_r, n, async=async,&
             error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_d(host_mem),&
-            dev_mem%d_d, n,&
+            dev_mem%d_d, n, async=async,&
             error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_c(host_mem),&
-            dev_mem%d_c, n,&
+            dev_mem%d_c, n, async=async,&
             error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_z(host_mem),&
-            dev_mem%d_z, n,&
+            dev_mem%d_z, n, async=async,&
             error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
@@ -278,9 +289,10 @@ CONTAINS
   END SUBROUTINE cp_host_to_dev_any
 
 
-  SUBROUTINE cp_dev_to_host_any (dev_mem, host_mem, error)
+  SUBROUTINE cp_dev_to_host_any (dev_mem, host_mem, async, error)
     TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: dev_mem
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: host_mem
+    LOGICAL, INTENT(IN), OPTIONAL            :: async
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -310,19 +322,19 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (host_mem, d_r4)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_r,&
-            d_r4, n, error=error)
+            d_r4, n, async=async, error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (host_mem, d_r8)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_d,&
-            d_r8, n, error=error)
+            d_r8, n, async=async, error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (host_mem, d_c4)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_c,&
-            d_c4, n, error=error)
+            d_c4, n, async=async, error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (host_mem, d_c8)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_z,&
-            d_c8, n, error=error)
+            d_c8, n, async=async, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&

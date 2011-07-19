@@ -16,7 +16,8 @@ MODULE dbcsr_cuda_memory
 #if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
 #endif
-  USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_get_type
+  USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_get_type,&
+       dbcsr_cuda_dev_mem_setup
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type,&
                                              dbcsr_cuda_mem_type_c4,&
                                              dbcsr_cuda_mem_type_c8,&
@@ -36,7 +37,9 @@ MODULE dbcsr_cuda_memory
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
-                                             dbcsr_type_real_8
+                                             dbcsr_type_real_8,&
+                                             dbcsr_type_int_4,&
+                                             dbcsr_type_int_8
   USE dummy_c_bindings
 
   IMPLICIT NONE
@@ -54,6 +57,10 @@ MODULE dbcsr_cuda_memory
   PUBLIC :: dbcsr_cuda_host_mem_alloc, dbcsr_cuda_host_mem_dealloc
 
   PUBLIC :: dbcsr_cuda_dev_mem_zero
+
+  PUBLIC :: dbcsr_cuda_dev_mem_init
+  PUBLIC :: dbcsr_cuda_dev_mem_new, dbcsr_cuda_dev_mem_release,&
+            dbcsr_cuda_dev_mem_hold
 
 
   INTERFACE dbcsr_cuda_dev_mem_alloc
@@ -182,6 +189,51 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Encapsulated memory routines for the device
 
+  SUBROUTINE dbcsr_cuda_dev_mem_init (dev_mem, error)
+    TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    NULLIFY (dev_mem)
+  END SUBROUTINE dbcsr_cuda_dev_mem_init
+
+  SUBROUTINE dbcsr_cuda_dev_mem_new (dev_mem, data_type, error)
+    TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
+    INTEGER, INTENT(IN), OPTIONAL            :: data_type
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: stat
+
+    ALLOCATE (dev_mem, stat=stat)
+    dev_mem%data_type = 0
+    dev_mem%refcount = 1
+    IF (PRESENT (data_type)) THEN
+       CALL dbcsr_cuda_dev_mem_setup(dev_mem, data_type)
+    ENDIF
+  END SUBROUTINE dbcsr_cuda_dev_mem_new
+
+  SUBROUTINE dbcsr_cuda_dev_mem_hold (dev_mem, error)
+    TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    dev_mem%refcount = dev_mem%refcount +1
+  END SUBROUTINE dbcsr_cuda_dev_mem_hold
+
+
+  SUBROUTINE dbcsr_cuda_dev_mem_release (dev_mem, error)
+    TYPE(dbcsr_cuda_mem_type), POINTER       :: dev_mem
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: stat
+
+    dev_mem%refcount = dev_mem%refcount - 1
+    IF (dev_mem%refcount == 0) THEN
+       CALL dev_mem_dealloc_any (dev_mem, error=error)
+       DEALLOCATE (dev_mem, stat=stat)
+       NULLIFY (dev_mem)
+    ENDIF
+  END SUBROUTINE dbcsr_cuda_dev_mem_release
+
+
   SUBROUTINE dev_mem_alloc_any (dev_mem, n, error, stat)
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
     INTEGER, INTENT(IN)                      :: n
@@ -202,6 +254,12 @@ CONTAINS
     IF (PRESENT (error)) error = my_error
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
+    CASE (dbcsr_type_int_4)
+       CALL dbcsr_cuda_dev_mem_alloc (dev_mem%d_i, n,&
+            error=error, stat=stat)
+    CASE (dbcsr_type_int_8)
+       CALL dbcsr_cuda_dev_mem_alloc (dev_mem%d_l, n,&
+            error=error, stat=stat)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_dev_mem_alloc (dev_mem%d_r, n,&
             error=error, stat=stat)
@@ -248,6 +306,12 @@ CONTAINS
     IF (PRESENT (error)) error = my_error
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
+    CASE (dbcsr_type_int_4)
+       CALL dbcsr_cuda_dev_mem_realloc (dev_mem%d_i, n,&
+            error=error, stat=stat)
+    CASE (dbcsr_type_int_8)
+       CALL dbcsr_cuda_dev_mem_realloc (dev_mem%d_l, n,&
+            error=error, stat=stat)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_dev_mem_realloc (dev_mem%d_r, n,&
             error=error, stat=stat)
@@ -293,6 +357,12 @@ CONTAINS
     IF (PRESENT (error)) error = my_error
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
+    CASE (dbcsr_type_int_4)
+       CALL dbcsr_cuda_dev_mem_dealloc (dev_mem%d_i,&
+            error=error, stat=stat)
+    CASE (dbcsr_type_int_8)
+       CALL dbcsr_cuda_dev_mem_dealloc (dev_mem%d_l,&
+            error=error, stat=stat)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_dev_mem_dealloc (dev_mem%d_r,&
             error=error, stat=stat)
@@ -334,6 +404,10 @@ CONTAINS
     CALL dbcsr_error_set (routineN, error_handle, error)
 
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
+    CASE (dbcsr_type_int_4)
+       CALL dbcsr_cuda_dev_mem_zero (dev_mem%d_i, first, last, error=error)
+    CASE (dbcsr_type_int_8)
+       CALL dbcsr_cuda_dev_mem_zero (dev_mem%d_l, first, last, error=error)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_dev_mem_zero (dev_mem%d_r, first, last, error=error)
     CASE (dbcsr_type_real_8)

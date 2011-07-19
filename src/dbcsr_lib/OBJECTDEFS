@@ -30,6 +30,8 @@ LIB3_OBJECTS = array_types.o\
                dbcsr_methods.o\
                dbcsr_mp_operations.o\
                dbcsr_plasma_interface.o\
+               dbcsr_pq_methods.o\
+               dbcsr_pq_types.o\
                dbcsr_test_add.o\
                dbcsr_test_methods.o\
                dbcsr_test_multiply.o\

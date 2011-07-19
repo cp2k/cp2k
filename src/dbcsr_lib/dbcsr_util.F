@@ -21,6 +21,7 @@ MODULE dbcsr_util
                                              dbcsr_get_data
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
+                                             int_2,&
                                              int_4,&
                                              int_8,&
                                              real_4,&
@@ -70,7 +71,8 @@ MODULE dbcsr_util
             nfull_elements,&
             dbcsr_calc_block_sizes,&
             find_block_of_element,&
-            get_internal_offsets
+            get_internal_offsets,&
+            map_most_common
   PUBLIC :: swap, sgn
   ! string routines
   PUBLIC :: uppercase
@@ -1377,6 +1379,74 @@ CONTAINS
     END IF
     GO TO 1
   END SUBROUTINE sort_i8
+
+
+! *****************************************************************************
+!> \brief Makes a lookup table from the most common elements.
+!> \par Lookup table
+!>      The lookup table is indexed by the most common array values
+!>      (i.e., block sizes).  Its values are the order of their frequency.
+!> \param[in] array                  Array for which to find the most common
+!>                                   elements.
+!> \param[out] most_common_map       Ranking of the most common elements
+!>                                   in array
+!> \param[in] nmost_common           The number of most common elements
+!> \param[out] most_common_elements  The most common elements in array
+!> \param[in] size_limit             Limit maximum size to this value
+! *****************************************************************************
+  SUBROUTINE map_most_common(array, most_common_map, nmost_common,&
+       most_common_elements, size_limit, max_val)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: array
+    INTEGER(KIND=int_2), DIMENSION(:), &
+      POINTER                                :: most_common_map
+    INTEGER, INTENT(IN)                      :: nmost_common
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: most_common_elements
+    INTEGER, INTENT(IN)                      :: size_limit
+    INTEGER, INTENT(OUT)                     :: max_val
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'map_most_common', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, max_val_l, nmc
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: permutation, size_counts
+
+!   ---------------------------------------------------------------------------
+
+    IF (SIZE (array) .GT. 0) THEN
+       max_val = MAXVAL (array)
+       max_val_l = MIN(MIN (size_limit, max_val), HUGE(most_common_map))
+    ELSE
+       max_val = 0
+       max_val_l = 0
+    ENDIF
+    ! Count the frequency of all block sizes up to max_val_l.
+    ALLOCATE (size_counts (0:max_val_l))
+    ALLOCATE (permutation (0:max_val_l))
+    size_counts = 0
+    permutation = 0
+    DO i = 1, SIZE(array)
+       ! Counts are decreased to easily get a reverse sort order.
+       IF (array(i) .LE. max_val_l) &
+            size_counts(array(i)) = size_counts(array(i)) - 1
+    END DO
+    IF (SIZE(array) .GT. 0) THEN
+       CALL sort (size_counts, max_val_l, permutation)
+    ENDIF
+    nmc = MIN(nmost_common, SIZE(size_counts))
+    ! Determine the biggest block size and allocate the map.
+    ALLOCATE (most_common_map(0:max_val_l))
+    ! Create the mapping from block size to order.
+    most_common_map = nmost_common+1
+    DO i = 1, nmc
+       most_common_map(permutation(i-1)) = i
+    END DO
+    ! Copy the most common elements
+    most_common_elements(:) = 0
+    most_common_elements(1:nmc) = permutation(0:nmc-1)
+    DEALLOCATE (size_counts)
+    DEALLOCATE (permutation)
+  END SUBROUTINE map_most_common
+
 
 ! *****************************************************************************
 !> \brief generates the hash of a string and the index in the table

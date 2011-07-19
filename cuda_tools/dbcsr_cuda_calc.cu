@@ -9,6 +9,26 @@
 
 #include "dbcsr_cuda.h"
 
+static const int verbose_print = 0;
+
+
+__global__ void zerolocks (
+	int *__restrict__ locks,
+	const int *__restrict__ param_stack, const int stack_size) {
+
+	int sp, lock_pos;
+
+	sp = blockIdx.x * blockDim.x + threadIdx.x;
+	if (sp < stack_size) {
+		lock_pos = param_stack[sp*7+6]-1;
+		locks[lock_pos] = 0;
+		threadfence();
+	}
+}
+
+
+
+
 
 int cuda_error_check (cudaError_t cudaError) {
   if (cudaError != cudaSuccess) {
@@ -71,6 +91,9 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
   size_t shared_size;
   struct cudaDeviceProp devProperties;
 
+  if (verbose_print)
+	  printf("Locks address %p.\n", c_locks);
+
   maxt = m_max * n_max;
 
   cErr = cudaGetDevice(&myDevice);
@@ -81,6 +104,10 @@ extern "C" int dc_do_stack_cu(int *param_stack, int stack_size, int nparams,
 
   if (maxt > devProperties.maxThreadsPerBlock)
     return 3;
+
+//  zerolocks <<< (stack_size+127)/128, 128 >>> (
+//	  c_locks, param_stack, stack_size
+//  	  );
 
   switch (which_data) {
     /* The data type identifier numbers correspond to the values

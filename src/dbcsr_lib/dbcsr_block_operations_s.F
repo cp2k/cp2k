@@ -620,3 +620,9 @@
     CALL block_2d_chol_inv_s(m, blk)
   END SUBROUTINE block_chol_inv_s
 
+  PURE SUBROUTINE block_add_s(block_a, block_b, len)
+    INTEGER, INTENT(IN)                    :: len
+    REAL(kind=real_4), DIMENSION(len), INTENT(INOUT) :: block_a
+    REAL(kind=real_4), DIMENSION(len), INTENT(IN)    :: block_b
+    block_a(1:len) = block_a(1:len) + block_b(1:len)
+  END SUBROUTINE block_add_s
