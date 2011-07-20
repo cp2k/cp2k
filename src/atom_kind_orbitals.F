@@ -220,8 +220,8 @@ CONTAINS
                            cval_nlcc=cval_nlcc)
         potential%gth_pot%nlcc = .TRUE.
         potential%gth_pot%nexp_nlcc = nexp_nlcc
-        potential%gth_pot%alpha_nlcc(1:nexp_nlcc) = alpha_lpot(1:nexp_nlcc)
-        potential%gth_pot%nct_nlcc(1:nexp_nlcc) = nct_lpot(1:nexp_nlcc)
+        potential%gth_pot%alpha_nlcc(1:nexp_nlcc) = alpha_nlcc(1:nexp_nlcc)
+        potential%gth_pot%nct_nlcc(1:nexp_nlcc) = nct_nlcc(1:nexp_nlcc)
         potential%gth_pot%cval_nlcc(1:4,1:nexp_nlcc) = cval_nlcc(1:4,1:nexp_nlcc)
       END IF
 
