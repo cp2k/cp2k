@@ -417,15 +417,16 @@ CONTAINS
       n=gthpot%nexp_nlcc
       DO i=1,n
         a=gthpot%alpha_nlcc(i)
+        ! note that all terms are computed with rc, not rr
         rc(:)=rr(:)/a
         fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
         DO j=1,gthpot%nct_nlcc(i)
           IF(my_typ == "RHO") THEN
             corden(:) = corden(:) + fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j,i) 
           ELSE IF(my_typ == "DER") THEN
-            corden(:) = corden(:) - fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j,i) 
+            corden(:) = corden(:) - fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j,i)/a 
             IF(j>1) THEN
-              corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i) 
+              corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i)/a
             END IF
           ELSE
             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
