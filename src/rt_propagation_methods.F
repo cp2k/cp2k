@@ -17,13 +17,16 @@ MODULE rt_propagation_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_init
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_name, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_add
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_sm_fm_multiply
+                                             cp_dbcsr_sm_fm_multiply,&
+                                             cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -44,6 +47,8 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
+                                             dbcsr_type_symmetric
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
                                              do_diag,&
@@ -594,12 +599,13 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s,matrix_ks_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input
 
+    NULLIFY(matrix_ks_aux_fit)
     CALL timeset(routineN,handle)
 
     para_env=>qs_env%para_env
@@ -626,6 +632,30 @@ CONTAINS
 
        CALL set_qs_env(qs_env=qs_env,&
             matrix_ks=matrix_ks,error=error)
+    END IF
+
+    IF( dft_control%do_admm) THEN
+      IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
+         CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
+         DO ispin=1,dft_control%nspins
+            ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
+            CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
+
+            CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
+                 name="Spin"//TRIM(ADJUSTL(cp_to_string(ispin)))//&
+                 "KOHN-SHAM_MATRIX for ADMM", &
+                 dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
+                 row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
+                 col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
+                 nblks=0, nze=0, error=error)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
+                 error=error)
+            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
+         ENDDO
+
+         CALL set_qs_env(qs_env=qs_env,&
+              matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+      END IF
     END IF
 
     IF (.NOT.ASSOCIATED(ks_env)) THEN
