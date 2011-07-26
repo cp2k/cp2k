@@ -200,3 +200,10 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 # extended GTH pseudopotentials 
 wfn_mix_1.inp
+# change of initialisation
+H2-rtp.inp.
+H2-rtp_ETRS_PADE.inp
+H2-rtp_restart.inp
+H2-rtp_restart-1.inp
+H2-rtp-efield.inp
+H2-rtp_ETRS_ARNOLDI.inp
