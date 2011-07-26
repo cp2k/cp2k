@@ -207,3 +207,5 @@ H2-rtp_restart.inp
 H2-rtp_restart-1.inp
 H2-rtp-efield.inp
 H2-rtp_ETRS_ARNOLDI.inp
+#wrong file name
+H2-rtp.inp
