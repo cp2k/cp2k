@@ -355,6 +355,7 @@ CONTAINS
 
     !atomic properties
     IF (atprop_env%energy) THEN
+       CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL force_env_get(force_env, potential_energy=e_pot, error=error)
        WRITE(6,*) 
        WRITE(6,*) "ENERGY (ATOMIC) :",SUM(atprop_env%atener(:))
@@ -362,6 +363,7 @@ CONTAINS
        CPPostcondition(ABS(e_pot-SUM(atprop_env%atener(:)))<ateps,cp_fatal_level,routineP,error,failure)
     END IF
     IF (atprop_env%stress) THEN
+       CALL mp_sum(atprop_env%atstress, force_env%para_env%group)
        pvtot = SUM(virial%pv_virial(:,:))
        WRITE(6,*) 
        WRITE(6,*) "STRESS (ATOMIC) :",SUM(atprop_env%atstress(:,:,:))

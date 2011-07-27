@@ -293,9 +293,6 @@ CONTAINS
        IF ( dft_control%qs_control%semi_empirical ) THEN
        ELSEIF ( dft_control%qs_control%dftb ) THEN
           qs_env%atprop%atener = qs_env%atprop%atener + qs_env%atprop%atecc
-!deb
-write(6,*) "TOTAL  ",SUM(qs_env%atprop%atener)
-!deb
        ELSE
        END IF
     END IF
@@ -380,9 +377,6 @@ write(6,*) "TOTAL  ",SUM(qs_env%atprop%atener)
                0.5_dp,qs_env%atprop%atener,error)
        END DO
 
-!deb
-write(6,*) "MULL   ",SUM(qs_env%atprop%atener)
-!deb
     END IF
 
   END SUBROUTINE qs_energies_mulliken

@@ -120,7 +120,7 @@ CONTAINS
                                                 hb_sr_damp, new_atom_b, &
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
-                                                drp, erep, f0, foab, fow, ga, &
+                                                drp, erep, f0, f1, foab, fow, ga, &
                                                 gb, s_cut, urep_cut, erepij
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
@@ -498,6 +498,13 @@ CONTAINS
                END IF
                CALL virial_pair_force ( virial%pv_virial, -f0, force_ab, rij, error)
                CALL virial_pair_force ( virial%pv_virial, -f0, force_w, rij, error)
+               IF ( qs_env%atprop%stress ) THEN
+                  f1 = 0.5_dp*f0
+                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,iatom),-f1,force_ab,rij,error)
+                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,iatom),-f1,force_w,rij,error)
+                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,jatom),-f1,force_ab,rij,error)
+                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,jatom),-f1,force_w,rij,error)
+               END IF
              END IF
              DEALLOCATE (dfblock,dsblock,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -566,7 +573,11 @@ CONTAINS
                 force(jkind)%repulsive(:,atom_b) + force_rr(:)
             IF ( use_virial ) THEN
               CALL virial_pair_force ( virial%pv_virial, -1._dp, force_rr, rij, error)
-             END IF
+              IF(qs_env%atprop%stress) THEN
+                CALL virial_pair_force(qs_env%atprop%atstress(:,:,iatom),-0.5_dp,force_rr,rij,error)
+                CALL virial_pair_force(qs_env%atprop%atstress(:,:,jatom),-0.5_dp,force_rr,rij,error)
+              END IF
+            END IF
           END IF
        END IF
 

@@ -11,6 +11,7 @@ MODULE qs_dftb_coulomb
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
@@ -196,6 +197,10 @@ CONTAINS
           rij = particle_set(iatom)%r - particle_set(jatom)%r
           rij = pbc(rij,cell)
           CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
+          IF (qs_env%atprop%stress) THEN
+            CALL virial_pair_force ( qs_env%atprop%atstress(:,:,iatom), 0.5_dp, fij, rij, error)
+            CALL virial_pair_force ( qs_env%atprop%atstress(:,:,jatom), 0.5_dp, fij, rij, error)
+          END IF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     END IF
@@ -212,7 +217,7 @@ CONTAINS
       CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
       CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
       CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
-                              virial,use_virial,error=error)
+                              virial,use_virial,qs_env%atprop,error=error)
       SELECT CASE(ewald_type)
       CASE DEFAULT
         CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
@@ -227,7 +232,7 @@ CONTAINS
              "PME not implemented in DFTB",error)
       CASE(do_ewald_spme)
         CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
-          gmcharge,mcharge,calculate_forces,virial,use_virial,error)
+          gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
       END SELECT
     ELSE
       ! direct sum
@@ -266,9 +271,6 @@ CONTAINS
     END IF
 
     energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
-!deb
-write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
-!deb
     IF(qs_env%atprop%energy) THEN
       DO ikind=1,SIZE(local_particles%n_el)
         DO ia=1,local_particles%n_el(ikind)
@@ -346,6 +348,10 @@ write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
                rij = particle_set(iatom)%r - particle_set(jatom)%r
                rij = pbc(rij,cell)
                CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
+               IF (qs_env%atprop%stress) THEN
+                 CALL virial_pair_force ( qs_env%atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
+                 CALL virial_pair_force ( qs_env%atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
+               END IF
             END IF
          END IF
       END DO
@@ -369,7 +375,7 @@ write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
 
 ! *****************************************************************************
   SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
-       gmcharge,mcharge,calculate_forces,virial,use_virial,error)
+       gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -383,6 +389,7 @@ write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, INTENT(in)                      :: use_virial
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_spme_evaluate', &
@@ -578,7 +585,7 @@ write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
   END SUBROUTINE dftb_spme_evaluate
 
 ! *****************************************************************************
-  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,virial,use_virial,error)
+  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,virial,use_virial,atprop,error)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: gmcharge
@@ -588,6 +595,7 @@ write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
       DIMENSION(:), POINTER                  :: n_list
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, INTENT(IN)                      :: use_virial
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_ewald_overlap', &
@@ -622,6 +630,10 @@ write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
          IF ( use_virial ) THEN
            pfr = -dfr*mcharge(iatom)*mcharge(jatom)
            CALL virial_pair_force ( virial%pv_virial, -pfr, rij, rij, error)
+           IF ( atprop%stress ) THEN
+              CALL virial_pair_force ( atprop%atstress(:,:,iatom), -0.5_dp*pfr, rij, rij, error)
+              CALL virial_pair_force ( atprop%atstress(:,:,jatom), -0.5_dp*pfr, rij, rij, error)
+           END IF
          END IF
        END IF
 
