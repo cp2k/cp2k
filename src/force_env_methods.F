@@ -354,21 +354,27 @@ CONTAINS
     END IF
 
     !atomic properties
+    output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
+      extension=".Log",error=error)
     IF (atprop_env%energy) THEN
        CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-       WRITE(6,*) 
-       WRITE(6,*) "ENERGY (ATOMIC) :",SUM(atprop_env%atener(:))
-       WRITE(6,*) "ENERGY (TOTAL)  :",e_pot
-       CPPostcondition(ABS(e_pot-SUM(atprop_env%atener(:)))<ateps,cp_fatal_level,routineP,error,failure)
+       IF (output_unit > 0) THEN
+          WRITE(output_unit,*) 
+          WRITE(output_unit,*) "ENERGY (ATOMIC) :",SUM(atprop_env%atener(:))
+          WRITE(output_unit,*) "ENERGY (TOTAL)  :",e_pot
+          CPPostcondition(ABS(e_pot-SUM(atprop_env%atener(:)))<ateps,cp_fatal_level,routineP,error,failure)
+       END IF
     END IF
     IF (atprop_env%stress) THEN
        CALL mp_sum(atprop_env%atstress, force_env%para_env%group)
        pvtot = SUM(virial%pv_virial(:,:))
-       WRITE(6,*) 
-       WRITE(6,*) "STRESS (ATOMIC) :",SUM(atprop_env%atstress(:,:,:))
-       WRITE(6,*) "STRESS (TOTAL)  :",pvtot
-       CPPostcondition(ABS(pvtot-SUM(atprop_env%atstress(:,:,:)))<ateps,cp_fatal_level,routineP,error,failure)
+       IF (output_unit > 0) THEN
+          WRITE(output_unit,*) 
+          WRITE(output_unit,*) "STRESS (ATOMIC) :",SUM(atprop_env%atstress(:,:,:))
+          WRITE(output_unit,*) "STRESS (TOTAL)  :",pvtot
+          CPPostcondition(ABS(pvtot-SUM(atprop_env%atstress(:,:,:)))<ateps,cp_fatal_level,routineP,error,failure)
+       END IF
     END IF
 
   END SUBROUTINE force_env_calc_energy_force
