@@ -429,3 +429,7 @@ UO2-2x2x2-binary_restart-cs-scaled-4.inp
 # reset numerics
 UO2-2x2x2-binary_restart-cs-8.inp
 UO2-2x2x2-binary_restart-cs-7.inp
+# Atomic energy and stress properties 
+UO2-4x4x4-core-shell-debug.inp
+# Atomic energy and stress properties 
+UO2-4x4x4-autofit.inp

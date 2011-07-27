@@ -63,7 +63,7 @@ CONTAINS
     LOGICAL                                  :: failure, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: define_kind
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rc_kind
-    REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, &
+    REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, eij, &
                                                 evdw, fac, rc, x0ij, xij, xp
     REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -150,7 +150,8 @@ CONTAINS
                 ! This is the standard London contribution.
                 ! UFF1 - Eq. 20 (long-range)
                 xp = xij/dr
-                evdw = evdw + dij*(-2._dp*xp**6 + xp**12 )  * fac
+                eij = dij*(-2._dp*xp**6 + xp**12 )  * fac
+                evdw = evdw + eij
                 IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
                    devdw = dij*12._dp*(xp**6 - xp**12)/dr * fac
                    atom_a = atom_of_kind(iatom)
@@ -167,7 +168,8 @@ CONTAINS
                 ! Using a parabola of the form (y = A - Bx**5 -Cx**10).
                 ! Analytic parameters by forcing energy, first and second
                 ! derivatives to be continuous.
-                evdw = evdw + (A-B*dr**5-C*dr**10) * fac
+                eij = (A-B*dr**5-C*dr**10) * fac
+                evdw = evdw + eij
                 IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
@@ -178,6 +180,10 @@ CONTAINS
                    force(jkind)%dispersion(:,atom_b) =&
                          force(jkind)%dispersion(:,atom_b) + fdij(:)
                 END IF
+             END IF
+             IF (qs_env%atprop%energy) THEN
+                qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + 0.5_dp*eij
+                qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + 0.5_dp*eij
              END IF
              IF(calculate_forces .AND. (dr > 0.001_dp) .AND. use_virial) THEN
                 CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)

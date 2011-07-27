@@ -82,3 +82,5 @@ nh3-meta-4.inp
 2gly_mtd_rp_dp_rmsd.inp
 2gly_mtd_rprmsd.inp
 2gly_mtd_dprmsd.inp
+# Atomic energy and stress properties 
+nh3-meta-3.inp

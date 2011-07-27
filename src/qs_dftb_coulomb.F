@@ -266,6 +266,19 @@ CONTAINS
     END IF
 
     energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
+!deb
+write(6,*) "CHARGE   ",0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
+!deb
+    IF(qs_env%atprop%energy) THEN
+      DO ikind=1,SIZE(local_particles%n_el)
+        DO ia=1,local_particles%n_el(ikind)
+          iatom=local_particles%list(ikind)%array(ia)
+          qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + &
+             0.5_dp*mcharge(iatom)*gmcharge(iatom,1)
+        END DO
+      END DO
+    END IF
+
     IF ( calculate_forces ) THEN
       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

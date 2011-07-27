@@ -90,9 +90,9 @@ CONTAINS
                                                 jkind, natom, nkind, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, failure, &
-                                                use_virial
+                                                use_virial, atener
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
-    REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, &
+    REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, enucij, &
                                                 enuclear, r2inv, r3inv, rinv
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -139,6 +139,19 @@ CONTAINS
          shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
          max_multipole=se_control%max_multipole, pc_coulomb_int=.FALSE.)
 
+    ! atomic energy decomposition
+    atener = qs_env%atprop%energy
+    IF (atener) THEN
+      IF (ASSOCIATED(qs_env%atprop%atecc) ) THEN
+         DEALLOCATE(qs_env%atprop%atecc, STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+      natom = SIZE (particle_set)
+      ALLOCATE(qs_env%atprop%atecc(natom), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
     ! Retrieve some information if GKS ewald scheme is used
     IF(se_control%do_ewald_gks) THEN
        CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
@@ -184,6 +197,7 @@ CONTAINS
           se_kind_b => se_kind_param(jkind)%se_param
           iab = ikind + nkind*(jkind - 1)
           dr1 = DOT_PRODUCT(rij,rij)
+          enucij = 0._dp
           IF ( dr1 > rij_threshold ) THEN
              SELECT CASE (dft_control%qs_control%method_id)
              CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
@@ -192,14 +206,14 @@ CONTAINS
                 ! Core-Core energy term
                 CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
                      se_int_control=se_int_control, se_taper=se_taper, error=error)
-                enuclear = enuclear + enuc
+                enucij = enucij + enuc
                 ! Residual integral (1/R^3) correction
                 IF (se_int_control%do_ewald_r3) THEN
                    r2inv = 1.0_dp/dr1
                    rinv  = SQRT(r2inv)
                    r3inv = rinv**3
                    ! Core-Core term
-                   enuclear = enuclear + se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
+                   enucij = enucij + se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
                 END IF
                 
                 ! Core-Core Derivatives
@@ -238,9 +252,14 @@ CONTAINS
                 ! Core-Core energy term (self term in periodic systems)
                 CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
                      se_int_control=se_int_control, se_taper=se_taper, error=error)
-                enuclear = enuclear + 0.5_dp*enuc
+                enucij = enucij + 0.5_dp*enuc
              END IF
           END IF
+          IF (atener) THEN
+            qs_env%atprop%atecc(iatom) = qs_env%atprop%atecc(iatom) + 0.5_dp*enucij
+            qs_env%atprop%atecc(jatom) = qs_env%atprop%atecc(jatom) + 0.5_dp*enucij
+          END IF
+          enuclear = enuclear + enucij
        END DO
        CALL neighbor_list_iterator_release(nl_iterator)
     

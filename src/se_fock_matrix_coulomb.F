@@ -128,10 +128,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, found, scp_nddo, &
-                                                switch, use_virial
+                                                switch, use_virial, atener
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
+    REAL(KIND=dp), DIMENSION(2)              :: ecab
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -183,6 +184,7 @@ CONTAINS
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+       atener      = qs_env%atprop%energy
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
@@ -348,17 +350,25 @@ CONTAINS
 
                 ! Two-centers One-electron terms
                 IF      ( nspins == 1 ) THEN
+                   ecab = 0._dp
                    CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                        pa_a, pb_a, ecore=ecore2, itype=itype, anag=anag, se_int_control=se_int_control,&
+                        pa_a, pb_a, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control,&
                         se_taper=se_taper, store_int_env=store_int_env, error=error)
+                   ecore2 = ecore2 + ecab(1) + ecab(2)
                 ELSE IF ( nspins == 2 ) THEN
+                   ecab = 0._dp
                    CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                        pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
+                        pa_block_a, pb_block_a, ecore=ecab, itype=itype, anag=anag,&
                         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
                         error=error)
                    CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
-                        pa_b, pb_b, ecore=ecore2, itype=itype, anag=anag, se_int_control=se_int_control,&
+                        pa_b, pb_b, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control,&
                         se_taper=se_taper, store_int_env=store_int_env, error=error)
+                   ecore2 = ecore2 + ecab(1) + ecab(2)
+                END IF
+                IF (atener) THEN
+                  qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecab(1)
+                  qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + ecab(2)
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
@@ -461,6 +471,9 @@ CONTAINS
                         se_taper=se_taper, store_int_env=store_int_env, error=error)
                 END IF
                 ecore2=ecore2+ecores
+                IF (atener) THEN
+                   qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecores
+                END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
                    CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,& 
@@ -538,7 +551,7 @@ CONTAINS
       nlocal_particles, node, nparticle_local, nspins, size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, failure, &
-                                                found, scp_nddo, use_virial
+                                                found, scp_nddo, use_virial, atener
     LOGICAL, DIMENSION(3)                    :: task
     REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
                                                 energy_local, enuc, fac, tmp
@@ -609,6 +622,7 @@ CONTAINS
        scp_nddo   =  se_control%scp
        anag       =  se_control%analytical_gradients
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
+       atener      = qs_env%atprop%energy
        
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
@@ -944,11 +958,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, found, scp_nddo, &
-                                                switch, use_virial
+                                                switch, use_virial, atener
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp) :: delta, dr1, ecore2, enuc, enuclear, ptens11, ptens12, &
       ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
+    REAL(KIND=dp), DIMENSION(2)              :: ecab
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_ab0, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
@@ -993,6 +1008,7 @@ CONTAINS
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
+       atener      = qs_env%atprop%energy
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
@@ -1176,17 +1192,25 @@ CONTAINS
 
                 ! Two-centers One-electron terms
                 IF      ( nspins == 1 ) THEN
+                   ecab = 0._dp
                    CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                        pa_a, pb_a, ecore=ecore2, itype=itype, anag=anag, se_int_control=se_int_control,&
+                        pa_a, pb_a, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control,&
                         se_taper=se_taper, store_int_env=store_int_env, error=error)
+                   ecore2 = ecore2 + ecab(1) + ecab(2)
                 ELSE IF ( nspins == 2 ) THEN
+                   ecab = 0._dp
                    CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                        pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
+                        pa_block_a, pb_block_a, ecore=ecab, itype=itype, anag=anag,&
                         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
                         error=error)
                    CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
-                        pa_b, pb_b, ecore=ecore2, itype=itype, anag=anag, se_int_control=se_int_control,&
+                        pa_b, pb_b, ecore=ecab, itype=itype, anag=anag, se_int_control=se_int_control,&
                         se_taper=se_taper, store_int_env=store_int_env, error=error)
+                   ecore2 = ecore2 + ecab(1) + ecab(2)
+                END IF
+                IF (atener) THEN
+                  qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecab(1)
+                  qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + ecab(2)
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
@@ -1358,11 +1382,12 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                failure, found, switch
+                                                failure, found, switch, atener
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: dr1, ecore2, r2inv, r3inv, &
                                                 rinv
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
+    REAL(KIND=dp), DIMENSION(2)              :: ecab
     REAL(KIND=dp), DIMENSION(3)              :: dr3inv, force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -1428,6 +1453,7 @@ CONTAINS
        se_section => section_vals_get_subs_vals(qs_env%input,"DFT%QS%SE",error=error)
        se_control => dft_control%qs_control%se_control
        anag       =  se_control%analytical_gradients
+       atener     =  qs_env%atprop%energy
        
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
@@ -1554,17 +1580,25 @@ CONTAINS
 
                 ! Two-centers One-electron terms
                 IF      ( nspins == 1 ) THEN
+                   ecab = 0._dp
                    CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_a, ksb_block_a, pa_a, pb_a,&
-                        ecore=ecore2, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b,&
+                        ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b,&
                         e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv, error=error)
+                   ecore2 = ecore2 + ecab(1) + ecab(2)
                 ELSE IF ( nspins == 2 ) THEN
+                   ecab = 0._dp
                    CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_a, ksb_block_a, pa_block_a,&
-                        pb_block_a, ecore=ecore2, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b,&
+                        pb_block_a, ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b,&
                         e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv, error=error)
 
                    CALL fock2_1el_r3(se_kind_a, se_kind_b, ksa_block_b, ksb_block_b, pa_b, pb_b,&
-                        ecore=ecore2, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b,&
+                        ecore=ecab, e1b=se_kind_a%expns3_int(jkind)%expns3%e1b,&
                         e2a=se_kind_a%expns3_int(jkind)%expns3%e2a, rp=r3inv, error=error)
+                   ecore2 = ecore2 + ecab(1) + ecab(2)
+                END IF
+                IF (atener) THEN
+                  qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecab(1)
+                  qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + ecab(2)
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN

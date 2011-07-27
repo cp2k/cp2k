@@ -421,3 +421,29 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+# Atomic energy and stress properties 
+H2O-3.inp
+# Atomic energy and stress properties 
+N3-rp_colvar.inp
+# Atomic energy and stress properties 
+Periclase.inp
+# Atomic energy and stress properties 
+LM-KSDO.inp
+# Atomic energy and stress properties 
+SiO2.inp
+# Atomic energy and stress properties 
+wfn_ex1.inp
+# Atomic energy and stress properties 
+wfn_ex3.inp
+# Atomic energy and stress properties 
+wfn_ex4.inp
+# Atomic energy and stress properties 
+SiO2_lr_quad.inp
+# Atomic energy and stress properties 
+Al2O3.inp
+# Atomic energy and stress properties 
+Co_complex.inp
+# Atomic energy and stress properties 
+N3_rp_md.inp
+# Atomic energy and stress properties 
+N3_dp_md.inp

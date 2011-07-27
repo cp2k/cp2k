@@ -51,7 +51,7 @@ MODULE ewalds
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds'
 
   PRIVATE
-  PUBLIC :: ewald_evaluate, ewald_correction, ewald_self, ewald_print
+  PUBLIC :: ewald_evaluate, ewald_self, ewald_self_atom, ewald_print
   
 CONTAINS
 
@@ -65,7 +65,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
-       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, error )
+       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, e_coulomb, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -80,18 +80,21 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: e_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_evaluate', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp)                         :: snode
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: summe
     INTEGER :: gpt, group, handle, iparticle, iparticle_kind, &
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    LOGICAL                                  :: use_charge_array
+    LOGICAL                                  :: use_charge_array, atenergy, failure
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
                                                 pref, q
@@ -110,6 +113,9 @@ CONTAINS
     CALL cite_reference(Ewald1921)
     use_charge_array=PRESENT(charges)
     IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
+    atenergy=PRESENT(e_coulomb)
+    IF (atenergy) atenergy=ASSOCIATED(e_coulomb)
+    IF (atenergy) e_coulomb=0._dp
 
     ! pointing
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
@@ -129,12 +135,9 @@ CONTAINS
     CALL structure_factor_allocate ( pw_grid % bounds, nnodes, exp_igr)
 
     ALLOCATE (summe(1:pw_grid%ngpts_cut),STAT=isos)
-    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "summe",2*dp_size*INT(pw_grid%ngpts_cut))
-
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (charge(1:nnodes),STAT=isos)
-    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "charge",dp_size*nnodes)
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
 
     ! Initializing vg_coulomb and fg_coulomb
     vg_coulomb = 0.0_dp
@@ -208,6 +211,16 @@ CONTAINS
        factor = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ) )
        vg_coulomb = vg_coulomb + factor
 
+       ! atomic energies
+       IF (atenergy) THEN
+          DO node = 1, nnodes
+             snode = CONJG ( exp_igr % ex ( lp, node ) &
+                           * exp_igr % ey ( mp, node ) &
+                           * exp_igr % ez ( np, node ) )
+             e_coulomb(node) = e_coulomb(node) + gauss*charge(node)*REAL(summe(gpt)*snode)
+          END DO
+       END IF
+
        ! computing the force
        node = 0
        DO node = 1, nnodes
@@ -237,18 +250,16 @@ CONTAINS
     pref = fourpi / pw_grid % vol
     vg_coulomb = vg_coulomb * pref
     IF (use_virial) pv_g = pv_g * pref
+    IF (atenergy) e_coulomb = e_coulomb * pref
 
     pref = 2.0_dp * pref
     fg_coulomb = fg_coulomb * pref
 
     CALL structure_factor_deallocate ( exp_igr )
 
-    DEALLOCATE ( charge, STAT = isos )
-    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"charge")
+    DEALLOCATE ( charge, summe, STAT = isos )
+    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
     NULLIFY ( charge )
-
-    DEALLOCATE ( summe, STAT = isos )
-    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"summe")
 
     CALL timestop(handle)
 
@@ -343,36 +354,66 @@ CONTAINS
   END SUBROUTINE ewald_self
 
 ! *****************************************************************************
-!> \brief compute the value of the real-space coulomb at the cut-off
+!> \brief Computes the self interaction and the neutralizing background
 !> \par History
 !>      none
-!> \author CJM
+!> \author JHU from ewlad_self
 ! *****************************************************************************
-  FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq, error ) RESULT ( e_cutoff_coul )
+  SUBROUTINE ewald_self_atom ( ewald_env, cell, atomic_kind_set, local_particles, e_self,&
+       charges, error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(KIND=dp), INTENT(IN)                :: qi, qj, rcutsq
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+       POINTER                               :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), DIMENSION(:), &
+       INTENT(INOUT)                         :: e_self(:)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: e_cutoff_coul
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_correction', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self_atom', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
-      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
-      pc = 0.3275911_dp
 
-    REAL(KIND=dp)                            :: alpha, arg, e_arg_arg, &
-                                                erfc_over_rij, erfcf, tc
+    INTEGER                                  :: ewald_type, ii, &
+                                                iparticle_kind, &
+                                                nparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp)                            :: alpha, mm_radius, q, q_neutg, &
+                                                q_self, q_sum, qcore, qshell
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_kind_type), POINTER           :: shell
 
-    CALL ewald_env_get ( ewald_env, alpha = alpha ,error=error)
-    arg = alpha * SQRT ( rcutsq )
-    e_arg_arg = EXP ( - arg ** 2 )
-    tc = 1.0_dp / ( 1.0_dp + pc * arg )
-    erfcf = ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1)*tc * e_arg_arg
-    erfc_over_rij = erfcf / SQRT ( rcutsq )
-    e_cutoff_coul = qi * qj * erfc_over_rij
+    CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, alpha = alpha, error=error)
+    IF ( ewald_type /= do_ewald_none) THEN
+       nparticle_kind = SIZE ( atomic_kind_set )
+       IF (ASSOCIATED(charges)) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Atomic energy not implemented for charges",&
+               error=error, error_level=cp_failure_level)
+       ELSE
+          DO iparticle_kind = 1, nparticle_kind
+             atomic_kind => atomic_kind_set(iparticle_kind)
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius, &
+                  qeff=q, shell_active=is_shell, shell=shell)
+             IF(is_shell) THEN
+                CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="Atomic energy not implemented for shells",&
+                     error=error, error_level=cp_failure_level)
+             ELSE
+                DO iparticle_local = 1, nparticle_local
+                   ii = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   e_self(ii) = e_self(ii) - q*q*alpha*oorootpi
+                END DO
+             END IF
+          END DO
+       END IF
+    END IF
 
-  END FUNCTION ewald_correction
+  END SUBROUTINE ewald_self_atom
 
 ! *****************************************************************************
 !> \par History

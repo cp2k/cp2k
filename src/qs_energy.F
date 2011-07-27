@@ -15,7 +15,17 @@ MODULE qs_energy
                                              read_ddapc_section
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_trace,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -277,6 +287,19 @@ CONTAINS
       END IF
     END IF
 
+    ! atomic energies using Mulliken partition
+    IF ( qs_env%atprop%energy) THEN
+       CALL qs_energies_mulliken(qs_env,error)
+       IF ( dft_control%qs_control%semi_empirical ) THEN
+       ELSEIF ( dft_control%qs_control%dftb ) THEN
+          qs_env%atprop%atener = qs_env%atprop%atener + qs_env%atprop%atecc
+!deb
+write(6,*) "TOTAL  ",SUM(qs_env%atprop%atener)
+!deb
+       ELSE
+       END IF
+    END IF
+
     ! **********  Calculate the electron transfer coupling elements********
     do_et=.FALSE.
     do_et=qs_env%dft_control%qs_control%et_coupling_calc
@@ -327,7 +350,45 @@ CONTAINS
   END SUBROUTINE qs_energies_scf
 
 ! *****************************************************************************
-!> \brief   energy calculation for real time propagation (iteratet through integrator)
+!> \brief   Use a simple Mulliken-like energy decomposition
+!> \author  JHU
+!> \date    07.2011
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE qs_energies_mulliken(qs_env,error)
+    
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_mulliken', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_h
+    TYPE(qs_rho_type), POINTER               :: rho
+
+    IF(qs_env%atprop%energy) THEN
+       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_h=matrix_h,&
+                       rho=rho,error=error)
+
+       ! E = 0.5*Tr(H*P+F*P)
+       DO ispin = 1,SIZE(rho%rho_ao)
+          CALL atom_trace(matrix_h(1)%matrix,rho%rho_ao(ispin)%matrix,&
+               0.5_dp,qs_env%atprop%atener,error)
+          CALL atom_trace(matrix_ks(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
+               0.5_dp,qs_env%atprop%atener,error)
+       END DO
+
+!deb
+write(6,*) "MULL   ",SUM(qs_env%atprop%atener)
+!deb
+    END IF
+
+  END SUBROUTINE qs_energies_mulliken
+
+! *****************************************************************************
+!> \brief   energy calculation for real time propagation (iterated through integrator)
 !> \author  Florian Schiffmann
 !> \date    02.2009
 !> \version 1.0
@@ -399,5 +460,54 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE qs_energies_rtp
 
+! *****************************************************************************
+!> \brief Compute partial trace of product of two matrices
+!> \param amat, bmat
+!> \param charges previously allocated with the right size (natom,nspin)
+!> \note
+!>      charges are computed per spin in the LSD case
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+! *****************************************************************************
+  SUBROUTINE atom_trace(amat,bmat,factor,atrace,error)
+    TYPE(cp_dbcsr_type), POINTER             :: amat,bmat
+    REAL(kind=dp), INTENT(IN)                :: factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: atrace 
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, iblock_col, iblock_row, nblock
+    LOGICAL                                  :: failure, found
+    REAL(kind=dp)                            :: mult, btr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+    CALL cp_dbcsr_get_info(bmat,nblkrows_total=nblock)
+    CPPostcondition(nblock==SIZE(atrace),cp_warning_level,routineP,error,failure)
+
+    CALL cp_dbcsr_iterator_start(iter, bmat)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, b_block, blk)
+       CALL cp_dbcsr_get_block_p(matrix=amat,&
+               row=iblock_row,col=iblock_col,BLOCK=a_block,found=found)
+
+       ! we can cycle if a block is not present
+       IF ( .NOT. (ASSOCIATED(b_block) .AND. ASSOCIATED(a_block) ) ) CYCLE
+
+       IF (iblock_row.EQ.iblock_col) THEN
+          mult=0.5_dp ! avoid double counting of diagonal blocks
+       ELSE
+          mult=1.0_dp
+       ENDIF
+       btr = factor*mult*SUM(a_block*b_block)
+       atrace(iblock_row)=atrace(iblock_row) + btr
+       atrace(iblock_col)=atrace(iblock_col) + btr
+
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+  END SUBROUTINE atom_trace
 
 END MODULE qs_energy

@@ -12,6 +12,7 @@ MODULE pme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE atprop_types,                    ONLY: atprop_type
   USE bibliography,                    ONLY: cite_reference,&
                                              darden1993
   USE cell_types,                      ONLY: cell_type
@@ -21,6 +22,7 @@ MODULE pme
   USE dgs,                             ONLY: dg_get_patch,&
                                              dg_get_strucfac,&
                                              dg_sum_patch,&
+                                             dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -78,7 +80,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
        fg_coulomb, pv_g, shell_particle_set, core_particle_set,&
-       fgshell_coulomb, fgcore_coulomb, use_virial, charges, error )
+       fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
@@ -96,6 +98,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
@@ -105,7 +108,7 @@ CONTAINS
                                                 ipart, j, npart, nshell, p1, &
                                                 p2
     LOGICAL                                  :: failure, is1_core, is2_core
-    REAL(KIND=dp)                            :: alpha, dvols, ffa
+    REAL(KIND=dp)                            :: alpha, dvols, ffa, fat1
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -119,7 +122,7 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
-    TYPE(realspace_grid_type), POINTER       :: rden
+    TYPE(realspace_grid_type), POINTER       :: rden, rpot
     TYPE(structure_factor_type)              :: exp_igr
 
     CALL timeset ( routineN, handle )
@@ -214,15 +217,15 @@ CONTAINS
     IF(PRESENT(shell_particle_set)) THEN
        ipart = 0
        DO
-          CALL set_list ( shell_particle_set, nshell, exp_igr%shell_centre, p1, rden, ipart )
-          CALL set_list ( shell_particle_set, nshell, exp_igr%shell_centre, p2, rden, ipart )
+          CALL set_list ( shell_particle_set, nshell, exp_igr%shell_centre, p1, rpot, ipart )
+          CALL set_list ( shell_particle_set, nshell, exp_igr%shell_centre, p2, rpot, ipart )
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
           ! calculate function on small boxes (we use double packing in FFT)
           CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. , charges=charges, error=error)
           ! add boxes to real space grid (big box)
-          CALL dg_sum_patch ( rden, rhos1, exp_igr%shell_centre ( :, p1 ) )
-          IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr%shell_centre ( :, p2 ) )
+          CALL dg_sum_patch ( rpot, rhos1, exp_igr%shell_centre ( :, p1 ) )
+          IF ( p2 /= 0 ) CALL dg_sum_patch ( rpot, rhos2, exp_igr%shell_centre ( :, p2 ) )
        END DO
     END IF
 
@@ -244,8 +247,31 @@ CONTAINS
 
     CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress ,error=error)
 
-    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r ,error=error)
+    ! atomic energies
+    IF(atprop%energy) THEN
+       dvols = rhos1%pw%pw_grid%dvol
+       CALL rs_grid_create (rpot, rs_desc, error=error)
+       CALL rs_pw_transfer (rpot, phi_r, pw2rs, error=error)
+       ipart = 0
+       DO
+          CALL set_list ( particle_set, npart, exp_igr%centre, p1, rden, ipart, exp_igr %core_centre)
+          CALL set_list ( particle_set, npart, exp_igr%centre, p2, rden, ipart, exp_igr %core_centre)
+          IF ( p1 == 0 .AND. p2 == 0 ) EXIT
+          ! integrate box and potential
+          CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
+               rhos1, rhos2 , charges=charges,  error=error )
+          ! add boxes to real space grid (big box)
+          CALL dg_sum_patch_force_1d ( rpot, rhos1, exp_igr%centre(:,p1), fat1 )
+          atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
+          IF ( p2 /= 0 ) THEN
+             CALL dg_sum_patch_force_1d ( rpot, rhos2, exp_igr%centre(:,p2), fat1 )
+             atprop%atener(p2) = atprop%atener(p2) + 0.5_dp*fat1*dvols
+          END IF
+       END DO
+       CALL rs_grid_release ( rpot, error=error)
+    END IF
 
+    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r ,error=error)
 
     !---------- END OF ELECTROSTATIC CALCULATION --------
 

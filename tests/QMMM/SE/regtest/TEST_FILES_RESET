@@ -199,3 +199,5 @@ mol_CSVR_gen1.inp
 mol_CSVR_gen2.inp
 mol_CSVR_gen3.inp
 mol.inp
+# Atomic energy and stress properties 
+zwitt.inp

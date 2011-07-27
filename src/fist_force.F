@@ -14,6 +14,7 @@
 MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -31,6 +32,7 @@ MODULE fist_force
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE ewalds,                          ONLY: ewald_evaluate,&
                                              ewald_print,&
+                                             ewald_self_atom,&
                                              ewald_self
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE exclusion_types,                 ONLY: exclusion_type
@@ -108,10 +110,11 @@ CONTAINS
 !>      cjm, 28-Feb-2006: box_change is gone
 !> \author CJM & JGH
 ! *****************************************************************************
-  SUBROUTINE fist_force_control(fist_env, virial, para_env, debug, force_env_section,&
-       error)
+  SUBROUTINE fist_force_control(fist_env, virial, atprop_env, &
+       para_env, debug, force_env_section, error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
+    TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
@@ -130,6 +133,7 @@ CONTAINS
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_opbend, pot_shell, pot_torsion, &
       pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
+    REAL(KIND=dp), POINTER, DIMENSION(:)     :: e_coulomb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, &
       fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
       fgshell_coulomb, fshell_nonbond, fshell_total
@@ -168,7 +172,8 @@ CONTAINS
     NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
          fist_nonbond_env,mm_section,local_molecules,local_particles,&
          molecule_kind_set,molecule_set,particle_set, print_section,&
-         shell, shell_particle_set, core_particle_set, thermo, multipoles)
+         shell, shell_particle_set, core_particle_set, thermo, multipoles,&
+         e_coulomb)
     mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%DERIVATIVES",&
          extension=".mmLog",error=error)
@@ -279,22 +284,23 @@ CONTAINS
 
        ! Compute embedding function and manybody energy
        CALL energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, particle_set,&
-            cell, pot_manybody, para_env ,error=error)
+            cell, pot_manybody, atprop_env, para_env ,error=error)
 
        ! Nonbond contribution + Manybody Forces
        IF(shell_present)THEN
           CALL force_nonbond(fist_nonbond_env, ewald_env, particle_set, cell, &
                pot_nonbond, f_nonbond, pv_nonbond, &
                fshell_nonbond=fshell_nonbond, fcore_nonbond=fcore_nonbond, &
+               atprop_env=atprop_env,&
                atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
                error=error)
        ELSE
           CALL force_nonbond(fist_nonbond_env, ewald_env, particle_set, cell, &
-               pot_nonbond, f_nonbond, pv_nonbond, &
+               pot_nonbond, f_nonbond, pv_nonbond, atprop_env=atprop_env,&
                atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
                error=error)
           CALL force_nonbond_manybody(fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond,&
-               use_virial=use_virial, error=error)
+               atprop_env=atprop_env, use_virial=use_virial, error=error)
        END IF
     ELSE
        f_nonbond  = 0.0_dp
@@ -349,6 +355,11 @@ CONTAINS
        IF(.NOT.do_multipoles)THEN
           CALL ewald_self(ewald_env, cell, atomic_kind_set, local_particles, &
                thermo%e_self, thermo%e_neut, fist_nonbond_env%charges, error=error)
+          IF(atprop_env%energy) THEN
+            CALL ewald_self_atom(ewald_env, cell, atomic_kind_set, local_particles, &
+               atprop_env%atener, fist_nonbond_env%charges, error=error)
+            atprop_env%atener = atprop_env%atener + thermo%e_neut/SIZE(atprop_env%atener)
+          END IF
        END IF
 
        ! Polarizable force-field
@@ -404,9 +415,13 @@ CONTAINS
                         do_debug=.TRUE.,atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
                         error=error)
                 ELSE
+                   IF(atprop_env%energy) THEN
+                      ALLOCATE(e_coulomb(fg_coulomb_size), STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
                    CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
                         local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
-                        charges=fist_nonbond_env%charges, error=error)
+                        charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, error=error)
                 END IF
              END IF
           CASE(do_ewald_pme)
@@ -426,7 +441,7 @@ CONTAINS
                    CALL pme_evaluate(ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
                         pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
                         fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb, use_virial=use_virial,&
-                        error=error)
+                        atprop=atprop_env, error=error)
                    CALL mp_sum(fgshell_coulomb, para_env%group)
                    CALL mp_sum(fgcore_coulomb, para_env%group)
                 END IF
@@ -437,7 +452,8 @@ CONTAINS
                         error=error, error_level=cp_fatal_level)
                 ELSE
                    CALL pme_evaluate(ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
-                        pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, error=error)
+                        pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, &
+                        atprop=atprop_env, error=error)
                 END IF
              END IF
              CALL mp_sum(fg_coulomb, para_env%group)
@@ -458,7 +474,7 @@ CONTAINS
                    CALL spme_evaluate(ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
                         pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
                         fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,use_virial=use_virial,&
-                        error=error)
+                        atprop=atprop_env, error=error)
                    CALL mp_sum(fgshell_coulomb, para_env%group)
                    CALL mp_sum(fgcore_coulomb, para_env%group)
                 END IF
@@ -469,7 +485,8 @@ CONTAINS
                         error=error, error_level=cp_fatal_level)
                 ELSE
                    CALL spme_evaluate(ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
-                        pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, error=error)
+                        pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, &
+                        atprop=atprop_env, error=error)
                 END IF
              END IF
              CALL mp_sum(fg_coulomb, para_env%group)
@@ -485,13 +502,13 @@ CONTAINS
              CALL bonded_correct_gaussian(fist_nonbond_env, atomic_kind_set, &
                   local_particles, particle_set, ewald_env, thermo%e_bonded, &
                   pv_bc, shell_particle_set=shell_particle_set, &
-                  core_particle_set=core_particle_set, cell=cell, &
+                  core_particle_set=core_particle_set, atprop_env=atprop_env, cell=cell, &
                   use_virial=use_virial, error=error)
           ELSE
              IF(.NOT. do_multipoles)THEN
                 CALL bonded_correct_gaussian(fist_nonbond_env, &
                      atomic_kind_set, local_particles, particle_set, &
-                     ewald_env, thermo%e_bonded, pv_bc=pv_bc, cell=cell, &
+                     ewald_env, thermo%e_bonded, pv_bc=pv_bc, atprop_env=atprop_env, cell=cell, &
                      use_virial=use_virial, error=error)
              END IF
           END IF
@@ -531,7 +548,7 @@ CONTAINS
             pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
             pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
             debug%f_bond, debug%f_bend, debug%f_torsion, debug%f_ub, &
-            debug%f_imptors, debug%f_opbend, cell, use_virial, &
+            debug%f_imptors, debug%f_opbend, cell, use_virial, atprop_env, &
             error)
 
     ELSE
@@ -540,7 +557,7 @@ CONTAINS
             core_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
             pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
             pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
-            cell=cell, use_virial=use_virial, error=error)
+            cell=cell, use_virial=use_virial, atprop_env=atprop_env, error=error)
     ENDIF
 
     IF(iw>0)THEN
@@ -645,8 +662,15 @@ CONTAINS
                 debug%f_g(2, ii)=  debug%f_g(2, ii)+ fg_coulomb(2, node)
                 debug%f_g(3, ii)=  debug%f_g(3, ii)+ fg_coulomb(3, node)
              ENDIF
+             IF(atprop_env%energy) THEN
+                atprop_env%atener(ii) = atprop_env%atener(ii) + e_coulomb(node)
+             END IF
           END DO
        END DO
+       IF(atprop_env%energy) THEN
+         DEALLOCATE(e_coulomb, STAT = stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
 
     IF(iw>0)THEN

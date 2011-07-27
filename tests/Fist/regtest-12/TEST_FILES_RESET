@@ -174,3 +174,7 @@ nh3_fixd_z.inp
 nptf_ortho.inp
 # numerics
 nptf_ortho_screen.inp
+# Atomic energy and stress properties 
+water_3_dist_inter2.inp
+# Atomic energy and stress properties 
+H2O-constr_1_ext.inp

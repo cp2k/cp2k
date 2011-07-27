@@ -57,7 +57,8 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(sepj%natorb, sepj%natorb), &
       INTENT(IN)                             :: pj_block
-    REAL(KIND=dp), INTENT(INOUT)             :: ecore
+    REAL(KIND=dp), DIMENSION(2), &
+      INTENT(INOUT)                          :: ecore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
@@ -88,12 +89,12 @@ CONTAINS
           i2 = i2 + 1
           ksi_block(i1,j1) = ksi_block(i1,j1) + e1b(i2)
           ksi_block(j1,i1) = ksi_block(i1,j1)
-          ecore = ecore + 2.0_dp * e1b(i2) * pi_block(i1,j1)
+          ecore(1) = ecore(1) + 2.0_dp * e1b(i2) * pi_block(i1,j1)
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
        ksi_block(i1,j1) = ksi_block(i1,j1) + e1b(i2)
-       ecore = ecore + e1b(i2) * pi_block(i1,j1)
+       ecore(1) = ecore(1) + e1b(i2) * pi_block(i1,j1)
     END DO
     !
     ! Add the electron-nuclear attraction term for atom sepj
@@ -106,12 +107,12 @@ CONTAINS
           i2 = i2 + 1
           ksj_block(i1,j1) = ksj_block(i1,j1) + e2a(i2)
           ksj_block(j1,i1) = ksj_block(i1,j1)
-          ecore = ecore + 2.0_dp * e2a(i2) * pj_block(i1,j1)
+          ecore(2) = ecore(2) + 2.0_dp * e2a(i2) * pj_block(i1,j1)
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
        ksj_block(i1,j1) = ksj_block(i1,j1) + e2a(i2)
-       ecore = ecore + e2a(i2) * pj_block(i1,j1)
+       ecore(2) = ecore(2) + e2a(i2) * pj_block(i1,j1)
     END DO
 
   END SUBROUTINE fock2_1el
@@ -759,7 +760,8 @@ CONTAINS
       DIMENSION(sepj%natorb, sepj%natorb), &
       INTENT(IN)                             :: pj_block
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: e1b, e2a
-    REAL(KIND=dp), INTENT(INOUT)             :: ecore
+    REAL(KIND=dp), DIMENSION(2), &
+      INTENT(INOUT)                          :: ecore
     REAL(KIND=dp), INTENT(IN)                :: rp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -778,7 +780,7 @@ CONTAINS
        i2 = i2 + 1
        i1 = se_orbital_pointer(i1L)
        ksi_block(i1,i1) = ksi_block(i1,i1) + e1b(i2) * rp
-       ecore = ecore + e1b(i2) * rp * pi_block(i1,i1)
+       ecore(1) = ecore(1) + e1b(i2) * rp * pi_block(i1,i1)
     END DO
     !
     ! Add the electron-nuclear residual attraction term for atom sepj
@@ -788,7 +790,7 @@ CONTAINS
        i2 = i2 + 1
        i1 = se_orbital_pointer(i1L)
        ksj_block(i1,i1) = ksj_block(i1,i1) + e2a(i2) * rp
-       ecore = ecore + e2a(i2) * rp * pj_block(i1,i1)
+       ecore(2) = ecore(2) + e2a(i2) * rp * pj_block(i1,i1)
     END DO
 
   END SUBROUTINE fock2_1el_r3

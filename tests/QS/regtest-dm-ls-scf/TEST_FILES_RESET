@@ -81,3 +81,21 @@ H2O-32-se-ls-2.inp
 H2-big-10.inp
 # extended GTH pseudopotentials 
 H2-big-11.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_01.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_02.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_03.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_07.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_08.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_09.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_10.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_11.inp
+# Atomic energy and stress properties 
+ace_ala_nme_pm6_12.inp

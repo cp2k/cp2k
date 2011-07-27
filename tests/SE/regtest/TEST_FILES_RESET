@@ -718,3 +718,7 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+# Atomic energy and stress properties 
+dimer2.inp
+# Atomic energy and stress properties 
+dimer3.inp

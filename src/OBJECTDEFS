@@ -37,6 +37,7 @@ OBJECTS_GENERIC =\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
+ atprop_types.o\
  averages_types.o\
  barostat_types.o\
  barostat_utils.o\
@@ -281,6 +282,7 @@ OBJECTS_GENERIC =\
  input_constants.o\
  input_cp2k.o\
  input_cp2k_atom.o\
+ input_cp2k_atprop.o\
  input_cp2k_barostats.o\
  input_cp2k_binary_restarts.o\
  input_cp2k_check.o\

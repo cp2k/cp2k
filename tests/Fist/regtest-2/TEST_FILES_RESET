@@ -194,3 +194,5 @@ H2O-32_SPME_res_2.inp
 H2O-ST_debug.inp
 # numerics 
 H2O-ST_debug.inp
+# Atomic energy and stress properties 
+H2O-32_SPME_fixed_clv.inp

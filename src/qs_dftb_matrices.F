@@ -121,7 +121,7 @@ CONTAINS
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, f0, foab, fow, ga, &
-                                                gb, s_cut, urep_cut
+                                                gb, s_cut, urep_cut, erepij
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
     REAL(KIND=dp), DIMENSION(2)              :: surr
@@ -277,6 +277,18 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+    END IF
+    ! atomic energy decomposition
+    IF (qs_env%atprop%energy) THEN
+      IF (ASSOCIATED(qs_env%atprop%atecc) ) THEN
+         DEALLOCATE(qs_env%atprop%atecc, STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+      natom = SIZE (particle_set)
+      ALLOCATE(qs_env%atprop%atecc(natom), STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      qs_env%atprop%atecc = 0._dp
     END IF
 
     erep = 0._dp
@@ -537,8 +549,14 @@ CONTAINS
 
        ! repulsive potential
        IF ((dr <= urep_cut .OR. spdim > 0) .AND. dr > 0.001_dp) THEN
-          CALL urep_egr(rij,dr,erep,force_rr,&
+          erepij = 0._dp
+          CALL urep_egr(rij,dr,erepij,force_rr,&
               n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,calculate_forces)
+          erep = erep + erepij
+          IF(qs_env%atprop%energy) THEN
+             qs_env%atprop%atecc(iatom) = qs_env%atprop%atecc(iatom) + 0.5_dp*erepij
+             qs_env%atprop%atecc(jatom) = qs_env%atprop%atecc(jatom) + 0.5_dp*erepij
+          END IF
           IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)

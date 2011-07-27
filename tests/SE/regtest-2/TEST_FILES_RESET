@@ -468,3 +468,11 @@ LM-KSDO.inp
 Al2O3.inp
 # Numerics
 scan_zn_1w_cp2k.inp
+# Atomic energy and stress properties 
+md.inp
+# Atomic energy and stress properties 
+ZrF2-PM6.inp
+# Atomic energy and stress properties 
+Pt-cis-2xpet3Cl2-si.inp
+# Atomic energy and stress properties 
+H2O-32.inp

@@ -14,6 +14,8 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE force_env_types
+  USE atprop_types,                    ONLY: atprop_release,&
+                                             atprop_type
   USE cell_types,                      ONLY: cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -163,6 +165,7 @@ MODULE force_env_types
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( cpot_type), POINTER                          :: cpot_env
+     TYPE ( atprop_type), POINTER                        :: atprop_env
      TYPE ( cp_result_type), POINTER                     :: results 
   END TYPE force_env_type
 
@@ -272,6 +275,7 @@ CONTAINS
           END SELECT
           CALL cp_result_release(results=force_env%results,error=error)
           CALL cpot_release(force_env%cpot_env,error=error)
+          CALL atprop_release(force_env%atprop_env,error=error)
           CALL globenv_release(force_env%globenv,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
           ! Not deallocated
@@ -305,7 +309,7 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
-       meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
+       meta_env, fp_env, atprop_env, subsys, para_env, potential_energy, additional_potential, &
        kinetic_energy, harmonic_shell, kinetic_shell, cell, cell_ref, sub_force_env,&
        qmmm_env, eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
        method_name_id, root_section, mixed_env, results, error)
@@ -318,6 +322,7 @@ CONTAINS
       POINTER                                :: qs_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER         :: fp_env
+    TYPE(atprop_type), OPTIONAL, POINTER     :: atprop_env
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -505,6 +510,7 @@ CONTAINS
           additional_potential = force_env%additional_potential
        END IF
        IF (PRESENT(fp_env)) fp_env => force_env%fp_env
+       IF (PRESENT(atprop_env)) atprop_env => force_env%atprop_env
        IF (PRESENT(meta_env)) meta_env => force_env%meta_env
        IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
        IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env

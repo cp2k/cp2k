@@ -15,6 +15,7 @@ MODULE qs_environment_types
                                              admm_type
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
@@ -396,6 +397,8 @@ MODULE qs_environment_types
     TYPE(efield_berry_type),POINTER                       :: efield
     ! a history for the broyden ot 
     REAL(KIND = dp)                                       :: broyden_adaptive_sigma
+    ! atomic properties
+    TYPE(atprop_type),POINTER                             :: atprop
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -432,7 +435,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
-       hfx_ri_env,dispersion_env, vee, error)
+       hfx_ri_env,dispersion_env, vee, atprop, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -565,6 +568,7 @@ CONTAINS
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
+    TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -718,6 +722,8 @@ CONTAINS
     IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
     IF (PRESENT(efield)) efield => qs_env%efield
 
+    IF (PRESENT(atprop)) atprop => qs_env%atprop
+
     IF (PRESENT(results)) results => qs_env%results
     IF (PRESENT(task_list)) task_list => qs_env%task_list
     IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => qs_env%task_list_aux_fit
@@ -824,6 +830,7 @@ CONTAINS
     NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
+    NULLIFY (qs_env%atprop)
     qs_env%outer_scf_ihistory=0
     qs_env%broyden_adaptive_sigma=-1.0_dp
     qs_env%neighbor_list_id=-1
@@ -881,7 +888,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
-       hfx_ri_env,dispersion_env,error)
+       hfx_ri_env,dispersion_env,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -992,6 +999,7 @@ CONTAINS
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
+    TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
@@ -1075,6 +1083,7 @@ CONTAINS
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
     IF (PRESENT(rtp)) qs_env%rtp=rtp
     IF (PRESENT(efield)) qs_env%efield=>efield
+    IF (PRESENT(atprop)) qs_env%atprop=>atprop
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
@@ -1688,6 +1697,8 @@ CONTAINS
             DEALLOCATE(qs_env%dispersion_env, stat=stat)
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          ! dereference atprop (we assume it will be deallocated in force_env!
+          NULLIFY(qs_env%atprop)
           ! now we are ready to deallocate the full structure
           DEALLOCATE(qs_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

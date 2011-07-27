@@ -620,7 +620,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: debug, debugall, debugx, &
                                                 failure, ghost_a, ghost_b, &
-                                                ghost_c, is000, use_virial
+                                                ghost_c, is000, use_virial, &
+                                                atenergy, atstress
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: dodisp, ghost
     REAL(KIND=dp) :: alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnab, &
       cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, &
@@ -636,6 +637,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: fdij, fdik, ra, rab, rb, rbc, &
                                                 rc, rc0, rca, rij, rik, &
                                                 sab_max
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: atener
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: atstr
     REAL(KIND=dp), DIMENSION(3, 3)           :: dvirial
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -670,6 +673,16 @@ CONTAINS
     debugall = debugx
     debug = debugx .AND. para_env%ionode
     nkind = SIZE(atomic_kind_set)
+
+    ! atomic energy and stress arrays
+    atenergy = qs_env%atprop%energy
+    IF (atenergy) THEN
+      atener => qs_env%atprop%atener
+    END IF
+    atstress = qs_env%atprop%stress
+    IF (atstress) THEN
+      atstr => qs_env%atprop%atstress
+    END IF
 
     energy%dispersion = 0._dp
 
@@ -919,6 +932,14 @@ CONTAINS
                    IF ( use_virial ) THEN
                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
                    END IF
+                   IF(atstress) THEN
+                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rij, error)
+                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij, error)
+                   END IF
+                END IF
+                IF(atenergy) THEN
+                  atener(iatom) = atener(iatom) - 0.5_dp*xp*fdmp*fac
+                  atener(jatom) = atener(jatom) - 0.5_dp*xp*fdmp*fac
                 END IF
              ELSE IF ( disp_a%type == dftd3_pp .AND. dr > 0.001_dp ) THEN
                 ! damping
@@ -937,6 +958,10 @@ CONTAINS
                 evdw = evdw - e6 - e8
                 e6tot = e6tot - e6
                 e8tot = e8tot - e8
+                IF(atenergy) THEN
+                  atener(iatom) = atener(iatom) - 0.5_dp*(e6+e8)
+                  atener(jatom) = atener(jatom) - 0.5_dp*(e6+e8)
+                END IF
                 IF(calculate_forces) THEN
                    de6 = -s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
                    de8 = -s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
@@ -947,6 +972,10 @@ CONTAINS
                    force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) + fdij(:)
                    IF ( use_virial ) THEN
                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
+                   END IF
+                   IF(atstress) THEN
+                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rij, error)
+                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij, error)
                    END IF
                    ! forces from the r-dependence of the coordination numbers
                    dc6a = -s6*fac*dc6a*fdab6/r6
@@ -965,6 +994,10 @@ CONTAINS
                      IF ( use_virial ) THEN
                        CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
                      END IF
+                     IF(atstress) THEN
+                        CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdik, rik, error)
+                        CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdik, rik, error)
+                     END IF
                    END DO
                    DO i=1,dcnum(jatom)%neighbors
                      katom=dcnum(jatom)%nlist(i)
@@ -977,6 +1010,10 @@ CONTAINS
                      force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) + fdik(:)
                      IF ( use_virial ) THEN
                        CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                     END IF
+                     IF(atstress) THEN
+                        CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdik, rik, error)
+                        CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdik, rik, error)
                      END IF
                    END DO
                 END IF
@@ -1052,6 +1089,11 @@ CONTAINS
                                  e9=s9*fac*fdabc*c9*ang/r2abc**1.50d0
                                  evdw = evdw - e9
                                  e9tot = e9tot - e9
+                                 IF(atenergy) THEN
+                                   atener(iatom) = atener(iatom) - e9/3._dp
+                                   atener(jatom) = atener(jatom) - e9/3._dp
+                                   atener(katom) = atener(katom) - e9/3._dp
+                                 END IF
 
                                  IF(calculate_forces) THEN
                                    rab = rb-ra; rbc = rc-rb; rca = ra-rc
@@ -1066,6 +1108,10 @@ CONTAINS
                                    IF ( use_virial ) THEN
                                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rab, error)
                                    END IF
+                                   IF(atstress) THEN
+                                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rab, error)
+                                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rab, error)
+                                   END IF
                                    fdij(:) = de91*rbc(:)/r2bc
                                    fdij(:) = fdij(:) + dea*s1*s2*s3 * rbc(:)/r2bc
                                    fdij(:) = fdij(:) - dea*(s2*s3-s1*s3+s1*s2) * rbc(:)
@@ -1073,6 +1119,10 @@ CONTAINS
                                    force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) + fdij(:)
                                    IF ( use_virial ) THEN
                                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rbc, error)
+                                   END IF
+                                   IF(atstress) THEN
+                                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rbc, error)
+                                      CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdij, rbc, error)
                                    END IF
                                    fdij(:) = de91*rca(:)/r2ca
                                    fdij(:) = fdij(:) + dea*s1*s2*s3 * rca(:)/r2ca
@@ -1082,8 +1132,13 @@ CONTAINS
                                    IF ( use_virial ) THEN
                                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rca, error)
                                    END IF
+                                   IF(atstress) THEN
+                                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rca, error)
+                                      CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdij, rca, error)
+                                   END IF
                                    IF (.NOT. dispersion_env%c9cnst) THEN
                                      ! forces from the r-dependence of the coordination numbers
+                                     ! atomic stress not implemented
                                      de91  = 0.5_dp*e9/cc6ab
                                      de921 = de91*dcc6aba
                                      de922 = de91*dcc6abb
@@ -1205,7 +1260,7 @@ CONTAINS
        elrc8 = 0._dp
        elrc9 = 0._dp
        IF ( dispersion_env%pp_type == "DFTD3" ) THEN
-          ! Long range correction
+          ! Long range correction (atomic contributions not implemented)
           IF (dispersion_env%lrc) THEN
              ALLOCATE (cnkind(nkind),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

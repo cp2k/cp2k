@@ -165,7 +165,9 @@ CONTAINS
           CALL cp_dbcsr_set(ks_scp,0.0_dp,error=error)
        END IF
 
-
+       IF(qs_env%atprop%energy) THEN
+         qs_env%atprop%atener = 0._dp
+       END IF
 
        ! Compute Exchange and Coulomb terms
        CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
@@ -194,7 +196,9 @@ CONTAINS
        END IF
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
-
+       IF(qs_env%atprop%energy) THEN
+         qs_env%atprop%atener = 0.5_dp*qs_env%atprop%atener + qs_env%atprop%atecc
+       END IF
 
        ! Compute the Hartree energy
        ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.

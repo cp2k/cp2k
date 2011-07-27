@@ -23,6 +23,7 @@ MODULE input_cp2k_dft
   USE f77_blas
   USE input_constants
   USE input_cp2k_atom,                 ONLY: create_powell_section
+  USE input_cp2k_atprop,               ONLY: create_atprop_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
                                              create_neighbor_lists_section
@@ -4269,7 +4270,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PROPERTIES",&
             description="This section is used to set up the PROPERTIES calculation.",&
-            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=4, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY (subsection,keyword)
@@ -4283,6 +4284,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_resp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_atprop_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

@@ -73,3 +73,7 @@
 2gly_CI-NEB.inp
 #numerics
 2gly_IT-NEB.inp
+# Atomic energy and stress properties 
+2gly_B-NEB.inp
+# Atomic energy and stress properties 
+2gly_CI-NEB.inp

@@ -41,3 +41,11 @@ NEB-MIXED.inp
 # Numerics 
 UO2-2x2x2-CI-NEB-core-shell.inp
 UO2-2x2x2-CI-NEB-core-shell-res.inp
+# Atomic energy and stress properties 
+2gly_IT-NEB-CV.inp
+# Atomic energy and stress properties 
+2gly_IT-NEB-CV-res.inp
+# Atomic energy and stress properties 
+UO2-2x2x2-CI-NEB-core-shell.inp
+# Atomic energy and stress properties 
+UO2-2x2x2-CI-NEB-core-shell-res.inp

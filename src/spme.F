@@ -12,11 +12,13 @@
 MODULE spme
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE atprop_types,                    ONLY: atprop_type
   USE bibliography,                    ONLY: Essmann1995,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
   USE dgs,                             ONLY: dg_sum_patch,&
+                                             dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -71,7 +73,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
        fg_coulomb, vg_coulomb, pv_g, shell_particle_set, core_particle_set,&
-       fgshell_coulomb, fgcore_coulomb, use_virial, charges, error )
+       fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -92,6 +94,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
@@ -104,7 +107,7 @@ CONTAINS
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: do_shell, failure
-    REAL(KIND=dp)                            :: alpha, dvols, ffa
+    REAL(KIND=dp)                            :: alpha, dvols, ffa, fat1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -118,10 +121,10 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
-    TYPE(realspace_grid_type), POINTER       :: rden
+    TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
     failure = .FALSE.
-    NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden)
+    NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
     CALL timeset ( routineN, handle )
     CALL cite_reference(Essmann1995)
 
@@ -233,6 +236,29 @@ CONTAINS
                              error=error)
     CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
                             h_stress ,error=error)
+    ! Atomic Energy 
+    IF (atprop%energy) THEN
+       CALL rs_grid_create (rpot, rs_desc, error=error)
+       phi_g%cc = phi_g%cc * green%p3m_charge%cr
+       CALL pw_transfer ( phi_g, rhob_r, error=error)
+       CALL rs_pw_transfer (rpot, rhob_r, pw2rs, error=error)
+       ipart = 0
+       DO
+          CALL set_list ( particle_set, npart, center, p1, rden, ipart )
+          IF ( p1 == 0 ) EXIT
+
+          do_shell = (particle_set(p1)%shell_index/=0)
+          IF(do_shell) CYCLE
+          ! calculate function on small boxes
+          CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, is_core=.FALSE.,&
+               is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
+
+          ! integrate box and potential
+          CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fat1 )
+          atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
+       END DO
+       CALL rs_grid_release ( rpot, error=error)
+    END IF
 
     CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
     CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)

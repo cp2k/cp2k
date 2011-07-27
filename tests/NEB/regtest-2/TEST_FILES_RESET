@@ -97,3 +97,7 @@
 2gly_DIIS-DNEB.inp
 # Enable Band (NEB) runs using the core-shell model 
 2gly_DIIS-NEB.inp
+# Atomic energy and stress properties 
+2gly_DIIS-SD-NEB.inp
+# Atomic energy and stress properties 
+2gly_DIIS-SD-2.inp

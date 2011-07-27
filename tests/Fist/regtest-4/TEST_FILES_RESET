@@ -317,3 +317,11 @@ h2o2_amber.inp
 mol_amber.inp
 ethene_colv1_npt.inp
 ethene_colv2_npt.inp
+# Atomic energy and stress properties 
+nh3-meta-walks_2.inp
+# Atomic energy and stress properties 
+nh3-meta-walks_1r.inp
+# Atomic energy and stress properties 
+nh3-meta-walks_2r.inp
+# Atomic energy and stress properties 
+H2O-meta-combine.inp
