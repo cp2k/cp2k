@@ -599,3 +599,7 @@ deca_ala_reftraj2.inp
 deca_ala_reftraj3.inp
 # test of the reset capabilities of CPQA
 butane.inp
+# change of input
+water_atprop_spme.inp
+water_atprop_pme.inp
+water_atprop_ewald.inp
