@@ -12,6 +12,7 @@ MODULE qs_dftb_dispersion
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_array_init
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -126,6 +127,12 @@ CONTAINS
 
        evdw = 0._dp
 
+       IF (qs_env%atprop%energy) THEN
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+          natom = SIZE (particle_set)
+          CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
+       END IF
+
        CALL get_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
        CALL neighbor_list_iterator_create(nl_iterator,sab_vdw)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -182,8 +189,8 @@ CONTAINS
                 END IF
              END IF
              IF (qs_env%atprop%energy) THEN
-                qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + 0.5_dp*eij
-                qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + 0.5_dp*eij
+                qs_env%atprop%atevdw(iatom) = qs_env%atprop%atevdw(iatom) + 0.5_dp*eij
+                qs_env%atprop%atevdw(jatom) = qs_env%atprop%atevdw(jatom) + 0.5_dp*eij
              END IF
              IF(calculate_forces .AND. (dr > 0.001_dp) .AND. use_virial) THEN
                 CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)

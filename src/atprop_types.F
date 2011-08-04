@@ -21,6 +21,7 @@ MODULE atprop_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atprop_types'
 
   PUBLIC :: atprop_type, atprop_create, atprop_release, atprop_init
+  PUBLIC :: atprop_array_init, atprop_array_release, atprop_array_add
 
 ! *****************************************************************************
 !> \brief type for the atomic properties
@@ -30,7 +31,10 @@ TYPE atprop_type
    LOGICAL                                   :: energy
    LOGICAL                                   :: stress
    REAL(KIND=dp), DIMENSION(:), POINTER      :: atener
+   REAL(KIND=dp), DIMENSION(:), POINTER      :: ateb
+   REAL(KIND=dp), DIMENSION(:), POINTER      :: atevdw
    REAL(KIND=dp), DIMENSION(:), POINTER      :: atecc
+   REAL(KIND=dp), DIMENSION(:), POINTER      :: atecoul
    REAL(KIND=dp), DIMENSION(:,:,:), POINTER  :: atstress
 END TYPE atprop_type
 
@@ -51,7 +55,8 @@ CONTAINS
   CALL atprop_release(atprop_env,error)
   ALLOCATE(atprop_env,stat=stat)
   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  NULLIFY(atprop_env%atener,atprop_env%atstress,atprop_env%atecc)
+  NULLIFY(atprop_env%atener,atprop_env%atstress)
+  NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
   atprop_env%energy = .FALSE.
   atprop_env%stress = .FALSE.
 
@@ -72,15 +77,9 @@ CONTAINS
   CPPrecondition(ASSOCIATED(atprop_env),cp_warning_level,routineP,error,failure)
 
   IF(atprop_env%energy) THEN
-    IF(ASSOCIATED(atprop_env%atener)) THEN
-      CPPrecondition(SIZE(atprop_env%atener)==natom,cp_warning_level,routineP,error,failure)
-    ELSE
-      ALLOCATE(atprop_env%atener(natom),stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    END IF
-    atprop_env%atener = 0._dp
+    CALL atprop_array_init(atprop_env%atener,natom,error)
   END IF
-  NULLIFY(atprop_env%atecc)
+  NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
 
   IF(atprop_env%stress) THEN
     IF(ASSOCIATED(atprop_env%atstress)) THEN
@@ -93,6 +92,67 @@ CONTAINS
   END IF
 
   END SUBROUTINE atprop_init
+
+  SUBROUTINE atprop_array_init(atarray,natom,error)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
+    INTEGER, INTENT(IN)                      :: natom
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF(ASSOCIATED(atarray)) THEN
+      CPPrecondition(SIZE(atarray)==natom,cp_warning_level,routineP,error,failure)
+    ELSE
+      ALLOCATE(atarray(natom),stat=stat)
+      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    END IF
+    atarray = 0._dp
+
+  END SUBROUTINE atprop_array_init
+
+  SUBROUTINE atprop_array_release(atarray,error)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF(ASSOCIATED(atarray)) THEN
+      DEALLOCATE(atarray,stat=stat)
+      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+      NULLIFY(atarray)
+    END IF
+
+  END SUBROUTINE atprop_array_release
+
+  SUBROUTINE atprop_array_add(array_a,array_b,error)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: array_a, array_b
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_add', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF(ASSOCIATED(array_b)) THEN
+      CPPrecondition(ASSOCIATED(array_a),cp_warning_level,routineP,error,failure)
+      array_a = array_a + array_b
+    END IF
+
+  END SUBROUTINE atprop_array_add
 
 ! *****************************************************************************
 !> \brief releases the atprop
@@ -113,18 +173,18 @@ SUBROUTINE atprop_release(atprop_env,error)
 
   failure=.FALSE.
   IF (ASSOCIATED(atprop_env)) THEN
-     IF (ASSOCIATED(atprop_env%atener)) THEN
-        DEALLOCATE(atprop_env%atener,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     END IF
-     IF (ASSOCIATED(atprop_env%atecc)) THEN
-        DEALLOCATE(atprop_env%atecc,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     END IF
+     ! energy
+     CALL atprop_array_release(atprop_env%atener,error)
+     CALL atprop_array_release(atprop_env%ateb,error)
+     CALL atprop_array_release(atprop_env%atevdw,error)
+     CALL atprop_array_release(atprop_env%atecc,error)
+     CALL atprop_array_release(atprop_env%atecoul,error)
+     ! stress
      IF (ASSOCIATED(atprop_env%atstress)) THEN
         DEALLOCATE(atprop_env%atstress,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
+     ! atprop type
      DEALLOCATE(atprop_env,stat=stat)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   END IF

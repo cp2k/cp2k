@@ -25,8 +25,7 @@ MODULE ewalds
                                              ewald_pw_type
   USE f77_blas
   USE input_constants,                 ONLY: do_ewald_none
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi,&
                                              pi
@@ -41,7 +40,6 @@ MODULE ewalds
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&
                                              structure_factor_evaluate
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -79,9 +77,7 @@ CONTAINS
       INTENT(OUT)                            :: pv_g
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: charges
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: e_coulomb
+      POINTER                                :: charges, e_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_evaluate', &
@@ -94,7 +90,8 @@ CONTAINS
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    LOGICAL                                  :: use_charge_array, atenergy, failure
+    LOGICAL                                  :: atenergy, failure, &
+                                                use_charge_array
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
                                                 pref, q
@@ -194,6 +191,8 @@ CONTAINS
     END DO
     CALL mp_sum ( summe, group )
 
+    pref = fourpi / pw_grid % vol
+
     ! looping over the positive g-vectors
     DO gpt = 1, pw_grid % ngpts_cut
        ! computing the potential energy
@@ -247,13 +246,11 @@ CONTAINS
        END IF
     END DO
 
-    pref = fourpi / pw_grid % vol
     vg_coulomb = vg_coulomb * pref
     IF (use_virial) pv_g = pv_g * pref
     IF (atenergy) e_coulomb = e_coulomb * pref
 
-    pref = 2.0_dp * pref
-    fg_coulomb = fg_coulomb * pref
+    fg_coulomb = fg_coulomb * (2.0_dp*pref)
 
     CALL structure_factor_deallocate ( exp_igr )
 
@@ -365,10 +362,10 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
-       POINTER                               :: atomic_kind_set( : )
+      POINTER                                :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), DIMENSION(:), &
-       INTENT(INOUT)                         :: e_self(:)
+      INTENT(INOUT)                          :: e_self(:)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -377,12 +374,11 @@ CONTAINS
 
     INTEGER                                  :: ewald_type, ii, &
                                                 iparticle_kind, &
-                                                nparticle_kind, &
                                                 iparticle_local, &
+                                                nparticle_kind, &
                                                 nparticle_local
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: alpha, mm_radius, q, q_neutg, &
-                                                q_self, q_sum, qcore, qshell
+    REAL(KIND=dp)                            :: alpha, mm_radius, q
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 

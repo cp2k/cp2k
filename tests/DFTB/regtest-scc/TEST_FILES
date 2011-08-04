@@ -29,3 +29,7 @@ ch2o-ot6.inp        1
 h2o-5.inp           1
 # first check for LSD
 test-lsd.inp        1
+# atomic properties
+fa_atprop.inp       1
+fa2_atprop.inp      1
+h2o_atprop.inp      1

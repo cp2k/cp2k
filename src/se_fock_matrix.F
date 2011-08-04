@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE se_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atprop_types,                    ONLY: atprop_array_init
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
@@ -39,6 +40,7 @@ MODULE se_fock_matrix
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -94,8 +96,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, ncol_global, &
-                                                nspins, output_unit
+    INTEGER                                  :: handle, ispin, natom, &
+                                                ncol_global, nspins, &
+                                                output_unit
     LOGICAL                                  :: failure, scp_nddo
     REAL(dp), POINTER                        :: ascp_diag( : )
     REAL(KIND=dp)                            :: ecoul, ecoul_scp, qmmm_el
@@ -110,6 +113,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -166,7 +171,9 @@ CONTAINS
        END IF
 
        IF(qs_env%atprop%energy) THEN
-         qs_env%atprop%atener = 0._dp
+         CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+         natom = SIZE(particle_set)
+         CALL atprop_array_init(qs_env%atprop%atecoul,natom,error)
        END IF
 
        ! Compute Exchange and Coulomb terms
@@ -197,7 +204,7 @@ CONTAINS
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
        IF(qs_env%atprop%energy) THEN
-         qs_env%atprop%atener = 0.5_dp*qs_env%atprop%atener + qs_env%atprop%atecc
+         qs_env%atprop%atecoul = 0.5_dp*qs_env%atprop%atecoul
        END IF
 
        ! Compute the Hartree energy

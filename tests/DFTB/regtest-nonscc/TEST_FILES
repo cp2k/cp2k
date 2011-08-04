@@ -16,3 +16,7 @@ h2o-32_4.inp         1
 MoS.inp              1
 n2.inp               1
 s2.inp               1
+# atomic properties
+ch2o_atprop.inp      1
+MoS_atprop.inp       1
+h2o-32_atprop.inp    1

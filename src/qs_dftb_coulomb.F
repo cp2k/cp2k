@@ -10,8 +10,10 @@
 MODULE qs_dftb_coulomb
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
-  USE atprop_types,                    ONLY: atprop_type
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
@@ -64,6 +66,8 @@ MODULE qs_dftb_coulomb
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
+  USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -120,13 +124,15 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: do_ewald, failure, found, &
                                                 use_virial
-    REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij
+    REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij, &
+                                                zeff
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gblock, gmcharge, &
                                                 ksblock, ksblock_2, mcin, &
                                                 mcout, pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -140,6 +146,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: n_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial
@@ -203,6 +210,12 @@ CONTAINS
           END IF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
+    END IF
+
+    IF (qs_env%atprop%energy) THEN
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+      natom = SIZE (particle_set)
+      CALL atprop_array_init(qs_env%atprop%atecoul,natom,error)
     END IF
 
     ! 1/R contribution
@@ -272,11 +285,16 @@ CONTAINS
 
     energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
     IF(qs_env%atprop%energy) THEN
+      CALL get_qs_env(qs_env=qs_env,&
+                      local_particles=local_particles,error=error)
       DO ikind=1,SIZE(local_particles%n_el)
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+        CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
         DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
-          qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + &
-             0.5_dp*mcharge(iatom)*gmcharge(iatom,1)
+          qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + &
+             0.5_dp*zeff*gmcharge(iatom,1)
         END DO
       END DO
     END IF
@@ -550,6 +568,13 @@ CONTAINS
 
        CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fint )
        gmcharge(p1,1) = gmcharge(p1,1) + fint * dvols
+
+       ! Atomic Stress
+       IF (atprop%stress) THEN
+          atprop%atstress(1,1,p1) = atprop%atstress(1,1,p1) + 0.5_dp*mcharge(p1)*fint*dvols
+          atprop%atstress(2,2,p1) = atprop%atstress(2,2,p1) + 0.5_dp*mcharge(p1)*fint*dvols
+          atprop%atstress(3,3,p1) = atprop%atstress(3,3,p1) + 0.5_dp*mcharge(p1)*fint*dvols
+       END IF
 
        IF ( calculate_forces ) THEN
           CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )

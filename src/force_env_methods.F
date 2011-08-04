@@ -170,6 +170,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER                 :: ateps = 1.e-6_dp 
 
     INTEGER                                  :: nat, ndigits, output_unit, &
                                                 print_forces, stat
@@ -177,7 +178,6 @@ CONTAINS
                                                 energy_consistency, eval_ef, &
                                                 failure, my_skip
     REAL(kind=dp)                            :: e_pot, pvtot
-    REAL(kind=dp), PARAMETER                 :: ateps=1.e-3_dp 
     REAL(kind=dp), DIMENSION(3)              :: grand_total_force, total_force
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(atprop_type), POINTER               :: atprop_env
@@ -363,7 +363,7 @@ CONTAINS
           WRITE(output_unit,*) 
           WRITE(output_unit,*) "ENERGY (ATOMIC) :",SUM(atprop_env%atener(:))
           WRITE(output_unit,*) "ENERGY (TOTAL)  :",e_pot
-          CPPostcondition(ABS(e_pot-SUM(atprop_env%atener(:)))<ateps,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(ABS(e_pot-SUM(atprop_env%atener))<ateps*ABS(e_pot),cp_fatal_level,routineP,error,failure)
        END IF
     END IF
     IF (atprop_env%stress) THEN

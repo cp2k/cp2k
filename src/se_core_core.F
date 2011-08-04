@@ -13,6 +13,7 @@ MODULE se_core_core
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_array_init
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
@@ -89,11 +90,12 @@ CONTAINS
                                                 iatom, ikind, itype, jatom, &
                                                 jkind, natom, nkind, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, defined, failure, &
-                                                use_virial, atener
+    LOGICAL                                  :: anag, atener, defined, &
+                                                failure, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
-    REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, enucij, &
-                                                enuclear, r2inv, r3inv, rinv
+    REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, &
+                                                enucij, enuclear, r2inv, &
+                                                r3inv, rinv
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -142,14 +144,9 @@ CONTAINS
     ! atomic energy decomposition
     atener = qs_env%atprop%energy
     IF (atener) THEN
-      IF (ASSOCIATED(qs_env%atprop%atecc) ) THEN
-         DEALLOCATE(qs_env%atprop%atecc, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE (particle_set)
-      ALLOCATE(qs_env%atprop%atecc(natom), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL atprop_array_init(qs_env%atprop%atecc,natom,error)
     END IF
 
     ! Retrieve some information if GKS ewald scheme is used

@@ -13,6 +13,8 @@ MODULE qs_dispersion_pairpot
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              set_atomic_kind
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE bibliography,                    ONLY: cite_reference,&
                                              grimme2006,&
                                              grimme2010
@@ -618,10 +620,8 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: debug, debugall, debugx, &
-                                                failure, ghost_a, ghost_b, &
-                                                ghost_c, is000, use_virial, &
-                                                atenergy, atstress
+    LOGICAL :: atenergy, atstress, debug, debugall, debugx, failure, ghost_a, &
+      ghost_b, ghost_c, is000, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: dodisp, ghost
     REAL(KIND=dp) :: alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnab, &
       cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, &
@@ -637,12 +637,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: fdij, fdik, ra, rab, rb, rbc, &
                                                 rc, rc0, rca, rij, rik, &
                                                 sab_max
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: atener
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: atstr
     REAL(KIND=dp), DIMENSION(3, 3)           :: dvirial
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: atener
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: atstr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dcnum_type), ALLOCATABLE, &
@@ -667,21 +669,25 @@ CONTAINS
 
     failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env, energy=energy, atomic_kind_set=atomic_kind_set,&
-         cell=cell, virial=virial, dft_control=dft_control,para_env=para_env,&
-         dispersion_env=dispersion_env,error=error)
+         cell=cell, virial=virial, dft_control=dft_control, para_env=para_env,&
+         dispersion_env=dispersion_env, atprop=atprop, error=error)
     debugx = dispersion_env%verbose
     debugall = debugx
     debug = debugx .AND. para_env%ionode
     nkind = SIZE(atomic_kind_set)
 
     ! atomic energy and stress arrays
-    atenergy = qs_env%atprop%energy
+    atenergy = atprop%energy
     IF (atenergy) THEN
-      atener => qs_env%atprop%atener
+       NULLIFY (particle_set)
+       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+       natom = SIZE(particle_set)
+       CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
+       atener => qs_env%atprop%atevdw
     END IF
     atstress = qs_env%atprop%stress
     IF (atstress) THEN
-      atstr => qs_env%atprop%atstress
+       atstr => qs_env%atprop%atstress
     END IF
 
     energy%dispersion = 0._dp

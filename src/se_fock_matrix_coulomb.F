@@ -126,13 +126,13 @@ CONTAINS
       nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, check, defined, &
+    LOGICAL                                  :: anag, atener, check, defined, &
                                                 failure, found, scp_nddo, &
-                                                switch, use_virial, atener
+                                                switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
-    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(2)              :: ecab
+    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -367,8 +367,8 @@ CONTAINS
                    ecore2 = ecore2 + ecab(1) + ecab(2)
                 END IF
                 IF (atener) THEN
-                  qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecab(1)
-                  qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + ecab(2)
+                  qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecab(1)
+                  qs_env%atprop%atecoul(jatom) = qs_env%atprop%atecoul(jatom) + ecab(2)
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
@@ -472,7 +472,7 @@ CONTAINS
                 END IF
                 ecore2=ecore2+ecores
                 IF (atener) THEN
-                   qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecores
+                   qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecores
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
@@ -550,8 +550,9 @@ CONTAINS
       ilist, indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
       nlocal_particles, node, nparticle_local, nspins, size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, defined, failure, &
-                                                found, scp_nddo, use_virial, atener
+    LOGICAL                                  :: anag, atener, defined, &
+                                                failure, found, scp_nddo, &
+                                                use_virial
     LOGICAL, DIMENSION(3)                    :: task
     REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
                                                 energy_local, enuc, fac, tmp
@@ -866,6 +867,10 @@ CONTAINS
 
              ! Nuclear term and forces
              IF (task(1)) enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
+             IF (atener) THEN
+                qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) +&
+                          0.5_dp*se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
+             END IF
              IF(calculate_forces) THEN
                 atom_a   = atom_of_kind(iatom)
                 force_a  = forces_r(1:3,iatom) + forces_g(1:3,node)
@@ -956,14 +961,14 @@ CONTAINS
       size1, size2, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, check, defined, &
+    LOGICAL                                  :: anag, atener, check, defined, &
                                                 failure, found, scp_nddo, &
-                                                switch, use_virial, atener
+                                                switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp) :: delta, dr1, ecore2, enuc, enuclear, ptens11, ptens12, &
       ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33
-    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(2)              :: ecab
+    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_ab0, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
@@ -1209,8 +1214,8 @@ CONTAINS
                    ecore2 = ecore2 + ecab(1) + ecab(2)
                 END IF
                 IF (atener) THEN
-                  qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecab(1)
-                  qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + ecab(2)
+                  qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecab(1) + 0.5_dp*enuc
+                  qs_env%atprop%atecoul(jatom) = qs_env%atprop%atecoul(jatom) + ecab(2) + 0.5_dp*enuc
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
@@ -1381,13 +1386,13 @@ CONTAINS
       natorb_b2, nkind, nlocal_particles, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, check, defined, &
-                                                failure, found, switch, atener
+    LOGICAL                                  :: anag, atener, check, defined, &
+                                                failure, found, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: dr1, ecore2, r2inv, r3inv, &
                                                 rinv
-    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(2)              :: ecab
+    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: dr3inv, force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -1597,8 +1602,8 @@ CONTAINS
                    ecore2 = ecore2 + ecab(1) + ecab(2)
                 END IF
                 IF (atener) THEN
-                  qs_env%atprop%atener(iatom) = qs_env%atprop%atener(iatom) + ecab(1)
-                  qs_env%atprop%atener(jatom) = qs_env%atprop%atener(jatom) + ecab(2)
+                  qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecab(1)
+                  qs_env%atprop%atecoul(jatom) = qs_env%atprop%atecoul(jatom) + ecab(2)
                 END IF
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN

@@ -16,6 +16,7 @@ MODULE qs_dftb_matrices
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              is_hydrogen
+  USE atprop_types,                    ONLY: atprop_array_init
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
@@ -120,8 +121,9 @@ CONTAINS
                                                 hb_sr_damp, new_atom_b, &
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
-                                                drp, erep, f0, f1, foab, fow, ga, &
-                                                gb, s_cut, urep_cut, erepij
+                                                drp, erep, erepij, f0, f1, &
+                                                foab, fow, ga, gb, s_cut, &
+                                                urep_cut
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
     REAL(KIND=dp), DIMENSION(2)              :: surr
@@ -280,15 +282,9 @@ CONTAINS
     END IF
     ! atomic energy decomposition
     IF (qs_env%atprop%energy) THEN
-      IF (ASSOCIATED(qs_env%atprop%atecc) ) THEN
-         DEALLOCATE(qs_env%atprop%atecc, STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE (particle_set)
-      ALLOCATE(qs_env%atprop%atecc(natom), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      qs_env%atprop%atecc = 0._dp
+      CALL atprop_array_init(qs_env%atprop%atecc,natom,error)
     END IF
 
     erep = 0._dp
@@ -747,7 +743,7 @@ CONTAINS
             DO iatom=1,natom
               atom_a = atomic_kind%atom_list(iatom)
               mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
-           END DO
+            END DO
          END DO
          DEALLOCATE(charges,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

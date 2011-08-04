@@ -32,8 +32,8 @@ MODULE fist_force
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE ewalds,                          ONLY: ewald_evaluate,&
                                              ewald_print,&
-                                             ewald_self_atom,&
-                                             ewald_self
+                                             ewald_self,&
+                                             ewald_self_atom
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
@@ -133,12 +133,12 @@ CONTAINS
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_opbend, pot_shell, pot_torsion, &
       pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: e_coulomb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, &
       fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
       fgshell_coulomb, fshell_nonbond, fshell_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
       pv_imptors, pv_nonbond, pv_opbend, pv_torsion, pv_urey_bradley
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: e_coulomb
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

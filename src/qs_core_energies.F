@@ -14,11 +14,14 @@ MODULE qs_core_energies
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erfc
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: oorootpi,&
@@ -118,7 +121,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: failure, only_molecule, &
-                                                use_virial
+                                                use_virial, atenergy
     REAL(KIND=dp)                            :: aab, dab, eab, ecore_overlap, &
                                                 f, fab, rab2, rootaab, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
@@ -126,6 +129,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -146,6 +150,7 @@ CONTAINS
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
     NULLIFY (energy)
+    NULLIFY (atprop)
     NULLIFY (force)
     NULLIFY (particle_set)
 
@@ -161,6 +166,7 @@ CONTAINS
                     energy=energy,&
                     force=force,&
                     sab_core=sab_core,&
+                    atprop=atprop,&
                     virial = virial,error=error)
 
     CALL get_cell(cell=cell,periodic=periodic)
@@ -181,6 +187,14 @@ CONTAINS
        ALLOCATE (atom_of_kind(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+    END IF
+
+    atenergy = .FALSE.
+    IF (ASSOCIATED(atprop)) THEN
+       IF (atprop%energy) THEN
+          atenergy = .TRUE.
+          CALL atprop_array_init(atprop%atecc,natom,error)
+       END IF
     END IF
 
     DO ikind=1,nkind
@@ -210,6 +224,10 @@ CONTAINS
           dab = SQRT(rab2)
           eab = zab*erfc(rootaab*dab)/dab
           ecore_overlap = ecore_overlap + f*eab
+          IF (atenergy) THEN
+             atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*f*eab
+             atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*f*eab
+          END IF
           IF (calculate_forces) THEN
              deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
              atom_a = atom_of_kind(iatom)
@@ -257,12 +275,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, natom
+    INTEGER                                  :: handle, iatom, ikind, &
+                                                iparticle_local, natom, &
+                                                nparticle_local
     REAL(KIND=dp)                            :: alpha_core_charge, &
-                                                ecore_self, zeff
+                                                ecore_self, es, zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
 
 ! -------------------------------------------------------------------------
@@ -285,6 +308,28 @@ CONTAINS
     energy%core_self = ecore_self/SQRT(twopi)
     IF (PRESENT(E_self_core)) THEN
       E_self_core = energy%core_self
+    END IF
+
+    IF (ASSOCIATED(qs_env%atprop)) THEN
+      IF (qs_env%atprop%energy) THEN
+        ! atomic energy
+        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
+                        local_particles=local_particles,error=error)
+        natom = SIZE(particle_set)
+        CALL atprop_array_init(qs_env%atprop%ateb,natom,error)
+
+        DO ikind=1,SIZE(atomic_kind_set)
+           atomic_kind => atomic_kind_set(ikind)
+           nparticle_local = local_particles%n_el(ikind)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                zeff=zeff,alpha_core_charge=alpha_core_charge)
+           es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
+           DO iparticle_local = 1, nparticle_local
+              iatom = local_particles%list(ikind)%array(iparticle_local)
+              qs_env%atprop%ateb(iatom) = qs_env%atprop%ateb(iatom) - es
+           END DO
+        END DO
+      END IF
     END IF
 
     CALL timestop(handle)

@@ -57,3 +57,5 @@ ice-scp-ewald_gks.inp 3
 ice-ewald-mol.inp 3
 ice-ewald-nomol.inp 3
 ice-ewald-r_cut.inp 3
+# Atprop energy
+dimer_atprop.inp 3

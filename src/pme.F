@@ -108,7 +108,7 @@ CONTAINS
                                                 ipart, j, npart, nshell, p1, &
                                                 p2
     LOGICAL                                  :: failure, is1_core, is2_core
-    REAL(KIND=dp)                            :: alpha, dvols, ffa, fat1
+    REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(dg_rho0_type), POINTER              :: dg_rho0

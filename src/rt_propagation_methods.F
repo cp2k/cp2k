@@ -17,16 +17,19 @@ MODULE rt_propagation_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_name, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_add
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_col_block_sizes,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_distribution,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_row_block_sizes,&
+                                             cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_sm_fm_multiply,&
-                                             cp_dbcsr_alloc_block_from_nbl
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -47,8 +50,7 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
-                                             dbcsr_type_symmetric
+  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
                                              do_diag,&
@@ -599,7 +601,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s,matrix_ks_aux_fit
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env

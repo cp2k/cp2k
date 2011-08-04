@@ -107,7 +107,7 @@ CONTAINS
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: do_shell, failure
-    REAL(KIND=dp)                            :: alpha, dvols, ffa, fat1
+    REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -237,7 +237,7 @@ CONTAINS
     CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
                             h_stress ,error=error)
     ! Atomic Energy 
-    IF (atprop%energy) THEN
+    IF (atprop%energy .OR. atprop%stress) THEN
        CALL rs_grid_create (rpot, rs_desc, error=error)
        phi_g%cc = phi_g%cc * green%p3m_charge%cr
        CALL pw_transfer ( phi_g, rhob_r, error=error)
@@ -255,7 +255,14 @@ CONTAINS
 
           ! integrate box and potential
           CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fat1 )
-          atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
+          IF (atprop%energy) THEN
+             atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
+          END IF
+          IF (atprop%stress) THEN
+             atprop%atstress(1,1,p1) = atprop%atstress(1,1,p1) + 0.5_dp*fat1*dvols
+             atprop%atstress(2,2,p1) = atprop%atstress(2,2,p1) + 0.5_dp*fat1*dvols
+             atprop%atstress(3,3,p1) = atprop%atstress(3,3,p1) + 0.5_dp*fat1*dvols
+          END IF
        END DO
        CALL rs_grid_release ( rpot, error=error)
     END IF

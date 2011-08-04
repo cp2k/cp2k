@@ -10,24 +10,19 @@
 !> \author MK (29.10.2002)
 ! *****************************************************************************
 MODULE qs_energy
+  USE atprop_types,                    ONLY: atprop_array_add,&
+                                             atprop_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_trace,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -149,6 +144,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspin
     LOGICAL                                  :: do_et, has_unit_metric
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
                                                 matrix_w, mo_derivs
@@ -288,13 +284,13 @@ CONTAINS
     END IF
 
     ! atomic energies using Mulliken partition
-    IF ( qs_env%atprop%energy) THEN
+    IF (qs_env%atprop%energy) THEN
+       CALL get_qs_env(qs_env=qs_env,atprop=atprop,error=error)
        CALL qs_energies_mulliken(qs_env,error)
-       IF ( dft_control%qs_control%semi_empirical ) THEN
-       ELSEIF ( dft_control%qs_control%dftb ) THEN
-          qs_env%atprop%atener = qs_env%atprop%atener + qs_env%atprop%atecc
-       ELSE
-       END IF
+       CALL atprop_array_add(atprop%atener,atprop%ateb,error)
+       CALL atprop_array_add(atprop%atener,atprop%atecoul,error)
+       CALL atprop_array_add(atprop%atener,atprop%atevdw,error)
+       CALL atprop_array_add(atprop%atener,atprop%atecc,error)
     END IF
 
     ! **********  Calculate the electron transfer coupling elements********
@@ -361,20 +357,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_h
+      POINTER                                :: matrix_h, matrix_ks
     TYPE(qs_rho_type), POINTER               :: rho
 
     IF(qs_env%atprop%energy) THEN
        CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_h=matrix_h,&
-                       rho=rho,error=error)
+                       rho=rho,atprop=atprop,error=error)
 
        ! E = 0.5*Tr(H*P+F*P)
+       atprop%atener = 0._dp
        DO ispin = 1,SIZE(rho%rho_ao)
           CALL atom_trace(matrix_h(1)%matrix,rho%rho_ao(ispin)%matrix,&
-               0.5_dp,qs_env%atprop%atener,error)
+               0.5_dp,atprop%atener,error)
           CALL atom_trace(matrix_ks(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
-               0.5_dp,qs_env%atprop%atener,error)
+               0.5_dp,atprop%atener,error)
        END DO
 
     END IF
@@ -464,17 +462,18 @@ CONTAINS
 !>      06.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE atom_trace(amat,bmat,factor,atrace,error)
-    TYPE(cp_dbcsr_type), POINTER             :: amat,bmat
+    TYPE(cp_dbcsr_type), POINTER             :: amat, bmat
     REAL(kind=dp), INTENT(IN)                :: factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: atrace 
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: atrace
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, iblock_col, iblock_row, nblock
+    INTEGER                                  :: blk, iblock_col, iblock_row, &
+                                                nblock
     LOGICAL                                  :: failure, found
-    REAL(kind=dp)                            :: mult, btr
+    REAL(kind=dp)                            :: btr, mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 

@@ -642,9 +642,9 @@ CONTAINS
             "KOHN-SHAM MATRIX-"//ADJUSTL(cp_to_string(ispin)),error=error)
     END DO
 
-    CALL set_qs_env(qs_env=qs_env,&
-         matrix_ks=matrix_ks,error=error)
+    CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
 
+    NULLIFY(qs_env%atprop)
     CALL calculate_ecore_self(qs_env,error=error)
     CALL calculate_ecore_overlap(qs_env,para_env,.FALSE.,error=error)
 
