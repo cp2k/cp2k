@@ -834,7 +834,7 @@ CONTAINS
                                                 my_minimum_image, new_atom_b
     REAL(KIND=dp)                            :: alpha, dab, Lxo2, Lyo2, Lzo2, &
                                                 rab2
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 work, zeta, zetb
@@ -941,17 +941,17 @@ CONTAINS
        sphi_b       =>  basis_set_b%sphi
        zetb         =>  basis_set_b%zet
 
-       IF(inode==1) last_jatom = 0
+       IF(inode==1) THEN
+         last_jatom = 0
+         alpha = 1.0_dp
+       END IF
        ldsa = SIZE(sphi_a,1)
        ldsb = SIZE(sphi_b,1)
 
-       alpha = 1.0_dp
 
        IF(my_minimum_image) THEN
          IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) CYCLE
        END IF
-
-       rb = rab + ra
 
        IF (jatom /= last_jatom) THEN
          new_atom_b = .TRUE.
@@ -1651,13 +1651,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
                      work(1,1),ldwork,&
                      1.0_dp,op_dip(imom)%block(sgfa,sgfb),&
                      SIZE(op_dip(imom)%block,1))
-!dbg
-!   num1 =500+10*imom
-!   write(num1,*) ' imom ', imom,' iset ' , iset, nsgfa(iset), sgfa, ' jset ', jset,  nsgfb(jset), sgfb
-!   do i = sgfa,sgfa+nsgfa(iset)-1
-!      write(num1,'(I4,50f12.6)') i, op_dip(imom)%block(i,sgfb:sgfb+nsgfb(jset)-1)
-!   end do
-!dbg
 
                alpha = -1.0_dp!-alpha_der
                DO idir = 1,3
@@ -1669,14 +1662,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
                        work(1,1),ldwork,&
                        1.0_dp,op_dip_der(imom,idir)%block(sgfa,sgfb),&
                        SIZE(op_dip_der(imom,idir)%block,1))
-!dbg
-!   num1 =1000+100*imom+10*idir+2
-!   write(num1,*) ' imom ', imom, ' der. ', idir, ' iset '  , iset, nsgfa(iset), &
-!        sgfa, ' jset ', jset,  nsgfb(jset), sgfb
-!   do i = sgfa,sgfa+nsgfa(iset)-1
-!      write(num1,'(I4,50f12.6)') i, op_dip_der(imom,idir)%block(i,sgfb:sgfb+nsgfb(jset)-1)
-!   end do
-!dbg
 
                END DO  ! idir
 
