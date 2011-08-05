@@ -108,3 +108,5 @@ H2O_tddfpt-t-1.inp
 H2O_tddfpt-t-1.inp
 # extended GTH pseudopotentials 
 NO_tddfpt-t-1.inp
+# atomic properties
+NO_tddfpt-t-3.inp

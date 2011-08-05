@@ -120,8 +120,8 @@ CONTAINS
                                                 jkind, natom, nkind, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: failure, only_molecule, &
-                                                use_virial, atenergy
+    LOGICAL                                  :: atenergy, failure, &
+                                                only_molecule, use_virial
     REAL(KIND=dp)                            :: aab, dab, eab, ecore_overlap, &
                                                 f, fab, rab2, rootaab, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff

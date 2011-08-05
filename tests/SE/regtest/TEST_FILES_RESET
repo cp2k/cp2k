@@ -722,3 +722,5 @@ Al2O3.inp
 dimer2.inp
 # Atomic energy and stress properties 
 dimer3.inp
+# Atomic energy and stress properties 
+geom.inp

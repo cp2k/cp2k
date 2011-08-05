@@ -218,3 +218,5 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+# atomic properties
+Si_tersoff_qmmm.inp

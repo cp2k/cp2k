@@ -447,3 +447,5 @@ Co_complex.inp
 N3_rp_md.inp
 # Atomic energy and stress properties 
 N3_dp_md.inp
+# Atomic energy and stress properties 
+H2O-4.inp
