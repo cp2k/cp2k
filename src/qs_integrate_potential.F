@@ -29,6 +29,7 @@ MODULE qs_integrate_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_array_init
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
@@ -345,10 +346,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                ikind, j, natom_of_kind, &
-                                                npme, stat, tp(3)
+                                                ikind, j, natom, &
+                                                natom_of_kind, npme, stat, &
+                                                tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure, paw_atom, &
+    LOGICAL                                  :: atenergy, failure, paw_atom, &
                                                 skip_fcore, use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
@@ -377,18 +379,19 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw) THEN
       IF(.NOT. qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
     END IF
+    ! atomic energy contributions
+    atenergy = .FALSE.
+    IF(ASSOCIATED(qs_env%atprop)) THEN
+      atenergy=qs_env%atprop%energy
+    END IF
       
     failure = .FALSE.
     IF(.NOT. skip_fcore) THEN 
         NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
         ALLOCATE (hab(1,1),STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-       !                                 "hab",dp_size)
         ALLOCATE (pab(1,1),STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-       !                                 "pab",dp_size)
      
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
@@ -403,6 +406,11 @@ CONTAINS
              particle_set=particle_set,&
              para_env=para_env,pw_env=pw_env,&
              force=force,virial=virial,error=error)
+
+        IF(atenergy) THEN
+           natom = SIZE(particle_set)
+           CALL atprop_array_init(qs_env%atprop%ateb,natom,error)
+        END IF
      
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      
@@ -414,7 +422,7 @@ CONTAINS
      
            CALL get_atomic_kind(atomic_kind=atomic_kind,&
                 natom=natom_of_kind,&
-                 paw_atom=paw_atom, &
+                paw_atom=paw_atom, &
                 atom_list=atom_list,&
                 alpha_core_charge=alpha_core_charge,&
                 ccore_charge=ccore_charge)
@@ -478,23 +486,18 @@ CONTAINS
             IF (use_virial) THEN
               virial%pv_virial = virial%pv_virial + my_virial_a
             END IF
+            IF (atenergy) THEN
+               qs_env%atprop%ateb(iatom) = qs_env%atprop%ateb(iatom) + 0.5_dp*hab(1,1)*pab(1,1)
+            END IF
+
          END DO
      
         END DO
      
         CALL rs_grid_release(rs_v, error=error)
      
-        DEALLOCATE (hab,STAT=stat)
+        DEALLOCATE (hab,pab,cores,STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-!        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"hab")
-
-        DEALLOCATE (pab,STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-!        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
-
-        DEALLOCATE (cores,STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-!        IF(stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
 
     END IF
 

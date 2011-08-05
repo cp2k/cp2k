@@ -32,8 +32,11 @@ TYPE atprop_type
    LOGICAL                                   :: stress
    REAL(KIND=dp), DIMENSION(:), POINTER      :: atener
    REAL(KIND=dp), DIMENSION(:), POINTER      :: ateb
+   REAL(KIND=dp), DIMENSION(:), POINTER      :: atexc
+   REAL(KIND=dp), DIMENSION(:), POINTER      :: ateself
    REAL(KIND=dp), DIMENSION(:), POINTER      :: atevdw
    REAL(KIND=dp), DIMENSION(:), POINTER      :: atecc
+   REAL(KIND=dp), DIMENSION(:), POINTER      :: ate1c
    REAL(KIND=dp), DIMENSION(:), POINTER      :: atecoul
    REAL(KIND=dp), DIMENSION(:,:,:), POINTER  :: atstress
 END TYPE atprop_type
@@ -57,6 +60,7 @@ CONTAINS
   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   NULLIFY(atprop_env%atener,atprop_env%atstress)
   NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
+  NULLIFY(atprop_env%ateself,atprop_env%atexc,atprop_env%ate1c)
   atprop_env%energy = .FALSE.
   atprop_env%stress = .FALSE.
 
@@ -80,6 +84,7 @@ CONTAINS
     CALL atprop_array_init(atprop_env%atener,natom,error)
   END IF
   NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
+  NULLIFY(atprop_env%ateself,atprop_env%atexc,atprop_env%ate1c)
 
   IF(atprop_env%stress) THEN
     IF(ASSOCIATED(atprop_env%atstress)) THEN
@@ -176,8 +181,11 @@ SUBROUTINE atprop_release(atprop_env,error)
      ! energy
      CALL atprop_array_release(atprop_env%atener,error)
      CALL atprop_array_release(atprop_env%ateb,error)
+     CALL atprop_array_release(atprop_env%ateself,error)
+     CALL atprop_array_release(atprop_env%atexc,error)
      CALL atprop_array_release(atprop_env%atevdw,error)
      CALL atprop_array_release(atprop_env%atecc,error)
+     CALL atprop_array_release(atprop_env%ate1c,error)
      CALL atprop_array_release(atprop_env%atecoul,error)
      ! stress
      IF (ASSOCIATED(atprop_env%atstress)) THEN

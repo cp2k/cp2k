@@ -50,6 +50,7 @@ MODULE qs_energy
                                              set_qs_env
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
+  USE qs_integrate_potential,          ONLY: integrate_v_core_rspace
   USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
                                              calculate_w_matrix_ot,&
                                              qs_ks_update_qs_env
@@ -287,10 +288,19 @@ CONTAINS
     IF (qs_env%atprop%energy) THEN
        CALL get_qs_env(qs_env=qs_env,atprop=atprop,error=error)
        CALL qs_energies_mulliken(qs_env,error)
+       IF ( .NOT.dft_control%qs_control%semi_empirical .AND. &
+            .NOT.dft_control%qs_control%dftb) THEN
+         ! Nuclear charge correction
+         CALL integrate_v_core_rspace(qs_env%ks_env%v_hartree_rspace,qs_env,error=error)
+         ! Kohn-Sham Functional corrections
+       END IF
        CALL atprop_array_add(atprop%atener,atprop%ateb,error)
+       CALL atprop_array_add(atprop%atener,atprop%ateself,error)
+       CALL atprop_array_add(atprop%atener,atprop%atexc,error)
        CALL atprop_array_add(atprop%atener,atprop%atecoul,error)
        CALL atprop_array_add(atprop%atener,atprop%atevdw,error)
        CALL atprop_array_add(atprop%atener,atprop%atecc,error)
+       CALL atprop_array_add(atprop%atener,atprop%ate1c,error)
     END IF
 
     ! **********  Calculate the electron transfer coupling elements********

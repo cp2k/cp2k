@@ -8,6 +8,7 @@ MODULE  hartree_local_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_array_init
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
@@ -25,6 +26,7 @@ MODULE  hartree_local_methods
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -220,12 +222,12 @@ CONTAINS
       is2, iset1, iset2, iso, iso1, iso2, ispin, istat, l_ang, llmax, lmax0, &
       lmax_0, m1, m2, max_iso, max_iso_not0, max_iso_not0_local, max_nr, &
       max_s_harm, maxl, maxso, mepos, n1, n2, nat, nchan_0, nkind, nr, nset, &
-      nsotot, nspins, num_pe
+      nsotot, nspins, num_pe, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, my_periodic, &
-                                                my_tddft, paw_atom
+                                                my_tddft, paw_atom, atenergy
     REAL(dp)                                 :: back_ch, ec_tmp, ecoul_1_0, &
                                                 ecoul_1_h, ecoul_1_s, &
                                                 ecoul_1_z, factor, gVg_0, &
@@ -251,6 +253,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -280,6 +284,7 @@ CONTAINS
          cell=cell,dft_control=dft_control,&
          para_env=para_env,&
          atomic_kind_set=atomic_kind_set,&
+         particle_set=particle_set,&
          pw_env=pw_env,qs_charges=qs_charges,error=error)
 
     CALL pw_env_get(pw_env,poisson_env=poisson_env,error=error)
@@ -320,6 +325,15 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    atenergy=.FALSE.
+    IF (ASSOCIATED(qs_env%atprop)) THEN
+      atenergy = qs_env%atprop%energy
+      IF (atenergy) THEN
+        natom = SIZE(particle_set)
+        CALL atprop_array_init(qs_env%atprop%ate1c,natom,error)
+      END IF
+    END IF
 
     !   Put to 0 the local hartree energy contribution from 1 center integrals
     energy_hartree_1c = 0.0_dp
@@ -479,7 +493,10 @@ CONTAINS
             CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
    
             energy_hartree_1c = energy_hartree_1c +  ecoul_1_z -  ecoul_1_0
-   
+            ! atomic energy contribution
+            IF (atenergy) THEN
+               qs_env%atprop%ate1c(iatom) = qs_env%atprop%ate1c(iatom) + ecoul_1_z - ecoul_1_0
+            END IF
    
             !       Calculate the integrals of the potential with 2 primitives
             aVh1b_hh = 0.0_dp

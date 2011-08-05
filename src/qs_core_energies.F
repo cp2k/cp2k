@@ -316,7 +316,7 @@ CONTAINS
         CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
                         local_particles=local_particles,error=error)
         natom = SIZE(particle_set)
-        CALL atprop_array_init(qs_env%atprop%ateb,natom,error)
+        CALL atprop_array_init(qs_env%atprop%ateself,natom,error)
 
         DO ikind=1,SIZE(atomic_kind_set)
            atomic_kind => atomic_kind_set(ikind)
@@ -326,7 +326,7 @@ CONTAINS
            es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
            DO iparticle_local = 1, nparticle_local
               iatom = local_particles%list(ikind)%array(iparticle_local)
-              qs_env%atprop%ateb(iatom) = qs_env%atprop%ateb(iatom) - es
+              qs_env%atprop%ateself(iatom) = qs_env%atprop%ateself(iatom) - es
            END DO
         END DO
       END IF
