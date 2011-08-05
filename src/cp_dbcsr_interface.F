@@ -4113,9 +4113,13 @@ CONTAINS
     new_data => array_data (new_dist)
     new_data(1:sz) = old_data(1:sz)
     max_bin = MAXVAL (old_data)
-    FORALL (i = sz+1 : new_size)
-       new_data(i) = MOD (i, max_bin)
-    END FORALL
+    IF (max_bin .GT. 0) THEN
+       FORALL (i = sz+1 : new_size)
+          new_data(i) = MOD (i, max_bin)
+       END FORALL
+    ELSE
+       new_data(sz+1:new_size) = 0
+    ENDIF
   END SUBROUTINE match_1_dist
 
 END MODULE cp_dbcsr_interface
