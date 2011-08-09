@@ -174,9 +174,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: free_var_index
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     LOGICAL                                  :: should_stop
-    REAL(KIND=dp)                            :: e1, e2, e_pot, energy_weight, &
-                                                re, rf, shift_mm, shift_qm, &
-                                                t1, t2, t3, t4, t5
+    REAL(KIND=dp)                            :: e1, e2, e3, e4, e_pot, &
+                                                energy_weight, re, rf, &
+                                                shift_mm, shift_qm, t1, t2, &
+                                                t3, t4, t5
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: force, free_vars, pos
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_traj, &
                                                 energy_traj_read, energy_var
@@ -405,6 +406,7 @@ CONTAINS
          energies_unit=cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_ENERGIES", &
                                            file_position="REWIND",extension=".dat",error=error)
          IF (energies_unit>0) THEN
+            WRITE (UNIT=energies_unit,FMT="(A20,A20,A20,A20)") "#frame","ref","fit","diff"
             DO i_frame=1,n_frames
                e1=energy_traj(i_frame)-shift_qm
                e2=energy_var(i_frame)-shift_mm
@@ -413,6 +415,23 @@ CONTAINS
          END IF
          CALL cp_print_key_finished_output(energies_unit,logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_ENERGIES", &
                                            error=error)
+
+         ! the force profile for all frames
+         energies_unit=cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_FORCES", &
+                                           file_position="REWIND",extension=".dat",error=error)
+         IF (energies_unit>0) THEN
+            WRITE (UNIT=energies_unit,FMT="(A20,A20,A20,A20)") "#frame","normalized diff","diff","ref","ref sum"
+            DO i_frame=1,n_frames
+               e1=SQRT(SUM((force_var(:,:,i_frame)-force_traj(:,:,i_frame))**2))
+               e2=SQRT(SUM((force_traj(:,:,i_frame))**2))
+               e3=SQRT(SUM(SUM(force_traj(:,:,i_frame),DIM=2)**2))
+               e4=SQRT(SUM(SUM(force_var(:,:,i_frame),DIM=2)**2))
+               WRITE (UNIT=energies_unit,FMT="(I20,F20.12,F20.12,F20.12,2F20.12)") i_frame,e1/e2,e1,e2,e3,e4
+            ENDDO
+         END IF
+         CALL cp_print_key_finished_output(energies_unit,logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_FORCES", &
+                                           error=error)
+
 
          ! a restart file with the current values of the parameters
          restart_unit = cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%RESTART", extension=".restart",&

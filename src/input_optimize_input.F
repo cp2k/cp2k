@@ -245,8 +245,16 @@ CONTAINS
 
          NULLIFY(subsubsection)
          CALL cp_print_key_section_create(subsubsection,"COMPARE_ENERGIES",&
-              description="writes a history of the function value and parameters",&
+              description="A comparison of energies between fit and reference",&
               print_level=low_print_level,filename="compare_energies",common_iter_levels=1,&
+              error=error)
+         CALL section_add_subsection(sub_section,subsubsection,error=error)
+         CALL section_release(subsubsection,error=error)
+
+         NULLIFY(subsubsection)
+         CALL cp_print_key_section_create(subsubsection,"COMPARE_FORCES",&
+              description="A comparison of forces between fit and reference",&
+              print_level=low_print_level,filename="compare_forces",common_iter_levels=1,&
               error=error)
          CALL section_add_subsection(sub_section,subsubsection,error=error)
          CALL section_release(subsubsection,error=error)
