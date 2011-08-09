@@ -61,8 +61,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lda', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: deriv_order, handle, ierr, l, &
-                                                myfun, n1, n2, n3, nr, nspins
+    INTEGER                                  :: deriv_order, handle, i, ierr, &
+                                                l, myfun, n1, n2, n3, nr, &
+                                                nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
     LOGICAL                                  :: failure = .FALSE., lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
@@ -157,6 +158,15 @@ CONTAINS
         deriv => xc_dset_get_derivative(deriv_set,"",allocate_deriv=.FALSE., error=error)
         CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
         atom%energy%exc = fourpi*integrate_grid(xcpot(:,1,1),atom%basis%grid)
+
+        ! dump grid density and xcpot (xc energy?)
+        IF (.FALSE.) THEN
+           OPEN(UNIT=17,FILE="atom.dat")
+           DO i=1,SIZE(xcpot(:,1,1))
+              WRITE(17,*) atom%basis%grid%rad(i),rho(i,1),xcpot(i,1,1)
+           ENDDO
+           CLOSE(UNIT=17)
+        ENDIF
 
         IF ( needs%rho ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",allocate_deriv=.FALSE.,error=error)
