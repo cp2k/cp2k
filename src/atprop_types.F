@@ -82,9 +82,14 @@ CONTAINS
 
   IF(atprop_env%energy) THEN
     CALL atprop_array_init(atprop_env%atener,natom,error)
+    CALL atprop_array_release(atprop_env%ateb,error)
+    CALL atprop_array_release(atprop_env%atevdw,error)
+    CALL atprop_array_release(atprop_env%atecc,error)
+    CALL atprop_array_release(atprop_env%atecoul,error)
+    CALL atprop_array_release(atprop_env%ateself,error)
+    CALL atprop_array_release(atprop_env%atexc,error)
+    CALL atprop_array_release(atprop_env%ate1c,error)
   END IF
-  NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
-  NULLIFY(atprop_env%ateself,atprop_env%atexc,atprop_env%ate1c)
 
   IF(atprop_env%stress) THEN
     IF(ASSOCIATED(atprop_env%atstress)) THEN
