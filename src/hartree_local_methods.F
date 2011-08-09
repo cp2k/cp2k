@@ -221,13 +221,14 @@ CONTAINS
     INTEGER :: bo(2), handle, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, is1, &
       is2, iset1, iset2, iso, iso1, iso2, ispin, istat, l_ang, llmax, lmax0, &
       lmax_0, m1, m2, max_iso, max_iso_not0, max_iso_not0_local, max_nr, &
-      max_s_harm, maxl, maxso, mepos, n1, n2, nat, nchan_0, nkind, nr, nset, &
-      nsotot, nspins, num_pe, natom
+      max_s_harm, maxl, maxso, mepos, n1, n2, nat, natom, nchan_0, nkind, nr, &
+      nset, nsotot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
-    LOGICAL                                  :: failure, my_periodic, &
-                                                my_tddft, paw_atom, atenergy
+    LOGICAL                                  :: atenergy, failure, &
+                                                my_periodic, my_tddft, &
+                                                paw_atom
     REAL(dp)                                 :: back_ch, ec_tmp, ecoul_1_0, &
                                                 ecoul_1_h, ecoul_1_s, &
                                                 ecoul_1_z, factor, gVg_0, &
@@ -250,11 +251,11 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
