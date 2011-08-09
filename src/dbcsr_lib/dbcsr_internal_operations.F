@@ -28,7 +28,7 @@ MODULE dbcsr_internal_operations
        dbcsr_get_conf_nstacks, detailed_timing, kernel_timing, mm_driver, &
        mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
        mm_driver_smm, mm_stack_size, use_CUDA_host_pinned_memory, &
-       use_MPI_memory, use_combined_types
+       use_MPI_memory, use_combined_types, use_comm_thread
   USE dbcsr_cuda_memory
   USE dbcsr_cuda_methods
   USE dbcsr_cuda_operations
@@ -58,14 +58,9 @@ MODULE dbcsr_internal_operations
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush,&
                                              m_walltime
-  USE dbcsr_message_passing,           ONLY: mp_allgather,&
-                                             mp_irecv,&
-                                             mp_isend,&
-                                             mp_sum,&
-                                             mp_type_descriptor_type,&
-                                             mp_type_free,&
-                                             mp_type_make,&
-                                             mp_waitall
+  USE dbcsr_message_passing,           ONLY: &
+       mp_allgather, mp_irecv, mp_isend, mp_sum, mp_testany, &
+       mp_type_descriptor_type, mp_type_free, mp_type_make, mp_waitall, mp_request_null
   USE dbcsr_methods,                   ONLY: &
        dbcsr_destroy_array, dbcsr_distribution_col_dist, &
        dbcsr_distribution_has_threads, dbcsr_distribution_local_cols, &
@@ -265,6 +260,8 @@ MODULE dbcsr_internal_operations
      INTEGER               :: original_lastblk
      INTEGER(kind=int_8)   :: flop
      REAL(KIND=dp)         :: t_index, t_gemm
+     INTEGER, DIMENSION(:,:), POINTER :: right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
+                            right_index_sr, right_index_rr, left_index_sr, left_index_rr
   END TYPE carrier_type
 
 
@@ -344,12 +341,9 @@ CONTAINS
       right_send_pcol, right_send_prow, right_send_vcol, right_send_vrow, &
       right_src_icol, right_src_irow, right_src_p, right_src_pcol, &
       right_src_prow, right_src_vcol, right_src_vrow, row, size_guess, stat, &
-      v_k, v_ki
+      threads_finished, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
-    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
-      left_index_rr, left_index_sr, right_data_rr, right_data_sr, &
-      right_index_rr, right_index_sr
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
                                                 right_sizes
     INTEGER, ALLOCATABLE, &
@@ -358,8 +352,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
                                                 local_rows, right_index_rp, &
                                                 right_index_sp
-    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
-                                                right_pgrid
+    INTEGER, DIMENSION(:, :), POINTER :: left_data_rr, left_data_sr, &
+      left_index_rr, left_index_sr, left_pgrid, product_pgrid, right_data_rr, &
+      right_data_sr, right_index_rr, right_index_sr, right_pgrid
     INTEGER, SAVE                            :: mult_id = 0
     LOGICAL                                  :: keep_sparsity, list_indexing, &
                                                 my_use_plasma, otf_filtering
@@ -816,6 +811,10 @@ CONTAINS
     ALLOCATE (left_index_rr (left_row_mult, left_col_nimages))
     ALLOCATE (left_send_type (left_row_nimages, left_col_nimages))
     ALLOCATE (left_recv_type (left_row_nimages, left_col_nimages))
+    left_data_sr = mp_request_null
+    left_data_rr = mp_request_null
+    left_index_sr = mp_request_null
+    left_index_rr = mp_request_null
     ! Setup buffers for right matrix
     CALL setup_buffer_matrices (right_buffer_1, right_row_nimages, right_col_mult,&
          right_set%mats(1,1), index_size=right_max_nblks, data_size=right_max_nze,&
@@ -840,17 +839,25 @@ CONTAINS
     ALLOCATE (right_index_rr (right_row_nimages, right_col_mult))
     ALLOCATE (right_send_type (right_row_nimages, right_col_nimages))
     ALLOCATE (right_recv_type (right_row_nimages, right_col_nimages))
+    right_data_sr = mp_request_null
+    right_data_rr = mp_request_null
+    right_index_sr = mp_request_null
+    right_index_rr = mp_request_null
     !
 !$omp parallel &
 !$omp default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, product_matrix,&
-!$omp         keep_sparsity, filter_eps, row_max_epss, error) &
+!$omp         keep_sparsity, filter_eps, row_max_epss, error, &
+!$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
+!$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
 !$omp shared (a_dev, b_dev)
     CALL dbcsr_multrec_init(&
          left_buffer_calc%mats(1, 1)%m,&
          right_buffer_calc%mats(1, 1)%m,&
          product_matrix%m,&
          carrier,&
+         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
+         right_index_sr, right_index_rr, left_index_sr, left_index_rr, &
          keep_sparsity=keep_sparsity,&
          eps=filter_eps,&
          row_max_epss = row_max_epss,&
@@ -1328,14 +1335,19 @@ CONTAINS
              !
              tstart = m_walltime ()
              flop_single = 0
+             threads_finished = 0
 !$omp parallel if( .NOT. my_use_plasma ) &
 !$omp default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &
 !$omp         product_matrix, &
 !$omp         filter_eps, right_norms, left_norms, row_max_epss, &
-!$omp         keep_sparsity, error) &
+!$omp         keep_sparsity, error, threads_finished, &
+!$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
+!$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, use_comm_thread,error_handler2) &
+!$omp private (ithread,nthreads) &
 !$omp reduction (+: flop_single, t_all, t_gemm)
+             CALL dbcsr_error_set(routineN//"_multrec_sparse", error_handler2, error)
              CALL dbcsr_multrec_sparse(&
                   left_buffer_calc%mats(1, v_ki+1)%m,&
                   right_buffer_calc%mats(v_ki+1, 1)%m,&
@@ -1347,6 +1359,21 @@ CONTAINS
                   eps=filter_eps,&
                   row_max_epss = row_max_epss, &
                   t_all=t_all, t_gemm=t_gemm, error=error)
+             ! once multiplication is complete, thread zero polls MPI until
+             ! all other threads have also completed
+!$omp atomic
+             threads_finished = threads_finished + 1
+             ithread = 0
+             nthreads = 1
+!$           ithread = omp_get_thread_num()
+!$           nthreads = omp_get_num_threads()
+             IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
+               DO WHILE (threads_finished .NE. nthreads)
+                 CALL progress_comms(carrier)
+!$omp flush (threads_finished)
+               END DO
+             END IF
+             CALL dbcsr_error_stop(error_handler2, error)
 !$omp end parallel
              flop_total = flop_total + flop_single
              flop_metronome=flop_metronome+flop_single
@@ -1725,8 +1752,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, ithread, &
-                                                nthreads, ps_buffer, &
+    INTEGER                                  :: ithread, nthreads, ps_buffer, &
                                                 ps_memreg, t_a_f, t_a_l, &
                                                 t_b_f, t_b_l
     INTEGER, DIMENSION(:), POINTER           :: k_locals
@@ -1736,9 +1762,8 @@ CONTAINS
     TYPE(dbcsr_ps_group_type), POINTER       :: stack_group
 
 !   ---------------------------------------------------------------------------
+!
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    !
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     epoch = m_walltime()
@@ -1788,7 +1813,6 @@ CONTAINS
        !$ ithread = OMP_GET_THREAD_NUM()
        !$ t_a_f = left%thr_c(ithread+1)+1
        !$ t_a_l = left%thr_c(ithread+2)
-!write(*,*)routineN, ithread, t_a_f, t_a_l, "/", left%nblks
        CALL sparse_multrec(&
             1, left%nblkrows_local,&
             1, right%nblkcols_local,&
@@ -1827,7 +1851,6 @@ CONTAINS
     product%wms(ithread+1)%lastblk = carrier%lastblk
     product%wms(ithread+1)%datasize = carrier%datasize
     !
-    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multrec_sparse
 
 
@@ -1903,10 +1926,15 @@ CONTAINS
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 ! *****************************************************************************
   SUBROUTINE dbcsr_multrec_init(left, right, product, carrier,&
+right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
+         right_index_sr, right_index_rr, left_index_sr, left_index_rr, &
        keep_sparsity, eps, row_max_epss, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     TYPE(carrier_type), INTENT(out)          :: carrier
+    INTEGER, DIMENSION(:, :), INTENT(IN), POINTER :: right_data_sr, &
+      right_data_rr, left_data_sr, left_data_rr, right_index_sr, &
+      right_index_rr, left_index_sr, left_index_rr
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
     REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
@@ -1991,6 +2019,14 @@ CONTAINS
     carrier%flop = INT(0, int_8)
     carrier%t_index = 0.0_dp
     carrier%t_gemm = 0.0_dp
+    carrier%right_data_sr => right_data_sr
+    carrier%right_data_rr => right_data_rr
+    carrier%right_index_sr => right_index_sr
+    carrier%right_index_rr => right_index_rr
+    carrier%left_data_sr => left_data_sr
+    carrier%left_data_rr => left_data_rr
+    carrier%left_index_sr => left_index_sr
+    carrier%left_index_rr => left_index_rr
     IF (PRESENT (eps)) THEN
        carrier%eps = eps
     ELSE
@@ -2295,6 +2331,15 @@ CONTAINS
     !
     CALL dbcsr_pq_destroy (carrier%queue, error)
     DEALLOCATE (carrier%queue)
+
+    NULLIFY(carrier%right_data_sr)
+    NULLIFY(carrier%right_data_rr)
+    NULLIFY(carrier%right_index_sr)
+    NULLIFY(carrier%right_index_rr)
+    NULLIFY(carrier%left_data_sr)
+    NULLIFY(carrier%left_data_rr)
+    NULLIFY(carrier%left_index_sr)
+    NULLIFY(carrier%left_index_rr)
     !
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multrec_finalize
@@ -2531,7 +2576,7 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: max_new_nblks, n_a_norms, &
-                                                n_b_norms, nblks_new, nstacks
+                                                n_b_norms, nblks_new, nstacks, ithread
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: a_row_p, b_row_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: a_blk_info, b_blk_info
     LOGICAL                                  :: advance_memreg
@@ -2602,10 +2647,16 @@ CONTAINS
        !
        ! If a stack group was filled up during the csr_multiply call then
        ! we roll around to a new memregiation.
-       IF (advance_memreg) &
+       IF (advance_memreg) THEN 
             CALL dbcsr_ps_set_advance (carrier%param_sets,&
             advance_memreg = .TRUE.,&
             error=error)
+            ! And make some progress in MPI
+            ithread = 0
+!$          ithread = omp_get_thread_num()
+            IF (use_comm_thread .AND. (ithread .EQ. 0)) &
+              CALL progress_comms(carrier)
+       END IF
        !
        DEALLOCATE (a_row_p)
        DEALLOCATE (b_row_p)
@@ -4447,6 +4498,22 @@ CONTAINS
     !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE init_card_c
+
+! *****************************************************************************
+!> \brief Call in MPI to progrss any outstanding communications
+! *****************************************************************************
+  SUBROUTINE progress_comms(carrier)
+    TYPE(carrier_type), INTENT(inout)        :: carrier
+
+    CALL mp_testany(carrier%right_data_sr)
+    CALL mp_testany(carrier%right_data_rr)
+    CALL mp_testany(carrier%left_data_sr)
+    CALL mp_testany(carrier%left_data_rr)
+    CALL mp_testany(carrier%right_index_sr)
+    CALL mp_testany(carrier%right_index_rr)
+    CALL mp_testany(carrier%left_index_sr)
+    CALL mp_testany(carrier%left_index_rr)
+  END SUBROUTINE
 
 
 END MODULE dbcsr_internal_operations

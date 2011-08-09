@@ -34,7 +34,9 @@ MODULE dbcsr_methods
                                              dbcsr_buffers_init,&
                                              dbcsr_buffers_new,&
                                              dbcsr_buffers_release
-  USE dbcsr_config,                    ONLY: use_subcommunicators
+  USE dbcsr_config,                    ONLY: comm_thread_load,&
+                                             use_comm_thread,&
+                                             use_subcommunicators
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
                                              dbcsr_data_get_type,&
@@ -1307,6 +1309,7 @@ CONTAINS
 !> \param[in] row_sizes  (optional) row block sizes
 ! *****************************************************************************
   SUBROUTINE make_threads(dist, row_sizes)
+
     TYPE(dbcsr_distribution_obj), POINTER    :: dist
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_sizes
@@ -1314,11 +1317,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_threads', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ithread, nlrows, nrows, &
+    INTEGER                                  :: cost, ithread, nlrows, nrows, &
                                                 nthreads, row, t, t_cnt
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
-    LOGICAL                                  :: found, heap_error
-    REAL(kind=sp)                            :: rn
+    LOGICAL                                  :: assigned, found, heap_error
+    REAL(kind=sp)                            :: load_fraction, rn
     TYPE(dbcsr_error_type)                   :: error
     TYPE(heap_t)                             :: t_heap
 
@@ -1333,6 +1336,11 @@ CONTAINS
     nlrows = dbcsr_distribution_nlocal_rows (dist)
     lrows => array_data (dbcsr_distribution_local_rows (dist))
     !
+    IF (comm_thread_load .NE. 0) THEN
+      load_fraction = 100.0/REAL(comm_thread_load)
+    ELSE
+      load_fraction = 1.0
+    END IF
 !$OMP BARRIER
 !$OMP MASTER
     IF (.NOT. dist%d%has_thread_dist) THEN
@@ -1349,10 +1357,29 @@ CONTAINS
                (/(0, t=0, nthreads-1)/),&
                heap_error)
           DO row = 1, nrows
+             assigned = .FALSE.
+             ! If thread zero is underloaded, we must reassign 
+             ! its rows to other threads, so we loop until
+             ! the next most lightly loaded thread is found
+             DO WHILE (.NOT. assigned)
              CALL heap_get_first (t_heap, t, t_cnt, found, heap_error)
              td(row) = t
-             t_cnt = t_cnt + row_sizes (row)
+             assigned = .TRUE.
+             IF (use_comm_thread) THEN 
+              IF (t==0) THEN
+                 IF (comm_thread_load .EQ. 0) THEN
+                   assigned = .FALSE.
+                 END IF
+                 cost=INT(100.0*REAL(row_sizes (row))*load_fraction)
+              ELSE
+                 cost=100*row_sizes (row)
+              ENDIF
+              t_cnt = t_cnt + cost
+             ELSE
+              t_cnt = t_cnt + row_sizes (row)
+             ENDIF
              CALL heap_reset_first (t_heap, t_cnt, heap_error)
+             END DO
           ENDDO
           CALL heap_release (t_heap, heap_error)
        ELSE

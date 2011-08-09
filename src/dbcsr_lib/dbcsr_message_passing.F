@@ -63,7 +63,7 @@ MODULE dbcsr_message_passing
   PUBLIC :: mp_bcast, mp_sum, dmp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
-  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany
+  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
 
@@ -97,6 +97,8 @@ MODULE dbcsr_message_passing
   INTERFACE mp_waitall
      MODULE PROCEDURE mp_waitall_1, mp_waitall_2
   END INTERFACE
+
+  
 
   !
   ! interfaces to deal easily with scalars / vectors / matrice / ...
@@ -1040,6 +1042,44 @@ CONTAINS
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_waitany
+
+! *****************************************************************************
+!> \brief tests for completion of the given requests
+!> \par History
+!>      08.2011 created 
+!> \author Iain Bethune
+! *****************************************************************************
+  SUBROUTINE mp_testany(requests, completed, flag)
+    INTEGER, DIMENSION(:, :), INTENT(inout)  :: requests
+    INTEGER, INTENT(out), OPTIONAL           :: completed
+    LOGICAL, INTENT(out), OPTIONAL           :: flag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: completed_l, count, ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+    LOGICAL                                  :: flag_l
+
+    ierr = 0
+
+#if defined(__parallel)
+    count=SIZE(requests)
+    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    t_start = m_walltime ( )
+
+    CALL mpi_testany(count,requests,completed_l,flag_l,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testany @ mp_testany" )
+
+    IF (PRESENT(completed)) completed = completed_l
+    IF (PRESENT(flag)) flag = flag_l
+
+    t_end = m_walltime ( )
+    DEALLOCATE(status)
+#endif
+  END SUBROUTINE mp_testany
+
 
 ! *****************************************************************************
 !> \brief splits the given communicator in group in subgroups trying to organize

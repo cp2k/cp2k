@@ -51,13 +51,15 @@ MODULE cp_dbcsr_interface
   USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
                                              dbcsr_data_clear
   USE dbcsr_config,                    ONLY: &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_cuda_mem, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_subcomm, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_cuda_mem, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, detailed_timing, has_cuda, has_mpi, &
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_cuda_mem, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_cuda_mem, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, detailed_timing, has_cuda, has_mpi, &
        kernel_timing, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
        mm_name_matmul, mm_name_plasma, mm_name_smm
@@ -468,12 +470,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, mm_driver, &
+    INTEGER                                  :: comm_thread_load, &
+                                                error_handle, mm_driver, &
                                                 mm_ss, n_mem_regions, &
                                                 n_stack_buffers
     INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, use_cuda_mem, &
-                                                use_mpi_mem, use_subcomms
+    LOGICAL                                  :: use_combtypes, &
+                                                use_comm_thread, &
+                                                use_cuda_mem, use_mpi_mem, &
+                                                use_subcomms
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
@@ -506,6 +511,10 @@ CONTAINS
          "n_stack_buffers", i_val=n_stack_buffers, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "n_stack_memory_regions", i_val=n_mem_regions, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "use_comm_thread", l_val=use_comm_thread, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "comm_thread_load", i_val=comm_thread_load, error=error)
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
@@ -514,6 +523,8 @@ CONTAINS
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
     CALL dbcsr_set_conf_nstacks(nstacks, n_stack_buffers, n_mem_regions,&
          error=dbcsr_error)
+    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
+    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
     CALL dbcsr_error_stop (error_handle, dbcsr_error)
   END SUBROUTINE cp_dbcsr_config
 
@@ -530,11 +541,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: info_len = 40
 
-    CHARACTER(len=default_string_length) :: mm_name, mm_ss_str, &
-      use_combtypes_str, use_cuda_mem_str, use_mpi_mem_str, use_subcomms_str
-    INTEGER                                  :: mm_driver, mm_ss, unit_num
-    LOGICAL                                  :: use_combtypes, use_cuda_mem, &
-                                                use_mpi_mem, use_subcomms
+    CHARACTER(len=default_string_length) :: comm_thread_load_str, mm_name, &
+      mm_ss_str, use_combtypes_str, use_comm_thread_str, use_cuda_mem_str, &
+      use_mpi_mem_str, use_subcomms_str
+    INTEGER                                  :: comm_thread_load, mm_driver, &
+                                                mm_ss, unit_num
+    LOGICAL                                  :: use_combtypes, &
+                                                use_comm_thread, &
+                                                use_cuda_mem, use_mpi_mem, &
+                                                use_subcomms
     TYPE(cp_logger_type), POINTER            :: logger
 
     mm_driver = dbcsr_get_conf_mm_driver ()
@@ -543,6 +558,8 @@ CONTAINS
     use_mpi_mem = dbcsr_get_conf_mpi_mem ()
     use_cuda_mem = dbcsr_get_conf_cuda_mem ()
     mm_ss = dbcsr_get_conf_mm_stacksize ()
+    use_comm_thread = dbcsr_get_conf_use_comm_thread()
+    comm_thread_load = dbcsr_get_conf_comm_thread_load()
     
     SELECT CASE (mm_driver)
     CASE(mm_driver_blas)   ; mm_name = mm_name_blas
@@ -559,6 +576,8 @@ CONTAINS
     use_combtypes_str = l2str_r(use_combtypes,info_len)
     use_mpi_mem_str = l2str_r(use_mpi_mem,info_len)
     use_cuda_mem_str = l2str_r(use_cuda_mem,info_len)
+    use_comm_thread_str = l2str_r(use_comm_thread,info_len)
+    comm_thread_load_str = int2str_r(comm_thread_load,info_len)
     
     logger => cp_error_get_logger(error)
     IF (PRESENT (unit_nr)) THEN
@@ -574,7 +593,9 @@ CONTAINS
             WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Use subcommunicators",      use_subcomms_str(1:info_len),&
             plabel, "Use MPI combined types" ,   use_combtypes_str(1:info_len),&
-            plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len)
+            plabel, "Use MPI memory allocation", use_mpi_mem_str(1:info_len),&
+            plabel, "Use Communication thread",  use_comm_thread_str(1:info_len),&
+            plabel, "Communication thread load", comm_thread_load_str(1:info_len)
        IF (has_cuda) &
             WRITE(unit_num, FMT=o_fmt) &
             plabel, "Use CUDA host-pinned memory", use_cuda_mem_str

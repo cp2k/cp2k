@@ -34,6 +34,8 @@ MODULE dbcsr_config
 
   PUBLIC :: dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
+  PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
+  PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
 
   ! These are for DBCSR internal use.
   !
@@ -59,6 +61,7 @@ MODULE dbcsr_config
             mm_name_plasma,&
             mm_name_cuda
   PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers, nstackmemregions
+  PUBLIC :: use_comm_thread, comm_thread_load
 
   !
   PUBLIC :: detailed_timing, kernel_timing
@@ -141,6 +144,9 @@ MODULE dbcsr_config
   INTEGER :: nstackbuffers = 1
   INTEGER :: nstackmemregions = 1
 
+  ! Configuration of an MPI progress thread
+  LOGICAL :: use_comm_thread = .TRUE.
+  INTEGER :: comm_thread_load = 100 
 
 CONTAINS
 
@@ -168,6 +174,8 @@ CONTAINS
        mm_stack_size = 10000
     ENDIF
     !
+    use_comm_thread = .TRUE.
+    comm_thread_load = 100
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf
 
@@ -383,5 +391,56 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
 
+  SUBROUTINE dbcsr_set_conf_use_comm_thread (comm_thread, error)
+    LOGICAL, INTENT(IN)                      :: comm_thread
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_set_conf_use_comm_thread', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    use_comm_thread = comm_thread
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_use_comm_thread
+
+
+  FUNCTION dbcsr_get_conf_use_comm_thread () RESULT (comm_thread)
+    LOGICAL                                  :: comm_thread
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_get_conf_use_comm_thread', &
+      routineP = moduleN//':'//routineN
+
+    comm_thread = use_comm_thread
+  END FUNCTION dbcsr_get_conf_use_comm_thread
+
+  SUBROUTINE dbcsr_set_conf_comm_thread_load (load, error)
+    INTEGER, INTENT(IN)                      :: load
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_set_conf_comm_thread_load', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    comm_thread_load = load
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_comm_thread_load
+
+
+  FUNCTION dbcsr_get_conf_comm_thread_load () RESULT (load)
+    INTEGER                                  :: load
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_get_conf_comm_thread_load', &
+      routineP = moduleN//':'//routineN
+
+    load = comm_thread_load
+  END FUNCTION dbcsr_get_conf_comm_thread_load
 
 END MODULE dbcsr_config
