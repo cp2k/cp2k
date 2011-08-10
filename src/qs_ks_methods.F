@@ -30,7 +30,7 @@ MODULE qs_ks_methods
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_get_info, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_release_p, &
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_allocate_matrix_set,&
@@ -1647,7 +1647,8 @@ CONTAINS
 
     INTEGER                                  :: ispin, n_electrons, &
                                                 output_unit
-    REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r
+    REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r, &
+                                                trace, trace_tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -1671,8 +1672,18 @@ CONTAINS
 
     n_electrons = n_electrons - qs_env%dft_control%charge
     tot_rho_r = accurate_sum(rho%tot_rho_r)
+
+    trace=0
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",error=error),cp_p_file)) THEN
+      DO ispin=1,qs_env%dft_control%nspins
+         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,qs_env%matrix_s(1)%matrix,trace_tmp,error=error)
+         trace=trace+trace_tmp
+      END DO
+    ENDIF
+
     IF(output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,T41,F20.10))") "Trace(PS):",trace
+      WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
            "Electronic density on regular grids: ",&
            tot_rho_r,&
            tot_rho_r + &
