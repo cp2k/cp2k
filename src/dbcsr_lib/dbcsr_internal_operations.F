@@ -1539,6 +1539,9 @@ CONTAINS
     CALL dbcsr_data_release(left_data_rp)
     CALL dbcsr_data_release(right_data_sp)
     CALL dbcsr_data_release(right_data_rp)
+
+    DEALLOCATE(left_data_rr, left_data_sr, left_index_rr, left_index_sr, &
+               right_data_rr, right_data_sr, right_index_rr, right_index_sr)
     !
     t_error = error
     !
