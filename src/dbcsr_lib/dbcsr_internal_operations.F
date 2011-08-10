@@ -1542,6 +1542,7 @@ CONTAINS
 
     DEALLOCATE(left_data_rr, left_data_sr, left_index_rr, left_index_sr, &
                right_data_rr, right_data_sr, right_index_rr, right_index_sr)
+    DEALLOCATE(left_send_type, left_recv_type, right_send_type, right_recv_type)
     !
     t_error = error
     !
