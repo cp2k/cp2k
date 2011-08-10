@@ -56,6 +56,7 @@ MODULE dbcsr_types
             dbcsr_slot_col_i,&
             dbcsr_slot_blk_p,&
             dbcsr_slot_thr_c,&
+            dbcsr_slot_coo_l,&
             dbcsr_slot_nblks,&
             dbcsr_slot_nze,&
             dbcsr_slot_dense,&
@@ -427,6 +428,7 @@ MODULE dbcsr_types
 !>                  (1:nblkrows_total+1) points to the previous row's last
 !>                  element. So each rows has elements
 !>                  row_p(row)+1:row_p(row+1).
+!> \var coo_l       coordinate list (used for direct indexing)
 !> \var col_i       the global blocked column number of this block.
 !> \var blk_p       the pointer into the data array of this block.
 !> \var thr_c       elements/thread for list index
@@ -480,7 +482,8 @@ MODULE dbcsr_types
      INTEGER, DIMENSION(:), POINTER     :: row_p,&
           &                                col_i,&
           &                                blk_p,&
-          &                                thr_c
+          &                                thr_c,&
+          &                                coo_l
      TYPE(array_i1d_obj)                   row_blk_size,&
           &                                col_blk_size,&
           &                                row_blk_offset,&
@@ -573,7 +576,8 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_slot_col_i = dbcsr_meta_size+4
   INTEGER, PARAMETER          :: dbcsr_slot_blk_p = dbcsr_meta_size+6
   INTEGER, PARAMETER          :: dbcsr_slot_thr_c = dbcsr_meta_size+8
-  INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+9 ! previous + 1
+  INTEGER, PARAMETER          :: dbcsr_slot_coo_l = dbcsr_meta_size+10
+  INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+11 ! previous + 1
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix object.

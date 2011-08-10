@@ -736,7 +736,7 @@ CONTAINS
        use_plasma = .FALSE.
     ENDIF
     !
-    IF (use_local_indexing) THEN
+    IF (.TRUE. .OR. use_local_indexing) THEN
        ! This is needed to build the hash tables because they are
        ! locally indexed.
        CALL dbcsr_reset_locals (product_matrix, error=error)
@@ -847,7 +847,7 @@ CONTAINS
                   error=error)
           ENDDO
        ENDIF
-       IF (use_local_indexing .OR. use_list_indexing) THEN
+       IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
           DO i = 1, SIZE (m2s_right%mats,1)
              CALL dbcsr_index_compact(m2s_right%mats(i,1), error=error)
           ENDDO
@@ -912,7 +912,7 @@ CONTAINS
                   error=error)
           ENDDO
        END IF
-       IF (use_local_indexing .OR. use_list_indexing) THEN
+       IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
           DO i = 1, SIZE (m2s_left%mats,2)
              CALL dbcsr_index_compact (m2s_left%mats(1,i), error=error)
           ENDDO
@@ -965,7 +965,7 @@ CONTAINS
        CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
     ENDIF
     !
-    IF (use_local_indexing) &
+    IF (.TRUE. .OR. use_local_indexing) &
          CALL dbcsr_release_locals (product_matrix, error=error)
     ! The index of the product matrix is reset to the CP2K form if it
     ! was previously set to the canonical form.

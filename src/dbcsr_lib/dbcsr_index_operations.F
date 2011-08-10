@@ -33,12 +33,12 @@ MODULE dbcsr_index_operations
                                              memory_deallocate
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_prow, &
-       dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
-       dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
-       dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
-       dbcsr_slot_nfullcols_local, dbcsr_slot_nze, dbcsr_slot_row_p, &
-       dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_coo_l, &
+       dbcsr_slot_home_prow, dbcsr_slot_home_vprow, &
+       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
+       dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
+       dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
+       dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type
   USE dbcsr_util,                      ONLY: joaat_hash,&
                                              sort,&
                                              swap
@@ -461,7 +461,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: space
-    INTEGER, DIMENSION(3)                    :: max_extents
+    INTEGER, DIMENSION(5)                    :: max_extents
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -482,7 +482,9 @@ CONTAINS
     max_extents = (/ &
          matrix%index(dbcsr_slot_row_p+1),&
          matrix%index(dbcsr_slot_col_i+1),&
-         matrix%index(dbcsr_slot_blk_p+1) /)
+         matrix%index(dbcsr_slot_blk_p+1),&
+         matrix%index(dbcsr_slot_thr_c+1),&
+         matrix%index(dbcsr_slot_coo_l+1) /)
     space = MAX (MAXVAL (max_extents), dbcsr_num_slots)
     matrix%index (dbcsr_slot_size) = space
   END SUBROUTINE dbcsr_clearfrom_index_array
@@ -522,7 +524,7 @@ CONTAINS
          s.EQ.dbcsr_slot_row_p) THEN
        IF (m%index(dbcsr_slot_row_p).GT.0) THEN
           m%row_p => m%index(m%index(dbcsr_slot_row_p):&
-               &                  m%index(dbcsr_slot_row_p+1))
+               &             m%index(dbcsr_slot_row_p+1))
        ELSE
           NULLIFY (m%row_p)
        ENDIF
@@ -531,7 +533,7 @@ CONTAINS
          s.EQ.dbcsr_slot_col_i) THEN
        IF (m%index(dbcsr_slot_col_i).GT.0) THEN
           m%col_i => m%index(m%index(dbcsr_slot_col_i):&
-               &                  m%index(dbcsr_slot_col_i+1))
+               &             m%index(dbcsr_slot_col_i+1))
        ELSE
           NULLIFY (m%col_i)
        ENDIF
@@ -540,7 +542,7 @@ CONTAINS
          s.EQ.dbcsr_slot_blk_p) THEN
        IF (m%index(dbcsr_slot_blk_p).GT.0) THEN
           m%blk_p => m%index(m%index(dbcsr_slot_blk_p):&
-               &                  m%index(dbcsr_slot_blk_p+1))
+               &             m%index(dbcsr_slot_blk_p+1))
        ELSE
           NULLIFY (m%blk_p)
        ENDIF
@@ -549,9 +551,18 @@ CONTAINS
          s.EQ.dbcsr_slot_thr_c) THEN
        IF (m%index(dbcsr_slot_thr_c).GT.0) THEN
           m%thr_c => m%index(m%index(dbcsr_slot_thr_c):&
-               &                  m%index(dbcsr_slot_thr_c+1))
+               &             m%index(dbcsr_slot_thr_c+1))
        ELSE
           NULLIFY (m%thr_c)
+       ENDIF
+    ENDIF
+    IF (m%index(dbcsr_slot_coo_l).GT.0.AND.all .OR.&
+         s.EQ.dbcsr_slot_coo_l) THEN
+       IF (m%index(dbcsr_slot_coo_l).GT.0) THEN
+          m%coo_l => m%index(m%index(dbcsr_slot_coo_l):&
+               &             m%index(dbcsr_slot_coo_l+1))
+       ELSE
+          NULLIFY (m%coo_l)
        ENDIF
     ENDIF
     IF (all) THEN
@@ -1379,6 +1390,7 @@ CONTAINS
                                                 my_cnt, nblks, nrows, &
                                                 nthreads, thr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: blki
+    INTEGER, DIMENSION(0)                    :: zero_len_array
     INTEGER, DIMENSION(:), POINTER           :: global_cols, local_rows, td, &
                                                 thr_c
 
@@ -1465,7 +1477,7 @@ CONTAINS
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_thr_c,&
             reservation=nthreads+1, extra=3*nblks, error=error)
        thr_c => matrix%m%thr_c
-       CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
+       CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
             reservation=3*nblks, error=error)
        !$OMP END MASTER
        !$OMP BARRIER
@@ -1488,14 +1500,14 @@ CONTAINS
        IF (matrix%m%local_indexing) THEN
           DO blk = 1, nblks
              IF (td(local_rows(blki(1, blk))) .EQ. ithread) THEN
-                matrix%m%row_p(my_cnt:my_cnt+2) = blki(1:3, blk)
+                matrix%m%coo_l(my_cnt:my_cnt+2) = blki(1:3, blk)
                 my_cnt = my_cnt + 3
              ENDIF
           ENDDO
        ELSE
           DO blk = 1, nblks
              IF (td(blki(1, blk)) .EQ. ithread) THEN
-                matrix%m%row_p(my_cnt:my_cnt+2) = blki(1:3, blk)
+                matrix%m%coo_l(my_cnt:my_cnt+2) = blki(1:3, blk)
                 my_cnt = my_cnt + 3
              ENDIF
           ENDDO
@@ -1512,9 +1524,14 @@ CONTAINS
       "Should not have duplicate matrix blocks. (-row, col) is duplicated.",&
                __LINE__, error=error)
        ENDDO
-       IF (nblks>0) &
-       CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
-            DATA=RESHAPE(blki, ((/3*nblks/))), error=error)
+       !
+       IF (nblks>0) THEN
+          CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
+               DATA=RESHAPE(blki, ((/3*nblks/))), error=error)
+       ELSE
+          CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
+               DATA=zero_len_array, error=error)
+       ENDIF
     ENDIF
     
     DEALLOCATE (blki)
@@ -1538,39 +1555,75 @@ CONTAINS
 
     INTEGER                                  :: error_handle, new_size, &
                                                 size_blk_p, size_col_i, &
-                                                size_row_p, size_thr_c
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p, col_i, meta, row_p, &
-                                                thr_c
-    LOGICAL                                  :: compact, has_thr_c
+                                                size_coo_l, size_row_p, &
+                                                size_thr_c
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p, col_i, coo_l, meta, &
+                                                row_p, thr_c
+    LOGICAL                                  :: compact, has_blk_p, &
+                                                has_col_i, has_coo_l, &
+                                                has_row_p, has_thr_c
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error=error)
-    !> Ensures the three index pointers are set.
+    !> Ensures the index pointers are set.
     CALL dbcsr_repoint_index (matrix%m)
     ! Check that compaction is even needed.
-    size_row_p = SIZE(matrix%m%row_p)
-    size_col_i = SIZE(matrix%m%col_i)
-    size_blk_p = SIZE(matrix%m%blk_p)
+    has_row_p = ASSOCIATED (matrix%m%row_p)
+    IF (has_row_p) THEN
+       size_row_p = SIZE(matrix%m%row_p)
+    ELSE
+       size_row_p = 0
+    ENDIF
+    has_col_i = ASSOCIATED (matrix%m%col_i)
+    IF (has_col_i) THEN
+       size_col_i = SIZE(matrix%m%col_i)
+    ELSE
+       size_col_i = 0
+    ENDIF
+    has_blk_p = ASSOCIATED (matrix%m%blk_p)
+    IF (has_blk_p) THEN
+       size_blk_p = SIZE(matrix%m%blk_p)
+    ELSE
+       size_blk_p = 0
+    ENDIF
     has_thr_c = ASSOCIATED (matrix%m%thr_c)
     IF (has_thr_c) THEN
        size_thr_c = SIZE(matrix%m%thr_c)
     ELSE
        size_thr_c = 0
     ENDIF
-    new_size = dbcsr_num_slots + size_row_p + size_col_i + size_blk_p + size_thr_c
+    has_coo_l = ASSOCIATED (matrix%m%coo_l)
+    IF (has_coo_l) THEN
+       size_coo_l = SIZE(matrix%m%coo_l)
+    ELSE
+       size_coo_l = 0
+    ENDIF
+    !
+    new_size = dbcsr_num_slots +&
+         size_row_p + size_col_i + size_blk_p + size_thr_c + size_coo_l
     compact = new_size .LT. SIZE(matrix%m%index)
     IF (compact) THEN
        ! Store old index arrays.
-       ALLOCATE (row_p(size_row_p))
-       row_p(:) = matrix%m%row_p(:)
-       ALLOCATE (col_i(size_col_i))
-       col_i(:) = matrix%m%col_i(:)
-       ALLOCATE (blk_p(size_blk_p))
-       blk_p(:) = matrix%m%blk_p(:)
+       IF (has_blk_p) THEN
+          ALLOCATE (row_p(size_row_p))
+          row_p(:) = matrix%m%row_p(:)
+       ENDIF
+       IF (has_col_i) THEN
+          ALLOCATE (col_i(size_col_i))
+          col_i(:) = matrix%m%col_i(:)
+       ENDIF
+       IF (has_blk_p) THEN
+          ALLOCATE (blk_p(size_blk_p))
+          blk_p(:) = matrix%m%blk_p(:)
+       ENDIF
        IF (has_thr_c) THEN
           ALLOCATE (thr_c(size_thr_c))
           thr_c(:) = matrix%m%thr_c(:)
+       ENDIF
+       IF (has_coo_l) THEN
+          ALLOCATE (coo_l(size_coo_l))
+          coo_l(:) = matrix%m%coo_l(:)
        ENDIF
        ALLOCATE (meta(dbcsr_num_slots))
        meta(:) = matrix%m%index(1:dbcsr_num_slots)
@@ -1580,10 +1633,6 @@ CONTAINS
        NULLIFY (matrix%m%index)
        CALL memory_allocate (matrix%m%index, new_size,&
             dbcsr_get_index_memory_type (matrix), error=error)
-       !CALL ensure_array_size (matrix%m%index, lb=1, ub=new_size,&
-       !     factor=0.0, nocopy=.TRUE.,&
-       !     memory_type=dbcsr_get_index_memory_type (matrix), zero_pad=.TRUE.,&
-       !     error=error)
        !
        ! Now copy the old index arrays into the index. We must not
        ! copy the positions of the old pointers.
@@ -1593,17 +1642,28 @@ CONTAINS
        IF (has_thr_c) THEN
           CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_thr_c, thr_c,&
                error=error)
+          DEALLOCATE (thr_c)
        ENDIF
-       CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, row_p,&
-            error=error)
-       CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, col_i,&
-            error=error)
-       CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, blk_p,&
-            error=error)
-       DEALLOCATE (row_p)
-       DEALLOCATE (col_i)
-       DEALLOCATE (blk_p)
-       IF (has_thr_c) DEALLOCATE (thr_c)
+       IF (has_row_p) THEN
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, row_p,&
+               error=error)
+          DEALLOCATE (row_p)
+       ENDIF
+       IF (has_col_i) THEN
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, col_i,&
+               error=error)
+          DEALLOCATE (col_i)
+       ENDIF
+       IF (has_blk_p) THEN
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, blk_p,&
+               error=error)
+          DEALLOCATE (blk_p)
+       ENDIF
+       IF (has_coo_l) THEN
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_coo_l, coo_l,&
+               error=error)
+          DEALLOCATE (coo_l)
+       ENDIF
        DEALLOCATE (meta)
        IF (careful_mod) THEN
           ! This is pretty strong but it should be true.

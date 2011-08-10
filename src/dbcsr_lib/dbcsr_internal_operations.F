@@ -59,8 +59,8 @@ MODULE dbcsr_internal_operations
                                              m_flush,&
                                              m_walltime
   USE dbcsr_message_passing,           ONLY: &
-       mp_allgather, mp_irecv, mp_isend, mp_sum, mp_testany, &
-       mp_type_descriptor_type, mp_type_free, mp_type_make, mp_waitall, mp_request_null
+       mp_allgather, mp_irecv, mp_isend, mp_request_null, mp_sum, mp_testany, &
+       mp_type_descriptor_type, mp_type_free, mp_type_make, mp_waitall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_destroy_array, dbcsr_distribution_col_dist, &
        dbcsr_distribution_has_threads, dbcsr_distribution_local_cols, &
@@ -72,8 +72,8 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
-       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
-       dbcsr_nfullrows_local, dbcsr_valid_index
+       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
@@ -260,8 +260,10 @@ MODULE dbcsr_internal_operations
      INTEGER               :: original_lastblk
      INTEGER(kind=int_8)   :: flop
      REAL(KIND=dp)         :: t_index, t_gemm
-     INTEGER, DIMENSION(:,:), POINTER :: right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
-                            right_index_sr, right_index_rr, left_index_sr, left_index_rr
+     INTEGER, DIMENSION(:,:), POINTER :: right_data_sr, right_data_rr,&
+                                         left_data_sr, left_data_rr,&
+                                         right_index_sr, right_index_rr,&
+                                         left_index_sr, left_index_rr
   END TYPE carrier_type
 
 
@@ -597,7 +599,7 @@ CONTAINS
              IF (careful_mod) THEN
                 IF (list_indexing) THEN
                    CALL dbcsr_assert ((left_set%mats(left_row_image, left_col_image)%m%nblks)*3, "EQ",&
-                        SIZE(left_set%mats(left_row_image, left_col_image)%m%row_p),&
+                        SIZE(left_set%mats(left_row_image, left_col_image)%m%coo_l),&
                         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                         "Row count mismatch", __LINE__, error=error)
                 ELSE
@@ -610,7 +612,7 @@ CONTAINS
              IF (list_indexing) THEN
                 CALL count_bins (&
                      left_set%mats(left_row_image, left_col_image)%m%nblks,&
-                     left_set%mats(left_row_image, left_col_image)%m%row_p(1::3),&
+                     left_set%mats(left_row_image, left_col_image)%m%coo_l(1::3),&
                      nblkrows_used, row_counts)
              ELSE
                 CALL dbcsr_count_row_index (&
@@ -1307,7 +1309,7 @@ CONTAINS
              ENDIF tmp_aix_bix
              !
              IF (.FALSE.) WRITE(*,*)routineN//" TICK", v_ki
-             IF (right_buffer_calc%mats(v_ki+1, 1)%m%local_indexing) THEN
+             IF (.TRUE. .OR. right_buffer_calc%mats(v_ki+1, 1)%m%local_indexing) THEN
                 ! Since the right matrix is shifted vertically, the
                 ! received data always has different notions of "local
                 ! rows".  Thus the local_rows and global_rows must be
@@ -1315,7 +1317,7 @@ CONTAINS
                 CALL dbcsr_reset_vlocals (right_buffer_calc%mats(v_ki+1, 1),&
                      right_set%image_dist, error=error)
              ENDIF
-             IF (left_buffer_calc%mats(1, v_ki+1)%m%local_indexing) THEN
+             IF (.TRUE. .OR. left_buffer_calc%mats(1, v_ki+1)%m%local_indexing) THEN
                 ! Since the right matrix is shifted vertically, the
                 ! received data always has different notions of "local
                 ! rows".  Thus the local_rows and global_rows must be
@@ -1522,8 +1524,7 @@ CONTAINS
             routineN, "Could not deallocate memory for row block epsilons",&
             __LINE__,&
             error=error)
-    ENDIF
- 
+    ENDIF 
     !
     CALL dbcsr_destroy_array (right_buffer_1, error=error)
     CALL dbcsr_destroy_array (right_buffer_2, error=error)
@@ -1539,7 +1540,7 @@ CONTAINS
     CALL dbcsr_data_release(left_data_rp)
     CALL dbcsr_data_release(right_data_sp)
     CALL dbcsr_data_release(right_data_rp)
-
+    !
     DEALLOCATE(left_data_rr, left_data_sr, left_index_rr, left_index_sr, &
                right_data_rr, right_data_sr, right_index_rr, right_index_sr)
     DEALLOCATE(left_send_type, left_recv_type, right_send_type, right_recv_type)
@@ -1795,11 +1796,15 @@ CONTAINS
     !
     ! Find out the local A columns / B rows and sizes
     ! The right%local_rows is setup by the communication engine.
-    k_locals => array_data (right%local_rows)
-    carrier%k_locals => k_locals
-    CALL ensure_array_size (carrier%k_sizes, ub=SIZE(k_locals), error=error)
-    CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals),&
-         k_locals, carrier%k_sizes)    
+    IF (local_indexing) THEN
+       k_locals => array_data (right%local_rows)
+       carrier%k_locals => k_locals
+       CALL ensure_array_size (carrier%k_sizes, ub=SIZE(k_locals), error=error)
+       CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals),&
+            k_locals, carrier%k_sizes)    
+    ELSE
+       k_locals => carrier%k_locals
+    ENDIF
     ! Setup the block norms
     carrier%a_norms => a_norms
     carrier%b_norms => b_norms
@@ -1817,21 +1822,41 @@ CONTAINS
        !$ ithread = OMP_GET_THREAD_NUM()
        !$ t_a_f = left%thr_c(ithread+1)+1
        !$ t_a_l = left%thr_c(ithread+2)
-       CALL sparse_multrec(&
-            1, left%nblkrows_local,&
-            1, right%nblkcols_local,&
-            1, SIZE(k_locals),&
-            t_a_f, t_a_l, left%row_p,&
-            t_b_f, t_b_l, right%row_p,&
-            carrier, error, 0)
+       IF (left%local_indexing) THEN
+          CALL sparse_multrec(&
+               1, left%nblkrows_local,&
+               1, right%nblkcols_local,&
+               1, SIZE(k_locals),&
+               t_a_f, t_a_l, left%coo_l,&
+               t_b_f, t_b_l, right%coo_l,&
+               carrier, error, 0)
+       ELSE
+          CALL sparse_multrec(&
+               1, left%nblkrows_total,&
+               1, right%nblkcols_total,&
+               1, SIZE(k_locals),&
+               t_a_f, t_a_l, left%coo_l,&
+               t_b_f, t_b_l, right%coo_l,&
+               carrier, error, 0)
+       ENDIF
     ELSE
-       CALL csr_multiply_unwrap(&
-            1, left%nblkrows_local,&
-            1, right%nblkrows_local,&
-            1, SIZE(k_locals),&
-            1, left%nblks, left%row_p,&
-            1, right%nblks, right%row_p,&
-            carrier, error)
+       IF (left%local_indexing) THEN
+          CALL csr_multiply_unwrap(&
+               1, left%nblkrows_local,&
+               1, right%nblkrows_local,&
+               1, SIZE(k_locals),&
+               1, left%nblks, left%row_p,&
+               1, right%nblks, right%row_p,&
+               carrier, error)
+       ELSE
+          CALL csr_multiply_unwrap(&
+               1, left%nblkrows_total,&
+               1, right%nblkrows_total,&
+               1, SIZE(k_locals),&
+               1, left%nblks, left%row_p,&
+               1, right%nblks, right%row_p,&
+               carrier, error)
+       ENDIF
     ENDIF
     !
     ! Flush the MM stack
@@ -1850,7 +1875,8 @@ CONTAINS
     CALL dbcsr_psg_rm_data_ab (stack_group, error=error)
     !$OMP END CRITICAL (crit_data)
     !
-    IF (ASSOCIATED (carrier%k_sizes)) DEALLOCATE (carrier%k_sizes)
+    IF (ASSOCIATED (carrier%k_sizes) .AND. carrier%local_indexing) &
+         DEALLOCATE (carrier%k_sizes)
     !
     product%wms(ithread+1)%lastblk = carrier%lastblk
     product%wms(ithread+1)%datasize = carrier%datasize
@@ -1880,19 +1906,19 @@ CONTAINS
                matrix_set%image_dist, error=error)
           IF (dbg) THEN
              WRITE(*,*)routineN//" m, n, size",&
-                  SIZE(matrix_set%mats(i_row, i_col)%m%row_p),&
+                  SIZE(matrix_set%mats(i_row, i_col)%m%coo_l),&
                   dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)),&
                   dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col))
-             WRITE(*,'(3(1X,I7))')matrix_set%mats(i_row, i_col)%m%row_p
+             WRITE(*,'(3(1X,I7))')matrix_set%mats(i_row, i_col)%m%coo_l
           ENDIF
           IF (careful_mod) THEN
-             CALL dbcsr_assert (SIZE(matrix_set%mats(i_row, i_col)%m%row_p),&
+             CALL dbcsr_assert (SIZE(matrix_set%mats(i_row, i_col)%m%coo_l),&
                   "EQ", matrix_set%mats(i_row, i_col)%m%nblks*3,&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                   "Block count mismatch.", __LINE__, error=error)
           ENDIF
           thread_redist = ASSOCIATED (matrix_set%mats(i_row, i_col)%m%thr_c)
-          t_size = SIZE(matrix_set%mats(i_row, i_col)%m%row_p)/3
+          t_size = SIZE(matrix_set%mats(i_row, i_col)%m%coo_l)/3
           t_f = 1
           t_l = t_size
           !$OMP PARALLEL IF (thread_redist) DEFAULT (none) &
@@ -1907,11 +1933,19 @@ CONTAINS
           t_size =  t_l - t_f + 1
           !$OMP BARRIER
           IF (t_size .GT. 0) THEN
-             CALL call_rec_sort_index (&
-                  dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)),&
-                  dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col)),&
-                  t_size,&
-                  matrix_set%mats(i_row, i_col)%m%row_p((t_f*3-2):(t_l*3)), error=error)
+             IF (matrix_set%mats(i_row, i_col)%m%local_indexing) THEN
+                CALL call_rec_sort_index (&
+                     dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)),&
+                     dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col)),&
+                     t_size,&
+                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)), error=error)
+             ELSE
+                CALL call_rec_sort_index (&
+                     dbcsr_nblkrows_total(matrix_set%mats(i_row, i_col)),&
+                     dbcsr_nblkcols_total(matrix_set%mats(i_row, i_col)),&
+                     t_size,&
+                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)), error=error)
+             ENDIF
           ENDIF
           !$OMP END PARALLEL
        ENDDO
@@ -1930,8 +1964,8 @@ CONTAINS
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 ! *****************************************************************************
   SUBROUTINE dbcsr_multrec_init(left, right, product, carrier,&
-right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
-         right_index_sr, right_index_rr, left_index_sr, left_index_rr, &
+       right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
+       right_index_sr, right_index_rr, left_index_sr, left_index_rr, &
        keep_sparsity, eps, row_max_epss, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
@@ -1949,7 +1983,7 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: block_estimate, c_nblkcols_local, c_nblkrows_local, data_type, &
-      default_stack, error_handler, ithread, k_map, k_size, m_map, m_size, &
+      default_stack, error_handler, i, ithread, k_map, k_size, m_map, m_size, &
       mem_type, n_map, n_size, n_stack_buffers, n_stack_mem_regions, nstacks, &
       nthreads, ps_buffer, ps_g, ps_memreg
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: most_common_k, most_common_m, &
@@ -2007,9 +2041,6 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Wrong right format for not local_cols.", __LINE__, error=error)
     ENDIF
-    CALL dbcsr_assert (local_indexing,&
-            dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Global indexing not implemented.", __LINE__, error=error)
     !
     ! Fill carrier data structure.
     carrier%local_indexing = local_indexing
@@ -2050,8 +2081,19 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
     c_local_rows => array_data (product%local_rows)
     c_nblkcols_local = product%nblkcols_local
     c_local_cols => array_data (product%local_cols)
-    carrier%c_local_rows => c_local_rows
-    carrier%c_local_cols => c_local_cols
+    IF (local_indexing) THEN
+       carrier%c_local_rows => c_local_rows
+       carrier%c_local_cols => c_local_cols
+    ELSE
+       ALLOCATE (carrier%c_local_rows (product%nblkrows_total))
+       ALLOCATE (carrier%c_local_cols (product%nblkcols_total))
+       FORALL (i = 1 : product%nblkrows_total)
+          carrier%c_local_rows(i) = i
+       END FORALL
+       FORALL (i = 1 : product%nblkcols_total)
+          carrier%c_local_cols(i) = i
+       END FORALL
+    ENDIF
     IF (dbg) WRITE(*,*)"setting up for product", product%name
     IF (careful_mod) THEN
        IF (.NOT. array_equality (dbcsr_distribution_local_rows (product%dist),&
@@ -2081,26 +2123,56 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
     ENDIF
     !
     ! And the k epsilons
-    ALLOCATE (carrier%row_max_epss(c_nblkrows_local))
+    IF (local_indexing) THEN
+       ALLOCATE (carrier%row_max_epss(c_nblkrows_local))
+    ELSE
+       ALLOCATE (carrier%row_max_epss(product%nblkrows_total))
+    ENDIF
     IF (carrier%use_eps) THEN
-       CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows,&
-            carrier%row_max_epss)
+       IF (local_indexing) THEN
+          CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows,&
+               carrier%row_max_epss)
+       ELSE
+          IF (careful_mod) &
+               CALL dbcsr_assert (SIZE(row_max_epss) .EQ. SIZE(carrier%row_max_epss),&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "max epss local/global mismatch.", __LINE__, error=error)
+          carrier%row_max_epss(:) = row_max_epss(:)
+       ENDIF
     ELSE
        carrier%row_max_epss(:) = -HUGE(0.0_sp)
     ENDIF
     !
-    ALLOCATE(carrier%m_sizes(c_nblkrows_local))
-    CALL local_filter(array_data (product%row_blk_size), SIZE(c_local_rows),&
-         c_local_rows, carrier%m_sizes)
-    ALLOCATE(carrier%n_sizes(c_nblkcols_local))
-    CALL local_filter(array_data (product%col_blk_size), SIZE(c_local_cols),&
-         c_local_cols, carrier%n_sizes)
+    IF (local_indexing) THEN
+       ALLOCATE(carrier%m_sizes(c_nblkrows_local))
+       CALL local_filter(array_data (product%row_blk_size), SIZE(c_local_rows),&
+            c_local_rows, carrier%m_sizes)
+       ALLOCATE(carrier%n_sizes(c_nblkcols_local))
+       CALL local_filter(array_data (product%col_blk_size), SIZE(c_local_cols),&
+            c_local_cols, carrier%n_sizes)
+    ELSE
+       ALLOCATE(carrier%m_sizes(product%nblkrows_total))
+       carrier%m_sizes(:) = array_data (product%row_blk_size)
+       ALLOCATE(carrier%n_sizes(product%nblkcols_total))
+       carrier%n_sizes(:) = array_data (product%col_blk_size)
+    ENDIF
     !
     NULLIFY (carrier%k_locals)
     NULLIFY (carrier%k_sizes)
+    IF (.NOT. local_indexing) THEN
+       ALLOCATE (carrier%k_locals(right%nblkrows_total))
+       FORALL (i = 1:right%nblkrows_total)
+          carrier%k_locals(i) = i
+       END FORALL
+       carrier%k_sizes => array_data (right%row_blk_size)
+    ENDIF
     !
     ! Setup the hash tables if needed
-    ALLOCATE (carrier%c_hashes (product%nblkrows_local))
+    IF (local_indexing) THEN
+       ALLOCATE (carrier%c_hashes (product%nblkrows_local))
+    ELSE
+       ALLOCATE (carrier%c_hashes (product%nblkrows_total))
+    ENDIF
     block_estimate=MAX(product%nblks,left%nblks,right%nblks)/nthreads
     IF (local_indexing) THEN
        CALL fill_hash_tables (carrier%c_hashes, product,block_estimate,&
@@ -2327,6 +2399,12 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
     DEALLOCATE (carrier%n_size_maps)
     DEALLOCATE (carrier%k_size_maps)
     DEALLOCATE (carrier%stack_map)
+    IF (.NOT. carrier%local_indexing) THEN
+       DEALLOCATE (carrier%c_local_rows)
+       DEALLOCATE (carrier%c_local_cols)
+       DEALLOCATE (carrier%k_locals)
+       NULLIFY (carrier%k_sizes)
+    ENDIF
     !
     ! Reinstate WM
     carrier%my_wm%lastblk = carrier%lastblk
@@ -2579,8 +2657,9 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: max_new_nblks, n_a_norms, &
-                                                n_b_norms, nblks_new, nstacks, ithread
+    INTEGER                                  :: ithread, max_new_nblks, &
+                                                n_a_norms, n_b_norms, &
+                                                nblks_new, nstacks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: a_row_p, b_row_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: a_blk_info, b_blk_info
     LOGICAL                                  :: advance_memreg
@@ -2653,8 +2732,8 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
        ! we roll around to a new memregiation.
        IF (advance_memreg) THEN 
             CALL dbcsr_ps_set_advance (carrier%param_sets,&
-            advance_memreg = .TRUE.,&
-            error=error)
+                 advance_memreg = .TRUE.,&
+                 error=error)
             ! And make some progress in MPI
             ithread = 0
 !$          ithread = omp_get_thread_num()
@@ -3039,7 +3118,7 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
 
     IF (dbg) THEN
        WRITE(*,*)" rs", mi, mf,"/",ni,nf,"=>",nele, d
-       !WRITE(*,'(3(1X,I7))')a(:,1:nele)
+       WRITE(*,'(3(1X,I7))')a(:,1:nele)
     ENDIF
     IF (dbg) THEN
        IF (d .GT. 20) THEN
@@ -3707,21 +3786,28 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, error_handler, i, imat, &
-                                                n_local_rows, row
+                                                n_rows, row
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     imat = 1
     !$ imat = OMP_GET_THREAD_NUM() + 1
-    n_local_rows = matrix%nblkrows_local
-    CALL dbcsr_assert (SIZE(hashes), "EQ", n_local_rows,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Local row count mismatch", __LINE__, error=error)
-    DO row = 1, n_local_rows
+    IF (PRESENT (row_map)) THEN
+       n_rows = matrix%nblkrows_local
+       CALL dbcsr_assert (SIZE(hashes), "EQ", n_rows,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Local row count mismatch", __LINE__, error=error)
+    ELSE
+       n_rows = matrix%nblkrows_total
+       CALL dbcsr_assert (SIZE(hashes), "EQ", n_rows,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global row count mismatch", __LINE__, error=error)
+    ENDIF
+    DO row = 1, n_rows
        ! create the hash table row with a reasonable initial size
        CALL hash_table_create (hashes(row), &
-            MAX(8,(3*block_estimate)/MAX(1,n_local_rows)))
+            MAX(8,(3*block_estimate)/MAX(1,n_rows)))
     ENDDO
     ! We avoid using the iterator because we will use the existing
     ! work matrix instead of the BCSR index.
@@ -3844,7 +3930,7 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_4)
           CALL calc_norms_list_s(norms, nblks,&
-               matrix%m%row_p, &
+               matrix%m%coo_l, &
                array_data (matrix%m%row_blk_size),&
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_s (matrix%m%data_area),&
@@ -3853,7 +3939,7 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
                local2global_cols=local_cols)
        CASE (dbcsr_type_real_8)
           CALL calc_norms_list_d(norms, nblks,&
-               matrix%m%row_p, &
+               matrix%m%coo_l, &
                array_data (matrix%m%row_blk_size),&
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_d (matrix%m%data_area),&
@@ -3862,7 +3948,7 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
                local2global_cols=local_cols)
        CASE (dbcsr_type_complex_4)
           CALL calc_norms_list_c(norms, nblks,&
-               matrix%m%row_p, &
+               matrix%m%coo_l, &
                array_data (matrix%m%row_blk_size),&
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_c (matrix%m%data_area),&
@@ -3871,7 +3957,7 @@ right_data_sr, right_data_rr, left_data_sr, left_data_rr, &
                local2global_cols=local_cols)
        CASE (dbcsr_type_complex_8)
           CALL calc_norms_list_z(norms, nblks,&
-               matrix%m%row_p, &
+               matrix%m%coo_l, &
                array_data (matrix%m%row_blk_size),&
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_z (matrix%m%data_area),&

@@ -265,7 +265,7 @@ CONTAINS
     matrix%refcount = 0
     ! Nullifies all pointers.
     NULLIFY (matrix%index, matrix%row_p, matrix%col_i,&
-         matrix%blk_p, matrix%thr_c)
+         matrix%blk_p, matrix%thr_c, matrix%coo_l)
     CALL dbcsr_data_init (matrix%data_area)
     CALL dbcsr_distribution_init (matrix%dist)
     CALL array_nullify (matrix%row_blk_size)

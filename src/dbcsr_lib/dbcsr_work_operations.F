@@ -271,7 +271,8 @@ CONTAINS
        CALL dbcsr_data_init (matrix%m%data_area)
     ENDIF
     ! These are always invalidated.
-    NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c)
+    NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c,&
+         matrix%m%coo_l)
     matrix%m%row_blk_size = row_blk_size
     CALL array_hold (matrix%m%row_blk_size)
     IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
