@@ -260,10 +260,11 @@ CONTAINS
             description="Which interaction potential should be used "//&
                          "(Coulomb, longrange or shortrange).",&
             usage="POTENTIAL_TYPE SHORTRANGE",&
-            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL","GAUSSIAN","MIX_LG","IDENTITY","TRUNCATED"),&
+            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL","GAUSSIAN",&
+                            "MIX_LG","IDENTITY","TRUNCATED", "MIX_CL_TRUNC"),&
             enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_short, do_hfx_potential_long, &
                           do_hfx_potential_mix_cl, do_hfx_potential_gaussian, do_hfx_potential_mix_lg,&
-                          do_hfx_potential_id, do_hfx_potential_truncated/),&
+                          do_hfx_potential_id, do_hfx_potential_truncated,do_hfx_potential_mix_cl_trunc/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
                           "Shortrange potential: erfc(omega*r)/r",&
                           "Longrange potential: erf(omega*r)/r",&
@@ -271,7 +272,8 @@ CONTAINS
                           "Damped Gaussian potential: exp(-omega^2*r^2)",&
                           "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)",&
                           "Overlap",&
-                          "Truncated coulomb potential: if(r<R_c) 1/r else 0"),&
+                          "Truncated coulomb potential: if(r<R_c) 1/r else 0",&
+                          "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"),&
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -1250,13 +1250,17 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_admm_xc_section', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: hfx_potential_type, ifun, nfun
-    LOGICAL                                  :: funct_found
+    LOGICAL                                  :: failure, funct_found
     REAL(dp)                                 :: cutoff_radius, hfx_fraction, &
                                                 omega, scale_x
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 
     NULLIFY(admm_env%xc_section_aux, admm_env%xc_section_primary)
+    failure=.FALSE.
 
     !! ** Duplicate existing xc-section
 
@@ -1323,6 +1327,8 @@ MODULE admm_methods
                                 r_val=0.0_dp,error=error)
       CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
                                 r_val=-hfx_fraction,error=error)
+    CASE DEFAULT
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
 

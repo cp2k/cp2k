@@ -60,7 +60,8 @@ MODULE hfx_energy_potential
        hfx_reset_memory_usage_counter, hfx_screen_coeff_type, &
        hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
        log_zero, pair_list_type, pair_set_list_type
-  USE input_constants,                 ONLY: do_hfx_potential_truncated,&
+  USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
+                                             do_hfx_potential_truncated,&
                                              hfx_do_eval_energy
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -325,7 +326,8 @@ MODULE hfx_energy_potential
     l_max = 4*l_max 
     CALL init_md_ftable(l_max)
 
-    IF(qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated) THEN
+    IF(qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
+       qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
       IF(l_max>init_t_c_g0_lmax) THEN
         IF( para_env%mepos == 0 ) THEN
           unit_id = get_unit_number()

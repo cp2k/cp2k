@@ -731,7 +731,8 @@ MODULE input_constants
                                               do_hfx_potential_gaussian=5,&
                                               do_hfx_potential_mix_lg=6,&
                                               do_hfx_potential_id=7,&
-                                              do_hfx_potential_truncated=8
+                                              do_hfx_potential_truncated=8,&
+                                              do_hfx_potential_mix_cl_trunc=9
   ! HFX periodic number of shells
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
 

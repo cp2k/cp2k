@@ -27,14 +27,11 @@ MODULE hfx_libint_interface
                                              prim_data_f_size
   USE hfx_types,                       ONLY: hfx_pgf_product_list,&
                                              hfx_potential_type
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
-                                             do_hfx_potential_gaussian,&
-                                             do_hfx_potential_id,&
-                                             do_hfx_potential_long,&
-                                             do_hfx_potential_mix_cl,&
-                                             do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short,&
-                                             do_hfx_potential_truncated
+  USE input_constants,                 ONLY: &
+       do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
+       do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
+       do_hfx_potential_mix_cl_trunc, do_hfx_potential_mix_lg, &
+       do_hfx_potential_short, do_hfx_potential_truncated
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
@@ -165,6 +162,39 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2
         END DO
         factor = 2.0_dp*Pi*RhoInv
+      CASE(do_hfx_potential_mix_cl_trunc)
+       
+        ! truncated 
+        R = potential_parameter%cutoff_radius * SQRT(rho)
+        R1 = R11
+        R2 = R22
+        IF( PQ2 > (R1+R2+potential_parameter%cutoff_radius)**2 ) THEN
+          RETURN
+        END IF
+        CALL t_c_g0_n(prim%F(1),use_gamma,R,T,m_max)
+        IF( use_gamma ) CALL fgamma(m_max, T, prim%F(1))
+
+        ! Coulomb
+        CALL fgamma(m_max,T,Fm)
+
+        DO i=1,m_max+1
+           prim%F(i)=prim%F(i)*(potential_parameter%scale_coulomb+potential_parameter%scale_longrange)- &
+                     Fm(i)*potential_parameter%scale_longrange 
+        ENDDO
+        
+        ! longrange
+        omega2 = potential_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,Fm)
+        tmp = omega_corr
+        DO i=1,m_max+1
+          prim%F(i)= prim%F(i) + Fm(i)*tmp*potential_parameter%scale_longrange
+          tmp = tmp * omega_corr2
+        END DO
+        factor = 2.0_dp*Pi*RhoInv
+
       CASE(do_hfx_potential_gaussian)
         omega2 = potential_parameter%omega**2
         T = -omega2*T/(Rho+omega2)

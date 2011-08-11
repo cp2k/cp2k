@@ -18,14 +18,11 @@ MODULE hfx_pair_list_methods
        hfx_basis_type, hfx_block_range_type, hfx_cell_type, hfx_pgf_list, &
        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
        pair_list_type, pair_set_list_type
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
-                                             do_hfx_potential_gaussian,&
-                                             do_hfx_potential_id,&
-                                             do_hfx_potential_long,&
-                                             do_hfx_potential_mix_cl,&
-                                             do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short,&
-                                             do_hfx_potential_truncated
+  USE input_constants,                 ONLY: &
+       do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
+       do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
+       do_hfx_potential_mix_cl_trunc, do_hfx_potential_mix_lg, &
+       do_hfx_potential_short, do_hfx_potential_truncated
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE particle_types,                  ONLY: particle_type
@@ -116,7 +113,8 @@ MODULE hfx_pair_list_methods
           END IF
           Q = (Zeta_C*C11 + Zeta_D*tmp_D)*EtaInv
           rpq2 = (P(1)-Q(1))**2+(P(2)-Q(2))**2+(P(3)-Q(3))**2
-          IF( potential_parameter%potential_type == do_hfx_potential_truncated ) THEN
+          IF( potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
+              potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
             IF( rpq2 > (R1 + R2 + potential_parameter%cutoff_radius)**2) CYCLE
           END IF
           nproducts = nproducts + 1
@@ -171,6 +169,35 @@ MODULE hfx_pair_list_methods
               tmp = tmp * omega_corr2
             END DO
             factor = 2.0_dp*Pi*RhoInv
+          CASE(do_hfx_potential_mix_cl_trunc)
+
+            ! truncated
+            R = potential_parameter%cutoff_radius * SQRT(rho)
+            CALL t_c_g0_n(product_list(nproducts)%Fm(1),use_gamma,R,T,m_max)
+            IF( use_gamma ) CALL fgamma(m_max, T, product_list(nproducts)%Fm(1))
+
+            ! Coulomb
+            CALL fgamma(m_max,T,Fm)
+
+            DO l=1,m_max+1
+               product_list(nproducts)%Fm(l)=product_list(nproducts)%Fm(l)*&
+                           (potential_parameter%scale_coulomb+potential_parameter%scale_longrange)- &
+                         Fm(l)*potential_parameter%scale_longrange
+            ENDDO
+
+            ! longrange
+            omega2 = potential_parameter%omega**2
+            omega_corr2 = omega2/(omega2+Rho)
+            omega_corr = SQRT(omega_corr2)
+            T = T*omega_corr2
+            CALL fgamma(m_max,T,Fm)
+            tmp = omega_corr
+            DO l=1,m_max+1
+              product_list(nproducts)%Fm(l)= product_list(nproducts)%Fm(l) + Fm(l)*tmp*potential_parameter%scale_longrange
+              tmp = tmp * omega_corr2
+            END DO
+            factor = 2.0_dp*Pi*RhoInv
+
           CASE(do_hfx_potential_gaussian)
             omega2 = potential_parameter%omega**2
             T = -omega2*T/(Rho+omega2)
