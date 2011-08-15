@@ -12,6 +12,7 @@
 ! *****************************************************************************
 MODULE qs_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
@@ -24,6 +25,8 @@ MODULE qs_environment_methods
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
@@ -37,6 +40,7 @@ MODULE qs_environment_methods
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_transfer
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -49,7 +53,8 @@ MODULE qs_environment_methods
                                              qs_charges_release,&
                                              qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
-                                             calculate_rho_core
+                                             calculate_rho_core,&
+                                             calculate_rho_nlcc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -331,7 +336,17 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
          CALL calculate_ppl_grid(qs_env%vppl,qs_env,error=error)
       END IF
     END IF
-     
+
+    ! compute the rho_nlcc
+    IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+      CPPrecondition(ASSOCIATED(qs_env%rho_nlcc),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(qs_env%rho_nlcc_g),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+      CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      CALL calculate_rho_nlcc(qs_env%rho_nlcc, qs_env,error=error)
+      CALL pw_transfer(qs_env%rho_nlcc%pw,qs_env%rho_nlcc_g%pw,error=error)
+    ENDIF
+
     skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     IF (.NOT. dft_control%qs_control%semi_empirical) THEN
        ! generate task lists (non-soft)
@@ -411,10 +426,11 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, nlcc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
-    TYPE(pw_p_type), POINTER                 :: rho_core, vee, vppl
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
+                                                rho_nlcc_g, vee, vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
@@ -489,6 +505,50 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
       END IF
     END IF
 
+    ! reallocate rho_nlcc
+    CALL has_nlcc(nlcc,qs_env,error)
+    IF (nlcc) THEN
+      ! right now, not working with gapw/gapw_xc, needs implementation in the GAPW XC routines
+      IF (dft_control%qs_control%gapw_xc .OR. dft_control%qs_control%gapw) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Non linear core correction for GAPW not implemented",&
+               error=error, error_level=cp_failure_level)
+      ENDIF
+      ! the realspace version
+      NULLIFY(rho_nlcc)
+      CALL get_qs_env(qs_env,pw_env=new_pw_env,rho_nlcc=rho_nlcc,error=error)
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         CALL pw_release(rho_nlcc%pw,error=error)
+         DEALLOCATE(rho_nlcc,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(rho_nlcc,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D, error=error)
+         rho_nlcc%pw%in_space=REALSPACE
+         CALL set_qs_env(qs_env,rho_nlcc=rho_nlcc,error=error)
+      END IF
+      ! the g-space version
+      NULLIFY(rho_nlcc_g)
+      CALL get_qs_env(qs_env,pw_env=new_pw_env,rho_nlcc_g=rho_nlcc_g,error=error)
+      IF (ASSOCIATED(rho_nlcc_g)) THEN
+         CALL pw_release(rho_nlcc_g%pw,error=error)
+         DEALLOCATE(rho_nlcc_g,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(rho_nlcc_g,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D, error=error)
+         rho_nlcc_g%pw%in_space=RECIPROCALSPACE
+         CALL set_qs_env(qs_env,rho_nlcc_g=rho_nlcc_g,error=error)
+      END IF
+    END IF
+
+
     ! reallocate vee: external electrostatic potential
     IF (dft_control%apply_external_potential) THEN
       NULLIFY(vee)
@@ -511,6 +571,38 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_pw_env
+
+! *****************************************************************************
+!> \brief finds if a given qs run needs to use nlcc
+! *****************************************************************************
+  SUBROUTINE has_nlcc(nlcc,qs_env,error)
+
+    LOGICAL                                  :: nlcc
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'has_nlcc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind
+    LOGICAL                                  :: nlcc_present
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+
+    nlcc=.FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    DO ikind=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind, gth_potential=gth_potential)
+      IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
+      CALL get_potential(potential=gth_potential,nlcc_present=nlcc_present)
+      nlcc=nlcc.OR.nlcc_present
+    ENDDO
+
+  END SUBROUTINE has_nlcc
 
 ! *****************************************************************************
 !> \brief rebuilds the rho structure, making sure that everything is allocated

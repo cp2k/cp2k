@@ -331,6 +331,7 @@ CONTAINS
           CALL mp_sum(force(ikind)%overlap_admm,para_env%group)
           CALL mp_sum(force(ikind)%kinetic,para_env%group)
           CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
+          CALL mp_sum(force(ikind)%gth_nlcc,para_env%group)
           CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
           CALL mp_sum(force(ikind)%all_potential,para_env%group)
           CALL mp_sum(force(ikind)%core_overlap,para_env%group)
@@ -347,6 +348,7 @@ CONTAINS
           force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                force(ikind)%core_overlap(:,:) +&
                force(ikind)%gth_ppl(:,:) +&
+               force(ikind)%gth_nlcc(:,:) +&
                force(ikind)%gth_ppnl(:,:) +&
                force(ikind)%all_potential(:,:) +&
                force(ikind)%kinetic(:,:) +&
@@ -548,6 +550,7 @@ CONTAINS
                   iatom,ikind,"  overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+                  iatom,ikind,"      gth_nlcc",qs_force(ikind)%gth_nlcc(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
                   iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
@@ -572,6 +575,7 @@ CONTAINS
                   iatom,ikind,"  overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+                  iatom,ikind,"      gth_nlcc",qs_force(ikind)%gth_nlcc(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
                   iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
@@ -607,6 +611,7 @@ CONTAINS
                   iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"        kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"        gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+                  iatom,ikind,"       gth_nlcc",qs_force(ikind)%gth_nlcc(1:3,i),&
                   iatom,ikind,"       gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
                   iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&

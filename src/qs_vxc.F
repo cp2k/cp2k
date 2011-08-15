@@ -118,7 +118,7 @@ CONTAINS
                                                 my_basis_set_id, myfun, stat
     LOGICAL :: do_adiabatic_rescaling, failure, harris_flag, my_epr_xc, &
       my_gapw_xc, my_just_energy, nsc_flag, sic_scaling_b_zero, uf_grid
-    REAL(KIND=dp)                            :: exc_m, &
+    REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
                                                 my_scaling, nelec_s_inv, &
                                                 nelec_spin(2)
@@ -307,6 +307,17 @@ CONTAINS
 !                END DO
              END IF
           END IF
+
+          ! add the nlcc densities
+          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+             factor=1.0_dp
+             IF (dft_control%nspins==2) factor=0.5_dp
+             DO ispin=1,dft_control%nspins
+                CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
+                CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
+             ENDDO
+          ENDIF
+
           !
           ! here the rho_r, rho_g, tau is what it should be
           ! we get back the right my_vxc_rho and my_vxc_tau as required
@@ -325,6 +336,16 @@ CONTAINS
                   error=error,&
                   virial=virial)
           END IF
+
+          ! remove the nlcc densities (keep stuff in original state)
+          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+             factor=-1.0_dp
+             IF (dft_control%nspins==2) factor=-0.5_dp
+             DO ispin=1,dft_control%nspins
+                CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
+                CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
+             ENDDO
+          ENDIF
 
           !! Apply rescaling to the potential if requested
           IF(.NOT. my_just_energy) THEN

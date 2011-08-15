@@ -206,6 +206,7 @@ CONTAINS
         CALL mp_sum(force(ikind)%kinetic, para_env%group)
         CALL mp_sum(force(ikind)%overlap, para_env%group)
         CALL mp_sum(force(ikind)%gth_ppl, para_env%group)
+        CALL mp_sum(force(ikind)%gth_nlcc, para_env%group)
         CALL mp_sum(force(ikind)%gth_ppnl, para_env%group)
         CALL mp_sum(force(ikind)%core_overlap, para_env%group)
       END DO
@@ -216,7 +217,7 @@ CONTAINS
         harris_force%f_kinetic(iatom, 1:3) = force(ikind)%kinetic(1:3,i)
         harris_force%f_overlap(iatom, 1:3) = force(ikind)%overlap(1:3,i)
         harris_force%f_gth_pp(iatom, 1:3)  = force(ikind)%gth_ppl(1:3,i) &
-                                           + force(ikind)%gth_ppnl(1:3,i)
+                                           + force(ikind)%gth_ppnl(1:3,i) + force(ikind)%gth_nlcc(1:3,i)
         harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
         harris_force%f_self(iatom, 1:3) = 0.0_dp
       END DO
@@ -583,6 +584,7 @@ CONTAINS
         CALL mp_sum(force(ikind)%kinetic, para_env%group)
         CALL mp_sum(force(ikind)%overlap, para_env%group)
         CALL mp_sum(force(ikind)%gth_ppl, para_env%group)
+        CALL mp_sum(force(ikind)%gth_nlcc, para_env%group)
         CALL mp_sum(force(ikind)%gth_ppnl, para_env%group)
       END DO
 
@@ -592,7 +594,7 @@ CONTAINS
         harris_force%f_kinetic(iatom, 1:3) = force(ikind)%kinetic(1:3,i)
         harris_force%f_overlap(iatom, 1:3) = force(ikind)%overlap(1:3,i)
         harris_force%f_gth_pp(iatom, 1:3)  = force(ikind)%gth_ppl(1:3,i) &
-                                           + force(ikind)%gth_ppnl(1:3,i)
+                                           + force(ikind)%gth_ppnl(1:3,i) + force(ikind)%gth_nlcc(1:3,i)
       END DO
 
       CALL zero_qs_force(force)
@@ -1644,6 +1646,7 @@ CONTAINS
                + harris_force%f_cross_integrate_v_core(iatom,1:3) &
                + force(ikind)%overlap(1:3,i) &
                + force(ikind)%gth_ppl(1:3,i) &
+               + force(ikind)%gth_nlcc(1:3,i) &
                + force(ikind)%gth_ppnl(1:3,i)
         END DO
 

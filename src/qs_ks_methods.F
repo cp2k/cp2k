@@ -113,6 +113,7 @@ MODULE qs_ks_methods
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
+                                             integrate_rho_nlcc,&
                                              integrate_v_core_rspace,&
                                              integrate_v_rspace
   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
@@ -674,6 +675,13 @@ CONTAINS
              CALL integrate_ppl_rspace(rho%rho_r(ispin),qs_env,error=error)
           END DO
        END IF
+
+       IF(ASSOCIATED(qs_env%rho_nlcc) .AND. calculate_forces)THEN
+          CPPrecondition(.NOT.(gapw .OR. gapw_xc),cp_failure_level,routineP,error,failure)
+          DO ispin=1,nspins
+             CALL integrate_rho_nlcc(v_rspace_new(ispin),qs_env,error=error)
+          END DO
+       ENDIF
 
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN

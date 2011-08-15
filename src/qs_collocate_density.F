@@ -138,11 +138,203 @@ MODULE qs_collocate_density
             collocate_pgf_product_gspace,&
             collocate_pgf_product_rspace,&
             collocate_atomic_charge_density,&
-            density_rs2pw
+            density_rs2pw,&
+            calculate_rho_nlcc
 
   INTEGER :: debug_count=0
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief computes the density of the non-linear core correction on the grid
+! *****************************************************************************
+  SUBROUTINE calculate_rho_nlcc(rho_nlcc,qs_env,error)
+
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_nlcc
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, handle, iatom, ierr, &
+                                                iexp_nlcc, ikind, ithread, j, &
+                                                n, natom, nc, nexp_nlcc, ni, &
+                                                npme, nthread
+    INTEGER(KIND=int_8)                      :: subpatch_pattern
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
+    LOGICAL                                  :: failure, nlcc
+    REAL(KIND=dp)                            :: alpha, eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_nlcc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval_nlcc, pab
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type)                     :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_rho
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
+         atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    para_env=para_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
+         auxbas_pw_pool=auxbas_pw_pool,error=error)
+    cube_info=pw_env%cube_info(1)
+    ! be careful in parallel nsmax is choosen with multigrid in mind!
+    CALL rs_grid_create(rs_rho, auxbas_rs_desc, error=error)
+    CALL rs_grid_zero(rs_rho)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+    DO ikind=1,SIZE(atomic_kind_set)
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=natom,&
+                           atom_list=atom_list,&
+                           gth_potential=gth_potential)
+
+      IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
+      CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nexp_nlcc=nexp_nlcc,&
+                         alpha_nlcc=alpha_nlcc,nct_nlcc=nct_nlcc,cval_nlcc=cval_nlcc)
+
+      IF ( .NOT. nlcc ) CYCLE
+
+      DO iexp_nlcc=1,nexp_nlcc
+
+         alpha=alpha_nlcc(iexp_nlcc)
+         nc=nct_nlcc(iexp_nlcc)
+
+         ni = ncoset(2*nc-2)
+         ALLOCATE(pab(ni,1),STAT=ierr)
+         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+         pab = 0._dp
+
+         nthread = 1
+         ithread=0
+
+         CALL reallocate ( cores, 1, natom )
+         npme = 0
+         cores = 0
+
+         ! prepare core function
+         DO j=1,nc
+           SELECT CASE (j)
+             CASE (1)
+               pab(1,1) = cval_nlcc(1,iexp_nlcc)
+             CASE (2)
+               n = coset(2,0,0)
+               pab(n,1) = cval_nlcc(2,iexp_nlcc)/alpha**2
+               n = coset(0,2,0)
+               pab(n,1) = cval_nlcc(2,iexp_nlcc)/alpha**2
+               n = coset(0,0,2)
+               pab(n,1) = cval_nlcc(2,iexp_nlcc)/alpha**2
+             CASE (3)
+               n = coset(4,0,0)
+               pab(n,1) = cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(0,4,0)
+               pab(n,1) = cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(0,0,4)
+               pab(n,1) = cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(2,2,0)
+               pab(n,1) = 2._dp*cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(2,0,2)
+               pab(n,1) = 2._dp*cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(0,2,2)
+               pab(n,1) = 2._dp*cval_nlcc(3,iexp_nlcc)/alpha**4
+             CASE (4)
+               n = coset(6,0,0)
+               pab(n,1) = cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,6,0)
+               pab(n,1) = cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,0,6)
+               pab(n,1) = cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(4,2,0)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(4,0,2)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(2,4,0)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(2,0,4)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,4,2)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,2,4)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(2,2,2)
+               pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+             CASE DEFAULT
+               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END SELECT
+         END DO
+
+         DO iatom = 1, natom
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r,cell)
+            IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+               ! replicated realspace grid, split the atoms up between procs
+               IF (MODULO(natom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+                  npme = npme + 1
+                  cores (npme) = iatom
+               ENDIF
+            ELSE
+               npme = npme + 1
+               cores (npme) = iatom
+            ENDIF
+         END DO
+
+         DO j=1,npme
+
+            iatom = cores(j)
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r,cell)
+            subpatch_pattern=0
+            ni = 2*nc-2
+            CALL collocate_pgf_product_rspace(ni,1/(2*alpha**2),0,0,0.0_dp,0,ra,&
+               (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
+               cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+
+         END DO
+
+         DEALLOCATE ( pab, STAT=ierr )
+         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+      END DO
+
+    END DO
+
+    IF (ASSOCIATED(cores)) THEN
+      DEALLOCATE (cores,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL rs_pw_transfer(rs_rho,rho_nlcc%pw,rs2pw,error=error)
+    CALL rs_grid_release(rs_rho, error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_rho_nlcc
 
 ! *****************************************************************************
 !> \brief computes the local pseudopotential (without erf term) on the grid
@@ -327,6 +519,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE calculate_ppl_grid
+
 
 ! *****************************************************************************
 !> \brief Collocates an arbitrary density from the aux_basis_set onto a grid.
@@ -2395,6 +2588,7 @@ CONTAINS
     ELSE
        IF (rsgrid%desc%orthorhombic ) THEN
           CALL collocate_ortho()
+          ! CALL collocate_general()
        ELSE
           CALL collocate_general_wings()
           !CALL collocate_general_opt()

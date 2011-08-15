@@ -1937,6 +1937,7 @@ CONTAINS
        CALL mp_sum(force(ikind)%overlap,para_env%group)
        CALL mp_sum(force(ikind)%kinetic,para_env%group)
        CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
+       CALL mp_sum(force(ikind)%gth_nlcc,para_env%group)
        CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
        CALL mp_sum(force(ikind)%all_potential,para_env%group)
        CALL mp_sum(force(ikind)%core_overlap,para_env%group)
@@ -1948,6 +1949,7 @@ CONTAINS
        force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
             force(ikind)%core_overlap(:,:) +&
             force(ikind)%gth_ppl(:,:) +&
+            force(ikind)%gth_nlcc(:,:) +&
             force(ikind)%gth_ppnl(:,:) +&
             force(ikind)%all_potential(:,:) +&
             force(ikind)%kinetic(:,:) +&

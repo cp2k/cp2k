@@ -127,7 +127,7 @@ MODULE qs_integrate_potential
             integrate_v_core_rspace,&
             integrate_ppl_rspace,&
             integrate_pgf_product_rspace,&
-            potential_pw2rs
+            potential_pw2rs, integrate_rho_nlcc
 
 CONTAINS
 
@@ -332,6 +332,218 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE integrate_ppl_rspace
+
+! *****************************************************************************
+!> \brief computes the forces/virial due to the nlcc pseudopotential
+! *****************************************************************************
+  SUBROUTINE integrate_rho_nlcc(rho_rspace,qs_env,error)
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_rspace
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, dir, handle, iatom, iexp_nlcc, ikind, ithread, j, n, &
+      natom, natom_of_kind, nc, nexp_nlcc, ni, npme, nthread, stat, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
+    LOGICAL                                  :: failure, nlcc, use_virial
+    REAL(KIND=dp)                            :: alpha, eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_nlcc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval_nlcc, hab, pab
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_v
+    TYPE(virial_type), POINTER               :: virial
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(pw_env,auxbas_rs_desc,cores)
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
+    CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
+
+    CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         para_env=para_env,pw_env=pw_env,&
+         force=force,virial=virial,error=error)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+   DO ikind=1,SIZE(atomic_kind_set)
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=natom,&
+                           atom_list=atom_list,&
+                           gth_potential=gth_potential)
+
+      IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
+      CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nexp_nlcc=nexp_nlcc,&
+                         alpha_nlcc=alpha_nlcc,nct_nlcc=nct_nlcc,cval_nlcc=cval_nlcc)
+
+      IF ( .NOT. nlcc ) CYCLE
+
+      DO iexp_nlcc=1,nexp_nlcc
+
+         alpha=alpha_nlcc(iexp_nlcc)
+         nc=nct_nlcc(iexp_nlcc)
+
+         ni = ncoset(2*nc-2)
+
+         nthread = 1
+         ithread=0
+
+         ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
+         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         pab = 0._dp
+
+         CALL reallocate ( cores, 1, natom )
+         npme = 0
+         cores = 0
+
+         ! prepare core function
+         DO j=1,nc
+           SELECT CASE (j)
+             CASE (1)
+               pab(1,1) = cval_nlcc(1,iexp_nlcc)
+             CASE (2)
+               n = coset(2,0,0)
+               pab(n,1) = cval_nlcc(2,iexp_nlcc)/alpha**2
+               n = coset(0,2,0)
+               pab(n,1) = cval_nlcc(2,iexp_nlcc)/alpha**2
+               n = coset(0,0,2)
+               pab(n,1) = cval_nlcc(2,iexp_nlcc)/alpha**2
+             CASE (3)
+               n = coset(4,0,0)
+               pab(n,1) = cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(0,4,0)
+               pab(n,1) = cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(0,0,4)
+               pab(n,1) = cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(2,2,0)
+               pab(n,1) = 2._dp*cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(2,0,2)
+               pab(n,1) = 2._dp*cval_nlcc(3,iexp_nlcc)/alpha**4
+               n = coset(0,2,2)
+               pab(n,1) = 2._dp*cval_nlcc(3,iexp_nlcc)/alpha**4
+             CASE (4)
+               n = coset(6,0,0)
+               pab(n,1) = cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,6,0)
+               pab(n,1) = cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,0,6)
+               pab(n,1) = cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(4,2,0)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(4,0,2)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(2,4,0)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(2,0,4)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,4,2)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(0,2,4)
+               pab(n,1) = 3._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+               n = coset(2,2,2)
+               pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
+             CASE DEFAULT
+               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END SELECT
+         END DO
+
+         DO iatom = 1, natom
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r,cell)
+            DO dir =1,3
+               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
+               tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
+               tp(dir) = tp(dir) + rs_v%desc%lb(dir)
+            END DO
+            IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
+                ! replicated realspace grid, split the atoms up between procs
+                IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
+                   npme = npme + 1
+                   cores (npme) = iatom
+                ENDIF
+             ELSE
+                npme = npme + 1
+                cores (npme) = iatom
+             ENDIF
+         END DO
+         
+         DO j=1,npme
+
+           iatom = cores(j)
+           atom_a = atom_list(iatom)
+           ra(:) = pbc(particle_set(atom_a)%r,cell)
+           hab(:,1) = 0.0_dp
+           force_a(:) = 0.0_dp
+           force_b(:) = 0.0_dp
+           IF (use_virial) THEN
+              my_virial_a = 0.0_dp
+              my_virial_b = 0.0_dp
+           END IF
+           ni = 2*nc-2
+
+           CALL integrate_pgf_product_rspace(ni,1/(2*alpha**2),0,&
+                0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
+                rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
+                eps_gvg_rspace=eps_rho_rspace,&
+                calculate_forces=.TRUE.,force_a=force_a,&
+                force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
+                my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+
+           force(ikind)%gth_nlcc(:,iatom) =&
+             force(ikind)%gth_nlcc(:,iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
+
+           IF (use_virial) THEN
+             virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Virial not debuged for NLCC", &
+                  error=error, error_level=cp_failure_level)
+           END IF
+         END DO
+
+         DEALLOCATE(hab,pab,STAT=stat)
+         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      END DO
+
+    END DO
+
+    CALL rs_grid_release(rs_v, error=error)
+
+    DEALLOCATE(cores,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE integrate_rho_nlcc
 
 ! *****************************************************************************
 !> \brief computes the forces/virial due to the ionic cores with a potential on

@@ -27,6 +27,7 @@ MODULE qs_force_types
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: all_potential,&
                                          core_overlap,&
                                          gth_ppl,&
+                                         gth_nlcc,&
                                          gth_ppnl,&
                                          kinetic,&
                                          overlap,&
@@ -99,6 +100,11 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,&
                          "qs_force(ikind)%gth_ppl",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%gth_nlcc(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "qs_force(ikind)%gth_nlcc",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%gth_ppnl(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -240,6 +246,13 @@ CONTAINS
         DEALLOCATE (qs_force(ikind)%gth_ppl,STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%gth_ppl")
+        END IF
+      END IF
+
+      IF (ASSOCIATED(qs_force(ikind)%gth_nlcc)) THEN
+        DEALLOCATE (qs_force(ikind)%gth_nlcc,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%gth_nlcc")
         END IF
       END IF
 
@@ -401,6 +414,7 @@ CONTAINS
       qs_force(ikind)%all_potential(:,:) = 0.0_dp
       qs_force(ikind)%core_overlap(:,:) = 0.0_dp
       qs_force(ikind)%gth_ppl(:,:) = 0.0_dp
+      qs_force(ikind)%gth_nlcc(:,:) = 0.0_dp
       qs_force(ikind)%gth_ppnl(:,:) = 0.0_dp
       qs_force(ikind)%kinetic(:,:) = 0.0_dp
       qs_force(ikind)%overlap(:,:) = 0.0_dp
@@ -471,6 +485,7 @@ CONTAINS
         qs_force_output(ikind)%core_overlap(:,:) = &
            qs_force_input(ikind)%core_overlap(:,:)
         qs_force_output(ikind)%gth_ppl(:,:) = qs_force_input(ikind)%gth_ppl(:,:)
+        qs_force_output(ikind)%gth_nlcc(:,:) = qs_force_input(ikind)%gth_nlcc(:,:)
         qs_force_output(ikind)%gth_ppnl(:,:) = qs_force_input(ikind)%gth_ppnl(:,:)
         qs_force_output(ikind)%kinetic(:,:) = qs_force_input(ikind)%kinetic(:,:)
         qs_force_output(ikind)%overlap(:,:) = qs_force_input(ikind)%overlap(:,:)
