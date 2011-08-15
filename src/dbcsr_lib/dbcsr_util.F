@@ -1414,7 +1414,7 @@ CONTAINS
 
     IF (SIZE (array) .GT. 0) THEN
        max_val = MAXVAL (array)
-       max_val_l = MIN(MIN (size_limit, max_val), HUGE(most_common_map))
+       max_val_l = MIN(MIN (size_limit, max_val), INT(HUGE(most_common_map)))
     ELSE
        max_val = 0
        max_val_l = 0
