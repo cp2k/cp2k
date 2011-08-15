@@ -27,3 +27,5 @@ c8_broy.inp          1
 c8_broy_gop.inp      1
 c8_broy_gapw.inp     1
 c8_broy_gapw_gop.inp 1
+# NLCC corrected pseudos with forces
+Ne_nlcc_md.inp 1
