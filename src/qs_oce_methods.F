@@ -470,7 +470,7 @@ CONTAINS
          IF (.NOT.paw_atom_b) CYCLE
 
          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_paw)
-         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+         IF (.NOT.ASSOCIATED(orb_basis_paw)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
 
          CALL get_paw_proj_set(paw_proj_set=paw_proj_b,&
