@@ -324,7 +324,7 @@ CONTAINS
         ENDIF
 
         qs_ot_env(1)%etotal=energy
-        CALL ot_mini(qs_ot_env,matrix_hc,error=error)
+        CALL ot_mini(qs_ot_env,matrix_hc,output_unit=0,error=error)
         delta           =qs_ot_env(1)%delta
         energy_only     =qs_ot_env(1)%energy_only
 

@@ -1031,7 +1031,7 @@ CONTAINS
     CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
                     total_energy, aux_coeff_set,    &
                     pscp,fscp,energy_only,scf_env%iter_delta, & 
-                    scf_env%qs_ot_env,error=error)
+                    scf_env%qs_ot_env,qs_env%input,error=error)
 
 
     DO ispin=1,SIZE(mos)
@@ -1926,7 +1926,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
              !
              ! check if we need the mo_coeff_b
              mos(ispin)%mo_set%use_mo_coeff_b = qs_env%scf_control%use_ot .OR.&
-                                                scf_env%method .EQ. ot_diag_method_nr
+                                                scf_env%method .EQ. ot_diag_method_nr .OR. &
+                                                scf_env%method .EQ. block_davidson_diag_method_nr
              CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
                   dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s(1)%matrix))))! fm->dbcsr
              CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s(1)%matrix)),&! fm->dbcsr
@@ -2042,23 +2043,19 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
 
        IF((scf_env%method /= ot_method_nr) .AND. &
           (scf_env%method /= block_davidson_diag_method_nr) ) THEN
-       IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
-!          IF (scf_env%method /= ot_method_nr) THEN
-             ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!          END IF
-!          IF (ASSOCIATED(scf_env%scf_work1)) THEN
-             DO ispin=1,SIZE(scf_env%scf_work1)
-                NULLIFY(scf_env%scf_work1(ispin)%matrix)
-                CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
-                     matrix_struct=ao_ao_fmstruct,&
-                     name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                     "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                     error=error)
-             ENDDO
-!          ENDIF
-       END IF
-       IF ((.NOT.ASSOCIATED(scf_env%ortho)).AND.&
+         IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
+           ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin=1,SIZE(scf_env%scf_work1)
+              NULLIFY(scf_env%scf_work1(ispin)%matrix)
+              CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
+                   matrix_struct=ao_ao_fmstruct,&
+                   name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                   "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                   error=error)
+           ENDDO
+         END IF
+         IF ((.NOT.ASSOCIATED(scf_env%ortho)).AND.&
             (scf_env%method /= ot_diag_method_nr).AND.&
             (scf_env%method /= special_diag_method_nr)) THEN
           CALL cp_fm_create(scf_env%ortho,&
@@ -2066,16 +2063,14 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                "ORTHO_MATRIX",&
                error=error)
-       END IF
-       IF ((.NOT.ASSOCIATED(scf_env%scf_work2))) THEN
-!          .AND.(scf_env%method /= ot_method_nr)) THEN
-          CALL cp_fm_create(scf_env%scf_work2,&
+         END IF
+         IF ((.NOT.ASSOCIATED(scf_env%scf_work2))) THEN
+           CALL cp_fm_create(scf_env%scf_work2,&
                matrix_struct=ao_ao_fmstruct,&
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                "WORK_MATRIX-2",&
                error=error)
-       END IF
-
+         END IF
        END IF
 
        IF (dft_control%dft_plus_u) THEN
@@ -2095,9 +2090,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
            END IF
          END IF
        END IF
-
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
-
     END IF
 
 !   *** Allocate matrix_ks and put it in the QS environment ***

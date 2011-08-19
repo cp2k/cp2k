@@ -345,31 +345,26 @@ CONTAINS
   END SUBROUTINE qs_ot_ref_lwdn
 
 ! *****************************************************************************
-  SUBROUTINE qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
+  SUBROUTINE qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,output_unit,error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_dbcsr_type), POINTER             :: C_OLD, C_TMP, C_NEW, P
     TYPE(cp_dbcsr_type)                      :: SC
     REAL(dp), INTENT(IN)                     :: norm_in
     LOGICAL, INTENT(IN)                      :: update
+    INTEGER,INTENT(IN)                       :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_poly', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, irefine, k, n, &
-                                                output_unit
+    INTEGER                                  :: handle, irefine, k, n
     LOGICAL                                  :: quick_exit
     REAL(dp)                                 :: norm, norm_fro, norm_gct, &
                                                 occ_in, occ_out, rescale
     TYPE(cp_dbcsr_type), POINTER             :: BUF1, BUF2, BUF_NOSYM, FT, FY
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    !
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_io_unit(logger)
     !
     CALL cp_dbcsr_get_info(C_NEW,nfullrows_total=n,nfullcols_total=k)
     !
@@ -400,7 +395,7 @@ CONTAINS
        !
        ! get the refinement polynomial
        CALL qs_ot_refine(P, FY, BUF1, BUF2, qs_ot_env%settings%irac_degree, &
-            qs_ot_env%settings%eps_irac_filter_matrix, error)
+            qs_ot_env%settings%eps_irac_filter_matrix, output_unit, error)
        !
        ! collect the transformation
        IF(irefine.EQ.1) THEN
@@ -524,12 +519,13 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
        &                            matrix_gx_old, matrix_dx, qs_ot_env, &
-       &                            qs_ot_env1, error)
+       &                            qs_ot_env1, output_unit, error)
     !
     TYPE(cp_dbcsr_type), POINTER             :: matrix_c, matrix_s, matrix_x, &
                                                 matrix_sx, matrix_gx_old, &
                                                 matrix_dx
     TYPE(qs_ot_type)                         :: qs_ot_env, qs_ot_env1
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_ref', &
@@ -537,18 +533,14 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     CHARACTER(LEN=4)                         :: ortho_irac
-    INTEGER                                  :: handle, k, n, output_unit
+    INTEGER                                  :: handle, k, n
     LOGICAL                                  :: on_the_fly_loc, update
     REAL(dp)                                 :: norm, norm_fro, norm_gct, &
                                                 occ_in, occ_out
     TYPE(cp_dbcsr_type), POINTER             :: C_NEW, C_OLD, C_TMP, D, &
                                                 G_OLD, P, S, SC
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-
-    logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_io_unit(logger)
 
     IF(output_unit>0.AND.qs_ot_env1%settings%eps_irac_filter_matrix.GT.0.0_dp) &
          WRITE(output_unit,*) routinen//' eps_irac_filter_matrix=',&
@@ -613,7 +605,7 @@ CONTAINS
     CASE("LWDN")
        CALL qs_ot_ref_lwdn(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
     CASE("POLY")
-       CALL qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
+       CALL qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm,update,output_unit,error)
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"Wrong argument")
     END SELECT
@@ -631,7 +623,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE qs_ot_get_orbitals_ref
 
-  SUBROUTINE qs_ot_refine(P,FY,P2,T,irac_degree,eps_irac_filter_matrix,error)
+  SUBROUTINE qs_ot_refine(P,FY,P2,T,irac_degree,eps_irac_filter_matrix,output_unit,error)
     !----------------------------------------------------------------------
     ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
     !----------------------------------------------------------------------
@@ -639,20 +631,17 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(inout)       :: P, FY, P2, T
     INTEGER, INTENT(in)                      :: irac_degree
     REAL(dp), INTENT(in)                     :: eps_irac_filter_matrix
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, k, output_unit
+    INTEGER                                  :: handle, k
     REAL(dp)                                 :: occ_in, occ_out, r
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-
-    logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_io_unit(logger)
 
     CALL cp_dbcsr_get_info(P,nfullcols_total=k)
     SELECT CASE(irac_degree)
@@ -724,26 +713,23 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative_ref(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-       &                              qs_ot_env,error)
+       &                              qs_ot_env,output_unit,error)
     TYPE(cp_dbcsr_type), POINTER             :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, k, n, output_unit
+    INTEGER                                  :: handle, k, n
     LOGICAL                                  :: mixed_precision
     REAL(dp)                                 :: occ_in, occ_out
     TYPE(cp_dbcsr_type), POINTER             :: C, CHC, G, G_dp, HC, SC
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-
-    logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_io_unit(logger)
 
     mixed_precision = qs_ot_env%settings%mixed_precision
     CALL cp_dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)

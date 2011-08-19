@@ -3770,10 +3770,12 @@ CONTAINS
                dbcsr_get_data_type(matrix), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
                "Mismatched vector/matrix data types", __LINE__, error=error)
-          CALL dbcsr_assert (dbcsr_data_get_size(norm_vector), "GE",&
-               dbcsr_nfullrows_total(matrix), dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN, "Passed vector too small",&
-               __LINE__, error=error)
+          IF(dbcsr_has_symmetry(matrix) .AND. row.NE.col) THEN
+            CALL dbcsr_assert (dbcsr_data_get_size(norm_vector), "GE",&
+                 dbcsr_nfullrows_total(matrix), dbcsr_fatal_level,&
+                 dbcsr_wrong_args_error, routineN, "Passed vector too small",&
+                 __LINE__, error=error)
+          END IF
           CALL dbcsr_assert (dbcsr_data_get_size(norm_vector), "GE",&
                dbcsr_nfullcols_total(matrix), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN, "Passed vector too small",&

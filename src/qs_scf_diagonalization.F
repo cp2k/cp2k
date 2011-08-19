@@ -80,7 +80,7 @@ MODULE qs_scf_diagonalization
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_block_davidson,           ONLY: generate_extended_space
+  USE qs_scf_block_davidson,           ONLY: generate_extended_space, generate_extended_space_sparse
   USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
                                              lanczos_refinement_2v
   USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
@@ -1254,13 +1254,7 @@ END SUBROUTINE diag_subspace_allocate
     IF(PRESENT(check_moconv_only)) my_check_moconv_only=check_moconv_only
 
     nspins = SIZE(matrix_ks)
-!    scf_env%block_davidson_env(:)%niter_new_prec = 20
-!    scf_env%block_davidson_env(:)%first_prec = 2
-!dbg
- ! write(*,*) scf_env%iter_count, scf_env%block_davidson_env%niter_new_prec, &
- !         MODULO(scf_env%iter_count,scf_env%block_davidson_env%niter_new_prec),&
- !         (MODULO(scf_env%iter_count,scf_env%block_davidson_env%niter_new_prec)==0)
- !stop
+ 
     IF( scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
           MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0) THEN
 
@@ -1273,25 +1267,46 @@ END SUBROUTINE diag_subspace_allocate
 
     END IF
 
+ 
     DO ispin = 1,nspins
-      IF(scf_env%iter_count<scf_env%block_davidson_env(ispin)%first_prec) THEN
-        CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
-           matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
-           error=error)
+!       mos(ispin)%mo_set%use_mo_coeff_b=.false.
+!     write(*,*) 'sparse ',  mos(ispin)%mo_set%use_mo_coeff_b
+!dbg
+      IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN
+!      IF(scf_env%block_davidson_env(ispin)%use_dbcsr) THEN
+        IF(scf_env%iter_count<scf_env%block_davidson_env(ispin)%first_prec) THEN
+          CALL generate_extended_space_sparse(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
+             matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
+             error=error)
+        ELSE
+          CALL generate_extended_space_sparse(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
+             matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
+             scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+        END IF
       ELSE
-        CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
-           matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
-           scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+        IF(scf_env%iter_count<scf_env%block_davidson_env(ispin)%first_prec) THEN
+          CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
+             matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
+             error=error)
+        ELSE
+          CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
+             matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
+             scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+        END IF
       END IF
+    END DO !ispin
 
-      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+    CALL set_mo_occupation(mo_array=mos,&
                              smear=scf_control%smear,&
                              error=error)
 
+    DO ispin=1,nspins
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
     END DO
+
+
     IF (output_unit > 0) THEN
           WRITE(output_unit,"(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
     END IF

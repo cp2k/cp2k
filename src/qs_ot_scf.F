@@ -129,7 +129,7 @@ CONTAINS
   !
 ! *****************************************************************************
   SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,smear,matrix_s,energy, &
-       aux_coeff_set, pscp, fscp, energy_only, delta, qs_ot_env,error)
+       aux_coeff_set, pscp, fscp, energy_only, delta, qs_ot_env, input,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -144,13 +144,14 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, k, n, nspin, &
-                                                stat
+                                                output_unit,stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ener_nondiag, trace
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
@@ -160,10 +161,14 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc_scaled
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     nspin=SIZE(mo_array)
 
@@ -302,7 +307,9 @@ CONTAINS
     IF ( PRESENT ( pscp ) ) CALL cp_dbcsr_replicate (pscp, restrict_source=0, replicate_rows=.TRUE., &
                             replicate_columns=.TRUE., error=error )
 
-    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set,pscp,fscp,error=error)
+    output_unit = cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%PROGRAM_RUN_INFO",&
+                                       extension=".scfLog",error=error)
+    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,output_unit,aux_coeff_set,pscp,fscp,error=error)
 
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
@@ -325,7 +332,7 @@ CONTAINS
           CALL qs_ot_get_orbitals_ref(mo_coeff,matrix_s,qs_ot_env(ispin)%matrix_x,&
                            qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin)%matrix_gx_old,&
                            qs_ot_env(ispin)%matrix_dx,qs_ot_env(ispin),qs_ot_env(1),&
-                           error=error)
+                           output_unit,error=error)
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,"Algorithm not yet implemented")
        END SELECT
@@ -352,6 +359,8 @@ CONTAINS
     ENDIF
 
     ! cleanup
+    CALL cp_print_key_finished_output(output_unit,logger,input,&
+         "DFT%SCF%PRINT%PROGRAM_RUN_INFO", error=error)
     DO ispin=1,SIZE(scaling_factor)
       DEALLOCATE(scaling_factor(ispin)%array,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

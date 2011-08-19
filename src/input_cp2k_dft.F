@@ -5678,10 +5678,12 @@ CONTAINS
             description="Type of preconditioner to be used with all minimization schemes. ",&
             usage="PRECONDITIONER FULL_ALL",&
             default_i_val=ot_precond_full_all,&
-            enum_c_vals=s2a("FULL_ALL","NONE"),&
+            enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","NONE"),&
             enum_desc=s2a("Most effective state selective preconditioner based on diagonalization ",&
+            "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "//&
+            "but cheaper to construct, might be somewhat less robust. Recommended for large systems.",&
             "skip preconditioning"),&
-            enum_i_vals=(/ot_precond_full_all,ot_precond_none/),&
+            enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_none/),&
             citations=(/VandeVondele2003/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
