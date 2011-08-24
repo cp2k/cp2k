@@ -589,8 +589,10 @@ CONTAINS
     IF (do_echo_all_hosts) CALL echo_all_hosts(para_env,output_unit)
 
     num_threads=1
-!$omp parallel
+!$omp parallel shared(num_threads)
+!$omp master
 !$ num_threads = omp_get_num_threads()
+!$omp end master
 !$omp end parallel
     IF (output_unit > 0 ) THEN
        WRITE (UNIT=output_unit,FMT=*)
