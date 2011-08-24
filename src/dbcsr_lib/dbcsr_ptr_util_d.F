@@ -46,7 +46,7 @@
                                                 ub_new, ub_orig, old_size,&
                                                 size_increase, error_handler,&
                                                 mem_type
-    LOGICAL                                  :: dbg, docopy = .TRUE., &
+    LOGICAL                                  :: dbg, docopy, &
                                                 pad
     REAL(kind=real_8), DIMENSION(:), POINTER           :: newarray
 
