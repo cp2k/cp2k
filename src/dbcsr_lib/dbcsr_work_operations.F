@@ -1387,10 +1387,13 @@ CONTAINS
             "Finalize should be called from parallel.",&
             __LINE__, error=error)
     ENDIF
+!$OMP MASTER
+    old_row_p => matrix%row_p
+    old_col_i => matrix%col_i
+    old_blk_p => matrix%blk_p
+!$OMP END MASTER
+!$OMP BARRIER
     DO which_wm = wm_first, wm_last
-       old_row_p => matrix%row_p
-       old_col_i => matrix%col_i
-       old_blk_p => matrix%blk_p
        ALLOCATE (additions_per_row(2, nrows))
        additions_per_row(:,:) = 0
        my_num_new_blocks = matrix%wms(which_wm)%lastblk

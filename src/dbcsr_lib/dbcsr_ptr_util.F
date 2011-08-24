@@ -147,7 +147,7 @@ CONTAINS
                                                 lb_orig, mem_type, old_size, &
                                                 size_increase, ub_new, ub_orig
     INTEGER, DIMENSION(:), POINTER           :: newarray
-    LOGICAL                                  :: dbg, docopy = .TRUE., pad
+    LOGICAL                                  :: dbg, docopy, pad
 
 !   ---------------------------------------------------------------------------
 
