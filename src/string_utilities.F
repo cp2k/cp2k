@@ -616,6 +616,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
     LOGICAL, INTENT(IN), OPTIONAL            :: full
 
+    CHARACTER                                :: tmp
     INTEGER                                  :: i, z
     LOGICAL                                  :: remove_all
 
@@ -630,12 +631,14 @@ CONTAINS
     DO i=1,LEN_TRIM(string)
        IF ((z == 1).OR.remove_all) THEN
           IF (string(i:i) /= " ") THEN
-             string(z:z) = string(i:i)
+             tmp = string(i:i)
+             string(z:z) = tmp
              z = z + 1
           END IF
        ELSE
           IF ((string(i:i) /= " ").OR.(string(z-1:z-1) /= " ")) THEN
-             string(z:z) = string(i:i)
+             tmp = string(i:i)
+             string(z:z) = tmp
              z = z + 1
           END IF
        END IF

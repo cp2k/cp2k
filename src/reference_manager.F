@@ -105,6 +105,7 @@ CONTAINS
     CHARACTER(LEN=*), DIMENSION(:)           :: ISI_record
     CHARACTER(LEN=*)                         :: DOI
 
+    CHARACTER                                :: tmp
     CHARACTER(LEN=ISI_length)                :: author, citation_key, year
     INTEGER                                  :: commaloc, i, ires, line, &
                                                 match, mylen, nlines
@@ -142,7 +143,8 @@ CONTAINS
     DO I=1,mylen
        IF (INDEX("0123456789thequickbrownfoxjumpsoverthelazydogTHEQUICKBROWNFOXJUMPSOVERTHELAZYDOG",citation_key(i:i)).NE.0) THEN
           ires=ires+1
-          citation_key(ires:ires)=citation_key(i:i)
+          tmp=citation_key(i:i)
+          citation_key(ires:ires)=tmp
        ENDIF
     ENDDO
     citation_key(ires+1:)=""
