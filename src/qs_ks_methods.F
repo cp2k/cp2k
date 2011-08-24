@@ -1690,7 +1690,7 @@ CONTAINS
     ENDIF
 
     IF(output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,T41,F20.10))") "Trace(PS):",trace
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,T41,F20.10)") "Trace(PS):",trace
       WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
            "Electronic density on regular grids: ",&
            tot_rho_r,&
