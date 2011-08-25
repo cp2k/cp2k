@@ -236,12 +236,19 @@ MODULE xc_xwpbe
               error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp shared(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho) &
+      !$omp shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, epsilon_rho) &
+      !$omp shared(epsilon_norm_drho, sx, sx0, omega, error)
+
       CALL xwpbe_lda_calc(npoints,order,rho=rho, norm_drho=norm_drho,&
            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
            e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
            sx=sx,sx0=sx0,omega=omega,error=error)
       
+      !$omp end parallel
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -293,6 +300,8 @@ MODULE xc_xwpbe
     REAL(dp)                                 :: my_ndrho, my_rho
     REAL(KIND=dp)                            :: ss, ss2, sscale, t1, t2, t3, &
                                                 t4, t5, t6, t7, t8, ww
+
+    !$omp do
 
     DO ip =1,npoints
       my_rho = MAX(rho(ip),0.0_dp)
@@ -350,6 +359,9 @@ MODULE xc_xwpbe
         END IF
       END IF
     END DO
+
+    !$omp end do
+
   END SUBROUTINE xwpbe_lda_calc
 
 ! *****************************************************************************
@@ -5397,7 +5409,15 @@ MODULE xc_xwpbe
               error=error, error_level=cp_failure_level)
       END IF
      
+      !$omp parallel default(none) &
+      !$omp shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa, e_ndrhoa) &
+      !$omp shared(e_rhoa_rhoa, e_ndrhoa_rhoa, e_ndrhoa_ndrhoa, epsilon_rho) &
+      !$omp shared(epsilon_norm_drho, sx, sx0, omega, error) &
+      !$omp shared(rhob, norm_drhob, e_rhob, e_ndrhob, e_rhob_rhob) &
+      !$omp shared(e_ndrhob_rhob, e_ndrhob_ndrhob)
+
       !Call lsd_calc for alpha - and beta - spins
+
       CALL xwpbe_lsd_calc(npoints,order, rho=rhoa, norm_drho=norm_drhoa, &
            e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,e_rho_rho=e_rhoa_rhoa, &
            e_ndrho_rho=e_ndrhoa_rhoa, e_ndrho_ndrho=e_ndrhoa_ndrhoa, &
@@ -5408,6 +5428,8 @@ MODULE xc_xwpbe
            e_ndrho_rho=e_ndrhob_rhob, e_ndrho_ndrho=e_ndrhob_ndrhob, &
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho, &
            sx=sx,sx0=sx0,omega=omega,error=error)
+
+      !$omp end parallel
       
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
@@ -5465,6 +5487,8 @@ MODULE xc_xwpbe
     REAL(dp)                                 :: e_0_temp, my_ndrho, my_rho
     REAL(KIND=dp)                            :: ss, ss2, sscale, t1, t2, t3, &
                                                 t4, t5, t6, t7, t8, ww
+
+    !$omp do
 
     DO ip =1,npoints
       !According to spin-scaling relation, we need twice the density and its gradient
@@ -5527,6 +5551,9 @@ MODULE xc_xwpbe
         e_0(ip) = e_0(ip) + 0.5_dp * e_0_temp
       END IF
     END DO
+
+    !$omp end do
+
   END SUBROUTINE xwpbe_lsd_calc
 
 ! *****************************************************************************

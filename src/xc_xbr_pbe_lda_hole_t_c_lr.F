@@ -286,12 +286,20 @@ CONTAINS
                        error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(rho, norm_drho, laplace_rho, tau, e_0, e_rho) &
+      !$omp          shared(e_ndrho, e_tau, e_laplace_rho, grad_deriv) &
+      !$omp          shared(npoints, epsilon_rho) &
+      !$omp          shared(epsilon_norm_drho, sx, r, gamma, error)
+
       CALL xbr_pbe_lda_hole_tc_lr_lda_calc(rho=rho, norm_drho=norm_drho,&
           laplace_rho=laplace_rho,tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
           e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
           epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
  
+      !$omp end parallel
+
       IF (cp_debug) THEN
          DEALLOCATE(dummy,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -343,6 +351,8 @@ CONTAINS
       e_rho_br, e_rho_lda, e_rho_pbe, e_tau_br, Fermi, Fx, my_laplace_rho, &
       my_ndrho, my_rho, my_tau, ss, ss2, sscale, t1, t15, t16, t2, t3, t4, &
       t5, t6, t7, t8, t9, yval
+
+    !$omp do
 
     DO ip = 1,npoints
       my_rho = 0.5_dp*MAX(rho(ip),0.0_dp)
@@ -471,6 +481,8 @@ CONTAINS
       END IF
     END DO
 
+    !$omp end do
+
   END SUBROUTINE xbr_pbe_lda_hole_tc_lr_lda_calc
 
 ! *****************************************************************************
@@ -593,6 +605,13 @@ CONTAINS
                        error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(rhoa, norm_drhoa, laplace_rhoa, tau_a, e_0) &
+      !$omp          shared(e_rhoa, e_ndrhoa, e_tau_a, e_laplace_rhoa) &
+      !$omp          shared(grad_deriv, npoints, epsilon_rho) &
+      !$omp          shared(epsilon_norm_drho, sx, r, gamma, error) &
+      !$omp          shared(rhob, norm_drhob, laplace_rhob, tau_b, e_rhob) &
+      !$omp          shared(e_ndrhob, e_tau_b, e_laplace_rhob)
 
       CALL xbr_pbe_lda_hole_tc_lr_lsd_calc(rho=rhoa, norm_drho=norm_drhoa,&
           laplace_rho=laplace_rhoa,tau=tau_a,e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
@@ -605,6 +624,8 @@ CONTAINS
           e_tau=e_tau_b,e_laplace_rho=e_laplace_rhob,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
           epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+
+      !$omp end parallel
 
       IF (cp_debug) THEN
          DEALLOCATE(dummy,stat=stat)
@@ -656,6 +677,8 @@ CONTAINS
       e_rho_br, e_rho_lda, e_rho_pbe, e_tau_br, Fermi, Fx, my_laplace_rho, &
       my_ndrho, my_rho, my_tau, ss, ss2, sscale, t1, t15, t16, t2, t3, t4, &
       t5, t6, t7, t8, t9, yval
+
+    !$omp do
 
     DO ip = 1,npoints
       my_rho = MAX(rho(ip),0.0_dp)
@@ -775,6 +798,8 @@ CONTAINS
 
       END IF
     END DO
+
+    !$omp end do
 
   END SUBROUTINE xbr_pbe_lda_hole_tc_lr_lsd_calc
 

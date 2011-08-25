@@ -233,6 +233,14 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
+       !$omp parallel default(none) &
+       !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho) &
+       !$omp          shared(e_ndrho, e_rho_rho, e_ndrho_rho) &
+       !$omp          shared(e_ndrho_ndrho, e_rho_rho_rho) &
+       !$omp          shared(e_ndrho_rho_rho, e_ndrho_ndrho_rho) &
+       !$omp          shared(e_ndrho_ndrho_ndrho, grad_deriv, npoints) &
+       !$omp          shared(epsilon_rho, epsilon_norm_drho, sx, error)
+
        CALL xb88_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
             e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
             e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
@@ -241,6 +249,8 @@ CONTAINS
             e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
             npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
             sx=sx,error=error)
+
+       !$omp end parallel
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -305,13 +315,9 @@ CONTAINS
 
     SELECT CASE(grad_deriv)
     CASE (0)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, ii)
+
+       !$omp do
+
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -331,15 +337,13 @@ CONTAINS
              e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
           END IF
        END DO
+
+       !$omp end do
+
     CASE (1)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
+
+       !$omp do
+
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -376,15 +380,13 @@ CONTAINS
           END IF
 
        END DO
+
+       !$omp end do
+
     CASE (-1)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
+
+       !$omp do
+
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -418,16 +420,13 @@ CONTAINS
                   + ( t2 * t43 / 0.2e1_dp ) * sx
           END IF
        END DO
+
+       !$omp end do
+
     CASE (2)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, ii)
+
+       !$omp do
+
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -491,16 +490,13 @@ CONTAINS
                   + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
           END IF
        END DO
+
+       !$omp end do
+
     CASE (-2)
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, ii)
+
+       !$omp do
+
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -556,17 +552,13 @@ CONTAINS
                   + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
           END IF
        END DO
+
+       !$omp end do
+
     CASE default
-       !$omp parallel do default(none)&
-       !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv,sx)&
-       !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
-       !$omp       t170, t176, t189, ii)
+
+       !$omp do
+
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -664,6 +656,9 @@ CONTAINS
              END IF
           END IF
        END DO
+
+       !$omp end do
+
     END SELECT
 
   END SUBROUTINE xb88_lda_calc
@@ -819,6 +814,15 @@ CONTAINS
        END IF
 
        DO ispin=1,2
+
+          !$omp parallel default(none) &
+          !$omp          shared(rho, ispin, rho_1_3, norm_drho, e_0) &
+          !$omp          shared(e_rho, e_ndrho, e_rho_rho, e_ndrho_rho) &
+          !$omp          shared(e_ndrho_ndrho, e_rho_rho_rho) &
+          !$omp          shared(e_ndrho_rho_rho, e_ndrho_ndrho_rho) &
+          !$omp          shared(e_ndrho_ndrho_ndrho, grad_deriv, npoints) &
+          !$omp          shared(epsilon_rho, epsilon_drho, sx, error)
+
           CALL xb88_lsd_calc(&
                rho_spin=rho(ispin)%array,&
                rho_1_3_spin=rho_1_3(ispin)%array,&
@@ -837,6 +841,9 @@ CONTAINS
                epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
                sx=sx,&
                error=error)
+
+          !$omp end parallel
+
        END DO
 
        IF (cp_debug) THEN
@@ -901,14 +908,9 @@ CONTAINS
 
        SELECT CASE(grad_deriv)
        CASE(0)
-          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
-          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-          !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
-          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-          !$omp     t12, t14)
+
+          !$omp do
+
           DO ii=1,npoints
              my_rho=rho_spin(ii)
              IF (my_rho>my_epsilon_rho) THEN
@@ -929,16 +931,13 @@ CONTAINS
                      + ( t1 * t14 ) * sx
              END IF
           END DO
+
+          !$omp end do
+
        CASE (1)
-          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
-          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-          !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
-          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-          !$omp     t12, t14, t17, t18, t20, t22, &
-          !$omp     t23, t27, t28, t30)
+
+          !$omp do
+
           DO ii=1,npoints
              my_rho=rho_spin(ii)
              IF (my_rho>my_epsilon_rho) THEN
@@ -974,18 +973,13 @@ CONTAINS
                      + ( t30 ) * sx
              END IF
           END DO
+
+          !$omp end do
+
        CASE default
-          !$omp parallel do default(none),shared(npoints,c,rho_spin, rho_1_3_spin,&
-          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-          !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
-          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-          !$omp     t12, t14, t17, t18, t20, t22, &
-          !$omp     t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
-          !$omp     t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
-          !$omp     t138, t151)
+
+          !$omp do
+
           DO ii=1,npoints
              my_rho=rho_spin(ii)
              IF (my_rho>my_epsilon_rho) THEN
@@ -1080,6 +1074,9 @@ CONTAINS
                 END IF
              END IF
           END DO
+
+          !$omp end do
+
        END SELECT
     END IF
 

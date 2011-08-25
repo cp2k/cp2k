@@ -199,6 +199,13 @@ CONTAINS
              error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho, e_ndrho) &
+      !$omp          shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho) &
+      !$omp          shared(e_rho_rho_rho, e_ndrho_rho_rho) &
+      !$omp          shared(e_ndrho_ndrho_rho, grad_deriv, npoints) &
+      !$omp          shared(epsilon_rho, epsilon_norm_drho, lambda, error)
+
       CALL lyp_adiabatic_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
            e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
@@ -207,6 +214,9 @@ CONTAINS
            grad_deriv=grad_deriv,&
            npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,lambda=lambda,&
            error=error)
+
+      !$omp end parallel
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -247,6 +257,9 @@ CONTAINS
       t78, t87, t9, t94
 
     cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
+
+    !$omp do
+
     DO ii=1,npoints
       my_rho = rho(ii)
       IF (my_rho>epsilon_rho) THEN
@@ -335,6 +348,8 @@ CONTAINS
         END IF
       END IF
     END DO
+
+    !$omp end do
 
   END SUBROUTINE lyp_adiabatic_lda_calc
 
@@ -438,6 +453,12 @@ CONTAINS
              error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob) &
+      !$omp          shared(e_0, e_ra, e_rb, e_ndr, e_ndra, e_ndrb) &
+      !$omp          shared(grad_deriv, npoints) &
+      !$omp          shared(epsilon_rho, epsilon_drho, lambda, error)
+
       CALL lyp_adiabatic_lsd_calc(&
            rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
            norm_drhob=norm_drhob, e_0=e_0, e_ra=e_ra, e_rb=e_rb,&
@@ -446,6 +467,8 @@ CONTAINS
            grad_deriv=grad_deriv, npoints=npoints, &
            epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,lambda=lambda,error=error)
  
+      !$omp end parallel
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -494,6 +517,8 @@ CONTAINS
       t96, t97
 
     cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
+
+    !$omp do
 
     DO ii=1,npoints
       my_rhoa=MAX(rhoa(ii),0.0_dp)
@@ -685,6 +710,9 @@ CONTAINS
         END IF
       END IF
     END DO
+
+    !$omp end do
+
   END SUBROUTINE lyp_adiabatic_lsd_calc
 
 END MODULE xc_lyp_adiabatic

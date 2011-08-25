@@ -240,6 +240,13 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
+       !$omp parallel default(none) &
+       !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho, e_rho_rho) &
+       !$omp          shared(e_ndrho_rho, e_ndrho_ndrho, e_rho_rho_rho) &
+       !$omp          shared(e_ndrho_rho_rho, e_ndrho_ndrho_rho) &
+       !$omp          shared(e_ndrho_ndrho_ndrho, grad_deriv, npoints) &
+       !$omp          shared(epsilon_rho, sx, omega, lambda, error)
+
        CALL xb88_lr_adiabatic_lda_calc(rho=rho, norm_drho=norm_drho,&
             e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
             e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
@@ -248,6 +255,8 @@ CONTAINS
             e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
             npoints=npoints,epsilon_rho=epsilon_rho,&
             sx=sx,omega=omega,lambda=lambda,error=error)
+
+       !$omp end parallel
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -461,6 +470,7 @@ CONTAINS
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
  
     IF (.NOT. failure) THEN
+      !$omp do
       DO ii=1,npoints
         !! scale densities with 0.5 because code comes from LSD
         my_rho=rho(ii) * 0.5_dp
@@ -2889,6 +2899,7 @@ CONTAINS
 
         END IF
       END DO
+      !$omp end do
     END IF
   END SUBROUTINE xb88_lr_adiabatic_lda_calc
 
@@ -3045,6 +3056,15 @@ CONTAINS
        END IF
 
        DO ispin=1,2
+
+          !$omp parallel default(none) &
+          !$omp          shared(rho, ispin, norm_drho, e_0, e_rho, e_ndrho) &
+          !$omp          shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho) &
+          !$omp          shared(e_rho_rho_rho, e_ndrho_rho_rho) &
+          !$omp          shared(e_ndrho_ndrho_rho, e_ndrho_ndrho_ndrho) &
+          !$omp          shared(grad_deriv, npoints, epsilon_rho, sx, omega) &
+          !$omp          shared(lambda, error)
+
           CALL xb88_lr_adiabatic_lsd_calc(&
                rho_spin=rho(ispin)%array,&
                norm_drho_spin=norm_drho(ispin)%array,&
@@ -3062,6 +3082,9 @@ CONTAINS
                epsilon_rho=epsilon_rho, &
                sx=sx, omega=omega, lambda=lambda, &
                error=error)
+
+          !$omp end parallel
+
        END DO
 
        IF (cp_debug) THEN
@@ -3275,6 +3298,7 @@ CONTAINS
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
 
     IF (.NOT. failure) THEN
+      !$omp do
       DO ii=1,npoints
         rho=rho_spin(ii)
         ndrho=norm_drho_spin(ii)
@@ -5699,6 +5723,7 @@ CONTAINS
           END IF
         END IF
       END DO
+      !$omp end do
     END IF
 
   END SUBROUTINE xb88_lr_adiabatic_lsd_calc

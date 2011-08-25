@@ -230,10 +230,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints, param, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_norm_drho, &
+                                                epsilon_rho, scale_c, scale_x
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
       e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
@@ -319,6 +320,16 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
+       CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
+       CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c,error=error)
+       CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x,error=error)
+
+       !$omp parallel default(none) &
+       !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho, e_rho_rho) &
+       !$omp          shared(e_ndrho_rho, e_ndrho_ndrho) &
+       !$omp          shared(grad_deriv, npoints, epsilon_rho) &
+       !$omp          shared(epsilon_norm_drho, param, scale_c, scale_x, error)
+
        CALL b97_lda_calc(rho_tot=rho, norm_drho=norm_drho,&
             e_0=e_0,e_r=e_rho,e_ndr=e_ndrho,e_r_r=e_rho_rho,&
             e_r_ndr=e_ndrho_rho, e_ndr_ndr=e_ndrho_ndrho, &
@@ -326,7 +337,9 @@ CONTAINS
            ! e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,&
             grad_deriv=grad_deriv,&
             npoints=npoints,epsilon_rho=epsilon_rho,epsilon_drho=epsilon_norm_drho,&
-            b97_params=b97_params,error=error)
+            param=param,scale_c_in=scale_c,scale_x_in=scale_x,error=error)
+
+       !$omp end parallel
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -354,10 +367,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints, param, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, &
+                                                scale_c, scale_x
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndra, &
       e_ndra_ndra, e_ndra_ndrb, e_ndra_ra, e_ndra_rb, e_ndrb, e_ndrb_ndrb, &
       e_ndrb_ra, e_ndrb_rb, e_ra, e_ra_ra, e_ra_rb, e_rb, e_rb_rb, &
@@ -461,6 +475,19 @@ CONTAINS
        IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
           ! to do
        END IF
+
+       CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
+       CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x,error=error)
+       CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c,error=error)
+
+       !$omp parallel default (none) &
+       !$omp          shared(rhoa, rhob, norm_drhoa, norm_drhob, e_0, e_ra) &
+       !$omp          shared(e_rb, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb) &
+       !$omp          shared(e_ndra_ra, e_ndrb_ra, e_ndrb_rb, e_ndra_rb) &
+       !$omp          shared(e_ndra_ndra, e_ndrb_ndrb, e_ndra_ndrb) &
+       !$omp          shared(grad_deriv, npoints, param, scale_c, scale_x) &
+       !$omp          shared(epsilon_rho, epsilon_drho, error)
+
        CALL b97_lsd_calc(&
             rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa,&
             norm_drhob=norm_drhob, e_0=e_0, &
@@ -473,7 +500,9 @@ CONTAINS
             e_ndra_ndrb=e_ndra_ndrb,&
             grad_deriv=grad_deriv, npoints=npoints, &
             epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,&
-            b97_params=b97_params,error=error)
+            param=param,scale_c_in=scale_c,scale_x_in=scale_x,error=error)
+
+       !$omp end parallel
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -521,7 +550,8 @@ CONTAINS
        e_ra_ndra,e_ra_ndrb, e_rb_ndra, e_rb_ndrb,&
        e_ndra_ndra, e_ndrb_ndrb, e_ndra_ndrb, &
        e_ra_ra, e_ra_rb, e_rb_rb,&
-       grad_deriv,npoints,epsilon_rho,epsilon_drho,b97_params,error)
+       grad_deriv,npoints,epsilon_rho,epsilon_drho, &
+       param, scale_c_in, scale_x_in, error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drhoa, &
                                                 norm_drhob
     REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ndra, &
@@ -529,14 +559,15 @@ CONTAINS
       e_ndrb_ndrb, e_ndra_ndrb, e_ra_ra, e_ra_rb, e_rb_rb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-    TYPE(section_vals_type), POINTER         :: b97_params
+    INTEGER, INTENT(in)                      :: param
+    REAL(kind=dp), INTENT(in)                :: scale_c_in, scale_x_in
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_calc', &
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: small = 1.0e-20
 
-    INTEGER                                  :: ii, param
+    INTEGER                                  :: ii
     LOGICAL                                  :: failure
     REAL(kind=dp) :: A_1, A_2, A_3, alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, &
       alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, alpha_crhob, beta_1_1, &
@@ -623,7 +654,6 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
     p_1 = 0.10e1_dp
     A_1 = 0.31091e-1_dp
     alpha_1_1 = 0.21370e0_dp
@@ -656,8 +686,9 @@ CONTAINS
     c_css_0=coeffs(7)
     c_css_1=coeffs(8)
     c_css_2=coeffs(9)
-    CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c,error=error)
-    CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x,error=error)
+
+    scale_c = scale_c_in
+    scale_x = scale_x_in
     IF (scale_x==-1.0_dp) scale_x=coeffs(10)
 
     gamma_x    = 0.004_dp
@@ -671,6 +702,7 @@ CONTAINS
        t3 = t2 ** 2
        t4 = t1 * t3
        t6 = (0.1e1_dp / pi) ** (0.1e1_dp / 0.3e1_dp)
+       !$omp do
        DO ii=1,npoints
           my_rhoa=MAX(rhoa(ii),0.0_dp)
           my_rhob=MAX(rhob(ii),0.0_dp)
@@ -1535,6 +1567,7 @@ CONTAINS
              END IF ! /=0
           END IF ! rho>epsilon_rho
        END DO
+       !$omp end do
     END SELECT
   END SUBROUTINE b97_lsd_calc
 
@@ -1553,21 +1586,23 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
      e_0, e_r, e_r_r, e_ndr, e_r_ndr, e_ndr_ndr, &
-     grad_deriv,npoints,epsilon_rho,epsilon_drho,b97_params,error)
+     grad_deriv,npoints,epsilon_rho,epsilon_drho, &
+     param, scale_c_in, scale_x_in, error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_tot, norm_drho
     REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_r, e_r_r, e_ndr, &
                                                 e_r_ndr, e_ndr_ndr
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-    TYPE(section_vals_type), POINTER         :: b97_params
+    INTEGER, INTENT(in)                      :: param
+    REAL(kind=dp), INTENT(in)                :: scale_c_in, scale_x_in
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_calc', &
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: small = 1.0e-20
 
-    INTEGER                                  :: ii, param
+    INTEGER                                  :: ii
     LOGICAL                                  :: failure
     REAL(kind=dp) :: A_1, A_2, A_3, alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, &
       alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, alpha_crhob, beta_1_1, &
@@ -1654,7 +1689,6 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
 
   failure=.FALSE.
 
-  CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp
   alpha_1_1 = 0.21370e0_dp
@@ -1687,8 +1721,9 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
   c_css_0=coeffs(7)
   c_css_1=coeffs(8)
   c_css_2=coeffs(9)
-  CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c,error=error)
-  CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x,error=error)
+
+  scale_c = scale_c_in
+  scale_x = scale_x_in
   IF (scale_x==-1.0_dp) scale_x=coeffs(10)
 
   gamma_x    = 0.004_dp
@@ -1702,6 +1737,7 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
      t3 = t2 ** 2
      t4 = t1 * t3
      t6 = (0.1e1_dp / pi) ** (0.1e1_dp / 0.3e1_dp)
+     !$omp do
      DO ii=1,npoints
         my_rhoa=0.5_dp*MAX(rho_tot(ii),0.0_dp)
         my_rhob=my_rhoa
@@ -2566,6 +2602,7 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
            END IF ! /=0
         END IF ! rho>epsilon_rho
      END DO
+     !$omp end do
   END SELECT
 END SUBROUTINE b97_lda_calc
 

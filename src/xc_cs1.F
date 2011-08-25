@@ -335,7 +335,10 @@ CONTAINS
     c3p = -c3*0.25_dp
     c4p = -c4*0.25_dp
 
-!$omp parallel do private(ip,r,r3,g,x,odp,ocp,od,oc,f1,f2,f3,f4)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints,rho,eps_rho,e_0,dpv,cp,c2p,c3p,c4p) &
+    !$omp             private(ip,r,r3,g,x,odp,ocp,od,oc,f1,f2,f3,f4)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -355,6 +358,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE cs1_u_0
 
@@ -378,7 +383,12 @@ CONTAINS
     c3p = -c3*0.25_dp
     c4p = -c4*0.25_dp
 
-!$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,df1,drf2,dgf2,df3,drf4,dgf4)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, r13, grho, e_rho) &
+    !$omp             shared(e_ndrho, dpv, cp, c2p, c3p, c4p) &
+    !$omp             private(ip, r, r3, g, odp, ocp, od, oc, df1) &
+    !$omp             private(drf2, dgf2, df3, drf4, dgf4)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -402,6 +412,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE cs1_u_1
 
@@ -428,8 +440,12 @@ CONTAINS
     c3p = -c3*0.25_dp
     c4p = -c4*0.25_dp
 
-!$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,d2f1,d2rf2,drgf2,d2f3) &
-!$omp             private(d2rf4,drgf4,d2gf4)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, r13, grho, e_rho_rho) &
+    !$omp             shared(e_rho_ndrho, e_ndrho_ndrho, dpv, cp, c2p, c3p, c4p) &
+    !$omp             private(ip,r,r3,g,odp,ocp,od,oc,d2f1,d2rf2,drgf2,d2f3) &
+    !$omp             private(d2rf4,drgf4,d2gf2,d2gf4)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -463,6 +479,8 @@ CONTAINS
 
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE cs1_u_2
 
 ! *****************************************************************************
@@ -491,11 +509,17 @@ CONTAINS
     c3p = -c3*0.25_dp
     c4p = -c4*0.25_dp
 
-!$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,d3f1,d3rF2,d2rgF2,dr2gF2,d3gF2,d3F3) &
-!$omp             private(d3rF4,d2rgF4,dr2gF4,d3gF4) &
-!$omp             private( t1, t2, t3, t4, t6, t7, t8, t9, t10, t11, t13, t15, t16) &
-!$omp             private( t17, t19, t22, t23, t26, t29, t32, t33, t37, t44, t45, t50) &
-!$omp             private( t51, t52, t58, t61, t74, t76, t77, t80, t81, t82)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, r13, grho, e_rho_rho_rho) &
+    !$omp             shared(e_rho_rho_ndrho, e_rho_ndrho_ndrho) &
+    !$omp             shared(e_ndrho_ndrho_ndrho, dpv, cp, c2p, c3p, c4p) & 
+    !$omp             private(ip,r,r3,g,odp,ocp,od,oc,d3f1,d3rF2,d2rgF2) &
+    !$omp             private(dr2gF2,d3gF2,d3F3,d3rF4,d2rgF4,dr2gF4,d3gF4) &
+    !$omp             private(t1, t2, t3, t4, t6, t7, t8, t9, t10, t11, t13) &
+    !$omp             private(t15, t16, t17, t19, t22, t23, t26, t29, t32) &
+    !$omp             private(t33, t37, t44, t45, t50, t51, t52, t58, t61) &
+    !$omp             private(t74, t76, t77, t80, t81, t82)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -556,6 +580,8 @@ CONTAINS
 
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE cs1_u_3
 
 ! *****************************************************************************
@@ -583,6 +609,12 @@ CONTAINS
          "not tested!"//&
          CPSourceFileRef,&
          error)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &
+    !$omp             shared(r13b, grhob, e_0) &
+    !$omp             private(ip, f1a, f2a, ra, r3a, ga, xa, oda, oca) &
+    !$omp             private(    f1b, f2b, rb, r3b, gb, xb, odb, ocb)
 
     DO ip = 1, npoints
 
@@ -617,6 +649,8 @@ CONTAINS
 
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE cs1_ss_0
 
 ! *****************************************************************************
@@ -644,6 +678,12 @@ CONTAINS
          "not tested!"//&
          CPSourceFileRef,&
          error)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &
+    !$omp             shared(grhob, e_rhoa, e_ndrhoa, e_rhob, e_ndrhob) &
+    !$omp             private(ip, df1a, drf2a, dgf2a, ra, r3a, ga, oda, oca) &
+    !$omp             private(    df1b, drf2b, dgf2b, rb, r3b, gb, odb, ocb)
 
     DO ip = 1, npoints
 
@@ -690,6 +730,8 @@ CONTAINS
       e_ndrhob(ip) = e_ndrhob(ip) + dgF2b
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE cs1_ss_1
 

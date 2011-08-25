@@ -237,11 +237,18 @@ MODULE xc_xpbe_hole_t_c_lr
                        error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(npoints, order, rho, norm_drho, e_0, e_rho) &
+      !$omp          shared(e_ndrho, epsilon_rho, epsilon_norm_drho) &
+      !$omp          shared(sx, r, error)
+
       CALL xpbe_hole_t_c_lr_lda_calc(npoints,order,rho=rho, norm_drho=norm_drho,&
            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
            sx=sx,R=R,error=error)
       
+      !$omp end parallel
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -290,6 +297,8 @@ MODULE xc_xpbe_hole_t_c_lr
     REAL(KIND=dp)                            :: ss, ss2, sscale, t1, t2, t3, &
                                                 t4, t6, t7, t8
 
+    !$omp do
+
     DO ip =1,npoints
       my_rho = MAX(rho(ip),0.0_dp)
       IF(my_rho > epsilon_rho) THEN
@@ -319,6 +328,9 @@ MODULE xc_xpbe_hole_t_c_lr
         END IF
       END IF
     END DO
+
+    !$omp end do
+
   END SUBROUTINE xpbe_hole_t_c_lr_lda_calc
 
 ! *****************************************************************************
@@ -427,6 +439,11 @@ MODULE xc_xpbe_hole_t_c_lr
                        error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa) &
+      !$omp          shared(epsilon_rho, epsilon_norm_drho, sx, r, error) &
+      !$omp          shared(rhob, norm_drhob, e_rhob, e_ndrhoa, e_ndrhob)
+
       CALL xpbe_hole_t_c_lr_lsd_calc(npoints,order,rho=rhoa, norm_drho=norm_drhoa,&
            e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
@@ -435,7 +452,9 @@ MODULE xc_xpbe_hole_t_c_lr
            e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
            sx=sx,R=R,error=error)
-      
+
+      !$omp end parallel
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -484,6 +503,8 @@ MODULE xc_xpbe_hole_t_c_lr
     REAL(KIND=dp)                            :: e_tmp, ss, ss2, sscale, t1, &
                                                 t2, t3, t4, t6, t7, t8
 
+    !$omp do
+
     DO ip =1,npoints
       my_rho = 2.0_dp*MAX(rho(ip),0.0_dp)
       IF(my_rho > epsilon_rho) THEN
@@ -517,6 +538,9 @@ MODULE xc_xpbe_hole_t_c_lr
      
       END IF
     END DO
+
+    !$omp end do
+
   END SUBROUTINE xpbe_hole_t_c_lr_lsd_calc
 
 ! *****************************************************************************

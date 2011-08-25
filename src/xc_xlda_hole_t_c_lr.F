@@ -245,6 +245,11 @@ MODULE xc_xlda_hole_t_c_lr
     INTEGER                                  :: ip
     REAL(dp)                                 :: my_rho
 
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, epsilon_rho, order, e_0, e_rho) &
+    !$omp             shared(sx, r, error) &
+    !$omp             private(ip, my_rho)
+
     DO ip =1,npoints
       my_rho = MAX(rho(ip),0.0_dp)
       IF(my_rho > epsilon_rho) THEN
@@ -252,6 +257,8 @@ MODULE xc_xlda_hole_t_c_lr
                                     sx, R, error)
       END IF
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE xlda_hole_t_c_lr_lda_calc
 
@@ -418,6 +425,10 @@ MODULE xc_xlda_hole_t_c_lr
                        error=error, error_level=cp_failure_level)
       END IF
 
+      !$omp parallel default(none) &
+      !$omp          shared(npoints, order, rhoa, e_0, e_rhoa, epsilon_rho) &
+      !$omp          shared(sx, r, error, rhob, e_rhob)
+
       CALL xlda_hole_t_c_lr_lsd_calc(npoints,order,rho=rhoa,&
                                 e_0=e_0,e_rho=e_rhoa,&
                                 epsilon_rho=epsilon_rho,&
@@ -427,6 +438,7 @@ MODULE xc_xlda_hole_t_c_lr
                                 e_0=e_0,e_rho=e_rhob,&
                                 epsilon_rho=epsilon_rho,&
                                 sx=sx,R=R,error=error)
+      !$omp end parallel
 
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
@@ -461,6 +473,8 @@ MODULE xc_xlda_hole_t_c_lr
     INTEGER                                  :: ip
     REAL(dp)                                 :: e_tmp, my_rho
 
+    !$omp do
+
     DO ip =1,npoints
       my_rho = 2.0_dp*MAX(rho(ip),0.0_dp)
       IF(my_rho > epsilon_rho) THEN
@@ -470,6 +484,8 @@ MODULE xc_xlda_hole_t_c_lr
         e_0(ip) = e_0(ip) + 0.5_dp * e_tmp
       END IF
     END DO
+
+    !$omp end do
 
   END SUBROUTINE xlda_hole_t_c_lr_lsd_calc
 END MODULE xc_xlda_hole_t_c_lr

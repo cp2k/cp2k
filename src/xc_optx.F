@@ -290,6 +290,12 @@ CONTAINS
     REAL(KIND=dp)                            :: denom, ex, gamxsxs, myndrho, &
                                                 myrho, rho43, tmp, xs
 
+    !$omp parallel do default (none) &
+    !$omp             shared(rho, norm_drho, e_0, e_rho, e_ndrho) &
+    !$omp             shared(epsilon_rho, epsilon_drho, sx, npoints) &
+    !$omp             private(ii, myrho, myndrho, rho43, xs, gamxsxs) &
+    !$omp             private(denom, ex, tmp)
+
     DO ii=1,npoints
        ! we get the full density and need spin parts -> 0.5
        myrho   = 0.5_dp * rho(ii)
@@ -308,6 +314,8 @@ CONTAINS
           e_ndrho(ii)= e_ndrho(ii) - ( ( tmp * gam * 2.0_dp * myndrho / rho43**2 ) ) * sx
        END IF
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE optx_lda_calc
 
@@ -343,6 +351,12 @@ CONTAINS
     REAL(KIND=dp)                            :: denom, ex, gamxsxs, myndrho, &
                                                 myrho, rho43, tmp, xs
 
+    !$omp parallel do default(none) &
+    !$omp             shared(rho, norm_drho, e_0, e_rho, e_ndrho) &
+    !$omp             shared(epsilon_rho, epsilon_drho, npoints, sx) &
+    !$omp             private(ii, denom, ex, gamxsxs, myndrho, myrho) &
+    !$omp             private(rho43, tmp, xs)
+
     DO ii=1,npoints
        ! we do have the spin density already
        myrho   = rho(ii)
@@ -361,6 +375,8 @@ CONTAINS
           e_ndrho(ii)= e_ndrho(ii) - ( ( tmp * gam * 2.0_dp * myndrho / rho43**2 ) ) * sx
        END IF
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE optx_lsd_calc
 

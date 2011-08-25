@@ -237,7 +237,11 @@ CONTAINS
     xb = 2.0_dp*x0+b
     px0 = x0*x0+b*x0+c
 
-!$omp parallel do private(ip,px,dpx,at,ln1,ln2)
+    !$omp parallel do default(none) &
+    !$omp             shared (npoints, rho, eps_rho, x, c, b, e_0, sc) &
+    !$omp             shared (q, x0, px0, xb) & 
+    !$omp             private(ip,px,dpx,at,ln1,ln2)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -250,6 +254,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE vwn_lda_0
 
@@ -271,7 +277,12 @@ CONTAINS
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
     px0 = x0*x0+b*x0+c
-!$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, x, b, sc, e_rho) &
+    !$omp             shared(c, x0, q, xb, px0) &
+    !$omp             private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -290,6 +301,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE vwn_lda_1
 
@@ -312,7 +325,11 @@ CONTAINS
     xb = 2.0_dp*x0+b
     px0 = x0*x0+b*x0+c
 
-!$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, x, b, c, e_0, sc) &
+    !$omp             shared(x0, q, xb, px0) &
+    !$omp             private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -332,6 +349,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE vwn_lda_01
 
@@ -356,9 +375,12 @@ CONTAINS
     px0 = x0*x0+b*x0+c
     fp = -b*x0/px0
 
-!$omp parallel do default(none) private(ip,px,dpx,at,pa,dat,d2at,ln1,dln1,d2ln1) &
-!$omp             private(ln2,dln2,d2ln2,dex,d2ex) &
-!$omp             shared(npoints, rho, fp, eps_rho, x, b, c, q, x0, xb, e_rho_rho, sc)
+    !$omp parallel do default(none) &
+    !$omp             private(ip,px,dpx,at,pa,dat,d2at,ln1,dln1,d2ln1) &
+    !$omp             private(ln2,dln2,d2ln2,dex,d2ex) &
+    !$omp             shared(npoints, rho, fp, eps_rho, x, b, c, q, x0) &
+    !$omp             shared(xb, e_rho_rho, sc)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -382,6 +404,7 @@ CONTAINS
       END IF
 
     END DO
+    !$omp end parallel do
 
   END SUBROUTINE vwn_lda_2
 
@@ -405,9 +428,12 @@ CONTAINS
     px0 = x0*x0+b*x0+c
     fp = -b*x0/px0
 
-!$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,d3at,ln1,ax,bx) &
-!$omp             private(dbx,d2bx,dln1,d2ln1,d3ln1,ln2,cx,dx,ddx,d2dx,dln2,d2ln2,d3ln2) &
-!$omp             private(dex,d2ex,d3ex) shared(fp)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, b, c, x, x0, sc) &
+    !$omp             shared(q, xb, px0, fp, e_rho_rho_rho) &
+    !$omp             private(ip,px,dpx,at,pa,dat,d2at,d3at,ln1,ax,bx) &
+    !$omp             private(dbx,d2bx,dln1,d2ln1,d3ln1,ln2,cx,dx,ddx,d2dx) &
+    !$omp             private(dln2,d2ln2,d3ln2,dex,d2ex,d3ex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -443,6 +469,7 @@ CONTAINS
       END IF
 
     END DO
+    !$omp end parallel do
 
   END SUBROUTINE vwn_lda_3
 
@@ -556,6 +583,12 @@ CONTAINS
       CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE,error=error)
       SELECT CASE(TYPE)
         CASE(do_vwn3)
+
+          !$omp parallel default(none) &
+          !$omp          shared(rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab) &
+          !$omp          shared(e_aaa, e_bbb, e_aab, e_abb, order, npoints) &
+          !$omp          shared(sc, error)
+
           CALL vwn3_lsd_calc(&
                  rhoa=rhoa, rhob=rhob, e_0=e_0, &
                  e_a=e_a, e_b=e_b,&
@@ -563,7 +596,16 @@ CONTAINS
                  e_aaa=e_aaa, e_bbb=e_bbb, e_aab=e_aab, e_abb=e_abb,&
                  order=order, npoints=npoints, &
                  sc=sc, error=error)
+
+          !$omp end parallel
+
         CASE(do_vwn5)
+
+          !$omp parallel default(none) &
+          !$omp          shared(rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab) &
+          !$omp          shared(e_aaa, e_bbb, e_aab, e_abb, order, npoints) &
+          !$omp          shared(sc, error)
+
           CALL vwn5_lsd_calc(&
                  rhoa=rhoa, rhob=rhob, e_0=e_0, &
                  e_a=e_a, e_b=e_b,&
@@ -571,6 +613,9 @@ CONTAINS
                  e_aaa=e_aaa, e_bbb=e_bbb, e_aab=e_aab, e_abb=e_abb,&
                  order=order, npoints=npoints, &
                  sc=sc, error=error)
+
+          !$omp end parallel
+
         CASE DEFAULT
           failure = .FALSE.
           CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
@@ -640,6 +685,7 @@ CONTAINS
     Qp = SQRT(4.0_dp*cp-bp*bp)
     Qf = SQRT(4.0_dp*cf-bf*bf)
     
+    !$omp do
     DO ip = 1, npoints
       myrhoa = MAX(rhoa(ip),0.0_dp)
       myrhob = MAX(rhob(ip),0.0_dp)
@@ -1131,6 +1177,8 @@ CONTAINS
       END IF
     END DO
 
+    !$omp end do
+
   END SUBROUTINE vwn3_lsd_calc
 
 ! *****************************************************************************
@@ -1220,6 +1268,8 @@ CONTAINS
     Qa = SQRT(4.0_dp*ca-ba*ba)
     Qf = SQRT(4.0_dp*cf-bf*bf)
     d2f0 = 4.0_dp/(9.0_dp*(2.0_dp**(1.0_dp/3.0_dp)-1.0_dp))
+
+    !$omp do
 
     DO ip = 1, npoints
       myrhoa = MAX(rhoa(ip),0.0_dp)
@@ -2186,6 +2236,8 @@ CONTAINS
         END IF
       END IF
     END DO
+
+    !$omp end do
 
   END SUBROUTINE vwn5_lsd_calc
 

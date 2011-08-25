@@ -492,6 +492,10 @@ CONTAINS
 
     INTEGER                                  :: ip
 
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, e_0, fact, r13, fs, eps_rho) &
+    !$omp             private(ip)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -499,6 +503,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE kex_p_0
 
@@ -516,7 +522,11 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, sx, sy
 
-!$omp parallel do private(ip,a0,a1,sx,sy)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, fact, r13, sfac, tact) &
+    !$omp             shared(fs, e_rho, e_ndrho) &
+    !$omp             private(ip,a0,a1,sx,sy)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -531,6 +541,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE kex_p_1
 
@@ -550,7 +562,12 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, sx, sxx, sxy, sy
 
-!$omp parallel do private(ip,a0,a1,a2,sx,sy,sxx,sxy)
+    !$omp parallel do default(none) &
+    !$omp             shared (npoints, rho, eps_rho, fact, r13) &
+    !$omp             shared (e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, fs) &
+    !$omp             shared(s, sfac, tact) &
+    !$omp             private(ip,a0,a1,a2,sx,sy,sxx,sxy)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -571,6 +588,8 @@ CONTAINS
       END IF
 
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE kex_p_2
 
@@ -593,7 +612,13 @@ CONTAINS
     REAL(KIND=dp)                            :: a0, a1, a2, a3, sx, sxx, &
                                                 sxxx, sxxy, sxy, sy
 
-!$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxx,sxxy)
+    !$omp parallel do default(none) &
+    !$omp             shared(npoints, rho, eps_rho, fact, r13) &
+    !$omp             shared(s, sfac, tact, fs, e_rho_rho_rho) &
+    !$omp             shared(e_rho_rho_ndrho, e_rho_ndrho_ndrho) &
+    !$omp             shared(e_ndrho_ndrho_ndrho) &
+    !$omp             private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxx,sxxy)
+
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -624,6 +649,8 @@ CONTAINS
 
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE kex_p_3
 
 ! Enhancement Factors
@@ -642,7 +669,11 @@ CONTAINS
 
     t1 = b*b/(72.0_dp*cf)
     t2 = 0.001878_dp*b
-!$omp parallel do private(ip)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, m, fs, t1, t2) &
+    !$omp             private(ip)
+
     DO ip=1,SIZE(s)
       SELECT CASE (m)
       CASE (0)
@@ -658,6 +689,9 @@ CONTAINS
          CALL stop_program(routineN,moduleN,__LINE__,"Illegal order.")
       END SELECT
     END DO
+
+    !$omp end parallel do
+
     IF(m==3) fs(:,4)=0.0_dp
 
   END SUBROUTINE efactor_ol1
@@ -677,7 +711,11 @@ CONTAINS
     t1 = b*b/(72.0_dp*cf)
     t2 = 0.0245_dp*b
     t3 = 2.0_dp**f53*b
-!$omp parallel do private(ip,y)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, m, t1, t2, t3, fs) &
+    !$omp             private(ip,y)
+
     DO ip=1,SIZE(s)
       y = 1.0_dp/(1.0_dp+t3*s(ip))
       SELECT CASE (m)
@@ -700,6 +738,8 @@ CONTAINS
       END SELECT
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE efactor_ol2
 ! *****************************************************************************
   SUBROUTINE efactor_llp ( s, fs, m )
@@ -719,7 +759,14 @@ CONTAINS
 
     p = 0.0044188_dp*b*b
     q = 0.0253_dp*b
-!$omp parallel do private(ip,x)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, m, fs, p, q, b) &
+    !$omp             private(ip,x,bs,sbs,as,sas,ys,t2,t4,t5,t8,t9,t10,t12) &
+    !$omp             private(t1,t3,t7,t11,t16,t17,t20,t22,t23,t26,t30,t33) &
+    !$omp             private(t40,t42,t43,t45,t46,t47,t49,t50,t71,t133) &
+    !$omp             private(t19,t28,t29,t36,t39,t54,t55)
+
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x
@@ -857,6 +904,8 @@ CONTAINS
       END SELECT
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE efactor_llp
 ! *****************************************************************************
   SUBROUTINE efactor_pw86 ( s, fs, m , f2_lsd)
@@ -879,7 +928,11 @@ CONTAINS
     f15 = 1.0_dp/15.0_dp
     ff = 1.0_dp
     IF(PRESENT(f2_lsd)) ff = f2_lsd
-!$omp parallel do private(ip)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, fs, m, t1, t2, t3, f15, ff) &
+    !$omp             private(ip, s1, s2, s4, s6, p0, p1, p2, p3, p15)
+
     DO ip=1,SIZE(s)
       s1 = s(ip)*ff
       s2 = s1 * s1
@@ -919,6 +972,8 @@ CONTAINS
       END SELECT
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE efactor_pw86
 ! *****************************************************************************
   SUBROUTINE efactor_t92 ( s, fs, m )
@@ -939,7 +994,12 @@ CONTAINS
     q = 0.0253_dp*b
     a1 = 0.072_dp * b
     a2 = 2.0_dp**f53 * b
-!$omp parallel do private(ip)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, fs, m, p, q, a1, a2, b) &
+    !$omp             private(ip, x, bs, sbs, sas, ys, asp, sbs3, asp2, sbs5) &
+    !$omp             private(asp3, as, s2, s1, t0, w1)
+
     DO ip=1,SIZE(s)
       x = s(ip)
       bs = b*x
@@ -1001,6 +1061,8 @@ CONTAINS
       END SELECT
     END DO
 
+    !$omp end parallel do
+
   END SUBROUTINE efactor_t92
 ! *****************************************************************************
   SUBROUTINE efactor_pbex ( s, fs, m, pset,f2_lsd )
@@ -1025,7 +1087,11 @@ CONTAINS
 
     f0 = 1.0_dp/tact
     IF(PRESENT(f2_lsd)) f0 = f2_lsd
-!$omp parallel do private(ip,x,x2,y)
+
+    !$omp parallel do default(none) &
+    !$omp             shared(s, m, fs, f0, mk) &
+    !$omp             private(ip,x,x2,y)
+
     DO ip=1,SIZE(s)
       x = s(ip)*f0
       x2 = x*x
@@ -1049,6 +1115,8 @@ CONTAINS
          CALL stop_program(routineN,moduleN,__LINE__,"Illegal order.")
       END SELECT
     END DO
+
+    !$omp end parallel do
 
   END SUBROUTINE efactor_pbex
 
@@ -1089,7 +1157,18 @@ CONTAINS
     bb = pa(5,pset)*ff
 !   it should be valid also for lsd
     a5 = pa(6,pset)*ff*ff*ff*ff
+
+    !$omp parallel default(none) &
+    !$omp          shared(s, fs, m, a1, a2, a3, a4, a5, bb, pa, o, ff) &
+    !$omp          private(x,t1,t10,t101,t106,t109,t111,t113,t119,t12,t123) &
+    !$omp          private(t124,t13,t14,t15,t16,t17,t18,t19,t2,t20,t21,t22) &
+    !$omp          private(t23,t25,t26,t27,t28,t29,t3,t30,t31,t33,t35,t37) &
+    !$omp          private(t38,t39,t4,t40,t44,t47,t48,t5,t50,t51,t53,t55) &
+    !$omp          private(t56,t57,t58,t59,t6,t60,t64,t65,t69,t7,t70,t71) &
+    !$omp          private(t73,t77,t78,t8,t80,t82,t9,t90,t93,t94,t96,t98,ip)
+
     IF ( m >= 0 ) THEN
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         t3 = bb**2
@@ -1101,9 +1180,10 @@ CONTAINS
         t17 = t4**2
         fs(ip,1) = (o+t10+(a2-a3*t12)*t4)/(o+t10+a5*t17)
       END DO
+      !$omp end do
     END IF
     IF ( m >= 1 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         t2 = bb**2 
@@ -1125,9 +1205,10 @@ CONTAINS
            (t9+t17+2._dp*a3*a4*t19*t21+2._dp*t26*x)/&
            t33-(o+t30+t26*t3)/t38*(t9+t17+4._dp*a5*t19)
       END DO
+      !$omp end do
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         t1 = bb**2     
@@ -1168,9 +1249,10 @@ CONTAINS
          (t53+t55+2._dp*t31*t56*t33+2._dp*t60*x)*&
          t65*t69+2._dp*t73/t64/t50*t77-t73*t65*(t15+t25-t30+12._dp*a5*t2)
       END DO
+      !$omp end do
     END IF
     IF ( m >= 3 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
           t1 = bb**2 
@@ -1227,7 +1309,10 @@ CONTAINS
             6._dp*t109*t111*t113-3._dp*t109*t94*t119-6*t123/t124*t113*t101+&
             6._dp*t123*t111*t101*t119-t123*t94*(t20-t28+t40-t44+t50+24._dp*a5*x)
       END DO
+      !$omp end do
     END IF
+
+    !$omp end parallel
 
   END SUBROUTINE efactor_pw91
 
@@ -1258,16 +1343,22 @@ CONTAINS
     a4 = pa(4,pset)
     a  = pa(5,pset)
     b1 = pa(6,pset)
+
+    !$omp parallel default(none) &
+    !$omp          shared(s, fs, m, o, a1, a2, a3, a4, a, b1) &
+    !$omp          private(ip, x, s1, s2, s3)
+
     IF ( m >= 0 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,1) = (o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+a2-a3*EXP(-a4*x**2)*x**2)&
                    /(o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+b1*x**4)
       END DO
+      !$omp enddo
     END IF
     IF ( m >= 1 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         fs(ip,2) =&
@@ -1277,9 +1368,10 @@ CONTAINS
            (-a4*x**2)*x**2)/(o+a1*x*LOG(a*x+SQRT(o+a**2*x**2))+b1*x**4)**2*(a1 &
            *LOG(a*x+SQRT(o+a**2*x**2))+a1*x*a/SQRT(o+a**2*x**2)+4*b1*x**3)
       END DO
+      !$omp end do
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         s1 = (2*a1*a/SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*x**2)**3+  &
@@ -1297,9 +1389,10 @@ CONTAINS
              /(1+a1*x*LOG(a*x +SQRT(1+a**2*x**2))+b1*x**4)**2*(2*a1*a/        &
              SQRT(1+a**2*x**2)-a1*x**2*a**3/SQRT(1+a**2*x**2)**3+12*b1*x**2)
       END DO
+      !$omp end do
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x)
+      !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
         s2 = (-4*a1*a**3/SQRT(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &
@@ -1333,7 +1426,10 @@ CONTAINS
              b1*x**4)**2*(-4*a1*a**3/SQRT(1+a**2*x**2)**3*x+3*a1*x**3*    &
              a**5/SQRT(1+a**2*x**2)**5+24*b1*x)
       END DO
+      !$omp end do
     END IF
+
+    !$omp end parallel
 
   END SUBROUTINE efactor_pw91_old
 

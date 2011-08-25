@@ -231,6 +231,13 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
              error=error, error_level=cp_failure_level)
      END IF
 
+     !$omp parallel default(none) &
+     !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho, e_ndrho) &
+     !$omp          shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho) &
+     !$omp          shared(e_rho_rho_rho, e_ndrho_rho_rho) &
+     !$omp          shared(e_ndrho_ndrho_rho, grad_deriv, npoints) &
+     !$omp          shared(epsilon_rho, epsilon_norm_drho, sc, error)
+
      CALL lyp_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
           e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
@@ -239,6 +246,8 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
           grad_deriv=grad_deriv,&
           npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,sc=sc,&
           error=error)
+
+     !$omp end parallel
 
      IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
@@ -296,6 +305,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
   SELECT CASE(grad_deriv)
   CASE (1)
+     !$omp do
      DO ii=1,npoints
         my_rho = rho(ii)
         IF (my_rho>epsilon_rho) THEN
@@ -369,7 +379,9 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
                 + ( t4 * t124 / 0.72e2_dp ) * sc 
         END IF
      END DO
+     !$end do
   CASE default
+     !$omp do
      DO ii=1,npoints
         my_rho = rho(ii)
         IF (my_rho>epsilon_rho) THEN
@@ -729,6 +741,9 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 !FM     END IF
 
      END DO
+
+     !$omp end do
+
   END SELECT
 END SUBROUTINE lyp_lda_calc
 
@@ -866,6 +881,14 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
         CALL xc_derivative_get(deriv,deriv_data=e_ndrb_ndrb,error=error)
      END IF
 
+     !$omp parallel default(none) &
+     !$omp          shared(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob) &
+     !$omp          shared(e_0, e_ra, e_rb, e_ndra_ra, e_ndra_rb, e_ndrb_ra) &
+     !$omp          shared(e_ndrb_rb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb) &
+     !$omp          shared(e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb) &
+     !$omp          shared(e_ndr_ra, e_ndr_rb, grad_deriv) &
+     !$omp          shared(npoints, epsilon_rho, epsilon_drho, sc, error)
+
      CALL lyp_lsd_calc(&
           rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
           norm_drhob=norm_drhob, e_0=e_0, e_ra=e_ra, e_rb=e_rb,&
@@ -877,6 +900,8 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
           e_ndr_rb=e_ndr_rb,&
           grad_deriv=grad_deriv, npoints=npoints, &
           epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,sc=sc,error=error)
+
+     !$omp end parallel
 
      IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
@@ -942,6 +967,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
   failure=.FALSE.
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
+
+  !$omp do
 
   DO ii=1,npoints
      my_rhoa=MAX(rhoa(ii),0.0_dp)
@@ -1253,6 +1280,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      END IF
   END IF
  END DO
+ !$omp end do
 
 END SUBROUTINE lyp_lsd_calc
 
