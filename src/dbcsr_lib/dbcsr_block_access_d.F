@@ -744,7 +744,9 @@
           matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + SIZE (block)
        ELSE
        ENDIF
+!$OMP CRITICAL (dbcsr_put_block_critical)
        matrix%m%valid = .FALSE.
+!$OMP END CRITICAL (dbcsr_put_block_critical)
     ENDIF
   END SUBROUTINE dbcsr_put_block_d
 

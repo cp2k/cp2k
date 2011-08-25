@@ -1773,10 +1773,13 @@ CONTAINS
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     epoch = m_walltime()
     carrier%flop = 0
+    !$OMP MASTER
     t_calc_step = 0.0_dp
     t_process_stack = 0.0_dp
     t_dev_sync = 0.0_dp
     t_dev_idle = 0.0_dp
+    !$OMP END MASTER
+    !$OMP BARRIER
     !
     local_cols = right%local_indexing
     local_rows = left%local_indexing
@@ -3455,13 +3458,16 @@ CONTAINS
     LOGICAL, PARAMETER                       :: careful = careful_mod, &
                                                 dbg = .FALSE.
     REAL, PARAMETER                          :: resize_factor = 1.618034
+    REAL(KIND=dp)                            :: t_tmp
 
     INTEGER                                  :: sp
     INTEGER, DIMENSION(6)                    :: bounds
 
 !   ---------------------------------------------------------------------------
 
-    t_process_stack = t_process_stack - m_walltime()
+    t_tmp=m_walltime()
+    !$OMP ATOMIC
+    t_process_stack = t_process_stack - t_tmp
     IF (dbg) THEN
        WRITE(*,*)routineN//" Stack size", stack_size, n_mult_params
        CALL print_gemm_parameters(params(:,1:stack_size))
@@ -3616,7 +3622,9 @@ CONTAINS
             routineN, "Invalid multiplication driver",__LINE__,error)
     END SELECT
     stack_size = 0
-    t_process_stack = t_process_stack + m_walltime()
+    t_tmp=m_walltime()
+    !$OMP ATOMIC
+    t_process_stack = t_process_stack + t_tmp
   END SUBROUTINE process_mm_stack
 
   SUBROUTINE print_gemm_parameters(params)

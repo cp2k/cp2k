@@ -2066,6 +2066,7 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Dense data too small",__LINE__,error)
     IF (dbcsr_data_get_size(matrix%m%data_area) .GT. 0) THEN
+       CALL dbcsr_data_clear (matrix%m%data_area)
 !$OMP PARALLEL DEFAULT(none) &
 !$OMP PRIVATE (block, iter,&
 !$OMP          blk_row, blk_col, tr,&
@@ -2079,7 +2080,6 @@ CONTAINS
 !$OMP         dense_row_blk_offsets, dense_col_blk_offsets,&
 !$OMP         row_map, col_map,&
 !$OMP         row_internal_offsets, col_internal_offsets)
-       CALL dbcsr_data_clear (matrix%m%data_area)
        CALL dbcsr_data_init (block)
        CALL dbcsr_data_new (block,&
             dbcsr_type_1d_to_2d(dbcsr_data_get_type(dense_data)))
