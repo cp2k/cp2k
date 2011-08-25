@@ -264,7 +264,9 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 num_threads = 1
 !$omp parallel default(none), &
 !$omp          shared(num_threads)
+!$OMP MASTER
 !$ num_threads = omp_get_num_threads()
+!$OMP END MASTER
 !$omp end parallel
 
 num_rows = plan%m / num_threads
@@ -430,7 +432,10 @@ zout_ptr => zout(out_offset)
 zscal_ptr => zout(scal_offset)
 
 #if defined ( __FFTW3 )
+!$OMP MASTER
   stat=1
+!$OMP END MASTER
+!$OMP BARRIER
 #if defined(__SGL) || defined(__FFTSGL)
   CALL sfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
 !$ endif
