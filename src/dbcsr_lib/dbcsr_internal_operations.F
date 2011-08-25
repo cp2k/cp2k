@@ -2217,7 +2217,10 @@ CONTAINS
        CALL init_card_c (product, product_target%t, error)
        !$OMP BARRIER
     ELSE
+       !$OMP MASTER
        NULLIFY (a_dev, b_dev)
+       !$OMP END MASTER
+       !$OMP BARRIER
     ENDIF
     CALL dbcsr_ps_set_create (carrier%param_sets, mm_stack_size,&
          product_target,&
