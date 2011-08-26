@@ -435,7 +435,6 @@ zscal_ptr => zout(scal_offset)
 !$OMP MASTER
   stat=1
 !$OMP END MASTER
-!$OMP BARRIER
 #if defined(__SGL) || defined(__FFTSGL)
   CALL sfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
 !$ endif
