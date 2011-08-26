@@ -330,7 +330,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
 
@@ -392,7 +392,7 @@ CONTAINS
           END SELECT
        ENDIF
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_get_block_p_area
 
 
