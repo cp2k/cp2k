@@ -452,7 +452,9 @@
          data_block, found, data_block2)
 
     IF (.NOT. found) THEN
+!$OMP CRITICAL (critical_reserve_block2d)
        matrix%m%valid = .FALSE.
+!$OMP END CRITICAL (critical_reserve_block2d)
        matrix%m%wms(iw)%lastblk = matrix%m%wms(iw)%lastblk + 1
        matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + row_size*col_size
     ELSE
