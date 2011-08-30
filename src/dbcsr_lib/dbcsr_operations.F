@@ -46,10 +46,11 @@ MODULE dbcsr_operations
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, &
-       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, &
-       dbcsr_scalar_get_type, dbcsr_scalar_one, dbcsr_scalar_set_type, &
-       dbcsr_scalar_zero, dbcsr_type_1d_to_2d
+       dbcsr_data_release, dbcsr_data_set_pointer, &
+       dbcsr_data_set_size_referenced, dbcsr_get_data, dbcsr_scalar, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, &
+       dbcsr_scalar_one, dbcsr_scalar_set_type, dbcsr_scalar_zero, &
+       dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: &
@@ -768,6 +769,8 @@ CONTAINS
        !$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
+    product_matrix%m%row_p(:) = 0
+    CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
     product_matrix%m%nblks = 0
     product_matrix%m%valid = .FALSE.
     !

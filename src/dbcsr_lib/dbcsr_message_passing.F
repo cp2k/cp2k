@@ -23,6 +23,8 @@ MODULE dbcsr_message_passing
                                              m_flush,&
                                              m_walltime
 
+  !$ USE OMP_LIB
+
   IMPLICIT NONE
 
   PRIVATE

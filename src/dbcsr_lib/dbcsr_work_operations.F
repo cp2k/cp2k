@@ -34,6 +34,7 @@ MODULE dbcsr_work_operations
                                              block_copy_d,&
                                              block_copy_s,&
                                              block_copy_z,&
+                                             dbcsr_data_copy,&
                                              dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
@@ -45,11 +46,14 @@ MODULE dbcsr_work_operations
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
   USE dbcsr_error_handling
-  USE dbcsr_index_operations,          ONLY: &
-       dbcsr_addto_index_array, dbcsr_build_row_index, &
-       dbcsr_clearfrom_index_array, dbcsr_count_row_index, &
-       dbcsr_index_prune_deleted, dbcsr_make_dbcsr_index, &
-       dbcsr_make_index_exist, dbcsr_repoint_index, dbcsr_sort_indices
+  USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
+                                             dbcsr_build_row_index,&
+                                             dbcsr_clearfrom_index_array,&
+                                             dbcsr_index_prune_deleted,&
+                                             dbcsr_make_dbcsr_index,&
+                                             dbcsr_make_index_exist,&
+                                             dbcsr_repoint_index,&
+                                             dbcsr_sort_indices
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -66,11 +70,11 @@ MODULE dbcsr_work_operations
        dbcsr_get_data_memory_type, dbcsr_get_data_size_used, &
        dbcsr_get_data_type, dbcsr_get_index_memory_type, &
        dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_matrix_counter, dbcsr_modify_lock, &
-       dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
-       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
-       dbcsr_name, dbcsr_row_block_sizes, dbcsr_switch_data_area, &
-       dbcsr_use_mutable, dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_is_initialized, dbcsr_matrix_counter, dbcsr_mutable_destroy, &
+       dbcsr_mutable_init, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
+       dbcsr_mutable_release, dbcsr_name, dbcsr_row_block_sizes, &
+       dbcsr_switch_data_area, dbcsr_use_mutable, dbcsr_valid_index, &
+       dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
@@ -126,6 +130,12 @@ MODULE dbcsr_work_operations
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
+
+
+  TYPE i_array_p
+     INTEGER, DIMENSION(:), POINTER :: p
+  END TYPE i_array_p
+
 
 CONTAINS
 
@@ -209,8 +219,8 @@ CONTAINS
        CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
        CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
     ENDIF
-    matrix%m%serial_number = dbcsr_matrix_counter
     !$OMP CRITICAL
+    matrix%m%serial_number = dbcsr_matrix_counter
     dbcsr_matrix_counter = dbcsr_matrix_counter + 1
     !$OMP END CRITICAL
     ! Mark matrix index as having an invalid index.
@@ -626,13 +636,13 @@ CONTAINS
        nw = n
     ELSE
        nw = 1
-!$     IF (omp_in_parallel()) THEN
-!$        nw = omp_get_num_threads()
-!$     ELSE
-!$        nw = omp_get_max_threads()
-!$     ENDIF
+       !$ IF (omp_in_parallel()) THEN
+       !$    nw = omp_get_num_threads()
+       !$ ELSE
+       !$    nw = omp_get_max_threads()
+       !$ ENDIF
     ENDIF
-!$  CALL dbcsr_modify_lock (matrix)
+    !$OMP MASTER
     wms_new = .NOT. ASSOCIATED (matrix%m%wms)
     wms_realloc = .FALSE.
     IF (ASSOCIATED (matrix%m%wms)) THEN
@@ -669,7 +679,7 @@ CONTAINS
        END DO
     ENDIF
     matrix%m%valid = .FALSE.
-!$  CALL dbcsr_modify_unlock (matrix)
+    !$OMP END MASTER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_work_create
 
@@ -719,13 +729,14 @@ CONTAINS
        CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
     ENDIF
     ! Remove the cached pre-distributed images.
-    !$OMP SINGLE
+    !$OMP MASTER
     IF (ASSOCIATED (matrix%m%predistributed)) THEN
           CALL dbcsr_destroy_array (matrix%m%predistributed,error)
           DEALLOCATE (matrix%m%predistributed)
     ENDIF
     NULLIFY (matrix%m%predistributed)
-    !$OMP END SINGLE
+    !$OMP END MASTER
+    !$OMP BARRIER
     ! If the matrix is not marked as dirty then skip the work.
     IF (dbcsr_valid_index(matrix)) THEN
        !"No need to finalize a valid matrix, skipping."
@@ -734,11 +745,12 @@ CONTAINS
        ! arrays.  This may happen when this routine is called on a
        ! matrix that was not changed.
        !$OMP BARRIER
-       !$OMP SINGLE
+       !$OMP MASTER
        IF (ASSOCIATED (matrix%m%wms)) &
             CALL dbcsr_work_destroy_all(matrix%m)
        matrix%m%valid = .TRUE.
-       !$OMP END SINGLE
+       !$OMP END MASTER
+       !$OMP BARRIER
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
@@ -764,6 +776,30 @@ CONTAINS
     ! area. Alternatively, set to the start if the matrix is declared
     ! to have no data. (This value is ignored if reshuffle is true
     ! because the main data area is always new.)
+    start_offset = matrix%m%nze
+    i = dbcsr_get_data_size_used (matrix, error)
+    !$OMP MASTER
+    matrix%m%nze = 0
+    !$OMP END MASTER
+    !$OMP BARRIER
+    !$OMP ATOMIC
+    matrix%m%nze = matrix%m%nze + i
+    !$OMP BARRIER
+    IF (dbg) THEN
+       WRITE(*,*)routineN//" sizes", matrix%m%nze, i,&
+            dbcsr_data_get_size_referenced (matrix%m%data_area), &
+            dbcsr_data_get_size (matrix%m%data_area)
+    ENDIF
+    IF (.FALSE. .AND. dbcsr_data_get_size_referenced (matrix%m%data_area) .NE. &
+         matrix%m%nze) THEN
+       CALL dbcsr_assert (matrix%m%nze, "EQ", &
+            dbcsr_data_get_size_referenced (matrix%m%data_area),&
+            dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Should reshuffle.", __LINE__, error=error)
+       IF (ASSOCIATED (matrix%m%wms)) THEN
+          sort_data = .NOT. dbcsr_wm_use_mutable (matrix%m%wms(1))
+       ENDIF
+    ENDIF
     IF (sort_data .AND. matrix%m%nze .GT. 0) THEN
        CALL dbcsr_add_wm_from_matrix (matrix, error=error)
        matrix%m%nze = 0
@@ -786,9 +822,6 @@ CONTAINS
             reservation=0, error=error)
        CALL dbcsr_repoint_index (matrix%m)
     ENDIF
-    old_row_p => matrix%m%row_p
-    old_col_i => matrix%m%col_i
-    old_blk_p => matrix%m%blk_p
     !$OMP END MASTER
 !$OMP BARRIER
     !
@@ -831,51 +864,53 @@ CONTAINS
        IF (ANY(matrix%m%blk_p(1:nblks) .EQ. 0)) THEN
           CALL dbcsr_index_prune_deleted (matrix, error)
        ENDIF
+       old_row_p => matrix%m%row_p
+       old_col_i => matrix%m%col_i
+       old_blk_p => matrix%m%blk_p
        !$OMP END MASTER
        !
        !$OMP BARRIER
        ! Check to see if we will need to create a parallel environment
        ! (needed when there are multiple work matrices but we are not
        ! in an OpenMP parallel section.)
+       !
+       ! A parallel section is created is used when the matrix has
+       ! more work matrices. It's a shortcut when the finalize is
+       ! called from a non-parallel environment whereas the matrix was
+       ! built/modified in a parallel environment
        nwms = SIZE (matrix%m%wms)
        spawn = .FALSE.
        !$ IF (.NOT. OMP_IN_PARALLEL ()) THEN
        !$    IF (nwms .GT. 1) spawn = .TRUE.
        !$ ENDIF
-       !$ IF (.NOT. spawn) THEN
+       IF (spawn) THEN
+          !$OMP PARALLEL IF (spawn) &
+          !$OMP          DEFAULT (none) &
+          !$OMP          SHARED (matrix, old_row_p, old_col_i, old_blk_p,&
+          !$OMP                  start_offset, sort_data, error)
           CALL dbcsr_merge_all (matrix%m,&
                old_row_p, old_col_i, old_blk_p,&
                data_starting_offset = start_offset,&
                sort_data=sort_data, &
                error=error)
-       !$ ELSE
-          !
-          ! This here is used when the matrix has more work
-          ! matrices. It's a shortcut when the finalize is called from
-          ! a non-parallel environment whereas the matrix was
-          ! built/modified in a parallel environment
-          !
-          !$OMP PARALLEL DEFAULT (none) &
-          !$OMP          SHARED (matrix, old_row_p, old_col_i, old_blk_p,&
-          !$OMP                  start_offset, sort_data, error)
-          !$   CALL dbcsr_merge_all (matrix%m,&
-          !$        old_row_p, old_col_i, old_blk_p,&
-          !$        data_starting_offset &
-          !$        = start_offset,&
-          !$        sort_data=sort_data, &
-          !$        error=error)
-          !$
           !$OMP END PARALLEL
-       !$ END IF
+       ELSE
+          CALL dbcsr_merge_all (matrix%m,&
+               old_row_p, old_col_i, old_blk_p,&
+               data_starting_offset = start_offset,&
+               sort_data=sort_data, &
+               error=error)
+       ENDIF
     ENDIF
 !$OMP BARRIER
-!$OMP SINGLE
+!$OMP MASTER
     ! Clean up.
     IF (ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_destroy_all(matrix%m)
     ENDIF
     matrix%m%valid = .TRUE.
-!$OMP END SINGLE
+!$OMP END MASTER
+!$OMP BARRIER
     IF (dbg) THEN
        !$OMP SINGLE
        CALL dbcsr_verify_matrix (matrix, error=error)
@@ -1018,10 +1053,14 @@ CONTAINS
     nwms = MAX(1, old_nwms)
     !$ nwms = MAX(nwms, nthreads)
     !$OMP BARRIER
-    CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
-         work_mutable=.FALSE., error=error)
+    !$OMP MASTER
+    IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
+       CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
+            work_mutable=.FALSE., error=error)
+    ENDIF
+    !$OMP END MASTER
     !$OMP BARRIER
-    size_used = dbcsr_get_data_size_used (matrix, error)
+    size_used = matrix%m%nze
     CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix, size_used,&
          limits=limits, error=error)
     !$OMP BARRIER
@@ -1055,6 +1094,7 @@ CONTAINS
     INTEGER :: blk, blk_p, col, error_handler, ithread, nthreads, nwms, nze, &
       row, wblk_p, which_wm, wm_first, wm_last
     LOGICAL                                  :: careful, limit, mt, tr
+    LOGICAL, SAVE                            :: mutable
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
 
@@ -1081,12 +1121,19 @@ CONTAINS
        wm_last = nwms
     ENDIF
     ! Prepares the work matrices to accept the main data.
+    !$OMP MASTER
+    mutable = .FALSE.
+    DO which_wm = 1, nwms
+       mutable = mutable .OR. dbcsr_wm_use_mutable (wm(which_wm))
+    ENDDO
+    !$OMP END MASTER
+    !$OMP BARRIER
     DO which_wm = wm_first, wm_last
        CALL dbcsr_assert ("NOT", dbcsr_wm_use_mutable (wm(which_wm)),&
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
             "Adding main matrix into mutable not supported.", __LINE__,&
             error=error)
-       IF (dbcsr_wm_use_mutable (wm(which_wm))) THEN
+       IF (mutable) THEN
           IF (.NOT. dbcsr_mutable_instantiated (wm(which_wm)%mutable)) THEN
              CALL dbcsr_mutable_new (wm(which_wm)%mutable, matrix%m%data_type)
           ENDIF
@@ -1110,30 +1157,33 @@ CONTAINS
        which_wm = ithread+1
        wblk_p = SIGN (wm(which_wm)%datasize+1, blk_p)
        nze = dbcsr_data_get_size (data_block)
-       IF (mt .OR. limit .OR. careful) THEN
+       IF (mt .OR. limit .OR. careful .OR. mutable) THEN
           ! The data gets copied block by block so the block pointers
           ! are ordered accordingly.
-          CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
-          CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               ABS(wblk_p)+nze-1, error=error)
-          CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area,&
-               ABS(wblk_p) + nze - 1)
-          CALL dbcsr_data_set (wm(which_wm)%data_area,&
-               lb=ABS(wblk_p),&
-               data_size=nze,&
-               src=data_block, source_lb=1)
+          IF (.not.mutable) THEN
+             CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
+             CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
+                  ABS(wblk_p)+nze-1, error=error)
+             CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area,&
+                  ABS(wblk_p) + nze - 1)
+             CALL dbcsr_data_set (wm(which_wm)%data_area,&
+                  lb=ABS(wblk_p),&
+                  data_size=nze,&
+                  src=data_block, source_lb=1)
+          ENDIF
        ELSE
           ! The data gets copied all at once so the block pointers
           ! should remain the same as they were.
           CALL add_work_coordinate (wm(which_wm), row, col, blk_p, error=error)
        ENDIF
-       wm(which_wm)%datasize = wm(which_wm)%datasize+nze
+       IF (.NOT. mutable) &
+            wm(which_wm)%datasize = wm(which_wm)%datasize+nze
     ENDDO
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
     ! Copy all blocks at once
-    IF (.NOT. mt .AND. .NOT. limit .AND. .NOT. careful) THEN
+    IF (.NOT. mt .AND. .NOT. limit .AND. .NOT. careful .AND. .NOT. mutable) THEN
        DO which_wm = 1, nwms
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
                dbcsr_data_get_size_referenced (matrix%m%data_area), error=error)
@@ -1314,7 +1364,7 @@ CONTAINS
   SUBROUTINE dbcsr_merge_all (matrix, old_row_p, old_col_i, old_blk_p,&
        data_starting_offset, sort_data, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    INTEGER, DIMENSION(:), POINTER           :: old_row_p, old_col_i, &
+    INTEGER, DIMENSION(*), INTENT(IN)        :: old_row_p, old_col_i, &
                                                 old_blk_p
     INTEGER, INTENT(IN)                      :: data_starting_offset
     LOGICAL, INTENT(IN)                      :: sort_data
@@ -1326,453 +1376,49 @@ CONTAINS
                                                 index_data = 2
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: data_current_offset, data_to_add = 0, error_handler, i, &
-      ithread, my_num_new_blocks, nblks_to_add = 0, new_nblks = 0, nrows, &
-      nthreads, nwms, which_wm, wm_first, wm_last
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: additions_per_row
-    INTEGER, DIMENSION(2)                    :: additions_total
-    INTEGER, DIMENSION(:), POINTER, SAVE :: mt_data_offsets, new_blk_d, &
-      new_blk_p, new_blk_sizes, new_col_i, new_row_p, row_size_counter
-    INTEGER, DIMENSION(:, :), POINTER        :: my_blk_p
-    LOGICAL                                  :: mt
-    TYPE(dbcsr_data_obj), DIMENSION(:), &
-      POINTER, SAVE                          :: all_data_areas
+    INTEGER :: error_handler, my_row_count, nblks, nblks_to_add = 0, &
+      new_data_size, new_nblks = 0, new_nze = 0, nrows, nwms, row, t, which_wm
+    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: all_data_offsets, &
+                                                all_data_sizes, &
+                                                new_blk_p_sorted, &
+                                                new_blk_sizes, new_row_p
+    INTEGER, ALLOCATABLE, DIMENSION(:), &
+      SAVE, TARGET                           :: blk_d, new_blk_p, new_col_i
+    INTEGER, DIMENSION(:), POINTER           :: my_row_p
+    INTEGER, DIMENSION(:), POINTER, SAVE     :: cbs, rbs
+    INTEGER, SAVE                            :: max_row_count
+    TYPE(dbcsr_data_obj), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: all_data_areas
+    TYPE(dbcsr_work_type), POINTER           :: wm
+    TYPE(i_array_p), DIMENSION(:), POINTER, &
+      SAVE                                   :: all_blk_p, all_col_i, &
+                                                all_row_p
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-!$OMP BARRIER
-    nwms = SIZE(matrix%wms)
-!$OMP MASTER
-    nblks_to_add = 0
-    data_to_add = 0
-    !
-    ! If the data will be sorted then the source data areas are all
-    ! put into an array. The new_blk_d elements select from which data
-    ! area a block will be copied.
-    NULLIFY (all_data_areas)
-    IF (sort_data) THEN
-       ALLOCATE (all_data_areas(1:nwms+1))
-       DO i = 1, nwms+1
-          CALL dbcsr_data_init (all_data_areas(i))
-       ENDDO
-       all_data_areas(1) = matrix%data_area
-       CALL dbcsr_data_hold (all_data_areas(1))
-    ENDIF
-!$OMP END MASTER
-!$OMP BARRIER
-    ithread = 0 ; nthreads = 1
-    !$ ithread = OMP_GET_THREAD_NUM() ; nthreads = OMP_GET_NUM_THREADS()
-    mt = .FALSE.
-    !$ mt = nthreads .GT. 1
-    !$ IF (mt) THEN
-    !$    CALL dbcsr_assert (nwms, "EQ", nthreads, dbcsr_fatal_level,&
-    !$         dbcsr_caller_error, routineN, &
-    !$         "Number of work matrices does not match number of threads.",&
-    !$         __LINE__, error=error)
-    !$ ENDIF
-    ! One thread has to handle many work matrices
+    !> \par Outline
+
+    !> Each thread has a work matrix.  These must be merged and made
+    !> into a new index.  If sort_data is False, then the data areas
+    !> are simply appended.  This is probably quicker but the data
+    !> blocks are not in order and the data size may expand beyond
+    !> what is needed.  If sort_data is True, then data blocks are
+    !> sorted in order.
+
+    IF (dbg) WRITE(*,*)routineN//" starting, sort?", sort_data
+    !$OMP BARRIER
     nrows = matrix%nblkrows_total
+    nwms = SIZE(matrix%wms)
+    !$ call dbcsr_assert (nwms, "EQ", OMP_GET_NUM_THREADS (),&
+    !$      dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+    !$      "Number of threads does not match number of work matrices.",&
+    !$      __LINE__, error=error)
+    which_wm = 1
+    !$ which_wm = OMP_GET_THREAD_NUM () + 1
+    wm => matrix%wms(which_wm)
     !
-    ! The first step is to count how many blocks will be added per row.
-    data_current_offset = data_starting_offset
-    IF (mt) THEN
-       wm_first = ithread + 1
-       wm_last = ithread + 1
-    ELSE
-       wm_first = 1
-       wm_last = nwms
-       CALL dbcsr_assert (nwms, "EQ", 1,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Finalize should be called from parallel.",&
-            __LINE__, error=error)
-    ENDIF
-!$OMP MASTER
-    old_row_p => matrix%row_p
-    old_col_i => matrix%col_i
-    old_blk_p => matrix%blk_p
-!$OMP END MASTER
-!$OMP BARRIER
-    DO which_wm = wm_first, wm_last
-       ALLOCATE (additions_per_row(2, nrows))
-       additions_per_row(:,:) = 0
-       my_num_new_blocks = matrix%wms(which_wm)%lastblk
-       ALLOCATE (my_blk_p(2, my_num_new_blocks))
-       CALL count_blocks_to_add (matrix%wms(which_wm), additions_per_row,&
-            additions_total, my_blk_p,&
-            array_data (matrix%row_blk_size), array_data (matrix%col_blk_size),&
-            error=error)
-       !$OMP ATOMIC
-       nblks_to_add = nblks_to_add + additions_total(index_blocks)
-       !$OMP ATOMIC
-       data_to_add = data_to_add + additions_total(index_data)
-!$OMP MASTER
-       ALLOCATE (mt_data_offsets (nwms))
-       mt_data_offsets(1) = data_starting_offset
-       ALLOCATE (new_row_p (nrows+1))
-       ! Counts new number of blocks per row (to be later made into
-       ! the new row_p index).
-       CALL dbcsr_count_row_index (old_row_p, new_row_p, nrows)
-!$OMP END MASTER
-!$OMP BARRIER
-       !
-       ! Now add the blocks to be added to the row counts
-       CALL add_to_row_count (new_row_p, additions_per_row(index_blocks,:))
-       IF (sort_data) THEN
-          ! When sort_data is true, then the following arry holds the
-          ! source data array, not the true data offset.
-          mt_data_offsets(which_wm) = which_wm + 1
-       ELSE
-          ! Calculate the data offsets at which the work data is
-          ! copied into the main data area.
-          CALL tally_offsets (mt_data_offsets, additions_total(index_data),&
-               data_starting_offset)
-       ENDIF
-!$OMP BARRIER
-!$OMP MASTER
-       !!$OMP SECTION
-       matrix%nblks = old_row_p(nrows+1)
-       new_nblks = matrix%nblks + nblks_to_add
-       ALLOCATE (new_col_i (new_nblks))
-       ALLOCATE (new_blk_p (new_nblks))
-       IF (sort_data) THEN
-          ALLOCATE (new_blk_d(new_nblks))
-          ALLOCATE (new_blk_sizes(new_nblks))
-       ELSE
-          NULLIFY (new_blk_d)
-       ENDIF
-       !!$OMP SECTION
-       CALL dbcsr_build_row_index (new_row_p, nrows)
-       !!$OMP SECTION
-       ALLOCATE (row_size_counter (nrows))
-       row_size_counter(:) = 0
-       !!$OMP SECTION
-       IF (.NOT. sort_data) THEN
-          ! Resize the data area to accept the new data to be appended.
-          CALL dbcsr_data_ensure_size (matrix%data_area, &
-               data_size=data_starting_offset+data_to_add-1, error=error)
-       ELSE
-          ! Makes a new data area for the main matrix (previous data
-          ! is already saved in all_data_areas(1)).
-          CALL dbcsr_data_release (matrix%data_area)
-          CALL dbcsr_data_init (matrix%data_area)
-          CALL dbcsr_data_new (matrix%data_area,&
-               dbcsr_data_get_type(all_data_areas(1)),&
-               data_size = data_starting_offset+data_to_add-1,&
-               memory_type = dbcsr_data_get_memory_type(all_data_areas(1)))
-       ENDIF
-!$OMP END MASTER
-!$OMP BARRIER
-       ! Inserts new blocks into the index.
-       CALL index_insertion (old_row_p, old_col_i, old_blk_p,&
-            new_row_p, new_col_i, new_blk_p, new_blk_d, &
-            additions_per_row(index_blocks,:),&
-            matrix%wms(which_wm)%col_i, matrix%wms(which_wm)%blk_p, my_blk_p,&
-            mt_data_offsets(which_wm),&
-            row_size_counter, error=error)
-!$OMP BARRIER
-       IF (sort_data) THEN
-          all_data_areas(mt_data_offsets(which_wm)) &
-               = matrix%wms(which_wm)%data_area
-          !$OMP CRITICAL (crit_data)
-          CALL dbcsr_data_hold (all_data_areas(mt_data_offsets(which_wm)))
-          !$OMP END CRITICAL (crit_data)
-       ENDIF
-       !$OMP MASTER
-       ! Creates new index array.
-       CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
-       CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
-       CALL dbcsr_addto_index_array (matrix, dbcsr_slot_row_p,&
-            DATA=new_row_p(1:nrows+1), error=error)
-       CALL dbcsr_addto_index_array (matrix, dbcsr_slot_col_i,&
-            reservation=new_nblks, extra=SIZE(new_blk_p), error=error)
-       CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
-            reservation=new_nblks, error=error)
-       matrix%nblks = new_nblks
-       matrix%nze = matrix%nze + data_to_add
-       matrix%index(dbcsr_slot_nblks) = matrix%nblks
-       matrix%index(dbcsr_slot_nze) = matrix%nze
-       CALL dbcsr_repoint_index(matrix)
-       !$OMP END MASTER
-!$OMP BARRIER
-       IF (.NOT. sort_data) THEN
-          ! Copies data into the main data area.
-          CALL merge_my_wm (matrix%data_area,&
-               matrix%wms(which_wm), my_blk_p, error=error)
-          !$OMP WORKSHARE
-          matrix%col_i(1:new_nblks) = new_col_i(1:new_nblks)
-          matrix%blk_p(1:new_nblks) = new_blk_p(1:new_nblks)
-          !$OMP END WORKSHARE
-       ELSE
-          CALL dbcsr_calc_block_sizes (new_blk_sizes, new_row_p, new_col_i,&
-               array_data (matrix%row_blk_size),&
-               array_data (matrix%col_blk_size))
-          ! Merges all data into the main data area.
-          CALL dbcsr_sort_data (matrix%blk_p, new_blk_p, new_blk_sizes,&
-               matrix%data_area, all_data_areas(1), all_data_areas,&
-               new_blk_d, error=error)
-          !$OMP WORKSHARE
-          matrix%col_i(1:new_nblks) = new_col_i(1:new_nblks)
-          !$OMP END WORKSHARE
-          !$OMP MASTER
-          DEALLOCATE (new_blk_d)
-          DEALLOCATE (new_blk_sizes)
-          !$OMP END MASTER
-       ENDIF
-       !$OMP BARRIER
-       !$OMP MASTER
-       DEALLOCATE (row_size_counter)
-       DEALLOCATE (mt_data_offsets)
-       DEALLOCATE (new_row_p)
-       DEALLOCATE (new_col_i)
-       DEALLOCATE (new_blk_p)
-       CALL dbcsr_repoint_index (matrix)
-       !$OMP END MASTER
-       DEALLOCATE (my_blk_p)
-       DEALLOCATE (additions_per_row)
-    ENDDO
-    !$OMP BARRIER
-    !$OMP MASTER
-    IF (sort_data) THEN
-       DO i = 1, nwms+1
-          CALL dbcsr_data_release (all_data_areas(i))
-       ENDDO
-       DEALLOCATE (all_data_areas)
-    ENDIF
-    !$OMP END MASTER
-    !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_merge_all
-
-
-! *****************************************************************************
-!> \brief Merges the indices of the work and actual matrix.
-!> \param[in] old_row_p       old row pointers
-!> \param[in] old_col_i       old column numbers
-!> \param[in] old_blk_p       old block pointers
-!> \param[in] new_row_p       new row pointers
-!> \param[out] new_col_i      new column numbers
-!> \param[out] new_blk_p      new block pointers
-!> \param[out] new_blk_d      which data area a block resides
-!> \param[in] additions_per_row   the number of blocks added by this thread
-!>                                for each row
-!> \param[in] my_col_i        column number for this thread's blocks
-!> \param[in] my_blk_meta     this thread's block meta (for transposes)
-!> \param[out] my_blk_info    new block pointers for this thread's blocks
-!> \param[in] data_offset     data offset for my thread
-!> \param[in,out] row_size_counter    current offsets of blocks in row_p
-!> \param[in,out] error       error
-! *****************************************************************************
-  SUBROUTINE index_insertion (old_row_p, old_col_i, old_blk_p,&
-       new_row_p, new_col_i, new_blk_p, new_blk_d,&
-       additions_per_row, my_col_i, my_blk_meta, my_blk_info, &
-       data_offset, row_size_counter,&
-       error)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: old_row_p, old_col_i, &
-                                                old_blk_p, new_row_p
-    INTEGER, DIMENSION(:), POINTER           :: new_col_i, new_blk_p, &
-                                                new_blk_d
-    INTEGER, DIMENSION(:), INTENT(IN)        :: additions_per_row, my_col_i, &
-                                                my_blk_meta
-    INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: my_blk_info
-    INTEGER, INTENT(IN)                      :: data_offset
-    INTEGER, DIMENSION(:), POINTER           :: row_size_counter
-    TYPE(dbcsr_error_type)                   :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'index_insertion', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: blk, curr_blk_p, error_handle, i, ithread, my_block_counter, &
-      nblks, ncols, new_first_blk, new_last_blk, new_nblks, nrows, nthreads, &
-      nze, old_nblks, row, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buff, buff2, permutation
-    LOGICAL                                  :: copy_data
-
-!
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handle, error)
-    copy_data = .NOT. ASSOCIATED (new_blk_d)
-    nrows = SIZE(old_row_p)-1
-    ithread = 0 ; nthreads = 1
-    !$ ithread = OMP_GET_THREAD_NUM() ; nthreads = OMP_GET_NUM_THREADS()
-    my_block_counter = 1
-    IF (copy_data) curr_blk_p = data_offset
-    DO row = 1, nrows
-       IF (additions_per_row(row) .GT. 0) THEN
-          new_nblks = additions_per_row(row)
-          ! Find where in the col_i and blk_p arrays to add this
-          ! thread's blocks.
-          !$OMP CRITICAL (crit_row_size_counter)
-          blk = row_size_counter(row)
-          row_size_counter(row) = row_size_counter(row) + new_nblks
-          !$OMP END CRITICAL (crit_row_size_counter)
-          old_nblks = old_row_p(row+1) - old_row_p(row)
-          new_first_blk = new_row_p(row)+1 + old_nblks + blk
-          new_last_blk = new_first_blk + new_nblks - 1
-          ! Now add the new blocks to the global column index
-          new_col_i(new_first_blk : new_last_blk)&
-               = my_col_i(my_block_counter:my_block_counter+new_nblks-1)
-          ! and calculate the new block pointers from the running offset and the
-          ! stored sizes
-          IF (copy_data) THEN
-             DO blk = 1, new_nblks
-                nze = my_blk_info(2, my_block_counter+blk-1)
-                my_blk_info(1, my_block_counter+blk-1)&
-                     = SIGN(curr_blk_p, my_blk_meta(my_block_counter+blk-1))
-                curr_blk_p = curr_blk_p + nze
-             ENDDO
-          ELSE
-             new_blk_d(new_first_blk : new_last_blk) = data_offset
-          ENDIF
-          new_blk_p(new_first_blk : new_last_blk)&
-               = my_blk_info(1, my_block_counter:my_block_counter+new_nblks-1)
-          my_block_counter = my_block_counter + new_nblks
-       ENDIF
-    ENDDO
-    ! Copy existing blocks and sort everything
-    nblks = SIZE (new_col_i)
-    ALLOCATE (permutation(nblks), stat=stat)
-    ALLOCATE (buff(nblks), stat=stat)
-    IF (.NOT. copy_data) ALLOCATE (buff2(nblks), stat=stat)
-    !$OMP BARRIER
-    !$OMP DO
-    DO row = 1, nrows
-       old_nblks = old_row_p(row+1) - old_row_p(row)
-       new_first_blk = new_row_p(row)+1
-       new_last_blk = new_row_p(row+1)
-       new_col_i(new_first_blk : new_first_blk + old_nblks - 1) &
-            = old_col_i (old_row_p(row)+1 : old_row_p(row+1))
-       new_blk_p(new_first_blk : new_first_blk + old_nblks - 1) &
-            = old_blk_p (old_row_p(row)+1 : old_row_p(row+1))
-       ncols = new_last_blk - new_first_blk + 1
-       ! Sort
-       IF (ncols .GT. 0) THEN
-          IF (.NOT.copy_data) THEN
-             new_blk_d(new_first_blk : new_first_blk + old_nblks - 1) = 1
-          ENDIF
-          permutation(1:ncols) = (/ (i, i=1,ncols) /)
-          buff(1:ncols) = new_blk_p(new_first_blk:new_last_blk)
-          IF (.NOT. copy_data) THEN
-             buff2(1:ncols) = new_blk_d(new_first_blk:new_last_blk)
-          ENDIF
-          CALL sort (new_col_i(new_first_blk:new_last_blk), ncols, permutation)
-          IF (copy_data) THEN
-             DO i = 1, ncols
-                new_blk_p(new_first_blk+i-1) = buff(permutation(i))
-             ENDDO
-          ELSE
-             DO i = 1, ncols
-                new_blk_p(new_first_blk+i-1) = buff(permutation(i))
-                new_blk_d(new_first_blk+i-1) = buff2(permutation(i))
-             ENDDO
-          ENDIF
-       ENDIF
-    ENDDO
-    !$OMP ENDDO
-    DEALLOCATE (permutation)
-    DEALLOCATE (buff)
-    IF (.NOT. copy_data) DEALLOCATE (buff2)
-    CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE index_insertion
-
-
-! *****************************************************************************
-!> \brief Merges a work matrix into the main matrix
-!> \param[in,out] target_data_area   where to copy data
-!> \param[in] wm                     work matrix to merge
-!> \param[in] new_blk_p              block offsets and sizes for the final
-!>                                   matrix
-!> \param[in,out] error              error
-! *****************************************************************************
-  SUBROUTINE merge_my_wm (target_data_area, wm, new_blk_p, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_data_area
-    TYPE(dbcsr_work_type), INTENT(IN)        :: wm
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: new_blk_p
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'merge_my_wm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handle, error)
-    CALL merge_my_wm_linear (target_data_area,&
-         wm%data_area, wm%lastblk, wm%blk_p, new_blk_p,&
-         error=error)
-    CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE merge_my_wm
-
-
-! *****************************************************************************
-!> \brief Merges an array-based work matrix into the main matrix
-!> \param[in,out] target_data_area   where to copy data
-!> \param[in] source_data_area       from where to copy data
-!> \param[in] old_blk_p              block offsets and sizes in the work
-!>                                   matrix
-!> \param[in] new_blk_p              block offsets and sizes for the final
-!>                                   matrix
-!> \param[in,out] error              error
-! *****************************************************************************
-  SUBROUTINE merge_my_wm_linear (target_data_area,&
-       source_data_area, source_nblocks, old_blk_p, new_blk_p, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_data_area
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: source_data_area
-    INTEGER, INTENT(IN)                      :: source_nblocks
-    INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: new_blk_p
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'merge_my_wm_linear', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, error_handle
-    INTEGER, DIMENSION(1)                    :: nze_array
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handle, error)
-    DO blk = 1, source_nblocks
-       nze_array(1) = new_blk_p(2,blk)
-       CALL dbcsr_data_set (target_data_area,&
-            lb=ABS(new_blk_p(1,blk)), data_size=new_blk_p(2,blk),&
-            src=source_data_area, source_lb=ABS(old_blk_p(blk)))
-    ENDDO
-    CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE merge_my_wm_linear
-
-! *****************************************************************************
-!> \brief Counts the number of blocks and data to be added
-!>
-!> \param[in,out] wm          work matrix
-!> \param[in,out] additions_per_row     number of blocks and data to add for
-!>                                      every row
-!> \param[out] additions_total          total number of blocks and data to add
-!> \param[out] blk_p          block sizes of data to add
-!> \param[in,out] error       error
-! *****************************************************************************
-  SUBROUTINE count_blocks_to_add (wm, additions_per_row, additions_total,&
-       blk_p, row_sizes, col_sizes, error)
-    TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
-    INTEGER, DIMENSION(:, :)                 :: additions_per_row
-    INTEGER, DIMENSION(2)                    :: additions_total
-    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: blk_p
-    INTEGER, DIMENSION(:), INTENT(IN)        :: row_sizes, col_sizes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'count_blocks_to_add', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: index_blocks = 1, &
-                                                index_data = 2
-
-    INTEGER                                  :: blk, col, error_handle, &
-                                                nblks, nze, row
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    ! Currently B-tree-based work matrices are converted to array form.
     IF (dbcsr_wm_use_mutable (wm)) THEN
        SELECT CASE (wm%mutable%m%data_type)
        CASE (dbcsr_type_real_4)
@@ -1788,86 +1434,318 @@ CONTAINS
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
     ENDIF
+    !
+    ! Initializations and some counts from the threads are summed.
+    !
+    !$OMP MASTER
+    nblks_to_add = 0
+    new_nblks = old_row_p(nrows+1)
+    new_nze = matrix%nze
+    ALLOCATE (all_row_p (nwms))
+    ALLOCATE (all_col_i (nwms))
+    ALLOCATE (all_blk_p (nwms))
+    ALLOCATE (all_data_sizes (0:nwms))
+    ALLOCATE (all_data_offsets (nwms))
+    IF (sort_data) ALLOCATE (all_data_areas(0:nwms))
+    IF (sort_data) THEN
+       CALL dbcsr_data_init (all_data_areas(0))
+       all_data_areas(0) = matrix%data_area
+       !$OMP CRITICAL (crit_data)
+       CALL dbcsr_data_hold (all_data_areas(0))
+       !$OMP END CRITICAL (crit_data)
+       !
+       ! The following is valid because the data actually referenced
+       ! by blocks is explicitly calculated in dbcsr_finalize.
+       all_data_sizes(0) = matrix%nze
+    ELSE
+       all_data_sizes(0) = dbcsr_data_get_size_referenced(matrix%data_area)
+    ENDIF
+    rbs => array_data(matrix%row_blk_size)
+    cbs => array_data(matrix%col_blk_size)
+    !$OMP END MASTER
+    !
+    !$OMP BARRIER
     nblks = wm%lastblk
-    ! Sort
-    IF (nblks .GT. 0) THEN
-       CALL dbcsr_sort_indices (nblks, wm%row_i, wm%col_i, wm%blk_p)
+    !$OMP ATOMIC
+    nblks_to_add = nblks_to_add + nblks
+    !$OMP ATOMIC
+    new_nblks = new_nblks + nblks
+    !$OMP ATOMIC
+    new_nze = new_nze + wm%datasize
+    !$OMP BARRIER
+    !
+    !$OMP MASTER
+    ALLOCATE (new_row_p (nrows+1))
+    ALLOCATE (new_col_i (new_nblks))
+    ALLOCATE (new_blk_p (new_nblks))
+    IF (sort_data) THEN
+       ALLOCATE (blk_d(new_nblks))
+    ELSE
+       ALLOCATE (blk_d(1))
+    ENDIF
+    !$OMP END MASTER
+    !
+    ! Each thread creates a row_p index for its new blocks.  This gives the
+    ! number of new blocks per thread per row.
+    CALL dbcsr_sort_indices (nblks, wm%row_i, wm%col_i, wm%blk_p)
+    ALLOCATE (my_row_p (nrows+1))
+    CALL dbcsr_make_dbcsr_index (my_row_p, wm%row_i, nrows, nblks)
+    !
+    ! The threads must share their row_p, col_i, blk_p, and data areas
+    ! among themselves.
+    all_row_p(which_wm)%p => my_row_p
+    IF (sort_data) THEN
+       all_data_sizes(which_wm) = wm%datasize
+    ELSE
+       all_data_sizes(which_wm) = wm%datasize
+       CALL dbcsr_assert (wm%datasize, "LE", dbcsr_data_get_size_referenced (wm%data_area),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Data size mismatch.", __LINE__, error=error)
+    ENDIF
+    all_col_i(which_wm)%p => wm%col_i
+    all_blk_p(which_wm)%p => wm%blk_p
+    !$OMP BARRIER
+    IF (sort_data) THEN
+       !$OMP MASTER
+       all_data_offsets(:) = 0
+       !$OMP END MASTER
+       CALL dbcsr_data_init (all_data_areas(which_wm))
+       all_data_areas(which_wm) = wm%data_area
+       !$OMP CRITICAL (crit_data)
+       CALL dbcsr_data_hold (all_data_areas(which_wm))
+       !$OMP END CRITICAL (crit_data)
+    ELSE
+       !$OMP MASTER
+       all_data_offsets(1) = all_data_sizes(0)
+       DO t = 2, nwms
+          all_data_offsets(t) = all_data_offsets(t-1) + all_data_sizes(t-1)
+       ENDDO
+       !$OMP END MASTER
     ENDIF
     !
-    additions_total(:) = 0
-    DO blk = 1, wm%lastblk
-       row = wm%row_i(blk)
-       col = wm%col_i(blk)
-       nze = row_sizes(row) * col_sizes(col)
-       blk_p(1,blk) = wm%blk_p(blk) ! offset will go here
-       blk_p(2,blk) = nze
-       additions_per_row(index_blocks, row)&
-            = additions_per_row(index_blocks, row) + 1
-       additions_per_row(index_data, row)&
-            = additions_per_row(index_data, row) + nze
-       additions_total(index_blocks) = additions_total(index_blocks) + 1
-       additions_total(index_data) = additions_total(index_data) + nze
-    ENDDO
-    CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE count_blocks_to_add
-
-
-! *****************************************************************************
-!> \brief Adds (a thread's) count of blocks to add to total count
-!>
-!> \param[in,out] row_counts            total counts of blocks to add per row
-!> \param[in]additions_per_row          number of blocks and data to add for
-!>                                      every row (for current thread/work
-!>                                      matrix)
-! *****************************************************************************
-  SUBROUTINE add_to_row_count (row_counts, additions_per_row)
-    INTEGER, DIMENSION(:), POINTER           :: row_counts
-    INTEGER, DIMENSION(:), INTENT(IN)        :: additions_per_row
-
-    INTEGER                                  :: nrows, row
-
-!   ---------------------------------------------------------------------------
-
-    nrows = SIZE (additions_per_row)
+    ! The new row counts are created, then the new row_p index is created.
+    !
+    !$OMP DO
     DO row = 1, nrows
-       IF (additions_per_row(row) .GT. 0) THEN
-          !$OMP ATOMIC
-          row_counts(row) = row_counts(row) + additions_per_row(row)
-       ENDIF
+       my_row_count = old_row_p(row+1)-old_row_p(row)
+       DO t = 1, nwms
+          my_row_count = my_row_count &
+               &       + all_row_p(t)%p(row+1)-all_row_p(t)%p(row)
+       ENDDO
+       new_row_p(row) = my_row_count
     ENDDO
-  END SUBROUTINE add_to_row_count
-
-
-! *****************************************************************************
-!> \brief Computes offsets for each work matrix
-!> \param[in,out] all_offsets    array of all offsets
-!> \param[in] my_size            my thead's size
-!> \param[in] first_offset       the offset for the first thread
-! *****************************************************************************
-  SUBROUTINE tally_offsets (all_offsets, my_size, first_offset)
-    INTEGER, DIMENSION(:), POINTER           :: all_offsets
-    INTEGER, INTENT(IN)                      :: my_size, first_offset
-
-    INTEGER                                  :: me, o, old_size
-
-!   ---------------------------------------------------------------------------
-
-    me = 1
-    !$ me = omp_get_thread_num() + 1
-    all_offsets(me) = my_size
-!$OMP BARRIER
+    !$OMP END DO
     !$OMP MASTER
-    old_size = all_offsets(1)
-    all_offsets(1) = first_offset
-    DO me = 2, SIZE (all_offsets)
-       o = all_offsets(me)
-       all_offsets(me) = all_offsets(me-1) + old_size
-       old_size = o
-    ENDDO
+    max_row_count = MAXVAL (new_row_p(1:nrows))
+    CALL dbcsr_build_row_index(new_row_p, nrows)
     !$OMP END MASTER
     !$OMP BARRIER
-  END SUBROUTINE tally_offsets
-  
+    !
+    ! The new index is built
+    CALL merge_index (new_row_p, new_col_i, new_blk_p,&
+         blk_d,&
+         old_row_p, old_col_i, old_blk_p,&
+         all_row_p, all_col_i, all_blk_p,&
+         all_data_offsets, nwms, nrows, max_row_count, sort_data, &
+         error)
+    !
+    ! The data is then merged in one of two ways.
+    !
+    !$OMP MASTER
+    new_data_size = SUM (all_data_sizes)
+    IF (sort_data) THEN
+       ! The matrix gets a fresh data area.  Blocks from the work
+       ! matrices will be copied into it in order.
+       !
+       !$OMP CRITICAL (crit_data)
+       CALL dbcsr_data_release (matrix%data_area)
+       CALL dbcsr_data_init (matrix%data_area)
+       !$OMP END CRITICAL (crit_data)
+       CALL dbcsr_data_new (matrix%data_area,&
+            data_size = new_data_size,&
+            data_type=dbcsr_data_get_type (all_data_areas(0)),&
+            memory_type = dbcsr_data_get_memory_type (all_data_areas(0)))
+       ALLOCATE (new_blk_p_sorted (new_nblks))
+       ALLOCATE (new_blk_sizes (new_nblks))
+    ELSE
+       ! Data stored in the work matrices will be just appended to the
+       ! current data area.
+       CALL dbcsr_data_ensure_size (matrix%data_area, new_data_size, error=error)
+    ENDIF
+    !$OMP END MASTER
+    !$OMP BARRIER
+    IF (sort_data) THEN
+       CALL dbcsr_calc_block_sizes(new_blk_sizes,&
+            new_row_p, new_col_i, rbs, cbs)
+       CALL dbcsr_sort_data (new_blk_p_sorted, new_blk_p,&
+            new_blk_sizes, dsts=matrix%data_area,&
+            src=all_data_areas(0),&
+            srcs=all_data_areas, old_blk_d=blk_d, error=error)
+    ELSE
+       IF (all_data_sizes(which_wm) .GT. 0) THEN
+          CALL dbcsr_data_copy(dst=matrix%data_area,&
+               dst_lb=(/ all_data_offsets(which_wm)+1 /),&
+               dst_sizes=(/ all_data_sizes(which_wm) /),&
+               src=wm%data_area,&
+               src_lb=(/ 1 /),&
+               src_sizes=(/ all_data_sizes(which_wm) /),&
+               error=error)
+       ENDIF
+    ENDIF
+    !
+    ! Creates a new index array.
+    !
+    !$OMP MASTER
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
+    CALL dbcsr_addto_index_array (matrix, dbcsr_slot_row_p,&
+         DATA=new_row_p(1:nrows+1), extra=new_nblks*2, error=error)
+    CALL dbcsr_addto_index_array (matrix, dbcsr_slot_col_i,&
+         DATA=new_col_i(1:new_nblks), error=error)
+    IF (sort_data) THEN
+       CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
+            DATA=new_blk_p_sorted, error=error)
+    ELSE
+       CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
+            DATA=new_blk_p, error=error)
+    ENDIF
+    matrix%nblks = new_nblks
+    matrix%nze = new_data_size
+    matrix%index(dbcsr_slot_nblks) = matrix%nblks
+    matrix%index(dbcsr_slot_nze) = matrix%nze
+    CALL dbcsr_repoint_index(matrix)
+    !$OMP END MASTER
+    !
+    !$OMP BARRIER
+    !
+    DEALLOCATE (my_row_p)
+    IF (sort_data) THEN
+       !$OMP MASTER
+       !$OMP CRITICAL (crit_data)
+       CALL dbcsr_data_release (all_data_areas(0))
+       !$OMP END CRITICAL (crit_data)
+       DO which_wm = 1, nwms
+          !$OMP CRITICAL (crit_data)
+          CALL dbcsr_data_release (all_data_areas(which_wm))
+          !$OMP END CRITICAL (crit_data)
+       ENDDO
+       !$OMP END MASTER
+    ENDIF
+    !$BARRIER
+    !$OMP MASTER
+    DEALLOCATE (all_row_p)
+    DEALLOCATE (all_col_i)
+    DEALLOCATE (all_blk_p)
+    DEALLOCATE (new_row_p)
+    DEALLOCATE (new_col_i)
+    DEALLOCATE (new_blk_p)
+    DEALLOCATE (all_data_sizes)
+    DEALLOCATE (all_data_offsets)
+    IF (sort_data) THEN
+       DEALLOCATE (all_data_areas)
+       DEALLOCATE (new_blk_sizes)
+       DEALLOCATE (new_blk_p_sorted)
+    ENDIF
+    DEALLOCATE (blk_d)
+    !$OMP END MASTER
+    !$OMP BARRIER
+    IF (dbg) WRITE(*,*)routineN//" stopped"
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_merge_all
+
+
+! *****************************************************************************
+!> \brief Builds a new index from several work matrices.
+!>
+!> \param[in] wm          work matrix
+!> \param[in,out] additions_per_row     number of blocks and data to add for
+!>                                      every row
+!> \param[out] additions_total          total number of blocks and data to add
+!> \param[out] blk_p          block sizes of data to add
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE merge_index (new_row_p, new_col_i, new_blk_p,&
+       blk_d, old_row_p, old_col_i, old_blk_p,&
+       all_row_p, all_col_i, all_blk_p,&
+       all_data_offsets, nwms, nrows, max_row_count, sort_data, error)
+    INTEGER, DIMENSION(*), INTENT(IN)        :: new_row_p
+    INTEGER, DIMENSION(*), INTENT(OUT), &
+      TARGET                                 :: new_col_i, new_blk_p
+    INTEGER, DIMENSION(*), INTENT(IN), &
+      TARGET                                 :: blk_d
+    INTEGER, DIMENSION(*), INTENT(IN)        :: old_row_p, old_col_i, &
+                                                old_blk_p
+    TYPE(i_array_p), DIMENSION(*), &
+      INTENT(IN)                             :: all_row_p, all_col_i, &
+                                                all_blk_p
+    INTEGER, DIMENSION(*), INTENT(IN)        :: all_data_offsets
+    INTEGER, INTENT(IN)                      :: nwms, nrows, max_row_count
+    LOGICAL, INTENT(IN)                      :: sort_data
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'merge_index', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk1, blk2, error_handle, &
+                                                first_row_blk, last_row_blk, &
+                                                row, src_blk_1, src_blk_2, t
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p_buff, tmp_arr
+    INTEGER, DIMENSION(:), POINTER           :: blk_span, col_span, d_span
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    !
+    ALLOCATE (tmp_arr(max_row_count))
+    ALLOCATE (blk_p_buff(max_row_count))
+    !
+    !$OMP DO
+    DO row = 1, nrows
+       first_row_blk = new_row_p(row)+1
+       last_row_blk = new_row_p(row+1)
+       col_span => new_col_i (first_row_blk : last_row_blk)
+       blk_span => new_blk_p (first_row_blk : last_row_blk)
+       IF (sort_data) d_span => blk_d (first_row_blk : last_row_blk)
+       src_blk_1 = old_row_p(row)+1
+       src_blk_2 = old_row_p(row+1)
+       blk1 = 1
+       blk2 = blk1 + (src_blk_2 - src_blk_1+1) - 1
+       col_span(blk1:blk2) = old_col_i(src_blk_1:src_blk_2)
+       blk_span(blk1:blk2) = old_blk_p(src_blk_1:src_blk_2)
+       IF (sort_data) THEN
+          d_span(blk1:blk2) = 1
+          DO t = 1, nwms
+             src_blk_1 = all_row_p(t)%p(row)+1
+             src_blk_2 = all_row_p(t)%p(row+1)
+             blk1 = blk2+1
+             blk2 = blk1 + (src_blk_2 - src_blk_1 + 1) - 1
+             col_span(blk1:blk2) = all_col_i(t)%p(src_blk_1:src_blk_2)
+             blk_span(blk1:blk2) = all_blk_p(t)%p(src_blk_1:src_blk_2)
+             d_span(blk1:blk2) = t+1
+          ENDDO
+       ELSE
+          DO t = 1, nwms
+             src_blk_1 = all_row_p(t)%p(row)+1
+             src_blk_2 = all_row_p(t)%p(row+1)
+             blk1 = blk2+1
+             blk2 = blk1 + (src_blk_2 - src_blk_1 + 1) - 1
+             col_span(blk1:blk2) = all_col_i(t)%p(src_blk_1:src_blk_2)
+             blk_span(blk1:blk2) = all_blk_p(t)%p(src_blk_1:src_blk_2) &
+                  &              + all_data_offsets(t)
+          ENDDO
+       ENDIF
+       CALL sort (col_span, SIZE(col_span), tmp_arr)
+       blk_p_buff(1:SIZE(blk_span)) = blk_span(:)
+       blk_span(1:SIZE(blk_span)) = blk_p_buff(tmp_arr(1:SIZE(blk_span)))
+    ENDDO
+    !$OMP END DO
+    !
+    DEALLOCATE (tmp_arr)
+    DEALLOCATE (blk_p_buff)
+    !
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE merge_index
 
 
 #include "dbcsr_work_operations_d.F"

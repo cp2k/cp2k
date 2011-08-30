@@ -249,7 +249,7 @@ MODULE dbcsr_types
      COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: c2_sp
      COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: c2_dp
      INTEGER                                  :: ref_size
-     INTEGER                                  :: refcount
+     INTEGER                                  :: refcount, id
      INTEGER                                  :: memory_type
      INTEGER                                  :: data_type
   END TYPE dbcsr_data_area_type

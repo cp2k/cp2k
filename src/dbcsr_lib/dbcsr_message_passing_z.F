@@ -2027,6 +2027,7 @@
          routineP = moduleN//':'//routineN
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
+    !$ IF (OMP_GET_THREAD_NUM() .NE. 0) call mp_stop(ierr, routineN)
     t_start = m_walltime()
     ierr = 0
     NULLIFY(DATA)
@@ -2061,6 +2062,7 @@
     INTEGER                   :: ierr
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
+    !$ IF (OMP_GET_THREAD_NUM() .NE. 0) call mp_stop(ierr, routineN)
     t_start = m_walltime()
     ierr = 0
     CALL mp_free_mem(DATA, ierr)

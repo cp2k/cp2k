@@ -1374,6 +1374,9 @@ CONTAINS
        DO col_img = 1, ncol_images
           ums%mats(row_img,col_img)%m%wms(1)%lastblk = blks(row_img,col_img) - 1
           ums%mats(row_img,col_img)%m%wms(1)%datasize = blk_ps(row_img,col_img) - 1
+          CALL dbcsr_data_set_size_referenced (&
+               ums%mats(row_img,col_img)%m%wms(1)%data_area,&
+               ums%mats(row_img,col_img)%m%wms(1)%datasize)
           IF (nrow_images.EQ.1 .AND. ncol_images.eq.1 .OR. nocopy) THEN
              CALL dbcsr_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.,error=dbcsr_error)
           ELSE

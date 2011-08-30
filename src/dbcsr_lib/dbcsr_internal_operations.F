@@ -3458,10 +3458,10 @@ CONTAINS
     LOGICAL, PARAMETER                       :: careful = careful_mod, &
                                                 dbg = .FALSE.
     REAL, PARAMETER                          :: resize_factor = 1.618034
-    REAL(KIND=dp)                            :: t_tmp
 
     INTEGER                                  :: sp
     INTEGER, DIMENSION(6)                    :: bounds
+    REAL(KIND=dp)                            :: t_tmp
 
 !   ---------------------------------------------------------------------------
 

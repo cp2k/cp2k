@@ -81,6 +81,7 @@ MODULE dbcsr_util
   ! utility routines
   PUBLIC :: sort, joaat_hash
   PUBLIC :: count_bins
+  PUBLIC :: partitions
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
@@ -418,12 +419,13 @@ CONTAINS
 !> \param[in] rbs, cbs        row block sizes and column block sizes
 ! *****************************************************************************
   SUBROUTINE dbcsr_calc_block_sizes(sizes, row_p, col_i, rbs, cbs)
-    INTEGER, DIMENSION(:), POINTER           :: sizes
-    INTEGER, DIMENSION(:), INTENT(IN)        :: row_p, col_i, rbs, cbs
+    INTEGER, DIMENSION(*), INTENT(OUT)       :: sizes
+    INTEGER, DIMENSION(:), INTENT(IN)        :: row_p
+    INTEGER, DIMENSION(*), INTENT(IN)        :: col_i, rbs, cbs
 
     INTEGER                                  :: blk, nrows, row, row_size
 
-    nrows = SIZE (row_p)-1
+    nrows = SIZE(row_p)-1
     !$OMP DO
     DO row = 1, nrows
        row_size = rbs(row)
@@ -1484,5 +1486,29 @@ CONTAINS
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
     hash_index = hash
   END FUNCTION joaat_hash
+
+! *****************************************************************************
+!> \brief Calculates partition
+!> \param[in] total_size      Length to partition
+!> \param[in] me              My position (from 0 to num-1)
+!> \param[in] num             Number of postitions
+!> \param[out] first          First element of my position
+!> \param[out] last           Last element of my position
+! *****************************************************************************
+  pure SUBROUTINE partitions (total_size, me, num, first, last)
+    INTEGER, INTENT(IN)                      :: total_size, me, num
+    INTEGER, INTENT(OUT)                     :: first, last
+
+    first = INT(&
+           (  INT(total_size,kind=int_8) &
+            * INT(me,kind=int_8) &
+           ) &
+         / INT(num,kind=int_8), kind=int_4) + 1
+    last = INT(&
+           (  INT(total_size,kind=int_8) &
+            * INT(me+1,kind=int_8) &
+           ) &
+         / INT(num,kind=int_8), kind=int_4)
+  END SUBROUTINE partitions
 
 END MODULE dbcsr_util

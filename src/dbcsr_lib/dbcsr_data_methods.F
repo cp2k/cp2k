@@ -50,6 +50,7 @@ MODULE dbcsr_data_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods'
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
+  INTEGER, SAVE                        :: id = 0
 
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
@@ -467,6 +468,9 @@ CONTAINS
     IF (.NOT. ASSOCIATED (area%d)) THEN
        ALLOCATE (area%d)
     ENDIF
+    id = id + 1
+    !$OMP FLUSH (id)
+    area%d%id = id
     NULLIFY (area%d%r_sp)
     NULLIFY (area%d%r_dp)
     NULLIFY (area%d%c_sp)

@@ -80,7 +80,7 @@ MODULE dbcsr_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
 
-  INTEGER, PUBLIC :: dbcsr_matrix_counter = 111111
+  INTEGER, PUBLIC, SAVE :: dbcsr_matrix_counter = 111111
 
   PUBLIC :: dbcsr_init, dbcsr_init_p
   PUBLIC :: dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy
@@ -2102,6 +2102,7 @@ CONTAINS
     row_blk_sizes => array_data (dbcsr_row_block_sizes (matrix))
     col_blk_sizes => array_data (dbcsr_col_block_sizes (matrix))
     data_size = 0
+    !$OMP DO
     DO row = 1, matrix%m%nblkrows_total
        DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
           col = matrix%m%col_i(blk)
@@ -2112,6 +2113,7 @@ CONTAINS
           ENDIF
        ENDDO
     ENDDO
+    !$OMP END DO
     CALL dbcsr_error_stop (error_handle, error)
   END FUNCTION dbcsr_get_data_size_used
 

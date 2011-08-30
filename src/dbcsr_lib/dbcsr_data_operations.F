@@ -16,6 +16,7 @@ MODULE dbcsr_data_operations
 
   USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy
   USE dbcsr_block_operations,          ONLY: dbcsr_block_transpose,&
+                                             dbcsr_data_copy,&
                                              dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
@@ -338,8 +339,12 @@ CONTAINS
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                   'Destination data space is too small.',__LINE__,error)
              IF (.NOT. trb) THEN
-                CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
-                     src, source_lb=ABS(old_blk_p(blk)))
+                CALL dbcsr_data_copy (dst=dst, dst_lb=(/ABS(blk_p(blk))/),&
+                     dst_sizes = (/ nze /),&
+                     src=src, src_lb=(/ ABS(old_blk_p(blk)) /),&
+                     src_sizes=(/ nze /), error=error)
+                !CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
+                !     src, source_lb=ABS(old_blk_p(blk)))
              ELSE
                 CALL dbcsr_block_transpose (dst, src,&
                      col_size, row_size,&
@@ -369,7 +374,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dsts, src,&
        srcs, old_blk_d, error)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p
+    INTEGER, DIMENSION(*), INTENT(OUT)       :: blk_p
     INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, sizes
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dsts
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
@@ -385,28 +390,20 @@ CONTAINS
     INTEGER                                  :: error_handler, i, nblks
     LOGICAL                                  :: multidata
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
-    DBG 'blk sizes', SIZE(blk_p), nblks
-    DBG 'dst data sizes', dbcsr_data_get_size(dsts)
-    CALL dbcsr_assert(SIZE(blk_p),'GE',nblks, dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN, 'Destination blk_p too small.',__LINE__,error)
-    ! If the source is deliberately bigger, we don't want any warnings.
-    !CALL dbcsr_assert(SIZE(dst).GE.SIZE(src), dbcsr_warning_level,&
-    !     dbcsr_wrong_args_error, routineN,&
-    !     'Destination data space may be too small.',&
-    !     error)
-    DBGV 'old_blk_p',old_blk_p
-    DBGV 'sizes', sizes
-    IF (SIZE (old_blk_p) .GT. 0) THEN
+    IF (nblks .GT. 0) THEN
+       !$OMP MASTER
        blk_p(1) = SIGN(1, old_blk_p(1))
        DO i = 2, nblks
           blk_p(i) = SIGN(ABS(blk_p(i-1)) + sizes(i-1), old_blk_p(i))
        ENDDO
+       !$OMP END MASTER
+       !$OMP BARRIER
+       CALL dbcsr_data_set_size_referenced (dsts, blk_p(nblks) + sizes(nblks)-1)
        !$OMP DO
        DO i = 1, nblks
           IF (old_blk_p(i) .NE. 0) THEN
@@ -428,7 +425,6 @@ CONTAINS
        ENDDO
        !$OMP END DO
     ENDIF
-    DBGV 'new blk_p =',blk_p
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_sort_data
 
