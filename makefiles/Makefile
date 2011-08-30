@@ -55,7 +55,9 @@ DOXYGENDIR   = $(DOCDIR)/doxygen
 
 ### Definition of the multiple targets ###
 #
-VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
+# Should really be
+#VERSION_TARGTES= sopt sdbg popt pdbg topt hopt tdbg hdbg
+VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp tdbg hdbg
 #
 # uses an ugly trick, these are disguised as file names, the directory (@D) part 
 # is used as a version, the file (@F) part is used as the target.
