@@ -403,7 +403,8 @@ CONTAINS
        ENDDO
        !$OMP END MASTER
        !$OMP BARRIER
-       CALL dbcsr_data_set_size_referenced (dsts, blk_p(nblks) + sizes(nblks)-1)
+       CALL dbcsr_data_set_size_referenced (dsts,&
+            ABS(blk_p(nblks)) + sizes(nblks)-1)
        !$OMP DO
        DO i = 1, nblks
           IF (old_blk_p(i) .NE. 0) THEN
