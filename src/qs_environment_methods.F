@@ -348,7 +348,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     ENDIF
 
     skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
-    IF (.NOT. dft_control%qs_control%semi_empirical) THEN
+    IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) ) THEN
        ! generate task lists (non-soft)
        IF (.NOT. dft_control%qs_control%gapw) THEN
           CALL get_qs_env(qs_env=qs_env,task_list=task_list,error=error)
