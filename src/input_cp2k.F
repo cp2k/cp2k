@@ -618,11 +618,109 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,sub_section,error=error)
     CALL section_release(sub_section,error=error)
+    ! Machine arch
+    CALL create_march_section(sub_section,error)
+    CALL section_add_subsection(section,sub_section,error=error)
+    CALL section_release(sub_section,error=error)
     ! DBCSR options
     CALL create_dbcsr_section(sub_section,error)
     CALL section_add_subsection(section,sub_section,error=error)
     CALL section_release(sub_section,error=error)
  END SUBROUTINE create_global_section
+
+! *****************************************************************************
+!> \brief   Creates the machine architecture section
+!> \author  Christiane Pousa Ribeiro
+!> \date    2011-08-15
+! *****************************************************************************
+  SUBROUTINE create_march_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_march_section', &
+      routineP = moduleN//':'//routineN
+    CHARACTER(len=32), PARAMETER             :: has = "", &
+                                                hasnot = " (not available)"
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="MACHINE_ARCH",&
+         description="Configuration options for the machine architecture.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="PRINT_RESUME",&
+         description="Print machine architecture number of components.", &
+         usage="PRINT_RESUME TRUE",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="PRINT_FULL",&
+         description="Print full machine architecture", &
+         usage="PRINT_FULL TRUE",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+     !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="PRINT_BRANCH",&
+         description="Print machine architecture component organization.", &
+         usage="PRINT_BRANCH TRUE",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+      !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="PRINT_THREAD",&
+         description="Print the threads binding in the machine.", &
+         usage="PRINT_THREAD TRUE",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+      !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="PRINT_THREAD_CUR",&
+         description="Print the current threads binding in the machine.", &
+         usage="PRINT_THREAD_CUR TRUE",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+   !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="PRINT_PROC",&
+         description="Print the process binding in the machine.", &
+         usage="PRINT_PROC TRUE",&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+   !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="SCHED_THREAD",&
+         description="Enable thread scheduling on the machine.", &
+         usage="SCHED_THREAD type (L=linear)",&
+         default_c_val='N',error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+   !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="MEM_POL",&
+         description="Enable memory binding on the machine.", &
+         usage="MEM_POL type (D=default, L=local, I=interleave )",&
+         default_c_val='N',error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+   !
+
+  END SUBROUTINE create_march_section
 
 ! *****************************************************************************
 !> \brief   Creates the dbcsr section for configuring DBCSR

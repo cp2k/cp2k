@@ -16,6 +16,7 @@ ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
 LIB3      = cp2k_dbcsr_lib
+LIB4      = cp2k_ma_lib
 LIBCP2K   = cp2k_lib
 export VERSION=sopt
 export WHAT   =_progr
@@ -31,7 +32,7 @@ PRETTYOBJDIR = $(CP2KHOME)/obj/prettified
 TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
 SRCDIR       = $(CP2KHOME)/src
-SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/machine
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
@@ -44,10 +45,13 @@ OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_OBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
 LIB2_OBJECTDEFS= $(SRCDIR)/dbcsr_lib/OBJECTDEFS
 LIB3_OBJECTDEFS= $(SRCDIR)/fft_lib/OBJECTDEFS
+LIB4_OBJECTDEFS= $(SRCDIR)/arch_lib/OBJECTDEFS
 LIBNVOBJECTDEFS= $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
+LIBMA_OBJECTDEFS = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB3_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
+LIB4_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
@@ -78,6 +82,7 @@ build: dirs deptool
 	+$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) dbcsr.dep
 	+$(MAKE) -C $(SRCDIR)/fft_lib -f $(MAKEFILE) fft.dep
+	+$(MAKE) -C $(SRCDIR)/arch_lib -f $(MAKEFILE) ma.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 fes: dirs deptool
@@ -98,6 +103,7 @@ pretty: dirs
 	+$(MAKE) -C $(SRCDIR)/lib       -f $(MAKEFILE) _pretty_lib1
 	+$(MAKE) -C $(SRCDIR)/fft_lib   -f $(MAKEFILE) _pretty_lib2
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
+	+$(MAKE) -C $(SRCDIR)/arch_lib  -f $(MAKEFILE) _pretty_lib4
 
 deptool: dirs
 	+$(MAKE) LDFLAGS=$(MAKDEPF90_LDFLAGS) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
@@ -130,9 +136,11 @@ include $(OBJECTDEFS)
 include $(LIB1_OBJECTDEFS)
 include $(LIB2_OBJECTDEFS)
 include $(LIB3_OBJECTDEFS)
+include $(LIB4_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
+include $(LIBMA_OBJECTDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
@@ -142,8 +150,14 @@ ifneq ($(NVCC),)
   LIBNV_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_cuda.a
 endif
 
+# HWLOC
+ifneq ($(HWLOC),)
+  LIBMA_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_ma.a
+endif
+
+
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBNV_ARCHIVE)
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBMA_ARCHIVE)
 
 #
 # some practical variables for the build.
@@ -173,6 +187,7 @@ vpath %.f90 $(SRCDIRS)
 vpath %.dep $(OBJDIR)/$(VERSION)
 vpath %.pretty $(PRETTYOBJDIR)
 vpath %.cu $(SRCDIRS)
+vpath %.c $(SRCDIRS)
 
 #
 # if the modules generated are not of the lower case form (e.g. kinds.F does not lead to kinds.mod)
@@ -197,7 +212,7 @@ endif
 # this is obviously not correct (i.e. can lead to a miscompiled CP2K), 
 # but if you know what you are doing (i.e. you are sure that only information private to this module will be changed) might be useful nevertheless.
 #
-all.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
+all.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
 ifeq ($(HACKDEP),yes)
 	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
@@ -210,8 +225,11 @@ lib.dep: $(LIB1_OBJECTS:.o=.F)
 fft.dep: $(LIB2_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fft.dep || ( rm -f $(OBJDIR)/$(VERSION)/fft.dep ; exit 1 )
 
-dbcsr.dep: $(LIB3_OBJECTS:.o=.F)
+dbcsr.dep: $(LIB3_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/dbcsr.dep || ( rm -f $(OBJDIR)/$(VERSION)/dbcsr.dep ; exit 1 )
+
+ma.dep: $(LIB4_OBJECTS:.o=.F)
+	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/ma.dep || ( rm -f $(OBJDIR)/$(VERSION)/ma.dep ; exit 1 )
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
@@ -229,6 +247,7 @@ _pretty:$(OBJECTS:.o=.pretty)
 _pretty_lib1:$(LIB1_OBJECTS:.o=.pretty)
 _pretty_lib2:$(LIB2_OBJECTS:.o=.pretty)
 _pretty_lib3:$(LIB3_OBJECTS:.o=.pretty)
+_pretty_lib4:$(LIB4_OBJECTS:.o=.pretty)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $?
@@ -248,12 +267,19 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB3_ARCHIVE)
 endif
 
+$(LIB4_ARCHIVE): $(LIB4_OBJECTS)
+	$(AR) $(LIB4_ARCHIVE) $?
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB4_ARCHIVE)
+endif
+
+
 #
 # a hack to first compile the src/lib/ stuff before files from src/
 # otherwise we have missing dependencies
 #
 ifneq ($(HACKLIBDEP),yes)
-LIB_OBJECTS = $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+LIB_OBJECTS = $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 else
 LIB_OBJECTS =
 endif
@@ -268,6 +294,12 @@ ifneq ($(NVCC),)
   $(LIBNV_ARCHIVE): $(LIBNV_OBJECTS)
 	$(AR) $(LIBNV_ARCHIVE) $?
 endif
+
+ifneq ($(HWLOC),)
+  $(LIBMA_ARCHIVE): $(LIBMA_OBJECTS)
+	$(AR) $(LIBMA_ARCHIVE) $?
+endif
+
 
 $(PROG): $(ALL_LIB) cp2k.o
 	+$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(ALL_LIB) $(LIBS)
@@ -304,6 +336,10 @@ endif
 
 %.o: %.cu
 	$(NVCC) -c $(NVFLAGS) $<
+
+%.o: %.c
+	echo $<
+	$(CC) -c $(CFLAGS) $<
 
 #
 # here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K)
@@ -342,6 +378,7 @@ realclean: clean
 	-rm -f $(LIB1_ARCHIVE)
 	-rm -f $(LIB2_ARCHIVE)
 	-rm -f $(LIB3_ARCHIVE)
+	-rm -f $(LIB4_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
 #
 # really remove all build files not in CVS
@@ -372,6 +409,7 @@ doxygen: doxygen/clean
 	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/fft_lib ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/dbcsr_lib ; for f in $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/arch_lib ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
 # an additional dependency of the CVS entries in the source directory

@@ -1,0 +1,9 @@
+LIB4_OBJECTS = machine_architecture_types.o\
+               machine_architecture_utils.o\
+               machine_architecture.o\
+	       ma_c_mpi_calls.o\
+               ma_dummy_c_bindings.o\
+	       ma_config.o\
+               ma_kinds.o\
+               ma_machine.o\
+               ma_message_passing.o\

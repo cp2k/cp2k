@@ -352,7 +352,7 @@ CONTAINS
     TYPE(cp_dbcsr_type)                      :: SC
     REAL(dp), INTENT(IN)                     :: norm_in
     LOGICAL, INTENT(IN)                      :: update
-    INTEGER,INTENT(IN)                       :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_poly', &
@@ -631,7 +631,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(inout)       :: P, FY, P2, T
     INTEGER, INTENT(in)                      :: irac_degree
     REAL(dp), INTENT(in)                     :: eps_irac_filter_matrix
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine', &

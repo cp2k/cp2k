@@ -1,0 +1,2 @@
+LIBMA_OBJECTS = ma_hwloc.o\
+                ma_linux.o 

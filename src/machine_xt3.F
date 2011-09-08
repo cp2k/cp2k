@@ -20,7 +20,8 @@ MODULE machine_xt3
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg,&
-            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details
+            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details, &
+            m_procrun
 
 CONTAINS
 ! *** get more detailed memory info, all units are bytes.
@@ -43,6 +44,19 @@ CONTAINS
      MemLikelyFree=0
 
   END SUBROUTINE m_memory_details
+
+! returns if a process is running on the local machine
+! 1 if yes and 0 if not
+
+INTEGER FUNCTION m_procrun(id) RESULT (run_on)
+    INTEGER           ::   id, ios
+    CHARACTER(len=80) ::   filename, tmp
+    CHARACTER(len=8)  ::   id_s
+
+    run_on = 0
+
+END FUNCTION m_procrun
+
 
 ! *****************************************************************************
 FUNCTION m_loc_r(a) RESULT(res)

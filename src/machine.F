@@ -18,78 +18,93 @@ MODULE machine
   USE machine_aix, ONLY    : & 
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __IRIX )
   USE machine_irix, ONLY   : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __G95 )
   USE machine_g95, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __GFORTRAN )
   USE machine_gfortran, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_procrun, &
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __CCE )
   USE machine_cce, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __INTEL )
   USE machine_intel, ONLY  : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 ! must be before __PGI because pgf90 defines __PGI
 #elif defined ( __XT3 )
   USE machine_xt3, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __XT5 )
   USE machine_xt5, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __PGI )
   USE machine_pgi, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __T3E )
   USE machine_t3e, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __DEC )
   USE machine_dec, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __SUN )
   USE machine_sun, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __NAG )
   USE machine_nag, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #elif defined ( __SX )
   USE machine_sx, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
+       m_procrun
 #endif
 
   IMPLICIT NONE
@@ -109,7 +124,7 @@ MODULE machine
   PRIVATE
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, m_flush_internal, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_procrun,&
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 
   ! should only be set according to the state in &GLOBAL

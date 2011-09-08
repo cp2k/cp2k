@@ -102,6 +102,15 @@ How to compile CP2K code
        underscore for linking C subroutines.
      * Consult cuda_tools/README for more information.
 
+ 2i) Machine architecture abstraction support (optional, under development):
+     * Use the __HWLOC or __LIBNUMA to compile with hwloc or libnuma support
+       for machine architecture and process/threads/memory 
+       placement visualization. It is necessary to link with -lhwloc or -lnuma.
+       The compiler must support ISO_C_BINDING.
+     * Machine architecture visualization is supported only with hwloc. 
+       Process/threads/memory placement visualization is supported by both.
+     * Note that it is not possible to use at same time hwloc and libnuma.
+     * Consult machine/README for more information.
 
  3) To compile the code:
 

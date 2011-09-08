@@ -62,7 +62,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
-    INTEGER,INTENT(IN)                       :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp

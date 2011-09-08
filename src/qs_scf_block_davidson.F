@@ -17,13 +17,15 @@ MODULE qs_scf_block_davidson
 
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add, &
-       cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release,&
-       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_norm,  cp_dbcsr_release_p, cp_dbcsr_row_block_sizes,&
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply, copy_dbcsr_to_fm, copy_fm_to_dbcsr
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
+       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -36,25 +38,18 @@ MODULE qs_scf_block_davidson
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_diag,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_to_fm_submat,&
-                                             cp_fm_type,&
-                                             cp_fm_vectorsnorm
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
+       cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, &
+       cp_fm_vectorsnorm
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
                                              dbcsr_mp_npcols,&
                                              dbcsr_mp_nprows
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_complex_default,&
+                                             dbcsr_norm_column,&
                                              dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_default, dbcsr_norm_column
+                                             dbcsr_type_real_default
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum
@@ -92,7 +87,8 @@ CONTAINS
 
     INTEGER                                  :: handle, imo, istat, iter, &
                                                 max_iter, nao, nmo, &
-                                                nmo_converged, nmo_not_converged
+                                                nmo_converged, &
+                                                nmo_not_converged
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv
     LOGICAL                                  :: converged, &
                                                 do_apply_preconditioner, &
@@ -130,7 +126,7 @@ CONTAINS
                 " Cycle ", " conv. MOS ", " B2MAX ", " B2MIN ", " Time",  REPEAT("-",60)
     END IF
 
-    Allocate(iconv(nmo), STAT=istat)
+    ALLOCATE(iconv(nmo), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ritz_coeff(nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -368,29 +364,31 @@ CONTAINS
       POINTER                                :: preconditioner
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space_sparse', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'generate_extended_space_sparse', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, imo, istat, iter, max_iter, k,&
-                                                n, nao,nmo, nmo_converged, nmo_not_converged
+    INTEGER                                  :: handle, imo, istat, iter, k, &
+                                                max_iter, n, nao, nmo, &
+                                                nmo_converged, &
+                                                nmo_not_converged
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv
-    LOGICAL ::                                  converged, &
+    LOGICAL                                  :: converged, &
                                                 do_apply_preconditioner, &
                                                 failure
     REAL(dp)                                 :: max_norm, min_norm, t1, t2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ritz_coeff
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
-
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
-    TYPE(array_i1d_obj)                      :: row_blk_size, row_dist
-
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_hc, matrix_mm, matrix_sc, matrix_z, matrix_pz
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_hc, matrix_mm, &
+                                                matrix_pz, matrix_sc, &
+                                                matrix_z, mo_coeff_b
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: block_mat, matrix_mm_fm, matrix_mm_fm_t, &
-                                                matrix_nm_fm, mo_coeff, matrix_pz_fm
+    TYPE(cp_fm_type), POINTER                :: block_mat, matrix_mm_fm, &
+                                                matrix_mm_fm_t, matrix_nm_fm, &
+                                                matrix_pz_fm, mo_coeff
     TYPE(dbcsr_distribution_obj)             :: dist
-
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -418,7 +416,7 @@ CONTAINS
     ! Allocate array for Ritz values
     ALLOCATE(ritz_coeff(nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    Allocate(iconv(nmo), STAT=istat)
+    ALLOCATE(iconv(nmo), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! Allocate Sparse matrices: same distribution as mo_coeff_b => naoxnmo

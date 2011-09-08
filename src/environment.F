@@ -22,6 +22,7 @@ MODULE environment
                                              trash_map
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_ma_interface
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -58,7 +59,10 @@ MODULE environment
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
                                              m_flush_internal,&
-                                             m_memory_details
+                                             m_memory_details,&
+                                             m_procrun
+  USE machine_architecture
+  USE machine_architecture_types
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_max,&
@@ -198,7 +202,6 @@ CONTAINS
 !> \brief echos the list of host names and pids
 ! *****************************************************************************
   SUBROUTINE echo_all_hosts(para_env,output_unit)
-
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
 
@@ -219,6 +222,7 @@ CONTAINS
     END IF
     all_pid(:) = 0
     all_pid(para_env%mepos+1) = r_pid
+    
     CALL mp_sum(all_pid,para_env%group)
     ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
     IF (istat /= 0) THEN
@@ -229,6 +233,7 @@ CONTAINS
     CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
     CALL mp_sum(all_host,para_env%group)
     IF (output_unit>0) THEN
+  
        WRITE (UNIT=output_unit,FMT="(T2,A)") ""
        DO ipe=1,para_env%num_pe
           CALL ascii_to_string(all_host(:,ipe),string)
@@ -245,9 +250,79 @@ CONTAINS
     DEALLOCATE (all_host,STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
+
     END IF
 
   END SUBROUTINE echo_all_hosts
+
+! *****************************************************************************
+!> \brief echos the list the number of process per host
+! *****************************************************************************
+  SUBROUTINE echo_all_process_host(para_env,output_unit)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: output_unit
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_process_host', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: string, string_sec
+    INTEGER                                  :: ipe, istat, jpe, nr_occu
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_pid
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
+
+    ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
+            30*para_env%num_pe*int_size)
+    END IF
+    all_host(:,:) = 0
+            
+     IF (m_procrun(r_pid) .EQ. 1) THEN
+       CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
+       CALL mp_sum(all_host,para_env%group)
+     ENDIF  
+
+    IF (output_unit>0) THEN
+      ALLOCATE (all_pid(para_env%num_pe),STAT=istat)
+      IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,"all_pid",&
+            para_env%num_pe*int_size)
+      END IF
+      all_pid(:) = 0
+
+      WRITE (UNIT=output_unit,FMT="(T2,A)") ""
+       DO ipe=1,para_env%num_pe
+          nr_occu = 0
+        IF (all_pid(ipe) .NE. -1) THEN
+          CALL ascii_to_string(all_host(:,ipe),string)
+          DO jpe=1,para_env%num_pe
+             CALL ascii_to_string(all_host(:,jpe),string_sec)
+             IF  (string .EQ. string_sec) THEN
+                nr_occu = nr_occu +1 
+                all_pid(jpe) = -1
+             ENDIF 
+          END DO 
+          WRITE (UNIT=output_unit,FMT="(T2,A,T63,I8,A)")&
+               TRIM(r_user_name)//"@"//TRIM(string)//&
+               " is running ",nr_occu, " processes"
+          WRITE (UNIT=output_unit,FMT="(T2,A)") ""
+        END IF
+       END DO
+       DEALLOCATE (all_pid,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
+       END IF
+      
+    END IF
+
+    DEALLOCATE (all_host,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
+    END IF
+
+  END SUBROUTINE echo_all_process_host
+
+
 
 ! *****************************************************************************
 !> \brief read part of cp2k_init
@@ -417,7 +492,7 @@ CONTAINS
       potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
     INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
-      num_threads, output_unit, print_level, trace_max, unit_nr
+      nid, num_threads, output_unit, print_level, trace_max, unit_nr
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
@@ -438,7 +513,7 @@ CONTAINS
                                                 subsys_section
 
 !$  INTEGER :: omp_get_num_threads
-
+!$  INTEGER :: omp_get_thread_num
     failure = .FALSE.
     NULLIFY(dft_section,global_section, i_force_eval)
 
@@ -585,8 +660,19 @@ CONTAINS
     SReclaimable=SReclaimable/1024
     MemLikelyFree=MemLikelyFree/1024
 
+   ! Initialize the HWLOC 
+    IF (has_ma) THEN
+      CALL cp_ma_config(root_section,error)
+      CALL cp_ma_mempol(error)
+    ENDIF
+
     !   *** Print a list of all started processes ***
-    IF (do_echo_all_hosts) CALL echo_all_hosts(para_env,output_unit)
+    IF (do_echo_all_hosts) THEN 
+     CALL echo_all_hosts(para_env,output_unit)
+
+     ! *** Print the number of processes per host ***
+     CALL echo_all_process_host(para_env,output_unit)    
+    ENDIF
 
     num_threads=1
 !$omp parallel shared(num_threads)
@@ -692,8 +778,8 @@ CONTAINS
             start_section_label//"| Number of threads for this process",&
             num_threads,&
             start_section_label//"| This output is from process",para_env%mepos
-       WRITE (UNIT=output_unit,FMT='()')
 
+       WRITE (UNIT=output_unit,FMT="()")
        WRITE (UNIT=output_unit,FMT="(T2,A)") "MEMORY| system memory details [Kb]" 
        WRITE (UNIT=output_unit,FMT="(T2,A23,4A14)") "MEMORY|                ","rank 0", "min", "max", "average"
        WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemTotal       ",memtotal,memtotal_min,memtotal_max,memtotal_avr 
@@ -707,12 +793,40 @@ CONTAINS
                                                              MemLikelyFree_avr 
        WRITE (UNIT=output_unit,FMT='()')
 
+       ! Show machine topology
+       IF (has_ma) THEN
+          CALL cp_ma_print_machine(unit_nr=output_unit, error=error)
+       ENDIF
+
+    END IF   
+
+    IF (has_ma) THEN
+     CALL cp_ma_run_on(para_env, error, output_unit)
+
+
+!$omp parallel private(nid)
+!$omp critical
+!$          nid = omp_get_thread_num()
+!$          CALL cp_ma_sched(nid, error=error )
+!$omp end critical
+!$omp end parallel
+
+       CALL cp_ma_thread_run_on(output_unit, error=error)
+
+!$omp parallel private(nid)
+!$          nid = omp_get_thread_num()
+!$          CALL cp_ma_current_thread_run(nid, error=error)
+!$omp end parallel
+     ENDIF
+
+  IF (output_unit > 0) THEN
        IF (.TRUE.) THEN
+          WRITE (UNIT=output_unit,FMT='()')
           CALL cp_dbcsr_print_config (unit_nr=output_unit, error=error)
           WRITE (UNIT=output_unit,FMT='()')
        ENDIF
+  ENDIF 
 
-    END IF
     CALL cp_print_key_finished_output(output_unit,logger,global_section,&
          "PROGRAM_RUN_INFO", error=error)
 

@@ -151,7 +151,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, k, n, nspin, &
-                                                output_unit,stat
+                                                output_unit, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ener_nondiag, trace
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
@@ -162,7 +162,6 @@ CONTAINS
       POINTER                                :: matrix_dedc_scaled
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     CALL timeset(routineN,handle)
 

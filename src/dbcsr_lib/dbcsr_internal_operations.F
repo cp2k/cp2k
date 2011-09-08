@@ -105,6 +105,10 @@ MODULE dbcsr_internal_operations
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
 
+  USE machine_architecture_types
+  USE machine_architecture,            ONLY: ma_thread_run,&
+                                             ma_get_thread_run,&
+                                             ma_show_threads
   !$ USE OMP_LIB
 
   IMPLICIT NONE
@@ -1375,11 +1379,18 @@ CONTAINS
 !$omp flush (threads_finished)
                END DO
              END IF
+!$          CALL ma_get_thread_run(ithread)
              CALL dbcsr_error_stop(error_handler2, error)
 !$omp end parallel
              flop_total = flop_total + flop_single
              flop_metronome=flop_metronome+flop_single
              tstop = m_walltime ()
+
+             IF (has_ma .AND. output_unit>0) THEN
+               CALL ma_thread_run() 
+               CALL ma_show_threads(output_unit)
+             ENDIF
+
              IF (tstop-tstart .EQ. 0) tstop = tstart+EPSILON(tstart)
              IF ((output_unit>0) .AND. detailed_timing) THEN
                 WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&

@@ -20,6 +20,9 @@ MODULE cp2k_runs
                                              cp_dbcsr_init_lib
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_ma_interface,                 ONLY: cp_ma_finalize_lib,&
+                                             cp_ma_init_lib,&
+                                             has_ma
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
@@ -177,6 +180,10 @@ CONTAINS
 
     CALL cp_dbcsr_init_lib (error=error)
 
+    IF (has_ma) THEN
+        CALL cp_ma_init_lib(para_env,error=error)
+    ENDIF 
+
     NULLIFY(globenv, force_env)
 
     CALL cp_error_init(error, stop_level=cp_fatal_level)
@@ -274,11 +281,12 @@ CONTAINS
              CALL cp2k_read(root_section,para_env,globenv,error=error)
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
-
+        
 ! if CUDA is enabled we need to allocate memory on the graphics card
           CALL cuda_device_mem_init(root_section, error)
 
           CALL cp_dbcsr_config (root_section, error)
+
 
           SELECT CASE (prog_name_id)
           CASE (do_atom)
@@ -431,6 +439,10 @@ CONTAINS
     CALL cuda_device_mem_release()
 
     CALL cp_dbcsr_finalize_lib (error=error)
+ 
+    IF (has_ma) THEN
+       CALL cp_ma_finalize_lib(error=error)
+    ENDIF
 
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)

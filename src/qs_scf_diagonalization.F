@@ -80,7 +80,8 @@ MODULE qs_scf_diagonalization
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_block_davidson,           ONLY: generate_extended_space, generate_extended_space_sparse
+  USE qs_scf_block_davidson,           ONLY: generate_extended_space,&
+                                             generate_extended_space_sparse
   USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
                                              lanczos_refinement_2v
   USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
