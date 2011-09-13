@@ -786,12 +786,14 @@ CONTAINS
   SUBROUTINE balance_global_list(list_global)
     INTEGER, DIMENSION(:, :, 0:)             :: list_global
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'balance_global_list', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: Max_Iter = 100
     REAL(KIND=dp), PARAMETER                 :: Tolerance_factor = 0.005_dp
 
-    INTEGER                                  :: dest, icpu, idest, iflux, &
-                                                ilocal, k, maxdest, Ncpu, &
-                                                Nflux
+    INTEGER                                  :: dest, handle, icpu, idest, &
+                                                iflux, ilocal, k, maxdest, &
+                                                Ncpu, Nflux
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: flux_connections
     LOGICAL                                  :: solution_ok, solution_optimal
     REAL(KIND=dp)                            :: average, load_shift, &
@@ -800,6 +802,8 @@ CONTAINS
                                                 optimized_load
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: flux_limits
+
+    CALL timeset(routineN,handle)
 
      Ncpu=SIZE(list_global,3)
      maxdest=SIZE(list_global,2)
@@ -920,6 +924,8 @@ CONTAINS
            ENDIF
         ENDDO
      ENDDO
+
+    CALL timestop(handle)
 
   END SUBROUTINE balance_global_list
 
