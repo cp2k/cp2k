@@ -134,6 +134,8 @@ MODULE qs_ks_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+  USE rtp_admm_methods,                ONLY: rtp_admm_density_matrix,&
+                                             rtp_admm_merge_ks_matrix
   USE scp_energy,                      ONLY: scp_qs_energies
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
@@ -623,8 +625,12 @@ CONTAINS
        END IF
 
        ! calculate the density matrix for the fitted mo_coeffs
-       IF( dft_control%do_admm ) THEN       
-         CALL admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
+       IF( dft_control%do_admm ) THEN 
+          IF(.NOT.qs_env%run_rtp)THEN
+             CALL admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
+          ELSE
+             CALL rtp_admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
+          END IF
        END IF
 
        ! only activate stress calculation if 
@@ -792,9 +798,16 @@ CONTAINS
            CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+           IF(.NOT.qs_env%run_rtp)THEN
            CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
                 mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
                 matrix_p_aux_fit, matrix_p, error)
+           ELSE
+                CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
+                mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                matrix_p_aux_fit, matrix_p, error)
+
+           END IF
          END DO
        END IF
 
@@ -901,7 +914,8 @@ CONTAINS
             energy%efield +energy%efield_core+&
             energy%ee + energy%ee_core+&
             energy%exc_aux_fit
-
+!       WRITE(*,*)'ENERGIES:',energy%total, energy%core_overlap , energy%core_self , &
+!            energy%core , energy%hartree,energy%exc_aux_fit, energy%exc, energy%exc1
        IF (scp_dft) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
          energy%total = energy%total + scp_energy%e_scp_total

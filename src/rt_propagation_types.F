@@ -61,6 +61,7 @@ MODULE rt_propagation_types
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_new
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_old
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_next
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: admm_mos
     REAL(KIND=dp)                               :: energy_old
     REAL(KIND=dp)                               :: energy_new
     REAL(KIND=dp)                               :: dt
@@ -116,7 +117,7 @@ CONTAINS
     failure=.FALSE.
     CALL cite_reference(Kunert2003)
 
-    NULLIFY(rtp_control)
+    NULLIFY(rtp_control,rtp%admm_mos)
 
     rtp_control => dft_control%rtp_control
 
@@ -246,7 +247,7 @@ CONTAINS
 
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,mos_new,mos_old,mos_next,&
                      S_inv,S_half,S_minus_half,B_mat,C_mat,&
-                     S_der,dt,nsteps,SinvH,SinvB,error)
+                     S_der,dt,nsteps,SinvH,SinvB,admm_mos,error)
     
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -261,6 +262,8 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: SinvH
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: SinvB
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: admm_mos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp', &
@@ -277,7 +280,8 @@ CONTAINS
     IF (PRESENT(mos_old))mos_old=>rtp%mos_old
     IF (PRESENT(mos_new))mos_new=>rtp%mos_new
     IF (PRESENT(mos_next))mos_next=>rtp%mos_next
-    
+    IF (PRESENT(admm_mos))admm_mos=>rtp%admm_mos
+
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
     IF(PRESENT(S_half))S_half=>rtp%S_half
     IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
@@ -304,6 +308,7 @@ CONTAINS
     CALL cp_fm_vect_dealloc(rtp%mos_old,error) 
     CALL cp_fm_vect_dealloc(rtp%mos_new,error)
     CALL cp_fm_vect_dealloc(rtp%mos_next,error)
+    CALL cp_fm_vect_dealloc(rtp%admm_mos,error)
     CALL cp_fm_release(rtp%S_inv,error)
     IF(ASSOCIATED(rtp%S_half))&
          CALL cp_fm_release(rtp%S_half,error)
@@ -432,5 +437,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
     
   END SUBROUTINE rtp_history_release
+
+
     
 END MODULE rt_propagation_types
