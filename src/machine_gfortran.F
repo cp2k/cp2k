@@ -79,9 +79,9 @@ INTEGER FUNCTION m_procrun(id) RESULT (run_on)
     CHARACTER(len=80) ::   filename, tmp
     CHARACTER(len=8)  ::   id_s
 
-    write(id_s,'(I8)') id
+    WRITE(id_s,'(I8)') id
 
-    id_s = adjustl(id_s)
+    id_s = ADJUSTL(id_s)
 
     tmp = "/proc/" // TRIM(id_s) // "/stat"
     filename = TRIM(tmp)

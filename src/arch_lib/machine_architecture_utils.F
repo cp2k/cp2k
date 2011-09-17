@@ -27,7 +27,7 @@ MODULE machine_architecture_utils
   
  PRIVATE
 
- CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_utils' 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_utils' 
 
  PUBLIC :: ma_pack_threads, ma_unpack_threads
  PUBLIC :: ma_create_process, ma_set_threads
@@ -41,9 +41,9 @@ MODULE machine_architecture_utils
 !> \var     nr_threads is the number of threads of a processor
 ! *****************************************************************************
  SUBROUTINE ma_create_process(proc_info, mp_env, nr_threads)
- TYPE(ma_mp_type), INTENT(IN)                       :: mp_env
- TYPE(ma_process), INTENT(OUT)                      :: proc_info
- INTEGER, INTENT(IN)                                :: nr_threads
+    TYPE(ma_process), INTENT(OUT)            :: proc_info
+    TYPE(ma_mp_type), INTENT(IN)             :: mp_env
+    INTEGER, INTENT(IN)                      :: nr_threads
 
  proc_info%mp_info%myproc = mp_env%myproc
  proc_info%mp_info%numproc = mp_env%numproc
@@ -63,9 +63,9 @@ MODULE machine_architecture_utils
 !> \var     id is the OMP id of the thread
 ! *****************************************************************************
  SUBROUTINE ma_set_threads(proc_info, thread_info, id)
- TYPE(thread_inf), INTENT(IN)         :: thread_info
- TYPE(ma_process)                     :: proc_info
- INTEGER                              :: id
+    TYPE(ma_process)                         :: proc_info
+    TYPE(thread_inf), INTENT(IN)             :: thread_info
+    INTEGER                                  :: id
 
  proc_info%threads_info(id)%core = thread_info%core
  proc_info%threads_info(id)%node = thread_info%node
@@ -79,14 +79,15 @@ MODULE machine_architecture_utils
 !  thread is a vector that must be allocated first
 ! *****************************************************************************
  SUBROUTINE ma_pack_threads(proc_info, thread_send) 
- INTEGER, DIMENSION(:,:), &
-      INTENT(OUT), OPTIONAL                        :: thread_send
- TYPE(ma_process), INTENT(IN)                      :: proc_info
- INTEGER                                           :: it
+    TYPE(ma_process), INTENT(IN)             :: proc_info
+    INTEGER, DIMENSION(:, :), INTENT(OUT), &
+      OPTIONAL                               :: thread_send
 
- CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_pack_threads', &
-     routineP = moduleN//':'//routineN
- 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_pack_threads', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: it
+
  DO it=1, proc_info%nr_threads
   thread_send(1,it) =  proc_info%threads_info(it)%core
   thread_send(2,it) =  proc_info%threads_info(it)%node
@@ -97,14 +98,15 @@ MODULE machine_architecture_utils
  END SUBROUTINE ma_pack_threads
 
  SUBROUTINE ma_unpack_threads(proc_info, thread_recv, thread_map)
- INTEGER, DIMENSION(:,:,:), &
-      INTENT(IN), OPTIONAL                         :: thread_recv
- TYPE(ma_process), INTENT(IN)                      :: proc_info
- TYPE(thread_inf), DIMENSION(:,:)                  :: thread_map
- INTEGER                                           :: it, from
- 
- CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_unpack_threads', &
-     routineP = moduleN//':'//routineN
+    TYPE(ma_process), INTENT(IN)             :: proc_info
+    INTEGER, DIMENSION(:, :, :), &
+      INTENT(IN), OPTIONAL                   :: thread_recv
+    TYPE(thread_inf), DIMENSION(:, :)        :: thread_map
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_unpack_threads', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: from, it
 
  DO from=1, proc_info%mp_info%numproc
   DO it=1, proc_info%nr_threads

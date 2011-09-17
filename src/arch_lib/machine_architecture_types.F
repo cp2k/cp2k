@@ -23,7 +23,7 @@ MODULE machine_architecture_types
   
  PRIVATE
 
- CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_types' 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_types' 
 
  PUBLIC :: arch_topology, thread_inf, machine_output
 
@@ -36,7 +36,7 @@ MODULE machine_architecture_types
    INTEGER(C_INT)         :: nnodes, nsockets
    INTEGER(C_INT)         :: ncores, npus, ncaches
    INTEGER(C_INT)         :: nshared_caches, nsiblings
-   INTEGER(C_INT)	  :: nmemcontroller 		
+   INTEGER(C_INT)          :: nmemcontroller                 
   END TYPE arch_topology
 
 !Interface with the console output

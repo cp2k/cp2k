@@ -11,14 +11,14 @@
 ! *****************************************************************************
 
 MODULE ma_message_passing
-  USE ma_c_mpi_calls,               ONLY: mp_alloc_mem,&
+  USE ma_c_mpi_calls,                  ONLY: mp_alloc_mem,&
                                              mp_free_mem
-  USE ma_kinds,                     ONLY: dp,&
+  USE ma_kinds,                        ONLY: dp,&
                                              int_4,&
                                              int_8,&
                                              real_4,&
                                              real_8
-  USE ma_machine,                   ONLY: default_output_unit,&
+  USE ma_machine,                      ONLY: default_output_unit,&
                                              m_abort,&
                                              m_flush,&
                                              m_walltime
@@ -44,7 +44,7 @@ MODULE ma_message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=-4
 #endif
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_message_passing'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_message_passing'
 
   REAL(KIND=dp) :: t_start, t_end
   

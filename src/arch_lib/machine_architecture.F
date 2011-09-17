@@ -32,7 +32,7 @@ MODULE machine_architecture
   
   PRIVATE 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "machine_architecture"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture'
 
   PUBLIC :: ma_init, ma_finalize
   PUBLIC :: ma_error
@@ -85,9 +85,8 @@ MODULE machine_architecture
      FUNCTION ma_init_interface(topo) RESULT (istat) BIND(C, name="hw_topology_init") 
        USE ISO_C_BINDING
        USE machine_architecture_types,   ONLY: arch_topology 
-
-       TYPE(arch_topology)                   :: topo
-       INTEGER(KIND=C_INT)                   :: istat
+    TYPE(arch_topology)                      :: topo
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION ma_init_interface
   END INTERFACE
@@ -96,9 +95,8 @@ MODULE machine_architecture
      FUNCTION ma_final_interface(dtopo) RESULT (istat) BIND(C, name="hw_topology_destroy") 
        USE ISO_C_BINDING
        USE machine_architecture_types,   ONLY: arch_topology 
-
-       TYPE(arch_topology), BIND(C)          :: dtopo
-       INTEGER(KIND=C_INT)                   :: istat
+    TYPE(arch_topology), BIND(C)             :: dtopo
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION ma_final_interface
   END INTERFACE
@@ -107,7 +105,8 @@ MODULE machine_architecture
      SUBROUTINE ma_show_phys_topo(output_phys) BIND(C, name="hw_phys_pu_topology") 
        USE ISO_C_BINDING
        USE machine_architecture_types,  ONLY: machine_output
-       TYPE(machine_output), BIND(C)    :: output_phys
+    TYPE(machine_output), BIND(C)            :: output_phys
+
      END SUBROUTINE ma_show_phys_topo
   END INTERFACE
 
@@ -115,7 +114,8 @@ MODULE machine_architecture
      SUBROUTINE ma_show_branch(output_branch) BIND(C, name="hw_high_level_show") 
        USE ISO_C_BINDING
        USE machine_architecture_types,  ONLY: machine_output
-       TYPE(machine_output), BIND(C)    :: output_branch
+    TYPE(machine_output), BIND(C)            :: output_branch
+
      END SUBROUTINE ma_show_branch
   END INTERFACE
 
@@ -123,71 +123,80 @@ MODULE machine_architecture
      SUBROUTINE ma_show_topo(output_topo) BIND(C, name="hw_machine_topology") 
        USE ISO_C_BINDING
        USE machine_architecture_types,  ONLY: machine_output
-       TYPE(machine_output), BIND(C)    :: output_topo 
+    TYPE(machine_output), BIND(C)            :: output_topo
+
      END SUBROUTINE ma_show_topo
   END INTERFACE
 
   INTERFACE 
      FUNCTION ma_get_node() RESULT (node) BIND(C, name="hw_my_node") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)	       :: node
+    INTEGER(KIND=C_INT)                      :: node
+
      END FUNCTION ma_get_node
   END INTERFACE
 
   INTERFACE 
      FUNCTION ma_get_procnode() RESULT (node) BIND(C, name="hw_proc_node") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)	       :: node
+    INTEGER(KIND=C_INT)                      :: node
+
      END FUNCTION ma_get_procnode
   END INTERFACE
 
   INTERFACE 
       SUBROUTINE ma_set_core(cpu) BIND(C, name="hw_set_my_core") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT),VALUE       :: cpu
+    INTEGER(KIND=C_INT), VALUE               :: cpu
+
      END SUBROUTINE ma_set_core
   END INTERFACE
 
   INTERFACE 
       FUNCTION ma_get_core() RESULT (core) BIND(C, name="hw_my_core") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)	       :: core
+    INTEGER(KIND=C_INT)                      :: core
+
      END FUNCTION ma_get_core
   END INTERFACE
 
   INTERFACE 
       SUBROUTINE ma_set_proccore(cpu) BIND(C, name="hw_set_proc_core") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT),VALUE       :: cpu
+    INTEGER(KIND=C_INT), VALUE               :: cpu
+
      END SUBROUTINE ma_set_proccore
   END INTERFACE
 
   INTERFACE 
       FUNCTION ma_get_proccore() RESULT (core) BIND(C, name="hw_proc_core") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)	       :: core
+    INTEGER(KIND=C_INT)                      :: core
+
      END FUNCTION ma_get_proccore
   END INTERFACE
 
   INTERFACE 
       FUNCTION ma_get_my_id() RESULT (id) BIND(C, name="hw_get_myid") 
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)	       :: id
+    INTEGER(KIND=C_INT)                      :: id
+
      END FUNCTION ma_get_my_id
   END INTERFACE
 
   INTERFACE
      SUBROUTINE ma_set_mempol(mempol) BIND(C, name="hw_set_mempol")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT),VALUE       :: mempol
+    INTEGER(KIND=C_INT), VALUE               :: mempol
+
      END SUBROUTINE ma_set_mempol
   END INTERFACE 
 
   INTERFACE
       SUBROUTINE ma_get_mempol(node, mempol) BIND(C, name="hw_get_mempol")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: mempol       
-       INTEGER(KIND=C_INT)             :: node
+    INTEGER(KIND=C_INT)                      :: node, mempol
+
      END SUBROUTINE ma_get_mempol
   END INTERFACE
 
@@ -198,71 +207,80 @@ MODULE machine_architecture
   INTERFACE
       SUBROUTINE ma_linux_get_mempol(node, mempol) BIND(C, name="linux_get_mempol")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: mempol
-       INTEGER(KIND=C_INT)             :: node
+    INTEGER(KIND=C_INT)                      :: node, mempol
+
      END SUBROUTINE ma_linux_get_mempol
   END INTERFACE
 
   INTERFACE
      SUBROUTINE ma_linux_set_mempol(mempol) BIND(C, name="linux_set_mempol")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT),VALUE       :: mempol
+    INTEGER(KIND=C_INT), VALUE               :: mempol
+
      END SUBROUTINE ma_linux_set_mempol
   END INTERFACE
   
   INTERFACE
       FUNCTION ma_linux_get_core() RESULT (core) BIND(C, name="linux_my_core")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: core
+    INTEGER(KIND=C_INT)                      :: core
+
      END FUNCTION ma_linux_get_core
   END INTERFACE
 
   INTERFACE
       SUBROUTINE ma_linux_set_core(cpu) BIND(C, name="linux_set_my_core")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT),VALUE       :: cpu
+    INTEGER(KIND=C_INT), VALUE               :: cpu
+
      END SUBROUTINE ma_linux_set_core
   END INTERFACE
   
   INTERFACE
       SUBROUTINE ma_linux_set_proccore(cpu) BIND(C, name="linux_set_proc_core")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT),VALUE       :: cpu
+    INTEGER(KIND=C_INT), VALUE               :: cpu
+
      END SUBROUTINE ma_linux_set_proccore
   END INTERFACE
 
   INTERFACE
       FUNCTION ma_linux_get_proccore() RESULT (core) BIND(C, name="linux_proc_core")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: core
+    INTEGER(KIND=C_INT)                      :: core
+
      END FUNCTION ma_linux_get_proccore
   END INTERFACE  
 
   INTERFACE
       FUNCTION ma_linux_get_my_id() RESULT (id) BIND(C, name="linux_get_myid")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: id
+    INTEGER(KIND=C_INT)                      :: id
+
      END FUNCTION ma_linux_get_my_id
   END INTERFACE
 
   INTERFACE
       FUNCTION ma_linux_nnodes() RESULT (nnodes) BIND(C, name="linux_get_nnodes")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: nnodes
+    INTEGER(KIND=C_INT)                      :: nnodes
+
      END FUNCTION ma_linux_nnodes
   END INTERFACE
 
   INTERFACE
       FUNCTION ma_linux_ncores() RESULT (ncores) BIND(C, name="linux_get_ncores")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: ncores
+    INTEGER(KIND=C_INT)                      :: ncores
+
      END FUNCTION ma_linux_ncores
   END INTERFACE
 
   INTERFACE
       FUNCTION ma_linux_get_mynode() RESULT (node) BIND(C, name="linux_get_nodeid")
        USE ISO_C_BINDING
-       INTEGER(KIND=C_INT)             :: node
+    INTEGER(KIND=C_INT)                      :: node
+
      END FUNCTION ma_linux_get_mynode
   END INTERFACE
 
@@ -276,9 +294,9 @@ CONTAINS
 !> \var mempolicy       String to hold the memory policy name
 ! *****************************************************************************
 SUBROUTINE ma_string_mempol(mempol, mempolicy)
-   INTEGER, INTENT(IN)        :: mempol
-   CHARACTER(LEN=10)          :: mempolicy
-   
+    INTEGER, INTENT(IN)                      :: mempol
+    CHARACTER(LEN=10)                        :: mempolicy
+
    SELECT CASE (mempol)
    CASE (os)
      mempolicy = 'DEFAULT'
@@ -297,8 +315,9 @@ END SUBROUTINE ma_string_mempol
 !> \var unit_num        The output console
 ! *****************************************************************************
   SUBROUTINE ma_error (message, unit_num)
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL    :: message
-    INTEGER                                   :: unit_num
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: message
+    INTEGER                                  :: unit_num
+
     IF (PRESENT(message)) THEN
        WRITE(unit_num,"(T2,A)")        "MACHINE| "//TRIM(message)
        WRITE(unit_num,"(T2,A)")        "MACHINE| Abnormal program termination, stopped due to HWLOC"
@@ -436,7 +455,8 @@ END SUBROUTINE ma_string_mempol
   END FUNCTION ma_get_mycore 
 
   FUNCTION ma_get_mynode() RESULT (node)
-    INTEGER :: node, core
+    INTEGER                                  :: node
+
     node  = -1 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
    node = ma_get_node()
@@ -457,7 +477,8 @@ END SUBROUTINE ma_string_mempol
   END FUNCTION ma_get_proc_core 
 
   FUNCTION ma_get_proc_node() RESULT (node)
-    INTEGER :: node, core
+    INTEGER                                  :: node
+
     node  = -1
 #if defined (__HWLOC) && !defined (__LIBNUMA)
    node = ma_get_procnode()
@@ -498,7 +519,7 @@ END SUBROUTINE ma_string_mempol
 !> \var unit_num the output console
 ! *****************************************************************************
   SUBROUTINE ma_show_topology (unit_num)
-    INTEGER                ::   unit_num
+    INTEGER                                  :: unit_num
 
     IF (topology%nnodes .NE. -1) THEN       
        
@@ -508,22 +529,22 @@ END SUBROUTINE ma_string_mempol
        WRITE(unit_num, "(T2,A)")  "MACHINE| No NUMA nodes"
      ELSE
       WRITE(unit_num, "(T2,A,27X,I3)")    "MACHINE| Number of NUMA nodes                    ",&
-				topology%nnodes
+                                topology%nnodes
      ENDIF
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of sockets                       ",&
-				topology%nsockets
+                                topology%nsockets
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of memory controllers per socket ",&
-	                        topology%nmemcontroller; 
+                                topology%nmemcontroller; 
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of cores                         ",&
-				topology%ncores
+                                topology%ncores
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of cores per socket              ",&
                                 topology%ncores/topology%nsockets
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of siblings per core             ",&
-				topology%nsiblings
+                                topology%nsiblings
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of caches levels                 ",&
-				topology%ncaches
+                                topology%ncaches
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of shared caches                 ",&
-				topology%nshared_caches
+                                topology%nshared_caches
      WRITE(unit_num, "()")     
     ENDIF
   END SUBROUTINE ma_show_topology
@@ -534,7 +555,7 @@ END SUBROUTINE ma_string_mempol
 !> \var my_node the NUMA node where the process is running
 ! *****************************************************************************
   SUBROUTINE ma_running_on (my_core, my_node) 
-   INTEGER                        :: my_node, my_core
+    INTEGER                                  :: my_core, my_node
 
      my_core = ma_get_proc_core()
      my_node = ma_get_proc_node()     
@@ -547,9 +568,11 @@ END SUBROUTINE ma_string_mempol
 !> \var unit_num the output console
 ! *****************************************************************************
   SUBROUTINE ma_thread_running_on (unit_num) 
-   INTEGER                        :: p, id, unit_num
-   INTEGER, DIMENSION(:,:), ALLOCATABLE :: thread_send
-   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: thread_recv
+    INTEGER                                  :: unit_num
+
+    INTEGER                                  :: id, p
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: thread_send
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: thread_recv
 
   IF (has_MPI) THEN
 
@@ -589,9 +612,8 @@ END SUBROUTINE ma_string_mempol
 !>        To be called inside the cp2k libraries
 ! *****************************************************************************
   SUBROUTINE ma_thread_run ()
-   INTEGER                        :: p, id, unit_num
-   INTEGER, DIMENSION(:,:), ALLOCATABLE :: thread_send
-   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: thread_recv
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: thread_send
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: thread_recv
 
   IF (has_MPI) THEN
 
@@ -612,7 +634,9 @@ END SUBROUTINE ma_string_mempol
 !> \brief Shows threads of each MPI process
 ! *****************************************************************************
   SUBROUTINE ma_show_threads (unit_num)
-   INTEGER                        :: p, id, unit_num
+    INTEGER                                  :: unit_num
+
+    INTEGER                                  :: id, p
 
   IF ( print_thread ) THEN
    IF(unit_num .GT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
@@ -643,7 +667,9 @@ END SUBROUTINE ma_string_mempol
 !> \var id Thread OMP id
 ! *****************************************************************************
   SUBROUTINE ma_current_thread_run(id, unit_num)
-    INTEGER  :: id, core, node, unit_num
+    INTEGER                                  :: id, unit_num
+
+    INTEGER                                  :: core, node
 
      core = ma_get_mycore()
      node = ma_get_mynode()     
@@ -682,7 +708,7 @@ END SUBROUTINE ma_string_mempol
 ! Get/set the core for a thread
 ! *****************************************************************************
   SUBROUTINE ma_sched_threads(id, policy)
-    INTEGER  :: id, policy 
+    INTEGER                                  :: id, policy
 
      SELECT CASE (policy) 
      CASE (nosched)
@@ -698,7 +724,10 @@ END SUBROUTINE ma_string_mempol
 !> \var id Thread OMP id
 ! *****************************************************************************
   SUBROUTINE ma_verify_place(id, unit_num)
-    INTEGER  :: id, nr, unit_num, pe, core, node
+    INTEGER                                  :: id, unit_num
+
+    INTEGER                                  :: core, node, pe
+
      core = ma_get_mycore()
      node = ma_get_mynode()     
      pe = my_info%mp_info%myproc
@@ -711,7 +740,7 @@ END SUBROUTINE ma_string_mempol
          WRITE(unit_num, "(T2,A,I4,2X,A,I3)")   "OMP | Thread ", id,&
          " running on core ", core        
       ELSE
-	WRITE(unit_num, "(T2,A,I4,2X,A,I4,2X,A,I4)")   "OMP | Thread ", &
+        WRITE(unit_num, "(T2,A,I4,2X,A,I4,2X,A,I4)")   "OMP | Thread ", &
         thread_mapping(pe+1,id+1)%id_omp," WAS running on NUMA node ",&
         thread_mapping(pe+1,id+1)%node, " core ",thread_mapping(pe+1,id+1)%core
         WRITE(unit_num, "(T2,A,I4,2X,A,I4,2X,A,I4)")   "OMP | Thread ", id,&

@@ -104,11 +104,11 @@ MODULE dbcsr_internal_operations
                                              map_most_common
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
-
+  USE machine_architecture,            ONLY: ma_get_thread_run,&
+                                             ma_show_threads,&
+                                             ma_thread_run
   USE machine_architecture_types
-  USE machine_architecture,            ONLY: ma_thread_run,&
-                                             ma_get_thread_run,&
-                                             ma_show_threads
+
   !$ USE OMP_LIB
 
   IMPLICIT NONE

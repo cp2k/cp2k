@@ -176,7 +176,7 @@ CONTAINS
   END FUNCTION ma_get_conf_print_thread_cur
 
   SUBROUTINE ma_set_conf_sched (sched)
-    CHARACTER(len=1), INTENT(IN)                      :: sched
+    CHARACTER(len=1), INTENT(IN)             :: sched
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ma_set_conf_sched', &
       routineP = moduleN//':'//routineN
@@ -185,7 +185,7 @@ CONTAINS
   END SUBROUTINE ma_set_conf_sched
 
   FUNCTION ma_get_conf_sched () RESULT (sched)
-    CHARACTER(len=1)                                  :: sched
+    CHARACTER(len=1)                         :: sched
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ma_get_conf_sched', &
       routineP = moduleN//':'//routineN
@@ -194,7 +194,7 @@ CONTAINS
   END FUNCTION ma_get_conf_sched
 
   SUBROUTINE ma_set_conf_mempol (mempol)
-    CHARACTER(len=1), INTENT(IN)                      :: mempol
+    CHARACTER(len=1), INTENT(IN)             :: mempol
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ma_set_conf_mempol', &
       routineP = moduleN//':'//routineN
@@ -203,7 +203,7 @@ CONTAINS
   END SUBROUTINE ma_set_conf_mempol
 
   FUNCTION ma_get_conf_mempol () RESULT (mempol)
-    CHARACTER(len=1)                                  :: mempol
+    CHARACTER(len=1)                         :: mempol
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ma_get_conf_mempol', &
       routineP = moduleN//':'//routineN
