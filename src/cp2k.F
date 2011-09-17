@@ -46,7 +46,7 @@ PROGRAM cp2k
                              write_xml_file, run_input
   USE input_constants, ONLY: id_development_version
   USE machine,         ONLY: m_iargc,m_getarg, default_output_unit
-  USE message_passing, ONLY: mp_sync, mp_abort
+  USE message_passing, ONLY: mp_sync, mp_abort, mp_max
   USE kinds,           ONLY: default_path_length,&
                              default_string_length
   USE f77_interface,   ONLY: init_cp2k, finalize_cp2k, &
@@ -282,8 +282,9 @@ arg_loop: DO WHILE (i_arg<n_arg)
         ENDIF
 
         IF (run_it .OR. force_run) THEN
-           CALL run_input(input_file_name,output_file_name,ierr=ierr)
-           IF (ierr.NE.0) THEN
+           CALL run_input(input_file_name,output_file_name,ierr=ierr) 
+           CALL mp_max(ierr,default_para_env%group)
+           IF (ierr.NE.0 .AND. default_para_env%source==default_para_env%mepos) THEN 
               CALL mp_abort()
            ENDIF
         END IF

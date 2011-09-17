@@ -235,6 +235,7 @@ CONTAINS
           WRITE(unit_nr,'(T15,A)') ""
           CALL m_flush(unit_nr)
        ENDIF
+       CALL mp_sync(para_env%group)
     ELSE
        glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
        CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
