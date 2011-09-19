@@ -85,7 +85,7 @@ MODULE dbcsr_internal_operations
        dbcsr_ps_target_add_data_cuda, dbcsr_ps_target_new, &
        dbcsr_ps_target_release, dbcsr_psg_add_data_ab, &
        dbcsr_psg_add_data_cuda_ab, dbcsr_psg_rm_data_ab, dbcsr_psg_set_state, &
-       dbcsr_psg_view_close, dbcsr_psg_view_open
+       dbcsr_psg_view_close, dbcsr_psg_view_open, dbcsr_psg_rm_data_cuda_ab
   USE dbcsr_pq_types,                  ONLY: &
        dbcsr_pq_type, dbcsr_ps_fqx_len, dbcsr_ps_fqx_tgt_offset, &
        dbcsr_ps_fqx_tmp_offset, dbcsr_ps_fqx_width, dbcsr_ps_group_type, &
@@ -2221,6 +2221,7 @@ CONTAINS
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        !$OMP MASTER
        data_type = dbcsr_data_get_type (left%data_area)
+       if (verbose_acc) write(*,*)routineN//" Allocating a, b"
        CALL dbcsr_cuda_dev_mem_new (a_dev, data_type, error=error)
        CALL dbcsr_cuda_dev_mem_new (b_dev, data_type, error=error)
        CALL dbcsr_cuda_dev_mem_alloc (a_dev,&
@@ -2351,6 +2352,8 @@ CONTAINS
              !$OMP END CRITICAL (crit_data_card)
           ENDDO
        ENDDO
+       call dbcsr_cuda_dev_mem_release (a_dev, error=error)
+       call dbcsr_cuda_dev_mem_release (b_dev, error=error)
     ENDIF
     !
     ALLOCATE (carrier%queue)
@@ -2379,7 +2382,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, i, ithread
+    INTEGER                                  :: error_handler, i, ithread,&
+         ps_memreg, ps_buffer
+    type(dbcsr_ps_group_type), pointer :: ps_group
 
 !   ---------------------------------------------------------------------------
 
@@ -2401,6 +2406,19 @@ CONTAINS
        CALL hash_table_release (carrier%c_hashes (i))
     ENDDO
     DEALLOCATE (carrier%c_hashes)
+    !
+    if (mm_driver .eq. mm_driver_cuda) then
+       DO ps_memreg = 1, carrier%param_sets%nmemregs
+          DO ps_buffer = 1, carrier%param_sets%nbuffers
+             ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets,&
+                  ps_buffer, ps_memreg, error=error)
+             !$OMP CRITICAL (crit_data_card)
+             CALL dbcsr_psg_rm_data_cuda_ab (ps_group, error=error)
+             !$OMP END CRITICAL (crit_data_card)
+          ENDDO
+       ENDDO
+    endif
+    !
     ! Clear MM stack
     !CALL dbcsr_psg_rm_data_c (&
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
@@ -3394,10 +3412,9 @@ CONTAINS
              CALL dbcsr_cuda_thread_sync(error=error)
              t_dev_sync = t_dev_sync + m_walltime()
           ENDIF
+          IF (verbose_acc) WRITE(*,*)routineN//" reallocating locks", maxs
           CALL dbcsr_cuda_dev_mem_dealloc(c_locks_dev, error=error)
           tmp_i = INT(REAL(nblks*4,kind=dp)*default_resize_factor)
-          IF (verbose_acc) WRITE(*,*)routineN//" reallocating locks", tmp_i,&
-               maxs
           !WRITE(*,*)routineN//" reallocating locks", tmp_i, maxs
           CALL dbcsr_cuda_dev_mem_alloc(c_locks_dev, tmp_i, stat=istat)
           IF (istat /= 0) THEN
@@ -4573,13 +4590,16 @@ CONTAINS
     !
     ! Attach C data on card to the product target descriptor
     CALL dbcsr_ps_target_add_data_cuda (product_target, c_dev, error)
+    call dbcsr_cuda_dev_mem_release (c_dev, error=error)
     !
     ! Allocate C locks on GPU.  Locks should be cleared as soon as
     ! allocated.
     CALL dbcsr_cuda_dev_mem_new (c_locks_dev,&
          dbcsr_type_int_4, error)
+    IF (verbose_acc) WRITE(*,*)'allocating',&
+         host_matrix%wms(ithread+1)%lastblk*4, 'locks'
     CALL dbcsr_cuda_dev_mem_alloc (c_locks_dev,&
-         MAX(1, host_matrix%wms(ithread)%lastblk*4), error=error)
+         MAX(1, host_matrix%wms(ithread+1)%lastblk*4), error=error)
     CALL dbcsr_cuda_dev_mem_zero (c_locks_dev,&
          first=1,last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
          error=error)
@@ -4589,6 +4609,7 @@ CONTAINS
     ! parameter stacks.
     !
     !$OMP MASTER
+    if (verbose_acc) write(*,*)routineN//" Allocating stack state"
     CALL dbcsr_cuda_dev_mem_new (stack_state_dev, dbcsr_type_int_4,&
          error=error)
     CALL dbcsr_cuda_dev_mem_alloc (stack_state_dev, 1, error=error)
@@ -4596,6 +4617,7 @@ CONTAINS
     state_tmp => state_tmp_tgt
     CALL dbcsr_cuda_cp_host_to_dev (state_tmp, stack_state_dev%d_i, error=error)
     ! And parameter stacks
+    IF (verbose_acc) WRITE(*,*)routineN//" Allocating parameters"
     CALL dbcsr_cuda_dev_mem_new (params_dev, dbcsr_type_int_4, error)
     CALL dbcsr_cuda_dev_mem_alloc (params_dev, mm_stack_size*n_mult_params,&
          error=error)
@@ -4607,6 +4629,10 @@ CONTAINS
     !$OMP END CRITICAL (crit_data_card)
     product_target%stack_state_dev => stack_state_dev
     product_target%params_dev => params_dev
+    !$OMP CRITICAL (crit_data_card)
+    CALL dbcsr_cuda_dev_mem_release (stack_state_dev, error=error)
+    CALL dbcsr_cuda_dev_mem_release (params_dev, error=error)
+    !$OMP END CRITICAL (crit_data_card)
     !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE init_card_c
