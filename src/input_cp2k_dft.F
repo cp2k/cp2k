@@ -2524,7 +2524,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="METHOD",&
-            description="Method that shall be used for wavefunction fitting",&
+            description="Method that shall be used for wavefunction fitting. Use BASIS_PROJECTION for MD.",&
             usage="METHOD BASIS_PROJECTION",&
             enum_c_vals=s2a("BASIS_PROJECTION","BLOCK_DENSITY_MATRIX"),&
             enum_i_vals=(/do_admm_basis_set_projection, do_admm_block_density_matrix/),&
@@ -2538,7 +2538,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="ADMM_PURIFICATION_METHOD",&
-            description="Method that shall be used for wavefunction fitting",&
+            description="Method that shall be used for wavefunction fitting. Use MO_DIAG for MD.",&
             usage="ADMM_PURIFICATION_METHOD NONE",&
             enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG"),&
             enum_i_vals=(/do_admm_purify_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace,&

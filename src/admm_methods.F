@@ -1086,9 +1086,11 @@ MODULE admm_methods
 
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 neighbor_list_id, nmo
+    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
 
     CALL timeset(routineN,handle)
+    failure=.FALSE.
 
     NULLIFY(matrix_w_q, matrix_w_s)
 
@@ -1096,6 +1098,11 @@ MODULE admm_methods
     nao_orb = admm_env%nao_orb
     nmo = admm_env%nmo(ispin)
 
+    ! *** forces are only implemented for mo_diag and basis_projection ***
+    IF (.NOT.(admm_env%method_id==do_admm_basis_set_projection .AND. &
+              admm_env%purification_method==do_admm_purify_mo_diag)) THEN
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    ENDIF
 
     ! *** Create sparse work matrices
     CALL get_qs_env(qs_env=qs_env,&
