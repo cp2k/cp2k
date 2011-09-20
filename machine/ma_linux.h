@@ -2,7 +2,7 @@
 *   CP2K: A general program to perform molecular dynamics simulations
 *   Copyright (C) 2000 * 2011 Christiane Ribeiro and the CP2K developers group
 ******************************************************************************/
-
+#ifdef __LIBNUMA
 #ifndef __MA_LINUX_H
 #define __MA_LINUX_H
 
@@ -26,4 +26,5 @@ int linux_my_core();
 int linux_get_nodeid();
 void linux_set_mempol(int mempol);
 
+#endif
 #endif

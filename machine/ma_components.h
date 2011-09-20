@@ -2,7 +2,7 @@
 *   CP2K: A general program to perform molecular dynamics simulations
 *   Copyright (C) 2000 * 2011 Christiane Ribeiro and the CP2K developers group
 ******************************************************************************/
-
+#ifdef __HWLOC
 #ifndef __MA_COMPONENTS_H
 #define __MA_COMPONENTS_H
 
@@ -135,4 +135,5 @@ int linux_proc_core();
 void linux_set_my_core(int core);
 int linux_my_core();
 
+#endif
 #endif
