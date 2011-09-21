@@ -84,8 +84,9 @@ MODULE dbcsr_internal_operations
        dbcsr_ps_set_get_group_p, dbcsr_ps_target_add_data, &
        dbcsr_ps_target_add_data_cuda, dbcsr_ps_target_new, &
        dbcsr_ps_target_release, dbcsr_psg_add_data_ab, &
-       dbcsr_psg_add_data_cuda_ab, dbcsr_psg_rm_data_ab, dbcsr_psg_set_state, &
-       dbcsr_psg_view_close, dbcsr_psg_view_open, dbcsr_psg_rm_data_cuda_ab
+       dbcsr_psg_add_data_cuda_ab, dbcsr_psg_rm_data_ab, &
+       dbcsr_psg_rm_data_cuda_ab, dbcsr_psg_set_state, dbcsr_psg_view_close, &
+       dbcsr_psg_view_open
   USE dbcsr_pq_types,                  ONLY: &
        dbcsr_pq_type, dbcsr_ps_fqx_len, dbcsr_ps_fqx_tgt_offset, &
        dbcsr_ps_fqx_tmp_offset, dbcsr_ps_fqx_width, dbcsr_ps_group_type, &
@@ -854,8 +855,8 @@ CONTAINS
 !$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
 !$omp shared (a_dev, b_dev)
     CALL dbcsr_multrec_init(&
-         left_buffer_calc%mats(1, 1)%m,&
-         right_buffer_calc%mats(1, 1)%m,&
+         left_buffer_comm%mats(1, 1)%m,&
+         right_buffer_comm%mats(1, 1)%m,&
          product_matrix%m,&
          carrier,&
          right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
@@ -2212,7 +2213,7 @@ CONTAINS
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        !$OMP MASTER
        data_type = dbcsr_data_get_type (left%data_area)
-       if (verbose_acc) write(*,*)routineN//" Allocating a, b"
+       IF (verbose_acc) WRITE(*,*)routineN//" Allocating a, b"
        CALL dbcsr_cuda_dev_mem_new (a_dev, data_type, error=error)
        CALL dbcsr_cuda_dev_mem_new (b_dev, data_type, error=error)
        CALL dbcsr_cuda_dev_mem_alloc (a_dev,&
@@ -2343,8 +2344,8 @@ CONTAINS
              !$OMP END CRITICAL (crit_data_card)
           ENDDO
        ENDDO
-       call dbcsr_cuda_dev_mem_release (a_dev, error=error)
-       call dbcsr_cuda_dev_mem_release (b_dev, error=error)
+       CALL dbcsr_cuda_dev_mem_release (a_dev, error=error)
+       CALL dbcsr_cuda_dev_mem_release (b_dev, error=error)
     ENDIF
     !
     ALLOCATE (carrier%queue)
@@ -2373,9 +2374,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, i, ithread,&
-         ps_memreg, ps_buffer
-    type(dbcsr_ps_group_type), pointer :: ps_group
+    INTEGER                                  :: error_handler, i, ithread, &
+                                                ps_buffer, ps_memreg
+    TYPE(dbcsr_ps_group_type), POINTER       :: ps_group
 
 !   ---------------------------------------------------------------------------
 
@@ -2398,7 +2399,7 @@ CONTAINS
     ENDDO
     DEALLOCATE (carrier%c_hashes)
     !
-    if (mm_driver .eq. mm_driver_cuda) then
+    IF (mm_driver .EQ. mm_driver_cuda) THEN
        DO ps_memreg = 1, carrier%param_sets%nmemregs
           DO ps_buffer = 1, carrier%param_sets%nbuffers
              ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets,&
@@ -2408,7 +2409,7 @@ CONTAINS
              !$OMP END CRITICAL (crit_data_card)
           ENDDO
        ENDDO
-    endif
+    ENDIF
     !
     ! Clear MM stack
     !CALL dbcsr_psg_rm_data_c (&
@@ -4581,7 +4582,7 @@ CONTAINS
     !
     ! Attach C data on card to the product target descriptor
     CALL dbcsr_ps_target_add_data_cuda (product_target, c_dev, error)
-    call dbcsr_cuda_dev_mem_release (c_dev, error=error)
+    CALL dbcsr_cuda_dev_mem_release (c_dev, error=error)
     !
     ! Allocate C locks on GPU.  Locks should be cleared as soon as
     ! allocated.
@@ -4600,7 +4601,7 @@ CONTAINS
     ! parameter stacks.
     !
     !$OMP MASTER
-    if (verbose_acc) write(*,*)routineN//" Allocating stack state"
+    IF (verbose_acc) WRITE(*,*)routineN//" Allocating stack state"
     CALL dbcsr_cuda_dev_mem_new (stack_state_dev, dbcsr_type_int_4,&
          error=error)
     CALL dbcsr_cuda_dev_mem_alloc (stack_state_dev, 1, error=error)
