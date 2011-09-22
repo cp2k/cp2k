@@ -63,8 +63,9 @@ CONTAINS
 
     INTEGER                                  :: ia, iatom, ikind
     LOGICAL                                  :: do_molecule, failure
-    REAL(dp)                                 :: charge, mass, mtot, ztot
-    REAL(dp), DIMENSION(3)                   :: ria
+    REAL(dp)                                 :: charge, mass, mass_low, mtot, &
+                                                ztot
+    REAL(dp), DIMENSION(3)                   :: center, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -95,9 +96,19 @@ CONTAINS
        rpoint = 0._dp
        mtot = 0._dp
        IF (do_molecule) THEN
+          mass_low=-HUGE(mass_low)
+          ! fold the molecule around the heaviest atom in the molecule
+          DO iatom = ifirst, ilast
+             atomic_kind => particle_set(iatom)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+             IF (mass>mass_low) THEN
+                mass_low=mass
+                center=particle_set(iatom)%r
+             ENDIF
+          ENDDO
           DO iatom = ifirst, ilast
              ria = particle_set(iatom)%r
-             ria = pbc(ria,cell)
+             ria = pbc(ria-center,cell)+center
              atomic_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
              rpoint(:) = rpoint(:) + mass*ria(:)
@@ -128,9 +139,19 @@ CONTAINS
        rpoint = 0._dp
        ztot = 0._dp
        IF (do_molecule) THEN
+          mass_low=-HUGE(mass_low)
+          ! fold the molecule around the heaviest atom in the molecule
+          DO iatom = ifirst, ilast
+             atomic_kind => particle_set(iatom)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+             IF (mass>mass_low) THEN
+                mass_low=mass
+                center=particle_set(iatom)%r
+             ENDIF
+          ENDDO
           DO iatom = ifirst, ilast
              ria = particle_set(iatom)%r
-             ria = pbc(ria,cell)
+             ria = pbc(ria-center,cell)+center
              atomic_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
              rpoint(:) = rpoint(:) + charge*ria(:)

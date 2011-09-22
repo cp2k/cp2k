@@ -260,8 +260,6 @@ CONTAINS
        END DO
 
        ! fold atomic position back into unit cell
-       ra(:) = pbc(particle_set(iatom)%r(:),cell)
-       rb(:) = pbc(particle_set(jatom)%r(:),cell)
        IF ( PRESENT (ref_points) ) THEN
           rc(:) = 0.5_dp * (ref_points(:,iatom) + ref_points(:,jatom))
        ELSE IF ( PRESENT (ref_point) ) THEN
@@ -269,6 +267,10 @@ CONTAINS
        ELSE
           rc(:) = 0._dp
        END IF
+       ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
+       ! by folding around the center, such screwing can be avoided for a proper choice of center.
+       ra(:) = pbc(particle_set(iatom)%r(:)-rc,cell)+rc
+       rb(:) = pbc(particle_set(jatom)%r(:)-rc,cell)+rc
        ! we dont use PBC at this point
        rab(:) = ra(:) - rb(:)
        rac(:) = ra(:) - rc(:)
@@ -1125,7 +1127,7 @@ CONTAINS
           DO ia = 1,local_particles%n_el(ikind)
             iatom = local_particles%list(ikind)%array(ia)
             ! fold atomic positions back into unit cell
-            ria = pbc(particle_set(iatom)%r,cell)
+            ria = pbc(particle_set(iatom)%r-rcc,cell)+rcc
             ria = ria - rcc
             atomic_kind => particle_set(iatom)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
