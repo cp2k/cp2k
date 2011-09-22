@@ -849,7 +849,7 @@ CONTAINS
     !
 !$omp parallel &
 !$omp default (none) &
-!$omp shared (left_buffer_calc, right_buffer_calc, product_matrix,&
+!$omp shared (left_buffer_comm, right_buffer_comm, product_matrix,&
 !$omp         keep_sparsity, filter_eps, row_max_epss, error, &
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
 !$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
