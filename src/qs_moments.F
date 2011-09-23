@@ -548,7 +548,7 @@ CONTAINS
                                                 istat, ix, iy, iz, j, k, l, &
                                                 nao, nm, nmo, nmom, nmotot, &
                                                 tmp_dim
-    LOGICAL                                  :: failure, uniform
+    LOGICAL                                  :: failure, ghost, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
@@ -663,8 +663,10 @@ CONTAINS
        ! nuclear contribution
        DO ia = 1,SIZE(particle_set)
          atomic_kind => particle_set(ia)%atomic_kind
-         CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
-         rmom(1,2) = rmom(1,2) - charge
+         CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge,ghost=ghost)
+         IF (.NOT. ghost) THEN
+            rmom(1,2) = rmom(1,2) - charge
+         ENDIF
        END DO
        ria = twopi * MATMUL ( cell%h_inv, rcc )
        zphase = CMPLX ( COS(ria), SIN(ria), dp )**rmom(1,2)
@@ -681,19 +683,21 @@ CONTAINS
              zi(:) = CMPLX ( 1._dp, 0._dp, dp )
              DO ia = 1,SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
-               CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
-               ria = particle_set(ia)%r
-               ria = pbc(ria,cell)
-               DO i = 1, 3
-                 kvec(:) = twopi*cell%h_inv(i,:)
-                 dd = SUM ( kvec(:) * ria(:) )
-                 zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
-                 zi(i) = zi(i) * zdeta
-               END DO
+               CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge,ghost=ghost)
+               IF (.NOT. ghost) THEN
+                  ria = particle_set(ia)%r
+                  ria = pbc(ria,cell)
+                  DO i = 1, 3
+                    kvec(:) = twopi*cell%h_inv(i,:)
+                    dd = SUM ( kvec(:) * ria(:) )
+                    zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
+                    zi(i) = zi(i) * zdeta
+                  END DO
+               ENDIF
              END DO
              zi = zi * zphase
-             ci = ATAN(AIMAG(zi)/REAL(zi,dp)) 
-             rmom(2:4,2) = MATMUL ( cell%hmat, ci )/twopi
+             ci = AIMAG(LOG(zi)) / twopi
+             rmom(2:4,2) = MATMUL ( cell%hmat, ci )
            CASE (2)
              ! Quadrupole
              CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -719,7 +723,7 @@ CONTAINS
                DO j=1,3
                  zij(i,j) = zij(i,j)*zphase(i)*zphase(j)
                  zz = zij(i,j)/zi(i)/zi(j)
-                 cij(i,j) = ATAN(AIMAG(zz)/REAL(zz,dp))
+                 cij(i,j) = AIMAG(LOG(zz))/twopi
                END DO
              END DO
              cij = 0.5_dp*cij/twopi/twopi
@@ -755,7 +759,7 @@ CONTAINS
 
        ! electronic contribution
 
-       ria = twopi * REAL(nmotot,dp) * MATMUL ( cell%h_inv, rcc )
+       ria = twopi * REAL(nmotot,dp) * occ * MATMUL ( cell%h_inv, rcc )
        xphase = CMPLX ( COS(ria), SIN(ria), dp )
 
        ! charge
@@ -792,6 +796,9 @@ CONTAINS
                   END DO
                   CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
                   zdet = zdet * zdeta
+                  IF (dft_control%nspins==1) THEN
+                     zdet = zdet * zdeta
+                  ENDIF
                 END DO
                 zi(i) = zdet
              END DO
@@ -820,6 +827,9 @@ CONTAINS
                     END DO
                     CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
                     zdet = zdet * zdeta
+                    IF (dft_control%nspins==1) THEN
+                       zdet = zdet * zdeta
+                    ENDIF
                   END DO
                   zij(i,j) = zdet*xphase(i)*xphase(j)
                   zij(j,i) = zdet*xphase(i)*xphase(j)
@@ -845,8 +855,8 @@ CONTAINS
          SELECT CASE (l)
            CASE (1)
              ! Dipole
-             ci = ATAN(AIMAG(zi)/REAL(zi,dp))
-             rmom(2:4,1) = occ * MATMUL ( cell%hmat, ci )/twopi
+             ci = AIMAG(LOG(zi))/twopi
+             rmom(2:4,1) = MATMUL ( cell%hmat, ci )
            CASE (2)
              ! Quadrupole
              CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -855,10 +865,10 @@ CONTAINS
              DO i=1,3
                DO j=1,3
                  zz = zij(i,j)/zi(i)/zi(j)
-                 cij(i,j) = ATAN(AIMAG(zz)/REAL(zz,dp))
+                 cij(i,j) =AIMAG(LOG(zz))/twopi
                END DO
              END DO
-             cij = occ*0.5_dp*cij/twopi/twopi
+             cij = 0.5_dp*cij/twopi/twopi
              cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
              DO k = 4, 9
                ix = indco(1,k+1)
@@ -894,7 +904,7 @@ CONTAINS
        CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,periodic=.TRUE.)
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.)
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1153,7 +1163,7 @@ CONTAINS
        CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,periodic=.FALSE.)
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.)
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1187,11 +1197,12 @@ CONTAINS
   END SUBROUTINE set_label
 
 ! *****************************************************************************
-  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc,periodic)
+  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic)
     INTEGER, INTENT(IN)                      :: unit_number, nmom
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rmom
     CHARACTER(LEN=8), DIMENSION(:)           :: rlab
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rcc
+    TYPE(cell_type), POINTER                 :: cell
     LOGICAL                                  :: periodic
 
     INTEGER                                  :: i, i0, i1, j, l
@@ -1207,8 +1218,11 @@ CONTAINS
              "Electronic=",rmom(1,1),"Core=",rmom(1,2),"Total=",rmom(1,3)
           CASE (1)
             IF (periodic) THEN
-                WRITE(unit_number,"(T3,A)") "Dipoles are based on the periodic (Berry phase) operator."
-                WRITE(unit_number,"(T3,A)") "The dipole is only defined modulo vectors related to the lattice."
+                WRITE(unit_number,"(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
+                WRITE(unit_number,"(T3,A)") "They are defined modulo integer multiples of the cell matrix [Debye]."
+                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "X=[",cell%hmat(:,1)*debye,"] [i]"
+                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "Y=[",cell%hmat(:,2)*debye,"]*[j]"
+                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "Z=[",cell%hmat(:,3)*debye,"] [k]"
             ELSE
                 WRITE(unit_number,"(T3,A)") "Dipoles are based on the traditional operator."
             ENDIF

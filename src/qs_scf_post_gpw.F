@@ -1273,8 +1273,7 @@ CONTAINS
                                                 reference, unit_nr
     LOGICAL                                  :: do_berry, failure, &
                                                 first_time, ghost
-    REAL(KIND=dp)                            :: charge_tot, theta, tmp(3), &
-                                                zeff, zwfc
+    REAL(KIND=dp)                            :: charge_tot, theta, zeff, zwfc
     REAL(KIND=dp), DIMENSION(3)              :: ci, dipole, dipole_old, gvec, &
                                                 rcc, ria
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
@@ -1341,11 +1340,8 @@ CONTAINS
              ENDDO
           ENDDO
           ggamma = ggamma * zphase
-          IF (ALL(REAL(ggamma,KIND=dp) /= 0.0_dp)) THEN
-             tmp    = AIMAG(ggamma)/REAL(ggamma,KIND=dp)
-             ci     = ATAN(tmp)
-             dipole = MATMUL ( cell%hmat, ci )/twopi
-          END IF
+          ci     = AIMAG(LOG(ggamma))/twopi
+          dipole = MATMUL ( cell%hmat, ci )
        ELSE
           ! Charges of the atoms involved
           DO i=1,SIZE(particle_set)

@@ -289,7 +289,7 @@ CONTAINS
        END DO
     END DO
     zi = zi * zphase
-    ci = ATAN(AIMAG(zi)/REAL(zi,dp)) 
+    ci = AIMAG(LOG(zi))
     ener_field=0.0_dp
     DO idir=1,3
        ener_field=ener_field+ci(idir)*fieldfac(idir)
@@ -463,8 +463,8 @@ CONTAINS
              zi(idir) = zdet
           END DO
           zi(idir)=zi(idir)*xphase(idir)
-          ci(idir)=ATAN(AIMAG(zi(idir))/REAL(zi(idir),dp))
-          ener_field=ener_field+ATAN(AIMAG(zi(idir))/REAL(zi(idir),dp))*fieldfac(idir)
+          ci(idir)=AIMAG(LOG(zi(idir)))
+          ener_field=ener_field+ci(idir)*fieldfac(idir)
 
 
           !compute the derivative and add the result to mo_derivativs

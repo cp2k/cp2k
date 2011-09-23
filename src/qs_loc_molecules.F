@@ -74,7 +74,7 @@ CONTAINS
     LOGICAL                                  :: do_berry, failure, ghost
     REAL(KIND=dp)                            :: charge_tot, dipole(3), dr(3), &
                                                 mydist(2), ria( 3 ), theta, &
-                                                tmp(3), zeff, zwfc
+                                                zeff, zwfc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charge_set
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dipole_set
@@ -308,11 +308,8 @@ CONTAINS
              ENDDO
              
              ggamma = ggamma * zphase
-             IF (ALL(REAL(ggamma,KIND=dp) /= 0.0_dp)) THEN
-                tmp    = AIMAG(ggamma)/REAL(ggamma,KIND=dp)
-                ci     = ATAN(tmp)
-                dipole = MATMUL(cell%hmat, ci)/twopi
-             END IF
+             ci = AIMAG(LOG(ggamma))/twopi
+             dipole = MATMUL(cell%hmat, ci)
           ELSE
              ! Nuclear charges
              DO iatom=1,natom
