@@ -949,7 +949,7 @@ END SUBROUTINE fist_force_control
       POINTER                                :: charges
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: description
+    CHARACTER(LEN=default_string_length)     :: description, dipole_type
     COMPLEX(KIND=dp)                         :: dzeta, dzphase(3), zeta, &
                                                 zphase(3)
     COMPLEX(KIND=dp), DIMENSION(3)           :: dggamma, ggamma
@@ -978,6 +978,7 @@ END SUBROUTINE fist_force_control
     dipole_deriv = 0.0_dp
     dipole       = 0.0_dp
     IF(do_berry)THEN
+       dipole_type="[BERRY PHASE]"
        rcc = pbc(rcc,cell)
        charge_tot = 0._dp
        IF (ASSOCIATED(charges)) THEN
@@ -1032,9 +1033,10 @@ END SUBROUTINE fist_force_control
        CALL cp_results_erase(results,description,error=error)
        CALL put_results(results,description,dipole,error=error)
     ELSE
+       dipole_type="[Non Periodic]"
        DO i = 1, SIZE(particle_set)
           atomic_kind => particle_set(i)%atomic_kind
-          ria = pbc(particle_set(i)%r(:),cell)
+          ria = particle_set(i)%r(:) ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
           CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=q)
           IF (ASSOCIATED(charges)) q=charges(i)
           dipole = dipole - q *(ria-rcc)
@@ -1045,9 +1047,9 @@ END SUBROUTINE fist_force_control
        CALL put_results(results,description,dipole,error=error)
     END IF
     IF(unit_nr>0)THEN
-       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE](A.U.)|",dipole
-       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE](Debye)|",dipole*debye
-       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] DERIVATIVE(A.U.)|",dipole_deriv
+       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
+       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE "//TRIM(dipole_type)//"(Debye)|",dipole*debye
+       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|",dipole_deriv
     END IF
 
   END SUBROUTINE fist_dipole
