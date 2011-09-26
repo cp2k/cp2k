@@ -29,6 +29,7 @@ MODULE f77_interface
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_methods,               ONLY: get_results
   USE cp_subsys_types,                 ONLY: cp_subsys_type,&
                                              unpack_subsys_particles
   USE eip_main,                        ONLY: eip_create_force_env
@@ -134,7 +135,7 @@ MODULE f77_interface
             get_force, calc_energy_force, get_energy, &
             calc_energy, calc_force, check_input, get_natom, get_nparticle,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
-            set_vel, get_vel, do_shake, set_cell, get_cell
+            set_vel, get_vel, do_shake, set_cell, get_cell, get_result_r1
 CONTAINS
 
 ! *****************************************************************************
@@ -1009,6 +1010,45 @@ CPSourceFileRef,&
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_cell
+
+
+! *****************************************************************************
+!> \brief gets a result from CP2K that is a real 1D array 
+!> \param description, the tag of the result
+!> \param env_id id of the force_env
+!> \param result will contain the result
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE get_result_r1(env_id, description, N, RESULT, ierr)
+    INTEGER                                  :: env_id
+    CHARACTER(LEN=*)                         :: description
+    INTEGER                                  :: N
+    REAL(KIND=dp), DIMENSION(1:N)            :: RESULT
+    INTEGER                                  :: ierr
+
+    INTEGER                                  :: nres
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    NULLIFY (f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+  
+    IF (.NOT. failure) THEN
+       CALL get_results(results=f_env%force_env%results,&
+            description=description,&
+            n_rep=nres,error=error)
+       CALL get_results(results=f_env%force_env%results,&
+            description=description,&
+            values=RESULT,&
+            nval=nres,error=error)
+    ENDIF
+  
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  
+  END SUBROUTINE get_result_r1
 
 ! *****************************************************************************
 !> \brief gets the forces of the particles

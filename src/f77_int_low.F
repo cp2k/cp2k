@@ -89,6 +89,18 @@ SUBROUTINE cp_set_vel(env_id, new_vel, n_el, ierr)
 END SUBROUTINE cp_set_vel
 
 ! *****************************************************************************
+SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr)
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: get_result_r1
+  IMPLICIT NONE
+  CHARACTER(LEN=*) :: description
+  REAL(KIND=dp), DIMENSION(1:N) :: RESULT
+  INTEGER :: env_id, ierr,N
+
+  CALL get_result_r1(env_id,description, N, RESULT, ierr)
+END SUBROUTINE cp_get_result_r1
+
+! *****************************************************************************
 SUBROUTINE cp_get_natom(env_id, natom, ierr)
   USE kinds, ONLY: dp
   USE f77_interface, ONLY: gna => get_natom
