@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE do_mm_stack_c (param_stack, stack_size, nparams,&
-       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, error)
+       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk, error)
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: param_stack
     INTEGER, INTENT(IN)                      :: stack_size, nparams
     TYPE(dbcsr_cuda_mem_type_c4), INTENT(IN) :: a_data, b_data
@@ -12,22 +12,30 @@
       INTENT(INOUT)                          :: c_data
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: c_locks
     INTEGER, INTENT(IN)                      :: m_max, n_max, k_max
+    LOGICAL, INTENT(IN)                      :: def_mnk
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_mm_stack_c', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
+    INTEGER(KIND=C_INT)                      :: mnk
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
 #if defined (__DBCSR_CUDA)
+    IF (def_mnk) THEN
+       mnk = 1
+    ELSE
+       mnk = 0
+    ENDIF
     istat = cuda_do_stack_cu(param_stack%ref, INT(stack_size, KIND=C_INT),&
          INT(nparams, KIND=C_INT),&
          INT(dbcsr_type_complex_4, KIND=C_INT),&
          a_data%ref, b_data%ref, c_data%ref, c_locks%ref,&
-         INT(m_max,KIND=C_INT), INT(n_max,KIND=C_INT), INT(k_max,KIND=C_INT))
+         INT(m_max,KIND=C_INT), INT(n_max,KIND=C_INT), INT(k_max,KIND=C_INT),&
+         mnk)
 #else
     istat = -1
 #endif

@@ -7,5 +7,6 @@ dbcsr_cuda_calc_r.o \
 dbcsr_cuda_calc_d.o \
 dbcsr_cuda_calc_c.o \
 dbcsr_cuda_calc_z.o \
+dbcsr_cuda_dev.o \
 dbcsr_cuda_mem.o \
 dbcsr_cuda_timing.o

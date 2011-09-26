@@ -18,8 +18,7 @@ MODULE environment
        compile_arch, compile_date, compile_host, compile_lastcvs, cp2k_home, &
        cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
        r_host_name, r_pid, r_user_name
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_print_config,&
-                                             trash_map
+  USE cp_dbcsr_interface,              ONLY: trash_map
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_ma_interface
@@ -818,14 +817,6 @@ CONTAINS
 !$          CALL cp_ma_current_thread_run(nid, error=error)
 !$omp end parallel
      ENDIF
-
-  IF (output_unit > 0) THEN
-       IF (.TRUE.) THEN
-          WRITE (UNIT=output_unit,FMT='()')
-          CALL cp_dbcsr_print_config (unit_nr=output_unit, error=error)
-          WRITE (UNIT=output_unit,FMT='()')
-       ENDIF
-  ENDIF 
 
     CALL cp_print_key_finished_output(output_unit,logger,global_section,&
          "PROGRAM_RUN_INFO", error=error)

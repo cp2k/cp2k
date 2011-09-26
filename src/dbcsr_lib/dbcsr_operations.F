@@ -36,9 +36,13 @@ MODULE dbcsr_operations
                                              set_block2d_diagonal
   USE dbcsr_config,                    ONLY: dbcsr_init_conf,&
                                              detailed_timing,&
+                                             has_cuda,&
+                                             is_configured,&
                                              mm_driver,&
                                              mm_driver_cuda,&
                                              mm_driver_plasma
+  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_get_n_devices,&
+                                             dbcsr_cuda_init
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
                                              dbcsr_cuda_dev_mem_dealloc
   USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_setup
@@ -81,6 +85,7 @@ MODULE dbcsr_operations
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_allgather,&
                                              mp_bcast,&
+                                             mp_environ,&
                                              mp_recv,&
                                              mp_send,&
                                              mp_sum
@@ -4455,16 +4460,19 @@ CONTAINS
 !> Prepares the DBCSR library for use.
 !> \param[in,out] error     error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_lib (error)
+  SUBROUTINE dbcsr_init_lib (group, error)
+    INTEGER, INTENT(IN)                      :: group
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_lib', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle
+    INTEGER                                  :: error_handle, mynode, ngpus, &
+                                                numnode
 
 !   ---------------------------------------------------------------------------
 
+    IF (is_configured) RETURN
     CALL dbcsr_error_set(routineN, error_handle, error)
     !
     CALL dbcsr_assert (int_1_size, "EQ", 1,&
@@ -4486,6 +4494,13 @@ CONTAINS
     !
     CALL dbcsr_init_conf (error)
     !
+    IF (has_cuda) THEN
+       CALL mp_environ (numnode, mynode, group)
+       ngpus = dbcsr_cuda_get_n_devices (error)
+       CALL dbcsr_cuda_init (card_num=MOD(mynode, ngpus), error=error)
+    ENDIF
+    !
+    is_configured = .TRUE.
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_init_lib
 

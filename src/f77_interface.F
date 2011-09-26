@@ -227,7 +227,7 @@ CONTAINS
        CALL add_all_references()
 
        ! Initialize the DBCSR configuration
-       CALL cp_dbcsr_init_lib (error=error)
+       CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
     ELSE
        ierr=cp_failure_level
     END IF

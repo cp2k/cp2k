@@ -29,10 +29,19 @@ MODULE dbcsr_internal_operations
        mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
        mm_driver_smm, mm_stack_size, use_CUDA_host_pinned_memory, &
        use_MPI_memory, use_combined_types, use_comm_thread
-  USE dbcsr_cuda_memory
-  USE dbcsr_cuda_methods
-  USE dbcsr_cuda_operations
-  USE dbcsr_cuda_types
+  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_thread_sync
+  USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
+                                             dbcsr_cuda_dev_mem_dealloc,&
+                                             dbcsr_cuda_dev_mem_hold,&
+                                             dbcsr_cuda_dev_mem_new,&
+                                             dbcsr_cuda_dev_mem_realloc,&
+                                             dbcsr_cuda_dev_mem_release,&
+                                             dbcsr_cuda_dev_mem_zero
+  USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_get_alloc
+  USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_cp_dev_to_host,&
+                                             dbcsr_cuda_cp_host_to_dev,&
+                                             dbcsr_cuda_do_mm_stack
+  USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_init, &
@@ -3325,6 +3334,7 @@ CONTAINS
          param_stack%state, param_stack%t%t%stack_state_dev,&
          param_stack%m, param_stack%n, param_stack%k,&
          param_stack%max_m, param_stack%max_n, param_stack%max_k,&
+         param_stack%defined_mnk,&
          param_stack%t%t%c_locks_dev, param_stack%t%t%params_dev,&
          error=error)
     IF (careful_mod) &
@@ -3376,7 +3386,7 @@ CONTAINS
        IF (zero_last .GT. c_size) THEN
           !WRITE(*,*)routineN//" reallocating c_dev",&
           !     c_size, zero_last
-          IF (.FALSE.) THEN
+          IF (detailed_timing) THEN
              t_dev_sync = t_dev_sync - m_walltime()
              CALL dbcsr_cuda_thread_sync(error=error)
              t_dev_sync = t_dev_sync + m_walltime()
@@ -3399,7 +3409,7 @@ CONTAINS
        ! Resize block count.
        IF (nblks .GT. dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)) THEN
           maxs = dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
-          IF (.FALSE.) THEN
+          IF (detailed_timing) THEN
              t_dev_sync = t_dev_sync - m_walltime()
              CALL dbcsr_cuda_thread_sync(error=error)
              t_dev_sync = t_dev_sync + m_walltime()
@@ -3452,7 +3462,7 @@ CONTAINS
        product_data_card, has_product_data_card,&
        a_dev, b_dev,&
        zero_first, zero_last, nblks, state, stack_state_dev,&
-       m, n, k, max_m, max_n, max_k,&
+       m, n, k, max_m, max_n, max_k, defined_mnk,&
        c_locks_dev, params_dev, &
        error)
     INTEGER, INTENT(INOUT)                   :: stack_size
@@ -3470,6 +3480,7 @@ CONTAINS
     INTEGER, POINTER                         :: state
     TYPE(dbcsr_cuda_mem_type), POINTER       :: stack_state_dev
     INTEGER, INTENT(IN)                      :: m, n, k, max_m, max_n, max_k
+    LOGICAL, INTENT(IN)                      :: defined_mnk
     TYPE(dbcsr_cuda_mem_type), POINTER       :: c_locks_dev, params_dev
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
@@ -3634,7 +3645,7 @@ CONTAINS
             a_dev, b_dev, product_data_card,&
             c_locks_dev,&
             params_dev,&
-            m, n, k, max_m, max_n, max_k,&
+            m, n, k, max_m, max_n, max_k, defined_mnk,&
             state, stack_state_dev,&
             error=error)
     CASE default
@@ -4226,7 +4237,7 @@ CONTAINS
        data_a_dev, data_b_dev, data_c_dev,&
        c_locks,&
        params_dev,&
-       m, n, k, max_m, max_n, max_k,&
+       m, n, k, max_m, max_n, max_k, defined_mnk,&
        state, stack_state_dev,&
        error)
     INTEGER, INTENT(IN)                      :: stack_size
@@ -4237,6 +4248,7 @@ CONTAINS
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: data_c_dev, c_locks, &
                                                 params_dev
     INTEGER, INTENT(IN)                      :: m, n, k, max_m, max_n, max_k
+    LOGICAL, INTENT(IN)                      :: defined_mnk
     INTEGER, POINTER                         :: state
     TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: stack_state_dev
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -4307,7 +4319,7 @@ CONTAINS
     IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_do_mm_stack (params_dev%d_i, stack_size, n_mult_params,&
          data_a_dev, data_b_dev, data_c_dev,&
-         c_locks%d_i, ABS(m_max), ABS(n_max), ABS(k_max),&
+         c_locks%d_i, ABS(m_max), ABS(n_max), ABS(k_max), defined_mnk,&
          error=error)
     IF (kernel_timing) THEN
        CALL dbcsr_cuda_thread_sync (error=error)
@@ -4456,6 +4468,7 @@ CONTAINS
             param_stack%state, param_stack%t%t%stack_state_dev,&
             param_stack%m, param_stack%n, param_stack%k,&
             param_stack%max_m, param_stack%max_n, param_stack%max_k,&
+            param_stack%defined_mnk,&
             param_stack%t%t%c_locks_dev, param_stack%t%t%params_dev, &
             error=error)
        !$OMP CRITICAL (crit_target)

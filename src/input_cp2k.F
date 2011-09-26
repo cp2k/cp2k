@@ -841,26 +841,11 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     !
     CALL dbcsr_get_conf_nstacks (nstacks, n_buffers, n_mem_regions, dbcsr_error)
-    CALL keyword_create(keyword, name="n_size_m_stacks",&
-         description="Number of stacks to use for distinct m (row) sizes" &
+    CALL keyword_create(keyword, name="n_size_mnk_stacks",&
+         description="Number of stacks to use for distinct atomic sizes" &
          // " (e.g., 2 for a system of mostly waters).",&
-         usage="n_size_m_stacks 2",&
+         usage="n_size_mnk_stacks 2",&
          default_i_val=nstacks(1),error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="n_size_n_stacks",&
-         description="Number of stacks to use for distinct n (col) sizes" &
-         // " (e.g., 2 for a system of mostly waters).",&
-         usage="n_size_n_stacks 2",&
-         default_i_val=nstacks(2),error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="n_size_k_stacks",&
-         description="Number of stacks to use for distinct k" &
-         // " (common row and column) sizes" &
-         // " (e.g., 2 for a system of mostly waters).",&
-         usage="n_size_k_stacks 2",&
-         default_i_val=nstacks(2),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="n_stack_buffers",&

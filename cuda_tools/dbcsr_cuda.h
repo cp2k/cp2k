@@ -13,3 +13,6 @@
 
 
 int cuda_error_check (cudaError_t cudaError);
+
+#define GROUPING 16
+

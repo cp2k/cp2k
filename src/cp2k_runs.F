@@ -17,7 +17,8 @@ MODULE cp2k_runs
                                              enable_color_tags
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_config,&
                                              cp_dbcsr_finalize_lib,&
-                                             cp_dbcsr_init_lib
+                                             cp_dbcsr_init_lib,&
+                                             cp_dbcsr_print_config
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_ma_interface,                 ONLY: cp_ma_finalize_lib,&
@@ -178,7 +179,7 @@ CONTAINS
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
 
-    CALL cp_dbcsr_init_lib (error=error)
+    CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
 
     IF (has_ma) THEN
         CALL cp_ma_init_lib(para_env,error=error)
@@ -287,6 +288,13 @@ CONTAINS
           CALL cuda_device_mem_init(root_section, error)
 
           CALL cp_dbcsr_config (root_section, error)
+          IF (output_unit > 0 .AND.&
+               cp_logger_would_log(logger, cp_note_level)) THEN
+             CALL cp_dbcsr_print_config (unit_nr=output_unit, error=error)
+             WRITE (UNIT=output_unit,FMT='()')
+          ENDIF
+
+
 
 
           SELECT CASE (prog_name_id)

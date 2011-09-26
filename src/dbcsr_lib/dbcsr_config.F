@@ -65,6 +65,7 @@ MODULE dbcsr_config
 
   !
   PUBLIC :: detailed_timing, kernel_timing
+  PUBLIC :: is_configured
 
 
   ! First the constants are declared.
@@ -116,37 +117,39 @@ MODULE dbcsr_config
   ! by calling the dbcsr_init_conf() subroutine.
 
   ! Allocates subcommunicators for process rows and columns.
-  LOGICAL :: use_subcommunicators = .FALSE.
+  LOGICAL, SAVE :: use_subcommunicators = .FALSE.
 
   ! Use combined data types for MPI transfers.
-  LOGICAL :: use_combined_types = .FALSE.
+  LOGICAL, SAVE :: use_combined_types = .FALSE.
 
   ! Use MPI-allocated memory.
-  LOGICAL :: use_MPI_memory = has_MPI
+  LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
   ! Use CUDA host-pinned memory.
-  LOGICAL :: use_CUDA_host_pinned_memory = .FALSE.
+  LOGICAL, SAVE :: use_CUDA_host_pinned_memory = .FALSE.
 
   ! Which driver to use for matrix multiplications.
-  INTEGER :: mm_driver = mm_driver_smm
+  INTEGER, SAVE :: mm_driver = mm_driver_smm
 
   ! Stack size to use for multiplication parameters
-  INTEGER :: mm_stack_size = 1000
+  INTEGER, SAVE :: mm_stack_size = 1000
 
   ! Whether to print extra timing
-  LOGICAL :: detailed_timing = .FALSE.
-  LOGICAL :: kernel_timing = .FALSE.
+  LOGICAL, SAVE :: detailed_timing = .FALSE.
+  LOGICAL, SAVE :: kernel_timing = .FALSE.
 
   ! Number of stacks to use
-  INTEGER :: nm_stacks = 0
-  INTEGER :: nn_stacks = 0
-  INTEGER :: nk_stacks = 0
-  INTEGER :: nstackbuffers = 1
-  INTEGER :: nstackmemregions = 1
+  INTEGER, SAVE :: nm_stacks = 0
+  INTEGER, SAVE :: nn_stacks = 0
+  INTEGER, SAVE :: nk_stacks = 0
+  INTEGER, SAVE :: nstackbuffers = 1
+  INTEGER, SAVE :: nstackmemregions = 1
 
   ! Configuration of an MPI progress thread
-  LOGICAL :: use_comm_thread = .TRUE.
-  INTEGER :: comm_thread_load = 100 
+  LOGICAL, SAVE :: use_comm_thread = .TRUE.
+  INTEGER, SAVE :: comm_thread_load = 100 
+
+  LOGICAL, SAVE :: is_configured = .FALSE.
 
 CONTAINS
 
@@ -171,7 +174,11 @@ CONTAINS
     mm_stack_size = 1000
     IF (has_cuda) THEN
        mm_driver = mm_driver_cuda
-       mm_stack_size = 10000
+       mm_stack_size = 30000
+       nm_stacks = 2
+       nn_stacks = 2
+       nk_stacks = 2
+       nstackbuffers = 4
     ENDIF
     !
     use_comm_thread = .TRUE.

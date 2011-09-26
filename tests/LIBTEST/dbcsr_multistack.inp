@@ -6,9 +6,7 @@
      THRESHOLD 0.00000000001
   &END
   &DBCSR
-    n_size_m_stacks 1
-    n_size_n_stacks 3
-    n_size_k_stacks 2
+    n_size_mnk_stacks 2
     n_stack_buffers 4
     n_stack_memory_regions 5
   &END DBCSR

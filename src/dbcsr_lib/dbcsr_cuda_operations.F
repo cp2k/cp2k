@@ -62,8 +62,6 @@ MODULE dbcsr_cuda_operations
 
   PUBLIC :: dbcsr_cuda_do_mm_stack
 
-  PUBLIC :: dbcsr_cuda_thread_sync
-
 
   INTERFACE dbcsr_cuda_do_mm_stack
      MODULE PROCEDURE do_mm_stack_any
@@ -125,7 +123,7 @@ MODULE dbcsr_cuda_operations
   INTERFACE
      FUNCTION cuda_do_stack_cu(param_stack, stack_size, nparams,&
           data_type,&
-          a_data, b_data, c_data, c_locks, m_max, n_max, k_max)&
+          a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk)&
           RESULT (istat) &
           BIND(C, name="dc_do_stack_cu")
        USE ISO_C_BINDING
@@ -133,66 +131,29 @@ MODULE dbcsr_cuda_operations
     INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: stack_size, nparams, data_type
     TYPE(C_PTR), INTENT(IN), VALUE           :: a_data, b_data
     TYPE(C_PTR), VALUE                       :: c_data, c_locks
-    INTEGER(KIND=C_INT), VALUE               :: m_max, n_max, k_max
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: m_max, n_max, k_max, def_mnk
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_do_stack_cu
   END INTERFACE
-
-
-  INTERFACE
-     FUNCTION cuda_thread_sync_cu() RESULT (istat) BIND(C, name="dc_thread_sync_cu")
-       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: istat
-
-     END FUNCTION cuda_thread_sync_cu
-  END INTERFACE
 #endif
+
 
 CONTAINS
-
-
-  SUBROUTINE dbcsr_cuda_thread_sync(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_thread_sync', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle, istat
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handle, error)
-#if defined (__DBCSR_CUDA)
-    istat = cuda_thread_sync_cu();
-#else
-    istat = -1
-#endif
-    IF (istat /= 0) THEN
-       IF (PRESENT(error)) THEN
-          CALL dbcsr_assert (istat, "EQ", 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Could not synchronize all threads",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE dbcsr_cuda_thread_sync
-
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111!!!!!!!!!!!!!!!!!!
 ! Encapsulated data routines
 
   SUBROUTINE do_mm_stack_any (param_stack, stack_size, nparams,&
-       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, error)
+       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk, error)
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: param_stack
     INTEGER, INTENT(IN)                      :: stack_size, nparams
     TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: a_data, b_data
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: c_data
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: c_locks
     INTEGER, INTENT(IN)                      :: m_max, n_max, k_max
+    LOGICAL, INTENT(IN)                      :: def_mnk
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_mm_stack_any', &
@@ -217,19 +178,19 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_r, b_data%d_r, c_data%d_r,&
-             c_locks, m_max, n_max, k_max, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_d, b_data%d_d, c_data%d_d,&
-             c_locks, m_max, n_max, k_max, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_c, b_data%d_c, c_data%d_c,&
-             c_locks, m_max, n_max, k_max, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_z, b_data%d_z, c_data%d_z,&
-             c_locks, m_max, n_max, k_max, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&

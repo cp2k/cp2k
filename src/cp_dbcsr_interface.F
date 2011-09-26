@@ -54,15 +54,15 @@ MODULE cp_dbcsr_interface
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_cuda_mem, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_cuda_mem, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, detailed_timing, has_cuda, has_mpi, &
-       kernel_timing, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
-       mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
+       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_cuda_mem, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
+       detailed_timing, has_cuda, has_mpi, kernel_timing, mm_driver_blas, &
+       mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
+       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_scalar, &
@@ -434,7 +434,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes DBCSR
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_init_lib (error)
+  SUBROUTINE cp_dbcsr_init_lib (group, error)
+    INTEGER, INTENT(IN)                      :: group
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_lib', &
@@ -442,7 +443,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_init_lib (dbcsr_error)
+    CALL dbcsr_init_lib (group, dbcsr_error)
   END SUBROUTINE cp_dbcsr_init_lib
 
 ! *****************************************************************************
@@ -502,11 +503,8 @@ CONTAINS
     CALL section_vals_val_get(dbcsr_section,&
          "kernel_timing", l_val=kernel_timing, error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "n_size_m_stacks", i_val=nstacks(1), error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "n_size_n_stacks", i_val=nstacks(2), error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "n_size_k_stacks", i_val=nstacks(3), error=error)
+         "n_size_mnk_stacks", i_val=nstacks(1), error=error)
+    nstacks(2:3) = nstacks(1)
     CALL section_vals_val_get(dbcsr_section,&
          "n_stack_buffers", i_val=n_stack_buffers, error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -543,14 +541,18 @@ CONTAINS
 
     CHARACTER(len=default_string_length) :: comm_thread_load_str, mm_name, &
       mm_ss_str, use_combtypes_str, use_comm_thread_str, use_cuda_mem_str, &
-      use_mpi_mem_str, use_subcomms_str
+      use_k_stacks, use_m_stacks, use_mem_regions, use_mpi_mem_str, &
+      use_n_stacks, use_stack_buffers, use_subcomms_str
     INTEGER                                  :: comm_thread_load, mm_driver, &
-                                                mm_ss, unit_num
+                                                mm_ss, nbuffers, nmemregions, &
+                                                unit_num
+    INTEGER, DIMENSION(3)                    :: n_mnk_stacks
     LOGICAL                                  :: use_combtypes, &
                                                 use_comm_thread, &
                                                 use_cuda_mem, use_mpi_mem, &
                                                 use_subcomms
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     mm_driver = dbcsr_get_conf_mm_driver ()
     use_subcomms = dbcsr_get_conf_subcomm ()
@@ -578,6 +580,14 @@ CONTAINS
     use_cuda_mem_str = l2str_r(use_cuda_mem,info_len)
     use_comm_thread_str = l2str_r(use_comm_thread,info_len)
     comm_thread_load_str = int2str_r(comm_thread_load,info_len)
+
+    CALL dbcsr_get_conf_nstacks (n_mnk_stacks, nbuffers, nmemregions,&
+         error=dbcsr_error)
+    use_stack_buffers = int2str_r (nbuffers, info_len)
+    use_mem_regions = int2str_r (nmemregions, info_len)
+    use_m_stacks = int2str_r (n_mnk_stacks(1), info_len)
+    use_n_stacks = int2str_r (n_mnk_stacks(2), info_len)
+    use_k_stacks = int2str_r (n_mnk_stacks(3), info_len)
     
     logger => cp_error_get_logger(error)
     IF (PRESENT (unit_nr)) THEN
@@ -589,6 +599,29 @@ CONTAINS
        WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Multiplication driver",     ADJUSTR(mm_name(1:info_len)),&
             plabel, "Multiplication stack size", mm_ss_str(1:info_len)
+       IF (nmemregions .NE. 1) &
+            WRITE(UNIT=unit_num, FMT=o_fmt) &
+            plabel, "Multiplication stack memory regions",&
+            use_mem_regions(1:info_len)
+       IF (nbuffers .NE. 1) &
+            WRITE(UNIT=unit_num, FMT=o_fmt) &
+            plabel, "Multiplication stack buffers",&
+            use_stack_buffers(1:info_len)
+       IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
+          WRITE(UNIT=unit_num, FMT=o_fmt) &
+               plabel, "Multiplication size stacks",&
+               use_m_stacks(1:info_len)
+       ELSE
+          WRITE(UNIT=unit_num, FMT=o_fmt) &
+               plabel, "Multiplication size m stacks",&
+               use_m_stacks(1:info_len)
+          WRITE(UNIT=unit_num, FMT=o_fmt) &
+               plabel, "Multiplication size n stacks",&
+               use_n_stacks(1:info_len)
+          WRITE(UNIT=unit_num, FMT=o_fmt) &
+               plabel, "Multiplication size k stacks",&
+               use_k_stacks(1:info_len)
+       ENDIF
        IF (has_mpi) &
             WRITE(UNIT=unit_num, FMT=o_fmt) &
             plabel, "Use subcommunicators",      use_subcomms_str(1:info_len),&

@@ -9,9 +9,14 @@ BASIC:
 
 1)  Add a line "NVCC = nvcc" pointing the makefile to the nvcc compiler.
 
-2)  Add -D__CUDAPW and -D__FFTSGL to the DFLAGS and NVFLAGS environmental variables
+2)  Add -D__CUDAPW and -D__FFTCU to the DFLAGS and NVFLAGS environmental variables;
+    optionally add -D__FFTSGL for faster single precision FFTs.
 
 3)  Add libcudart.so, libcufft.so, and cublas to the LIBS variable.
+
+4)  If using in conjunction with DBCSR (see next section) then specify
+    an appropriate size for the GLOBAL / CUDA / MEMORY option in the
+    input file.
 
 DBCSR (experimental, with limitations):
 

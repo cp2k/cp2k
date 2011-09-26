@@ -1432,7 +1432,7 @@ CONTAINS
             size_counts(array(i)) = size_counts(array(i)) - 1
     END DO
     IF (SIZE(array) .GT. 0) THEN
-       CALL sort (size_counts, max_val_l, permutation)
+       CALL sort (size_counts, max_val_l+1, permutation)
     ENDIF
     nmc = MIN(nmost_common, SIZE(size_counts))
     ! Determine the biggest block size and allocate the map.
@@ -1440,11 +1440,11 @@ CONTAINS
     ! Create the mapping from block size to order.
     most_common_map = nmost_common+1
     DO i = 1, nmc
-       most_common_map(permutation(i-1)) = i
+       most_common_map(permutation(i-1)-1) = i
     END DO
     ! Copy the most common elements
     most_common_elements(:) = 0
-    most_common_elements(1:nmc) = permutation(0:nmc-1)
+    most_common_elements(1:nmc) = permutation(0:nmc-1)-1
     DEALLOCATE (size_counts)
     DEALLOCATE (permutation)
   END SUBROUTINE map_most_common
