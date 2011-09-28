@@ -94,8 +94,9 @@ SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr)
   USE f77_interface, ONLY: get_result_r1
   IMPLICIT NONE
   CHARACTER(LEN=*) :: description
+  INTEGER :: N
   REAL(KIND=dp), DIMENSION(1:N) :: RESULT
-  INTEGER :: env_id, ierr,N
+  INTEGER :: env_id, ierr
 
   CALL get_result_r1(env_id,description, N, RESULT, ierr)
 END SUBROUTINE cp_get_result_r1
