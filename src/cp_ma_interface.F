@@ -435,7 +435,7 @@ CONTAINS
 
     mempol = ma_get_conf_mempol()
 
-#if defined (__HWLOC) || defined (__LIBNUMA)
+    IF (ma_interface .NE. ma_int_none) THEN
       IF (mempol .EQ. 'D' .OR. mempol .EQ. 'd') THEN
            mem_pol = os
       ELSE IF (mempol .EQ. 'L' .OR. mempol .EQ. 'l') THEN
@@ -445,18 +445,21 @@ CONTAINS
       ELSE 
            mem_pol = -1        
       ENDIF
-#if defined (__HWLOC) && !defined (__LIBNUMA)
+   ENDIF
+   SELECT CASE (ma_interface)
+   CASE (ma_int_hwloc)
+#if defined (__HWLOC)
       CALL ma_set_mempol(mem_pol)
 #endif
-#if !defined (__HWLOC) && defined (__LIBNUMA)
+   CASE (ma_int_libnuma)
+#if defined (__LIBNUMA)
       CALL ma_linux_set_mempol(mem_pol)
 #endif
- 
-#else
+   CASE default
       CALL cp_assert (mem_pol .LT. 0,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
-       "Need hwloc library to query machine architecture.")
-#endif
+       "Need hwloc or libnuma library to query machine architecture.")
+   END SELECT
   END SUBROUTINE cp_ma_mempol
 
 
@@ -549,7 +552,14 @@ CONTAINS
     INTEGER                                  :: istat, num_threads
     TYPE(ma_mp_type)                         :: ma_env
 
-!$  INTEGER :: omp_get_num_threads
+    ma_interface = ma_int_none
+    IF (ma_hwloc) THEN
+       ma_interface = ma_int_hwloc
+    ELSE
+       IF (ma_libnuma) THEN
+          ma_interface = ma_int_libnuma
+       ENDIF
+    ENDIF
     num_threads=1
 !$omp parallel
 !$ num_threads = omp_get_num_threads()

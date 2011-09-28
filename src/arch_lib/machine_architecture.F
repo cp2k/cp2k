@@ -14,7 +14,7 @@
 MODULE machine_architecture
 
 #if defined (__HAS_NO_ISO_C_BINDING)
-#if defined (__HWLOC)
+#if defined (__HWLOC) || defined(__LIBNUMA)
   !Compile-time error. These two flags are incompatible
   STOP "The machine abstraction needs ISO_C_BINDING. Compile without __HAS_NO_ISO_C_BINDING"  
 #endif
@@ -52,13 +52,17 @@ MODULE machine_architecture
 
   PUBLIC :: ma_thread_run, ma_get_thread_run, ma_show_threads
 
+#if defined (__HWLOC)
   PUBLIC :: ma_set_mempol, ma_get_mempol, ma_string_mempol
+#endif
 
+#if defined (__LIBNUMA)
   PUBLIC :: ma_linux_set_mempol, ma_linux_get_mempol
   PUBLIC :: ma_linux_get_core, ma_linux_set_core
   PUBLIC :: ma_linux_set_proccore, ma_linux_get_proccore
   PUBLIC :: ma_linux_get_my_id, ma_linux_nnodes
   PUBLIC :: ma_linux_ncores, ma_linux_get_mynode
+#endif
    
 
   ! These are for Machine architecture internal use.
@@ -67,14 +71,33 @@ MODULE machine_architecture
   PUBLIC :: topology 
   PUBLIC :: console_output
   PUBLIC :: my_info
+  PUBLIC :: ma_hwloc, ma_libnuma
+  PUBLIC :: ma_interface, ma_int_hwloc, ma_int_libnuma, ma_int_none
   
   ! For the machine representation
   TYPE(arch_topology)                            :: topology 
-  TYPE(machine_output)                           :: console_out 
+  TYPE(machine_output)                           :: console_output
 
   TYPE(ma_process)                               :: my_info
   ! The global view of the thread mapping on the machine
   TYPE(thread_inf), DIMENSION(:,:), ALLOCATABLE  :: thread_mapping 
+
+#if defined (__LIBNUMA)
+  LOGICAL, PARAMETER :: ma_libnuma = .TRUE.
+#else
+  LOGICAL, PARAMETER :: ma_libnuma = .FALSE.
+#endif
+#if defined (__HWLOC)
+  LOGICAL, PARAMETER :: ma_hwloc = .TRUE.
+#else
+  LOGICAL, PARAMETER :: ma_hwloc = .FALSE.
+#endif
+
+  CHARACTER, PARAMETER :: ma_int_hwloc = 'H'
+  CHARACTER, PARAMETER :: ma_int_libnuma = 'N'
+  CHARACTER, PARAMETER :: ma_int_none = '0'
+  CHARACTER, SAVE :: ma_interface = ma_int_none
+
 
 #if defined (__HWLOC) 
 
