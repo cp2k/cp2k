@@ -1220,9 +1220,9 @@ CONTAINS
             IF (periodic) THEN
                 WRITE(unit_number,"(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
                 WRITE(unit_number,"(T3,A)") "They are defined modulo integer multiples of the cell matrix [Debye]."
-                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "X=[",cell%hmat(:,1)*debye,"] [i]"
-                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "Y=[",cell%hmat(:,2)*debye,"]*[j]"
-                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "Z=[",cell%hmat(:,3)*debye,"] [k]"
+                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "[X] [",cell%hmat(1,:)*debye,"] [i]"
+                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "[Y]=[",cell%hmat(2,:)*debye,"]*[j]"
+                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "[Z] [",cell%hmat(3,:)*debye,"] [k]"
             ELSE
                 WRITE(unit_number,"(T3,A)") "Dipoles are based on the traditional operator."
             ENDIF
