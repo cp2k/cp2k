@@ -800,13 +800,15 @@ CONTAINS
     END IF   
 
     IF (has_ma) THEN
-     CALL cp_ma_run_on(para_env, error, output_unit)
+      CALL cp_ma_set_neighbors(para_env, error)
+      CALL cp_ma_mpi_sched()
+      CALL cp_ma_run_on(para_env, error, output_unit)
 
 
 !$omp parallel private(nid)
 !$omp critical
 !$          nid = omp_get_thread_num()
-!$          CALL cp_ma_sched(nid, error=error )
+!$          CALL cp_ma_thread_sched(nid, error=error )
 !$omp end critical
 !$omp end parallel
 

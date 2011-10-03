@@ -710,6 +710,14 @@ CONTAINS
          default_c_val='N',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+  !
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="SCHED_MPI",&
+         description="Enable process scheduling on the machine.", &
+         usage="SCHED_MPI type (L=linear)",&
+         default_c_val='N',error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
    !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="MEM_POL",&

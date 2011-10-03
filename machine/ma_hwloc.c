@@ -3,7 +3,6 @@
 *   Copyright (C) 2000 * 2011 Christiane Ribeiro and the CP2K developers group
 ******************************************************************************/
 #ifdef __HWLOC
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -17,6 +16,8 @@
 #include <string.h>
 
 #include "ma_components.h"
+
+
 
 //The HWLOC main object to hold the machine architecture
 static hwloc_topology_t topology;
@@ -42,6 +43,11 @@ int hw_topology_init (struct arch_topology *topo)
   if(!error)
   {
     hwloc_topology_load(topology);
+
+#ifdef  __DBCSR_CUDA
+  int nDev;
+  ma_get_ndevices_cu(&nDev);
+#endif
 
     //Extract direct information
     if (hwloc_get_type_depth (topology, HWLOC_OBJ_NODE))
@@ -123,6 +129,8 @@ int hw_topology_init (struct arch_topology *topo)
 	        	machine_cores[i].caches[count] = obj->attr->cache.size / 1024;
 			count++;
 		}
+              if (obj->type == HWLOC_OBJ_NODE)
+                machine_cores[i].numaNode = obj->logical_index;                
  	   }
 
         }
@@ -137,6 +145,8 @@ int hw_topology_init (struct arch_topology *topo)
 	        	machine_cores[i].caches[count] = obj->attr->cache.size / 1024;
 			count++;
 		}
+              if (obj->type == HWLOC_OBJ_NODE)
+                machine_cores[i].numaNode = obj->logical_index;
  	   }
         }
    }    
@@ -167,7 +177,16 @@ int hw_topology_init (struct arch_topology *topo)
         machine_nodes[i].mycores = malloc (ncore_node*sizeof(unsigned)); 
 
         //Get the cores id of each NUMAnode
-        set_node_cores(topology, obj, ncore_node - 1); 
+        set_node_cores(topology, obj, ncore_node - 1);
+
+       //GPU support
+#ifdef  __DBCSR_CUDA
+       int *devIds;
+       devIds = malloc (nDev*sizeof(int));
+       topo->ngpus = nDev;
+       ma_get_cu(i,devIds); 
+       machine_nodes[i].mygpus = devIds;
+#endif    	
    }    
 
  /*Local copy of the machine topology components*/ 
@@ -398,20 +417,49 @@ void print_machine(hwloc_topology_t topology, hwloc_obj_t obj, int depth)
 {
     char string[128], out_string[128];
     unsigned i,arity;
+    int *devIds,devId,countDev;
 
-    // string[0] = out_string[0] = '\0';
-
-     if(obj->type == HWLOC_OBJ_NODE || obj->type == HWLOC_OBJ_SOCKET ||
-        obj->type == HWLOC_OBJ_MACHINE ){ 
+    if(obj->type == HWLOC_OBJ_SOCKET || obj->type == HWLOC_OBJ_MACHINE ){ 
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
        sprintf(out_string,"%*s%s\n", depth, "", string);
-       strcat(console_output,out_string); }
+       strcat(console_output,out_string);
+     }
+     else if (obj->type == HWLOC_OBJ_NODE){
+      hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
+      sprintf(out_string,"%*s%s\n", depth, "", string);
+      strcat(console_output,out_string); 
+//if the machine has shared GPUs
+#ifdef __DBCSR_CUDA
+       if ((local_topo->ngpus > 0) && (local_topo->ngpus < local_topo->ncores)){
+                ma_get_nDevcu(obj->logical_index, &countDev);
+                devIds = malloc (countDev*sizeof(int));
+                ma_get_cu(obj->logical_index, devIds);
+		strcat(console_output," Shared GPUS: ");
+		for (i = 0; i<countDev; i++){
+		 devId = devIds[i];
+                 sprintf(out_string,"#%d ", devId); 
+       		 strcat(console_output,out_string);}
+       		strcat(console_output,"\n");
+       }
+#endif
+     }
      else {
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
       if(obj->type == HWLOC_OBJ_PU )
       {
-       sprintf(out_string,"%*s%s\n", depth, "", string);
+#ifdef __DBCSR_CUDA
+       sprintf(out_string,"%*s%s\t", depth, "", string);
        strcat(console_output,out_string);
+       if (local_topo->ngpus > 0 && local_topo->ngpus == local_topo->ncores){
+                ma_get_core_cu(obj->logical_index, &devId);
+                strcat(console_output," GPU: ");
+                sprintf(out_string,"%d ", devId);
+                strcat(console_output,out_string);}
+      strcat(console_output,"\n");
+#else
+       sprintf(out_string,"%*s%s\n", depth, "", string);
+       strcat(console_output,out_string);	
+#endif
       }
       else if (obj->type == HWLOC_OBJ_CACHE && obj->arity>1){
        hwloc_obj_type_snprintf(string, sizeof(string), obj, 0);
@@ -461,17 +509,45 @@ void print_machine_branch(hwloc_topology_t topology, hwloc_obj_t obj, int depth,
 {
     char string[128], out_string[128];
     unsigned i,arity;
+    int *devIds,devId,countDev;
 
     if (obj->type != HWLOC_OBJ_MACHINE ){
-     if(obj->type == HWLOC_OBJ_NODE || obj->type == HWLOC_OBJ_SOCKET){ 
+     if(obj->type == HWLOC_OBJ_NODE){
+#ifdef __DBCSR_CUDA
+       if ((local_topo->ngpus > 0) && (local_topo->ngpus < local_topo->ncores)){
+                ma_get_nDevcu(obj->logical_index, &countDev);
+                devIds = malloc (countDev*sizeof(int));
+                ma_get_cu(obj->logical_index, devIds);
+                strcat(console_output," Shared GPUS: ");
+                for (i = 0; i<countDev; i++){
+                 devId = devIds[i];
+                 sprintf(out_string,"#%d ", devId);
+                 strcat(console_output,out_string);}
+                strcat(console_output,"\n");
+       }
+#endif
+     } 
+     else if (obj->type == HWLOC_OBJ_SOCKET){ 
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
        sprintf(out_string,"%*s%s\n", depth, "", string); 
        strcat(console_output,out_string);}
      else {
        hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
       if(obj->type == HWLOC_OBJ_PU)  {
-       sprintf(out_string,"%*s%s\n", depth, "", string); 
-       strcat(console_output,out_string);}
+#ifdef __DBCSR_CUDA
+       sprintf(out_string,"%*s%s\t", depth, "", string);
+       strcat(console_output,out_string);
+       if (local_topo->ngpus > 0 && local_topo->ngpus == local_topo->ncores){
+                ma_get_core_cu(obj->logical_index, &devId);
+                strcat(console_output," GPU: ");
+                sprintf(out_string,"%d ", devId);
+                strcat(console_output,out_string);}
+      strcat(console_output,"\n");
+#else
+       sprintf(out_string,"%*s%s\n", depth, "", string);
+       strcat(console_output,out_string);
+#endif      
+      }
       else if (obj->type == HWLOC_OBJ_CACHE && obj->arity>1){
        hwloc_obj_type_snprintf(string, sizeof(string), obj, 0);
        sprintf(out_string,"%*s%s", depth, "", string);
@@ -704,4 +780,42 @@ int hw_my_core()
 
   return core;
 }
+
+int hw_get_myNode(int coreId)
+{
+  return  machine_cores[coreId].numaNode;
+}
+
+#ifdef  __DBCSR_CUDA
+
+/*
+ *Build the GPUs list for a core
+ *param the core Id
+ *return the list of gpus
+ */
+void hw_my_gpuList(int coreId,int *devList)
+{
+  int nodeId; 
+
+  if( local_topo->nnodes == 0)
+    ma_get_uma_closerDev_cu(devList);
+  else{
+    nodeId = hw_get_myNode(coreId);
+    ma_get_closerDev_cu(nodeId,devList);
+  }
+}
+
+int hw_my_gpu(int coreId, int myRank)
+{
+  int *devList;
+ 
+  int ngpus = local_topo->ngpus;
+  devList = malloc(ngpus*sizeof(int));
+  
+  hw_my_gpuList(coreId,devList);
+  
+  return devList[myRank%ngpus];
+
+}
+#endif
 #endif

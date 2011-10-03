@@ -29,6 +29,7 @@ MODULE ma_config
   PUBLIC :: ma_set_conf_print_thread, ma_get_conf_print_thread
   PUBLIC :: ma_set_conf_print_thread_cur, ma_get_conf_print_thread_cur
   PUBLIC :: ma_set_conf_sched, ma_get_conf_sched
+  PUBLIC :: ma_set_conf_mpiSched, ma_get_conf_mpiSched  
   PUBLIC :: ma_set_conf_mempol, ma_get_conf_mempol
 
 
@@ -41,7 +42,9 @@ MODULE ma_config
             print_thread, &
             print_thread_cur
   PUBLIC :: use_sched, &
-            use_mempol
+            use_mempol, &
+            mpi_sched
+  PUBLIC :: isconfigured
 
 
   ! Possible prints 
@@ -49,7 +52,9 @@ MODULE ma_config
                         print_full, print_proc, print_thread, & 
                         print_thread_cur
 
-  CHARACTER(len=1)   :: use_sched, use_mempol
+  CHARACTER(len=1)   :: use_sched, mpi_sched, use_mempol
+
+  LOGICAL, SAVE :: isconfigured = .FALSE.
 
 CONTAINS
 
@@ -65,6 +70,7 @@ CONTAINS
     print_thread = .FALSE.
     print_thread_cur = .FALSE.
     use_sched = 'N'
+    mpi_sched = 'N'
   END SUBROUTINE ma_init_conf
 
   SUBROUTINE ma_set_conf_print_branch (branch)
@@ -183,6 +189,25 @@ CONTAINS
 
     use_sched = sched
   END SUBROUTINE ma_set_conf_sched
+
+  SUBROUTINE ma_set_conf_mpiSched (sched)
+    CHARACTER(len=1), INTENT(IN)             :: sched
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_set_conf_mpiSched', &
+      routineP = moduleN//':'//routineN
+
+    mpi_sched = sched
+  END SUBROUTINE ma_set_conf_mpiSched
+
+  FUNCTION ma_get_conf_mpiSched () RESULT (sched)
+    CHARACTER(len=1)                         :: sched
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_get_conf_mpiSched', &
+      routineP = moduleN//':'//routineN
+
+    sched = mpi_sched 
+  END FUNCTION ma_get_conf_mpiSched
+
 
   FUNCTION ma_get_conf_sched () RESULT (sched)
     CHARACTER(len=1)                         :: sched

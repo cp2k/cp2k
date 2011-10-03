@@ -13,7 +13,8 @@
 !> - Created 2011
 ! *****************************************************************************
 MODULE cp_ma_interface
-  USE cp2k_info,                       ONLY: r_pid
+  USE cp2k_info,                       ONLY: r_host_name,&
+                                             r_pid
   USE cp_error_handling
   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                              cp_logger_type,&
@@ -25,11 +26,15 @@ MODULE cp_ma_interface
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: int_size
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_size
   USE ma_config
   USE machine_architecture
   USE machine_architecture_types
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_environ,&
+                                             mp_sum
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             string_to_ascii
   USE termination,                     ONLY: stop_memory
 
 !$ USE OMP_LIB
@@ -41,10 +46,11 @@ MODULE cp_ma_interface
   ! Interface to libma
   PUBLIC :: cp_ma_config, cp_ma_init_lib, cp_ma_finalize_lib
   PUBLIC :: cp_ma_run_on, cp_ma_thread_run_on 
-  PUBLIC :: cp_ma_current_thread_run
-  PUBLIC :: cp_ma_sched, cp_ma_verify_place 
-  PUBLIC :: cp_ma_print_machine 
-
+  PUBLIC :: cp_ma_current_thread_run, cp_ma_set_neighbors
+  PUBLIC :: cp_ma_thread_sched, cp_ma_verify_place 
+  PUBLIC :: cp_ma_mpi_sched
+  PUBLIC :: cp_ma_print_machine
+  PUBLIC :: cp_ma_get_cuDev 
 
 CONTAINS
 
@@ -58,7 +64,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_config', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=1)                         :: use_sched
+    CHARACTER(len=1)                         :: mpi_sched, use_sched
     LOGICAL                                  :: print_branch, print_full, &
                                                 print_proc, print_resume, &
                                                 print_thread, print_thread_cur
@@ -82,7 +88,9 @@ CONTAINS
     CALL section_vals_val_get(ma_section,&
          "PRINT_THREAD_CUR", l_val=print_thread_cur, error=error)
     CALL section_vals_val_get(ma_section,&
-         "SCHED_THREAD", c_val=use_sched, error=error)
+         "SCHED_MPI", c_val=mpi_sched, error=error)
+    CALL section_vals_val_get(ma_section,&
+         "SCHED_THREAD", c_val=use_sched, error=error)    
     CALL section_vals_val_get(ma_section,&
          "MEM_POL", c_val=use_mempol, error=error)   
    
@@ -94,7 +102,31 @@ CONTAINS
     CALL ma_set_conf_print_thread_cur (print_thread_cur)
     CALL ma_set_conf_mempol (use_mempol)
     CALL ma_set_conf_sched (use_sched)
+    CALL ma_set_conf_mpiSched (mpi_sched)
   END SUBROUTINE cp_ma_config
+
+! *****************************************************************************
+!> \brief Get the cuda devices for the MPIs
+! *****************************************************************************
+  SUBROUTINE cp_ma_get_cuDev(cuDev, myRank)
+    INTEGER                                  :: cuDev, myRank
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_get_cuDev', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_num
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    unit_num = cp_logger_get_default_io_unit(logger)
+    cuDev = ma_getcuDev(myRank)
+
+    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
+      IF (ma_MPI_nGpus()) THEN 
+        WRITE(unit_num,"(T2,A)")"WARNING: Number of MPI greater than GPUs"          
+      ENDIF
+    ENDIF
+
+  END SUBROUTINE  cp_ma_get_cuDev
 
 ! *****************************************************************************
 !> \brief Print the configuration options for Machine Architecture  
@@ -203,6 +235,7 @@ CONTAINS
    ENDIF
   END SUBROUTINE cp_ma_print_machine
 
+
 ! *****************************************************************************
 !> \brief Prints where the process is running - Also print the memory policy 
 !> \brief associated with the process
@@ -225,8 +258,6 @@ CONTAINS
     print_proc = ma_get_conf_print_proc() 
 
 #if defined (__HWLOC) || defined (__LIBNUMA)
-   IF (print_proc) THEN
-! ***** Print where process are running!
       ALLOCATE (all_core(para_env%num_pe),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,"all_core",&
@@ -257,6 +288,10 @@ CONTAINS
 
       !Where process is running
       CALL ma_running_on(all_core(para_env%mepos+1), all_node(para_env%mepos+1))
+ 
+   IF (print_proc) THEN
+! ***** Print where process are running!
+
       CALL mp_sum(all_core,para_env%group)
       CALL mp_sum(all_node,para_env%group)
 
@@ -313,18 +348,6 @@ CONTAINS
         ENDIF
       END IF
 
-      DEALLOCATE (all_pid,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
-      END IF
-      DEALLOCATE (all_core,STAT=istat)
-      IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_core")
-      END IF
-      DEALLOCATE (all_node,STAT=istat)
-      IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_node")
-      END IF  
       DEALLOCATE (all_memory,STAT=istat)
       IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,"all_memory")
@@ -333,13 +356,64 @@ CONTAINS
       IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,"all_node_memory")
       END IF
+      DEALLOCATE (all_pid,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
+      END IF
+
   ENDIF
+
+      DEALLOCATE (all_core,STAT=istat)
+      IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_core")
+      END IF
+      DEALLOCATE (all_node,STAT=istat)
+      IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_node")
+      END IF  
 #else
      CALL cp_assert (.NOT. print_proc,&
         cp_warning_level, cp_unimplemented_error_nr, routineP,&
         "Need hwloc/libnuma library to query machine architecture.")
 #endif
   END SUBROUTINE cp_ma_run_on
+
+! *****************************************************************************
+!> \brief Set the number of neighbors for a process. Neighbors is the process
+!> \brief running on the same machine
+! *****************************************************************************
+  SUBROUTINE cp_ma_set_neighbors(para_env, error)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_set_neighbors', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: string
+    INTEGER                                  :: istat, jpe, nr_occu
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
+
+    ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
+            30*para_env%num_pe*int_size)
+    END IF
+    all_host(:,:) = 0
+
+    CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
+    CALL mp_sum(all_host,para_env%group)
+
+     nr_occu = 0
+     DO jpe=1,para_env%num_pe
+        CALL ascii_to_string(all_host(:,jpe),string)
+        IF  (string .EQ. r_host_name) THEN
+         nr_occu = nr_occu +1
+        ENDIF
+     END DO
+
+     CALL ma_set_neighbors(nr_occu)
+
+  END SUBROUTINE cp_ma_set_neighbors
 
 ! *****************************************************************************
 !> \brief Prints where the threads are running
@@ -462,17 +536,49 @@ CONTAINS
    END SELECT
   END SUBROUTINE cp_ma_mempol
 
+! *****************************************************************************
+!> \brief Get or apply a process scheduling strategy
+! Note: set the configuration keywords in the input file
+! *****************************************************************************
+  SUBROUTINE cp_ma_mpi_sched(error)
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_mpi_sched', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=1)                         :: sched_mpi
+    INTEGER                                  :: pol_sched
+
+    sched_mpi = ma_get_conf_mpiSched()
+
+#if defined (__HWLOC) || defined (__LIBNUMA)
+      IF (sched_mpi .EQ. 'L' .OR. sched_mpi .EQ. 'l') THEN
+           pol_sched = linear
+           CALL ma_sched_mpi(linear)
+      ELSE
+           pol_sched = nosched
+           CALL ma_sched_mpi(nosched)
+      ENDIF
+#else
+      CALL cp_assert (pol_sched .LT. 0,&
+       cp_warning_level, cp_unimplemented_error_nr, routineP,&
+       "Need hwloc library to query machine architecture.")
+#endif
+  END SUBROUTINE cp_ma_mpi_sched
+
+
 
 ! *****************************************************************************
 !> \brief Get or apply a thread scheduling strategy 
 ! Note: set the configuration keywords in the input file
 ! *****************************************************************************
-  SUBROUTINE cp_ma_sched(id, error)
+  SUBROUTINE cp_ma_thread_sched(id, error)
     INTEGER, INTENT(IN)                      :: id
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_sched', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_thread_sched', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1)                         :: sched_thread
@@ -494,7 +600,7 @@ CONTAINS
        "Need hwloc library to query machine architecture.")
 #endif
 
-  END SUBROUTINE cp_ma_sched
+  END SUBROUTINE cp_ma_thread_sched
 
 ! *****************************************************************************
 !> \brief Verify the thread scheduling 
@@ -542,14 +648,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes Machine Architecture
 ! *****************************************************************************
-  SUBROUTINE cp_ma_init_lib (para_env, error)
-    TYPE(cp_para_env_type), POINTER          :: para_env
+  SUBROUTINE cp_ma_init_lib (group, error)
+    INTEGER, INTENT(IN)                      :: group
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_init_lib', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, num_threads
+    INTEGER                                  :: istat, mynode, num_threads, &
+                                                numnode
     TYPE(ma_mp_type)                         :: ma_env
 
     ma_interface = ma_int_none
@@ -564,10 +671,11 @@ CONTAINS
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
+    CALL mp_environ (numnode, mynode, group)
 
-    ma_env%myproc = para_env%mepos
-    ma_env%numproc = para_env%num_pe
-    ma_env%mp_group = para_env%group
+    ma_env%myproc = mynode
+    ma_env%numproc = numnode
+    ma_env%mp_group = group
 
     istat = ma_init (ma_env, num_threads)
     

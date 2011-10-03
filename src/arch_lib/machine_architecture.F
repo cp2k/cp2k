@@ -20,14 +20,15 @@ MODULE machine_architecture
 #endif
 #endif
 
-#if defined (__HWLOC) || defined(__LIBNUMA)
+#if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
 #endif 
 
   USE machine_architecture_types
   USE machine_architecture_utils
-  USE ma_config,                    ONLY: print_thread
+  USE ma_config
   USE ma_dummy_c_bindings
+  USE ma_kinds 
   USE ma_message_passing,           ONLY: mp_allgather
   
   PRIVATE 
@@ -42,7 +43,7 @@ MODULE machine_architecture
   
   PUBLIC :: ma_get_mynode, ma_get_mycore
  
-  PUBLIC :: ma_sched_threads, ma_no_place, ma_linear_place
+  PUBLIC :: ma_sched_threads, ma_sched_mpi, ma_no_place, ma_linear_place
 
   PUBLIC :: ma_verify_place
   PUBLIC :: ma_running_on, ma_thread_running_on, ma_current_thread_run 
@@ -51,6 +52,10 @@ MODULE machine_architecture
   PUBLIC :: ma_show_machine_full 
 
   PUBLIC :: ma_thread_run, ma_get_thread_run, ma_show_threads
+
+  PUBLIC :: ma_set_neighbors
+
+  PUBLIC :: ma_getcuDev, ma_MPI_nGpus
 
 #if defined (__HWLOC)
   PUBLIC :: ma_set_mempol, ma_get_mempol, ma_string_mempol
@@ -63,6 +68,8 @@ MODULE machine_architecture
   PUBLIC :: ma_linux_get_my_id, ma_linux_nnodes
   PUBLIC :: ma_linux_ncores, ma_linux_get_mynode
 #endif
+
+
    
 
   ! These are for Machine architecture internal use.
@@ -76,7 +83,7 @@ MODULE machine_architecture
   
   ! For the machine representation
   TYPE(arch_topology)                            :: topology 
-  TYPE(machine_output)                           :: console_output
+  TYPE(machine_output)                           :: console_out
 
   TYPE(ma_process)                               :: my_info
   ! The global view of the thread mapping on the machine
@@ -132,6 +139,15 @@ MODULE machine_architecture
 
      END SUBROUTINE ma_show_phys_topo
   END INTERFACE
+
+  INTERFACE 
+    FUNCTION ma_get_cuDev(coreId, myRank) RESULT (cuDev) BIND(C, name="hw_my_gpu") 
+    USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), VALUE               :: coreId, myRank
+    INTEGER(KIND=C_INT)                      :: cuDev
+
+    END FUNCTION ma_get_cuDev
+  END INTERFACE 
 
   INTERFACE 
      SUBROUTINE ma_show_branch(output_branch) BIND(C, name="hw_high_level_show") 
@@ -357,9 +373,10 @@ END SUBROUTINE ma_string_mempol
    INTEGER                          :: num_threads
    TYPE(ma_mp_type)                 :: ma_env
 
+ IF ( isconfigured ) RETURN
+#if defined (__HWLOC) || defined (__LIBNUMA)
    topology%nnodes = -1
    istat = -1
-#if defined (__HWLOC) || defined (__LIBNUMA)
    ALLOCATE(thread_mapping(ma_env%numproc,num_threads))
    CALL ma_create_process(my_info,ma_env,num_threads)
 #endif 
@@ -370,12 +387,15 @@ END SUBROUTINE ma_string_mempol
    topology%nnodes = ma_linux_nnodes()
    topology%ncores = ma_linux_ncores() 
    topology%npus = ma_linux_ncores()   
+   topology%ngpus = 0
    topology%nsockets = 0
    topology%ncaches = 0
    topology%nshared_caches = 0
    topology%nsiblings = 0
    topology%nmemcontroller = 0
+ 
 #endif 
+  isconfigured = .TRUE.
   END FUNCTION ma_init 
 
 ! *****************************************************************************
@@ -392,6 +412,52 @@ END SUBROUTINE ma_string_mempol
   END SUBROUTINE ma_finalize
 
 ! *****************************************************************************
+!> \brief Sets the number of neighbors for a process
+!> \var nr_occu number of neighbors
+! *****************************************************************************
+  SUBROUTINE ma_set_neighbors(nr_occu)
+    INTEGER                                  :: nr_occu
+
+  my_info%nr_neighbors = nr_occu
+
+  END SUBROUTINE ma_set_neighbors
+
+! *****************************************************************************
+!> \brief Verify if the number of MPI processes is greater than GPUS
+! *****************************************************************************
+  FUNCTION ma_MPI_nGpus() RESULT(is_greater)
+    LOGICAL                                  :: is_greater
+
+  is_greater = .FALSE.
+
+  IF (my_info%nr_neighbors .GT. topology%ngpus ) is_greater = .TRUE.
+
+  END FUNCTION ma_MPI_nGpus
+
+! *****************************************************************************
+!> \brief Gets the GPU ids for MPI processes considering the physical distance
+!> \var all_cuDev the pointer to the ids
+! *****************************************************************************
+  FUNCTION ma_getcuDev(myRank) RESULT (cuDev)
+    INTEGER(KIND=C_INT), INTENT(IN)          :: myRank
+    INTEGER(KIND=C_INT)                      :: cuDev
+
+    INTEGER(KIND=C_INT)                      :: core, rank
+
+  rank = my_info%mp_info%myproc
+  core = my_info%core
+
+  IF (myRank .EQ. rank) THEN
+#if defined (__DBCSR_CUDA) && defined (__HWLOC)
+  cuDev = ma_get_cuDev(core,rank)
+#else
+  cuDev = 0
+#endif
+  ENDIF
+
+  END FUNCTION ma_getcuDev
+
+! *****************************************************************************
 !> \brief Prints in text format the machine abstraction - only one branch
 !> \var unit_num the output console
 ! *****************************************************************************
@@ -399,7 +465,7 @@ END SUBROUTINE ma_string_mempol
   INTEGER :: unit_num
 #if defined (__HWLOC)
   CALL ma_show_branch(console_out)
-  WRITE(unit_num,*)console_out%console_output(1:console_out%len)
+  WRITE(unit_num,*) console_out%console_output(1:console_out%len)
 #endif
   END SUBROUTINE ma_show_machine_branch
 
@@ -420,49 +486,91 @@ END SUBROUTINE ma_string_mempol
 
 
 ! *****************************************************************************
-!> \brief Get the threads mapping on the machine cores
-!> \var id thread OMP id
+!> \brief Get the MPI/threads mapping on the machine cores
+!> \var id thread OMP id - MPI rank
 ! *****************************************************************************
   SUBROUTINE ma_no_place(id)
   INTEGER :: id,core
 #if defined (__HWLOC)  && !defined (__LIBNUMA)
+ IF (my_info%nr_threads .GT. 1) THEN
   my_info%threads_info(id+1)%core = ma_get_mycore()  
   my_info%threads_info(id+1)%node = ma_get_mynode() 
   my_info%threads_info(id+1)%id_omp = id
   my_info%threads_info(id+1)%id_real = ma_get_my_id()  
+ ELSE
+  my_info%threads_info(1)%core = ma_get_proc_core()
+  my_info%threads_info(1)%node = ma_get_proc_node()
+  my_info%threads_info(1)%id_omp = id
+  my_info%threads_info(1)%id_real = ma_get_my_id()
+ END IF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
+ IF (my_info%nr_threads .GT. 1) THEN
   core = ma_linux_get_core()
   my_info%threads_info(id+1)%core = core
   my_info%threads_info(id+1)%node = ma_linux_get_mynode()
   my_info%threads_info(id+1)%id_omp = id
   my_info%threads_info(id+1)%id_real = ma_linux_get_my_id()
+ ELSE
+  core = ma_linux_get_core()
+  my_info%threads_info(1)%core = core
+  my_info%threads_info(1)%node = ma_linux_get_mynode()
+  my_info%threads_info(1)%id_omp = id
+  my_info%threads_info(1)%id_real = ma_linux_get_my_id()
+ END IF
 #endif
   END SUBROUTINE ma_no_place
 
 ! *****************************************************************************
-!> \brief Set the threads mapping on the machine cores - round-robin
-!> \var id thread OMP id
+!> \brief Set the MPI/threads mapping on the machine cores - round-robin
+!> \var id thread OMP id - MPI rank
 ! *****************************************************************************
+! The strategy used hier is a simple compact distrbution for threads of a
+! process. In this case, threads of a process take into account the process
+! affinity.
+! For MPI only process, the strategy is a scatter. In this case, the scheduling
+! provides as much as possible cache memory for MPI processes.
+
   SUBROUTINE ma_linear_place(id)
-  INTEGER :: id, core
+  INTEGER :: id, core, distance
 #if defined (__HWLOC) && !defined (__LIBNUMA)
-  core =  MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_get_ncores())
+ IF (my_info%nr_threads .GT. 1) THEN
+  core = MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_get_ncores())
   CALL ma_set_core(core)
   my_info%threads_info(id+1)%core = core  
   my_info%threads_info(id+1)%node = ma_get_mynode() 
   my_info%threads_info(id+1)%id_omp = id
   my_info%threads_info(id+1)%id_real = ma_get_my_id()  
+ ELSE
+  distance = topology%ncores/my_info%nr_neighbors
+  core = (MOD(my_info%mp_info%myproc,ma_get_ncores()))*distance 
+  CALL ma_set_proccore(core)
+  my_info%threads_info(1)%core = 1
+  my_info%threads_info(1)%node = ma_get_proc_node()
+  my_info%threads_info(1)%id_omp = id
+  my_info%threads_info(1)%id_real = ma_get_my_id()  
+ END IF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
-  core =  MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_linux_ncores())
+ IF (my_info%nr_threads .GT. 1) THEN
+  core = MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_linux_ncores())
   CALL ma_linux_set_core(core)
   my_info%threads_info(id+1)%core = core
   my_info%threads_info(id+1)%node = ma_linux_get_mynode()
   my_info%threads_info(id+1)%id_omp = id
   my_info%threads_info(id+1)%id_real = ma_linux_get_my_id()
+ ELSE
+  distance = topology%ncores/my_info%nr_neighbors
+  core = (MOD(my_info%mp_info%myproc,ma_get_ncores()))*distance
+  CALL ma_linux_set_core(core)
+  my_info%threads_info(1)%core = core
+  my_info%threads_info(1)%node = ma_linux_get_mynode()
+  my_info%threads_info(1)%id_omp = id
+  my_info%threads_info(1)%id_real = ma_linux_get_my_id()
+ ENDIF
 #endif
   END SUBROUTINE ma_linear_place
+
 
 ! *****************************************************************************
 ! Functions to extract the machine information
@@ -564,6 +672,10 @@ END SUBROUTINE ma_string_mempol
                                 topology%ncores/topology%nsockets
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of siblings per core             ",&
                                 topology%nsiblings
+#if defined (__CUDAPW) || defined (__DBCSR_CUDA)
+     WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of graphics processing units     ",&
+                                topology%ngpus
+#endif
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of caches levels                 ",&
                                 topology%ncaches
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of shared caches                 ",&
@@ -740,6 +852,20 @@ END SUBROUTINE ma_string_mempol
        CALL ma_linear_place(id)
      END SELECT
   END SUBROUTINE ma_sched_threads
+
+! *****************************************************************************
+! Get/set the core for a mpi
+! *****************************************************************************
+  SUBROUTINE ma_sched_mpi(policy)
+    INTEGER                                  :: policy
+
+     SELECT CASE (policy)
+     CASE (nosched)
+       CALL ma_no_place(my_info%mp_info%myproc)
+     CASE (linear)
+       CALL ma_linear_place(my_info%mp_info%myproc)
+     END SELECT
+  END SUBROUTINE ma_sched_mpi
 
 ! *****************************************************************************
 !> \brief Verify the last and current core for a thread

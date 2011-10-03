@@ -34,7 +34,8 @@ MODULE machine_architecture_types
  TYPE :: arch_topology 
 #endif
    INTEGER(C_INT)         :: nnodes, nsockets
-   INTEGER(C_INT)         :: ncores, npus, ncaches
+   INTEGER(C_INT)         :: ncores, npus
+   INTEGER(C_INT)         :: ngpus, ncaches
    INTEGER(C_INT)         :: nshared_caches, nsiblings
    INTEGER(C_INT)          :: nmemcontroller                 
   END TYPE arch_topology
@@ -45,7 +46,7 @@ MODULE machine_architecture_types
    CHARACTER(C_CHAR)           :: console_output(8192)
 #else
  TYPE :: machine_output
-   CHARACTER                :: console_output(8192)
+   CHARACTER                   :: console_output(8192)
 #endif
    INTEGER(C_INT)              :: len
  END TYPE machine_output  
@@ -54,6 +55,7 @@ MODULE machine_architecture_types
  TYPE :: thread_inf
    INTEGER                :: core, node, id_omp, id_real 
  END TYPE thread_inf 
+
 
  ! For machine architecture internal use 
  ! Thread scheduling policies
@@ -80,6 +82,7 @@ MODULE machine_architecture_types
  INTEGER, PARAMETER       :: local      = 1
  INTEGER, PARAMETER       :: interleave = 2
 
+
 #if defined (__HWLOC) || defined (__LIBNUMA)
   LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .TRUE.
 #else
@@ -90,6 +93,9 @@ MODULE machine_architecture_types
 #else
   LOGICAL, PARAMETER, PUBLIC                   :: has_MPI = .FALSE.
 #endif
+
+
+
 
  PUBLIC :: ma_mp_type, ma_process
  
@@ -118,6 +124,7 @@ MODULE machine_architecture_types
      TYPE(ma_mp_type)                            :: mp_info
      TYPE(thread_inf), DIMENSION(:), ALLOCATABLE :: threads_info
      INTEGER                                     :: nr_threads
+     INTEGER                                     :: nr_neighbors 
      INTEGER                                     :: core, node
   END TYPE ma_process
 

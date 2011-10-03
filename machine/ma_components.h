@@ -29,6 +29,7 @@ struct arch_topology
  int nsockets;
  int ncores;
  int npus;
+ int ngpus; 
  int ncaches;
  int nshared_caches;
  int nsiblings;
@@ -56,6 +57,7 @@ struct machine_output{
 struct core{
  unsigned id;
  double freq;  // TODO: get frequence of each core
+ int numaNode;
  size_t *caches;
  int *shared_caches;
  int nsiblings;
@@ -76,8 +78,10 @@ struct core{
 struct node{
  unsigned id;
  int ncores;
+ int ngpus; 
  size_t memory;
  unsigned *mycores;
+ unsigned *mygpus;
  int nneighbors;
  int *neighbors_id; //TODO: get the node neighbors of each NUMA node
 };
@@ -134,6 +138,5 @@ void linux_set_proc_core(int core);
 int linux_proc_core();
 void linux_set_my_core(int core);
 int linux_my_core();
-
 #endif
 #endif
