@@ -90,15 +90,18 @@ END SUBROUTINE cp_set_vel
 
 ! *****************************************************************************
 SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr)
-  USE kinds, ONLY: dp
+  USE kinds, ONLY: dp, default_string_length
   USE f77_interface, ONLY: get_result_r1
   IMPLICIT NONE
   CHARACTER(LEN=*) :: description
   INTEGER :: N
   REAL(KIND=dp), DIMENSION(1:N) :: RESULT
   INTEGER :: env_id, ierr
+  CHARACTER(LEN=default_string_length) :: description_low
+  
+  description_low=description
+  CALL get_result_r1(env_id,description_low, N, RESULT, ierr)
 
-  CALL get_result_r1(env_id,description, N, RESULT, ierr)
 END SUBROUTINE cp_get_result_r1
 
 ! *****************************************************************************

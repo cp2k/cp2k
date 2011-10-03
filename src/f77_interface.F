@@ -78,6 +78,7 @@ MODULE f77_interface
        section_vals_release, section_vals_remove_values, section_vals_retain, &
        section_vals_type, section_vals_val_get, section_vals_write
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
@@ -1029,7 +1030,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE get_result_r1(env_id, description, N, RESULT, ierr)
     INTEGER                                  :: env_id
-    CHARACTER(LEN=*)                         :: description
+    CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: N
     REAL(KIND=dp), DIMENSION(1:N)            :: RESULT
     INTEGER                                  :: ierr
