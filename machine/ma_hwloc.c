@@ -122,7 +122,7 @@ int hw_topology_init (struct arch_topology *topo)
           core1 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, i);
  	  machine_cores[i].id = core1->os_index;
           count = 0;
-          for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_PU,0);
+          for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_PU,i);
               obj; obj = obj->parent) {
 	      if (obj->type == HWLOC_OBJ_CACHE)
 		{
@@ -138,7 +138,7 @@ int hw_topology_init (struct arch_topology *topo)
 	  core1 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, i);
  	  machine_cores[i].id = core1->os_index;
           count = 0;
-          for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_CORE,0);
+          for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_CORE,i);
               obj; obj = obj->parent) {
 	      if (obj->type == HWLOC_OBJ_CACHE)
 		{
@@ -793,28 +793,48 @@ int hw_get_myNode(int coreId)
  *param the core Id
  *return the list of gpus
  */
-void hw_my_gpuList(int coreId,int *devList)
+void hw_my_gpuList(int nodeId,int *devList)
 {
-  int nodeId; 
 
   if( local_topo->nnodes == 0)
     ma_get_uma_closerDev_cu(devList);
-  else{
-    nodeId = hw_get_myNode(coreId);
+  else
     ma_get_closerDev_cu(nodeId,devList);
-  }
 }
 
-int hw_my_gpu(int coreId, int myRank)
+int hw_my_gpu(int coreId, int myRank, int nMPIs)
 {
-  int *devList;
- 
+  int *devList,i,nDev,nodeId;
+
   int ngpus = local_topo->ngpus;
   devList = malloc(ngpus*sizeof(int));
-  
-  hw_my_gpuList(coreId,devList);
-  
-  return devList[myRank%ngpus];
+
+  nodeId = hw_get_myNode(coreId);
+  hw_my_gpuList(nodeId,devList);
+
+/*
+ * The algorithm:
+ *  if UMA machine - similar costs to access devices
+ *    just make a round-robin distribution of the GPUs
+ *  if NUMA machine - not similar costs to access devices
+ *    if number of MPI process equal to number of GPUs
+ *      just give one GPU for each MPI process
+ *    if the MPI is in a NUMA node that has no GPU
+ *      just make a round-robin distribution of the GPUs
+ *    if number of MPIs is larger than number of GPUs
+ *      try to balance the GPU usage
+ **/
+
+
+ if( local_topo->nnodes == 0 )
+   return devList[myRank%ngpus];
+  else {
+   ma_get_nDevcu(nodeId,&nDev);
+   if (( nMPIs == ngpus ) || (nDev == 0))
+    return devList[myRank%ngpus];
+   else
+    return devList[myRank%nDev];
+ }
 
 }
 #endif

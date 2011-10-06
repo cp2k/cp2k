@@ -179,9 +179,7 @@ CONTAINS
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
 
-    IF (has_ma) THEN
-        CALL cp_ma_init_lib(group=mpi_comm,error=error)
-    ENDIF 
+    CALL cp_ma_init_lib(group=mpi_comm,error=error)
 
     CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
 

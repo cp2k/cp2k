@@ -18,6 +18,8 @@
 #include <dirent.h>
 
 #include "ma_linux.h"
+#include "ma_components.h"
+
 
 /* manage bitmap */
 #define BITS_IN_BYTES 8
@@ -29,11 +31,95 @@
 #define clearbit(M,i)      (M[i / BITS_IN_WORDS] &= ~(1 << (i % BITS_IN_WORDS)))
 #define bit_is_marked(M,i) (M[i / BITS_IN_WORDS] & (1 << (i % BITS_IN_WORDS)))
 
+static struct node *machine_nodes;
+static struct arch_topology *local_topo;
+
+
 static inline int mask_isset(unsigned long *a, unsigned long sa, int node) {
         if ((unsigned int)node >= sa*8) return 0;
         return bit_is_marked(a,node);
 }
 
+int linux_topology_init(struct arch_topology *topo)
+{
+  int count, i, j, error,k,tmpNode;
+
+#ifdef  __DBCSR_CUDA
+  int nDev;
+  ma_get_ndevices_cu(&nDev);
+  topo->ngpus = nDev;
+#endif
+
+  topo->nnodes = linux_get_nnodes();
+  topo->ncores = linux_get_ncores();
+  topo->npus = topo->ncores;
+
+  topo->nsockets = linux_get_nsockets();
+  
+  local_topo = topo;
+   //Compute number of memory controlers per socket
+   //basically the number of NUMA nodes per socket
+  if (topo->nnodes > topo->nsockets)
+    topo->nmemcontroller = topo->nnodes/topo->nsockets;
+  else
+    topo->nmemcontroller = 1;
+                  
+  topo->ncaches = linux_get_ncaches(); 
+
+  local_topo = topo;
+  
+  topo->nshared_caches = linux_get_nshared_caches();
+  topo->nsiblings = linux_get_nsiblings();  
+
+  //Machine node and core representation
+  machine_nodes = (struct node*) malloc (topo->nnodes*sizeof(struct node));
+
+  int ncore_node = topo->ncores/topo->nnodes;
+
+ for (i = 0; i < topo->nnodes ; i++)
+   {
+        machine_nodes[i].id = i;
+        machine_nodes[i].memory = 0;
+        machine_nodes[i].ncores = ncore_node;
+#ifdef  __DBCSR_CUDA
+       ma_get_nDevcu(i,&nDev);
+       machine_nodes[i].mygpus = malloc (nDev*sizeof(int));
+       ma_get_cu(i,machine_nodes[i].mygpus);
+#endif
+   }
+
+   local_topo = topo;       
+}
+
+int linux_get_nshared_caches()
+{
+   int i, j, nshared=0;
+   char cpu_list[256], temp[12], filename[512];
+   FILE *file;
+
+   cpu_list[0] = '\0'; 
+
+   
+
+   for (i=2; i <= local_topo->ncaches ; i++)
+   {
+      strcpy(filename,"/sys/devices/system/cpu/cpu0/cache/index");
+      temp[0]='\0';
+      sprintf(temp,"%i", i);
+      strcat(filename,temp);
+      strcat(filename,"/shared_cpu_list");
+      file = fopen(filename,"r");
+      if(file != NULL){
+        fscanf(file,"%s",cpu_list);
+        strcat(cpu_list,"\0");
+        for (j = 0; j < strlen(cpu_list); j++)
+          if((cpu_list[j] == '-') || (cpu_list[j] == ','))
+            nshared++;
+      } 
+   }
+   
+  return nshared;
+}
 
 /*
 TODO: get thread id - portable
@@ -42,7 +128,6 @@ unsigned linux_get_myid()
 {
   return syscall(SYS_gettid);
 }
-
 
 /*
 * Set the core where the current process will run
@@ -99,6 +184,99 @@ int linux_is_numa()
 {
  return numa_available();
 }
+
+int linux_get_nsiblings()
+{
+        int             i,socket_id=0,nsiblings=0;
+        char            dirnamep[256];
+        char            temp[33];
+        struct dirent   *dirent;
+        FILE             *file;
+        int maxcores = 0;
+
+        temp[0]=dirnamep[0]='\0';
+
+        do{
+        strcpy(dirnamep,"/sys/devices/system/cpu/cpu");
+        temp[0]='\0';
+        sprintf(temp, "%i", maxcores);
+        strcat(dirnamep,temp);
+        strcat(dirnamep,"/topology/physical_package_id");
+
+        file = fopen(dirnamep,"r");
+           if(file != NULL){
+             fscanf(file,"%d",&socket_id);
+             nsiblings++;
+          }
+          maxcores++;
+        } while((socket_id == 0) && (file != NULL));
+
+        fclose(file);
+
+ return nsiblings-1;
+
+}
+
+int linux_get_nsockets()
+{
+        int             i,socket_id=0, cur_socket_id=0,nsockets=0;
+        char            dirnamep[256];
+        char            temp[33];
+        struct dirent   *dirent;
+        FILE             *file;
+        int maxcores = linux_get_ncores(),cores=0;
+
+        temp[0]=dirnamep[0]='\0';
+
+        do{
+        strcpy(dirnamep,"/sys/devices/system/cpu/cpu");
+        temp[0]='\0';
+        sprintf(temp, "%i", cores);
+        strcat(dirnamep,temp);
+        strcat(dirnamep,"/topology/physical_package_id");
+        file = fopen(dirnamep,"r");
+           if(file != NULL){
+             fscanf(file,"%d",&cur_socket_id);
+            if(cur_socket_id != socket_id)  
+             {   nsockets++; socket_id = cur_socket_id;}
+          }
+          cores++;
+        } while(cores <  maxcores);
+
+        fclose(file);
+
+ return nsockets+1;
+
+}
+
+int linux_get_ncaches()
+{
+        int i;
+        int             node=-1;
+        char            dirnamep[256];
+        char            temp[33];
+        struct dirent   *dirent;
+        DIR             *dir;
+        int maxcaches = 0;
+
+        temp[0]=dirnamep[0]='\0';
+
+        do{
+        strcpy(dirnamep,"/sys/devices/system/cpu/cpu0/cache/index");
+        temp[0]='\0';
+        sprintf(temp, "%i", maxcaches);
+        strcat(dirnamep,temp);
+        dir = opendir(dirnamep);
+           if(dir != NULL)
+             maxcaches++;
+        } while(dir != NULL);
+
+        closedir(dir);
+
+ return maxcaches-1;
+
+}
+
 
 /*get inumber of nodes
 return 0 if the machine is not NUMA
@@ -157,7 +335,7 @@ int linux_get_ncores()
 
         closedir(dir);
 
-  return maxcores-1;
+  return maxcores;
 }
 
 
@@ -207,6 +385,51 @@ int linux_get_nodeid()
 
   return node;
 }
+
+int linux_get_nodeid_cpu(int cpu)
+{
+        int             i;
+        int             node=-1;
+        char            dirnamep[256];
+        char            cpuid[7],temp[33];
+        struct dirent   *dirent;
+        DIR             *dir;
+        int maxnodes;
+        maxnodes  =  linux_get_nnodes();
+
+      if( maxnodes > 1){
+          temp[0]=cpuid[0]=dirnamep[0]='\0';
+          strcpy(cpuid,"cpu");
+          sprintf(temp, "%i", cpu);
+          strcat(cpuid,temp);
+          strcat(cpuid,"\0");
+
+
+        for(i=0;i<maxnodes && node == -1;i++){
+        strcpy(dirnamep,"/sys/devices/system/node/node");
+        temp[0]='\0';
+        sprintf(temp, "%i", i);
+        strcat(dirnamep,temp);
+        dir = opendir(dirnamep);
+        if (dir == NULL) {
+                return 0;
+        }
+        while ((dirent = readdir(dir)) != 0) {
+                if (strcmp(cpuid, dirent->d_name)==0) {
+                        node = i;
+                        break;
+                }
+        }
+        closedir(dir);
+     }
+    }
+    else
+      node = 0;
+
+  return node;
+}
+
+
 
 /*
 * Set the memory policy for data allocation for a process
@@ -286,4 +509,65 @@ void linux_get_mempol(int *node, int *mem_pol)
  else
   (*mem_pol) = -1;
 }
+
+#ifdef  __DBCSR_CUDA
+
+/*
+ *Build the GPUs list for a core
+ *param the core Id
+ *return the list of gpus
+ */
+void linux_my_gpuList(int nodeId,int *devList)
+{
+
+  if( local_topo->nnodes == 0)
+    ma_get_uma_closerDev_cu(devList);
+  else
+    ma_get_closerDev_cu(nodeId,devList);
+  
+}
+
+/*
+ *Get the GPU ID for a MPI process
+ *param core id where the process is running
+ *      rank MPI rank number
+ *return the GPU ID to connect to           
+ * */
+int linux_my_gpu(int coreId, int myRank, int nMPIs)
+{
+  int *devList,i,nDev,nodeId;
+
+  int ngpus = local_topo->ngpus;
+  devList = malloc(ngpus*sizeof(int));
+
+  nodeId = linux_get_nodeid_cpu(coreId);
+  linux_my_gpuList(nodeId,devList);
+
+/*
+ *The algorithm: 
+ * if UMA machine - similar costs to access devices
+ *   just make a round-robin distribution of the GPUs
+ * if NUMA machine - not similar costs to access devices
+ *   if number of MPI process equal to number of GPUs
+ *     just give one GPU for each MPI process
+ *   if the MPI is in a NUMA node that has no GPU
+ *     just make a round-robin distribution of the GPUs
+ *   if number of MPIs is larger than number of GPUs 
+ *      try to balance the GPU usage    	  
+ * */
+
+  if( local_topo->nnodes == 0 )
+   return devList[myRank%ngpus];
+  else {
+   ma_get_nDevcu(nodeId,&nDev);
+   if (( nMPIs == ngpus ) || (nDev == 0))
+    return devList[myRank%ngpus];
+   else  
+    return devList[myRank%nDev];  
+ }
+
+}
+#endif
+
+
 #endif

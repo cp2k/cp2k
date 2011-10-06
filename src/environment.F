@@ -793,14 +793,11 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT='()')
 
        ! Show machine topology
-       IF (has_ma) THEN
-          CALL cp_ma_print_machine(unit_nr=output_unit, error=error)
-       ENDIF
+       CALL cp_ma_print_machine(unit_nr=output_unit, error=error)
 
     END IF   
 
     IF (has_ma) THEN
-      CALL cp_ma_set_neighbors(para_env, error)
       CALL cp_ma_mpi_sched()
       CALL cp_ma_run_on(para_env, error, output_unit)
 

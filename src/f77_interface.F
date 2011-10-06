@@ -231,9 +231,7 @@ CONTAINS
        CALL add_all_references()
 
        ! Initialize the MA_ARCH configuration  
-       IF (has_ma) THEN
-          CALL cp_ma_init_lib(group=mpi_comm_default,error=error)
-       ENDIF
+       CALL cp_ma_init_lib(group=mpi_comm_default,error=error)
 
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)

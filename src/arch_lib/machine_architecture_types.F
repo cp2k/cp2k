@@ -58,16 +58,17 @@ MODULE machine_architecture_types
 
 
  ! For machine architecture internal use 
- ! Thread scheduling policies
- PUBLIC  :: nosched, linear, scatter, compact, scatter_level
+ PUBLIC                   :: threads, mpi
+ INTEGER, PARAMETER       :: threads = 0
+ INTEGER, PARAMETER       :: mpi     = 1 
+ 
+ 
+
+ ! MPI/Thread scheduling policies
+ PUBLIC  :: nosched, linear
  
  INTEGER, PARAMETER       :: nosched = 0
  INTEGER, PARAMETER       :: linear  = 1
- INTEGER, PARAMETER       :: scatter = 2
- INTEGER, PARAMETER       :: compact = 3
-
- ! 1 - NUMA node, 2 - scoket, 3 cache
- INTEGER                  :: scatter_level
 
 !Information of the mempory
  TYPE :: mem_inf
@@ -83,7 +84,9 @@ MODULE machine_architecture_types
  INTEGER, PARAMETER       :: interleave = 2
 
 
-#if defined (__HWLOC) || defined (__LIBNUMA)
+#if defined (__HWLOC) 
+  LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .TRUE.
+#elif defined (__LIBNUMA)
   LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .TRUE.
 #else
   LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .FALSE.

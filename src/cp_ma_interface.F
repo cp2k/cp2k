@@ -117,13 +117,19 @@ CONTAINS
     INTEGER                                  :: unit_num
     TYPE(cp_logger_type), POINTER            :: logger
 
-    unit_num = cp_logger_get_default_io_unit(logger)
-    cuDev = ma_getcuDev(myRank)
+    IF ( has_ma ) THEN
+            unit_num = cp_logger_get_default_io_unit(logger)
+            cuDev = ma_getcuDev(myRank)
 
-    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-      IF (ma_MPI_nGpus()) THEN 
-        WRITE(unit_num,"(T2,A)")"WARNING: Number of MPI greater than GPUs"          
-      ENDIF
+            IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
+              IF (ma_MPI_nGpus()) THEN 
+                WRITE(unit_num,"(T2,A)")"WARNING: Number of MPI greater than GPUs"          
+              ENDIF
+            ENDIF
+    ELSE
+        CALL cp_assert (.FALSE.,&
+        cp_warning_level, cp_unimplemented_error_nr, routineP,&
+        "Need hwloc/libnuma library to query machine architecture.")    
     ENDIF
 
   END SUBROUTINE  cp_ma_get_cuDev
@@ -142,11 +148,11 @@ CONTAINS
     INTEGER                                  :: pol_sched, unit_num
     TYPE(cp_logger_type), POINTER            :: logger
 
-  sched_thread = ma_get_conf_sched() 
+    sched_thread = ma_get_conf_sched() 
 
-  logger => cp_error_get_logger(error)
+    logger => cp_error_get_logger(error)
 
-#if defined (__HWLOC)
+    IF (has_ma) THEN 
       IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l') THEN
            pol_sched = linear
       ELSE
@@ -158,20 +164,24 @@ CONTAINS
     ELSE
       unit_num = cp_logger_get_default_io_unit(logger)
     ENDIF
-    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-     SELECT CASE (pol_sched)
-     CASE (nosched)
-         WRITE(unit_num,'()')
-         WRITE(unit_num,'(T2,A)') "SCHED | No thread scheduling"
-     CASE (linear)
-         WRITE(unit_num,'()')
-         WRITE(unit_num,'(T2,A)') "SCHED | Applying linear thread scheduling"
-     CASE DEFAULT
-         WRITE(unit_num,'()')
+     IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
+      SELECT CASE (pol_sched)
+      CASE (nosched)
+          WRITE(unit_num,'()')
+          WRITE(unit_num,'(T2,A)') "SCHED | No thread scheduling"
+      CASE (linear)
+          WRITE(unit_num,'()')
+          WRITE(unit_num,'(T2,A)') "SCHED | Applying linear thread scheduling"
+      CASE DEFAULT
+          WRITE(unit_num,'()')
           WRITE(unit_num,'(T2,A)') "SCHED | No valid thread scheduling"
-     END SELECT
-    ENDIF
-#endif
+      END SELECT
+     ENDIF
+   ELSE
+        CALL cp_assert (.FALSE.,&
+        cp_warning_level, cp_unimplemented_error_nr, routineP,&
+        "Need hwloc/libnuma library to query machine architecture.")
+   ENDIF
    END SUBROUTINE cp_ma_print_config
 
 ! *****************************************************************************
@@ -201,37 +211,18 @@ CONTAINS
      unit_num = cp_logger_get_default_io_unit(logger)
    ENDIF
    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-
-#if defined (__HWLOC) && !defined (__LIBNUMA)
-    IF (print_resume) THEN
-      CALL ma_show_topology(unit_num)
-    ENDIF
-#else
-    CALL cp_assert (.NOT. print_resume,&
-       cp_warning_level, cp_unimplemented_error_nr, routineP,&
-       "Need hwloc library to query machine architecture.")
-#endif
-
-#if defined (__HWLOC) && !defined (__LIBNUMA)
-     IF (print_branch) THEN
-       CALL ma_show_machine_branch(unit_num)
-     ENDIF
-#else
-     CALL cp_assert (.NOT. print_branch,&
-        cp_warning_level, cp_unimplemented_error_nr, routineP,&
-        "Need hwloc library to query machine architecture.")
-#endif
-
-#if defined (__HWLOC) && !defined (__LIBNUMA)
-     IF (print_full) THEN
-       CALL ma_show_machine_full(unit_num)
-     ENDIF
-#else
-     CALL cp_assert (.NOT. print_full,&
-        cp_warning_level, cp_unimplemented_error_nr, routineP,&
-        "Need hwloc library to query machine architecture.")
-#endif
-  
+        SELECT CASE (ma_interface)
+        CASE (ma_int_hwloc)
+          IF (print_resume) CALL ma_show_topology(unit_num)
+          IF (print_branch) CALL ma_show_machine_branch(unit_num)
+          IF (print_full)   CALL ma_show_machine_full(unit_num)
+        CASE (ma_int_libnuma)
+          IF (print_resume) CALL ma_show_topology(unit_num)
+        CASE (ma_int_none)
+          CALL cp_assert (.FALSE.,&
+          cp_warning_level, cp_unimplemented_error_nr, routineP,&
+          "Need hwloc/libNuma library to query machine architecture.")
+        END SELECT
    ENDIF
   END SUBROUTINE cp_ma_print_machine
 
@@ -256,8 +247,7 @@ CONTAINS
     LOGICAL                                  :: print_proc
 
     print_proc = ma_get_conf_print_proc() 
-
-#if defined (__HWLOC) || defined (__LIBNUMA)
+    IF ( has_ma ) THEN 
       ALLOCATE (all_core(para_env%num_pe),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,"all_core",&
@@ -305,12 +295,7 @@ CONTAINS
       CALL mp_sum(all_pid,para_env%group)
 
      IF ( ma_get_conf_mempol() .NE. 'N' ) THEN
-#if defined (__HWLOC) && !defined (__LIBNUMA)
       CALL ma_get_mempol(all_node_mem(para_env%mepos+1),all_memory(para_env%mepos+1))
-#endif
-#if defined (__LIBNUMA) && !defined (__HWLOC)
-      CALL ma_linux_get_mempol(all_node_mem(para_env%mepos+1),all_memory(para_env%mepos+1))
-#endif
       CALL mp_sum(all_memory,para_env%group)
       CALL mp_sum(all_node_mem,para_env%group)
      ENDIF      
@@ -371,20 +356,20 @@ CONTAINS
       IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,"all_node")
       END IF  
-#else
+  ELSE
      CALL cp_assert (.NOT. print_proc,&
         cp_warning_level, cp_unimplemented_error_nr, routineP,&
         "Need hwloc/libnuma library to query machine architecture.")
-#endif
+  ENDIF
   END SUBROUTINE cp_ma_run_on
 
 ! *****************************************************************************
 !> \brief Set the number of neighbors for a process. Neighbors is the process
 !> \brief running on the same machine
 ! *****************************************************************************
-  SUBROUTINE cp_ma_set_neighbors(para_env, error)
-    TYPE(cp_para_env_type), POINTER          :: para_env
+  SUBROUTINE cp_ma_set_neighbors(ma_env, error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(ma_mp_type)                         :: ma_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_set_neighbors', &
       routineP = moduleN//':'//routineN
@@ -393,26 +378,31 @@ CONTAINS
     INTEGER                                  :: istat, jpe, nr_occu
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
 
-    ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
-            30*para_env%num_pe*int_size)
-    END IF
-    all_host(:,:) = 0
+    IF ( has_ma ) THEN
+        ALLOCATE (all_host(30,ma_env%numproc),STAT=istat)
+        IF (istat /= 0) THEN
+                CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
+                30*ma_env%numproc*int_size)
+        END IF
+        all_host(:,:) = 0
 
-    CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
-    CALL mp_sum(all_host,para_env%group)
+        CALL string_to_ascii(r_host_name,all_host(:,ma_env%myproc+1))
+        CALL mp_sum(all_host,ma_env%mp_group)
 
-     nr_occu = 0
-     DO jpe=1,para_env%num_pe
-        CALL ascii_to_string(all_host(:,jpe),string)
-        IF  (string .EQ. r_host_name) THEN
-         nr_occu = nr_occu +1
-        ENDIF
-     END DO
+        nr_occu = 0
+        DO jpe=1,ma_env%numproc
+                CALL ascii_to_string(all_host(:,jpe),string)
+                IF  (string .EQ. r_host_name) THEN
+                nr_occu = nr_occu +1
+                ENDIF
+        END DO
 
-     CALL ma_set_neighbors(nr_occu)
-
+        CALL ma_set_neighbors(nr_occu)
+     ELSE
+       CALL cp_assert (.FALSE.,&
+        cp_warning_level, cp_unimplemented_error_nr, routineP,&
+        "Need hwloc/libnuma library to query machine architecture.")
+     ENDIF 
   END SUBROUTINE cp_ma_set_neighbors
 
 ! *****************************************************************************
@@ -441,18 +431,19 @@ CONTAINS
    ELSE
      unit_num = cp_logger_get_default_io_unit(logger)
    ENDIF
-#if defined (__HWLOC) || defined (__LIBNUMA)
+
+  IF (ma_interface .NE. ma_int_none) THEN
    IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l' .OR. &
        sched_thread .EQ. 'N' .OR. sched_thread .EQ. 'n') THEN
      IF (print_thread) THEN
       CALL ma_thread_running_on(unit_num)
      ENDIF
    ENDIF 
-#else
+  ELSE
      CALL cp_assert (.NOT. print_thread,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
        "Need hwloc library to query machine architecture.")
-#endif
+  ENDIF
   END SUBROUTINE cp_ma_thread_run_on
 
 ! *****************************************************************************
@@ -480,16 +471,17 @@ CONTAINS
    ELSE
      unit_num = cp_logger_get_default_io_unit(logger)
    ENDIF
+
    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-#if defined (__HWLOC) || defined (__LIBNUMA)
+    IF (ma_interface .NE. ma_int_none) THEN
      IF (print_thread_cur) THEN
         CALL ma_current_thread_run(id, unit_num)
      ENDIF
-#else
-    CALL cp_assert (.NOT. print_thread,&
+    ELSE
+       CALL cp_assert (.NOT. print_thread,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
        "Need hwloc library to query machine architecture.")
-#endif
+    ENDIF
    ENDIF
   END SUBROUTINE cp_ma_current_thread_run
 
@@ -519,21 +511,12 @@ CONTAINS
       ELSE 
            mem_pol = -1        
       ENDIF
-   ENDIF
-   SELECT CASE (ma_interface)
-   CASE (ma_int_hwloc)
-#if defined (__HWLOC)
       CALL ma_set_mempol(mem_pol)
-#endif
-   CASE (ma_int_libnuma)
-#if defined (__LIBNUMA)
-      CALL ma_linux_set_mempol(mem_pol)
-#endif
-   CASE default
-      CALL cp_assert (mem_pol .LT. 0,&
+    ELSE
+      CALL cp_assert (.FALSE.,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
        "Need hwloc or libnuma library to query machine architecture.")
-   END SELECT
+    ENDIF
   END SUBROUTINE cp_ma_mempol
 
 ! *****************************************************************************
@@ -552,7 +535,7 @@ CONTAINS
 
     sched_mpi = ma_get_conf_mpiSched()
 
-#if defined (__HWLOC) || defined (__LIBNUMA)
+    IF (ma_interface .NE. ma_int_none) THEN    
       IF (sched_mpi .EQ. 'L' .OR. sched_mpi .EQ. 'l') THEN
            pol_sched = linear
            CALL ma_sched_mpi(linear)
@@ -560,11 +543,11 @@ CONTAINS
            pol_sched = nosched
            CALL ma_sched_mpi(nosched)
       ENDIF
-#else
+    ELSE
       CALL cp_assert (pol_sched .LT. 0,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
-       "Need hwloc library to query machine architecture.")
-#endif
+       "Need hwloc/libnuma library to query machine architecture.")
+    ENDIF
   END SUBROUTINE cp_ma_mpi_sched
 
 
@@ -586,7 +569,7 @@ CONTAINS
 
     sched_thread = ma_get_conf_sched() 
 
-#if defined (__HWLOC) || defined (__LIBNUMA)
+    IF (ma_interface .NE. ma_int_none) THEN
       IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l') THEN
            pol_sched = linear
            CALL ma_sched_threads(id, linear)
@@ -594,11 +577,11 @@ CONTAINS
            pol_sched = nosched
            CALL ma_sched_threads(id, nosched)
       ENDIF
-#else
+    ELSE
       CALL cp_assert (pol_sched .LT. 0,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
-       "Need hwloc library to query machine architecture.")
-#endif
+       "Need hwloc/libnuma library to query machine architecture.")
+   ENDIF
 
   END SUBROUTINE cp_ma_thread_sched
 
@@ -629,19 +612,19 @@ CONTAINS
       unit_num = cp_logger_get_default_io_unit(logger)
     ENDIF
     IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-#if defined (__HWLOC) || defined (__LIBNUMA)
-   IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l' .OR. &
-       sched_thread .EQ. 'N' .OR. sched_thread .EQ. 'n') THEN
-    IF (print_thread) THEN 
-      CALL ma_verify_place(id, unit_num)
-    ENDIF
-   ENDIF
-#else
+    IF (ma_interface .NE. ma_int_none) THEN     
+       IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l' .OR. &
+         sched_thread .EQ. 'N' .OR. sched_thread .EQ. 'n') THEN
+         IF (print_thread) THEN 
+           CALL ma_verify_place(id, unit_num)
+         ENDIF
+       ENDIF
+     ELSE
       CALL cp_assert (.NOT. print_thread,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
        "Need hwloc library to query machine architecture.")
-#endif
      ENDIF
+    ENDIF
   END SUBROUTINE cp_ma_verify_place
 
 
@@ -659,25 +642,32 @@ CONTAINS
                                                 numnode
     TYPE(ma_mp_type)                         :: ma_env
 
-    ma_interface = ma_int_none
-    IF (ma_hwloc) THEN
-       ma_interface = ma_int_hwloc
-    ELSE
-       IF (ma_libnuma) THEN
-          ma_interface = ma_int_libnuma
-       ENDIF
-    ENDIF
-    num_threads=1
+    IF ( has_ma ) THEN
+        ma_interface = ma_int_none
+        IF (ma_hwloc) THEN
+                ma_interface = ma_int_hwloc
+        ELSE
+        IF (ma_libnuma) THEN
+                ma_interface = ma_int_libnuma
+        ENDIF
+        ENDIF
+        num_threads=1
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
-    CALL mp_environ (numnode, mynode, group)
+        CALL mp_environ (numnode, mynode, group)
 
-    ma_env%myproc = mynode
-    ma_env%numproc = numnode
-    ma_env%mp_group = group
+        ma_env%myproc = mynode
+        ma_env%numproc = numnode
+        ma_env%mp_group = group
 
-    istat = ma_init (ma_env, num_threads)
+        istat = ma_init (ma_env, num_threads)
+        CALL cp_ma_set_neighbors(ma_env, error)
+    ELSE
+        CALL cp_assert (.FALSE.,&
+       cp_warning_level, cp_unimplemented_error_nr, routineP,&
+       "Need hwloc/libnuma library to query machine architecture.")    
+    ENDIF
     
   END SUBROUTINE cp_ma_init_lib
 

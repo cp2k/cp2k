@@ -40,17 +40,17 @@ MODULE machine_architecture_utils
 !> \var     mp_env is the comm information for MPI
 !> \var     nr_threads is the number of threads of a processor
 ! *****************************************************************************
- SUBROUTINE ma_create_process(proc_info, mp_env, nr_threads)
+ SUBROUTINE ma_create_process(proc_info, mp_env, nr_threads, core, node)
     TYPE(ma_process), INTENT(OUT)            :: proc_info
     TYPE(ma_mp_type), INTENT(IN)             :: mp_env
-    INTEGER, INTENT(IN)                      :: nr_threads
+    INTEGER, INTENT(IN)                      :: nr_threads, core, node
 
  proc_info%mp_info%myproc = mp_env%myproc
  proc_info%mp_info%numproc = mp_env%numproc
  proc_info%mp_info%mp_group = mp_env%mp_group
  proc_info%nr_threads = nr_threads
- proc_info%core = 0
- proc_info%node = 0
+ proc_info%core = core
+ proc_info%node = node
 
  ALLOCATE (proc_info%threads_info(nr_threads))
   

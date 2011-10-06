@@ -56,9 +56,12 @@ MODULE machine_architecture
   PUBLIC :: ma_set_neighbors
 
   PUBLIC :: ma_getcuDev, ma_MPI_nGpus
+  PUBLIC :: ma_string_mempol
+
+  PUBLIC :: ma_set_mempol, ma_get_mempol
 
 #if defined (__HWLOC)
-  PUBLIC :: ma_set_mempol, ma_get_mempol, ma_string_mempol
+  PUBLIC :: ma_hw_set_mempol, ma_hw_get_mempol
 #endif
 
 #if defined (__LIBNUMA)
@@ -68,9 +71,6 @@ MODULE machine_architecture
   PUBLIC :: ma_linux_get_my_id, ma_linux_nnodes
   PUBLIC :: ma_linux_ncores, ma_linux_get_mynode
 #endif
-
-
-   
 
   ! These are for Machine architecture internal use.
   !
@@ -105,12 +105,10 @@ MODULE machine_architecture
   CHARACTER, PARAMETER :: ma_int_none = '0'
   CHARACTER, SAVE :: ma_interface = ma_int_none
 
-
+!
+! Interfaces to deal with HWLOC
+!
 #if defined (__HWLOC) 
-
-!
-! interfaces to deal with HWLOC
-!
   INTERFACE 
      FUNCTION ma_init_interface(topo) RESULT (istat) BIND(C, name="hw_topology_init") 
        USE ISO_C_BINDING
@@ -141,9 +139,9 @@ MODULE machine_architecture
   END INTERFACE
 
   INTERFACE 
-    FUNCTION ma_get_cuDev(coreId, myRank) RESULT (cuDev) BIND(C, name="hw_my_gpu") 
+    FUNCTION ma_get_cuDev(coreId, myRank, nMPIs) RESULT (cuDev) BIND(C, name="hw_my_gpu") 
     USE ISO_C_BINDING
-    INTEGER(KIND=C_INT), VALUE               :: coreId, myRank
+    INTEGER(KIND=C_INT), VALUE               :: coreId, myRank, nMPIs
     INTEGER(KIND=C_INT)                      :: cuDev
 
     END FUNCTION ma_get_cuDev
@@ -224,24 +222,45 @@ MODULE machine_architecture
   END INTERFACE
 
   INTERFACE
-     SUBROUTINE ma_set_mempol(mempol) BIND(C, name="hw_set_mempol")
+     SUBROUTINE ma_hw_set_mempol(mempol) BIND(C, name="hw_set_mempol")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT), VALUE               :: mempol
 
-     END SUBROUTINE ma_set_mempol
+     END SUBROUTINE ma_hw_set_mempol
   END INTERFACE 
 
   INTERFACE
-      SUBROUTINE ma_get_mempol(node, mempol) BIND(C, name="hw_get_mempol")
+      SUBROUTINE ma_hw_get_mempol(node, mempol) BIND(C, name="hw_get_mempol")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: node, mempol
 
-     END SUBROUTINE ma_get_mempol
+     END SUBROUTINE ma_hw_get_mempol
   END INTERFACE
 
 #endif
 
+!
+! Interfaces to deal with LIBNUMA
+!
 #if defined (__LIBNUMA)
+  INTERFACE
+     FUNCTION ma_init_interface_linux(topo) RESULT (istat) BIND(C, name="linux_topology_init")
+       USE ISO_C_BINDING
+       USE machine_architecture_types,   ONLY: arch_topology
+    TYPE(arch_topology)                      :: topo
+    INTEGER(KIND=C_INT)                      :: istat
+
+     END FUNCTION ma_init_interface_linux
+  END INTERFACE
+
+  INTERFACE
+    FUNCTION ma_get_cuDev(coreId, myRank, numMPI) RESULT (cuDev) BIND(C,name="linux_my_gpu")
+    USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), VALUE               :: coreId, myRank, numMPI
+    INTEGER(KIND=C_INT)                      :: cuDev
+
+    END FUNCTION ma_get_cuDev
+  END INTERFACE 
 
   INTERFACE
       SUBROUTINE ma_linux_get_mempol(node, mempol) BIND(C, name="linux_get_mempol")
@@ -325,7 +344,41 @@ MODULE machine_architecture
 
 #endif
 
+
 CONTAINS
+
+! *****************************************************************************
+!> \brief Set a memory policy for a process
+!> \var mempol          Memory policy descriptor
+! *****************************************************************************
+SUBROUTINE  ma_set_mempol (mempol)
+  INTEGER                :: mempol
+
+#if defined (__HWLOC) && !defined (__LIBNUMA)
+  CALL ma_hw_set_mempol(mempol)
+#endif  
+#if defined (__LIBNUMA) && !defined (__HWLOC)
+  CALL ma_linux_set_mempol(mempol)
+#endif
+
+END SUBROUTINE ma_set_mempol
+
+! *****************************************************************************
+!> \brief Set a memory policy for a process
+!> \var mempol          Memory policy descriptor
+!> \var node            Node numa used by the policy
+! *****************************************************************************
+SUBROUTINE  ma_get_mempol (node, mempol)
+  INTEGER                :: node, mempol
+
+#if defined (__HWLOC) && !defined (__LIBNUMA)
+  CALL ma_hw_get_mempol(node,mempol)
+#endif
+#if defined (__LIBNUMA) && !defined (__HWLOC)
+  CALL ma_linux_get_mempol(node,mempol)
+#endif
+
+END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief To convert a memory policy descriptor to a string
@@ -370,7 +423,7 @@ END SUBROUTINE ma_string_mempol
 !> \var num_threads       The number of threads of each process
 ! *****************************************************************************
   INTEGER FUNCTION ma_init(ma_env, num_threads) RESULT(istat)
-   INTEGER                          :: num_threads
+   INTEGER                          :: num_threads,core,node
    TYPE(ma_mp_type)                 :: ma_env
 
  IF ( isconfigured ) RETURN
@@ -378,23 +431,17 @@ END SUBROUTINE ma_string_mempol
    topology%nnodes = -1
    istat = -1
    ALLOCATE(thread_mapping(ma_env%numproc,num_threads))
-   CALL ma_create_process(my_info,ma_env,num_threads)
-#endif 
-#if defined (__HWLOC) && !defined (__LIBNUMA)
+#if defined (__HWLOC)  && !defined (__LIBNUMA) 
    istat = ma_init_interface(topology)
+   core = ma_get_mycore()
+   node = ma_get_mynode()
+#elif defined (__LIBNUMA) && !defined (__HWLOC)
+   istat = ma_init_interface_linux(topology) 
+   core = ma_linux_get_core()
+   node = ma_linux_get_mynode()
 #endif 
-#if defined (__LIBNUMA) && !defined (__HWLOC)
-   topology%nnodes = ma_linux_nnodes()
-   topology%ncores = ma_linux_ncores() 
-   topology%npus = ma_linux_ncores()   
-   topology%ngpus = 0
-   topology%nsockets = 0
-   topology%ncaches = 0
-   topology%nshared_caches = 0
-   topology%nsiblings = 0
-   topology%nmemcontroller = 0
- 
-#endif 
+   CALL ma_create_process(my_info,ma_env,num_threads,core,node)
+#endif
   isconfigured = .TRUE.
   END FUNCTION ma_init 
 
@@ -410,6 +457,7 @@ END SUBROUTINE ma_string_mempol
    DEALLOCATE(thread_mapping)
 #endif
   END SUBROUTINE ma_finalize
+
 
 ! *****************************************************************************
 !> \brief Sets the number of neighbors for a process
@@ -446,12 +494,13 @@ END SUBROUTINE ma_string_mempol
 
   rank = my_info%mp_info%myproc
   core = my_info%core
+  cuDev = 0
 
   IF (myRank .EQ. rank) THEN
-#if defined (__DBCSR_CUDA) && defined (__HWLOC)
-  cuDev = ma_get_cuDev(core,rank)
-#else
-  cuDev = 0
+#if defined (__DBCSR_CUDA) 
+#if defined (__HWLOC) || defined (__LIBNUMA)
+  cuDev = ma_get_cuDev(core,rank,my_info%nr_neighbors)
+#endif
 #endif
   ENDIF
 
@@ -489,10 +538,10 @@ END SUBROUTINE ma_string_mempol
 !> \brief Get the MPI/threads mapping on the machine cores
 !> \var id thread OMP id - MPI rank
 ! *****************************************************************************
-  SUBROUTINE ma_no_place(id)
-  INTEGER :: id,core
+  SUBROUTINE ma_no_place(id, sched_unit)
+  INTEGER :: id,core, sched_unit
 #if defined (__HWLOC)  && !defined (__LIBNUMA)
- IF (my_info%nr_threads .GT. 1) THEN
+ IF ( sched_unit .EQ. threads ) THEN
   my_info%threads_info(id+1)%core = ma_get_mycore()  
   my_info%threads_info(id+1)%node = ma_get_mynode() 
   my_info%threads_info(id+1)%id_omp = id
@@ -505,7 +554,7 @@ END SUBROUTINE ma_string_mempol
  END IF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
- IF (my_info%nr_threads .GT. 1) THEN
+ IF ( sched_unit .EQ. threads ) THEN
   core = ma_linux_get_core()
   my_info%threads_info(id+1)%core = core
   my_info%threads_info(id+1)%node = ma_linux_get_mynode()
@@ -531,10 +580,10 @@ END SUBROUTINE ma_string_mempol
 ! For MPI only process, the strategy is a scatter. In this case, the scheduling
 ! provides as much as possible cache memory for MPI processes.
 
-  SUBROUTINE ma_linear_place(id)
-  INTEGER :: id, core, distance
+  SUBROUTINE ma_linear_place(id, sched_unit)
+  INTEGER :: id, core, distance, sched_unit
 #if defined (__HWLOC) && !defined (__LIBNUMA)
- IF (my_info%nr_threads .GT. 1) THEN
+ IF (sched_unit .EQ. threads) THEN
   core = MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_get_ncores())
   CALL ma_set_core(core)
   my_info%threads_info(id+1)%core = core  
@@ -552,7 +601,7 @@ END SUBROUTINE ma_string_mempol
  END IF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
- IF (my_info%nr_threads .GT. 1) THEN
+ IF (sched_unit .EQ. threads) THEN
   core = MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_linux_ncores())
   CALL ma_linux_set_core(core)
   my_info%threads_info(id+1)%core = core
@@ -643,8 +692,6 @@ END SUBROUTINE ma_string_mempol
      ma_get_nsiblings = topology%nsiblings 
   END FUNCTION ma_get_nsiblings
 
-
-
 ! *****************************************************************************
 !> \brief Prints in text format the machine abstraction - the full machine node
 !> \var unit_num the output console
@@ -691,11 +738,13 @@ END SUBROUTINE ma_string_mempol
 ! *****************************************************************************
   SUBROUTINE ma_running_on (my_core, my_node) 
     INTEGER                                  :: my_core, my_node
+#if defined (__HWLOC) || defined (__LIBNUMA)
 
      my_core = ma_get_proc_core()
      my_node = ma_get_proc_node()     
      my_info%core = my_core
      my_info%node = my_node
+#endif
   END SUBROUTINE ma_running_on
 
 ! *****************************************************************************
@@ -709,6 +758,7 @@ END SUBROUTINE ma_string_mempol
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: thread_send
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: thread_recv
 
+#if defined (__HWLOC) || defined (__LIBNUMA)
   IF (has_MPI) THEN
 
     ALLOCATE(thread_send(4,my_info%nr_threads))
@@ -740,6 +790,7 @@ END SUBROUTINE ma_string_mempol
      WRITE(unit_num,'()')  
    ENDIF
    ENDIF
+#endif
   END SUBROUTINE ma_thread_running_on
 
 ! *****************************************************************************
@@ -847,9 +898,9 @@ END SUBROUTINE ma_string_mempol
 
      SELECT CASE (policy) 
      CASE (nosched)
-       CALL ma_no_place(id)
+       CALL ma_no_place(id, threads)
      CASE (linear) 
-       CALL ma_linear_place(id)
+       CALL ma_linear_place(id, threads)
      END SELECT
   END SUBROUTINE ma_sched_threads
 
@@ -861,9 +912,9 @@ END SUBROUTINE ma_string_mempol
 
      SELECT CASE (policy)
      CASE (nosched)
-       CALL ma_no_place(my_info%mp_info%myproc)
+       CALL ma_no_place(my_info%mp_info%myproc, mpi)
      CASE (linear)
-       CALL ma_linear_place(my_info%mp_info%myproc)
+       CALL ma_linear_place(my_info%mp_info%myproc, mpi)
      END SELECT
   END SUBROUTINE ma_sched_mpi
 
