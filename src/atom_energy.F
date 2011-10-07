@@ -348,12 +348,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_response_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ider, ierr, k, l, lhomo, &
-                                                lwork, m, n, nhomo, s1, s2
+    INTEGER                                  :: i, ider, ierr, j, k, l, &
+                                                lhomo, m, n, nhomo, s1, s2
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: dene, emax, expzet, fhomo, &
+    REAL(KIND=dp)                            :: dene, emax, expzet, fhomo, o, &
                                                 prefac, zeta
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: amat
     REAL(KIND=dp), ALLOCATABLE, &
@@ -422,39 +421,42 @@ CONTAINS
             CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
         END SELECT
       END DO
-      ! orthogonalization
+
+      ! orthogonalization, use gram-schmidt in order to keep the natural order (semi-core, valence, response) of the wfn.
       n = state%maxn_occ(l)+nder
       m = atom%basis%nbas(l)
-      lwork = n*n + 5*n
-      ALLOCATE(amat(n,n),w(n),work(lwork),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-      amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
-      CALL lapack_ssyev ( "V", "U", n, amat(1:n,1:n), n, w(1:n), work, lwork, ierr )
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
       DO i=1,n
-        amat(1:n,i)=amat(1:n,i)/SQRT(w(i))
-      END DO
-      rbasis(1:m,1:n,l) = MATMUL(rbasis(1:m,1:n,l),amat(1:n,1:n))
+         DO j=1,i-1
+            o=DOT_PRODUCT(rbasis(1:m,j,l),RESHAPE(MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,i:i,l)),(/m/)))
+            rbasis(1:m,i,l)=rbasis(1:m,i,l)-o*rbasis(1:m,j,l)
+         ENDDO
+         o=DOT_PRODUCT(rbasis(1:m,i,l),RESHAPE(MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,i:i,l)),(/m/)))
+         rbasis(1:m,i,l)=rbasis(1:m,i,l)/SQRT(o)
+      ENDDO
+
       ! check
+      ALLOCATE(amat(n,n),STAT=ierr)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
       amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
       DO i=1,n
         amat(i,i)=amat(i,i) - 1._dp
       END DO
-      IF (MAXVAL(ABS(amat)) > 1.e-10) THEN
+      IF (MAXVAL(ABS(amat)) > 1.e-12) THEN
          WRITE(iw,'(A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
       END IF
-      DEALLOCATE(amat,w,work,STAT=ierr)
+      DEALLOCATE(amat,STAT=ierr)
       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
       ! Quickstep normalization
       WRITE(iw,'(/,A,T30,I3)') " Angular momentum :",l
 
-      WRITE(iw,'(/,A)') " Basis        Exponent         Coefficients (Quickstep Normalization)"
+      WRITE(iw,'(/,A,I0,A,I0,A)') "             Exponent     Coef.(Quickstep Normalization), first ",&
+                                  n-nder," valence ",nder," response"
       expzet = 0.25_dp*REAL(2*l + 3,dp)
       prefac = SQRT( SQRT(pi)/2._dp**(l+2)*dfac(2*l+1) )
       DO i=1,m
         zeta = (2._dp*atom%basis%am(i,l))**expzet
-        WRITE(iw,'(I6,4X,F20.10,4X,15ES20.6)') i,atom%basis%am(i,l),((prefac*rbasis(i,k,l)/zeta),k=1,n) 
+        WRITE(iw,'(4X,F20.10,4X,15ES20.6)') atom%basis%am(i,l),((prefac*rbasis(i,k,l)/zeta),k=1,n) 
       END DO
 
     END DO
