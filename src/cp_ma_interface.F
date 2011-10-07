@@ -219,9 +219,10 @@ CONTAINS
         CASE (ma_int_libnuma)
           IF (print_resume) CALL ma_show_topology(unit_num)
         CASE (ma_int_none)
-          CALL cp_assert (.FALSE.,&
-          cp_warning_level, cp_unimplemented_error_nr, routineP,&
-          "Need hwloc/libNuma library to query machine architecture.")
+          IF (print_resume .OR. print_branch .OR. print_full) THEN 
+           CALL cp_assert (.FALSE.,cp_warning_level, cp_unimplemented_error_nr,&
+                routineP, "Need hwloc/libNuma library to query machine architecture.")
+          ENDIF
         END SELECT
    ENDIF
   END SUBROUTINE cp_ma_print_machine
@@ -368,8 +369,8 @@ CONTAINS
 !> \brief running on the same machine
 ! *****************************************************************************
   SUBROUTINE cp_ma_set_neighbors(ma_env, error)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     TYPE(ma_mp_type)                         :: ma_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_set_neighbors', &
       routineP = moduleN//':'//routineN
@@ -647,26 +648,20 @@ CONTAINS
         IF (ma_hwloc) THEN
                 ma_interface = ma_int_hwloc
         ELSE
-        IF (ma_libnuma) THEN
-                ma_interface = ma_int_libnuma
-        ENDIF
+          IF (ma_libnuma) THEN
+             ma_interface = ma_int_libnuma
+          ENDIF
         ENDIF
         num_threads=1
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
         CALL mp_environ (numnode, mynode, group)
-
         ma_env%myproc = mynode
         ma_env%numproc = numnode
         ma_env%mp_group = group
-
         istat = ma_init (ma_env, num_threads)
         CALL cp_ma_set_neighbors(ma_env, error)
-    ELSE
-        CALL cp_assert (.FALSE.,&
-       cp_warning_level, cp_unimplemented_error_nr, routineP,&
-       "Need hwloc/libnuma library to query machine architecture.")    
     ENDIF
     
   END SUBROUTINE cp_ma_init_lib

@@ -24,8 +24,7 @@ MODULE f77_interface
                                              cp_dbcsr_init_lib
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
-  USE cp_ma_interface,                 ONLY: cp_ma_init_lib,&
-                                             has_ma
+  USE cp_ma_interface,                 ONLY: cp_ma_init_lib
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
