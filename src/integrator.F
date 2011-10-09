@@ -77,7 +77,8 @@ MODULE integrator
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set
-  USE physcon,                         ONLY: femtoseconds
+  USE physcon,                         ONLY: bohr,&
+                                             femtoseconds
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
@@ -1291,10 +1292,8 @@ CONTAINS
     END IF
     DO i = 1,nread-1
        CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
-       READ(reftraj_env%info%traj_parser%input_line,*) AA,particle_set(i)%r
-       particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1),"angstrom",error=error)
-       particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2),"angstrom",error=error)
-       particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3),"angstrom",error=error)
+       READ(reftraj_env%info%traj_parser%input_line(1:LEN_TRIM(reftraj_env%info%traj_parser%input_line)),*) AA,particle_set(i)%r
+       particle_set(i)%r = particle_set(i)%r*bohr
     END DO
     ! End of file is properly addressed in the previous call..
     ! Let's check directly (providing some info) also for the last

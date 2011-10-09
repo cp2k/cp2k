@@ -15,7 +15,6 @@ MODULE optimize_input
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE f77_interface,                   ONLY: calc_force,&
                                              create_force_env,&
@@ -46,6 +45,7 @@ MODULE optimize_input
                                              delete_rng_stream,&
                                              next_random_number,&
                                              rng_stream_type
+  USE physcon,                         ONLY: bohr
   USE powell,                          ONLY: opt_state_type,&
                                              powell_optimize
   USE timings,                         ONLY: timeset,&
@@ -521,7 +521,7 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: filename, title
     CHARACTER(len=default_string_length)     :: AA
     INTEGER                                  :: cell_itimes, handle, i, &
-                                                iframe, j, n_frames, &
+                                                iframe, n_frames, &
                                                 n_frames_current, nread, &
                                                 trj_itimes
     LOGICAL                                  :: at_end, test_ok
@@ -561,11 +561,8 @@ CONTAINS
        ! actual coordinates
        DO i = 1,nread
           CALL parser_read_line(local_parser,1,error=error)
-          READ(local_parser%input_line,*) AA,vec
-          DO j=1,3
-             vec(j) = cp_unit_to_cp2k(vec(j),"angstrom",error=error)
-          ENDDO
-          pos_traj(:,i,n_frames)=vec
+          READ(local_parser%input_line(1:LEN_TRIM(local_parser%input_line)),*) AA,vec
+          pos_traj(:,i,n_frames)=vec*bohr
        END DO
 
     ENDDO
@@ -604,7 +601,7 @@ CONTAINS
        ! actual forces, in a.u.
        DO i = 1,nread
           CALL parser_read_line(local_parser,1,error=error)
-          READ(local_parser%input_line,*) AA,vec
+          READ(local_parser%input_line(1:LEN_TRIM(local_parser%input_line)),*) AA,vec
           force_traj(:,i,iframe)=vec
        END DO
     ENDDO

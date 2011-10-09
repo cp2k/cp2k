@@ -36,6 +36,8 @@ MODULE cp_parser_methods
   USE message_passing,                 ONLY: mp_bcast
   USE string_utilities,                ONLY: is_whitespace,&
                                              uppercase
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -236,6 +238,7 @@ CONTAINS
          (parser%buffer%last_line_number==parser%buffer%present_line_number) ) THEN
        istat = parser%buffer%istat
     END IF
+
   END SUBROUTINE parser_get_line_from_buffer
 
 ! *****************************************************************************
@@ -250,11 +253,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iline, imark, istat, &
+    INTEGER                                  :: handle, iline, imark, islen, &
+                                                istat, &
                                                 last_buffered_line_number
     LOGICAL                                  :: failure, non_white_found, &
                                                 this_line_is_white_or_comment
 
+    CALL timeset(routineN,handle) 
+   
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -275,6 +281,7 @@ CONTAINS
              ! Try to read the next line from file
              parser%buffer%input_line_numbers(iline) = last_buffered_line_number
              READ(UNIT=parser%input_unit,FMT="(A)",IOSTAT=istat) parser%buffer%input_lines(iline)
+             islen=LEN_TRIM(parser%buffer%input_lines(iline))
 
              ! Pre-processing steps:
              ! 1. Expand variables 2. Process directives and read next line.
@@ -282,17 +289,18 @@ CONTAINS
              IF (istat==0) THEN
                 this_line_is_white_or_comment = is_comment_line(parser, parser%buffer%input_lines(iline))
                 IF (.NOT.this_line_is_white_or_comment) THEN
-                   imark = INDEX(parser%buffer%input_lines(iline),"${")+&
-                           INDEX(parser%buffer%input_lines(iline),"$")
+                   imark = INDEX(parser%buffer%input_lines(iline)(1:islen),"$")
                    IF (imark/=0) THEN
                       CALL inpp_expand_variables(parser%inpp, parser%buffer%input_lines(iline),&
                            parser%input_file_name, parser%buffer%input_line_numbers(iline),error)
+                      islen=LEN_TRIM(parser%buffer%input_lines(iline))
                    END IF
-                   imark = INDEX(parser%buffer%input_lines(iline),"@")
+                   imark = INDEX(parser%buffer%input_lines(iline)(1:islen),"@")
                    IF (imark/=0) THEN
                       CALL inpp_process_directive(parser%inpp, parser%buffer%input_lines(iline),&
                            parser%input_file_name,      parser%buffer%input_line_numbers(iline),&
                            parser%input_unit, error)
+                      islen=LEN_TRIM(parser%buffer%input_lines(iline))
                       ! Handle index and cycle
                       last_buffered_line_number = 0
                       iline                     = iline - 1
@@ -336,6 +344,9 @@ CONTAINS
        ! Broadcast buffer informations
        CALL broadcast_input_information(parser,error)
     END IF
+ 
+    CALL timestop(handle)
+
   END SUBROUTINE parser_read_line_low
 
 ! *****************************************************************************
@@ -351,8 +362,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'broadcast_input_information', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
@@ -367,6 +381,8 @@ CONTAINS
        CALL mp_bcast(parser%buffer%input_lines,para_env%source,para_env%group)
        CALL cp_error_synchronize_error(error,para_env=para_env)
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE broadcast_input_information
 
