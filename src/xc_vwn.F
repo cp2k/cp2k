@@ -327,7 +327,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rho, eps_rho, x, b, c, e_0, sc) &
-    !$omp             shared(x0, q, xb, px0) &
+    !$omp             shared(x0, q, xb, px0, e_rho) &
     !$omp             private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
 
     DO ip = 1, npoints

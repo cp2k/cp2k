@@ -524,7 +524,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rho, eps_rho, fact, r13, sfac, tact) &
-    !$omp             shared(fs, e_rho, e_ndrho) &
+    !$omp             shared(fs, e_rho, e_ndrho, s) &
     !$omp             private(ip,a0,a1,sx,sy)
 
     DO ip = 1, npoints

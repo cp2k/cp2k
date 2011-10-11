@@ -336,7 +336,7 @@ CONTAINS
     c4p = -c4*0.25_dp
 
     !$omp parallel do default(none) &
-    !$omp             shared(npoints,rho,eps_rho,e_0,dpv,cp,c2p,c3p,c4p) &
+    !$omp             shared(npoints,rho,eps_rho,e_0,dpv,cp,c2p,c3p,c4p,r13,grho) &
     !$omp             private(ip,r,r3,g,x,odp,ocp,od,oc,f1,f2,f3,f4)
 
     DO ip = 1, npoints
@@ -681,7 +681,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &
-    !$omp             shared(grhob, e_rhoa, e_ndrhoa, e_rhob, e_ndrhob) &
+    !$omp             shared(grhob, e_rhoa, e_ndrhoa, e_rhob, e_ndrhob,r13b) &
     !$omp             private(ip, df1a, drf2a, dgf2a, ra, r3a, ga, oda, oca) &
     !$omp             private(    df1b, drf2b, dgf2b, rb, r3b, gb, odb, ocb)
 

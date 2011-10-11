@@ -403,7 +403,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rho, eps_rho, fact, r13, tact, fs) &
-    !$omp             shared(e_rho, e_ndrho, sfac) &
+    !$omp             shared(e_rho, e_ndrho, sfac, s) &
     !$omp             private(ip,a0,a1,sx,sy)
 
     DO ip = 1, npoints
@@ -443,7 +443,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rho, eps_rho, r13, fact, e_rho_rho) &
-    !$omp             shared(e_rho_ndrho, fs, sfac, tact) &
+    !$omp             shared(e_rho_ndrho, fs, sfac, tact, s) &
     !$omp             private(ip,a0,a1,a2,sx,sy,sxx,sxy)
 
     DO ip = 1, npoints
@@ -494,7 +494,7 @@ CONTAINS
     !$omp             shared(npoints, rho, eps_rho, r13, fact, fs) &
     !$omp             shared(e_rho_rho_rho, e_rho_rho_ndrho) &
     !$omp             shared(e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho) &
-    !$omp             shared(sfac, tact) &
+    !$omp             shared(sfac, tact, s) &
     !$omp             private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxx,sxxy)
 
     DO ip = 1, npoints
