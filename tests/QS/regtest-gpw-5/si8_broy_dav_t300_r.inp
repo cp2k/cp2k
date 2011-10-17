@@ -1,3 +1,4 @@
+#CPQA DEPENDS si8_broy_dav_t300.inp
 &GLOBAL
   PROJECT  si8_broy_dav_t300_r
   PRINT_LEVEL MEDIUM
