@@ -43,9 +43,7 @@ MODULE qs_integrate_potential
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_work_create
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
+                                             cp_dbcsr_deallocate_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -734,7 +732,7 @@ CONTAINS
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace(v_rspace, p, h,qs_env,calculate_forces,compute_tau,gapw,&
-       matrix_dv, basis_set_id, error)
+       basis_set_id, error)
 
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(cp_dbcsr_p_type), INTENT(IN), &
@@ -743,8 +741,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, TARGET                       :: matrix_dv
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -771,9 +767,9 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
-      found, h_duplicated, had_thread_dist, has_dv, map_consistent, &
-      my_compute_tau, my_gapw, new_set_pair_coming, p_duplicated, &
-      pab_required, scatter, use_subpatch, use_virial
+      found, h_duplicated, had_thread_dist, map_consistent, my_compute_tau, &
+      my_gapw, new_set_pair_coming, p_duplicated, pab_required, scatter, &
+      use_subpatch, use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
@@ -826,7 +822,6 @@ CONTAINS
     debug_count=debug_count+1
 
     offs_dv=0
-    has_dv=PRESENT(matrix_dv)
     my_compute_tau = .FALSE.
     my_gapw = .FALSE.
     IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
@@ -943,21 +938,6 @@ CONTAINS
             cp_dbcsr_get_data_size(h%matrix),&
             error=error)
 
-       IF (has_dv) THEN
-          NULLIFY(ddv)
-          CALL cp_dbcsr_allocate_matrix_set(ddv,3,error=error)
-          DO idir=1,3
-             ALLOCATE(ddv(idir)%matrix)
-             CALL cp_dbcsr_init(ddv(idir)%matrix, error=error)
-             CALL cp_dbcsr_create(ddv(idir)%matrix, "LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))), &
-                  cp_dbcsr_distribution (h%matrix),&
-                  cp_dbcsr_get_matrix_type (h%matrix),&
-                  cp_dbcsr_row_block_sizes(h%matrix),&
-                  cp_dbcsr_col_block_sizes(h%matrix), cp_dbcsr_get_num_blocks(h%matrix), &
-                  cp_dbcsr_get_data_size(h%matrix),&
-                  error=error)
-          END DO
-       END IF
     END IF
 
     p_duplicated = .FALSE.
@@ -989,11 +969,6 @@ CONTAINS
     END IF
 
     NULLIFY(hdabt,hadbt,hdab,hadb)
-
-    IF (has_dv) THEN
-       CALL reallocate(hdabt,1,3,1,maxco,1,1,0,nthread)
-       CALL reallocate(hadbt,1,3,1,maxco,1,1,0,nthread)
-    END IF
 
     !   get maximum numbers
     natom = SIZE( particle_set )
@@ -1031,7 +1006,7 @@ CONTAINS
 
 !$omp parallel default(none), &
 !$omp shared(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
-!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,has_dv,ddv,deltap,use_virial), &
+!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
 !$omp shared(gridlevel_info,task_list,failure,block_touched,nthread), &
@@ -1050,10 +1025,6 @@ CONTAINS
 !$  ithread = omp_get_thread_num()
     work => workt(:,:,ithread)
     hab => habt(:,:,ithread)
-    IF (has_dv) THEN
-       hdab => hdabt(:,:,:,ithread)
-       hadb => hadbt(:,:,:,ithread)
-    END IF
     IF (pab_required) THEN
        pab => pabt(:,:,ithread)
     END IF
@@ -1073,16 +1044,6 @@ CONTAINS
 !$  CALL cp_assert (dbcsr_distribution_has_threads(dist), cp_fatal_level,&
 !$       cp_internal_error, routineN, "No thread distribution defined.",&
 !$       error=error)
-    IF (has_dv) THEN
-      DO idir=1,3
-        CALL cp_dbcsr_work_create(ddv(idir)%matrix,work_mutable=.TRUE.,n=nthread,error=error)
-!$      dist => ddv(idir)%matrix%matrix%m%dist
-!$      CALL cp_assert (dbcsr_distribution_has_threads(dist),&
-!$           cp_fatal_level, cp_internal_error, routineN,&
-!$           "No thread distribution defined.",&
-!$           error=error)
-      END DO
-    END IF
 !$omp barrier
 
     IF (debug_this_module) THEN
@@ -1181,15 +1142,6 @@ CONTAINS
           IF (.NOT.ASSOCIATED(h_block)) THEN
                CALL cp_dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
           END IF
-          IF (has_dv) THEN
-             DO idir=1,3
-                CALL cp_dbcsr_get_block_p(matrix=ddv(idir)%matrix,&
-                     row=brow,col=bcol,BLOCK=dv_block(idir)%array,found=found)
-
-                IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
-                     CALL cp_dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
-             END DO
-          END IF
 
           IF (pab_required) THEN
              CALL cp_dbcsr_get_block_p(matrix=deltap,&
@@ -1257,12 +1209,6 @@ CONTAINS
              hab(1:ncob,1:ncoa) = 0._dp
           ENDIF
 
-          ! expensive zero, presumably zeroing *far* too much in most cases.
-          IF (has_dv) THEN
-             hdab=0._dp
-             hadb=0._dp
-          END IF
-
           iset_old = iset
           jset_old = jset
 
@@ -1296,65 +1242,33 @@ CONTAINS
        ENDIF
 
        IF (pab_required) THEN
-          IF (has_dv) THEN
-             IF (iatom <= jatom) THEN
-                CALL integrate_pgf_product_rspace(&
-                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                     ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
-                     cube_info(igrid_level),&
-                     hab,pab=pab,o1=na1-1,o2=nb1-1, &
-                     eps_gvg_rspace=eps_gvg_rspace,&
-                     calculate_forces=calculate_forces,hdab=hdab,hadb=hadb,&
-                     force_a=force_a,force_b=force_b,ithread=ithread,&
-                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
-                     use_virial=use_virial,my_virial_a=my_virial_a,&
-                     my_virial_b=my_virial_b, use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
-             ELSE
-                rab_inv=-rab
-                CALL integrate_pgf_product_rspace(&
-                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
-                     cube_info(igrid_level),&
-                     hab,pab=pab,o1=nb1-1,o2=na1-1, &
-                     eps_gvg_rspace=eps_gvg_rspace,&
-                     calculate_forces=calculate_forces,hdab=hadb,hadb=hdab,&
-                     force_a=force_b,force_b=force_a,ithread=ithread,&
-                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
-                     use_virial=use_virial,my_virial_a=my_virial_b,&
-                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
-             END IF
+          IF (iatom <= jatom) THEN
+             CALL integrate_pgf_product_rspace(&
+                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                  lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                  ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                  cube_info(igrid_level),&
+                  hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                  eps_gvg_rspace=eps_gvg_rspace,&
+                  calculate_forces=calculate_forces,&
+                  force_a=force_a,force_b=force_b,ithread=ithread,&
+                  compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                  use_virial=use_virial,my_virial_a=my_virial_a,&
+                  my_virial_b=my_virial_b,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
           ELSE
-
-             IF (iatom <= jatom) THEN
-                CALL integrate_pgf_product_rspace(&
-                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                     ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
-                     cube_info(igrid_level),&
-                     hab,pab=pab,o1=na1-1,o2=nb1-1, &
-                     eps_gvg_rspace=eps_gvg_rspace,&
-                     calculate_forces=calculate_forces,&
-                     force_a=force_a,force_b=force_b,ithread=ithread,&
-                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
-                     use_virial=use_virial,my_virial_a=my_virial_a,&
-                     my_virial_b=my_virial_b,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
-             ELSE
-                rab_inv=-rab
-                CALL integrate_pgf_product_rspace(&
-                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
-                     cube_info(igrid_level),&
-                     hab,pab=pab,o1=nb1-1,o2=na1-1, &
-                     eps_gvg_rspace=eps_gvg_rspace,&
-                     calculate_forces=calculate_forces,&
-                     force_a=force_b,force_b=force_a,ithread=ithread,&
-                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
-                     use_virial=use_virial,my_virial_a=my_virial_b,&
-                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
-             END IF
+             rab_inv=-rab
+             CALL integrate_pgf_product_rspace(&
+                  lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                  rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                  cube_info(igrid_level),&
+                  hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                  eps_gvg_rspace=eps_gvg_rspace,&
+                  calculate_forces=calculate_forces,&
+                  force_a=force_b,force_b=force_a,ithread=ithread,&
+                  compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                  use_virial=use_virial,my_virial_a=my_virial_b,&
+                  my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
           END IF
        ELSE
           IF (iatom <= jatom) THEN
@@ -1409,18 +1323,6 @@ CONTAINS
                   1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                   work(1,1),SIZE(work,1),&
                   1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
-             IF (has_dv) THEN
-                DO idir=1,3
-                   CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                        1.0_dp,hdab(idir,1,1),SIZE(hab,2),&
-                        sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                        0.0_dp,work(1,1),SIZE(work,1))
-                   CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                        1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                        work(1,1),SIZE(work,1),&
-                        1.0_dp,dv_block(idir)%array(sgfa,sgfb),SIZE(h_block,1))
-                END DO
-             END IF
           ELSE
              CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
                   1.0_dp,hab(1,1),SIZE(hab,1),&
@@ -1430,18 +1332,6 @@ CONTAINS
                   1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                   work(1,1),SIZE(work,1),&
                   1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
-             IF (has_dv) THEN
-                DO idir=1,3
-                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                        1.0_dp,hadb(idir,1,1),SIZE(hadb,2),&
-                        sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                        0.0_dp,work(1,1),SIZE(work,1))
-                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                        1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                        work(1,1),SIZE(work,1),&
-                        1.0_dp,dv_block(idir)%array(sgfb,sgfa),SIZE(h_block,1))
-                END DO
-             END IF
           END IF
        END IF
 
@@ -1471,12 +1361,6 @@ CONTAINS
 
     CALL cp_dbcsr_finalize(dh, error=error)
 
-    IF (has_dv) THEN
-       DO idir=1,3
-         CALL cp_dbcsr_finalize(ddv(idir)%matrix, error=error)
-       END DO
-    ENDIF
-
     END DO loop_gridlevels
 
 !$omp end parallel
@@ -1492,14 +1376,6 @@ CONTAINS
             natom, scatter, error, h%matrix)
        CALL cp_dbcsr_deallocate_matrix ( dh ,error=error)
 
-       IF (has_dv) THEN
-          DO idir=1,3
-             CALL distribute_matrix (rs_v, ddv(idir)%matrix,&
-                  atom_pair_recv, atom_pair_send, &
-                  natom, scatter, error, matrix_dv(idir)%matrix)
-          END DO
-          CALL cp_dbcsr_deallocate_matrix_set(ddv,error=error)
-       END IF
     ELSE
        NULLIFY ( dh, ddv )
     END IF

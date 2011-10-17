@@ -2297,8 +2297,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dv
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -2306,11 +2304,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (auxbas_pw_pool,dft_control,matrix_dv,pw_env)
+    NULLIFY (auxbas_pw_pool,dft_control,pw_env)
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          pw_env=pw_env,&
-         matrix_dv=matrix_dv,&
          error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
@@ -2400,22 +2397,11 @@ CONTAINS
              ! NOTHING TO BE DONE
           END SELECT
 
-          ! Compute matrix elements of V_HXC including nuclear force information through matrix_dv
-          IF (ASSOCIATED(matrix_dv)) THEN
-
-             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                  p=my_rho(ispin),h=ks_matrix(ispin),&
-                  qs_env=qs_env, &
-                  calculate_forces=calculate_forces,&
-                  gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
-                  error=error)
-          ELSE
-             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                  p=my_rho(ispin),h=ks_matrix(ispin),&
-                  qs_env=qs_env, &
-                  calculate_forces=calculate_forces,&
-                  gapw=gapw, error=error)
-          END IF
+          CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+               p=my_rho(ispin),h=ks_matrix(ispin),&
+               qs_env=qs_env, &
+               calculate_forces=calculate_forces,&
+               gapw=gapw, error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                 error=error)
        END DO ! ispin
@@ -2438,23 +2424,11 @@ CONTAINS
              ks_env%v_hartree_rspace%pw%cr3d= ks_env%v_hartree_rspace%pw%cr3d +&
                   v_efield_rspace%pw%cr3d
           END IF
-          IF (ASSOCIATED(matrix_dv)) THEN
-
-              CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
-                   p=my_rho(ispin),h=ks_matrix(ispin),&
-                   qs_env=qs_env, &
-                   calculate_forces=calculate_forces,&
-                   gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
-                   error=error)
-          ELSE
-
-              CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
-                   p=my_rho(ispin),h=ks_matrix(ispin),&
-                   qs_env=qs_env, &
-                   calculate_forces=calculate_forces,&
-                   gapw=gapw, error=error)
-
-          END IF
+          CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+               p=my_rho(ispin),h=ks_matrix(ispin),&
+               qs_env=qs_env, &
+               calculate_forces=calculate_forces,&
+               gapw=gapw, error=error)
        END DO
     END IF ! ASSOCIATED(v_rspace_new)
 
@@ -2464,21 +2438,12 @@ CONTAINS
                 v_tau_rspace(ispin)%pw%pw_grid%dvol*&
                 v_tau_rspace(ispin)%pw%cr3d
 
-           IF (ASSOCIATED(matrix_dv)) THEN
-              CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                   p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
-                   qs_env=qs_env,&
-                   calculate_forces=calculate_forces,compute_tau=.TRUE., &
-                   gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
-                   error=error)
-           ELSE
-              CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                   p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
-                   qs_env=qs_env,&
-                   calculate_forces=calculate_forces,compute_tau=.TRUE., &
-                   gapw=gapw,&
-                   error=error)
-           END IF
+           CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+                p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                qs_env=qs_env,&
+                calculate_forces=calculate_forces,compute_tau=.TRUE., &
+                gapw=gapw,&
+                error=error)
            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
                 error=error)
        END DO
