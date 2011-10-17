@@ -13,4 +13,4 @@ eig.inp                0
 dbcsr_ctype.inp        0
 dbcsr_mm_blas.inp      0
 dbcsr_subcomm.inp      0
-dbcsr_multistack.inp
+dbcsr_multistack.inp   0
