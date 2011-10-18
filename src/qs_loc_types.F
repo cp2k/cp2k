@@ -90,6 +90,7 @@ MODULE qs_loc_types
   TYPE qs_loc_env_new_type
      INTEGER :: ref_count
      LOGICAL :: molecular_states, do_localize, first_time
+     LOGICAL :: wannier_states
      CHARACTER(LEN=default_string_length)        :: tag_mo
      TYPE ( cp_para_env_type ), POINTER          :: para_env
      TYPE ( cp_fm_p_type), DIMENSION(:),  &

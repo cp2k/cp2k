@@ -1,0 +1,303 @@
+#CPQA INCLUDE dimer.xyz
+#CPQA INCLUDE topology_atoms.psf
+!!cp2k!!
+!! inp file by Alin M Elena
+!! alinm.elena@gmail.com
+!! http://alin.elenaworld.net
+#global section sets what kind of calculations you want to do an general
+! settings
+@set pfreq 100 ! the frequency for printing .cube properties and restart files
+@set name dimer
+@set period T
+@set method GPW ! use GAPW/ GPW for dft
+@set zk 10.0  ! coupling constant for collective variables and atoms
+@set zmass 100.0 ! mass for collective variables
+@set zgamma 0.001 ! friction coefficient for lagrange equations for cvs
+@set Tz  3000.0 ! temperature 
+@set Nz 1   ! number of steps to integrate z
+@set dtz 0.5 ! time step to integrate the z 
+@set dt 1.0 ! time steps to integrate atoms
+@set N 1 ! the length of the mini-trajectory
+@set M 2 ! number of cycles/steps for the HMC part
+@set Temp 25 ! physical system temperature
+
+&Global
+  Project ${name}
+!   Run_type ENERGY_Force
+  Run_type TAMC
+!   Run_type MD
+!  Run_type GEOMETRY_OPTIMIZATION
+  Print_Level low
+  Echo_input yes
+  Preferred_FFT_library FFTSG
+   &Print
+    filename=./${name}
+  &end print
+  walltime 1000
+&End Global
+#defines how forces are evaluated
+&Force_eval
+  Method QS ! what is the method used for computing the energy
+  Stress_tensor analytical
+  &DFT ! dft settings
+    Charge 0
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &QS
+      Eps_default 1.0e-12
+      Extrapolation ASPC
+      Extrapolation_order 3
+      Method ${method}
+
+      &DFTB
+        Self_consistent    T
+        Dispersion         T
+        Orthogonal_basis   F
+        DO_EWALD           T
+        &Parameter
+          Param_file_path  params_scc
+          Param_file_name  scc_parameter
+          UFF_force_field  uff_table
+        &End Parameter
+      &End DFTB
+
+    &End QS
+
+    &XC ! exchange and correlation functionals
+      &XC_Functional HCTH120
+        &HCTH T
+          Parameter_set 120
+        &End HCTH
+      &End XC_Functional
+    &End XC
+
+    &SCF ! the scf settings...
+      Max_SCF 20
+      Eps_SCF 1.e-1
+      SCF_Guess Atomic
+      &OT T ! orbital transformation settings
+        Preconditioner Full_single_inverse
+        Minimizer CG
+      &End OT
+      &Outer_SCF On
+        Eps_scf 1.0E-1
+        Max_scf 5
+      &End Outer_SCF
+      &Print
+        &Restart
+          &Each
+           QS_SCF 0
+           GEO_OPT 1
+           MD ${pfreq}
+          &End Each
+          Add_last Numeric
+        &End restart
+      &End Print
+      &Mixing
+        Method Pulay_Mixing
+        Pulay_alpha 0.3
+        Pulay_beta 0.5
+        NMixing 1
+        NBuffer 5
+      &end Mixing
+    &End SCF
+    &Mgrid
+      Cutoff 50
+    &end mgrid
+    &Poisson
+      Periodic None
+      Poisson_Solver MT
+      &MT
+      &end MT
+    &end poisson
+    &Localize True
+      Eps_localization 1.0e-4
+      Eps_occupation 1.0e-6
+      Min_or_Max SpreadMin
+      Restart false
+      States Occupied
+      Use_History true
+    &end Localize
+    &Print
+      &Localization
+        &Wannier_Centers
+          Format xyz
+          Ions+Centers true
+          &each
+            MD 1
+          &end each
+          Add_last numeric
+        &end Wannier_Centers
+        &Total_dipole On
+          Periodic ${period}
+          Reference zero
+          reference_point 0.0 0.0 0.0
+          &each
+            MD 10
+          &end each
+          Add_last numeric
+        &end total_dipole
+        &molecular_dipoles Off
+          Periodic ${period}
+          Reference zero
+          reference_point 0.0 0.0 0.0
+          &each
+            MD 10
+          &end each
+          Add_last numeric
+        &end molecular_dipoles
+        &wannier_states on
+          &each
+            MD 1
+          &end each
+          add_last numeric
+        &end wannier_states
+       &molecular_states off
+          &each
+            MD 10
+          &end each
+          add_last numeric
+        &end molecular_states
+
+      &end Localization
+      &MO_Cubes Medium
+        &each
+          MD 1
+        &end Each
+        Add_last Numeric
+      &end MO_Cubes
+      &E_Density_Cube Medium
+        &each
+          MD ${pfreq}
+        &end Each
+        Add_last Numeric
+      &end E_Density_Cube
+      &Tot_density_cube Medium
+        &each
+          MD ${pfreq}
+        &end Each
+        Add_last Numeric
+      &end tot_density_cube
+      &V_Hartree_Cube Medium
+        &each
+          MD ${pfreq}
+        &end Each
+        Add_last Numeric
+      &end V_Hartree_Cube
+      &EFIELD_Cube Medium
+        &each
+          MD ${pfreq}
+        &end Each
+        Add_last Numeric
+      &end EFIELD_Cube
+    &end Print
+  &End DFT
+  &Subsys
+    &cell
+      ABC [angstrom] 6.0 6.0 6.0
+      alpha_beta_gamma 90.0 90.0 90.0
+      Periodic xyz
+    &end cell
+    &topology
+      coord_file_format xyz
+      coord_file_name dimer.xyz
+     &center_coordinates off
+     &end center_coordinates
+     &MOL_SET
+        &MOLECULE
+          NMOL 1
+          CONN_FILE_NAME topology_atoms.psf
+        &END Molecule
+      &END MOL_SET
+      CONNECTIVITY MOL_SET
+    &end topology
+
+    &kind O
+      Basis_set TZV2P-MOLOPT-GTH
+      Potential GTH-HCTH120-q6
+    &end kind
+    &kind H
+      Basis_set TZV2P-MOLOPT-GTH
+      Potential GTH-HCTH120-q1
+    &end kind
+    &colvar
+      &HBP
+        NPOINTS 1
+        ATOMS 4 5 1
+      &end HBP
+    &end colvar
+ &end subsys
+&End Force_eval
+&Motion
+  &Geo_Opt
+    Max_Iter 1000
+    Max_Force 4.5e-4
+    Max_Dr 3.0e-3
+    Optimizer LBFGS
+  &end Geo_Opt
+  &MD
+    Timestep ${dt}
+    Time_Start_Val 0.0
+    Steps ${N}
+    Ensemble NVE
+    Temperature ${Temp}
+    &Thermostat
+      &Nose
+        length 3
+        yoshida 3
+        Timecon 1000.0
+        MTS 2
+      &end Nose
+    &End Thermostat
+  &End MD
+  &MC
+    Ensemble Traditional
+    Nstep ${M}
+    Iprint 1
+    RANDOMTOSKIP 0
+  &End MC
+  &Free_Energy Metadyn
+    &Metadyn
+      Lagrange true
+      Langevin true
+      Temperature ${Tz}
+      Temp_Tol 2000.0
+      TAMCSteps ${Nz}
+      Timestep ${dtz}
+      &Metavar
+        Lambda ${zk}
+        Mass  ${zmass}
+        Gamma ${zgamma}
+        Scale 1.0
+        Colvar 1
+      &end metavar
+      &EXT_LAGRANGE_SS0                                                                                                                                                                                                                                                       
+        0.44025202                                                                                                                                                                                                                                             
+      &END EXT_LAGRANGE_SS0
+      &Print
+        &Colvar
+          &Each
+            MD 1
+          &End each
+        &end colvar
+      &End print
+    &End Metadyn
+  &End Free_energy
+  &print
+    &Trajectory
+      filename trajectory.xyz
+      format xyz
+      &Each
+        MD 10
+      &end each
+    &end trajectory
+    &Velocities
+      filename velocity.xyz
+      format xyz
+      &Each
+        MD 10
+      &End each
+    &end velocities
+  &End print
+&End Motion
+

@@ -141,6 +141,7 @@ MODULE mc_types
       TYPE(section_vals_type),POINTER :: input_file
       TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
       REAL ( dp ) :: exp_min_val, exp_max_val, min_val, max_val
+      INTEGER     :: rand2skip
   END TYPE mc_simpar_type
 
 ! *****************************************************************************
@@ -294,7 +295,8 @@ CONTAINS
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
        pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps,&
-       exp_min_val, exp_max_val, min_val, max_val, eta, pmhmc, pmhmc_box, lhmc)
+       exp_min_val, exp_max_val, min_val, max_val, eta, pmhmc, pmhmc_box,lhmc,rand2skip)
+
 
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_parameters_type
@@ -349,6 +351,7 @@ CONTAINS
       POINTER                                :: eta
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmhmc, pmhmc_box
     LOGICAL, INTENT(OUT), OPTIONAL           :: lhmc
+    INTEGER, INTENT(OUT), OPTIONAL           :: rand2skip
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -432,7 +435,7 @@ CONTAINS
     IF ( PRESENT ( mc_bias_file ) ) mc_bias_file => mc_par % mc_bias_file
 
     IF ( PRESENT ( pmswap_mol ) ) pmswap_mol => mc_par % pmswap_mol
-
+    IF ( PRESENT ( rand2skip ) ) rand2skip = mc_par % rand2skip
   END SUBROUTINE get_mc_par
 
 ! *****************************************************************************
@@ -492,7 +495,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
       avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,eta,&
       mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val,&
-      pmhmc,pmhmc_box,lhmc)
+      pmhmc,pmhmc_box,lhmc,ionode,source,group,rand2skip)
+
 
 ! *****************************************************************************
 !> \brief changes the private elements of the mc_parameters_type
@@ -537,7 +541,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: exp_max_val, exp_min_val, &
                                                 min_val, max_val, pmhmc, &
                                                 pmhmc_box
-    LOGICAL, INTENT(IN), OPTIONAL            :: lhmc
+    LOGICAL, INTENT(IN), OPTIONAL            :: lhmc, ionode
+    INTEGER, INTENT(IN), OPTIONAL            :: source, group, rand2skip
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN
@@ -671,6 +676,11 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( ensemble ) ) mc_par % ensemble = ensemble
 
     IF(PRESENT(mc_molecule_info)) mc_par%mc_molecule_info => mc_molecule_info
+    IF(PRESENT(source)) mc_par%source=source
+    IF(PRESENT(group)) mc_par%group=group
+    IF(PRESENT(ionode)) mc_par%ionode=ionode
+    
+    IF(PRESENT(rand2skip)) mc_par%rand2skip=rand2skip
   END SUBROUTINE set_mc_par
 
 ! *****************************************************************************

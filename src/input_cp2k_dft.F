@@ -1501,6 +1501,10 @@ CONTAINS
        CALL create_molecular_states_section(subsection,error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
+       ! Wannier States with wannier
+       CALL create_wannier_states_section(subsection,error)
+       CALL section_add_subsection(print_key, subsection, error=error)
+       CALL section_release(subsection,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1980,6 +1984,61 @@ CONTAINS
        CALL section_release(print_key2,error=error)
     END IF
   END SUBROUTINE create_molecular_states_section
+
+
+  SUBROUTINE create_wannier_states_section(print_key,error)
+    TYPE(section_type), POINTER              :: print_key
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_wannier_states_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key2
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(print_key2, keyword)
+       CALL cp_print_key_section_create(print_key,"WANNIER_STATES",&
+            description="Controls printing of molecular states ",&
+            print_level=high_print_level,filename=" ", error=error)
+
+       CALL keyword_create(keyword, name="CUBE_EVAL_RANGE",&
+            description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "//&
+                        "Default is all states.",&
+                        usage="CUBE_EVAL_RANGE -1.0 1.0",unit_str="hartree",n_var=2,type_of_var=real_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="MARK_STATES",&
+            description="Can be used to mark given molecular states."//&
+            " Sets a mark to both, occupied and unoccupied states. "//&
+            "Occupied states are counted beginning with HOMO=1, "//&
+            "unoccupied states are counted beginning with LUMO=1, "//&
+            "This is only meaningful in combination with WFN_MIX. "//&
+            "First integer specifies the molecule, second integer specifies the state.",&
+            usage="MARK_STATES integer integer",&
+            n_var=2,default_i_vals=(/-1,-1/), type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key2,"cubes",&
+            description="Controls the printing of cube files", &
+            print_level=high_print_level,filename="",error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key2,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_key,print_key2,error=error)
+       CALL section_release(print_key2,error=error)
+    END IF
+  END SUBROUTINE create_wannier_states_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the qs part

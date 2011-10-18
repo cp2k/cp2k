@@ -14,15 +14,15 @@
 MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: &
-       angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
-       colvar_type, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, &
-       dist_colvar_id, distance_from_path_colvar_id, eval_point_der, &
-       eval_point_mass, eval_point_pos, gyration_colvar_id, &
-       hydronium_colvar_id, plane_distance_colvar_id, &
-       plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
-       torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
-       xyz_outerdiag_colvar_id
+       HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_check_points, &
+       colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
+       coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
+       distance_from_path_colvar_id, eval_point_der, eval_point_mass, &
+       eval_point_pos, gyration_colvar_id, hydronium_colvar_id, &
+       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
+       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       rmsd_colvar_id, rotation_colvar_id, torsion_colvar_id, u_colvar_id, &
+       xyz_diag_colvar_id, xyz_outerdiag_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -79,6 +79,9 @@ MODULE colvar_methods
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             wannier_centres_type
   USE rmsd,                            ONLY: rmsd3
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
@@ -137,7 +140,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure, &
                                                 use_mixed_energy
-    LOGICAL, DIMENSION(19)                   :: my_subsection
+    LOGICAL, DIMENSION(21)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
@@ -150,11 +153,12 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
       combine_section, coordination_section, dfunct_section, &
       distance_from_path_section, distance_section, frame_section, &
-      gyration_section, hydronium_section, path_section, plane_dist_section, &
-      plane_plane_angle_section, plane_sections, point_section, &
-      population_section, qparm_section, reaction_path_section, rmsd_section, &
-      rotation_section, torsion_section, u_section, wrk_section, &
-      xyz_diag_section, xyz_outerdiag_section
+      gyration_section, HBP_section, hydronium_section, path_section, &
+      plane_dist_section, plane_plane_angle_section, plane_sections, &
+      point_section, population_section, qparm_section, &
+      reaction_path_section, rmsd_section, rotation_section, torsion_section, &
+      u_section, Wc_section, wrk_section, xyz_diag_section, &
+      xyz_outerdiag_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -192,6 +196,8 @@ CONTAINS
     xyz_outerdiag_section => section_vals_get_subs_vals(colvar_section,"XYZ_OUTERDIAG",i_rep_section=icol,&
                              error=error)
     u_section             => section_vals_get_subs_vals(colvar_section,"U",i_rep_section=icol,error=error)
+    Wc_section            => section_vals_get_subs_vals(colvar_section,"WC",i_rep_section=icol,error=error)
+    HBP_section           => section_vals_get_subs_vals(colvar_section,"HBP",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -222,7 +228,8 @@ CONTAINS
     CALL section_vals_get(xyz_diag_section,     explicit=my_subsection(17), error=error)
     CALL section_vals_get(xyz_outerdiag_section,explicit=my_subsection(18), error=error)
     CALL section_vals_get(u_section,            explicit=my_subsection(19), error=error)
-
+    CALL section_vals_get(Wc_section,           explicit=my_subsection(20), error=error)
+    CALL section_vals_get(HBP_section,          explicit=my_subsection(21), error=error)
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -937,6 +944,33 @@ CPSourceFileRef)
        colvar%u_param%mixed_energy_section => section_vals_get_subs_vals(wrk_section,"MIXED",error=error)
        CALL section_vals_get(colvar%u_param%mixed_energy_section,explicit=use_mixed_energy,error=error)
        IF (.NOT.use_mixed_energy) NULLIFY(colvar%u_param%mixed_energy_section)
+    ELSE IF (my_subsection(20)) THEN
+       ! Wc hydrogen bond
+       wrk_section => Wc_section
+       CALL colvar_create(colvar, Wc_colvar_id, error)
+       CALL colvar_check_points(colvar, Wc_section, error)
+       CALL section_vals_val_get(Wc_section,"ATOMS",i_vals=iatms,error=error)
+       CALL section_vals_val_get(wrk_section,"RCUT",r_val=my_val(1),error=error)
+       colvar%Wc%rcut = cp_unit_to_cp2k(my_val(1),"angstrom",error=error)
+       colvar%Wc%ids = iatms
+    ELSE IF (my_subsection(21)) THEN
+       ! Wc hydrogen bond
+       wrk_section => HBP_section
+       CALL colvar_create(colvar, HBP_colvar_id, error)
+       CALL colvar_check_points(colvar, HBP_section, error)
+       CALL section_vals_val_get(wrk_section,"NPOINTS",i_val=colvar%HBP%nPoints,error=error)
+       CALL section_vals_val_get(wrk_section,"RCUT",r_val=my_val(1),error=error)
+       colvar%HBP%rcut = cp_unit_to_cp2k(my_val(1),"angstrom",error=error)
+       CALL section_vals_val_get(wrk_section,"RCUT",r_val=colvar%HBP%shift,error=error)
+
+       ALLOCATE(colvar%HBP%ids(colvar%HBP%nPoints,3),STAT=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(colvar%HBP%ewc(colvar%HBP%nPoints),STAT=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       DO i = 1, colvar%HBP%nPoints
+        CALL section_vals_val_get(wrk_section,"ATOMS",i_rep_val=i,i_vals=iatms,error=error)
+        colvar%HBP%ids(i,:) = iatms
+       ENDDO
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -1137,6 +1171,22 @@ CPSourceFileRef)
                //" * "//TRIM(tag_comp2)//')  >>> '//tag, colvar%xyz_outerdiag_param%i_atoms
        CASE(u_colvar_id)
           WRITE ( iw, '( A,T77,A4)' ) ' COLVARS| ENERGY          >>> '//tag,'all!'
+       CASE(Wc_colvar_id)
+          WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| Wc          >>> RCUT: ',&
+               colvar%Wc%rcut
+          WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| Wc          >>> '//tag,&
+               colvar%Wc%ids
+       CASE(HBP_colvar_id)
+       WRITE ( iw, '( A,T57,I8)' )   ' COLVARS| HBP          >>> NPOINTS',&
+               colvar%HBP%nPoints
+       WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| HBP          >>> RCUT',&
+               colvar%HBP%rcut
+       WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| HBP          >>> RCUT',&
+               colvar%HBP%shift
+         DO i =1, colvar%HBP%nPoints
+            WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| HBP          >>> '//tag,&
+               colvar%HBP%ids(i,:)
+         ENDDO
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -1245,6 +1295,12 @@ CPSourceFileRef)
        CASE (u_colvar_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="need force_env!", error=error, error_level=cp_failure_level)
+       CASE (Wc_colvar_id)
+          !!! FIXME this is rubbish at the moment as we have no force to be computed on this
+          CALL Wc_colvar(colvar, cell, particles=particles, error=error)
+       CASE (HBP_colvar_id)
+          !!! FIXME this is rubbish at the moment as we have no force to be computed on this
+          CALL HBP_colvar(colvar, cell, particles=particles, error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1276,10 +1332,11 @@ CPSourceFileRef)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     failure=.FALSE.
-    NULLIFY(subsys,cell,colvar)
-    CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+    NULLIFY(subsys,cell,colvar,qs_env)
+    CALL force_env_get(force_env,subsys=subsys,cell=cell,qs_env=qs_env,error=error)
     colvar_ok=ASSOCIATED(subsys%colvar_p)
     CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
 
@@ -1326,6 +1383,10 @@ CPSourceFileRef)
           CALL xyz_outerdiag_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (u_colvar_id)
           CALL u_colvar(colvar,force_env=force_env,subsys=subsys,error=error)
+       CASE (Wc_colvar_id)
+          CALL Wc_colvar(colvar,cell,subsys=subsys, qs_env=qs_env, error=error)
+       CASE (HBP_colvar_id)
+          CALL HBP_colvar(colvar,cell,subsys=subsys, qs_env=qs_env, error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1395,6 +1456,10 @@ CPSourceFileRef)
        CASE (u_colvar_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="need force_env!", error=error, error_level=cp_failure_level)
+       CASE (Wc_colvar_id)
+          CALL Wc_colvar(colvar, cell, particles=particles, error=error)
+       CASE (HBP_colvar_id)
+          CALL HBP_colvar(colvar, cell, particles=particles, error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -4483,5 +4548,247 @@ CPSourceFileRef,&
      END DO  ! nr_frames
 
   END SUBROUTINE  read_frames
+
+
+! *****************************************************************************
+!> \brief evaluates the collective variable associated with a hydrogen bond
+!> \author alin m elena
+! *****************************************************************************
+  SUBROUTINE Wc_colvar(colvar,cell,subsys,particles,qs_env,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env ! optional just because I am lazy... but I should get rid of it...
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'Wc_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: Od, H, Oa
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
+                                                x,y,s(3),xv(3),dmin,amin,aux
+    INTEGER                                  :: idmin, iamin,i,j,ai
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+    TYPE(wannier_centres_type), DIMENSION(:),POINTER :: wc
+    INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
+    INTEGER                                  :: nwca,nwcd,ierror
+    REAL(dp)                                 :: rcut
+!     real(dp)                                 :: zero(3)
+
+
+
+
+    failure=.FALSE.
+    NULLIFY(particles_i,wc)
+
+    CPPrecondition(colvar%type_id==Wc_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+    CALL get_qs_env(qs_env,WannierCentres=wc,error=error)
+    rcut =colvar%Wc%rcut ! distances are in bohr as far as I remember
+    Od=colvar%Wc%ids(1)
+    H=colvar%Wc%ids(2)
+    Oa=colvar%Wc%ids(3)
+    CALL get_coordinates(colvar, Od, rOd, my_particles)
+    CALL get_coordinates(colvar, H, rH, my_particles)
+    CALL get_coordinates(colvar, Oa, rOa, my_particles)
+    ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+    nwca=0
+    nwcd=0
+    DO j=1,SIZE(wc(1)%WannierHamDiag)
+      x=distance(rOd-wc(1)%centres(:,j))
+      y=distance(rOa-wc(1)%centres(:,j))
+      IF (x<rcut) THEN
+        nwcd=nwcd+1
+        wcdi(nwcd)=j
+        CYCLE
+      ENDIF
+      IF (y<rcut) THEN
+        nwca=nwca+1
+        wcai(nwca)=j
+      ENDIF
+    ENDDO
+
+    dmin=distance(rH-wc(1)%centres(:,wcdi(1)))
+    amin=distance(rH-wc(1)%centres(:,wcai(1)))
+    idmin=wcdi(1)
+    iamin=wcai(1)
+    !dmin constains the smallest numer, amin the next smallest
+    DO i=2,nwcd
+      x=distance(rH-wc(1)%centres(:,wcdi(i)))
+      IF (x<dmin) THEN
+        dmin=x
+        idmin=wcdi(i)
+      ENDIF
+    ENDDO
+    DO i=2,nwca
+      x=distance(rH-wc(1)%centres(:,wcai(i)))
+      IF (x<amin) THEN
+        amin=x
+        iamin=wcai(i)
+      ENDIF
+    ENDDO
+!     zero=0.0_dp
+!     CALL put_derivative(colvar, 1, zero)
+!     CALL put_derivative(colvar, 2,zero)
+!     CALL put_derivative(colvar, 3, zero)
+
+!     write(6,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
+    colvar%ss = wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
+    DEALLOCATE(wcai,stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(wcdi,stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+
+    CONTAINS
+    REAL(dp) FUNCTION distance(rij)
+    REAL(dp), INTENT(in) :: rij(3)
+
+      s=MATMUL(cell%h_inv,rij)
+      s=s-NINT(s)
+      xv=MATMUL(cell%hmat,s)
+      distance=SQRT(DOT_PRODUCT(xv,xv))
+    END FUNCTION distance
+
+  END SUBROUTINE Wc_colvar
+
+! *****************************************************************************
+!> \brief evaluates the collective variable associated with a hydrogen bond wire
+!> \author alin m elena
+! *****************************************************************************
+  SUBROUTINE HBP_colvar(colvar,cell,subsys,particles,qs_env,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env ! optional just because I am lazy... but I should get rid of it...
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'HBP_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: Od, H, Oa
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
+                                                x,y,s(3),xv(3),dmin,amin,aux
+    INTEGER                                  :: idmin, iamin,i,j,ai,il,output_unit
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+    TYPE(wannier_centres_type),&
+                        DIMENSION(:),POINTER :: wc
+    INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
+    INTEGER                                  :: nwca,nwcd,ierror
+    REAL(dp)                                 :: rcut
+!     real(dp)                                 :: zero(3)
+    TYPE(cp_logger_type), POINTER            :: logger
+
+
+
+    failure=.FALSE.
+    NULLIFY(particles_i,wc,logger)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    CPPrecondition(colvar%type_id==HBP_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+    CALL get_qs_env(qs_env,WannierCentres=wc,error=error)
+    rcut = colvar%HBP%rcut ! distances are in bohr as far as I remember
+    ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+    colvar%ss=0.0_dp
+    DO il=1,colvar%HBP%nPoints
+      Od=colvar%HBP%ids(il,1)
+      H=colvar%HBP%ids(il,2)
+      Oa=colvar%HBP%ids(il,3)
+      CALL get_coordinates(colvar, Od, rOd, my_particles)
+      CALL get_coordinates(colvar, H, rH, my_particles)
+      CALL get_coordinates(colvar, Oa, rOa, my_particles)
+      nwca=0
+      nwcd=0
+      DO j=1,SIZE(wc(1)%WannierHamDiag)
+        x=distance(rOd-wc(1)%centres(:,j))
+        y=distance(rOa-wc(1)%centres(:,j))
+        IF (x<rcut) THEN
+          nwcd=nwcd+1
+          wcdi(nwcd)=j
+          CYCLE
+        ENDIF
+        IF (y<rcut) THEN
+          nwca=nwca+1
+          wcai(nwca)=j
+        ENDIF
+      ENDDO
+
+      dmin=distance(rH-wc(1)%centres(:,wcdi(1)))
+      amin=distance(rH-wc(1)%centres(:,wcai(1)))
+      idmin=wcdi(1)
+      iamin=wcai(1)
+      !dmin constains the smallest numer, amin the next smallest
+      DO i=2,nwcd
+        x=distance(rH-wc(1)%centres(:,wcdi(i)))
+        IF (x<dmin) THEN
+          dmin=x
+          idmin=wcdi(i)
+        ENDIF
+      ENDDO
+      DO i=2,nwca
+        x=distance(rH-wc(1)%centres(:,wcai(i)))
+        IF (x<amin) THEN
+          amin=x
+          iamin=wcai(i)
+        ENDIF
+      ENDDO
+!       if (output_unit>0) then
+!          write(output_unit,'(a,2(i0,1x),5(f16.8,1x))')"HBP|",idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin, wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
+!       endif
+      colvar%HBP%ewc(il) = colvar%HBP%shift + wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
+      colvar%ss = colvar%ss + colvar%HBP%shift + wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
+    ENDDO
+     IF (output_unit>0) THEN
+       DO il=1,colvar%HBP%nPoints
+         WRITE(output_unit,'(a,1(f16.8,1x))')"HBP| = ",colvar%HBP%ewc(il)
+       ENDDO
+       WRITE(output_unit,'(a,1(f16.8,1x))')"HBP|\theta(x) = ",colvar%ss
+    ENDIF
+    DEALLOCATE(wcai,stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(wcdi,stat=ierror)
+    CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
+
+  CONTAINS
+    REAL(dp) FUNCTION distance(rij)
+    REAL(dp), INTENT(in) :: rij(3)
+
+      s=MATMUL(cell%h_inv,rij)
+      s=s-NINT(s)
+      xv=MATMUL(cell%hmat,s)
+      distance=SQRT(DOT_PRODUCT(xv,xv))
+    END FUNCTION distance
+
+  END SUBROUTINE HBP_colvar
+
 
 END MODULE colvar_methods

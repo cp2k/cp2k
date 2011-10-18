@@ -1,0 +1,28 @@
+ PSF
+
+   1 !NTITLE
+     Topology file for the system
+
+      6   !NATOM
+       1 WAT     1 WT   O    O          0.000000     15.999400       0
+       2 WAT     1 WT   H    H          0.000000      1.007900       0
+       3 WAT     1 WT   H    H          0.000000      1.007900       0
+       4 WAT     1 WT   O    O          0.000000     15.999400       0
+       5 WAT     1 WT   H    H          0.000000      1.007900       0
+       6 WAT     1 WT   H    H          0.000000      1.007900       0
+
+      5   !NBOND
+       1       2       2       3       3       4       4       5
+       5       6       
+
+     0   !NTHETA
+
+     0   !NPHI
+
+     0   !NIMPHI
+
+     0   !NDON
+
+     0   !NACC
+
+     0   !NNB

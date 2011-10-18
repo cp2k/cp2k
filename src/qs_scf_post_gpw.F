@@ -110,7 +110,8 @@ MODULE qs_scf_post_gpw
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
-                                             set_qs_env
+                                             set_qs_env,&
+                                             wannier_centres_type
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -150,6 +151,7 @@ MODULE qs_scf_post_gpw
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE wannier_states,                  ONLY: construct_wannier_states
   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                              xray_diffraction_spectrum
 #include "cp_common_uses.h"
@@ -327,6 +329,8 @@ CONTAINS
               only_ionode=.TRUE.)
            p_loc_lumo=.FALSE.
        END IF
+      print_key => section_vals_get_subs_vals(localization_section,"WANNIER_STATES",error=error)
+      p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
 
        ! Control for STM_BIAS
        do_stm = section_get_lval(dft_section,"PRINT%MO_CUBES%STM",error=error)
@@ -556,8 +560,8 @@ CONTAINS
        CALL qs_scf_post_gemopt(input, logger, qs_env, error)
 
     END IF
-    
     CALL timestop(handle)
+
 
   END SUBROUTINE scf_post_calculation_gpw
 
@@ -584,9 +588,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, mystate, &
+    INTEGER                                  :: handle, ispin, mystate, ns, &
                                                 output_unit, stat
-    INTEGER, DIMENSION(:), POINTER           :: marked_states_spin
+    INTEGER, DIMENSION(:), POINTER           :: lstates, marked_states_spin
     LOGICAL                                  :: do_homo, failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -598,10 +602,12 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(section_vals_type), POINTER         :: localization_section, &
                                                 localize_section
+    TYPE(wannier_centres_type), &
+      DIMENSION(:), POINTER                  :: wc
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(mos,ks_rmpv,dft_control,marked_states_spin)
+    NULLIFY(mos,ks_rmpv,dft_control,marked_states_spin, wc)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,molecule_set=molecule_set,&
          dft_control=dft_control,matrix_s=matrix_s,error=error)
     logger => cp_error_get_logger(error)
@@ -609,7 +615,14 @@ CONTAINS
     localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
     localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
     do_homo=qs_loc_env%localized_wfn_control%do_homo    
-
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+               "WANNIER_STATES",error=error),cp_p_file)) THEN
+        CALL get_qs_env(qs_env=qs_env,WannierCentres=wc,error=error)
+        IF (.NOT. ASSOCIATED(wc)) THEN
+          ALLOCATE(wc(dft_control%nspins),stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        ENDIF
+    ENDIF
     DO ispin=1,dft_control%nspins
        !
        IF(do_homo)THEN
@@ -641,6 +654,34 @@ CONTAINS
                   molecule_set, dft_control%nspins, error)
           END IF
 
+            ! Compute the wannier states
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+               "WANNIER_STATES",error=error),cp_p_file)) THEN
+             ns=SIZE(qs_loc_env%localized_wfn_control%loc_states,1)
+             IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
+               ALLOCATE(wc(ispin)%WannierHamDiag(ns),stat=stat)
+               CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+               ALLOCATE(wc(ispin)%centres(3,ns),stat=stat)
+               CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             ENDIF
+
+             wc(ispin)%centres(:,:)=scenter(1+(ispin-1)*3:ispin*3,:)
+             lstates => qs_loc_env%localized_wfn_control%loc_states(:,ispin)
+             CALL construct_wannier_states(molecule_set, mo_local(ispin)%matrix,&
+              ks_rmpv(ispin)%matrix, qs_env, localization_section=localization_section,&
+              WannierCentres=wc(ispin),ns=ns,states=lstates, error=error)
+             IF(ASSOCIATED(marked_states_spin))THEN
+                IF(.NOT.ASSOCIATED(marked_states))THEN
+                   ALLOCATE(marked_states(SIZE(marked_states_spin),dft_control%nspins,2),stat=stat)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                END IF
+                mystate=1
+                IF(qs_loc_env%tag_mo=="LUMO")mystate=2
+                marked_states(:,ispin,mystate)=marked_states_spin(:)
+                DEALLOCATE(marked_states_spin,stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+          ENDIF
           ! Compute the molecular states
           IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                "MOLECULAR_STATES",error=error),cp_p_file)) THEN
@@ -662,6 +703,10 @@ CONTAINS
           ENDIF
        END IF
     ENDDO
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+          "WANNIER_STATES",error=error),cp_p_file)) THEN
+      CALL set_qs_env(qs_env=qs_env,WannierCentres=wc,error=error)
+    ENDIF
 
     CALL timestop(handle)
 

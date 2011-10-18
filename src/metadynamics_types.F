@@ -117,6 +117,8 @@ MODULE metadynamics_types
      TYPE(section_vals_type), POINTER          :: metadyn_section
      TYPE(rng_stream_p_type), DIMENSION(:),&
                                        POINTER :: rng
+     INTEGER                                   :: TAMCSteps
+     REAL(kind=dp)                             :: zdt
   END TYPE meta_env_type
 
 CONTAINS

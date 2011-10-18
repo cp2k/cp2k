@@ -654,6 +654,7 @@ CONTAINS
        ENDIF
 
        qs_loc_env%molecular_states = .FALSE.
+       qs_loc_env%wannier_states = .FALSE.
     END IF
     CALL timestop(handle)
 

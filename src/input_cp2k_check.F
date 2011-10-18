@@ -617,6 +617,14 @@ CONTAINS
                   "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",&
                   section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS",&
+                  section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_FS",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_FS",&
+                  section,error=error)
              CALL set_restart_info("METADYNAMICS",restarted_infos,error)
           END IF
 
@@ -1064,6 +1072,10 @@ CPSourceFileRef,&
        section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_FS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
     END IF
     CALL timestop(handle)

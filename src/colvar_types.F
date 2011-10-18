@@ -92,7 +92,9 @@ MODULE colvar_types
                                 distance_from_path_colvar_id  = 16,&
                                 xyz_diag_colvar_id            = 17,&
                                 xyz_outerdiag_colvar_id       = 18,&
-                                u_colvar_id                   = 19
+                                u_colvar_id                   = 19,&
+                                Wc_colvar_id                  = 20, &
+                                hbp_colvar_id                 = 21
                                 
 
 ! *****************************************************************************
@@ -275,6 +277,21 @@ MODULE colvar_types
      INTEGER       :: natom
   END TYPE u_colvar_type
 
+
+  TYPE Wc_colvar_type
+    INTEGER                         :: ids(3) ! first is the Od, second the H, third the Oa
+    REAL(KIND=dp)                   :: ewc
+    REAL(KIND=dp)                   :: rcut
+  END TYPE Wc_colvar_type
+
+  TYPE HBP_colvar_type
+    INTEGER                         :: nPoints ! number of the points in the path
+    INTEGER, POINTER                :: ids(:,:) ! first is the Od, second the H, third the Oa and contains a row for each intermediate point in the path
+    REAL(KIND=dp),POINTER           :: ewc(:) ! one for each point in the path
+    REAL(KIND=dp)                   :: rcut
+    REAL(KIND=dp)                   :: shift  ! shift applied for each term in the collective variable
+  END TYPE HBP_colvar_type
+
 ! *****************************************************************************
 !> \brief parameters for a collective variable
 !> \author alessandro laio and fawzi mohamed
@@ -306,6 +323,8 @@ MODULE colvar_types
      TYPE(xyz_outerdiag_colvar_type), POINTER    :: xyz_outerdiag_param
      TYPE(u_colvar_type),POINTER                 :: u_param
      TYPE(point_type), DIMENSION(:), POINTER     :: points
+     TYPE(Wc_colvar_type), POINTER               :: Wc
+     TYPE(HBP_colvar_type), POINTER              :: HBP
   END TYPE colvar_type
 
 ! *****************************************************************************
@@ -334,6 +353,8 @@ MODULE colvar_types
      INTEGER :: nxyz_diag
      INTEGER :: nxyz_outerdiag
      INTEGER :: ntot
+     INTEGER :: nWc
+     INTEGER :: nHBP
   END TYPE colvar_counters
 
 CONTAINS
@@ -383,6 +404,7 @@ CONTAINS
     NULLIFY(colvar%points)
     NULLIFY(colvar%dsdr)
     NULLIFY(colvar%i_atom)
+    NULLIFY(colvar%Wc)
     IF (.NOT.failure) THEN
        colvar%type_id    = colvar_id
        colvar%use_points = .FALSE.
@@ -449,6 +471,12 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(rmsd_colvar_id)
           ALLOCATE(colvar%rmsd_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(Wc_colvar_id)
+          ALLOCATE(colvar%Wc, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(HBP_colvar_id)
+          ALLOCATE(colvar%HBP, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -931,6 +959,46 @@ CPSourceFileRef)
           np = 1; ALLOCATE(list(np),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
           colvar%n_atom_s=np; list(1)=1
+       CASE(Wc_colvar_id)
+          np = 3
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          DO ii=1,3
+             i = colvar%Wc%ids(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1, 3
+             idum = idum + 1
+             i = colvar%Wc%ids(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(HBP_colvar_id)
+          np = 3*colvar%HBP%nPoints
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          DO j=1,colvar%HBP%nPoints
+            DO ii=1,3
+              i = colvar%HBP%ids(j,ii)
+              colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+            ENDDO
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO j=1,colvar%HBP%nPoints
+            DO ii=1, 3
+              idum = idum + 1
+              i = colvar%HBP%ids(j,ii)
+              list(idum) = i
+            ENDDO
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(combine_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1182,6 +1250,16 @@ CPSourceFileRef)
        DEALLOCATE(colvar%rmsd_param%i_rmsd, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(colvar%rmsd_param,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE(Wc_colvar_id)
+       DEALLOCATE(colvar%Wc, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE(HBP_colvar_id)
+       DEALLOCATE(colvar%HBP%ewc, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%HBP%ids, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%HBP, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
@@ -1501,6 +1579,20 @@ CPSourceFileRef)
        ALLOCATE(colvar_out%rmsd_param%r_ref(ndim,ndim2),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%rmsd_param%r_ref    = colvar_in%rmsd_param%r_ref
+    CASE(Wc_colvar_id)
+       colvar_out%Wc%ids   = colvar_in%Wc%ids + my_offset
+       colvar_out%Wc%rcut   = colvar_in%Wc%rcut
+    CASE(HBP_colvar_id)
+       ndim=colvar_out%HBP%nPoints
+       ALLOCATE(colvar_out%HBP%ids(ndim,3),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       ALLOCATE(colvar_out%HBP%ewc(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%HBP%ids   = colvar_in%HBP%ids + my_offset
+       colvar_out%HBP%ewc   = colvar_in%HBP%ewc + my_offset
+       colvar_out%HBP%nPoints   = colvar_in%HBP%nPoints
+       colvar_out%HBP%rcut   = colvar_in%HBP%rcut
+       colvar_out%HBP%shift   = colvar_in%HBP%shift
     END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone

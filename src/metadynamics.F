@@ -173,6 +173,7 @@ CONTAINS
        meta_env%ekin_s = 0.0_dp
     END IF
 
+          !    *** Velocity Verlet for Langevin S(t)->S(t+1)
     ! compute ss and the derivative of ss with respect to the atomic positions
     DO i_c=1,meta_env%n_colvar
        cv => meta_env%metavar(i_c)
@@ -538,7 +539,7 @@ CONTAINS
          "PRINT%COLVAR",extension=".metadynLog",error=error)
     IF (iw>0) THEN
        IF (meta_env%extended_lagrange) THEN
-          WRITE(iw,'(f12.1,70f15.8)')meta_env%time*femtoseconds, &
+          WRITE(iw,'(f16.8,70f15.8)')meta_env%time*femtoseconds, &
                (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
@@ -550,7 +551,7 @@ CONTAINS
                 meta_env%epot_walls, &
                (meta_env%ekin_s)*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
        ELSE
-          WRITE(iw,'(f12.1,40f13.5)') meta_env%time*femtoseconds,&
+          WRITE(iw,'(f16.8,40f13.5)') meta_env%time*femtoseconds,&
                (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar),&
                (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar),&
                (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar),&

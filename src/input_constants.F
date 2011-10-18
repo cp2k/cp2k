@@ -131,7 +131,8 @@ MODULE input_constants
                                               do_band=13,&
                                               cell_opt_run=14,&
                                               real_time_propagation=15,&
-                                              ehrenfest=16
+                                              ehrenfest=16, &
+                                              do_tamc=17
 
   ! Run Types of Atom Code
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&

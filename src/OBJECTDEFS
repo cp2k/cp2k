@@ -645,6 +645,7 @@ OBJECTS_GENERIC =\
  structure_factors.o\
  subcell_types.o\
  t_c_g0.o\
+ tamc_run.o\
  taper_types.o\
  task_list_methods.o\
  task_list_types.o\
@@ -679,6 +680,7 @@ OBJECTS_GENERIC =\
  vibrational_analysis.o\
  virial_methods.o\
  virial_types.o\
+ wannier_states.o\
  whittaker.o\
  wiener_process.o\
  xas_control.o\

@@ -221,6 +221,14 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)      
 
+       CALL create_colvar_wc_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_hbp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        IF(.NOT. skip_recursive_colvar)THEN
           CALL create_colvar_rpath_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
@@ -1852,6 +1860,126 @@ CONTAINS
     END IF
   END SUBROUTINE create_coord_section_cv
 
+! *****************************************************************************
+!> \brief collective variables specifying h bonds
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author alin m elena
+! *****************************************************************************
+  SUBROUTINE create_colvar_wc_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_wc_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="wc",&
+            description="Section to define the hbond wannier centre as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Parameter used for computing the cutoff radius for searching "//&
+            "the wannier centres around an atom",&
+            usage="RCUT <REAL>", default_r_val=0.529177208590000_dp, unit_str="angstrom",&
+            type_of_var=real_t,repeats=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).",&
+            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t,repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_wc_section
+
+
+   ! *****************************************************************************
+!> \brief collective variables specifying h bonds= wire
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author alin m elena
+! *****************************************************************************
+  SUBROUTINE create_colvar_hbp_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hbp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="hbp",&
+            description="Section to define the hbond wannier centre as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Parameter used for computing the cutoff radius for searching "//&
+            "the wannier centres around an atom",&
+            usage="RCUT <REAL>", default_r_val=0.529177208590000_dp, unit_str="angstrom",&
+            type_of_var=real_t,repeats=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SHIFT",&
+            description="Parameter used for shifting each term in the sum ", &
+            usage="SHIFT <REAL>", default_r_val=0.5_dp,&
+            type_of_var=real_t,repeats=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NPOINTS",&
+            description="The number of points in the path",&
+            usage="NPOINTS {integer}",default_i_val=-1,&
+            n_var=1,type_of_var=integer_t,repeats=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).",&
+            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t,repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_hbp_section
 
 
 END MODULE input_cp2k_colvar

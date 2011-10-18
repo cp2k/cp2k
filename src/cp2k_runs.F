@@ -74,7 +74,7 @@ MODULE cp2k_runs
   USE input_constants,                 ONLY: &
        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
        do_farming, do_fist, do_mixed, do_optimize_input, do_qmmm, do_qs, &
-       do_test, ehrenfest, electronic_spectra_run, energy_force_run, &
+       do_tamc, do_test, ehrenfest, electronic_spectra_run, energy_force_run, &
        energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
        mon_car_run, none_run, pint_run, real_time_propagation, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
@@ -111,6 +111,7 @@ MODULE cp2k_runs
   USE reference_manager,               ONLY: print_all_references,&
                                              print_format_html
   USE rt_propagation,                  ONLY: rt_prop_setup
+  USE tamc_run,                        ONLY: qs_tamc
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal
@@ -361,6 +362,8 @@ CONTAINS
              CALL cp_cell_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
              CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
+          CASE (do_tamc)
+             CALL qs_tamc ( force_env, globenv, input_file_name, error=suberror )
           CASE (electronic_spectra_run)
              IF(method_name_id /= do_qs) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

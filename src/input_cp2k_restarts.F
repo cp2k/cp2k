@@ -864,6 +864,18 @@ CONTAINS
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%vvp,&
                   i_rep_val=irep,error=error) 
           END DO
+
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS",error=error)
+          DO irep = 1, meta_env%n_colvar
+             CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ss,&
+                  i_rep_val=irep,error=error)
+          END DO
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_FS",error=error)
+          DO irep = 1, meta_env%n_colvar
+             CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ff_s,&
+                  i_rep_val=irep,error=error)
+          END DO
+
        END IF
        ! Multiple Walkers
        IF (meta_env%do_multiple_walkers) THEN

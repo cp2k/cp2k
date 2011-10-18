@@ -668,6 +668,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RANDOMTOSKIP",&
+            description="Number of random numbers from the acceptance/rejection stream to skip",&
+            usage="RANDOMTOSKIP {integer}",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_mc_section

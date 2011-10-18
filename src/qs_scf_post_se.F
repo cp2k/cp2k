@@ -134,7 +134,7 @@ CONTAINS
       nlumos, nmo, nmoloc(2), nmos, output_unit
     INTEGER, DIMENSION(:), POINTER           :: marked_states
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, explicit, failure, &
-      ionode, my_localized_wfn, p_loc, p_molstates, uniform_occ
+      ionode, my_localized_wfn, p_loc, p_molstates, p_wanstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
@@ -219,6 +219,10 @@ CONTAINS
        print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
        p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        p_loc=p_loc.OR.p_molstates
+       ! Print Wannier States
+       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_STATES",error=error)
+       p_wanstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       p_loc=p_loc.OR.p_wanstates
 
        ! Control for STM_BIAS
        do_stm = section_get_lval(dft_section,"PRINT%MO_CUBES%STM",error=error)
@@ -376,6 +380,9 @@ CPSourceFileRef,&
                            ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env,  wf_r, wf_g,&
                            localization_section=localization_section, particles=particles, tag="HOMO",&
                            marked_states=marked_states, error=error)
+                      IF(ASSOCIATED(marked_states)) DEALLOCATE(marked_states)
+                   ENDIF
+                   IF ( p_wanstates ) THEN
                       IF(ASSOCIATED(marked_states)) DEALLOCATE(marked_states)
                    ENDIF
                 END IF

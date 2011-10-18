@@ -122,6 +122,16 @@ CONTAINS
 
        CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=meta_env%do_hills,error=error)
        CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
+       CALL section_vals_val_get(metadyn_section,"TAMCSteps",i_val=meta_env%TAMCSteps,error=error)
+       IF (meta_env%TAMCSteps<0) THEN
+          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+             "TAMCSteps must be positive!",only_ionode=.TRUE.)
+       ENDIF
+       CALL section_vals_val_get(metadyn_section,"Timestep",r_val=meta_env%zdt,error=error)
+       IF (meta_env%zdt<=0.0_dp) THEN
+          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+             "Timestep must be positive!",only_ionode=.TRUE.)
+       ENDIF
        CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
        CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
        CALL section_vals_val_get(metadyn_section,"MIN_NT_HILLS",i_val=meta_env%hills_env%min_nt_hills,error=error)

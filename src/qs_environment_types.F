@@ -191,7 +191,8 @@ MODULE qs_environment_types
 ! *** Public data types ***
 
   PUBLIC :: qs_environment_p_type,&
-            qs_environment_type
+            qs_environment_type,&
+            wannier_centres_type ! this is for my wannier based collective variable, probably should get it own module...
 
 ! *** Public subroutines ***
 
@@ -202,6 +203,12 @@ MODULE qs_environment_types
             qs_env_reorthogonalize_vectors,&
             qs_env_retain,&
             set_qs_env
+
+
+  TYPE wannier_centres_type
+    REAL(kind=dp), POINTER, DIMENSION(:)        :: WannierHamDiag=>NULL()
+    REAL(KIND=dp), POINTER, DIMENSION(:,:)      :: centres=>NULL()
+  END TYPE wannier_centres_type
 
 ! *****************************************************************************
 !> \brief contains all the info needed by quickstep to do dft scf
@@ -397,6 +404,7 @@ MODULE qs_environment_types
     TYPE(efield_berry_type),POINTER                       :: efield
     ! a history for the broyden ot 
     REAL(KIND = dp)                                       :: broyden_adaptive_sigma
+    TYPE(wannier_centres_type), POINTER,DIMENSION(:)      :: WannierCentres=>NULL()
     ! atomic properties
     TYPE(atprop_type),POINTER                             :: atprop
   END TYPE qs_environment_type
@@ -435,7 +443,8 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
-       hfx_ri_env,dispersion_env, vee, atprop, error)
+       hfx_ri_env,dispersion_env, vee,WannierCentres,atprop,error)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -569,6 +578,8 @@ CONTAINS
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
+    TYPE(wannier_centres_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -730,6 +741,9 @@ CONTAINS
     IF (PRESENT(task_list)) task_list => qs_env%task_list
     IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => qs_env%task_list_aux_fit
     IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
+
+    IF (PRESENT(WannierCentres)) WannierCentres => qs_env%WannierCentres
+
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
@@ -833,7 +847,9 @@ CONTAINS
     NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
+    NULLIFY (qs_env%WannierCentres)
     NULLIFY (qs_env%atprop)
+
     qs_env%outer_scf_ihistory=0
     qs_env%broyden_adaptive_sigma=-1.0_dp
     qs_env%neighbor_list_id=-1
@@ -891,7 +907,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
-       hfx_ri_env,dispersion_env,atprop,error)
+       hfx_ri_env,dispersion_env,WannierCentres,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -1003,6 +1019,8 @@ CONTAINS
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
+    TYPE(wannier_centres_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1270,6 +1288,7 @@ CONTAINS
     IF( PRESENT(admm_env) ) qs_env%admm_env => admm_env
     IF( PRESENT(hfx_ri_env) ) qs_env%hfx_ri_env => hfx_ri_env
     IF( PRESENT(dispersion_env) ) qs_env%dispersion_env => dispersion_env
+    IF( PRESENT(WannierCentres) ) qs_env%WannierCentres => WannierCentres
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
@@ -1709,6 +1728,17 @@ CONTAINS
             DEALLOCATE(qs_env%dispersion_env, stat=stat)
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+
+          IF( ASSOCIATED(qs_env%WannierCentres)) THEN
+            DO i=1,SIZE(qs_env%WannierCentres)
+              DEALLOCATE(qs_env%WannierCentres(i)%WannierHamDiag, stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE(qs_env%WannierCentres(i)%centres, stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            ENDDO
+            DEALLOCATE(qs_env%WannierCentres, stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ENDIF
           ! dereference atprop (we assume it will be deallocated in force_env!
           NULLIFY(qs_env%atprop)
           ! now we are ready to deallocate the full structure
