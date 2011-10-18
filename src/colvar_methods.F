@@ -954,7 +954,7 @@ CPSourceFileRef)
        colvar%Wc%rcut = cp_unit_to_cp2k(my_val(1),"angstrom",error=error)
        colvar%Wc%ids = iatms
     ELSE IF (my_subsection(21)) THEN
-       ! Wc hydrogen bond
+       ! HBP colvar
        wrk_section => HBP_section
        CALL colvar_create(colvar, HBP_colvar_id, error)
        CALL colvar_check_points(colvar, HBP_section, error)
@@ -4578,10 +4578,6 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
     INTEGER                                  :: nwca,nwcd,ierror
     REAL(dp)                                 :: rcut
-!     real(dp)                                 :: zero(3)
-
-
-
 
     failure=.FALSE.
     NULLIFY(particles_i,wc)

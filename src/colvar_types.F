@@ -71,6 +71,8 @@ MODULE colvar_types
             rmsd_colvar_type,&
             xyz_diag_colvar_type,&
             xyz_outerdiag_colvar_type,&
+            Wc_colvar_type,&
+            HBP_colvar_type,&
             u_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
@@ -93,7 +95,7 @@ MODULE colvar_types
                                 xyz_diag_colvar_id            = 17,&
                                 xyz_outerdiag_colvar_id       = 18,&
                                 u_colvar_id                   = 19,&
-                                Wc_colvar_id                  = 20, &
+                                Wc_colvar_id                  = 20,&
                                 hbp_colvar_id                 = 21
                                 
 
