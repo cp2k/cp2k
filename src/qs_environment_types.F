@@ -176,6 +176,7 @@ MODULE qs_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
+  USE wannier_states_types,            ONLY: wannier_centres_type
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
@@ -191,8 +192,7 @@ MODULE qs_environment_types
 ! *** Public data types ***
 
   PUBLIC :: qs_environment_p_type,&
-            qs_environment_type,&
-            wannier_centres_type ! this is for my wannier based collective variable, probably should get it own module...
+            qs_environment_type
 
 ! *** Public subroutines ***
 
@@ -203,12 +203,6 @@ MODULE qs_environment_types
             qs_env_reorthogonalize_vectors,&
             qs_env_retain,&
             set_qs_env
-
-
-  TYPE wannier_centres_type
-    REAL(kind=dp), POINTER, DIMENSION(:)        :: WannierHamDiag=>NULL()
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)      :: centres=>NULL()
-  END TYPE wannier_centres_type
 
 ! *****************************************************************************
 !> \brief contains all the info needed by quickstep to do dft scf

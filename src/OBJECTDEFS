@@ -680,6 +680,7 @@ OBJECTS_GENERIC =\
  vibrational_analysis.o\
  virial_methods.o\
  virial_types.o\
+ wannier_states_types.o\
  wannier_states.o\
  whittaker.o\
  wiener_process.o\

@@ -31,10 +31,10 @@ MODULE wannier_states
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE molecule_types_new,              ONLY: molecule_type
-  USE qs_environment_types,            ONLY: qs_environment_type,&
-                                             wannier_centres_type
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE wannier_states_types,            ONLY: wannier_centres_type
 !!!! this ones are needed to mapping
 #include "cp_common_uses.h"
 

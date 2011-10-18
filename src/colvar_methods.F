@@ -80,8 +80,7 @@ MODULE colvar_methods
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             wannier_centres_type
+                                             qs_environment_type
   USE rmsd,                            ONLY: rmsd3
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
@@ -90,6 +89,7 @@ MODULE colvar_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE wannier_states_types,            ONLY: wannier_centres_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

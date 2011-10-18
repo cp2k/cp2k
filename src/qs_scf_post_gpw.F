@@ -110,8 +110,7 @@ MODULE qs_scf_post_gpw
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
-                                             set_qs_env,&
-                                             wannier_centres_type
+                                             set_qs_env
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -152,6 +151,7 @@ MODULE qs_scf_post_gpw
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states,                  ONLY: construct_wannier_states
+  USE wannier_states_types,            ONLY: wannier_centres_type
   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                              xray_diffraction_spectrum
 #include "cp_common_uses.h"
