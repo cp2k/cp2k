@@ -447,6 +447,7 @@ CONTAINS
           DO ispin=1,dft_control%nspins
              has_lumo=.TRUE.
              homo_lumo(ispin,2)=unoccupied_evals(ispin)%array(1)
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo=homo)
              IF(check_write)THEN
                 IF(p_loc_lumo.AND.nlumo.NE.-1)nlumos=MIN(nlumo,nlumos)
                 ! Prints the cube files of UNOCCUPIED ORBITALS
