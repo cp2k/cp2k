@@ -998,7 +998,7 @@ CONTAINS
     END DO
 
     IF (distributed_grids .AND. pab_required) THEN
-        CALL distribute_matrix (rs_v, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+        CALL distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
     ENDIF
 
     IF (debug_this_module) &
@@ -1372,7 +1372,7 @@ CONTAINS
        ! Reconstruct H matrix if using distributed RS grids
        ! note send and recv direction reversed WRT collocate
        scatter = .FALSE.
-       CALL distribute_matrix (rs_v, dh, atom_pair_recv, atom_pair_send,&
+       CALL distribute_matrix (rs_descs, dh, atom_pair_recv, atom_pair_send,&
             natom, scatter, error, h%matrix)
        CALL cp_dbcsr_deallocate_matrix ( dh ,error=error)
 
@@ -1827,7 +1827,7 @@ CONTAINS
     gridbounds(1,3)=LBOUND(GRID,3)
     gridbounds(2,3)=UBOUND(GRID,3)
 
-    CALL compute_cube_center(cubecenter,rsgrid,zeta,zetb,ra,rab)
+    CALL compute_cube_center(cubecenter,rsgrid%desc,zeta,zetb,ra,rab)
     roffset(:) = rp(:) - REAL(cubecenter(:),dp)*dr(:)
     lb_cube_min = MINVAL(lb_cube(:))
     ub_cube_max = MAXVAL(ub_cube(:))

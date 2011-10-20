@@ -1109,7 +1109,7 @@ CONTAINS
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL distribute_matrix (rs_rho, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
+       CALL distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
     ENDIF
 
     ! map all tasks on the grids
@@ -1597,7 +1597,7 @@ CONTAINS
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL distribute_matrix (rs_rho, deltap, atom_pair_send, atom_pair_recv, &
+       CALL distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
                                natoms, scatter=.TRUE., error=error)
     ENDIF
 
@@ -2635,7 +2635,7 @@ CONTAINS
 
 
     ALLOCATE(map(-cmax:cmax,3))
-    CALL compute_cube_center(cubecenter,rsgrid,zeta,zetb,ra,rab)
+    CALL compute_cube_center(cubecenter,rsgrid%desc,zeta,zetb,ra,rab)
     roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
 !   *** a mapping so that the ig corresponds to the right grid point 
     DO i=1,3

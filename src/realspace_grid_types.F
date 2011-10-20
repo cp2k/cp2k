@@ -237,16 +237,16 @@ CONTAINS
 !> \brief returns the 1D rank of the task which is a cartesian shift away from 1D rank rank_in
 !>        only possible if rs_grid is a distributed grid
 ! *****************************************************************************
-  FUNCTION rs_grid_locate_rank(rs_grid,rank_in,shift) RESULT(rank_out)
-    TYPE(realspace_grid_type), POINTER       :: rs_grid
+  FUNCTION rs_grid_locate_rank(rs_desc,rank_in,shift) RESULT(rank_out)
+    TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     INTEGER, INTENT(IN)                      :: rank_in
     INTEGER, DIMENSION(3), INTENT(IN)        :: shift
     INTEGER                                  :: rank_out
 
     INTEGER                                  :: coord(3)
 
-    coord=MODULO(rs_grid%desc%rank2coord(:,rank_in)+shift,rs_grid%desc%group_dim)
-    rank_out=rs_grid%desc%coord2rank(coord(1),coord(2),coord(3))
+    coord=MODULO(rs_desc%rank2coord(:,rank_in)+shift,rs_desc%group_dim)
+    rank_out=rs_desc%coord2rank(coord(1),coord(2),coord(3))
   END FUNCTION rs_grid_locate_rank
 
 ! *****************************************************************************
@@ -610,50 +610,30 @@ CONTAINS
 !>        04-2009 created [Iain Bethune]
 !>          (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 ! *****************************************************************************
-  SUBROUTINE rs_grid_reorder_ranks(rs, real2virtual, error)
+  SUBROUTINE rs_grid_reorder_ranks(desc, real2virtual, error)
 
-    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(realspace_grid_desc_type), POINTER  :: desc
     INTEGER, DIMENSION(:), INTENT(IN)        :: real2virtual
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i
 
     CALL timeset(routineN,handle)
 
-    rs%desc%real2virtual = real2virtual
+    desc%real2virtual = real2virtual
 
-    DO i=0, rs % desc % group_size - 1
-      rs % desc % virtual2real(rs % desc % real2virtual(i)) = i
+    DO i=0, desc % group_size - 1
+      desc % virtual2real(desc % real2virtual(i)) = i
     END DO
 
-    rs % desc % my_virtual_pos = rs % desc % real2virtual(rs%desc%my_pos)
+    desc % my_virtual_pos = desc % real2virtual(desc%my_pos)
 
-    ! recalculate the local bounds (only needed in distributed case)
-
-    IF ( .NOT. ALL (rs % desc % group_dim == 1 ) ) THEN
-          ! extract some more derived quantities about the local grid
-          rs % lb_real = rs % desc % lb_global ( :, rs % desc % my_virtual_pos )
-          rs % ub_real = rs % desc % ub_global ( :, rs % desc % my_virtual_pos )
-          rs % lb_local = rs % lb_real - rs % desc % border * ( 1 - rs % desc % perd )
-          rs % ub_local = rs % ub_real + rs % desc % border * ( 1 - rs % desc % perd )
-          rs % npts_local = rs % ub_local - rs % lb_local +1
-          rs % ngpts_local = PRODUCT ( rs % npts_local )
-          rs % desc % virtual_group_coor( : ) = rs % desc % rank2coord(:, rs % desc % my_virtual_pos)
+    IF ( .NOT. ALL (desc % group_dim == 1 ) ) THEN
+          desc % virtual_group_coor( : ) = desc % rank2coord(:, desc % my_virtual_pos)
     END IF
-
-    ! Resize the grid so it can hold the data required on this rank
-
-    DEALLOCATE ( rs % r, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
-                       rs % lb_local(2):rs % ub_local(2), &
-                       rs % lb_local(3):rs % ub_local(3)), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
  
@@ -2022,6 +2002,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
    IF(scalar.NE.0.0_dp) THEN
       l(1) = LBOUND( rs1 % r, 1 );l(2) = LBOUND( rs1 % r, 2 );l(3) = LBOUND( rs1 % r, 3 )
       u(1) = UBOUND( rs1 % r, 1 );u(2) = UBOUND( rs1 % r, 2 );u(3) = UBOUND( rs1 % r, 3 )
+!$omp parallel do default(none) __COLLAPSE3 &
+!$omp             private(i,j,k) &
+!$omp             shared(rs1,rs2,rs3,scalar,l,u)
       DO k = l(3),u(3)
       DO j = l(2),u(2)
       DO i = l(1),u(1)
@@ -2029,6 +2012,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
       ENDDO
       ENDDO
       ENDDO
+!$omp end parallel do
    ENDIF
    CALL timestop(handle)
  END SUBROUTINE rs_grid_mult_and_add

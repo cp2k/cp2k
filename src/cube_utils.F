@@ -19,7 +19,7 @@ MODULE cube_utils
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE mathlib,                         ONLY: matvec_3x3
-  USE realspace_grid_types,            ONLY: realspace_grid_type
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -63,10 +63,10 @@ CONTAINS
 !> \par History
 !>      11.2008 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE compute_cube_center(cube_center,rs_grid,zeta,zetb,ra,rab)
+  SUBROUTINE compute_cube_center(cube_center,rs_desc,zeta,zetb,ra,rab)
 
     INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center
-    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     REAL(KIND=dp), INTENT(IN)                :: zeta, zetb, ra(3), rab(3)
 
     REAL(KIND=dp)                            :: zetp
@@ -74,7 +74,7 @@ CONTAINS
 
     zetp = zeta + zetb
     rp(:) = ra(:) + zetb/zetp*rab(:)
-    cube_center(:) = FLOOR(MATMUL(rs_grid%desc%dh_inv,rp))
+    cube_center(:) = FLOOR(MATMUL(rs_desc%dh_inv,rp))
 
   END SUBROUTINE compute_cube_center
 

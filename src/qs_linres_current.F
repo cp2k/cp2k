@@ -631,7 +631,8 @@ CONTAINS
       igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, istat, &
       itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
       jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, &
-      nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb
+      nb1, nb2, ncoa, ncob, ngpts, nkind, nseta, nsetb, ntasks, nthread, &
+      sgfa, sgfb
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -758,16 +759,9 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
 
-    ! *** set up the rs multi-grids and the gauge
     distributed_rs_grids=.FALSE.
-    ALLOCATE(rs_current(gridlevel_info%ngrid_levels), rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       !CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
-       !CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
-       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
-       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF(.NOT.ALL(rs_rho(igrid_level)%rs_grid%desc%perd == 1)) THEN
+       IF(.NOT.ALL(rs_descs(igrid_level)%rs_desc%perd == 1)) THEN
           distributed_rs_grids = .TRUE.
        ENDIF
     ENDDO
@@ -790,15 +784,6 @@ CONTAINS
 
     my_soft=.FALSE.
     IF (PRESENT(soft_valid)) my_soft = soft_valid
-
-    ntasks = 0
-    IF ( nthread > 1 ) THEN
-       DO igrid_level = 1,gridlevel_info%ngrid_levels
-          ntasks = MAX(ntasks,rs_rho(igrid_level)%rs_grid%ngpts_local)
-       END DO
-       ntasks = ntasks*nthread
-       CALL reallocate(lgrid%r,1,ntasks)
-    END IF
 
     nkind = SIZE(atomic_kind_set)
 
@@ -964,7 +949,7 @@ CONTAINS
           END IF
        END IF
 
-       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
+       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,cell,&
                                  iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
 
@@ -982,19 +967,31 @@ CONTAINS
     ENDIF
 
     ! sorts / redistributes the task list
-    CALL distribute_tasks ( rs_rho, ntasks, natom,&
+    CALL distribute_tasks ( rs_descs, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
             symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
             skip_load_balance_distributed=.FALSE., error=error)
-    !-------------------------------------------------------------
-    !
-    ! we dont trust previous call anymore, bug introduiced the 2009-05-07 20:33 src/task_list_methods.F !
+
+    ALLOCATE(rs_current(gridlevel_info%ngrid_levels), rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc,&
             &              error=error)
        CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
     ENDDO
+
+    ngpts = 0
+    IF ( nthread > 1 ) THEN
+       DO igrid_level = 1,gridlevel_info%ngrid_levels
+          ngpts = MAX(ngpts,rs_rho(igrid_level)%rs_grid%ngpts_local)
+       END DO
+       ngpts = ngpts*nthread
+       CALL reallocate(lgrid%r,1,ngpts)
+    END IF
+
     !
     ! we need to build the gauge here
     IF(.NOT.current_env%gauge_init) THEN
@@ -1043,13 +1040,13 @@ CONTAINS
     !-------------------------------------------------------------
 
     IF (distributed_rs_grids) THEN
-        CALL distribute_matrix (rs_current, deltajp_a, atom_pair_send, atom_pair_recv, &
+        CALL distribute_matrix (rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        CALL distribute_matrix (rs_current, deltajp_b, atom_pair_send, atom_pair_recv, &
+        CALL distribute_matrix (rs_descs, deltajp_b, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        CALL distribute_matrix (rs_current, deltajp_c, atom_pair_send, atom_pair_recv, &
+        CALL distribute_matrix (rs_descs, deltajp_c, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        IF(do_igaim) CALL distribute_matrix (rs_current, deltajp_d, atom_pair_send, atom_pair_recv, &
+        IF(do_igaim) CALL distribute_matrix (rs_descs, deltajp_d, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
     ENDIF
 
