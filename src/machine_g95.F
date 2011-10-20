@@ -88,7 +88,7 @@ END FUNCTION m_cputime
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize 
       ! lead to linking errors or /proc/self/statm can not be opened
       !
-#if defined(__NO_STATM_ACCESS)
+#if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
       m_memory=total_memory
 #else
       CHARACTER(LEN=80) :: DATA
