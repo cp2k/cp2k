@@ -1985,9 +1985,9 @@ CONTAINS
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     TYPE(carrier_type), INTENT(out)          :: carrier
-    INTEGER, DIMENSION(:, :), INTENT(IN), POINTER :: right_data_sr, &
-      right_data_rr, left_data_sr, left_data_rr, right_index_sr, &
-      right_index_rr, left_index_sr, left_index_rr
+    INTEGER, DIMENSION(:, :), POINTER :: right_data_sr, right_data_rr, &
+      left_data_sr, left_data_rr, right_index_sr, right_index_rr, &
+      left_index_sr, left_index_rr
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
     REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
