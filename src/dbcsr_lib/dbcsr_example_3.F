@@ -50,7 +50,7 @@ PROGRAM dbcsr_example_3
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
        row, col
-  INTEGER, DIMENSION(2)                    :: npdims, myploc
+  INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
   TYPE(dbcsr_distribution_obj)             :: dist
@@ -67,7 +67,8 @@ PROGRAM dbcsr_example_3
   ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
   DO prow = 0, npdims(1)-1
      DO pcol = 0, npdims(2)-1
-        CALL mp_cart_rank (group, (/ prow, pcol /), pgrid(prow, pcol))
+        coord = (/ prow, pcol /)
+        CALL mp_cart_rank (group, coord, pgrid(prow, pcol))
      ENDDO
   ENDDO
   CALL dbcsr_mp_new (mp_env, pgrid, group, mynode, numnodes,&

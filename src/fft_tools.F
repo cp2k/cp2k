@@ -3026,11 +3026,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: DIM(2), handle, i, ierr, ix, iz, lg, lmax, m1, m2, mcx2, mcy3, &
-      mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, &
-      nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
+    INTEGER :: coord(2), DIM(2), handle, i, ierr, ix, iz, lg, lmax, m1, m2, &
+      mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
+      nbx, nbz, nm, nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
     INTEGER, DIMENSION(3)                    :: pcoord
     LOGICAL                                  :: equal, failure
+    LOGICAL, DIMENSION(2)                    :: dims
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
                                                 fft_scratch_new
@@ -3178,15 +3179,19 @@ CONTAINS
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:DIM(1)-1),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
-             CALL mp_cart_sub( fft_sizes%rs_group, (/.TRUE.,.FALSE./), fft_scratch_new%fft_scratch%cart_sub_comm(1))
-             CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
+             dims = (/.TRUE.,.FALSE./)
+             CALL mp_cart_sub( fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(1))
+             dims = (/.FALSE.,.TRUE./)
+             CALL mp_cart_sub( fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
 
              !initialise pgcube
              DO i = 0, DIM(1) - 1
-                CALL mp_cart_rank ( fft_sizes%rs_group, (/i, pos(2)/), fft_scratch_new%fft_scratch%pgcube (i, 1) ) 
+                coord = (/i, pos(2)/)
+                CALL mp_cart_rank ( fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube (i, 1) ) 
              END DO
              DO i = 0, DIM(2) - 1
-                CALL mp_cart_rank ( fft_sizes%rs_group, (/pos(1), i/), fft_scratch_new%fft_scratch%pgcube (i, 2) )
+                coord = (/pos(1), i/)
+                CALL mp_cart_rank ( fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube (i, 2) )
              END DO
 
              !set up fft plans
@@ -3368,17 +3373,20 @@ CONTAINS
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2,0:DIM(2)-1),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
-             CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
+             dims = (/.FALSE.,.TRUE./)
+             CALL mp_cart_sub( fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
 
              !initialise pgcube
              DO i = 0, DIM(2) - 1
-                CALL mp_cart_rank ( fft_sizes%rs_group, (/pos(1), i/), fft_scratch_new%fft_scratch%pgcube (i, 2) )
+                coord = (/pos(1), i/)
+                CALL mp_cart_rank ( fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube (i, 2) )
              END DO
 
              !initialise pgrid
              DO ix = 0, m1 - 1
                 DO iz = 0, m2 - 1
-                   CALL mp_cart_rank ( fft_sizes%rs_group, (/ix, iz/), fft_scratch_new%fft_scratch%pgrid ( ix, iz ) )
+                   coord = (/ix, iz/)
+                   CALL mp_cart_rank ( fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgrid ( ix, iz ) )
                 END DO
              END DO
 

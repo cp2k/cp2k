@@ -2977,7 +2977,7 @@ CONTAINS
     INTEGER                                  :: error_handle, group, mynode, &
                                                 numnodes, pcol, prow
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    INTEGER, DIMENSION(2)                    :: myploc, npdims
+    INTEGER, DIMENSION(2)                    :: coord, myploc, npdims
     LOGICAL                                  :: alive
 
 !   ---------------------------------------------------------------------------
@@ -3012,7 +3012,8 @@ CONTAINS
        ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
        DO prow = 0, npdims(1)-1
           DO pcol = 0, npdims(2)-1
-             CALL mp_cart_rank (group, (/ prow, pcol /), pgrid(prow, pcol))
+             coord = (/ prow, pcol /)
+             CALL mp_cart_rank (group, coord, pgrid(prow, pcol))
           ENDDO
        ENDDO
        CALL dbcsr_mp_new (mp_env, pgrid, group, mynode, numnodes,&

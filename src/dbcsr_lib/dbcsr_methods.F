@@ -696,6 +696,7 @@ CONTAINS
     INTEGER                                  :: ndims, tmp_group
     INTEGER, DIMENSION(2)                    :: dims, my_pos
     LOGICAL                                  :: should_make
+    LOGICAL, DIMENSION(2)                    :: remain
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -725,8 +726,10 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
             "Got different MPI process grid",__LINE__,error)
        !
-       CALL mp_cart_sub (tmp_group, (/.FALSE., .TRUE./), mp_env%mp%prow_group)
-       CALL mp_cart_sub (tmp_group, (/.TRUE., .FALSE./), mp_env%mp%pcol_group)
+       remain = (/.FALSE., .TRUE./)
+       CALL mp_cart_sub (tmp_group, remain, mp_env%mp%prow_group)
+       remain = (/.TRUE., .FALSE./)
+       CALL mp_cart_sub (tmp_group, remain, mp_env%mp%pcol_group)
        CALL mp_comm_free (tmp_group)
        mp_env%mp%subgroups_defined = .TRUE.
     ENDIF
