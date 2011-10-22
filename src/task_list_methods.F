@@ -61,8 +61,6 @@ MODULE task_list_methods
                                              neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_desc_type,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_type,&
                                              rs_grid_locate_rank,&
                                              rs_grid_reorder_ranks
   USE task_list_types,                 ONLY: task_list_type

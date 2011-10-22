@@ -930,8 +930,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(mc_moves_type), INTENT(INOUT), &
-      POINTER                                :: moves, gmoves
+    TYPE(mc_moves_type), POINTER             :: moves, gmoves
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r
     TYPE(rng_stream_type), POINTER           :: rng_stream_mc
@@ -1069,8 +1068,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
       POINTER                                :: mc_par
     TYPE(simpar_type), INTENT(inout), &
       POINTER                                :: simpar
-    TYPE(mc_moves_type), INTENT(INOUT), &
-      POINTER                                :: moves, gmoves
+    TYPE(mc_moves_type), POINTER             :: moves, gmoves
     TYPE(rng_stream_type), INTENT(INOUT), &
       POINTER                                :: rng_stream_mc
     INTEGER, INTENT(IN)                      :: output_unit
