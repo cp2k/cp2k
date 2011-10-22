@@ -1056,31 +1056,24 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 
    SUBROUTINE HMCsampler(globenv,force_env,averages,r,mc_par,simpar,moves,gmoves,rng_stream_mc,output_unit,&
                     fz,zbuff,nskip,logger,mcsec,mdenv,iter,error)
-    TYPE(global_environment_type), &
-      INTENT(inout), POINTER                 :: globenv
-    TYPE(force_env_type), INTENT(inout), &
-      POINTER                                :: force_env
-    TYPE(mc_averages_type), INTENT(INOUT), &
-      POINTER                                :: averages
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_averages_type), POINTER          :: averages
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r
-    TYPE(mc_simpar_type), INTENT(IN), &
-      POINTER                                :: mc_par
-    TYPE(simpar_type), INTENT(inout), &
-      POINTER                                :: simpar
+    TYPE(mc_simpar_type), POINTER            :: mc_par
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(mc_moves_type), POINTER             :: moves, gmoves
-    TYPE(rng_stream_type), INTENT(INOUT), &
-      POINTER                                :: rng_stream_mc
+    TYPE(rng_stream_type), POINTER           :: rng_stream_mc
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: fz, zbuff
     INTEGER, INTENT(IN), OPTIONAL            :: nskip
-    TYPE(cp_logger_type), INTENT(inout), &
-      OPTIONAL, POINTER                      :: logger
-    TYPE(section_vals_type), INTENT(INOUT), &
-      OPTIONAL, POINTER                      :: mcsec
-    TYPE(md_environment_type), &
-      INTENT(INOUT), OPTIONAL, POINTER       :: mdenv
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: mcsec
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: mdenv
     INTEGER, INTENT(IN), OPTIONAL            :: iter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
