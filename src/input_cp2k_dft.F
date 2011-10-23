@@ -4722,8 +4722,11 @@ CONTAINS
        CALL keyword_create(keyword, name="REL_CUTOFF",&
             variants=(/"RELATIVE_CUTOFF"/),&
             description="Determines the grid at which a Gaussian is mapped,"//&
-            " giving the cutoff used for a gaussian with alpha=1",&
-            usage="RELATIVE_CUTOFF real", default_r_val=15.0_dp,&
+            " giving the cutoff used for a gaussian with alpha=1."//&
+            " A value 50+-10Ry might be required for highly accurate results, "//&
+            " Or for simulations with a variable cell."//&
+            " Versions prior to 2.3 used a default of 30Ry.",&
+            usage="RELATIVE_CUTOFF real", default_r_val=20.0_dp,&
             unit_str="Ry",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

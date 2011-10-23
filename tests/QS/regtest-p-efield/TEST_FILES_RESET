@@ -6,3 +6,11 @@ H2O-field-gopt-lsd.inp
 H2O-field-gopt.inp
 # extended GTH pseudopotentials 
 H2O-field-gopt-lsd.inp
+#  
+H2O-field-gopt.inp
+#  
+H2O-field-gopt-lsd.inp
+#  
+H2O-field.inp
+#  
+H2O-field-lsd.inp

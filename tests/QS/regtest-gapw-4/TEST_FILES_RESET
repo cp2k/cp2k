@@ -289,3 +289,17 @@ LM-KSDO.inp
 Al2O3.inp
 #
 H2O_Hnopaw_pp.inp
+#  
+CO.inp
+#  
+CO_xastpxfh.inp
+#  
+H2O_gpw.inp
+#  
+H2O_gpw_full_gapw.inp
+#  
+H2O_Onopaw.inp
+#  
+H2O_Onopaw_gop.inp
+#  
+Fe.inp

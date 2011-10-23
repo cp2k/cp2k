@@ -338,3 +338,11 @@ H2O-hfx-emd-restart.inp
 4H2O-mix-disk-ram-on-the-fly.inp
 #  
 H2O-hfx-3.inp
+#  
+H2O_pw.inp
+#  
+H2O-geminal-1.inp
+#  
+H2O-hfx-emd.inp
+#  
+H2O-hfx-emd-restart.inp

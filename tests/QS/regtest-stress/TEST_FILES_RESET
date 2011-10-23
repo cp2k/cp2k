@@ -2,3 +2,11 @@
 LiH-stress-lda-rks.inp
 # New initial guess ATOMIC 
 LiH-stress-pbe-rks.inp
+#  
+LiH-stress-lda-rks.inp
+#  
+LiH-stress-lda-uks.inp
+#  
+LiH-stress-pbe-rks.inp
+#  
+LiH-stress-pbe-uks.inp

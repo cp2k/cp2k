@@ -322,3 +322,17 @@ H2O-gapw-all_localize_crazy.inp
 H2O-gapw-all_loc_list.inp
 # test new regtester reset feature
 H2O-gapw-all_localize_crazy.inp
+#  
+H2S-gapw.inp
+#  
+Be_GAPW.inp
+#  
+Na_atom.inp
+#  
+h2o_dist.inp
+#  
+H2S-gapw-gop.inp
+#  
+H2S-gapw-ot.inp
+#  
+H2S-gapw-gop-ot.inp

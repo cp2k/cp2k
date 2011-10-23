@@ -50,3 +50,9 @@ water-in-helium.inp
 h2o_pint_qs_nose_restart.inp
 # numerics after patch 0006
 w512_pint_gle.inp
+#  
+h2o_pint_qs_nve.inp
+#  
+h2o_pint_qs_nose.inp
+#  
+h2o_pint_qs_nose_restart.inp

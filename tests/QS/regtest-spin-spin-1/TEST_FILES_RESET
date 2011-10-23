@@ -107,3 +107,7 @@ LM-KSDO-D.inp
 wfn_ex3.inp
 LM-KSDO.inp
 Al2O3.inp
+#  
+ch4-gapw-issc-2.inp
+#  
+ch4-gapw-issc-pso-1.inp

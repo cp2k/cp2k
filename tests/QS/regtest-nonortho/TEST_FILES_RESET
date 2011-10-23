@@ -192,3 +192,7 @@ graphite.inp
 graphite2.inp
 # extended GTH pseudopotentials 
 graphite3.inp
+#  
+graph_b111.inp
+#  
+graph_b111_gapw.inp
