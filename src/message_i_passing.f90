@@ -939,6 +939,138 @@
 #endif
   END SUBROUTINE mp_sum_im3
 
+! *****************************************************************************
+!> \brief Element-wise sum of a rank-4 array on all processes.
+!> \sa mp_sum_i
+!> \param[in] msg             Arary to sum and result
+! *****************************************************************************
+  SUBROUTINE mp_sum_im4(msg,gid)
+    INTEGER(KIND=int_4), INTENT(INOUT)                   :: msg( :, :, :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_im4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, m3, m4, &
+                                                msglen
+    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, :, : )
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    IF (msglen>0) THEN
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    m4 = SIZE(msg,4)
+    ALLOCATE (res(m1,m2,m3,m4),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    END IF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_sum_im4
+
+! *****************************************************************************
+!> \brief Element-wise sum of a rank-5 array on all processes.
+!> \sa mp_sum_i
+!> \param[in] msg             Arary to sum and result
+! *****************************************************************************
+  SUBROUTINE mp_sum_im5(msg,gid)
+    INTEGER(KIND=int_4), INTENT(INOUT)                   :: msg( :, :, :, :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_im5', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, m3, m4, m5, &
+                                                msglen
+    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, :, :, : )
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    IF (msglen>0) THEN
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    m4 = SIZE(msg,4)
+    m5 = SIZE(msg,5)
+    ALLOCATE (res(m1,m2,m3,m4,m5),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    END IF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_sum_im5
+
+! *****************************************************************************
+!> \brief Element-wise sum of a rank-6 array on all processes.
+!> \sa mp_sum_i
+!> \param[in] msg             Arary to sum and result
+! *****************************************************************************
+  SUBROUTINE mp_sum_im6(msg,gid)
+    INTEGER(KIND=int_4), INTENT(INOUT)                   :: msg( :, :, :, :, :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_im6', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, m3, m4, m5, m6, &
+                                                msglen
+    INTEGER(KIND=int_4), ALLOCATABLE                     :: res( :, :, :, :, :, : )
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    IF (msglen>0) THEN
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    m4 = SIZE(msg,4)
+    m5 = SIZE(msg,5)
+    m6 = SIZE(msg,6)
+    ALLOCATE (res(m1,m2,m3,m4,m5,m6),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    END IF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_sum_im6
+
 
 ! *****************************************************************************
 !> \brief Element-wise sum of data from all processes with result left only on

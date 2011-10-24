@@ -99,6 +99,7 @@ MODULE message_passing
   PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
+  PUBLIC :: mp_group
   PUBLIC :: cp2k_is_parallel
 
   ! message passing
@@ -176,12 +177,12 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_sum
-     MODULE PROCEDURE mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3,&
-                      mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3,&
-                      mp_sum_r, mp_sum_rv, mp_sum_rm, mp_sum_rm3,&
-                      mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3,&
-                      mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3,&
-                      mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3,&
+     MODULE PROCEDURE mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3,mp_sum_im4,mp_sum_im5,mp_sum_im6,&
+                      mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3,mp_sum_lm4,mp_sum_lm5,mp_sum_lm6,&
+                      mp_sum_r, mp_sum_rv, mp_sum_rm, mp_sum_rm3,mp_sum_rm4,mp_sum_rm5,mp_sum_rm6,&
+                      mp_sum_d, mp_sum_dv, mp_sum_dm, mp_sum_dm3,mp_sum_dm4,mp_sum_dm5,mp_sum_dm6,&
+                      mp_sum_c, mp_sum_cv, mp_sum_cm, mp_sum_cm3,mp_sum_cm4,mp_sum_cm5,mp_sum_cm6,&
+                      mp_sum_z, mp_sum_zv, mp_sum_zm, mp_sum_zm3,mp_sum_zm4,mp_sum_zm5,mp_sum_zm6,&
                       mp_sum_root_iv, mp_sum_root_im,&
                       mp_sum_root_lv, mp_sum_root_lm,&
                       mp_sum_root_rv, mp_sum_root_rm,&
