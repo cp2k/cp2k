@@ -35,6 +35,7 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE mp2
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -229,6 +230,13 @@ CONTAINS
       CALL ls_scf(qs_env=qs_env, error=error)
     ELSE
       CALL scf(qs_env=qs_env, error=error)
+
+      ! no forces so far with MP2 (except one electron systems ;-)
+      IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+              " No forces/gradients with MP2.... yet(?!) "//&
+              CPSourceFileRef, only_ionode=.TRUE.)
+      ENDIF
  
       ! if calculate forces, time to compute the w matrix
       CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric,error=error)
@@ -349,6 +357,7 @@ CONTAINS
     END IF
 
     CALL timestop(handle)
+
 
   END SUBROUTINE qs_energies_scf
 

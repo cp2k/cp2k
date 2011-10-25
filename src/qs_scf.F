@@ -38,7 +38,6 @@
 !> \author Matthias Krack (30.04.2001)
 ! *****************************************************************************
 MODULE qs_scf
-
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -114,6 +113,7 @@ MODULE qs_scf
                                              dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE mp2,                             ONLY: mp2_main
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
@@ -399,9 +399,16 @@ CONTAINS
             ELSE
                CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, error)
             END IF
+
+            ! Compute MP2 energy
+            IF (ASSOCIATED(qs_env%mp2_env)) THEN
+               CALL mp2_main(qs_env=qs_env,error=error)
+            ENDIF
+
          END IF
 
        END IF
+
 
        ! *** cleanup
        CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)

@@ -87,7 +87,7 @@ MODULE hfx_energy_potential
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC  integrate_four_center
+  PUBLIC  integrate_four_center, coulomb4
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
 

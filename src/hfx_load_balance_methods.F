@@ -49,7 +49,7 @@ MODULE hfx_load_balance_methods
    
   PUBLIC hfx_load_balance, &
          hfx_update_load_balance,&
-         collect_load_balance_info
+         collect_load_balance_info, cost_model, p1_energy,p2_energy,p3_energy
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
 

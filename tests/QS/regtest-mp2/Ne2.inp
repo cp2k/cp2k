@@ -1,0 +1,68 @@
+&GLOBAL                                                                                           
+  PROJECT Ne2
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      METHOD GAPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-5
+      MAX_SCF 1000
+      ADDED_MOS 1000 1000
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+            EPS_SCHWARZ 1.0E-7
+        &END SCREENING
+      &END HF
+      &MP2
+        METHOD DIRECT_CANONICAL  
+        MEMORY 1000.
+        &INTERACTION_POTENTIAL
+           POTENTIAL_TYPE TShPSC
+           TRUNCATION_RADIUS [angstrom] 3.0
+           TShPSC_DATA ../t_sh_p_s_c.dat
+        &END
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Ne 0.0 0.0 0.0
+      Ne 3.0 0.0 0.0
+    &END COORD
+    &KIND Ne
+      BASIS_SET aug-cc-pVTZ
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

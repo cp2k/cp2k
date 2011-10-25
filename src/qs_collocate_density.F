@@ -1830,7 +1830,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace, &
                    atomic_kind_set,cell,dft_control,particle_set, &
-                   pw_env,basis_set_id, error)
+                   pw_env,basis_set_id, external_vector, error)
 
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
@@ -1843,6 +1843,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: external_vector
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
@@ -1850,7 +1851,7 @@ CONTAINS
 
     INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ipgf, &
       iset, maxco, maxsgf_set, my_basis_set_id, my_pos, na1, na2, nao, natom, &
-      ncoa, ncol_global, nseta, offset, sgfa, stat
+      ncoa, nseta, offset, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: where_is_the_point
     INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
@@ -1883,17 +1884,25 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global,error=error)
-
     NULLIFY(eigenvector,  orb_basis_set,&
          pab,work,la_max, la_min,&
          npgfa, nsgfa, &
          sphi_a, zeta, first_sgfa,&
          rs_rho,rs_descs,pw_pools,mgrid_rspace,mgrid_gspace)
 
-    ALLOCATE (eigenvector(nao),STAT=stat)
-    IF (stat.NE.0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "eigenvector",dp_size*nao)
+    IF (PRESENT(external_vector)) THEN
+       nao=SIZE(external_vector)
+       ALLOCATE (eigenvector(nao),STAT=stat)
+       IF (stat.NE.0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvector",dp_size*nao)
+       eigenvector=external_vector
+    ELSE
+       CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao, error=error)
+       ALLOCATE (eigenvector(nao),STAT=stat)
+       IF (stat.NE.0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvector",dp_size*nao)
+       DO i=1,nao
+          CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
+       ENDDO
+    ENDIF
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -1916,9 +1925,6 @@ CONTAINS
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
-    DO i=1,nao
-       CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
-    ENDDO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 !   *** Allocate work storage ***

@@ -115,6 +115,8 @@ MODULE qs_environment
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
+  USE mp2_setup,                       ONLY: read_mp2_section
+  USE mp2_types,                       ONLY: mp2_env_create
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_list_types,             ONLY: particle_list_create,&
@@ -208,9 +210,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: method_id, natom
-    LOGICAL                                  :: do_et, do_hfx, do_hfx_ri, &
-                                                harris_flag, my_qmmm, &
-                                                my_qmmm_periodic, use_ref_cell
+    LOGICAL :: do_et, do_hfx, do_hfx_ri, harris_flag, mp2_present, my_qmmm, &
+      my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -229,7 +230,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
-      kind_section
+      kind_section, mp2_section
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -342,6 +343,14 @@ CONTAINS
         CALL hfx_ri_env_create(qs_env,error)
       END IF
     END IF
+
+    mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%MP2",error=error)
+    CALL section_vals_get(mp2_section,explicit=mp2_present,error=error) 
+    IF (mp2_present) THEN
+       CALL mp2_env_create(qs_env%mp2_env,error)
+       CALL read_mp2_section(qs_env%input,qs_env%mp2_env,error)
+    ENDIF
+
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)
     CALL section_vals_get(et_coupling_section,explicit=do_et,error=error)

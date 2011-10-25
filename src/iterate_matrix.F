@@ -15,11 +15,13 @@ MODULE iterate_matrix
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE mathconstants,                   ONLY: ifac
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -30,7 +32,7 @@ MODULE iterate_matrix
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iterate_matrix'
 
-  PUBLIC ::  invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz
+  PUBLIC ::  invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz, matrix_exponential
 
 CONTAINS
 
@@ -365,5 +367,111 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE matrix_sqrt_Newton_Schulz
+
+  SUBROUTINE matrix_exponential(matrix_exp,matrix,omega,alpha,threshold,error)
+    ! compute matrix_exp=omega*exp(alpha*matrix)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_exp, matrix
+    REAL(KIND=dp), INTENT(IN)                :: omega, alpha, threshold
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_exponential', &
+      routineP = moduleN//':'//routineN
+    REAL(dp), PARAMETER                      :: one = 1.0_dp, &
+                                                toll = 1.E-17_dp, &
+                                                zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, k, unit_nr
+    REAL(dp)                                 :: factorial, norm_C, norm_D, &
+                                                norm_scalar
+    TYPE(cp_dbcsr_type)                      :: B, B_square, C, D, D_product
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    ! Calculate the norm of the matrix alpha*matrix, and scale it until it is less than 1.0
+    norm_scalar=ABS(alpha)*cp_dbcsr_frobenius_norm(matrix)
+
+    ! k=scaling parameter
+    k=1
+    DO
+      IF((norm_scalar/2.0_dp**k)<=one) EXIT
+      k=k+1
+    END DO
+
+    ! copy and scale the input matrix in matrix C and in matrix D
+    CALL cp_dbcsr_init(C,error=error)
+    CALL cp_dbcsr_create(C,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_copy(C,matrix,error=error)
+    CALL cp_dbcsr_scale(C, alpha_scalar=alpha/2.0_dp**k, error=error)
+
+    CALL cp_dbcsr_init(D,error=error)
+    CALL cp_dbcsr_create(D,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_copy(D,C,error=error)
+    
+    !   write(*,*) 
+    !   write(*,*) 
+    !   CALL cp_dbcsr_print(D, nodata=.FALSE., matlab_format=.TRUE., variable_name="D", unit_nr=6, error=error)
+
+    ! set the B matrix as B=Identity+D
+    CALL cp_dbcsr_init(B,error=error)
+    CALL cp_dbcsr_create(B,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_copy(B,D,error=error)
+    CALL cp_dbcsr_add_on_diag(B, alpha_scalar=one,  error=error)
+   
+    !   CALL cp_dbcsr_print(B, nodata=.FALSE., matlab_format=.TRUE., variable_name="B", unit_nr=6, error=error) 
+
+    ! Calculate the norm of C and moltiply by toll to be used as a threshold
+    norm_C=toll*cp_dbcsr_frobenius_norm(matrix)
+
+    ! iteration for the trucated taylor series expansion
+    CALL cp_dbcsr_init(D_product,error=error)
+    CALL cp_dbcsr_create(D_product,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    i=1
+    DO
+      i=i+1
+      ! compute D_product=D*C
+      CALL cp_dbcsr_multiply("N", "N", one, D, C, &
+                             zero, D_product, filter_eps=threshold,error=error)
+
+      ! copy D_product in D
+      CALL cp_dbcsr_copy(D,D_product,error=error)
+
+      ! calculate B=B+D_product/fat(i)
+      factorial=ifac(i)
+      CALL cp_dbcsr_add(B, D_product, one, factorial, error=error)
+
+      ! check for convergence using the norm of D (copy of the matrix D_product) and C
+      norm_D=factorial*cp_dbcsr_frobenius_norm(D)
+      IF(norm_D<norm_C) EXIT
+    END DO
+
+    ! start the k iteration for the squaring of the matrix
+    CALL cp_dbcsr_init(B_square,error=error)
+    CALL cp_dbcsr_create(B_square,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    DO i=1, k
+      !compute B_square=B*B
+      CALL cp_dbcsr_multiply("N", "N", one, B, B, &
+                             zero, B_square, filter_eps=threshold,error=error)
+      ! copy Bsquare in B to iterate
+      CALL cp_dbcsr_copy(B,B_square,error=error) 
+    END DO
+
+    ! copy B_square in matrix_exp and 
+    CALL cp_dbcsr_copy(matrix_exp,B_square,error=error)
+
+    ! scale matrix_exp by omega, matrix_exp=omega*B_square
+    CALL cp_dbcsr_scale(matrix_exp, alpha_scalar=omega, error=error) 
+    ! write(6,*) alpha,omega
+
+    CALL timestop(handle)
+
+  END SUBROUTINE matrix_exponential
 
 END MODULE iterate_matrix

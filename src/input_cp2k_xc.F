@@ -17,6 +17,7 @@ MODULE input_cp2k_xc
   USE f77_blas
   USE input_constants
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
+  USE input_cp2k_mp2,                  ONLY: create_mp2_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -993,6 +994,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_hfx_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_mp2_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

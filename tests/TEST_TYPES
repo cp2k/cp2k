@@ -1,4 +1,4 @@
-49
+50
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -48,6 +48,7 @@ Final value !6
 SUMMARY:: Number of molecule kinds found:!7
 Fermi energy: !3
 Total Multiplication !9
+Direct MP2 Canonical Energy =!6
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

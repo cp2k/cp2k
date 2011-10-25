@@ -10,7 +10,6 @@
 !> \author MK (23.01.2002)
 ! *****************************************************************************
 MODULE qs_environment_types
-
   USE admm_types,                      ONLY: admm_env_release,&
                                              admm_type
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -89,6 +88,8 @@ MODULE qs_environment_types
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE mp2_types,                       ONLY: mp2_env_release,&
+                                             mp2_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -398,6 +399,7 @@ MODULE qs_environment_types
     TYPE(efield_berry_type),POINTER                       :: efield
     ! a history for the broyden ot 
     REAL(KIND = dp)                                       :: broyden_adaptive_sigma
+    TYPE(mp2_type), POINTER                               :: mp2_env
     TYPE(wannier_centres_type), POINTER,DIMENSION(:)      :: WannierCentres=>NULL()
     ! atomic properties
     TYPE(atprop_type),POINTER                             :: atprop
@@ -437,8 +439,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
-       hfx_ri_env,dispersion_env, vee,WannierCentres,atprop,error)
-
+       hfx_ri_env,dispersion_env, vee,mp2_env,WannierCentres,atprop,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -572,6 +573,7 @@ CONTAINS
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
+    TYPE(mp2_type), OPTIONAL, POINTER        :: mp2_env
     TYPE(wannier_centres_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
@@ -597,6 +599,7 @@ CONTAINS
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
     IF (PRESENT(cell)) cell => qs_env%cell
+    IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
@@ -841,6 +844,7 @@ CONTAINS
     NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
+    NULLIFY (qs_env%mp2_env)
     NULLIFY (qs_env%WannierCentres)
     NULLIFY (qs_env%atprop)
 
@@ -901,7 +905,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
-       hfx_ri_env,dispersion_env,WannierCentres,atprop,error)
+       hfx_ri_env,dispersion_env,mp2_env,WannierCentres,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -1013,6 +1017,7 @@ CONTAINS
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
+    TYPE(mp2_type), OPTIONAL, POINTER        :: mp2_env
     TYPE(wannier_centres_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
@@ -1032,6 +1037,7 @@ CONTAINS
        qs_env%cell => cell
     END IF 
     IF (PRESENT(nelectron_total)) qs_env%nelectron_total=nelectron_total
+    IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
     IF (PRESENT(nelectron_spin))  qs_env%nelectron_spin=nelectron_spin
     IF (PRESENT(super_cell)) THEN
        CALL cell_retain(super_cell, error=error)
@@ -1690,6 +1696,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%hfx_ri_env)) THEN
             CALL ri_env_release(qs_env%hfx_ri_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%mp2_env)) THEN
+            CALL mp2_env_release(qs_env%mp2_env, error)
           END IF
           IF (ASSOCIATED(qs_env%dispersion_env)) THEN
             IF (ASSOCIATED(qs_env%dispersion_env%maxci)) THEN

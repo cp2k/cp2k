@@ -733,7 +733,9 @@ MODULE input_constants
                                               do_hfx_potential_mix_lg=6,&
                                               do_hfx_potential_id=7,&
                                               do_hfx_potential_truncated=8,&
-                                              do_hfx_potential_mix_cl_trunc=9
+                                              do_hfx_potential_mix_cl_trunc=9,&
+                                              do_mp2_potential_TShPSC=1009
+
   ! HFX periodic number of shells
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
 
@@ -867,5 +869,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
                                               ls_s_inversion_sign_sqrt=5
+
+  ! some MP2 parameters
+  INTEGER, PARAMETER, PUBLIC               :: mp2_method_none=0,&
+                                              mp2_method_laplace=2,&
+                                              mp2_method_direct=4
 
 END MODULE input_constants
