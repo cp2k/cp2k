@@ -15,7 +15,6 @@
 MODULE lgrid_types
 
   USE kinds,                           ONLY: dp
-  USE mpi
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              rs_grid_max_ngpts
 #include "cp_common_uses.h"
@@ -159,10 +158,7 @@ SUBROUTINE lgrid_allocate_grid(lgrid, nthreads, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_allocate_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: me, stat
     LOGICAL                                  :: failure
-
-    CALL mpi_comm_rank(MPI_COMM_WORLD,me,stat)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
