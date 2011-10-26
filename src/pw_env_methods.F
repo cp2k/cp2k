@@ -43,6 +43,8 @@ MODULE pw_env_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE lgrid_types,                     ONLY: lgrid_create,&
+                                             lgrid_release
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_info,                    ONLY: pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
@@ -122,7 +124,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
           pw_env%cube_info, pw_env%rs_descs,&
-          pw_env%xc_pw_pool)
+          pw_env%xc_pw_pool, pw_env%lgrid)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
      IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,external_para_env=external_para_env,error=error)
@@ -211,6 +213,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
        END DO
        DEALLOCATE(pw_env%rs_descs,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL lgrid_release(pw_env%lgrid,error)
      END IF
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
         CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
@@ -517,6 +520,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
      DEALLOCATE(radius,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     ! Initialise the lgrids which may be used by OpenMP threads in QS routines
+     ! (but don't yet allocate the lgrid, in case we don't need it)
+     CALL lgrid_create(pw_env%lgrid, pw_env%rs_descs, error)
 
 !
 !    Print grid information

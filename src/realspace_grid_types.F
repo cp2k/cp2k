@@ -68,6 +68,7 @@ MODULE realspace_grid_types
             rs_grid_reorder_ranks, &
             rs_grid_print, &
             rs_grid_locate_rank, &
+            rs_grid_max_ngpts, &
             rs_grid_mult_and_add,&
             init_input_type
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
@@ -2229,5 +2230,35 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     source = rs_grid % desc % virtual2real(rs_grid % desc % coord2rank(shift_coords(1), shift_coords(2), shift_coords(3)))
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief returns the maximum number of points in the local grid of any process
+!>        to account for the case where the grid may later be reordered
+!> \par History
+!>      10.2011 created [Iain Bethune]
+! *****************************************************************************
+  FUNCTION rs_grid_max_ngpts(desc) RESULT(max_ngpts)
+    TYPE(realspace_grid_desc_type), POINTER  :: desc
+    INTEGER                                  :: max_ngpts
+
+    INTEGER                                  :: i
+    INTEGER, DIMENSION(3)                    :: lb, ub
+
+    max_ngpts = 0
+    IF ((desc % pw % para % mode == PW_MODE_LOCAL) .OR. &
+        ( ALL (desc % group_dim == 1 ))) THEN
+      max_ngpts = PRODUCT ( desc % npts )
+    ELSE
+      DO i=0, desc%group_size-1
+          lb = desc % lb_global ( :, i )
+          ub = desc % ub_global ( :, i )
+          lb = lb - desc % border * ( 1 - desc % perd )
+          ub = ub + desc % border * ( 1 - desc % perd )
+          max_ngpts = MAX( max_ngpts, PRODUCT ( ub - lb + 1 ) )
+      END DO
+    END IF
+
+  END FUNCTION rs_grid_max_ngpts
+
 
 END MODULE realspace_grid_types

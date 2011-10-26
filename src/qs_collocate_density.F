@@ -70,7 +70,8 @@ MODULE qs_collocate_density
                                              dp_size,&
                                              int_8,&
                                              int_size
-  USE lgrid_types,                     ONLY: lgrid_type
+  USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
+                                             lgrid_type
   USE mathconstants,                   ONLY: fac,&
                                              pi,&
                                              twopi
@@ -1076,18 +1077,10 @@ CONTAINS
     END DO
 
     IF ( nthread > 1 ) THEN
-      ALLOCATE (lgrid,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                      "lgrid",int_size)
-      n = 0
-      DO igrid_level = 1,gridlevel_info%ngrid_levels
-        n = MAX(n,rs_rho(igrid_level)%rs_grid%ngpts_local)
-      END DO
-      NULLIFY(lgrid%r)
-      ALLOCATE (lgrid%r(1:n*nthread),STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                      "lgrid",dp_size*n*nthread)
-      lgrid%ldim = n
+      lgrid => pw_env%lgrid
+      IF (.NOT. ASSOCIATED(lgrid%r)) THEN
+        CALL lgrid_allocate_grid(lgrid, nthread, error)
+      ENDIF
     END IF
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1147,7 +1140,6 @@ CONTAINS
       ub = ithread*lgrid%ldim + rs_rho(igrid_level)%rs_grid%ngpts_local
       lgrid%r(lb:ub) = 0._dp
     END IF
-
 !$omp do schedule(dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
     loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
     loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
@@ -1370,13 +1362,6 @@ CONTAINS
     END DO loop_gridlevels
 !$omp end parallel
 
-    IF (nthread > 1) THEN
-      DEALLOCATE (lgrid%r,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"lgrid%r")
-      DEALLOCATE (lgrid,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"lgrid")
-    END IF
-
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
@@ -1393,7 +1378,6 @@ CONTAINS
 
     total_rho = pw_integrate_function(rho%pw,isign=-1,error=error)
     CALL timestop(handle)
-
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************

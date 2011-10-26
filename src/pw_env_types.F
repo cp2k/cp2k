@@ -16,6 +16,8 @@ MODULE pw_env_types
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_release
+  USE lgrid_types,                     ONLY: lgrid_release,&
+                                             lgrid_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -65,6 +67,7 @@ MODULE pw_env_types
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE(pw_pool_type), POINTER :: xc_pw_pool
      TYPE(realspace_grid_desc_p_type), DIMENSION(:), POINTER :: rs_descs
+     TYPE(lgrid_type), POINTER :: lgrid
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
@@ -213,9 +216,12 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
           DEALLOCATE(pw_env%rs_descs, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(pw_env%lgrid)) THEN
+          CALL lgrid_release(pw_env%lgrid,error)
+        END IF
         DEALLOCATE(pw_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
+    END IF
   END IF
   NULLIFY(pw_env)
 END SUBROUTINE pw_env_release
