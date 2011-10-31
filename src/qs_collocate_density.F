@@ -884,9 +884,10 @@ CONTAINS
     INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
       igrid_level, ikind, ikind_old, ipair, ipgf, iset, iset_old, itask, &
       ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, &
-      lb_l, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, &
-      my_der_type, n, na1, na2, natoms, nb1, nb2, ncoa, ncob, nkind, nn, &
-      nseta, nsetb, ntasks, nthread, segment, sgfa, sgfb, stat, ub
+      lb_l, lbr, lbw, maxco, maxpgf, maxset, maxsgf, maxsgf_set, &
+      my_basis_set_id, my_der_type, n, na1, na2, natoms, nb1, nb2, nblock, &
+      ncoa, ncob, nkind, nn, nr, nrlevel, nseta, nsetb, ntasks, nthread, nxy, &
+      nz, nzsize, segment, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1112,7 +1113,7 @@ CONTAINS
 !$omp          private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
-!$omp          private(lb_l,nn,segment,itask,i)
+!$omp          private(lb_l,nn,segment,itask,i,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -1335,23 +1336,50 @@ CONTAINS
 !$omp end do
 
     ! Now sum the thread-local grids back into the rs_grid (in parallel, each thread writes to a section of the rs_grid at a time)
-      IF (nthread > 1) THEN
-          n = rs_rho(igrid_level)%rs_grid%ub_local(3) - rs_rho(igrid_level)%rs_grid%lb_local(3) + 1
-          nn = (rs_rho(igrid_level)%rs_grid%ub_local(1) - rs_rho(igrid_level)%rs_grid%lb_local(1) + 1) * &
-               (rs_rho(igrid_level)%rs_grid%ub_local(2) - rs_rho(igrid_level)%rs_grid%lb_local(2) + 1)
+    IF (nthread > 1) THEN
+        nz = (1 + rs_rho(igrid_level)%rs_grid%ub_local(3) &
+                - rs_rho(igrid_level)%rs_grid%lb_local(3))
+        nxy = (1 + rs_rho(igrid_level)%rs_grid%ub_local(1) &
+                 - rs_rho(igrid_level)%rs_grid%lb_local(1)) &
+             *(1 + rs_rho(igrid_level)%rs_grid%ub_local(2) &
+                 - rs_rho(igrid_level)%rs_grid%lb_local(2))
 
-          DO i=1,nthread
-            segment = MODULO(i + ithread, nthread)
-            lb = (n*segment)/nthread + rs_rho(igrid_level)%rs_grid%lb_local(3)
-            ub = (n*(segment+1))/nthread - 1 + rs_rho(igrid_level)%rs_grid%lb_local(3)
-            lb_l = lgrid%ldim*(ithread) + (lb - rs_rho(igrid_level)%rs_grid%lb_local(3))*nn + 1
+        ! Work out the number of tree levels, and start the reduction 
+
+        nrlevel = CEILING(LOG10(1.0_dp*nthread)/LOG10(2.0_dp))
+
+        DO nr = 1, nrlevel
+           nblock = 2**nr
+           nzsize = MIN(nblock, nthread - (ithread/nblock)*nblock)
+           itask = MODULO(ithread, nblock)
+
+           lb = (nz*itask)/nzsize
+           ub = (nz*(itask+1))/nzsize - 1
+           n = (ithread/nblock)*nblock
+           lbw = 1 + n*lgrid%ldim + nxy*lb
+
+           n = n + nblock/2
+           IF (n < nthread) THEN
+              lbr = 1 + n*lgrid%ldim + nxy*lb
+
+              CALL daxpy(nxy*(1+ub-lb), 1.0_dp, lgrid%r(lbr), 1, lgrid%r(lbw), 1)
+           END IF
 !$omp barrier
-            CALL daxpy ((ub-lb+1)*nn,1._dp,lgrid%r(lb_l),1, &
-                        rs_rho(igrid_level)%rs_grid%r(:,:,lb:ub), 1)
-          END DO
+        END DO
+
+        ! Copy final result from first local grid to rs_grid
+        lb = (nz*ithread)/nthread
+        ub = (nz*(ithread+1))/nthread - 1
+        nzsize = 1 + (ub - lb)
+
+        lb = lb + rs_rho(igrid_level)%rs_grid%lb_local(3)
+        ub = ub + rs_rho(igrid_level)%rs_grid%lb_local(3)
+        lbr = 1 + nxy*(nz*ithread/nthread)
+
+        CALL daxpy(nxy*nzsize, 1.0_dp, lgrid%r(lbr),1, &
+                   rs_rho(igrid_level)%rs_grid%r(:,:,lb:ub), 1)
 !$omp barrier
       END IF
-
     END DO loop_gridlevels
 !$omp end parallel
 
