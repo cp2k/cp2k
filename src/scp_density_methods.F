@@ -54,8 +54,8 @@ MODULE scp_density_methods
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs2pw,&
-                                             rs_grid_create,&
                                              rs_grid_release,&
+                                             rs_grid_retain,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE scp_coeff_types,                 ONLY: aux_coeff_distributed,&
@@ -111,13 +111,14 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(realspace_grid_desc_p_type), &
       POINTER                                :: rs_descs( : )
+    TYPE(realspace_grid_p_type), POINTER     :: rs_grids( : )
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_rspw_type), POINTER             :: rspw
 
     CALL timeset ( routineN,handle )
     NULLIFY(atomic_kind_set,gridlevel_info,scp_env)
     NULLIFY(pw_pools,cube_info)
-    NULLIFY(cube_info, rs_descs, pw_env, rspw, local_particles)
+    NULLIFY(cube_info, rs_descs, rs_grids, pw_env, rspw, local_particles)
     NULLIFY(particle_set, cell, dft_control)
 
     stat = 0
@@ -136,13 +137,13 @@ CONTAINS
                     dft_control = dft_control, error = error )
 
     CALL pw_env_get ( pw_env = pw_env, gridlevel_info=gridlevel_info, &
-                      rs_descs = rs_descs, pw_pools=pw_pools, cube_info = cube_info, &
-                      error = error )
+                      rs_descs = rs_descs, rs_grids = rs_grids, pw_pools=pw_pools, &
+                      cube_info = cube_info, error = error )
 
 ! Compute SCP density
     CALL collocate_scp_density ( scp_env, atomic_kind_set, particle_set,        &
-                                 local_particles, cell, rs_descs, pw_pools,     &
-                                 cube_info, gridlevel_info,                     &
+                                 local_particles, cell, rs_descs, rs_grids,     &
+                                 pw_pools, cube_info, gridlevel_info,           &
                                  dft_control % qs_control % eps_rho_rspace,     &
                                  error=error )
   t1 = m_walltime()
@@ -151,7 +152,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE collocate_scp_density( scp_env, atomic_kind_set, particle_set, &
-                                    local_particles, cell, rs_descs, pw_pools, &
+                                    local_particles, cell, rs_descs, rs_rho, pw_pools, &
                                     cube_info, gridlevel_info, eps_rho_rspace, error )
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -163,6 +164,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -189,14 +192,12 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_p_type), POINTER                 :: rhop_g, rhop_r
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_rho
     TYPE(scp_rho_type), POINTER              :: rho_scp
 
     CALL timeset(routineN,handle)
 
     NULLIFY(aux_basis_set,aux_coeff_set,&
-           local_coeffs,rs_rho, mgrid_rspace, &
+           local_coeffs, mgrid_rspace, &
            mgrid_gspace,rhop_r, rhop_g)
     NULLIFY(sphi_a,zeta,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
@@ -221,11 +222,8 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! Set up the rs multi-grids
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "rs_rho",int_size*gridlevel_info%ngrid_levels)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid,error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -330,8 +328,6 @@ CONTAINS
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rhop_r%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(1)%rs_grid,error=error)
-       DEALLOCATE (rs_rho,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
        CALL pw_fft_wrap(rhop_r%pw,rhop_g%pw,error=error)
        IF (rhop_r%pw%pw_grid%spherical) THEN ! rhop_g = rhop_r
           CALL pw_fft_wrap(rhop_g%pw,rhop_r%pw,error=error)
@@ -342,8 +338,6 @@ CONTAINS
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
           CALL rs_grid_release(rs_rho(igrid_level)%rs_grid,error=error)
        ENDDO
-       DEALLOCATE (rs_rho,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
        CALL pw_zero(rhop_g%pw,error=error)
@@ -443,7 +437,7 @@ CONTAINS
     IF ( my_calculate_forces ) CALL get_scp_env ( scp_env, force = force, error = error )
 
     CALL pw_env_get ( pw_env = pw_env, auxbas_grid=auxbas_grid, &
-                      rs_descs = rs_descs, pw_pools=pw_pools, &
+                      rs_descs = rs_descs, rs_grids=rs_v, pw_pools=pw_pools, &
                       cube_info = cube_info, gridlevel_info=gridlevel_info, &
                       error = error ) 
 
@@ -459,11 +453,8 @@ CONTAINS
     ! *** set up of the potential on the multigrids using the pw_env
     interp_section => section_vals_get_subs_vals(dft_section,"MGRID%INTERPOLATOR",&
          error=error)
-    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "rs_v",dp_size*SIZE(rs_descs))
     DO i=1, SIZE(rs_v)
-      CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error) 
+      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error) 
     END DO
     CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
 
@@ -606,8 +597,6 @@ CONTAINS
       DO i=1, SIZE(rs_v)
         CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_v,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_v") 
     END IF
 
     !   *** Release work storage ***

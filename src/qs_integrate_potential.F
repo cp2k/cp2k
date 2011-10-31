@@ -97,8 +97,8 @@ MODULE qs_integrate_potential
                                              realspace_grid_desc_type,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             rs_grid_create,&
                                              rs_grid_release,&
+                                             rs_grid_retain,&
                                              rs_pw_transfer
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              int2pair
@@ -173,8 +173,9 @@ CONTAINS
     NULLIFY(pw_env,auxbas_rs_desc,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
-    CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
+                    auxbas_rs_grid=rs_v,error=error)
+    CALL rs_grid_retain(rs_v,error=error)
 
     CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
 
@@ -373,8 +374,9 @@ CONTAINS
     NULLIFY(pw_env,auxbas_rs_desc,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
-    CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
+                    auxbas_rs_grid=rs_v,error=error)
+    CALL rs_grid_retain(rs_v,error=error)
 
     CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
 
@@ -604,8 +606,9 @@ CONTAINS
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
      
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-        CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
-        CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
+        CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
+                        auxbas_rs_grid=rs_v,error=error)
+        CALL rs_grid_retain(rs_v,error=error)
      
         CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
      
@@ -876,11 +879,9 @@ CONTAINS
     atom_pair_recv=>task_list%atom_pair_recv
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs,error=error)
-    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_v, error=error)
     DO i=1,SIZE(rs_v)
-      CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
+      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
     END DO
 
     ! *** assign from pw_env
@@ -1400,8 +1401,6 @@ CONTAINS
       DO i=1,SIZE(rs_v)
         CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_v,STAT=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (calculate_forces) THEN

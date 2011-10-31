@@ -123,7 +123,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
   END IF
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
-          pw_env%cube_info, pw_env%rs_descs,&
+          pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
           pw_env%xc_pw_pool, pw_env%lgrid)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
@@ -179,7 +179,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs
+      DIMENSION(:), POINTER                  :: rs_grids
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(section_vals_type), POINTER :: efg_section, input, linres_section, &
       poisson_section, print_section, rs_grid_section, xc_section
@@ -200,7 +200,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, atomic_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
-       super_ref_grid, my_cell)
+       super_ref_grid, my_cell, rs_grids)
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -213,8 +213,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
        END DO
        DEALLOCATE(pw_env%rs_descs,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL lgrid_release(pw_env%lgrid,error)
      END IF
+     IF (ASSOCIATED(pw_env%rs_grids)) THEN
+       DO i=1, SIZE(pw_env%rs_grids)
+         CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid, error=error)
+       END DO
+       DEALLOCATE(pw_env%rs_grids,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     CALL lgrid_release(pw_env%lgrid,error)
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
         CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
      ELSE
@@ -493,6 +500,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      ALLOCATE(rs_descs(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+     ALLOCATE(rs_grids(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
      ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      higher_grid_layout=(/-1,-1,-1/)
@@ -515,8 +525,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
         IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout=rs_descs(igrid_level)%rs_desc%group_dim 
 
+        NULLIFY(rs_grids(igrid_level)%rs_grid)
+        CALL rs_grid_create(rs_grids(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
      END DO
      pw_env%rs_descs => rs_descs
+     pw_env%rs_grids => rs_grids
 
      DEALLOCATE(radius,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -535,15 +548,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
           print_section,'',error=error),cp_p_file)
 
      IF ( should_output ) THEN
-       ALLOCATE(rs(ngrid_level),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO igrid_level=1,ngrid_level
-          CALL rs_grid_create(rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
-          CALL rs_grid_print(rs(igrid_level)%rs_grid,iounit,error=error)
-          CALL rs_grid_release(rs(igrid_level)%rs_grid, error=error)
+          CALL rs_grid_print(rs_grids(igrid_level)%rs_grid,iounit,error=error)
        END DO
-       DEALLOCATE(rs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
          "",error=error)

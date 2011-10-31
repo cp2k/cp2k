@@ -62,8 +62,8 @@ MODULE qs_rho0_ggrid
                                              rho_atom_type
   USE realspace_grid_types,            ONLY: &
        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, &
-       realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
-       rs_grid_zero, rs_pw_transfer
+       realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_create, &
+       rs_grid_release, rs_grid_retain, rs_grid_zero, rs_pw_transfer
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -123,6 +123,8 @@ MODULE qs_rho0_ggrid
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: descs
     TYPE(realspace_grid_desc_type), POINTER  :: desc
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: grids
     TYPE(realspace_grid_type), POINTER       :: rs_grid
 
     CALL timeset(routineN,handle)
@@ -138,7 +140,7 @@ MODULE qs_rho0_ggrid
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     NULLIFY(descs,pw_pools)
-    CALL pw_env_get(pw_env=pw_env,rs_descs=descs,pw_pools=pw_pools,error=error)
+    CALL pw_env_get(pw_env=pw_env,rs_descs=descs,rs_grids=grids,pw_pools=pw_pools,error=error)
     cube_info => pw_env%cube_info
     auxbas_grid=pw_env%auxbas_grid
 
@@ -151,6 +153,7 @@ MODULE qs_rho0_ggrid
     ! *** set up the rs grid at level igrid
     NULLIFY(rs_grid,desc,pw_pool,coeff_rspace,coeff_gspace)
     desc => descs(igrid)%rs_desc
+    rs_grid => grids(igrid)%rs_grid
     pw_pool => pw_pools(igrid)%pool
 
     CPPrecondition(ASSOCIATED(desc),cp_failure_level,routineP,error,failure)
@@ -170,7 +173,7 @@ MODULE qs_rho0_ggrid
                              use_data = COMPLEXDATA1D,&
                              in_space = RECIPROCALSPACE, error=error)
     END IF
-    CALL rs_grid_create(rs_grid, desc, error=error)
+    CALL rs_grid_retain(rs_grid,error=error)
     CALL rs_grid_zero(rs_grid)
 
     nch_max  = ncoset(lmax0)

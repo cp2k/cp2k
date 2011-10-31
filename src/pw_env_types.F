@@ -27,6 +27,9 @@ MODULE pw_env_types
                                              pw_pools_flush_cache
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_desc_type,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs_grid_release,&
                                              rs_grid_release_descriptor
 #include "cp_common_uses.h"
 
@@ -44,6 +47,8 @@ MODULE pw_env_types
 !> \brief contained for different pw related things
 !> \param pw_pools pools for multigrids
 !> \param rs_descs descriptors for the realspace grids
+!> \param rs_grids the realspace grids
+!> \param lgrid scratch space for OpenMP threads rs_grid operations
 !> \param xc_pw_pool the pool used for xc calculation on grid (might be the
 !>        same as the finest, or finer still).
 !> \param gridlevel_info gaussian gridlevel info
@@ -67,6 +72,7 @@ MODULE pw_env_types
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE(pw_pool_type), POINTER :: xc_pw_pool
      TYPE(realspace_grid_desc_p_type), DIMENSION(:), POINTER :: rs_descs
+     TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
      TYPE(lgrid_type), POINTER :: lgrid
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
@@ -87,7 +93,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
-     auxbas_pw_pool,auxbas_grid,rs_descs,auxbas_rs_desc,&
+     auxbas_pw_pool,auxbas_grid,auxbas_rs_desc,auxbas_rs_grid,rs_descs,rs_grids,lgrid,&
      xc_pw_pool, poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -98,10 +104,15 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: rs_descs
     TYPE(realspace_grid_desc_type), &
       OPTIONAL, POINTER                      :: auxbas_rs_desc
+    TYPE(realspace_grid_type), OPTIONAL, &
+      POINTER                                :: auxbas_rs_grid
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: rs_grids
+    TYPE(lgrid_type), OPTIONAL, POINTER      :: lgrid
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -118,6 +129,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
   IF (.NOT. failure) THEN
      IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
      IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
+     IF (PRESENT(rs_grids)) rs_grids => pw_env%rs_grids
+     IF (PRESENT(lgrid)) lgrid => pw_env%lgrid
      IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
@@ -125,6 +138,9 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      END IF
      IF (PRESENT(auxbas_rs_desc)) THEN
         auxbas_rs_desc => pw_env%rs_descs(pw_env%auxbas_grid)%rs_desc
+     END IF
+     IF (PRESENT(auxbas_rs_grid)) THEN
+        auxbas_rs_grid => pw_env%rs_grids(pw_env%auxbas_grid)%rs_grid
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
      IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
@@ -214,6 +230,13 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
             CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc, error=error)
           END DO
           DEALLOCATE(pw_env%rs_descs, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(pw_env%rs_grids)) THEN
+          DO i=1, SIZE(pw_env%rs_grids)
+            CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid, error=error)
+          END DO
+          DEALLOCATE(pw_env%rs_grids, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(pw_env%lgrid)) THEN

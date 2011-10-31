@@ -126,14 +126,10 @@ MODULE qs_linres_current
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao
   USE realspace_grid_cube,             ONLY: pw_to_cube
-  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                             realspace_grid_desc_type,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             rs_grid_create,&
-                                             rs_grid_mult_and_add,&
-                                             rs_grid_release,&
-                                             rs_grid_zero
+  USE realspace_grid_types,            ONLY: &
+       realspace_grid_desc_p_type, realspace_grid_desc_type, &
+       realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
+       rs_grid_mult_and_add, rs_grid_release, rs_grid_retain, rs_grid_zero
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              distribute_tasks,&
                                              int2pair,&
@@ -240,7 +236,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
-    TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: current_section
 
     failure = .FALSE.
@@ -516,7 +511,6 @@ CONTAINS
                &          auxbas_pw_pool=auxbas_pw_pool,&
                &          error=error)
           !
-          CALL rs_grid_create(rs, auxbas_rs_desc, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,use_data=REALDATA3D,&
                &                  in_space=REALSPACE,error=error)
           !
@@ -551,7 +545,6 @@ CONTAINS
           ENDDO
           !
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
-          CALL rs_grid_release(rs, error=error)
        ENDIF ! current cube
        !
        ! Integrated current response checksum
@@ -757,7 +750,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, error=error)
 
     distributed_rs_grids=.FALSE.
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -972,11 +965,19 @@ CONTAINS
             symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
             skip_load_balance_distributed=.FALSE., error=error)
 
-    ALLOCATE(rs_current(gridlevel_info%ngrid_levels), rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    ALLOCATE(rs_current(gridlevel_info%ngrid_levels))
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       ! Here we need to reallocate the distributed rs_grids, which may have been reordered
+       ! by distribute_tasks
+       IF (rs_descs(igrid_level)%rs_desc%distributed) THEN
+         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
+         NULLIFY (rs_rho(igrid_level)%rs_grid)
+         CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       ELSE
+         CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+       ENDIF
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc,&
             &              error=error)
@@ -1333,8 +1334,6 @@ CONTAINS
       DO i=1, SIZE(rs_rho)
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_rho,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)

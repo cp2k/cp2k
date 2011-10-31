@@ -68,8 +68,7 @@ MODULE qs_collocate_density
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_8,&
-                                             int_size
+                                             int_8
   USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                              lgrid_type
   USE mathconstants,                   ONLY: fac,&
@@ -113,8 +112,8 @@ MODULE qs_collocate_density
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
-       realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_create, &
-       rs_grid_release, rs_grid_zero, rs_pw_transfer
+       realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_release, &
+       rs_grid_retain, rs_grid_zero, rs_pw_transfer
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              int2pair
   USE task_list_types,                 ONLY: task_list_type
@@ -197,11 +196,11 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_grid_create(rs_rho, auxbas_rs_desc, error=error)
+    CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -387,11 +386,11 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_grid_create(rs_rho, auxbas_rs_desc, error=error)
+    CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -597,7 +596,8 @@ CONTAINS
 
     ! *** set up the pw multi-grids *** !
     CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
-    CALL pw_env_get(pw_env=pw_env, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
+    CALL pw_env_get(pw_env=pw_env, rs_descs=rs_descs, rs_grids=rs_rho, &
+                    pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
                               use_data=REALDATA3D, in_space=REALSPACE, &
@@ -608,11 +608,8 @@ CONTAINS
                               error=error)
 
     ! *** set up the rs multi-grids *** !
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "rs_rho",int_size*gridlevel_info%ngrid_levels)
     DO igrid_level = 1,gridlevel_info%ngrid_levels
-      CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -679,8 +676,6 @@ CONTAINS
     IF (gridlevel_info%ngrid_levels==1) THEN
       CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw,error=error)
       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-      DEALLOCATE (rs_rho,STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
       CALL pw_transfer(qs_env%rho%rho_r(1)%pw, qs_env%rho%rho_g(1)%pw,error=error)
       IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
         CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw,error=error)
@@ -691,8 +686,6 @@ CONTAINS
                             pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw, error=error)
          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_rho,STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
       CALL pw_zero(qs_env%rho%rho_g(1)%pw,error=error)
       DO igrid_level=1, gridlevel_info%ngrid_levels
@@ -777,11 +770,11 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_grid_create(rs_rho, auxbas_rs_desc, error=error)
+    CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1062,14 +1055,15 @@ CONTAINS
     
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, lgrid=lgrid, error=error)
     ! *** set up the rs multi-grids
+    CPPrecondition(ASSOCIATED(rs_rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rs_descs),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
     distributed_rs_grids=.FALSE.
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "rs_rho",dp_size*gridlevel_info%ngrid_levels)
+
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        IF ( rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
           distributed_rs_grids=.TRUE.
@@ -1077,7 +1071,6 @@ CONTAINS
     END DO
 
     IF ( nthread > 1 ) THEN
-      lgrid => pw_env%lgrid
       IF (.NOT. ASSOCIATED(lgrid%r)) THEN
         CALL lgrid_allocate_grid(lgrid, nthread, error)
       ENDIF
@@ -1553,12 +1546,9 @@ CONTAINS
     
     ! *** set up the rs multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "rs_rho",int_size*gridlevel_info%ngrid_levels) 
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
       distributed_rs_grids=rs_rho(igrid_level)%rs_grid%desc%distributed
     END DO
 
@@ -1783,8 +1773,6 @@ CONTAINS
       DO i=1, SIZE(rs_rho)
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_rho,STAT=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
     END IF
     IF (distributed_rs_grids) THEN
       CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
@@ -1890,7 +1878,7 @@ CONTAINS
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools, &
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, pw_pools=pw_pools, &
         cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
     
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
@@ -1901,11 +1889,8 @@ CONTAINS
                 in_space = REALSPACE, error=error)
 
     ! *** set up rs multi-grids
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "rs_rho",int_size*gridlevel_info%ngrid_levels)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -2024,8 +2009,6 @@ CONTAINS
             mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
     ENDDO
-    DEALLOCATE (rs_rho,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
     CALL pw_zero(rho_gspace%pw,error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -3365,7 +3348,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, igrid_level, &
+    INTEGER                                  :: handle, igrid_level, &
                                                 interp_kind
     LOGICAL                                  :: failure
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
@@ -3399,8 +3382,6 @@ CONTAINS
    IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-       DEALLOCATE (rs_rho,STAT=ierr)
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
        CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
           CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
@@ -3411,8 +3392,6 @@ CONTAINS
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
           CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
        ENDDO
-       DEALLOCATE (rs_rho,STAT=ierr)
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rs_rho")
 
        ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
        SELECT CASE(interp_kind)

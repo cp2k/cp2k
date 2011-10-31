@@ -61,7 +61,10 @@ MODULE task_list_methods
                                              neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_desc_type,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_create,&
                                              rs_grid_locate_rank,&
+                                             rs_grid_release,&
                                              rs_grid_reorder_ranks
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
@@ -95,7 +98,7 @@ CONTAINS
 !>        or should not overwrite the rs descriptor (see comment below)
 !> \note  If this routine is called several times with different task lists,
 !>        the default behaviour is to re-optimize the grid ranks and overwrite
-!>        the rs descriptor. reorder_rs_grid_ranks = .FALSE. prevents the code
+!>        the rs descriptor and grids. reorder_rs_grid_ranks = .FALSE. prevents the code
 !>        of performing a new optimization by leaving the rank order in 
 !>        its current state.
 ! *****************************************************************************
@@ -150,6 +153,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_grids
 
     CALL timeset(routineN,handle)
 
@@ -183,7 +188,7 @@ CONTAINS
            sab_aux_fit=sab_orb,&
            pw_env=pw_env,error=error)
     END SELECT
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids, error=error)
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
@@ -288,6 +293,18 @@ CONTAINS
             atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
             reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed,&
             error=error)
+
+    ! If the rank order has changed, reallocate any of the distributed rs_grids
+
+    IF (reorder_rs_grid_ranks) THEN
+      DO i=1,gridlevel_info%ngrid_levels
+        IF (rs_descs(i)%rs_desc%distributed) THEN
+          CALL rs_grid_release(rs_grids(i)%rs_grid, error)
+          NULLIFY(rs_grids(i)%rs_grid)
+          CALL rs_grid_create(rs_grids(i)%rs_grid, rs_descs(i)%rs_desc, error)
+        END IF
+      END DO
+    END IF
 
     ! Now we have the final list of tasks, setup the task_list with the
     ! data needed for the loops in integrate_v/calculate_rho

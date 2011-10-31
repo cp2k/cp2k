@@ -604,8 +604,9 @@ CONTAINS
 !>        now has a real rank (i.e. it's rank in the MPI communicator from the pw grid)
 !>        and a virtual rank (the rank of the process where the data now owned by this
 !>        process would reside in an ordinary cartesian distribution).
-!>        NB. This operation destroys any data already on the grid!
-!>        the desc%real2virtual and desc%virtual2real arrays can be used to map
+!>        NB. Since the grid size required may change, the caller should be sure to release
+!>        and recreate the corresponding rs_grids
+!>        The desc%real2virtual and desc%virtual2real arrays can be used to map
 !>        a physical rank to the 'rank' of data owned by that process and vice versa
 !> \par History
 !>        04-2009 created [Iain Bethune]
@@ -2137,9 +2138,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(rs_grid, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          NULLIFY(rs_grid)
        END IF
     END IF
-    NULLIFY(rs_grid)
   END SUBROUTINE rs_grid_release
 
 ! *****************************************************************************
@@ -2199,9 +2200,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
           DEALLOCATE(rs_desc, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          NULLIFY(rs_desc)
        END IF
     END IF
-    NULLIFY(rs_desc)
   END SUBROUTINE rs_grid_release_descriptor
 
 ! *****************************************************************************

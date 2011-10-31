@@ -135,9 +135,9 @@ SUBROUTINE lgrid_release(lgrid, error)
         END IF
         DEALLOCATE (lgrid,STAT=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        NULLIFY(lgrid)
      END IF
   END IF
-  NULLIFY(lgrid)
 END SUBROUTINE
 
 ! *****************************************************************************
