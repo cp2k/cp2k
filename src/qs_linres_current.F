@@ -1336,6 +1336,10 @@ CONTAINS
       END DO
     END IF
 
+    ! Free the array of grids (grids themselves are released in density_rs2pw)
+    DEALLOCATE (rs_current,STAT=istat)	 
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     CALL timestop(handle)
 
   END SUBROUTINE calculate_jrho_resp
