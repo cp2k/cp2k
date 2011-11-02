@@ -19,6 +19,7 @@ MODULE cp_control_utils
        xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants
   USE input_cp2k_check,                ONLY: xc_functionals_expand
@@ -328,10 +329,11 @@ CPSourceFileRef,&
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
-  SUBROUTINE read_mgrid_section(qs_control,dft_section,error)
+  SUBROUTINE read_mgrid_section(qs_control,dft_section,para_env,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mgrid_section', &
@@ -359,7 +361,13 @@ CPSourceFileRef,&
     CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff,error=error)
     CALL section_vals_val_get(mgrid_section,"SKIP_LOAD_BALANCE_DISTRIBUTED", &
-                                 l_val=qs_control%skip_load_balance_distributed,error=error)
+                                 l_val=qs_control%skip_load_balance_distributed,explicit=explicit,error=error)
+    ! In the default case, we automatically switch to not optimize if the number of tasks is large,
+    ! otherwise we run in the quadratic memory bottleneck,
+    ! and in that case, the is likely not to be important anyway
+    IF (.NOT.explicit) THEN
+       IF (para_env%num_pe>1024) qs_control%skip_load_balance_distributed=.TRUE.
+    ENDIF
 
     ! For SE and DFTB possibly override with new defaults 
     IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN
