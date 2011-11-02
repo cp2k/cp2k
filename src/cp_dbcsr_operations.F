@@ -75,8 +75,7 @@ MODULE cp_dbcsr_operations
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_8,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             dbcsr_set_debug
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE dbcsr_work_operations,           ONLY: add_work_coordinate
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
@@ -140,13 +139,6 @@ MODULE cp_dbcsr_operations
   PRIVATE
 
   INTEGER, SAVE, PRIVATE :: last_matrix_id=0
-
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
 
 CONTAINS
 
@@ -2017,9 +2009,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
@@ -2102,14 +2093,12 @@ END FUNCTION cp_dbcsr_get_id_nr
           local_row_sizes(local_rows(row)) = rbs(local_rows(row))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local row sizes",local_row_sizes
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
        FORALL (col = 1 : nblkcols_local)
           local_col_sizes(local_cols(col)) = cbs(local_cols(col))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local col sizes",local_col_sizes
 
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
     ALLOCATE (first_col(nblkcols_total),last_col(nblkcols_total))
@@ -2222,9 +2211,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
@@ -2289,14 +2277,12 @@ END FUNCTION cp_dbcsr_get_id_nr
           local_row_sizes(local_rows(row)) = rbs(local_rows(row))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local row sizes",local_row_sizes
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
        FORALL (col = 1 : nblkcols_local)
           local_col_sizes(local_cols(col)) = cbs(local_cols(col))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local col sizes",local_col_sizes
 
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
     ALLOCATE (first_col(nblkcols_total),last_col(nblkcols_total))
@@ -2356,6 +2342,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_dbcsr_to_fm', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
       nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
@@ -2376,9 +2363,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
 
     CALL timeset(routineN,handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
@@ -2434,14 +2419,12 @@ END FUNCTION cp_dbcsr_get_id_nr
           local_row_sizes(local_rows(row)) = row_blk_sizes(local_rows(row))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local row sizes",local_row_sizes
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
        FORALL (col = 1 : nblkcols_local)
           local_col_sizes(local_cols(col)) = col_blk_sizes(local_cols(col))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local col sizes",local_col_sizes
     nblkrows_total = dbcsr_distribution_nrows (bc_dist)
     nblkcols_total = dbcsr_distribution_ncols (bc_dist)
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
@@ -2504,6 +2487,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_dbcsr_to_cfm', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: blk_2d, fm_block
@@ -2524,9 +2508,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
 
     CALL timeset(routineN,handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
@@ -2583,14 +2565,12 @@ END FUNCTION cp_dbcsr_get_id_nr
           local_row_sizes(local_rows(row)) = row_blk_sizes(local_rows(row))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local row sizes",local_row_sizes
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
        FORALL (col = 1 : nblkcols_local)
           local_col_sizes(local_cols(col)) = col_blk_sizes(local_cols(col))
        END FORALL
     ENDIF
-    IF (dbg) WRITE(*,*)routineN//" local col sizes",local_col_sizes
     nblkrows_total = dbcsr_distribution_nrows (bc_dist)
     nblkcols_total = dbcsr_distribution_ncols (bc_dist)
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))

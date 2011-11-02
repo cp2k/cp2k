@@ -102,6 +102,7 @@ MODULE cp_dbcsr_interface
        dbcsr_multiply, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
        dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
        dbcsr_trace
+  USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_desymmetrize_deep,&
                                              dbcsr_distribute,&
@@ -116,8 +117,7 @@ MODULE cp_dbcsr_interface
        dbcsr_no_transpose, dbcsr_scalar_type, dbcsr_type_complex_4
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
-                                             dbcsr_verify_matrix,&
-                                             swap
+                                             dbcsr_verify_matrix
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create

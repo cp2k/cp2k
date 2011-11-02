@@ -54,17 +54,6 @@ MODULE dbcsr_mp_operations
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
-
   INTERFACE dbcsr_hybrid_alltoall
      MODULE PROCEDURE hybrid_alltoall_s1, hybrid_alltoall_d1,&
                       hybrid_alltoall_c1, hybrid_alltoall_z1

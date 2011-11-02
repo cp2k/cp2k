@@ -31,8 +31,7 @@ MODULE dbcsr_data_operations
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
-                                             sgn
+  USE dbcsr_util,                      ONLY: sgn
 
   !$ USE OMP_LIB
 
@@ -50,16 +49,6 @@ MODULE dbcsr_data_operations
             dbcsr_copy_sort_data,&
             dbcsr_sort_data
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
 
 CONTAINS
 
@@ -308,10 +297,9 @@ CONTAINS
     LOGICAL                                  :: mark, trb
     TYPE(dbcsr_error_type)                   :: error
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    ! Analyze parameters
+! Analyze parameters
+
     mark = .FALSE.
     IF (PRESENT (mark_transposed)) mark = mark_transposed
     trb = .FALSE.

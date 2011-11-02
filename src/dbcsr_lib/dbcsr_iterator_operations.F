@@ -40,13 +40,12 @@ MODULE dbcsr_iterator_operations
                                              pointer_d_rank_remap2,&
                                              pointer_s_rank_remap2,&
                                              pointer_z_rank_remap2
+  USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_obj,&
                                              dbcsr_scalar_type
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
-                                             swap
 
   !$ USE OMP_LIB
 
@@ -83,18 +82,7 @@ MODULE dbcsr_iterator_operations
 
 
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
   LOGICAL, PARAMETER :: careful_mod  = .FALSE.
-
-#define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
   INTEGER, PARAMETER, PRIVATE :: rpslot_owner = 1
   INTEGER, PARAMETER, PRIVATE :: rpslot_addblks = 2

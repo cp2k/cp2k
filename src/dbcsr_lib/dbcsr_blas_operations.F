@@ -37,17 +37,6 @@ MODULE dbcsr_blas_operations
   PUBLIC :: dbcsr_lapack_larnv
 
 
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
-
 CONTAINS
 
 !\> Interface to LAPACK larnv

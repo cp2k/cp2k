@@ -116,6 +116,9 @@ MODULE dbcsr_operations
                                              dbcsr_plasma_init
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
+  USE dbcsr_toollib,                   ONLY: ceil_log2,&
+                                             swap,&
+                                             uppercase
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
                                              dbcsr_make_images,&
                                              dbcsr_make_images_dense,&
@@ -133,12 +136,9 @@ MODULE dbcsr_operations
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: ceil_log2,&
-                                             dbcsr_checksum,&
+  USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_verify_matrix,&
-                                             find_block_of_element,&
-                                             swap,&
-                                             uppercase
+                                             find_block_of_element
   USE dbcsr_work_operations,           ONLY: dbcsr_add_wm_from_matrix,&
                                              dbcsr_create,&
                                              dbcsr_finalize,&

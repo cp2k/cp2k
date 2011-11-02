@@ -65,14 +65,14 @@ MODULE dbcsr_block_access
                                              pointer_s_rank_remap2,&
                                              pointer_view,&
                                              pointer_z_rank_remap2
+  USE dbcsr_toollib,                   ONLY: make_coordinate_tuple,&
+                                             swap
   USE dbcsr_types,                     ONLY: &
        dbcsr_block_buffer_obj, dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, &
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
-  USE dbcsr_util,                      ONLY: make_coordinate_tuple,&
-                                             swap
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                              dbcsr_work_create
 
@@ -146,8 +146,6 @@ MODULE dbcsr_block_access
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
-
-#define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
   INTEGER, PARAMETER, PRIVATE :: rpslot_owner = 1
   INTEGER, PARAMETER, PRIVATE :: rpslot_addblks = 2

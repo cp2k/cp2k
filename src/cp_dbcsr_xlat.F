@@ -45,8 +45,8 @@ MODULE cp_dbcsr_xlat
                                              dbcsr_row_block_sizes
   USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
                                              pointer_d_rank_remap2
+  USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
-  USE dbcsr_util,                      ONLY: swap
   USE kinds,                           ONLY: int_size,&
                                              real_8
   USE termination,                     ONLY: stop_memory

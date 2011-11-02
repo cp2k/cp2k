@@ -76,6 +76,9 @@ MODULE dbcsr_work_operations
        dbcsr_switch_data_area, dbcsr_use_mutable, dbcsr_valid_index, &
        dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
+  USE dbcsr_toollib,                   ONLY: dbcsr_unpack_i8_2i4,&
+                                             sort,&
+                                             uppercase
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
        dbcsr_magic_number, dbcsr_memory_default, dbcsr_meta_size, &
@@ -95,12 +98,8 @@ MODULE dbcsr_work_operations
        dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_calc_block_sizes,&
-                                             dbcsr_set_debug,&
-                                             dbcsr_unpack_i8_2i4,&
                                              dbcsr_verify_matrix,&
-                                             meta_from_dist,&
-                                             sort,&
-                                             uppercase
+                                             meta_from_dist
 
   !$ USE OMP_LIB
 
@@ -110,6 +109,9 @@ MODULE dbcsr_work_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_work_operations'
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
+
+
 
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize
   PUBLIC :: dbcsr_work_destroy, dbcsr_add_wm_from_matrix,&
@@ -118,18 +120,6 @@ MODULE dbcsr_work_operations
   INTERFACE dbcsr_create
      MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
   END INTERFACE
-
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
-  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
   TYPE i_array_p
@@ -1028,9 +1018,8 @@ CONTAINS
                                                 size_used
     LOGICAL                                  :: preexists
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     !$OMP BARRIER
     preexists = ASSOCIATED (matrix%m%wms)
@@ -1098,9 +1087,8 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     nwms = SIZE (matrix%m%wms)
     mt = .FALSE.
@@ -1296,11 +1284,9 @@ CONTAINS
 
     INTEGER                                  :: error_handler
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
-    dbg = .FALSE.
     matrix%lastblk = matrix%lastblk+1
     CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk,&
          factor=default_resize_factor,error=error)
@@ -1312,13 +1298,6 @@ CONTAINS
        CALL ensure_array_size(matrix%blk_p, ub=matrix%lastblk,&
             factor=default_resize_factor,error=error)
        matrix%blk_p(matrix%lastblk) = blk
-    ENDIF
-    IF(dbg.AND.PRESENT(blk))&
-         WRITE(*,*)routineP//' Adding',row,col,blk,'at',matrix%lastblk
-    IF (dbg.AND.bcsr_verbose) THEN
-       WRITE(*,*)routineP//' row_i=',matrix%row_i(1:matrix%lastblk)
-       WRITE(*,*)routineP//' col_i=',matrix%col_i(1:matrix%lastblk)
-       WRITE(*,*)routineP//' blk_p=',matrix%blk_p(1:matrix%lastblk)
     ENDIF
     IF (PRESENT (index)) index = matrix%lastblk
     IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)

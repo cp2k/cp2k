@@ -31,6 +31,9 @@ MODULE dbcsr_index_operations
                                              ensure_array_size,&
                                              memory_allocate,&
                                              memory_deallocate
+  USE dbcsr_toollib,                   ONLY: joaat_hash,&
+                                             sort,&
+                                             swap
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_coo_l, &
@@ -39,9 +42,6 @@ MODULE dbcsr_index_operations
        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type
-  USE dbcsr_util,                      ONLY: joaat_hash,&
-                                             sort,&
-                                             swap
 
   !$ USE OMP_LIB
 

@@ -37,14 +37,14 @@ MODULE dbcsr_dist_operations
        dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_new_transposed, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_release, &
        dbcsr_release_locals
+  USE dbcsr_toollib,                   ONLY: gcd,&
+                                             lcm
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
        dbcsr_magic_number, dbcsr_mp_obj, dbcsr_obj, dbcsr_slot_home_pcol, &
        dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             gcd,&
-                                             lcm
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&

@@ -100,10 +100,14 @@ MODULE dbcsr_transformations
        dbcsr_slot_row_p, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8
-  USE dbcsr_util,                      ONLY: &
-       convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
-       dbcsr_set_debug, dbcsr_unpack_meta, dbcsr_verify_matrix, &
-       get_internal_offsets, global_offsets_to_local, nfull_elements
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
+                                             dbcsr_checksum,&
+                                             dbcsr_pack_meta,&
+                                             dbcsr_unpack_meta,&
+                                             dbcsr_verify_matrix,&
+                                             get_internal_offsets,&
+                                             global_offsets_to_local,&
+                                             nfull_elements
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
@@ -131,17 +135,6 @@ MODULE dbcsr_transformations
   PUBLIC :: dbcsr_make_images
 
 
-
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
-
-  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
-  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
-  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
 
 CONTAINS
 
@@ -184,6 +177,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
     INTEGER                                  :: error_handler, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
@@ -192,9 +186,8 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_obj)                          :: t2
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (dbcsr_valid_index(normal), dbcsr_fatal_level, dbcsr_caller_error,&
@@ -265,11 +258,6 @@ CONTAINS
     transposed%m%index(dbcsr_slot_nblks) = normal%m%nblks
     transposed%m%index(dbcsr_slot_nze) = normal%m%nze
     ! Transpose the local index.
-    DBG 'Original size', normal%m%nblks, normal%m%nze
-    DBG 'meta', transposed%m%nblkrows_total+1, normal%m%nblks
-    DBG 'size', SIZE (transposed%m%row_p), SIZE (transposed%m%col_i)
-
-
     ALLOCATE (blk_p (normal%m%nblks), stat=stat)
     CALL dbcsr_assert(stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "blk_p",__LINE__,error)
@@ -374,9 +362,8 @@ CONTAINS
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
@@ -615,9 +602,8 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_obj)                          :: distributed
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
@@ -716,7 +702,6 @@ CONTAINS
        matrix%m%nblks = distributed%m%nblks
        CALL dbcsr_release (distributed)
     ENDIF
-    DBG 'Done replicating'
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_distribute
 
@@ -865,6 +850,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_images', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 5
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, data_p, &
@@ -896,9 +882,8 @@ CONTAINS
     TYPE(dbcsr_scalar_type)                  :: scale_neg_one
     TYPE(dbcsr_type)                         :: sm
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     tstart = m_walltime ()
     nocopy = .FALSE.
@@ -956,14 +941,6 @@ CONTAINS
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numproc = dbcsr_mp_numnodes (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
-    DBG ism%m%name
-    DBG 'row_dist', row_dist
-    DBG 'col_dist', col_dist
-    DBG 'row, col maxval:', MAXVAL(row_dist), MAXVAL(col_dist)
-    DBG 'blacs2mpi',blacs2mpi
-    DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
-    DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
-    DBG 'row,col images',nrow_images,ncol_images
     ALLOCATE (ums%mats(nrow_images,ncol_images))
     IF (sm%symmetry) THEN
        CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), dbcsr_warning_level,&
@@ -1030,7 +1007,7 @@ CONTAINS
 !$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
 !$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
 !$omp          lsmp, lsdp, t) &
-!$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td, &
+!$omp shared (nthreads, dbcsr_error, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, scale_value, error,&
 !$omp         ums, sm, ism, target_dist, predist, predistribute, predist_type, &
 !$omp         predist_type_fwd,&
@@ -1418,8 +1395,6 @@ CONTAINS
     !@@@
     !WRITE(*,'(1X,A,1X,EN12.4)')'make_images time:',tstop-tstart
     !WRITE(*,'(1X,A,1X,EN12.4)')'make_images cumm. time:',image_time
-    DBG 'ums(1) name',ums%mats(1,1)%m%name
-    DBG 'Done making images'
     CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE make_images
 
@@ -2159,6 +2134,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 3
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     CHARACTER                                :: rep_type
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, data_type, &
@@ -2183,9 +2159,8 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_obj)                          :: replicated
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_access_flush (matrix, error=error)
     tstart = m_walltime ()
@@ -2284,7 +2259,6 @@ CONTAINS
     !
     ! Count initial sizes for sending. Also, ensure that blocks are on their
     ! home processors.
-    DBG 'A', " ", rep_type, dbcsr_mp_nprows(mp_obj), dbcsr_mp_npcols(mp_obj)
     send_count(1:2) = 0
     CALL dbcsr_iterator_start (iter, matrix)
     IF (.NOT. i_am_restricted) THEN
@@ -2304,12 +2278,8 @@ CONTAINS
        send_count(2) = dbcsr_get_data_size_referenced (matrix)
     ENDIF
     CALL dbcsr_iterator_stop (iter)
-    DBG 'B'
     ! Exchange how much data others have.
     CALL mp_allgather (send_count(1:2), recv_count, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
     CALL dbcsr_data_init (recv_data)
     nze = SUM (recv_count(2, :))
     nblks = SUM (recv_count(1, :))
@@ -2325,8 +2295,6 @@ CONTAINS
     ALLOCATE (recv_meta(metalen * nblks))
     ALLOCATE (send_meta(metalen * send_count(1)))
     recv_meta(:) = 0
-    DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv meta len',SIZE (recv_meta)
     ! Fill in the meta data structures and copy the data.
     rd_disp = -1 ; rm_disp = -1
     rd_disp(0) = 1 ; rm_disp(0) = 1
@@ -2336,9 +2304,6 @@ CONTAINS
        rd_disp(dst_p) = rd_disp(dst_p-1)&
                         + recv_count(2, dst_p-1)
     ENDDO
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D ', data_type
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (data_block, data_type=data_type)
     CALL dbcsr_iterator_start (iter, matrix)
@@ -2390,9 +2355,6 @@ CONTAINS
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
           stored_blk_p = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+2)
-          DBG 'blk: p',blks,src_p,'; row, col',&
-               stored_row,stored_col,&
-               '; blk_p',blk_p
           replicated%m%wms(1)%row_i(blks) = stored_row
           replicated%m%wms(1)%col_i(blks) = stored_col
           replicated%m%wms(1)%blk_p(blks) = SIGN(ABS(stored_blk_p) + offset,&
@@ -2407,7 +2369,6 @@ CONTAINS
     !
     replicated%m%wms(1)%lastblk = blks - 1
     replicated%m%wms(1)%datasize = blk_ps - 1
-    DBG 'Finalizing normalization'
     CALL dbcsr_finalize(replicated, reshuffle=.TRUE., error=error)
     !
     ! Remove communicators if they were forcibly created.
@@ -2416,7 +2377,6 @@ CONTAINS
        CALL dbcsr_mp_grid_remove (mp_obj)
     ENDIF
     tstop = m_walltime ()
-    DBG 'time:',tstop-tstart
     DEALLOCATE(recv_count)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
@@ -2436,7 +2396,6 @@ CONTAINS
     matrix%m%nze = replicated%m%nze
     matrix%m%nblks = replicated%m%nblks
     CALL dbcsr_release (replicated)
-    DBG 'Done replicating'
     CALL dbcsr_verify_matrix (matrix, error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_replicate
@@ -2462,6 +2421,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 7
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, &
       cnt_skip, col, col_int, col_offset_new, col_offset_old, col_rle, &
@@ -2491,9 +2451,8 @@ CONTAINS
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     t_all = m_walltime()
     t_prolog = t_all
@@ -2597,7 +2556,6 @@ CONTAINS
     ! We go through every element of every local block and determine
     ! to which processor it must be sent. It could be more efficient,
     ! but at least the index data are run-length encoded.
-    DBG 'A'
     send_count(:,:) = 0
     CALL dbcsr_iterator_start (iter, matrix)
     dst_p = -1
@@ -2625,11 +2583,7 @@ CONTAINS
     t_xfer1 = m_walltime()
     t_count = t_xfer1 - t_count
     !
-    DBG 'B'
     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
     ! Allocate data structures needed for data exchange.
     CALL dbcsr_data_init (recv_data)
     CALL dbcsr_data_new (recv_data, data_type, SUM(recv_count(2, :)))
@@ -2663,16 +2617,6 @@ CONTAINS
     smp(:) = sm_disp - metalen  ! But smp points to the "working" data, not
                                 ! the next. It is pre-incremented, so we must
                                 ! first rewind it.
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D'
-    IF (dbg) THEN
-       WRITE(*,*)'row_start_old',row_start_old
-       WRITE(*,*)'row_start_new',row_start_new
-       WRITE(*,*)'row_blk_size_new',row_blk_size_new
-    ENDIF
     !
     t_fill = m_walltime()
     t_xfer1 = t_fill - t_xfer1
@@ -2738,7 +2682,6 @@ CONTAINS
     t_xfer2 = m_walltime()
     t_fill = t_xfer2 - t_fill
     !
-    DBG 'E'
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
@@ -2768,11 +2711,8 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid matrix type",__LINE__,error)
     END SELECT
-    DBG 'F'
-    DBG 'send_data'
     CALL hybrid_alltoall_i1(send_meta(:), SUM(metalen*total_send_count(1,:)), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
-    DBG 'G'
     !
     t_unpack = m_walltime()
     t_xfer2 = t_unpack - t_xfer2
@@ -2781,10 +2721,6 @@ CONTAINS
     CALL dbcsr_work_create(redist,&
          nblks_guess=SUM(recv_count(1,:)),&
          sizedata_guess=SUM(recv_count(2,:)), work_mutable=.TRUE.,error=error)
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
     CALL dbcsr_data_init (buff_data)
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (buff_data, dbcsr_type_1d_to_2d (data_type), &
@@ -2809,9 +2745,6 @@ CONTAINS
           col_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+5)
           data_offset_l = rd_disp(src_p)&
                + recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+6)
-          DBG 'blk: p',blks,src_p,'; row, col',&
-               stored_row_new,stored_col_new,&
-               '; blk_ps',blk_ps
 
           CALL dbcsr_data_clear_pointer (data_block)
           t_blk = m_walltime()
@@ -2881,7 +2814,6 @@ CONTAINS
        WRITE(*,*)routineN//" Declared data size=",redist%m%wms(1)%datasize,&
             "actual=",blk_ps
     ENDIF
-    DBG 'Finalizing redistribution'
 
     CALL dbcsr_finalize(redist, error=error)
 
@@ -2897,7 +2829,6 @@ CONTAINS
 
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_meta)
-    DBG 'Done redistributing'
     t_unpack = m_walltime() - t_unpack
     t_all = MAX(m_walltime() - t_all, 0.001_dp)
     !write(*,'(A,2(1X,F9.3),F5.1,"%",4(1X,I7))')&
@@ -2934,8 +2865,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_redistribute', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    CHARACTER(len=80)                        :: ifmt
     INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, &
       error_handler, meta_l, mp_group, numnodes, nze, row, row_size, src_p, &
       stored_col_new, stored_row_new
@@ -2956,13 +2887,11 @@ CONTAINS
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
+
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_access_flush (matrix, error=error)
     CALL dbcsr_access_flush (redist, error=error)
-    IF (dbg) CALL dbcsr_print (matrix,error=error)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
@@ -3017,7 +2946,6 @@ CONTAINS
     ALLOCATE (rm_disp(0:numnodes-1))
     ! Count initial sizes for sending.
     !
-    DBG 'A'
     send_count(:,:) = 0
     CALL dbcsr_iterator_start (iter, matrix)
     dst_p = -1
@@ -3027,17 +2955,12 @@ CONTAINS
        sym_tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (redist%m,&
             row, col, sym_tr, dst_p)
-       IF (dbg) WRITE(*,*)routinen//" Sending",row,col,"to",dst_p
        nze = row_size*col_size
        send_count(1, dst_p) = send_count(1, dst_p) + 1
        send_count(2, dst_p) = send_count(2, dst_p) + nze
     ENDDO
     CALL dbcsr_iterator_stop (iter)
-    DBG 'B'
     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
     ! Allocate data structures needed for data exchange.
     CALL dbcsr_data_init (recv_data)
     CALL dbcsr_data_new (recv_data, data_type, SUM(recv_count(2, :)))
@@ -3071,14 +2994,6 @@ CONTAINS
     smp(:) = sm_disp - metalen  ! But smp points to the "working" data, not
                                 ! the next. It is pre-incremented, so we must
                                 ! first rewind it.
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D'
-    IF (dbg) THEN
-       WRITE(*,*)'row_blk_size_new',row_blk_size_new
-    ENDIF
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (data_block, data_type)
     CALL dbcsr_iterator_start (iter, matrix)
@@ -3106,7 +3021,6 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_data_clear_pointer (data_block)
     ! Exchange the data and metadata structures.
-    DBG 'E'
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
@@ -3135,28 +3049,13 @@ CONTAINS
     END SELECT
     !CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
     !     recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta'
-    IF (dbg) WRITE(ifmt,'("(",I2,"(1X,I5))")') metalen
-    IF (dbg) WRITE(*,ifmt) send_meta
-    DBG 'send_data'
-    !IF (dbg) WRITE(*,'(10(1X,F5.2))') send_data
     CALL hybrid_alltoall_i1(send_meta(:), SIZE(send_meta), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), SIZE(recv_meta), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
-    DBG 'recv_meta'
-    IF (dbg) WRITE(*,ifmt) recv_meta
-    DBG 'recv_data'
-    !IF (dbg) WRITE(*,'(10(1X,F5.2))') recv_data
-    DBG 'G'
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
             SUM(recv_count(1,:)),&
             SUM(recv_count(2,:)), work_mutable=.FALSE., n=1, error=error)
     !
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
     blk_ps = 1
     blks = 0
     DO src_p = 0, numnodes-1
@@ -3176,7 +3075,6 @@ CONTAINS
           blks = blks + 1
        ENDDO
     ENDDO
-    IF (dbg) WRITE(*,*)routineN//" blk_p", redist%m%wms(1)%blk_p
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
     !
@@ -3186,11 +3084,9 @@ CONTAINS
        WRITE(*,*)routineN//" Declared data size=",redist%m%wms(1)%datasize,&
             "actual=",blk_ps
     ENDIF
-    DBG 'Finalizing redistribution'
     CALL dbcsr_finalize(redist, error=error)
     CALL dbcsr_data_release (recv_data)
     CALL dbcsr_data_release (send_data)
-    IF (dbg) CALL dbcsr_print (redist,error=error)
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
@@ -3199,7 +3095,6 @@ CONTAINS
     DEALLOCATE(rm_disp)
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_meta)
-    DBG 'Done redistributing'
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_redistribute
 

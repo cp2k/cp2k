@@ -24,10 +24,10 @@ MODULE cluster_buffers
                                              dbcsr_data_reset_type,&
                                              dbcsr_data_set_pointer
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_types,                     ONLY: dbcsr_block_buffer_obj,&
                                              dbcsr_data_obj,&
                                              dbcsr_type_real_8_2d
-  USE dbcsr_util,                      ONLY: swap
   USE kinds,                           ONLY: dp,&
                                              real_8
 
