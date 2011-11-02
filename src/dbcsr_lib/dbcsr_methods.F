@@ -35,7 +35,6 @@ MODULE dbcsr_methods
                                              dbcsr_buffers_new,&
                                              dbcsr_buffers_release
   USE dbcsr_config,                    ONLY: comm_thread_load,&
-                                             use_comm_thread,&
                                              use_subcommunicators
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
@@ -56,6 +55,7 @@ MODULE dbcsr_methods
                                              mp_comm_free,&
                                              mp_sum
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
+  USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
@@ -1289,22 +1289,22 @@ CONTAINS
 !$OMP END PARALLEL
 !$  ELSE
        CALL make_threads (dist_p, row_sizes=row_sizes)
+!$OMP BARRIER
 !$  ENDIF
   END SUBROUTINE dbcsr_distribution_make_threads
 
 ! *****************************************************************************
 !> \brief Creates a distribution for threads
-!> \par When row_sizes is present
+!> \par Presence of row_sizes
 !>      When row_sizes is present then the thread distribution
 !>      attempts to distribute rows to threads such that the sum of
 !>      delegated row sizes is approximately matched for all rows.
-!> \par When row_sizes is absent
+!>
 !>      When row_sizes is not present then a random distribution is chosen.
 !> \param[in,out] dist   Add thread distribution to this distribution
 !> \param[in] row_sizes  (optional) row block sizes
 ! *****************************************************************************
   SUBROUTINE make_threads(dist, row_sizes)
-
     TYPE(dbcsr_distribution_obj), POINTER    :: dist
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_sizes
@@ -1312,71 +1312,111 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_threads', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cost, ithread, nlrows, nrows, &
-                                                nthreads, row, t, t_cnt
+    INTEGER :: block_size, block_size0, cur_block, group_size, i, last_row, &
+      nlrows, nrows, nthreads, row, t, t_cnt
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: reorder, sorted_row_sizes
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
     LOGICAL                                  :: assigned, found, heap_error
-    REAL(kind=sp)                            :: load_fraction, rn
+    REAL(kind=sp)                            :: load_fraction, rn, soft_thr
     TYPE(dbcsr_error_type)                   :: error
     TYPE(heap_t)                             :: t_heap
 
 !   ---------------------------------------------------------------------------
 
-    ithread = 0 ; nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM()
-!$  CALL dbcsr_assert (dist%d%num_threads, "EQ", nthreads,&
-!$     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-!$     "Thread number has changed", __LINE__, error=error)
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS () ; 
+
+    !$  CALL dbcsr_assert (dist%d%num_threads, "EQ", nthreads,&
+    !$     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+    !$     "Thread number has changed", __LINE__, error=error)
     nrows = dbcsr_distribution_nrows (dist)
     nlrows = dbcsr_distribution_nlocal_rows (dist)
     lrows => array_data (dbcsr_distribution_local_rows (dist))
-    !
+
+    !$OMP BARRIER
+    !$OMP MASTER
+
     IF (comm_thread_load .NE. 0) THEN
-      load_fraction = 100.0/REAL(comm_thread_load)
+       load_fraction = REAL(comm_thread_load)/100.0
     ELSE
-      load_fraction = 1.0
+       load_fraction = 1.0
     END IF
-!$OMP BARRIER
-!$OMP MASTER
+
     IF (.NOT. dist%d%has_thread_dist) THEN
        dist%d%num_threads = nthreads
+       group_size = 0 ; cur_block = 0
+
        ALLOCATE (td(nrows))
        dist%d%has_thread_dist = .TRUE.
        CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
        td => array_data (dist%d%thread_dist)
-       
+
        IF (PRESENT (row_sizes)) THEN
-          CALL heap_new (t_heap, nthreads, heap_error)
-          CALL heap_fill (t_heap,&
-               (/ (t, t=0, nthreads-1) /),&
-               (/(0, t=0, nthreads-1)/),&
-               heap_error)
-          DO row = 1, nrows
+          ! The goal is to distribute rows to threads as equally as
+          ! possible. The row sizes are first sorted. Each group of
+          ! equally sized rows (group_size rows of size cur_block) is
+          ! distributed to threads (keeping consecutive rows
+          ! together). The group is divided into equally-sized blocks
+          ! (block_size0, block_size).  Leftover rows (those that can
+          ! not be equally distributed to threads) are then assigned
+          ! to threads so that each thread's commulative load attempts
+          ! to be equal. This distribution is achieved using a heap.
+          !
+          ! The heap is used to distribute "leftover"rows to threads.
+          ! Lefotver rows are those of the same size that can not be
+          ! evenly distributed among all threads.
+          CALL heap_new (t_heap, nthreads-1, heap_error)
+          ! We do not want thread 0 to be in the heap.
+          CALL heap_fill (t_heap,(/ (t, t=1, nthreads-1) /),&
+               (/(0, t=1, nthreads-1)/),heap_error)
+          ALLOCATE (sorted_row_sizes (nrows))
+          ALLOCATE (reorder (nrows))
+          sorted_row_sizes(:) = row_sizes(:)
+          CALL sort (sorted_row_sizes, nrows, reorder)
+
+          row = 1
+          DO WHILE ( row .LE. nrows)    
+             cur_block = sorted_row_sizes(nrows-row+1)
              assigned = .FALSE.
-             ! If thread zero is underloaded, we must reassign 
-             ! its rows to other threads, so we loop until
-             ! the next most lightly loaded thread is found
-             DO WHILE (.NOT. assigned)
-             CALL heap_get_first (t_heap, t, t_cnt, found, heap_error)
-             td(row) = t
-             assigned = .TRUE.
-             IF (use_comm_thread) THEN 
-              IF (t==0) THEN
-                 IF (comm_thread_load .EQ. 0) THEN
-                   assigned = .FALSE.
-                 END IF
-                 cost=INT(100.0*REAL(row_sizes (row))*load_fraction)
-              ELSE
-                 cost=100*row_sizes (row)
-              ENDIF
-              t_cnt = t_cnt + cost
-             ELSE
-              t_cnt = t_cnt + row_sizes (row)
-             ENDIF
-             CALL heap_reset_first (t_heap, t_cnt, heap_error)
+             group_size = 0        
+
+             last_row = nrows-row+1
+             DO i = last_row, 1, -1
+                IF ( cur_block == sorted_row_sizes(i) ) THEN
+                   group_size = group_size + 1
+                   row = row + 1
+                ELSE
+                   EXIT
+                END IF
              END DO
-          ENDDO
+
+             soft_thr = load_fraction + nthreads - 1
+             block_size0 = load_fraction*(group_size/soft_thr)
+             block_size = group_size/soft_thr
+
+             IF (.NOT. (block_size0 .EQ. 0 .AND. block_size .EQ. 0)) THEN
+                !blocks for master thread
+                td(reorder(last_row:last_row-block_size0+1:-1)) = 0
+
+                !Other threads
+                DO t=1, nthreads-1
+                   td(reorder(last_row-block_size0-(t-1)*block_size:&
+                        last_row-block_size0-(t)*block_size+1:-1)) = t
+                END DO
+             END IF
+
+             !Leftover bocks
+             DO i=last_row-block_size0-(nthreads-1)*block_size, last_row+1-group_size, -1
+                CALL heap_get_first (t_heap, t, t_cnt, found,heap_error)
+                t_cnt = t_cnt + cur_block
+                CALL heap_reset_first (t_heap, t_cnt, heap_error)
+                td(reorder(i)) = t
+             END DO
+
+          END DO
           CALL heap_release (t_heap, heap_error)
+          DEALLOCATE (sorted_row_sizes)
+          DEALLOCATE (reorder)
        ELSE
           DO t = 1, nrows
              IF (.FALSE.) THEN
@@ -1389,16 +1429,13 @@ CONTAINS
           END DO
        ENDIF
     ENDIF
-!$OMP END MASTER
-!$OMP BARRIER
+    !$OMP END MASTER
   END SUBROUTINE make_threads
 
-
+!> \brief Removes the thread distribution from a distribution
   SUBROUTINE dbcsr_distribution_no_threads(dist)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
-
-!   ---------------------------------------------------------------------------
 
 !$OMP MASTER
     CALL array_release (dist%d%thread_dist)
@@ -2801,5 +2838,6 @@ CONTAINS
 !
 !    CALL get_data_[nametype1] (matrix%m%data_area, DATA)
 !  END SUBROUTINE get_data_m_[nametype1]
+
 
 END MODULE dbcsr_methods
