@@ -898,14 +898,12 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
       map_consistent, my_compute_tau, my_soft, use_subpatch
-    REAL(KIND=dp)                            :: eps_rho_rspace, &
-                                                kind_radius_b, rab2, scale, &
+    REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, rpgfa, &
-                                                rpgfb, sphi_a, sphi_b, work, &
-                                                zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pabt, workt
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -937,8 +935,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &
          atomic_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_descs, &
-         para_env, dist_ab, set_radius_a, set_radius_b, la_max, la_min, &
-         lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, rpgfa, rpgfb, &
+         para_env, dist_ab, la_max, la_min, &
+         lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
          workt,lgrid)
 
@@ -1109,8 +1107,8 @@ CONTAINS
 !$omp          private(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$omp          private(iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$omp          private(brow,bcol,atomic_kind,orb_basis_set,first_sgfa,la_max,la_min), &
-!$omp          private(npgfa,nseta,nsgfa,rpgfa,set_radius_a,sphi_a,zeta,kind_radius_b,first_sgfb,lb_max,lb_min,npgfb), &
-!$omp          private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,p_block,found), &
+!$omp          private(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
+!$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
 !$omp          private(lb_l,nn,segment,itask,i,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr)
@@ -1173,8 +1171,6 @@ CONTAINS
                   npgf=npgfa,&
                   nset=nseta,&
                   nsgf_set=nsgfa,&
-                  pgf_radius=rpgfa,&
-                  set_radius=set_radius_a,&
                   sphi=sphi_a,&
                   zet=zeta)
           ENDIF
@@ -1193,14 +1189,11 @@ CONTAINS
              END SELECT
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
-                  kind_radius=kind_radius_b,&
                   lmax=lb_max,&
                   lmin=lb_min,&
                   npgf=npgfb,&
                   nset=nsetb,&
                   nsgf_set=nsgfb,&
-                  pgf_radius=rpgfb,&
-                  set_radius=set_radius_b,&
                   sphi=sphi_b,&
                   zet=zetb)          
           ENDIF
@@ -1438,14 +1431,12 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
       map_consistent, my_soft, use_subpatch
-    REAL(KIND=dp)                            :: eps_rho_rspace, &
-                                                kind_radius_b, rab2, scale, &
+    REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, rpgfa, &
-                                                rpgfb, sphi_a, sphi_b, work, &
-                                                zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pabt, workt
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1474,8 +1465,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &
          atomic_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_descs, &
-         para_env, dist_ab, set_radius_a, set_radius_b, la_max, la_min, &
-         lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, rpgfa, rpgfb, &
+         para_env, dist_ab, la_max, la_min, &
+         lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
          workt)
 
@@ -1655,8 +1646,6 @@ CONTAINS
                   npgf=npgfa,&
                   nset=nseta,&
                   nsgf_set=nsgfa,&
-                  pgf_radius=rpgfa,&
-                  set_radius=set_radius_a,&
                   sphi=sphi_a,&
                   zet=zeta)
           ENDIF
@@ -1675,14 +1664,11 @@ CONTAINS
              END SELECT
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
-                  kind_radius=kind_radius_b,&
                   lmax=lb_max,&
                   lmin=lb_min,&
                   npgf=npgfb,&
                   nset=nsetb,&
                   nsgf_set=nsgfb,&
-                  pgf_radius=rpgfb,&
-                  set_radius=set_radius_b,&
                   sphi=sphi_b,&
                   zet=zetb)          
           ENDIF
