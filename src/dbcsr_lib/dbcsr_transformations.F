@@ -177,7 +177,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: error_handler, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
