@@ -63,6 +63,9 @@ MODULE qs_interactions
 
   PUBLIC :: init_interaction_radii, init_se_nlradius
 
+  PUBLIC :: write_paw_radii, write_ppnl_radii, write_ppl_radii, write_core_charge_radii, &
+            write_pgf_orb_radii, write_geminal_radii
+
 ! *** Public functions ***
 
   PUBLIC :: exp_radius_very_extended
@@ -76,12 +79,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_interaction_radii(qs_control,atomic_kind_set,&
-       subsys_section,error)
+       error)
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
@@ -522,14 +524,6 @@ CONTAINS
 
       END IF
     END DO  ! ikind
-
-    IF (p_orb)  CALL write_pgf_orb_radii("orb",atomic_kind_set,subsys_section,error)
-    IF (p_gem)  CALL write_geminal_radii(atomic_kind_set,subsys_section,error)
-    IF (p_aux)  CALL write_pgf_orb_radii("aux",atomic_kind_set,subsys_section,error)
-    IF (p_ccr)  CALL write_core_charge_radii(atomic_kind_set,subsys_section,error)
-    IF (p_ppl)  CALL write_ppl_radii(atomic_kind_set,subsys_section,error)
-    IF (p_ppnl) CALL write_ppnl_radii(atomic_kind_set,subsys_section,error)
-    IF (p_paw)  CALL write_paw_radii(atomic_kind_set,subsys_section,error)
 
     CALL timestop(handle)
 

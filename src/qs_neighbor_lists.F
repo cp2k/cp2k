@@ -86,6 +86,7 @@ MODULE qs_neighbor_lists
 
 ! *****************************************************************************
   TYPE local_atoms_type
+    PRIVATE
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
                                                         list_local_b_index,&
@@ -101,9 +102,221 @@ MODULE qs_neighbor_lists
   INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr=0
 
   ! Public subroutines
-  PUBLIC :: build_qs_neighbor_lists
+  PUBLIC :: build_qs_neighbor_lists, local_atoms_type, atom2d_cleanup, atom2d_build, build_neighbor_lists, pair_radius_setup
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief   free the internals of atom2d
+!> \param   
+! *****************************************************************************
+  SUBROUTINE atom2d_cleanup(atom2d,error)
+    TYPE(local_atoms_type), DIMENSION(:)     :: atom2d
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_cleanup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ikind, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    DO ikind=1,SIZE(atom2d)
+       NULLIFY (atom2d(ikind)%list)
+       IF (ASSOCIATED(atom2d(ikind)%list_local_a_index)) THEN
+          DEALLOCATE (atom2d(ikind)%list_local_a_index,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom2d(ikind)%list_local_b_index)) THEN
+          DEALLOCATE (atom2d(ikind)%list_local_b_index,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom2d(ikind)%list_a_mol)) THEN
+          DEALLOCATE (atom2d(ikind)%list_a_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom2d(ikind)%list_b_mol)) THEN
+          DEALLOCATE (atom2d(ikind)%list_b_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom2d(ikind)%list_1d)) THEN
+          DEALLOCATE (atom2d(ikind)%list_1d,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END DO
+    CALL timestop(handle)
+
+  END SUBROUTINE atom2d_cleanup
+
+! *****************************************************************************
+!> \brief   Build some distribution structure of atoms, refactored from build_qs_neighbor_lists
+!> \param   atom2d,orb_radius,orb_present : output
+!> \author  JH
+! *****************************************************************************
+  SUBROUTINE atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
+                          atomic_kind_set,molecule_set,molecule_only,dftb,particle_set,error)
+    TYPE(local_atoms_type), DIMENSION(:)     :: atom2d
+    REAL(dp), DIMENSION(:)                   :: orb_radius
+    LOGICAL, DIMENSION(:)                    :: orb_present
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    LOGICAL                                  :: molecule_only, dftb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_build', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, handle, ia, iat, iatom, iatom_local, ikind, imol, &
+      natom, natom_a, natom_local_a, natom_local_b, nel, nkind, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
+                                                local_cols_array, &
+                                                local_rows_array
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+
+
+    nkind=SIZE(atomic_kind_set)
+    natom=SIZE(particle_set)
+    ALLOCATE (atom_of_kind(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind)
+
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       NULLIFY (atom2d(ikind)%list)
+       NULLIFY (atom2d(ikind)%list_local_a_index)
+       NULLIFY (atom2d(ikind)%list_local_b_index)
+       NULLIFY (atom2d(ikind)%list_1d)
+       NULLIFY (atom2d(ikind)%list_a_mol)
+       NULLIFY (atom2d(ikind)%list_b_mol)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            atom_list=atom2d(ikind)%list,&
+                            orb_basis_set=orb_basis_set)
+       
+       natom_a = SIZE(atom2d(ikind)%list)
+
+       IF ( molecule_only ) THEN
+          natom_local_a = distribution_1d%n_el(ikind)
+          natom_local_b = distribution_1d%n_el(ikind)
+          local_rows_array => distribution_1d%list(ikind)%array
+          local_cols_array => distribution_1d%list(ikind)%array
+       ELSE
+          natom_local_a = distribution_2d%n_local_rows(ikind)
+          natom_local_b = distribution_2d%n_local_cols(ikind)
+          local_rows_array => distribution_2d%local_rows(ikind)%array
+          local_cols_array => distribution_2d%local_cols(ikind)%array
+       END IF
+
+       nel = distribution_1d%n_el(ikind)
+       ALLOCATE (atom2d(ikind)%list_1d(nel),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO iat=1,nel
+         ia = distribution_1d%list(ikind)%array(iat)
+         atom2d(ikind)%list_1d(iat) = atom_of_kind(ia)
+       END DO
+
+       IF (ASSOCIATED(orb_basis_set)) THEN
+          orb_present(ikind) = .TRUE.
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,kind_radius=orb_radius(ikind))
+       ELSE IF (dftb) THEN
+          ! Set the interaction radius for the neighbor lists (DFTB case)
+          ! This includes all interactions (orbitals and short range pair potential) except vdW
+          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+          CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+                                   cutoff=orb_radius(ikind),&
+                                   defined=orb_present(ikind),error=error)
+       ELSE
+          orb_present(ikind) = .FALSE.
+       END IF
+
+       IF ( orb_present(ikind) ) THEN
+          ALLOCATE (listsort(natom_a),listindex(natom_a),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          listsort(1:natom_a) = atom2d(ikind)%list(1:natom_a)
+          CALL sort(listsort,natom_a,listindex)
+          ! Block rows
+          IF (natom_local_a > 0) THEN
+             ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             atom2d(ikind)%list_a_mol(:) = 0
+
+
+             ! Build index vector for mapping
+             DO iatom_local=1,natom_local_a
+                atom_a = local_rows_array(iatom_local)
+                iatom = locate(listsort,atom_a)
+                atom2d(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
+                IF ( molecule_only ) THEN
+                   DO imol=1,SIZE(molecule_set)
+                      IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
+                           atom_a <= molecule_set(imol)%last_atom ) THEN
+                         atom2d(ikind)%list_a_mol(iatom_local) = imol
+                         EXIT
+                      END IF
+                   END DO
+                END IF
+             END DO
+
+          END IF
+
+          ! Block columns
+          IF (natom_local_b > 0) THEN
+
+             ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             atom2d(ikind)%list_b_mol(:) = 0
+
+             ! Build index vector for mapping
+             DO iatom_local=1,natom_local_b
+                atom_a = local_cols_array(iatom_local)
+                iatom = locate(listsort,atom_a)
+                atom2d(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
+                IF (molecule_only) THEN
+                   DO imol=1,SIZE(molecule_set)
+                      IF ((atom_a >= molecule_set(imol)%first_atom).AND.&
+                           (atom_a <= molecule_set(imol)%last_atom)) THEN
+                         atom2d(ikind)%list_b_mol(iatom_local) = imol
+                         EXIT
+                      END IF
+                   END DO
+                END IF
+             END DO
+
+          END IF
+
+          DEALLOCATE (listsort,listindex,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       END IF
+
+    ENDDO
+
+    DEALLOCATE (atom_of_kind,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE atom2d_build
 
 ! *****************************************************************************
 !> \brief   Build all the required neighbor lists for Quickstep.
@@ -124,13 +337,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: print_key_path
-    INTEGER :: atom_a, handle, ia, iat, iatom, iatom_local, ikind, imol, iw, &
-      maxatom, natom, natom_a, natom_local_a, natom_local_b, nel, nkind, &
-      stat, zat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
-                                                local_cols_array, &
-                                                local_rows_array
+    INTEGER                                  :: handle, ikind, iw, maxatom, &
+                                                nkind, stat, zat
     LOGICAL :: all_potential_present, dftb, failure, gth_potential_present, &
       mic, molecule_only, nddo, paw_atom, paw_atom_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
@@ -233,15 +441,10 @@ CONTAINS
     nddo = qs_env%dft_control%qs_control%semi_empirical
     dftb = qs_env%dft_control%qs_control%dftb
 
-    natom=SIZE(particle_set)
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
                              paw_atom_present=paw_atom_present,&
                              all_potential_present=all_potential_present,&
-                             atom_of_kind=atom_of_kind,&
                              maxatom=maxatom)
 
     CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
@@ -250,22 +453,17 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
-    ALLOCATE (atom2d(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     ALLOCATE (orb_present(nkind),aux_fit_present(nkind),aux_present(nkind),&
               default_present(nkind),core_present(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE (orb_radius(nkind),aux_fit_radius(nkind),c_radius(nkind),&
-              core_radius(nkind),STAT=stat)
+              core_radius(nkind),calpha(nkind),zeff(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     orb_radius(:) = 0.0_dp
     aux_fit_radius(:) = 0.0_dp
     c_radius(:) = 0.0_dp
     core_radius(:) = 0.0_dp
-    ALLOCATE (calpha(nkind),zeff(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     calpha(:) = 0.0_dp
     zeff(:) = 0.0_dp
 
@@ -294,14 +492,14 @@ CONTAINS
     END IF
 
     ! Initialize the local data structures
+    ALLOCATE (atom2d(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
+                      atomic_kind_set,molecule_set,molecule_only,dftb,particle_set,error)
+
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-       NULLIFY (atom2d(ikind)%list)
-       NULLIFY (atom2d(ikind)%list_local_a_index)
-       NULLIFY (atom2d(ikind)%list_local_b_index)
-       NULLIFY (atom2d(ikind)%list_1d)
-       NULLIFY (atom2d(ikind)%list_a_mol)
-       NULLIFY (atom2d(ikind)%list_b_mol)
 
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             atom_list=atom2d(ikind)%list,&
@@ -313,42 +511,6 @@ CONTAINS
                             paw_proj_set=paw_proj,&
                             paw_atom=paw_atom)
        
-       natom_a = SIZE(atom2d(ikind)%list)
-
-       IF ( molecule_only ) THEN
-          natom_local_a = distribution_1d%n_el(ikind)
-          natom_local_b = distribution_1d%n_el(ikind)
-          local_rows_array => distribution_1d%list(ikind)%array
-          local_cols_array => distribution_1d%list(ikind)%array
-       ELSE
-          natom_local_a = distribution_2d%n_local_rows(ikind)
-          natom_local_b = distribution_2d%n_local_cols(ikind)
-          local_rows_array => distribution_2d%local_rows(ikind)%array
-          local_cols_array => distribution_2d%local_cols(ikind)%array
-       END IF
-
-       nel = distribution_1d%n_el(ikind)
-       ALLOCATE (atom2d(ikind)%list_1d(nel),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO iat=1,nel
-         ia = distribution_1d%list(ikind)%array(iat)
-         atom2d(ikind)%list_1d(iat) = atom_of_kind(ia)
-       END DO
-
-       IF (ASSOCIATED(orb_basis_set)) THEN
-          orb_present(ikind) = .TRUE.
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,kind_radius=orb_radius(ikind))
-       ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
-          ! Set the interaction radius for the neighbor lists (DFTB case)
-          ! This includes all interactions (orbitals and short range pair potential) except vdW
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
-          CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
-                                   cutoff=orb_radius(ikind),&
-                                   defined=orb_present(ikind),error=error)
-       ELSE
-          orb_present(ikind) = .FALSE.
-       END IF
-
        ! SCP
        IF (ASSOCIATED(aux_basis_set)) THEN
           aux_present(ikind) = .TRUE.
@@ -361,69 +523,6 @@ CONTAINS
           CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,kind_radius=aux_fit_radius(ikind))
         ELSE
           aux_fit_present(ikind) = .FALSE.
-       END IF
-
-       IF ( orb_present(ikind) ) THEN
-          ALLOCATE (listsort(natom_a),listindex(natom_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          listsort(1:natom_a) = atom2d(ikind)%list(1:natom_a)
-          CALL sort(listsort,natom_a,listindex)
-          ! Block rows
-          IF (natom_local_a > 0) THEN
-             ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             atom2d(ikind)%list_a_mol(:) = 0
-
-             ! Build index vector for mapping
-             DO iatom_local=1,natom_local_a
-                atom_a = local_rows_array(iatom_local)
-                iatom = locate(listsort,atom_a)
-                atom2d(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
-                IF ( molecule_only ) THEN
-                   DO imol=1,SIZE(molecule_set)
-                      IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
-                           atom_a <= molecule_set(imol)%last_atom ) THEN
-                         atom2d(ikind)%list_a_mol(iatom_local) = imol
-                         EXIT
-                      END IF
-                   END DO
-                END IF
-             END DO
-
-          END IF
-
-          ! Block columns
-          IF (natom_local_b > 0) THEN
-
-             ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             atom2d(ikind)%list_b_mol(:) = 0
-
-             ! Build index vector for mapping
-             DO iatom_local=1,natom_local_b
-                atom_a = local_cols_array(iatom_local)
-                iatom = locate(listsort,atom_a)
-                atom2d(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
-                IF (molecule_only) THEN
-                   DO imol=1,SIZE(molecule_set)
-                      IF ((atom_a >= molecule_set(imol)%first_atom).AND.&
-                           (atom_a <= molecule_set(imol)%last_atom)) THEN
-                         atom2d(ikind)%list_b_mol(iatom_local) = imol
-                         EXIT
-                      END IF
-                   END DO
-                END IF
-             END DO
-
-          END IF
-
-          DEALLOCATE (listsort,listindex,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
        END IF
 
        ! core overlap
@@ -474,13 +573,8 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     ! enforce MIC for interaction lists in SE and DFTB
-    IF (nddo) THEN
-       mic = .TRUE.
-    ELSE IF (dftb) THEN
+    IF (nddo .OR. dftb) THEN
        mic = .TRUE.
     ELSE
        mic = .FALSE.
@@ -699,29 +793,7 @@ CONTAINS
     END IF
 
     ! Release work storage
-    DO ikind=1,nkind
-       NULLIFY (atom2d(ikind)%list)
-       IF (ASSOCIATED(atom2d(ikind)%list_local_a_index)) THEN
-          DEALLOCATE (atom2d(ikind)%list_local_a_index,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(atom2d(ikind)%list_local_b_index)) THEN
-          DEALLOCATE (atom2d(ikind)%list_local_b_index,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(atom2d(ikind)%list_a_mol)) THEN
-          DEALLOCATE (atom2d(ikind)%list_a_mol,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(atom2d(ikind)%list_b_mol)) THEN
-          DEALLOCATE (atom2d(ikind)%list_b_mol,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(atom2d(ikind)%list_1d)) THEN
-          DEALLOCATE (atom2d(ikind)%list_1d,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
+    CALL atom2d_cleanup(atom2d,error)
 
     DEALLOCATE (atom2d,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

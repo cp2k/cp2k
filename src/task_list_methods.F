@@ -104,7 +104,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE generate_qs_task_list(qs_env, task_list,&
                                    reorder_rs_grid_ranks, skip_load_balance_distributed, &
-                                   soft_valid, basis_set_id, error)
+                                   soft_valid, basis_set_id, pw_env_external, sab_orb_external, error)
                                    
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -113,6 +113,9 @@ CONTAINS
                                                 skip_load_balance_distributed
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb_external
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list', &
@@ -188,6 +191,11 @@ CONTAINS
            sab_aux_fit=sab_orb,&
            pw_env=pw_env,error=error)
     END SELECT
+
+    ! maybe just don't pas qs_env instead ??
+    IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
+    IF (PRESENT(sab_orb_external)) sab_orb=>sab_orb_external
+
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids, error=error)
 
     ! *** assign from pw_env

@@ -141,7 +141,13 @@ MODULE qs_environment
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii,&
-                                             init_se_nlradius
+                                             init_se_nlradius,&
+                                             write_core_charge_radii,&
+                                             write_geminal_radii,&
+                                             write_paw_radii,&
+                                             write_pgf_orb_radii,&
+                                             write_ppl_radii,&
+                                             write_ppnl_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -593,7 +599,16 @@ CONTAINS
 
     !   *** Initialize the atomic interaction radii ***
     CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,&
-         subsys_section,error)
+         error)
+
+    CALL write_pgf_orb_radii("orb",atomic_kind_set,subsys_section,error)
+    CALL write_geminal_radii(atomic_kind_set,subsys_section,error)
+    CALL write_pgf_orb_radii("aux",atomic_kind_set,subsys_section,error)
+    CALL write_core_charge_radii(atomic_kind_set,subsys_section,error)
+    CALL write_ppl_radii(atomic_kind_set,subsys_section,error)
+    CALL write_ppnl_radii(atomic_kind_set,subsys_section,error)
+    CALL write_paw_radii(atomic_kind_set,subsys_section,error)
+
 
     !   *** Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&

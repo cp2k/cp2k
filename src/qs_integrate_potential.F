@@ -735,7 +735,7 @@ CONTAINS
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace(v_rspace, p, h,qs_env,calculate_forces,compute_tau,gapw,&
-       basis_set_id, error)
+       basis_set_id, sab_orb_external, pw_env_external, task_list_external, error)
 
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(cp_dbcsr_p_type), INTENT(IN), &
@@ -745,6 +745,10 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb_external
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_external
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
@@ -863,6 +867,11 @@ CONTAINS
          force=force,pw_env=pw_env,&
          virial=virial,error=error)
     END SELECT
+
+    ! maybe don't even pass qs_env ???
+    IF (PRESENT(sab_orb_external)) sab_orb=>sab_orb_external
+    IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
+    IF (PRESENT(task_list_external)) task_list=>task_list_external
 
     IF (my_compute_tau) THEN
        CALL timeset(routineN,handle)
