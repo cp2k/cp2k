@@ -117,7 +117,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
-    TYPE(pw_type), POINTER                   :: rho_tot_r
+    TYPE(pw_type), POINTER                   :: rho_tot_r, rho_tot_r2
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
@@ -191,11 +191,23 @@ CONTAINS
                               error=error)
        ! IF GAPW the core charge is replaced by the compensation charge
        IF(gapw) THEN
-          CALL pw_transfer(rho0_s_gs%pw,rho_tot_r,error=error)
+          IF( dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+            CALL pw_transfer(rho_core%pw,rho_tot_r,error=error)
+            energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw,error=error)
+            CALL pw_pool_create_pw(auxbas_pool,rho_tot_r2,&
+                              in_space=REALSPACE,&
+                              use_data=REALDATA3D,&
+                              error=error)
+            CALL pw_transfer(rho0_s_gs%pw,rho_tot_r2,error=error)
+            CALL pw_axpy(rho_tot_r2,rho_tot_r,error=error)
+            CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r2,accept_non_compatible=.TRUE.,error=error)
+          ELSE
+            CALL pw_transfer(rho0_s_gs%pw,rho_tot_r,error=error)
           !
           ! QM/MM Nuclear Electrostatic Potential already included through rho0
           !
-          energy%qmmm_nu = 0.0_dp
+            energy%qmmm_nu = 0.0_dp
+          END IF
        ELSE
           CALL pw_transfer(rho_core%pw,rho_tot_r,error=error)
           !
