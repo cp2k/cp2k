@@ -16,7 +16,7 @@ MODULE helium_sampling
                                              cp_rm_iter_level
   USE global_types,                    ONLY: global_environment_type
   USE helium_common,                   ONLY: &
-       helium_boxmean_3d, helium_calc_plength, helium_calc_rdf, &
+       helium_boxmean_3d, helium_calc_plength, helium_calc_rdf, helium_calc_rho, &
        helium_calc_wnumber, helium_eval_expansion, helium_pbc, helium_rotate, &
        helium_spline, helium_update_transition_matrix
   USE helium_interactions,             ONLY: helium_bead_solute_e,&
@@ -26,7 +26,7 @@ MODULE helium_sampling
        helium_write_accepts, helium_write_coordinates, helium_write_energy, &
        helium_write_force, helium_write_force_inst, helium_write_line, &
        helium_write_perm, helium_write_plength, helium_write_rdf, &
-       helium_write_sdensity, helium_write_wnumber
+       helium_write_rho, helium_write_sdensity, helium_write_wnumber
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
   USE input_cp2k_restarts,             ONLY: write_restart
@@ -35,7 +35,6 @@ MODULE helium_sampling
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum
   USE parallel_rng_types,              ONLY: next_random_number
-  USE pint_public,                     ONLY: pint_com_pos
   USE pint_types,                      ONLY: pint_env_type
   USE splines_types,                   ONLY: spline_data_p_type
   USE timings,                         ONLY: timeset,&
@@ -72,6 +71,7 @@ MODULE helium_sampling
 
     INTEGER                                  :: step, tot_steps
     LOGICAL                                  :: failure, should_stop
+    REAL(kind=dp)                            :: rtmp
     TYPE(pint_env_type), POINTER             :: pint_env
 
     failure=.FALSE.
@@ -164,6 +164,7 @@ MODULE helium_sampling
     ! averaged over parallel helium environments once per step.
 
     ! helium sampling (outer MC loop)
+    inv_iter_rot = 1.0_dp / REAL(helium%iter_rot,dp)
     DO irot = 1, helium%iter_rot
 
       ! rotate helium beads in imaginary time at random, store current
@@ -181,11 +182,13 @@ MODULE helium_sampling
       CALL helium_calc_energy(helium,pint_env)
       CALL helium_calc_wnumber( helium )
       CALL helium_calc_plength( helium, error )
-      CALL helium_calc_rdf( helium, pint_env, error )
+      CALL helium_calc_rdf( helium, error )
+      IF (helium%rho_present) CALL helium_calc_rho( helium, error )
 
       ! instantaneous force output according to HELIUM%PRINT%FORCES_INST
       ! Warning: file I/O here may cost A LOT of cpu time!
-      CALL helium_write_force_inst( helium, error )
+      ! switched off here to save cpu
+      !CALL helium_write_force_inst( helium, error )
 
       ! collect instantaneous values for averaging
       helium%force_avrg(:,:) = &
@@ -195,6 +198,12 @@ MODULE helium_sampling
       helium%sdensity_avrg = helium%sdensity_avrg + helium%sdensity_inst
       helium%plength_avrg(:) = helium%plength_avrg(:) + helium%plength_inst(:)
       helium%rdf_avrg(:) = helium%rdf_avrg(:) + helium%rdf_inst(:)
+      IF (helium%rho_present) THEN
+        helium%rho_s_avrg(:,:,:) = helium%rho_s_avrg(:,:,:) + &
+                                   helium%rho_s_inst(:,:,:) * inv_iter_rot
+        helium%rho_n_avrg(:,:,:) = helium%rho_n_avrg(:,:,:) + &
+                                   helium%rho_n_inst(:,:,:) * inv_iter_rot
+      END IF
 
     END DO
 
@@ -204,7 +213,6 @@ MODULE helium_sampling
     CALL helium_rotate(helium,-helium%relrot, error)
 
     ! actually average the forces and properties over the outer MC loop
-    inv_iter_rot = 1.0_dp / REAL(helium%iter_rot,dp)
     helium%force_avrg(:,:) = helium%force_avrg(:,:) * inv_iter_rot
     helium%energy_avrg(:) = helium%energy_avrg(:) * inv_iter_rot
     helium%wnumber_avrg(:) = helium%wnumber_avrg(:) * inv_iter_rot
@@ -250,7 +258,6 @@ MODULE helium_sampling
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: time_start, time_stop, &
                                                 time_used
-    REAL(kind=dp), DIMENSION(3)              :: r0
 
     CALL timeset(routineN,handle)
     time_start = m_walltime()
@@ -267,17 +274,10 @@ MODULE helium_sampling
     CALL helium_write_wnumber( helium, error )
     CALL helium_write_plength( helium, error )
     CALL helium_write_rdf( helium, error )
+    IF (helium%rho_present) CALL helium_write_rho( helium, error )
     CALL helium_write_perm( helium, error )
     CALL helium_write_accepts( helium, error )
-
-    ! write out He coordinates
-    IF (helium%solute_present) THEN
-      r0 = pint_com_pos(pint_env,error)
-    ELSE
-      r0 = (/0.0_dp, 0.0_dp, 0.0_dp/)
-    END IF
-    CALL helium_write_coordinates( helium, r0, error=error )
-
+    CALL helium_write_coordinates( helium, error=error )
     CALL helium_write_force( helium, error )
 
     time_stop = m_walltime()

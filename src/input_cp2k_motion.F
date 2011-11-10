@@ -2396,13 +2396,11 @@ CONTAINS
 
     failure=.FALSE.
 
-    !TODO creating PINT section with option required=.TRUE. does not (luckily)
-    ! cause this section to be really required - however this is a bug (?)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PINT",&
             description="The section that controls a path integral run",&
-            n_keywords=10, n_subsections=8, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=11, n_subsections=8, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
 
@@ -2466,6 +2464,16 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="FIX_CENTROID_POS",&
+            description="Propagate all DOF but the centroid - "//&
+            "useful for equilibration of the non-centroid modes "//&
+            "(activated only if TRANSFORMATION==NORMAL)",&
+            repeats=.FALSE., default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        NULLIFY(subsection,subsubsection)
        CALL section_create(subsection,name="NORMALMODE",&
@@ -2492,7 +2500,7 @@ CONTAINS
 
        CALL section_create(subsection,name="staging",&
             description="The section that controls the staging transformation",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
        CALL keyword_create(keyword, name="j",&
             description="Value of the j parameter for the staging transformation",&
@@ -2545,19 +2553,57 @@ CONTAINS
        CALL section_create( subsection, name="INIT",&
             description="Controls the initialization if the beads are not present",&
             repeats=.FALSE., required=.FALSE., error=error)
-       CALL keyword_create(keyword, name="randomize_pos",&
+
+       CALL keyword_create(keyword, name="LEVY_POS_SAMPLE",&
+            description="Sample bead positions assuming free particle "//&
+            "behavior (performs a Levy random walk of length P around "//&
+            "the classical position of each atom at the physical "//&
+            "temperature defined in PINT%TEMP)",&
+            repeats=.FALSE., default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="LEVY_TEMP_FACTOR",&
+            description="Multiplicative correction factor for the "//&
+            "temperature at which the Levy walk is performed "//&
+            "(correction is due to the interactions that modify "//&
+            "the spread of a free particle)",&
+            repeats=.FALSE., default_r_val=1.0_dp,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="LEVY_SEED",&
+            description="Initial seed for the (pseudo)random number "//&
+            "generator that controls Levy walk for bead positions.",&
+            usage="LEVY_SEED <INTEGER>",default_i_val=1234,&
+            supported_feature=.TRUE.,repeats=.FALSE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RANDOMIZE_POS",&
             description="add gaussian noise to the positions of the beads",&
             repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="centroid_speed",&
-            description="adds a speed to the centroid "//&
-            "(useful to correct for the averaging out of the speed ov various beads)",&
+
+       CALL keyword_create(keyword, name="CENTROID_VELOCITY",&
+            description="Assign velocities from FORCE_EVAL%SUBSYS%VELOCITY "//&
+            "to the centroid and sample velocities of the remaining modes "//&
+            "from the Maxwell-Boltzmann distribution",&
+            repeats=.FALSE., default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="CENTROID_SPEED",&
+            description="adds random velocity component to the centroid modes "//&
+            "(useful to correct for the averaging out of the speed of various beads)",&
             repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -2598,6 +2644,13 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"CENTROID_GYR",&
+            description="Controls the output of the centroid's radii of gyration", &
+            unit_str="angstrom",&
+            print_level=low_print_level,common_iter_levels=1,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"COM",&
             description="Controls the output of the center of mass",&
             print_level=high_print_level,common_iter_levels=1,error=error)
@@ -2623,7 +2676,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: print_key, subsection, subsubsection
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2759,6 +2812,19 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="PRESAMPLE", &
+         description="Presample He coordinates before first PIMD step",&
+         repeats=.FALSE., default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="DROP_UNUSED_ENVS", &
+         description="Drop He environments if N_restart > N_runtime "//&
+         "(Warning: this will cause data loss in the restart file!)",&
+         repeats=.FALSE., default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     NULLIFY(subsection)
     CALL section_create(subsection,name="RDF",&
          description="Radial distribution function generation settings",&
@@ -2779,6 +2845,67 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
+
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="RHO",&
+         description="Density distribution settings",&
+         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+         description="Whether or not to actually calculate densities "//&
+         "(requires significant amount of memory, depending on the value of NBIN)",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="NBIN", &
+         description="Number of bins",&
+         repeats=.FALSE.,&
+         default_i_val=100,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="IWEIGHT", &
+         description="Weight the restarted density should be given " // &
+         "(number of MC steps used to average the restarted density, " // &
+         "negative value - the same weight as the run-time density, " // &
+         "usually should not be changed)",&
+         repeats=.FALSE.,&
+         default_i_val=-1,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    NULLIFY(subsubsection)
+    CALL section_create(subsubsection,name="CUBE_DATA_S",&
+         description="Density (S) data used for restarts",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Cubefile data", &
+         repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1, error=error)
+    CALL section_add_keyword(subsubsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(subsection,subsubsection,error=error)
+    CALL section_release(subsubsection,error=error)
+
+    CALL section_create(subsubsection,name="CUBE_DATA_N",&
+         description="Density (N) data used for restarts",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Cubefile data", &
+         repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1, error=error)
+    CALL section_add_keyword(subsubsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(subsection,subsubsection,error=error)
+    CALL section_release(subsubsection,error=error)
+
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+    ! end of subsection RHO
 
     CALL create_coord_section(subsection,"HELIUM",error=error)
     CALL section_add_subsection(section,subsection,error=error)
@@ -2876,6 +3003,21 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"RDF",&
          description="Controls the output of the helium radial distribution function",&
          print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"RHO",&
+         description="Controls the output of the helium density "//&
+                     "(Gaussian cube file format)",&
+         each_iter_names=s2a("MD"),each_iter_values=(/100/),&
+         print_level=medium_print_level, common_iter_levels=1,&
+         add_last=add_last_numeric, error=error)
+    CALL keyword_create(keyword, name="BACKUP_COPIES",&
+         description="Specifies the maximum number of backup copies.",&
+         usage="BACKUP_COPIES {int}",&
+         default_i_val=1, error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 

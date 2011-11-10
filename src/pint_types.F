@@ -63,18 +63,18 @@ MODULE pint_types
   !> \param randomG random number stream descriptor
   !> \param mass real masses
   !> \param e_pot_bead array with last energies from QS per replica
-  !> \param x array with real space coordinates (p, ndim)
+  !> \param x array with real space coordinates (P, 3*N)
   !> \param v array with real space velocities
   !> \param f array with real space forces
   !> \param mass_beads masses of the beads for harmonic forces (harmonic mass)
   !> \param mass_fict fictious mass of the beads for dynamics (kinetic mass)
-  !> \param ux array with transformed space coordinates
+  !> \param ux array with transformed space coordinates (P, 3*N)
   !> \param uv array with transformed velocities
   !> \param uv_t array with temporary transformed velocities
   !> \param uv_new array with new transformed velocities
   !> \param uf array with transformed accelerations (QS part)
   !> \param uf_h array with harmonic part transformed forces (sometimes with uf added)
-  !> \param tx nose hoover chain positions
+  !> \param tx nose hoover chain positions (pint_env%nnos,pint_env%p,pint_env%ndim)
   !> \param tv nose hoover chain velocities
   !> \param tv_t nose hoover chain velocities (temporary)
   !> \param tv_old nose hoover chain velocities (older)
@@ -82,6 +82,8 @@ MODULE pint_types
   !> \param tf nose hoover chain forces (?)
   !> \param Q nose hoover chain masses
   !> \param time_per_step - time per step in seconds (updated every step)
+  !> \param first_propagated_mode if 1 - propagate all normal modes,
+  !>                              if 2 - keep centoid fixed
   !> \author fawzi
   !> \par History
   !>      Added some comments - hforbert
@@ -91,7 +93,7 @@ MODULE pint_types
   ! ***************************************************************************
   TYPE pint_env_type
      INTEGER :: ref_count, id_nr, p, nnos, nrespa, iter, ndim, transform
-     INTEGER :: first_step, last_step, num_steps
+     INTEGER :: first_step, last_step, num_steps, first_propagated_mode
      INTEGER :: pimd_thermostat
      REAL(kind=dp) :: t_tol, v_tol, kT, beta, dt, &
           e_gle, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
@@ -108,6 +110,7 @@ MODULE pint_types
           mass_fict,ux,uv,uv_t,uv_new,uf,uf_h, external_f
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: tx,tv,tv_t,tv_old,tv_new,tf
      REAL(kind=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
+     REAL(kind=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
   END TYPE pint_env_type
 
   ! ***************************************************************************

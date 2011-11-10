@@ -17,6 +17,7 @@ MODULE helium_methods
                                              open_file
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -30,7 +31,8 @@ MODULE helium_methods
                                              helium_solvent_type
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_none,&
-                                             helium_cell_shape_octahedron
+                                             helium_cell_shape_octahedron,&
+                                             silent_print_level
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -53,6 +55,7 @@ MODULE helium_methods
                                              kelvin,&
                                              massunit
   USE pint_types,                      ONLY: pint_env_type
+  USE pint_public,                     ONLY: pint_com_pos
   USE splines_methods,                 ONLY: init_spline,&
                                              init_splinexy
   USE splines_types,                   ONLY: spline_data_create,&
@@ -86,7 +89,7 @@ MODULE helium_methods
   SUBROUTINE helium_create( helium, input, solute, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(pint_env_type), OPTIONAL, POINTER   :: solute
+    TYPE(pint_env_type), OPTIONAL, POINTER  :: solute
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_create', &
@@ -98,7 +101,7 @@ MODULE helium_methods
                                                 itmp, j, nlines, ntab, stat
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
-                                                expl_nats, explicit, failure
+                                                expl_nats, explicit, failure, ltmp
     REAL(KIND=dp)                            :: cgeof, dx, rtmp, tcheck, x1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_transfer
@@ -177,9 +180,10 @@ MODULE helium_methods
             "MOTION%PINT%HELIUM%NUM_ENV",&
             i_val=helium%num_env, error=error)
 
-       ! exit if the restart contains more environments than the runtime
-       ! since this will cause the data loss in the restart file
-!TODO: take care of this case as well
+       ! if the restart file contains more environments than the runtime
+       ! the additional environments (possibly with valuable permutation state)
+       ! will be lost, we won't proceed in this case by default, the user might
+       ! enforce this explicitly though
        IF ( helium%num_env_restart .GT. helium%num_env ) THEN
            stmp = ""
          WRITE(stmp,*) helium%num_env
@@ -188,9 +192,17 @@ MODULE helium_methods
            stmp = ""
          WRITE(stmp,*) helium%num_env_restart
          msg_str = TRIM(ADJUSTL(msg_str)) // TRIM(ADJUSTL(stmp)) // ")!"
+         CALL helium_write_line(msg_str,error)
+         CALL section_vals_val_get(helium_section,"DROP_UNUSED_ENVS",&
+              l_val=ltmp, error=error)
+         IF (ltmp) THEN
+           msg_str = "DROP_UNUSED_ENVS set - proceeding anyways."
+           CALL helium_write_line(msg_str,error)
+         ELSE
            CALL cp_assert( .FALSE., cp_failure_level, &
-             cp_assertion_failed, routineP, msg_str )
+                cp_assertion_failed, routineP, msg_str )
          END IF
+       END IF
 
        CALL section_vals_val_get(helium_section,"NBEADS",&
               i_val=helium%beads, error=error)
@@ -498,6 +510,53 @@ MODULE helium_methods
        ALLOCATE(helium%plength_inst(helium%atoms),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+       ! density related data
+       CALL section_vals_val_get(helium_section, &
+            "RHO%_SECTION_PARAMETERS_", &
+            l_val=helium%rho_present, error=error)
+       IF ( helium%rho_present ) THEN
+         helium%rho_maxr = helium%cell_size
+         CALL section_vals_val_get(helium%input, &
+              "MOTION%PINT%HELIUM%RHO%IWEIGHT",&
+              i_val=helium%rho_iweight, error=error)
+         CALL section_vals_val_get(helium_section,"RHO%NBIN",&
+              i_val=helium%rho_nbin, error=error)
+         helium%rho_delr = helium%rho_maxr / REAL(helium%rho_nbin)
+         helium%rho_minb = INT(-helium%cell_size / 2.0_dp / helium%rho_delr )
+         itmp = helium%rho_nbin
+         ALLOCATE(helium%rho_s_avrg(itmp,itmp,itmp),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(helium%rho_n_avrg(itmp,itmp,itmp),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(helium%rho_s_inst(itmp,itmp,itmp),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(helium%rho_n_inst(itmp,itmp,itmp),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         helium%rho_s_inst(:,:,:) = 0.0_dp
+         helium%rho_n_inst(:,:,:) = 0.0_dp
+         helium%rho_s_avrg(:,:,:) = 0.0_dp
+         helium%rho_n_avrg(:,:,:) = 0.0_dp
+
+         ! make sure that the density gets actually printed,
+         ! as we will make so much effort to calculated it
+         CALL section_vals_val_set(helium%input, &
+              "MOTION%PINT%HELIUM%PRINT%RHO%_SECTION_PARAMETERS_",&
+              i_val=silent_print_level-1, error=error)
+       END IF
+
+       CALL section_vals_val_get(helium%input, &
+            "EXT_RESTART%RESTART_HELIUM_DENSITIES", &
+            l_val=helium%rho_restart,error=error)
+       IF ( helium%rho_restart ) THEN
+         IF ( helium%rho_present) THEN
+           CALL helium_densities_restore( helium, error )
+         ELSE
+           msg_str = "Inconsistent input: densities not calculated but restarted!"
+           CALL cp_assert(.FALSE.,cp_failure_level,&
+                cp_assertion_failed, routineP, msg_str)
+         END IF
+       END IF
+
        ! RNG state create & init
        CALL helium_rng_state_init( helium, error )
 
@@ -652,6 +711,27 @@ MODULE helium_methods
           helium%force_avrg &
         )
 
+        IF ( helium%rho_present ) THEN
+          IF ( helium%rho_restart ) THEN
+            DEALLOCATE( helium%rho_n_rstr, helium%rho_s_rstr, STAT=stat )
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            NULLIFY( helium%rho_n_rstr, helium%rho_s_rstr )
+          END IF
+          DEALLOCATE( &
+            helium%rho_n_inst, &
+            helium%rho_s_inst, &
+            helium%rho_n_avrg, &
+            helium%rho_s_avrg, &
+            STAT=stat &
+          )
+          NULLIFY(&
+            helium%rho_n_inst, &
+            helium%rho_s_inst, &
+            helium%rho_n_avrg, &
+            helium%rho_s_avrg &
+          )
+        END IF
+
         ! DEALLOCATE helium-related arrays
         DEALLOCATE ( &
           helium%plength_inst, &
@@ -773,7 +853,10 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit, &
+                                                explicit_presample, &
+                                                failure, presample, &
+                                                coords_presampled
     TYPE(section_vals_type), POINTER         :: helium_section, sec
 
     CALL timeset(routineN,handle)
@@ -785,6 +868,16 @@ MODULE helium_methods
     NULLIFY(helium_section)
     helium_section => section_vals_get_subs_vals(helium%input, &
       "MOTION%PINT%HELIUM", error=error)
+
+    ! restore RNG state
+    NULLIFY(sec)
+    sec => section_vals_get_subs_vals(helium_section,"RNG_STATE",error=error)
+    CALL section_vals_get(sec,explicit=explicit,error=error)
+    IF ( explicit ) THEN
+      CALL helium_rng_state_restore( helium, error )
+    ELSE
+      CALL helium_write_line("RNG state initialized as new.",error)
+    END IF
 
     ! init/restore permutation state
     NULLIFY(sec)
@@ -801,21 +894,54 @@ MODULE helium_methods
     NULLIFY(sec)
     sec => section_vals_get_subs_vals(helium_section,"COORD",error=error)
     CALL section_vals_get(sec,explicit=explicit,error=error)
+
+    CALL section_vals_val_get(helium_section,"PRESAMPLE",&
+         l_val=presample, error=error)
+    CALL section_vals_val_get(helium_section,"PRESAMPLE",&
+         explicit=explicit_presample, error=error)
+
+    coords_presampled = .FALSE.
     IF ( explicit ) THEN
       CALL helium_coord_restore( helium, error )
+      IF ( presample ) THEN
+        ! Default value of PINT%HELIUM%PRESAMPLE is .FALSE. so if the actual
+        ! value is .TRUE. it must have been supplied explicitly.
+        ! This might be used to force presampling even though the cooridnates
+        ! are given in the restart file.
+        CALL helium_sample( helium, pint_env, error )
+        helium%force_avrg(:,:) = 0.0_dp
+        helium%energy_avrg(:) = 0.0_dp
+        helium%wnumber_avrg(:) = 0.0_dp
+        helium%sdensity_avrg = 0.0_dp
+        helium%plength_avrg(:) = 0.0_dp
+        helium%rdf_avrg(:) = 0.0_dp
+        helium%num_accepted(:,:) = 0.0_dp
+        coords_presampled = .TRUE.
+        CALL helium_write_line("Bead coordinates pre-sampled.",error)
+      END IF
     ELSE
       CALL helium_coord_init( helium, pint_env, error )
       CALL helium_write_line("Bead coordinates initialized as random.",error)
-    END IF
-
-    ! restore RNG state
-    NULLIFY(sec)
-    sec => section_vals_get_subs_vals(helium_section,"RNG_STATE",error=error)
-    CALL section_vals_get(sec,explicit=explicit,error=error)
-    IF ( explicit ) THEN
-      CALL helium_rng_state_restore( helium, error )
-    ELSE
-      CALL helium_write_line("RNG state initialized as new.",error)
+      IF ( (explicit_presample .AND. presample) .OR. &
+           (.NOT. explicit_presample) ) THEN
+        ! Perform initial MC sampling to get rid of the overlaps.
+        ! This IF catches two cases: a) PRESAMPLE given explicitly and it's
+        ! value set to .TRUE. and b) PRESAMPLE not given explicitly (then
+        ! it's value is set to .FALSE. by default. It does not catch the
+        ! case when PRESAMPLE is given explicitly and it's value is set to
+        ! .FALSE. - this might be used to skip presampling even though the
+        ! coordinates are not given in the restart file.
+        CALL helium_sample( helium, pint_env, error )
+        helium%force_avrg(:,:) = 0.0_dp
+        helium%energy_avrg(:) = 0.0_dp
+        helium%wnumber_avrg(:) = 0.0_dp
+        helium%sdensity_avrg = 0.0_dp
+        helium%plength_avrg(:) = 0.0_dp
+        helium%rdf_avrg(:) = 0.0_dp
+        helium%num_accepted(:,:) = 0.0_dp
+        coords_presampled = .TRUE.
+        CALL helium_write_line("Bead coordinates pre-sampled.",error)
+      END IF
     END IF
 
     IF ( helium%solute_present ) THEN
@@ -824,11 +950,22 @@ MODULE helium_methods
       sec => section_vals_get_subs_vals(helium_section,"FORCE",error=error)
       CALL section_vals_get(sec,explicit=explicit,error=error)
       IF ( explicit ) THEN
-        CALL helium_force_restore( helium, error )
+        IF ( .NOT. coords_presampled ) THEN
+          CALL helium_force_restore( helium, error )
+        END IF
       ELSE
-        CALL helium_force_init( helium, pint_env, error )
-        CALL helium_write_line("Forces on the solute initialized as zero.",error)
+        IF ( .NOT. coords_presampled ) THEN
+          CALL helium_force_init( helium, pint_env, error )
+          CALL helium_write_line("Forces on the solute initialized as zero.",error)
+        END IF
       END IF
+    END IF
+
+    ! set the origin for rdf and density calculations
+    IF (helium%solute_present) THEN
+      helium%origin = pint_com_pos(pint_env,error)
+    ELSE
+      helium%origin = (/0.0_dp, 0.0_dp, 0.0_dp/)
     END IF
 
     CALL timestop(handle)
@@ -863,7 +1000,6 @@ MODULE helium_methods
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
 
-!TODO make sure that helium atoms do not overlap with the solute
     DO ia = 1, helium%atoms
       DO ic = 1, 3
         r1 = next_random_number(helium%rng_stream_uniform,error=error)
@@ -878,9 +1014,6 @@ MODULE helium_methods
         CALL helium_pbc( helium, helium%pos(:,ia,ib) )
       END DO
     END DO
-
-    ! perform initial MC sampling to get rid of the overlaps
-    CALL helium_sample( helium, pint_env, error )
 
     RETURN
   END SUBROUTINE helium_coord_init
@@ -1509,6 +1642,95 @@ MODULE helium_methods
    RETURN
   END SUBROUTINE helium_rng_state_restore
 
+
+  ! ***************************************************************************
+  !> \brief  Restore the densities from the input structure.
+  !> \author Lukasz Walewski
+  !> \date   2011-06-22
+  !> \author Lukasz Walewski
+  ! ***************************************************************************
+  SUBROUTINE helium_densities_restore( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_densities_restore', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: err_str, stmp1, stmp2
+    INTEGER                                  :: msglen, istat, itmp
+    REAL(kind=dp), DIMENSION(:), POINTER     :: message_s, message_n
+    LOGICAL                                  :: ltmp, failure
+    LOGICAL, DIMENSION(:, :, :), POINTER     :: m
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: f
+
+    itmp = helium%rho_nbin
+    ALLOCATE(helium%rho_s_rstr(itmp,itmp,itmp),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(helium%rho_n_rstr(itmp,itmp,itmp),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! assign pointers to the memory locations in the input structure, where
+    ! the old densities are stored and check if the sizes match
+    NULLIFY(message_s)
+    CALL section_vals_val_get( helium%input, &
+         "MOTION%PINT%HELIUM%RHO%CUBE_DATA_S%_DEFAULT_KEYWORD_", &
+         r_vals=message_s, error=error)
+    msglen = SIZE(message_s)
+    itmp = (helium%rho_nbin)**3
+    ltmp = ( msglen .EQ. itmp )
+    IF ( .NOT. ltmp ) THEN
+      stmp1 = ""
+      WRITE(stmp1,*) msglen
+      stmp2 = ""
+      WRITE(stmp2,*) itmp
+      err_str = "Size of the S density array in the input (" // &
+                TRIM(ADJUSTL(stmp1)) // &
+                ") .NE. that in the runtime (" // &
+                TRIM(ADJUSTL(stmp2)) // ")."
+      CALL cp_assert(.FALSE.,cp_failure_level,&
+           cp_assertion_failed, routineP, err_str)
+    END IF
+    NULLIFY(message_n)
+    CALL section_vals_val_get( helium%input, &
+         "MOTION%PINT%HELIUM%RHO%CUBE_DATA_N%_DEFAULT_KEYWORD_", &
+         r_vals=message_n, error=error)
+    itmp = SIZE(message_n)
+    ltmp = ( msglen .EQ. itmp )
+    IF ( .NOT. ltmp ) THEN
+      stmp1 = ""
+      WRITE(stmp1,*) msglen
+      stmp2 = ""
+      WRITE(stmp2,*) itmp
+      err_str = "Size of the S density array (" // &
+                TRIM(ADJUSTL(stmp1)) // &
+                ") .NE. size of the N array (" // &
+                TRIM(ADJUSTL(stmp2)) // ")."
+      CALL cp_assert(.FALSE.,cp_failure_level,&
+           cp_assertion_failed, routineP, err_str)
+    END IF
+
+    itmp = helium%rho_nbin
+    NULLIFY(m,f)
+    ALLOCATE(m(itmp,itmp,itmp),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(f(itmp,itmp,itmp),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    m(:,:,:) = .TRUE.
+    f(:,:,:) = 0.0_dp
+
+    helium%rho_s_rstr(:,:,:) = UNPACK(message_s(1:msglen), MASK=m, FIELD=f)
+    helium%rho_n_rstr(:,:,:) = UNPACK(message_n(1:msglen), MASK=m, FIELD=f)
+
+    DEALLOCATE(f,m,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(message_s, message_n)
+
+    RETURN
+  END SUBROUTINE helium_densities_restore
+
+
   ! ***************************************************************************
   !> \brief Count atoms of different types and store their global indices.
   !> \note  Arrays ALLOCATEd here are (should be) DEALLOCATEd in
@@ -1525,8 +1747,9 @@ MODULE helium_methods
     CHARACTER(LEN=2)                         :: my_element_symbol
     CHARACTER(LEN=2), DIMENSION(:), POINTER  :: element
     INTEGER                                  :: i, j, natoms, nelements, &
-                                                status
+                                                istat, mnum
     LOGICAL                                  :: found, my_failure
+    REAL(KIND=dp)                            :: mass
     TYPE(cp_error_type)                      :: my_error
     TYPE(cp_subsys_type), POINTER            :: my_subsys
     TYPE(f_env_type), POINTER                :: my_f_env
@@ -1542,26 +1765,36 @@ MODULE helium_methods
     CALL force_env_get(force_env=my_f_env%force_env, subsys=my_subsys, &
       error=my_error)
     CALL cp_subsys_get(my_subsys, particles=my_particles, error=my_error)
-    CALL f_env_rm_defaults(my_f_env, my_error, status)
-    CPPostcondition(status==0,cp_failure_level,routineP,my_error,my_failure)
+    CALL f_env_rm_defaults(my_f_env, my_error, istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,my_error,my_failure)
 
     natoms  = helium%solute_atoms
     NULLIFY(helium%solute_element)
-    ALLOCATE(helium%solute_element(natoms), STAT=status)
-    CPPostcondition(status==0, cp_fatal_level, routineP, my_error, my_failure)
+    ALLOCATE(helium%solute_element(natoms), STAT=istat)
+    CPPostcondition(istat==0, cp_fatal_level, routineP, my_error, my_failure)
 
     ! in the worst case there will be as many atomic types as atoms
     NULLIFY(element)
-    ALLOCATE(element(natoms), STAT=status)
-    CPPostcondition(status==0, cp_fatal_level, routineP, my_error, my_failure)
+    ALLOCATE(element(natoms), STAT=istat)
+    CPPostcondition(istat==0, cp_fatal_level, routineP, my_error, my_failure)
 
     ! find out how many different atomic types are there
-!TODO: probably this can be done 'CP2K way'
     nelements = 0
     DO i=1, natoms
-      CALL get_atomic_kind( my_particles%els(i)%atomic_kind, &
-        element_symbol=my_element_symbol)
-      CALL uppercase(my_element_symbol)
+      CALL get_atomic_kind( my_particles%els(i)%atomic_kind, mass=mass)
+      mnum = NINT(cp_unit_from_cp2k(mass, "amu", error=my_error))
+      SELECT CASE (mnum)
+        CASE (1)
+          my_element_symbol = "H "
+        CASE (16)
+          my_element_symbol = "O "
+        CASE (35)
+          my_element_symbol = "CL"
+        CASE DEFAULT
+          WRITE(*,*) "Atomic mass number'", mnum, &
+            "' not supported by the HELIUM code."
+          CPAssert(.FALSE., cp_failure_level, routineP, my_error, my_failure)
+      END SELECT
       helium%solute_element(i) = my_element_symbol
       ! check if this element symbol is already present in element
       found = .FALSE.
@@ -1582,9 +1815,9 @@ MODULE helium_methods
     ! allocate the arrays, DEALLOCATE them in helium_release
     ! (solute_index a bit superfluous at the moment)
     NULLIFY(helium%solute_number,helium%solute_index)
-    ALLOCATE(helium%solute_number(3), STAT=status)
-    ALLOCATE(helium%solute_index(3,natoms), STAT=status)
-    CPPostcondition(status==0,cp_fatal_level,routineP,my_error,my_failure)
+    ALLOCATE(helium%solute_number(3), STAT=istat)
+    ALLOCATE(helium%solute_index(3,natoms), STAT=istat)
+    CPPostcondition(istat==0,cp_fatal_level,routineP,my_error,my_failure)
 
     ! collect atomic indices
     helium%solute_number(:) = 0
@@ -1606,8 +1839,8 @@ MODULE helium_methods
       END SELECT
     END DO
 
-    DEALLOCATE(element, STAT=status)
-    CPPostconditionNoFail(status==0, cp_warning_level, routineP, my_error)
+    DEALLOCATE(element, STAT=istat)
+    CPPostconditionNoFail(istat==0, cp_warning_level, routineP, my_error)
 
     RETURN
   END SUBROUTINE helium_set_solute_indices

@@ -15,15 +15,14 @@ MODULE helium_common
                                              helium_solvent_type
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_octahedron
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE parallel_rng_types,              ONLY: next_random_number
   USE physcon,                         ONLY: a_mass,&
                                              angstrom,&
                                              boltzmann,&
                                              h_bar,&
                                              kelvin
-  USE pint_public,                     ONLY: pint_com_pos
-  USE pint_types,                      ONLY: pint_env_type
   USE splines_methods,                 ONLY: spline_value
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type
@@ -43,6 +42,7 @@ MODULE helium_common
   PUBLIC :: helium_boxmean_3d
   PUBLIC :: helium_calc_wnumber
   PUBLIC :: helium_calc_rdf
+  PUBLIC :: helium_calc_rho
   PUBLIC :: helium_calc_plength
   PUBLIC :: helium_rotate
   PUBLIC :: helium_eval_expansion
@@ -50,6 +50,7 @@ MODULE helium_common
   PUBLIC :: helium_spline
   PUBLIC :: helium_cycle_number
   PUBLIC :: helium_path_length
+  PUBLIC :: helium_is_winding
 
   CONTAINS
 
@@ -335,10 +336,9 @@ MODULE helium_common
 !> \note   Actually calculate the histogram only, the normalization is
 !>         postponed to the postprocessing stage.
 ! *****************************************************************************
-  SUBROUTINE helium_calc_rdf( helium, pint_env, error )
+  SUBROUTINE helium_calc_rdf( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
@@ -349,20 +349,14 @@ MODULE helium_common
     REAL(kind=dp)                            :: ri
     REAL(kind=dp), DIMENSION(3)              :: r, r0
 
-    CALL timeset(routineN,handle)
+!    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
 
-    ! choose the origin for RDF calculation
-    IF (helium%solute_present) THEN
-      r0 = pint_com_pos(pint_env,error)
-    ELSE
-      r0 = (/0.0_dp, 0.0_dp, 0.0_dp/)
-    END IF
-
     ! calculate the histogram of distances
     helium%rdf_inst(:) = 0.0_dp
+    r0(:) = helium%origin(:)
     DO ia = 1, helium%atoms
       DO ib = 1, helium%beads
         r(:) = helium%pos(:,ia,ib) - r0(:)
@@ -389,10 +383,84 @@ MODULE helium_common
 !    END DO
 !    norm = norm * helium%rdf_delr
 
-    CALL timestop(handle)
+!    CALL timestop(handle)
 
     RETURN
   END SUBROUTINE helium_calc_rdf
+
+
+! *****************************************************************************
+!> \brief  Calculate helium density distribution function wrt <r0>.
+!> \author Lukasz Walewski
+!> \date   2011-06-14
+!> \descr  The calculated density is stored in the helium%rho_s_inst array.
+! *****************************************************************************
+  SUBROUTINE helium_calc_rho( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bx, by, bz, handle, ia, ib, itmp, path_length, npaths
+    LOGICAL                                  :: failure, ltmp
+    REAL(kind=dp)                            :: delrinv, incr_s, incr_n, mHe, T, c, dv
+    REAL(kind=dp), DIMENSION(3)              :: r, r0
+
+!    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+
+    helium%rho_s_inst(:,:,:) = 0.0_dp
+    helium%rho_n_inst(:,:,:) = 0.0_dp
+    r0(:) = helium%origin(:)
+    delrinv = 1.0_dp / helium%rho_delr
+!    dv = (helium%cell_size)**3
+!    IF ( helium%cell_shape .EQ. helium_cell_shape_octahedron ) THEN
+!      dv = dv / 2.0_dp
+!    END IF
+!    c = 1.0_dp / helium%beads / dv
+    c = 1.0_dp / helium%beads
+    incr_n = c
+
+    DO ia = 1, helium%atoms
+
+      IF (helium_is_winding(helium, ia, helium%pos, helium%permutation)) THEN
+        incr_s = c
+      ELSE
+        incr_s = 0.0_dp
+      END IF
+
+      DO ib = 1, helium%beads
+
+        r(:) = helium%pos(:,ia,ib) - r0(:)
+        CALL helium_pbc( helium, r )
+        bx = FLOOR( r(1) * delrinv ) - helium%rho_minb + 1
+        by = FLOOR( r(2) * delrinv ) - helium%rho_minb + 1
+        bz = FLOOR( r(3) * delrinv ) - helium%rho_minb + 1
+
+        ! check that bin numbers are within bounds
+        itmp = helium%rho_nbin
+        ltmp = (0 .LT. bx) .AND. ( bx .LE. itmp )
+        CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
+        ltmp = (0 .LT. by) .AND. ( by .LE. itmp )
+        CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
+        ltmp = (0 .LT. bz) .AND. ( bz .LE. itmp )
+        CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
+
+        helium%rho_s_inst(bx,by,bz) = helium%rho_s_inst(bx,by,bz) + incr_s
+        helium%rho_n_inst(bx,by,bz) = helium%rho_n_inst(bx,by,bz) + incr_n
+
+      END DO
+    END DO
+
+!    CALL timestop(handle)
+
+    RETURN
+  END SUBROUTINE helium_calc_rho
+
 
   ! ***************************************************************************
   !> \brief  Calculate probability distribution of the permutation lengths
@@ -473,7 +541,11 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_rotate
 
-! *****************************************************************************
+  ! ***************************************************************************
+  !> \brief  Calculate the pair-product action or energy by evaluating the
+  !>         power series expansion according to Eq. 4.46 in Ceperley 1995.
+  !> \author Harald Forbert
+  ! ***************************************************************************
   FUNCTION helium_eval_expansion(helium,r,rp,tab,cut) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -511,6 +583,7 @@ MODULE helium_common
       END IF
       res = 0.5_dp*v
     ELSE
+      ! end-point action (first term):
       v = 0.5_dp*(helium_spline(tab(1,1)%spline_data,ar)+helium_spline(tab(1,1)%spline_data,arp))
       DO i = 1, 3
         br(i) = br(i) - brp(i)
@@ -519,6 +592,7 @@ MODULE helium_common
       s = br(1)**2+br(2)**2+br(3)**2
       z = (ar-arp)**2
       arp = 1.0_dp
+      ! j=0 terms
       DO i = 2, SIZE(tab,1)
         arp = arp * s
         v = v + arp*helium_spline(tab(i,1)%spline_data,q)
@@ -1068,11 +1142,131 @@ END SUBROUTINE helium_update_transition_matrix
   END FUNCTION helium_cycle_number
 
 ! *****************************************************************************
-!> \brief  Given the atom number and permutation state return the length of
-!>         the path this atom belongs to.
+!> \brief  Given the atom number and permutation state return the cycle
+!>         number the atom belongs to.
 !> \author Lukasz Walewski
-!> \date   2009-10-07
+!> \date   2009-07-21
+!> \descr  Cycles (or paths) are numbered from 1 to <num_cycles>, where
+!>         <num_cycles> is in the range of (1, <helium%atoms>).
+!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle
+!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
+!>         length greater than 1 (i.e. no atoms are connected)
 ! *****************************************************************************
+  FUNCTION helium_ncycles(helium, permutation) RESULT(num_cycles)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    INTEGER, DIMENSION(:), POINTER           :: permutation
+
+    INTEGER                                  :: curr_idx, prev_idx, clen, cycle_idx, &
+                                                ia, ia2, ib, ic, num_cycles
+    INTEGER, DIMENSION(:), POINTER           :: cycle_index, cycle_length
+    LOGICAL                                  :: new_cycle
+    REAL(KIND=dp), DIMENSION(3)              :: r, v, w
+    REAL(KIND=dp), DIMENSION(128,3)              :: cycle_w
+
+    NULLIFY(cycle_index)
+    cycle_index => helium%itmp_atoms_1d
+    cycle_index(:) = 0
+
+    NULLIFY(cycle_length)
+    cycle_length => helium%itmp_atoms_np_1d
+    cycle_length(:) = 0
+
+    num_cycles = 0
+    DO ia = 1, helium%atoms
+
+      ! initialize current cycle index with the current atom
+      cycle_idx = ia
+
+      curr_idx = ia
+      clen = 0
+      v(:) = 0.0_dp
+      DO ia2 = 1, helium%atoms
+
+        ! calc winding number contribution from the current atom
+        ! contribution comming from the last and the first bead
+        r(:) = helium%pos(:,curr_idx,helium%beads) - &
+          helium%pos(:,helium%permutation(curr_idx),1)
+        CALL helium_pbc( helium, r )
+        v(:) = v(:) + r(:)
+        ! sum of contributions from the rest of bead pairs
+        DO ib = 2, helium%beads
+          r(:) = helium%pos(:,curr_idx,ib-1) - helium%pos(:,curr_idx,ib)
+          CALL helium_pbc( helium, r )
+          v(:) = v(:) + r(:)
+        END DO
+
+        clen = clen + 1
+
+        ! proceed along the path
+        prev_idx = curr_idx
+        curr_idx = permutation(curr_idx)
+
+        IF (curr_idx .EQ. ia) THEN
+          ! end of cycle detected (looped back to the first atom)
+
+          ! check if this is a new cycle
+          new_cycle = .TRUE.
+          DO ic = 1, num_cycles
+            IF (cycle_index(ic) .EQ. cycle_idx) THEN
+              new_cycle = .FALSE.
+            END IF
+          END DO
+
+          IF (new_cycle) THEN
+            ! increase number of cycles and update the current cycle's index
+            num_cycles = num_cycles + 1
+            cycle_index(num_cycles) = cycle_idx
+            cycle_length(num_cycles) = clen
+
+    ! calc winding number (cell_m_inv is in Bohr^-1)
+    cycle_w(num_cycles,1) = &
+      helium%cell_m_inv(1,1) * v(1) + &
+      helium%cell_m_inv(1,2) * v(2) + &
+      helium%cell_m_inv(1,3) * v(3);
+    cycle_w(num_cycles,2) = &
+      helium%cell_m_inv(2,1) * v(1) + &
+      helium%cell_m_inv(2,2) * v(2) + &
+      helium%cell_m_inv(2,3) * v(3);
+    cycle_w(num_cycles,3) = &
+      helium%cell_m_inv(3,1) * v(1) + &
+      helium%cell_m_inv(3,2) * v(2) + &
+      helium%cell_m_inv(3,3) * v(3);
+          END IF
+
+          ! exit the loop over beads, there are no more (new) beads in this cycle
+          EXIT
+        END IF
+
+        ! set the cycle index to the lowest atom index in this cycle
+        IF (curr_idx .LT. cycle_idx) THEN
+          cycle_idx = curr_idx
+        END IF
+
+      END DO
+
+    END DO
+
+do ic = 1, num_cycles
+  print *, ic, cycle_index(ic), cycle_length(ic), cycle_w(ic,:)
+end do
+
+    cycle_index(:) = 0
+    NULLIFY(cycle_index)
+
+    cycle_length(:) = 0
+    NULLIFY(cycle_length)
+
+    RETURN
+  END FUNCTION helium_ncycles
+
+
+  ! ***************************************************************************
+  !> \brief  Given the atom number and permutation state return the length of
+  !>         the path this atom belongs to.
+  !> \author Lukasz Walewski
+  !> \date   2009-10-07
+  ! ***************************************************************************
   FUNCTION helium_path_length(helium, atom_number, permutation) RESULT(path_length)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1101,5 +1295,166 @@ END SUBROUTINE helium_update_transition_matrix
 
     RETURN
   END FUNCTION helium_path_length
+
+  ! ***************************************************************************
+  !> \brief  Given the atom number and permutation state returns .TRUE. if the
+  !>         atom belongs to the winding path, .FASLE. otherwise.
+  !> \author Lukasz Walewski
+  !> \date   2010-09-21
+  !> \note   The path winds around the periodic box if it's widing number is
+  !          greater than 0. This function calculates the winding number of the
+  !          path the atom in question belongs to by following the permutation
+  !          cycle; it exits from the path if the starting atom number is
+  !          reached again.
+  ! ***************************************************************************
+  FUNCTION helium_is_winding(helium, atom_number, pos, permutation) RESULT(is_winding)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    INTEGER, INTENT(IN)                      :: atom_number
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: pos
+    INTEGER, DIMENSION(:), POINTER           :: permutation
+    LOGICAL                                  :: is_winding
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_is_winding', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: err_str, stmp
+    INTEGER                                  :: ia, ib, atom_idx, path_length
+    LOGICAL                                  :: path_end_reached
+    REAL(KIND=dp), DIMENSION(3)              :: r, v, w
+
+    is_winding = .FALSE.
+    v(:) = 0.0_dp
+    atom_idx = atom_number
+    path_length = 0
+    path_end_reached = .FALSE.
+    ! traverse the path the given atom belongs to
+    DO ia = 1, helium%atoms
+      ! contribution comming from the last and the first bead
+      r(:) = pos(:,atom_idx,helium%beads) - &
+             pos(:,permutation(atom_idx),1)
+      CALL helium_pbc( helium, r )
+      v(:) = v(:) + r(:)
+      ! sum of contributions from the rest of bead pairs
+      DO ib = 2, helium%beads
+        r(:) = pos(:,atom_idx,ib-1) - pos(:,atom_idx,ib)
+        CALL helium_pbc( helium, r )
+        v(:) = v(:) + r(:)
+      END DO
+      ! jump to the next atom along the path
+      path_length = path_length + 1
+      atom_idx = permutation(atom_idx)
+      IF ( atom_idx .EQ. atom_number ) THEN
+        path_end_reached = .TRUE.
+        EXIT
+      END IF
+    END DO
+
+    stmp = ""
+    WRITE(stmp,*) atom_number
+    err_str = "Permutation path of atom " // TRIM(ADJUSTL(stmp)) // &
+              " is not cyclic."
+    CALL cp_assert(path_end_reached,cp_failure_level,&
+         cp_assertion_failed, routineP, err_str)
+
+    ! calc winding number (cell_m_inv is in Bohr^-1)
+    w(1) = &
+      helium%cell_m_inv(1,1) * v(1) + &
+      helium%cell_m_inv(1,2) * v(2) + &
+      helium%cell_m_inv(1,3) * v(3);
+    w(2) = &
+      helium%cell_m_inv(2,1) * v(1) + &
+      helium%cell_m_inv(2,2) * v(2) + &
+      helium%cell_m_inv(2,3) * v(3);
+    w(3) = &
+      helium%cell_m_inv(3,1) * v(1) + &
+      helium%cell_m_inv(3,2) * v(2) + &
+      helium%cell_m_inv(3,3) * v(3);
+
+    IF ( w(1)*w(1)+w(2)*w(2)+w(3)*w(3) .GT. 0.5_dp ) THEN
+      is_winding = .TRUE.
+    END IF
+
+    RETURN
+  END FUNCTION helium_is_winding
+
+  ! ***************************************************************************
+  !> \brief  Given the atom number and permutation state returns the
+  !>         contribution of this atom to the total superfluid density W^2/n.
+  !>         W^2 - squared winding number of the path the atom belongs to
+  !>         n   - number of atoms that belong to this path
+  !> \author Lukasz Walewski
+  !> \date   2011-06-16
+  ! ***************************************************************************
+  FUNCTION helium_sdensity_part(helium, atom_number) RESULT(res)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    INTEGER, INTENT(IN)                      :: atom_number
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_sdensity_part', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: err_str, stmp
+    INTEGER                                  :: ia, ib, atom_idx, path_length
+    LOGICAL                                  :: path_end_reached
+    REAL(KIND=dp)                             :: wsq
+    REAL(KIND=dp), DIMENSION(3)              :: r, v, w
+
+    v(:) = 0.0_dp
+    atom_idx = atom_number
+    path_length = 0
+    path_end_reached = .FALSE.
+    ! traverse the path given atom belongs to
+    DO ia = 1, helium%atoms
+      ! contribution comming from the last and the first bead
+      r(:) = helium%pos(:,atom_idx,helium%beads) - &
+             helium%pos(:,helium%permutation(atom_idx),1)
+      CALL helium_pbc( helium, r )
+      v(:) = v(:) + r(:)
+      ! sum of contributions from the rest of bead pairs
+      DO ib = 2, helium%beads
+        r(:) = helium%pos(:,atom_idx,ib-1) - helium%pos(:,atom_idx,ib)
+        CALL helium_pbc( helium, r )
+        v(:) = v(:) + r(:)
+      END DO
+      ! jump to the next atom along the path
+      path_length = path_length + 1
+      atom_idx = helium%permutation(atom_idx)
+      IF ( atom_idx .EQ. atom_number ) THEN
+        path_end_reached = .TRUE.
+        EXIT
+      END IF
+    END DO
+
+    stmp = ""
+    WRITE(stmp,*) atom_number
+    err_str = "Permutation path of atom " // TRIM(ADJUSTL(stmp)) // &
+              " is not cyclic."
+    CALL cp_assert(path_end_reached,cp_failure_level,&
+         cp_assertion_failed, routineP, err_str)
+
+    ! calc winding number (cell_m_inv is in Bohr^-1)
+    w(1) = &
+      helium%cell_m_inv(1,1) * v(1) + &
+      helium%cell_m_inv(1,2) * v(2) + &
+      helium%cell_m_inv(1,3) * v(3);
+    w(2) = &
+      helium%cell_m_inv(2,1) * v(1) + &
+      helium%cell_m_inv(2,2) * v(2) + &
+      helium%cell_m_inv(2,3) * v(3);
+    w(3) = &
+      helium%cell_m_inv(3,1) * v(1) + &
+      helium%cell_m_inv(3,2) * v(2) + &
+      helium%cell_m_inv(3,3) * v(3);
+
+    wsq = w(1)*w(1)+w(2)*w(2)+w(3)*w(3)
+    IF ( ABS(wsq) .LT. EPSILON(0.0_dp) ) wsq = 0.0_dp
+
+    res = wsq / path_length
+
+    RETURN
+  END FUNCTION helium_sdensity_part
+
 
 END MODULE helium_common

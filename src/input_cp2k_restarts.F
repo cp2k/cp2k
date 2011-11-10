@@ -1094,13 +1094,14 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: err_str, stmp
     INTEGER                                  :: handle, itmp, msglen, offset, &
-                                                reqlen, status
+                                                reqlen, status, nsteps, iweight
     INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
-    LOGICAL                                  :: failure, lbf
-    REAL(kind=dp)                            :: bf, bu
+    LOGICAL                                  :: failure, lbf, explicit
+    REAL(kind=dp)                            :: bf, bu, rtmp
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, ig
     REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: tmpsec
 
     CALL timeset(routineN,handle)
 
@@ -1273,6 +1274,91 @@ CONTAINS
       ! assigned in section_vals_val_set - this memeory will be used later on!
       ! "The val becomes the owner of the array" - from section_vals_val_set docu
       NULLIFY(real_msg_gather)
+    END IF
+
+    !
+    ! save the densities
+    !
+    IF (helium%rho_present) THEN
+
+      ! make sure that the section is explicitly present in the input structure
+      NULLIFY(tmpsec)
+      tmpsec => section_vals_get_subs_vals(helium%input, &
+                "MOTION%PINT%HELIUM%RHO", &
+                error=error)
+      CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+      IF ( .NOT. explicit ) THEN
+        CALL section_vals_add_values(tmpsec,error)
+      END IF
+
+      ! work on the temporary array so that accumulated data remains intact
+      helium%rho_s_inst(:,:,:) = helium%rho_s_avrg(:,:,:)
+      helium%rho_n_inst(:,:,:) = helium%rho_n_avrg(:,:,:)
+
+      ! average the densities over helium environments
+      CALL mp_sum(helium%rho_s_inst,logger%para_env%group)
+      CALL mp_sum(helium%rho_n_inst,logger%para_env%group)
+      itmp = logger%para_env%num_pe
+      CPPostcondition(itmp>0,cp_failure_level,routineP,error,failure)
+      rtmp = 1.0_dp / REAL(itmp,dp)
+      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * rtmp
+      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * rtmp
+
+      ! average over steps performed so far in this run
+      nsteps = helium%current_step-helium%first_step
+      CPPostcondition(nsteps>0,cp_failure_level,routineP,error,failure)
+      rtmp = 1.0_dp / REAL(nsteps,dp)
+      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * rtmp
+      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * rtmp
+
+      iweight = helium%rho_iweight
+      rtmp = 1.0_dp / REAL(nsteps+iweight,dp)
+      IF ( helium%rho_restart ) THEN
+        ! average over the old and the current density (observe the weights!)
+
+        helium%rho_s_inst(:,:,:) = nsteps * helium%rho_s_inst(:,:,:) + &
+                                   iweight * helium%rho_s_rstr(:,:,:)
+        helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * rtmp
+
+        helium%rho_n_inst(:,:,:) = nsteps * helium%rho_n_inst(:,:,:) + &
+                                   iweight * helium%rho_n_rstr(:,:,:)
+        helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * rtmp
+
+      END IF
+
+      ! update the density (S) in the global input structure
+      NULLIFY(real_msg)
+      msglen = SIZE(helium%rho_s_avrg)
+      ALLOCATE(real_msg(msglen),STAT=status)
+      CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+      real_msg(:) = PACK( helium%rho_s_inst, .TRUE. )
+      CALL section_vals_val_set(helium%input, &
+           "MOTION%PINT%HELIUM%RHO%CUBE_DATA_S%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=real_msg,error=error)
+      NULLIFY(real_msg)
+
+      ! update the density (N) in the global input structure
+      NULLIFY(real_msg)
+      msglen = SIZE(helium%rho_n_avrg)
+      ALLOCATE(real_msg(msglen),STAT=status)
+      CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+      real_msg(:) = PACK( helium%rho_n_inst, .TRUE. )
+      CALL section_vals_val_set(helium%input, &
+           "MOTION%PINT%HELIUM%RHO%CUBE_DATA_N%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=real_msg,error=error)
+      NULLIFY(real_msg)
+
+      ! update the weighting factor
+      itmp = helium%rho_iweight
+      IF ( itmp .LT. 0 ) THEN
+        itmp = helium%current_step-helium%first_step
+      ELSE
+        itmp = itmp + helium%current_step-helium%first_step
+      END IF
+      CALL section_vals_val_set(helium%input, &
+           "MOTION%PINT%HELIUM%RHO%IWEIGHT", &
+           i_val=itmp,error=error)
+
     END IF
 
     CALL timestop(handle)

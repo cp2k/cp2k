@@ -702,6 +702,16 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
+       CALL keyword_create(keyword, name="PINT_UNIT",&
+            description="Specify the units of measurement for the velocities "//&
+            "(currently works only for the path integral code). "//&
+            "All available CP2K units can be used.",&
+            usage="UNIT angstrom*au_t^-1",&
+            default_c_val="bohr*au_t^-1",&
+            supported_feature=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The atoms velocities in xyz format. The same order as"//&

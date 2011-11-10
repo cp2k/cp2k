@@ -13,6 +13,8 @@
 MODULE pint_public
 
   USE kinds,                           ONLY: dp
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE pint_types,                      ONLY: pint_env_type
 #include "cp_common_uses.h"
 
@@ -24,6 +26,8 @@ MODULE pint_public
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_public'
 
   PUBLIC :: pint_com_pos
+  PUBLIC :: pint_free_part_bead_x
+  PUBLIC :: pint_levy_walk
 
   CONTAINS
 
@@ -101,5 +105,166 @@ MODULE pint_public
     cntrd_r(:) = cntrd_r(:) / REAL(pint_env%p,dp) / REAL(natoms,dp)
     RETURN
   END FUNCTION pint_cog_pos
+
+  ! ***************************************************************************
+  !> \brief  Given the number of beads n and the variance t returns the
+  !>         positions of the beads for a non-interacting particle.
+  !> \author Lukasz Walewski
+  !> \date   2010-12-13
+  !> \descr  This routine implements Levy argorithm (see e.g. Rev. Mod. Phys.
+  !>         67 (1995) 279, eq. 5.35) and requires that n is a power of 2. The
+  !>         resulting bead positions are centered around (0,0,0).
+  ! ***************************************************************************
+  SUBROUTINE pint_free_part_bead_x( n, t, rng_gaussian, x, nout, error)
+!
+!TODO this routine gives wrong spread of the particles, please fix before usage.
+!
+    INTEGER, INTENT(IN)                      :: n
+    REAL(kind=dp), INTENT(IN)                :: t
+    REAL(kind=dp), DIMENSION(:), POINTER     :: x
+    INTEGER, INTENT(OUT)                     :: nout
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nlevels, stat, il, ic,&
+                                                ip, np, dl, j, i1, i2, ib
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: rtmp, tcheck, vrnc, xc
+    REAL(kind=dp), DIMENSION(3)              :: cntrd_r
+    TYPE(rng_stream_type), POINTER           :: rng_gaussian
+
+    failure=.FALSE.
+    nout = 0
+
+    IF ( n < 1 ) THEN
+      RETURN
+    END IF
+
+    ! if number of beads is not a power of 2 return
+    nlevels = ANINT(LOG(REAL(n,dp))/LOG(2.0_dp))
+    rtmp = 2**nlevels
+    tcheck=ABS(REAL(n,dp)-rtmp)
+    IF ( tcheck>100.0_dp*EPSILON(0.0_dp) ) THEN
+      RETURN
+    END IF
+
+    ! generate at least first point at (0,0,0)
+    DO ic = 1, 3
+      x(ic) = 0.0_dp
+    END DO
+    nout = 1
+
+    ! loop over Levy levels
+    vrnc = 2.0_dp * t
+    DO il = 0, nlevels - 1
+
+      np = 2**il ! number of points to be generated at this level
+      dl = n / ( 2 * np ) ! interval betw points (in index numbers)
+      vrnc = vrnc / 2.0_dp; ! variance at this level (=t at level 0)
+
+      ! loop over points added in this level
+      DO ip = 0, np - 1
+
+        j = ( 2 * ip + 1 ) * dl ! index of currently generated point
+
+        ! indices of two points betw which to generate a new point
+        i1 = 2 * dl * ip
+        i2 = 2 * dl * ( ip + 1 )
+        IF ( i2 .EQ. n ) THEN
+          i2 = 0
+        END IF
+
+        ! generate new point and save it under j
+        DO ic = 1, 3
+          xc = ( x(3*i1+ic) + x(3*i2+ic) ) / 2.0
+          xc = xc + next_random_number(rng_stream=rng_gaussian,&
+                                       variance=vrnc,&
+                                       error=error)
+          x(3*j+ic) = xc
+        END DO
+        nout = nout + 1
+
+      END DO
+    END DO
+
+    ! translate the centroid to the origin
+    cntrd_r(:) = 0.0_dp
+    DO ib = 1, n
+      DO ic = 1, 3
+        cntrd_r(ic) = cntrd_r(ic) + x((ib-1)*3+ic)
+      END DO
+    END DO
+    cntrd_r(:) = cntrd_r(:) / REAL(n,dp)
+    DO ib = 1, n
+      DO ic = 1, 3
+        x((ib-1)*3+ic) = x((ib-1)*3+ic) - cntrd_r(ic)
+      END DO
+    END DO
+
+    RETURN
+  END SUBROUTINE pint_free_part_bead_x
+
+
+  ! ***************************************************************************
+  !> \brief  Perform a Brownian walk of length n around x0 with the variance v.
+  !> \author Lukasz Walewski
+  !> \date   2011-01-06
+  !> \descr  This routine implements Levy argorithm (Phys. Rev. 143 (1966) 58)
+  ! ***************************************************************************
+  SUBROUTINE pint_levy_walk( x0, n, v, x, rng_gaussian, error )
+
+    INTEGER, INTENT(IN)                      :: n
+    REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: x0
+    REAL(kind=dp), INTENT(IN)                :: v
+    REAL(kind=dp), DIMENSION(:), POINTER     :: x
+    TYPE(rng_stream_type), POINTER           :: rng_gaussian
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_levy_walk', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ib, ic, istat
+    REAL(kind=dp)                            :: r, tau_i, tau_i1
+    REAL(kind=dp), DIMENSION(3)              :: cntrd_r
+
+    x(1) = x0(1)
+    x(2) = x0(2)
+    x(3) = x0(3)
+    DO ib = 1, n-1
+      DO ic = 1, 3
+        r = next_random_number(rng_stream=rng_gaussian,&
+                               variance=1.0_dp,&
+                               error=error)
+        tau_i = (REAL(ib,dp)-1.0_dp)/REAL(n,dp)
+        tau_i1 = (REAL(ib+1,dp)-1.0_dp)/REAL(n,dp)
+        x(ib*3+ic) = ( x((ib-1)*3+ic) * ( 1.0_dp-tau_i1 ) + &
+                       x(ic) * ( tau_i1-tau_i ) ) / &
+                     ( 1.0_dp-tau_i ) + &
+                     r * v * SQRT( &
+                                   ( tau_i1-tau_i ) * &
+                                   ( 1.0_dp-tau_i1 ) / &
+                                   ( 1.0_dp-tau_i ) &
+                                 )
+      END DO
+    END DO
+
+    ! translate the centroid to the origin
+    cntrd_r(:) = 0.0_dp
+    DO ib = 1, n
+      DO ic = 1, 3
+        cntrd_r(ic) = cntrd_r(ic) + x((ib-1)*3+ic)
+      END DO
+    END DO
+    cntrd_r(:) = cntrd_r(:) / REAL(n,dp)
+    DO ib = 1, n
+      DO ic = 1, 3
+        x((ib-1)*3+ic) = x((ib-1)*3+ic) - cntrd_r(ic)
+      END DO
+    END DO
+
+    RETURN
+  END SUBROUTINE pint_levy_walk
 
 END MODULE pint_public

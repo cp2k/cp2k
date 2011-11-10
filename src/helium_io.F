@@ -17,6 +17,7 @@ MODULE helium_io
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE helium_common,                   ONLY: helium_cycle_number,&
+                                             helium_is_winding,&
                                              helium_path_length,&
                                              helium_pbc
   USE helium_types,                    ONLY: e_id_interact,&
@@ -30,7 +31,8 @@ MODULE helium_io
                                              fmt_id_xyz,&
                                              helium_cell_shape_cube,&
                                              helium_cell_shape_octahedron
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_val_get, &
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -50,6 +52,7 @@ MODULE helium_io
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_io'
 
   PUBLIC :: helium_write_rdf
+  PUBLIC :: helium_write_rho
   PUBLIC :: helium_write_line
   PUBLIC :: helium_write_setup
   PUBLIC :: helium_write_energy
@@ -224,6 +227,17 @@ MODULE helium_io
     CALL helium_write_line("RDF| nbin           : "//TRIM(stmp),error)
 
     CALL helium_write_line("",error)
+
+    ! density related
+    IF (helium%rho_present) THEN
+      CALL helium_write_line("RHO| Calculating densities on the grid", error)
+      itmp = helium%rho_nbin
+      stmp = ""
+      WRITE(stmp, '(I6)') itmp
+      CALL helium_write_line("RHO| "//TRIM(ADJUSTL(stmp))//"x"//&
+            TRIM(ADJUSTL(stmp))//"x"//TRIM(ADJUSTL(stmp)),error)
+      CALL helium_write_line("",error)
+    END IF
 
     RETURN
   END SUBROUTINE helium_write_setup
@@ -575,18 +589,21 @@ MODULE helium_io
   !> \brief  Writes helium configuration according to HELIUM%PRINT%COORDINATES
   !> \author Lukasz Walewski
   !> \date   2009-07-16
+  !> \note   particle_types->write_particle_coordinates is of no use here,
+  !>         since it does not support atom connectivity information needed
+  !>         for helium paths
   !> \par    History
   !>         2010-02-15 output from all processors added [lwalewski]
   ! ***************************************************************************
-  SUBROUTINE helium_write_coordinates( helium, r0, error )
+  SUBROUTINE helium_write_coordinates( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: r0
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_coordinates', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(3)                             :: resName
     CHARACTER(len=default_string_length)     :: fmt_string, my_middle_name, &
                                                 stmp
     INTEGER                                  :: handle, ia, ib, ib1, ib2, ic, &
@@ -594,9 +611,9 @@ MODULE helium_io
                                                 offset, tmp1, tmp2, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: my_perm
     LOGICAL                                  :: are_connected, failure, ltmp, &
-                                                should_output
+                                                should_output, is_winding
     REAL(kind=dp)                            :: xtmp, ytmp, ztmp
-    REAL(kind=dp), DIMENSION(3)              :: r1, r2
+    REAL(kind=dp), DIMENSION(3)              :: r0, r1, r2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -621,6 +638,7 @@ MODULE helium_io
 
     ! prepare the coordinates for output (print one image of the periodic
     ! space that is centered around r0)
+    r0(:) = helium%origin(:)
     DO ia = 1, helium%atoms
       DO ib = 1, helium%beads
         r1(:) = helium%pos(:,ia,ib) - r0(:)
@@ -699,6 +717,12 @@ MODULE helium_io
           "(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,10X,A2,A2)"
         DO ia = 1, helium%atoms
           icycle = helium_cycle_number(helium, ia, my_perm)
+          is_winding = helium_is_winding(helium,ia,helium%work,my_perm)
+          IF ( is_winding ) THEN
+            resName = "SPR"
+          ELSE
+            resName = "NRM"
+          END IF
           DO ib = 1, helium%beads
             xtmp = helium%work(1,ia,ib)
             xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
@@ -708,7 +732,7 @@ MODULE helium_io
             ztmp = cp_unit_from_cp2k(ztmp, "angstrom", error=error)
             WRITE(unit_nr,fmt_string) "ATOM  ", &
               (ia-1)*helium%beads+ib, &
-              " He ", " ", "   ", "X", &
+              " He ", " ", resName, "X", &
               icycle, &
               " ", &
               xtmp, ytmp, ztmp, &
@@ -796,228 +820,6 @@ MODULE helium_io
   END SUBROUTINE helium_write_coordinates
 
   ! ***************************************************************************
-  !> \brief  Writes helium configuration according to HELIUM%PRINT%COORDINATES
-  !> \author Lukasz Walewski
-  !> \date   2009-07-16
-  !> \note   particle_types->write_particle_coordinates is of no use here,
-  !>         since it does not support atom connectivity information needed
-  !>         for helium paths
-  !> \note   Old scalar subroutine, to be removed soon.
-  ! ***************************************************************************
-  SUBROUTINE helium_write_coordinates2( helium, r0, fmt_id, middle_name, error )
-
-    TYPE(helium_solvent_type), POINTER       :: helium
-    REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: r0
-    INTEGER, INTENT(IN)                      :: fmt_id
-    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_coordinates2', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=default_string_length)     :: fmt_string, my_middle_name, &
-                                                stmp
-    INTEGER                                  :: handle, ia, ib, ib1, ib2, ic, &
-                                                icycle, tmp1, tmp2, unit_nr
-    LOGICAL                                  :: are_connected, failure, ltmp, &
-                                                should_output
-    REAL(kind=dp)                            :: xtmp, ytmp, ztmp
-    REAL(kind=dp), DIMENSION(3)              :: r1, r2
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,error,failure)
-
-    IF (PRESENT(middle_name)) THEN
-      my_middle_name = middle_name
-    ELSE
-      my_middle_name = "helium-pos"
-    END IF
-
-    NULLIFY(logger,print_key)
-    logger => cp_error_get_logger(error)
-
-    print_key => section_vals_get_subs_vals(helium%input, &
-      "MOTION%PINT%HELIUM%PRINT%COORDINATES", error=error)
-    should_output = BTEST(cp_print_key_should_output( &
-      iteration_info=logger%iter_info,&
-      basis_section=print_key,error=error),cp_p_file)
-    IF (should_output) THEN
-
-      ! prepare the coordinates for output (print one image of the periodic
-      ! space that is centered around r0)
-      DO ia = 1, helium%atoms
-        DO ib = 1, helium%beads
-          r1(:) = helium%pos(:,ia,ib) - r0(:)
-          r2(:) = helium%pos(:,ia,ib) - r0(:)
-          CALL helium_pbc( helium, r2 )
-          ltmp = .FALSE.
-          DO ic = 1, 3
-            IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
-              ltmp = .TRUE.
-              CYCLE
-            END IF
-          END DO
-          IF ( ltmp ) THEN
-            helium%work(:,ia,ib) = r0(:) + r2(:)
-          ELSE
-            helium%work(:,ia,ib) = helium%pos(:,ia,ib)
-          END IF
-        END DO
-      END DO
-
-!TODO write out each He replica (at the moment only coords from rank = 0 are printed)
-      IF (logger%para_env%ionode) THEN
-
-        SELECT CASE (fmt_id)
-
-          CASE (fmt_id_xyz)
-            unit_nr=cp_print_key_unit_nr(logger,print_key, &
-              middle_name=my_middle_name,extension=".xyz",error=error)
-            fmt_string = "('He',3(1X,F20.10))"
-            WRITE(unit_nr,'(I0)') helium%atoms*helium%beads
-            WRITE(unit_nr,'(A)') "He coordinates"
-            DO ia = 1, helium%atoms
-              DO ib = 1, helium%beads
-                xtmp = helium%work(1,ia,ib)
-                xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
-                ytmp = helium%work(2,ia,ib)
-                ytmp = cp_unit_from_cp2k(ytmp, "angstrom", error=error)
-                ztmp = helium%work(3,ia,ib)
-                ztmp = cp_unit_from_cp2k(ztmp, "angstrom", error=error)
-                WRITE(unit_nr,fmt_string) xtmp, ytmp, ztmp
-              END DO
-            END DO
-            CALL m_flush(unit_nr)
-            CALL cp_print_key_finished_output(unit_nr,logger,print_key,&
-              error=error)
-
-          CASE (fmt_id_pdb)
-            unit_nr=cp_print_key_unit_nr(logger,print_key, &
-              middle_name=my_middle_name,extension=".pdb",error=error)
-            ! write out the unit cell parameters
-            fmt_string = "(A6,3F9.3,3F7.2,1X,A11,1X,I3)"
-            xtmp = helium%cell_size
-            xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
-            IF ( helium%cell_shape .EQ. helium_cell_shape_octahedron ) THEN
-              stmp = "O          "
-            ELSE
-              stmp = "C          "
-            END IF
-            WRITE(unit_nr,fmt_string) "CRYST1", &
-              xtmp, xtmp, xtmp, &
-              90.0_dp, 90.0_dp, 90.0_dp, &
-              stmp, helium%beads
-            ! write out the bead coordinates
-            fmt_string = &
-              "(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,10X,A2,A2)"
-            DO ia = 1, helium%atoms
-              icycle = helium_cycle_number(helium,ia,helium%permutation)
-              DO ib = 1, helium%beads
-                xtmp = helium%work(1,ia,ib)
-                xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
-                ytmp = helium%work(2,ia,ib)
-                ytmp = cp_unit_from_cp2k(ytmp, "angstrom", error=error)
-                ztmp = helium%work(3,ia,ib)
-                ztmp = cp_unit_from_cp2k(ztmp, "angstrom", error=error)
-                WRITE(unit_nr,fmt_string) "ATOM  ", &
-                  (ia-1)*helium%beads+ib, &
-                  " He ", " ", "   ", "X", &
-                  icycle, &
-                  " ", &
-                  xtmp, ytmp, ztmp, &
-                  1.0_dp, 0.0_dp, "HE", "  "
-              END DO
-            END DO
-
-            ! write out the bead connectivity information
-            DO ia = 1, helium%atoms
-
-              ! write connectivity records for this atom only if the path
-              ! it belongs to is longer than 1.
-              IF ( helium_path_length(helium,ia,helium%permutation) .LE. 1 ) THEN
-                CYCLE
-              END IF
-
-              DO ib = 1, helium%beads-1
-                ! check wheather the consecutive beads belong to the same box
-                r1(:) = helium%work(:,ia,ib) - helium%work(:,ia,ib+1)
-                r2(:) = r1(:)
-                CALL helium_pbc( helium, r2 )
-                are_connected = .TRUE.
-                DO ic = 1, 3
-                  IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
-                        ! if the distance betw ib and ib+1 changes upon applying
-                        ! PBC do not connect them
-                        are_connected = .FALSE.
-                        CYCLE
-                      END IF
-                    END DO
-                IF ( are_connected ) THEN
-                  tmp1 = (ia-1)*helium%beads+ib
-                  tmp2 = (ia-1)*helium%beads+ib+1
-                  ! smaller value has to go first
-                  IF (tmp1 .LT. tmp2) THEN
-                    ib1 = tmp1
-                    ib2 = tmp2
-                  ELSE
-                    ib1 = tmp2
-                    ib2 = tmp1
-                  END IF
-                  WRITE(unit_nr,'(A6,2I5)') "CONECT", ib1, ib2
-                END IF
-              END DO
-              ! last bead of atom <ia> connects to the first bead
-              ! of the next atom in the permutation cycle
-              r1(:) = helium%work(:,ia,helium%beads) - helium%work(:,helium%permutation(ia),1)
-              r2(:) = r1(:)
-              CALL helium_pbc( helium, r2 )
-              are_connected = .TRUE.
-              DO ic = 1, 3
-                IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
-                      ! if the distance betw ib and ib+1 changes upon applying
-                      ! PBC do not connect them
-                      are_connected = .FALSE.
-                      CYCLE
-                    END IF
-                  END DO
-              IF ( are_connected ) THEN
-                tmp1 = ia*helium%beads
-                tmp2 = (helium%permutation(ia)-1)*helium%beads+1
-                IF (tmp1 .LT. tmp2) THEN
-                  ib1 = tmp1
-                  ib2 = tmp2
-                ELSE
-                  ib1 = tmp2
-                  ib2 = tmp1
-                END IF
-                WRITE(unit_nr,'(A6,2I5)') "CONECT", ib1, ib2
-              END IF
-            END DO
-            WRITE(unit_nr,'(A)') "END"
-            CALL m_flush(unit_nr)
-            CALL cp_print_key_finished_output(unit_nr,logger,print_key,&
-              error=error)
-
-          CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Unknown file format id ("//&
-            TRIM(ADJUSTL(cp_to_string(fmt_id)))//")",&
-            error,failure)
-        END SELECT
-
-      END IF
-    END IF
-
-    CALL timestop(handle)
-    RETURN
-  END SUBROUTINE helium_write_coordinates2
-
-  ! ***************************************************************************
   !> \brief  Write helium RDF according to HELIUM%PRINT%RDF
   !> \author Lukasz Walewski
   !> \date   2009-07-23
@@ -1072,6 +874,136 @@ MODULE helium_io
     CALL timestop(handle)
     RETURN
   END SUBROUTINE helium_write_rdf
+
+
+  ! ***************************************************************************
+  !> \brief  Write helium densities according to HELIUM%PRINT%RHO
+  !> \author Lukasz Walewski
+  !> \date   2011-06-21
+  ! ***************************************************************************
+  SUBROUTINE helium_write_rho( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_rho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, unit_nr_s, unit_nr_n, N, &
+                                                 ix, iy, iz, itmp, nsteps, istat, iweight
+    LOGICAL                                  :: failure, is_new, should_output
+    REAL(kind=dp)                            :: rtmp, rx, ry, rz, inv_norm
+    REAL(kind=dp), DIMENSION(3)              :: r0
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger,print_key)
+    logger => cp_error_get_logger(error)
+    print_key => section_vals_get_subs_vals(helium%input, &
+      "MOTION%PINT%HELIUM%PRINT%RHO", error=error)
+    should_output = BTEST(cp_print_key_should_output( &
+      iteration_info=logger%iter_info,&
+      basis_section=print_key,error=error),cp_p_file)
+    IF (should_output) THEN
+
+      ! work on the temporary array so that accumulated data remains intact
+      helium%rho_s_inst(:,:,:) = helium%rho_s_avrg(:,:,:)
+      helium%rho_n_inst(:,:,:) = helium%rho_n_avrg(:,:,:)
+
+      ! average over helium environments
+      CALL mp_sum(helium%rho_s_inst,logger%para_env%group)
+      CALL mp_sum(helium%rho_n_inst,logger%para_env%group)
+      itmp = logger%para_env%num_pe
+      CPPostcondition(itmp>0,cp_failure_level,routineP,error,failure)
+      inv_norm = 1.0_dp / REAL(itmp,dp)
+      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * inv_norm
+      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * inv_norm
+
+      ! average over steps performed so far in this run
+      nsteps = helium%current_step-helium%first_step
+      CPPostcondition(nsteps>0,cp_failure_level,routineP,error,failure)
+      inv_norm = 1.0_dp / REAL(nsteps,dp)
+      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * inv_norm
+      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * inv_norm
+
+      iweight = helium%rho_iweight
+      IF ( helium%rho_restart ) THEN
+        ! average over the old and the current density (observe the weights!)
+
+        helium%rho_s_inst(:,:,:) = nsteps * helium%rho_s_inst(:,:,:) + &
+                                   iweight * helium%rho_s_rstr(:,:,:)
+        helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) / ( nsteps + iweight )
+
+        helium%rho_n_inst(:,:,:) = nsteps * helium%rho_n_inst(:,:,:) + &
+                                   iweight * helium%rho_n_rstr(:,:,:)
+        helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) / ( nsteps + iweight )
+
+      END IF
+
+      IF (logger%para_env%ionode) THEN
+
+        unit_nr_s=cp_print_key_unit_nr(logger,print_key, &
+          middle_name="helium-rho-s", extension=".cube", &
+          file_position="REWIND", do_backup=.TRUE., error=error)
+        unit_nr_n=cp_print_key_unit_nr(logger,print_key, &
+          middle_name="helium-rho-n", extension=".cube", &
+          file_position="REWIND", do_backup=.TRUE., error=error)
+
+        N = helium%rho_nbin
+        rtmp = cp_unit_from_cp2k(helium%rho_delr, "bohr", error=error)
+        r0(:) = helium%origin(:)
+        rx = r0(1) - helium%rho_maxr / 2.0_dp
+        ry = r0(2) - helium%rho_maxr / 2.0_dp
+        rz = r0(3) - helium%rho_maxr / 2.0_dp
+
+        WRITE(unit_nr_s,'(A)') "Helium 'superfluidity' indicator"
+        WRITE(unit_nr_s,'(A)') "CP2K"
+        WRITE(unit_nr_s,'(I5,3F12.8)') 1, rx, ry, rz
+        WRITE(unit_nr_s,'(I5,3F12.8)') N, rtmp, 0.0_dp, 0.0_dp
+        WRITE(unit_nr_s,'(I5,3F12.8)') N, 0.0_dp, rtmp, 0.0_dp
+        WRITE(unit_nr_s,'(I5,3F12.8)') N, 0.0_dp, 0.0_dp, rtmp
+        WRITE(unit_nr_s,'(I5,4F12.8)') 1, 0.0_dp, r0(1), r0(2), r0(3)
+
+        WRITE(unit_nr_n,'(A)') "Helium density"
+        WRITE(unit_nr_n,'(A)') "CP2K"
+        WRITE(unit_nr_n,'(I5,3F12.8)') 1, rx, ry, rz
+        WRITE(unit_nr_n,'(I5,3F12.8)') N, rtmp, 0.0_dp, 0.0_dp
+        WRITE(unit_nr_n,'(I5,3F12.8)') N, 0.0_dp, rtmp, 0.0_dp
+        WRITE(unit_nr_n,'(I5,3F12.8)') N, 0.0_dp, 0.0_dp, rtmp
+        WRITE(unit_nr_n,'(I5,4F12.8)') 1, 0.0_dp, r0(1), r0(2), r0(3)
+
+        DO ix = 1, N
+          DO iy = 1, N
+            DO iz = 1, N
+              WRITE(unit_nr_s,'(E13.5,1X)', ADVANCE='NO') helium%rho_s_inst(ix,iy,iz)
+              WRITE(unit_nr_n,'(E13.5,1X)', ADVANCE='NO') helium%rho_n_inst(ix,iy,iz)
+              IF ( MOD(iz,6) .EQ. 5 ) THEN
+                WRITE(unit_nr_s,*)
+                WRITE(unit_nr_n,*)
+              END IF
+            END DO
+            WRITE(unit_nr_s,*)
+            WRITE(unit_nr_n,*)
+          END DO
+        END DO
+
+        CALL m_flush(unit_nr_s)
+        CALL cp_print_key_finished_output(unit_nr_s,logger,print_key,&
+          error=error)
+        CALL m_flush(unit_nr_n)
+        CALL cp_print_key_finished_output(unit_nr_n,logger,print_key,&
+          error=error)
+      END IF
+    END IF
+
+    CALL timestop(handle)
+  END SUBROUTINE helium_write_rho
 
   ! ***************************************************************************
   !> \brief  Write helium permutation length according to HELIUM%PRINT%PLENGTH

@@ -1799,6 +1799,12 @@ CONTAINS
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_HELIUM_DENSITIES",&
+            description="Restarts helium density distributions from PINT%HELIUM%RHO.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
     END IF
 

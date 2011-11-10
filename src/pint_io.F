@@ -51,13 +51,45 @@ MODULE pint_io
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_io'
 
+  PUBLIC :: pint_write_line
   PUBLIC :: pint_write_centroids
   PUBLIC :: pint_write_trajectory
   PUBLIC :: pint_write_com
   PUBLIC :: pint_write_ener
   PUBLIC :: pint_write_step_info
+  PUBLIC :: pint_write_rgyr
 
   CONTAINS
+
+  ! ***************************************************************************
+  !> \brief  Writes out a line of text to the default output unit.
+  !> \author Lukasz Walewski
+  !> \date   2009-07-10
+  ! ***************************************************************************
+  SUBROUTINE pint_write_line(line,error)
+
+    CHARACTER(len=*), INTENT(IN)             :: line
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_line', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: my_label
+    INTEGER                                  :: unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    my_label = "PINT|"
+
+    IF (logger%para_env%ionode) THEN
+      unit_nr = cp_logger_get_default_unit_nr(logger)
+      WRITE(unit_nr,'(T2,A)') TRIM(my_label)//" "//TRIM(line)
+    END IF
+
+    RETURN
+  END SUBROUTINE pint_write_line
+
 
   ! ***************************************************************************
   !> \brief Write out the trajectory of the centroid (positions and velocities)
@@ -195,6 +227,13 @@ MODULE pint_io
                 extension=TRIM(ext), middle_name=TRIM(my_middle_name), &
                 local=.FALSE., file_form=form, is_new_file=new_file, &
                 error=new_error)
+
+      ! don't write the 0-th frame if the file already exists
+      IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
+        CALL cp_print_key_finished_output(unit_nr,logger,&
+             print_key, error=new_error)
+        CONTINUE
+      END IF
 
       ! actually perform the i/o - on the ionode only
       IF (unit_nr>0) THEN
@@ -347,6 +386,13 @@ MODULE pint_io
                   local=.FALSE., file_form=form, is_new_file=new_file, &
                   error=new_error)
 
+        ! don't write the 0-th frame if the file already exists
+        IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
+          CALL cp_print_key_finished_output(unit_nr,logger,&
+               print_key, error=new_error)
+          CONTINUE
+        END IF
+
         ! actually perform the i/o - on the ionode only
         IF (unit_nr>0) THEN
 
@@ -397,7 +443,7 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: stmp1, stmp2
     INTEGER                                  :: ic, unit_nr
-    LOGICAL                                  :: failure, should_output
+    LOGICAL                                  :: failure, should_output, new_file
     REAL(kind=dp), DIMENSION(3)              :: com_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -424,11 +470,18 @@ MODULE pint_io
       com_r(ic) = cp_unit_from_cp2k(com_r(ic), "angstrom", error=error)
     END DO
 
-    ! I/O only on the ionode
-    IF (logger%para_env%ionode) THEN
+    unit_nr=cp_print_key_unit_nr(logger, print_key, is_new_file=new_file,&
+            middle_name="com-pos",extension=".xyz",error=error)
 
-      unit_nr=cp_print_key_unit_nr(logger, print_key, &
-              middle_name="com-pos",extension=".xyz",error=error)
+    ! don't write the 0-th frame if the file already exists
+    IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
+      CALL cp_print_key_finished_output(unit_nr,logger,&
+           print_key, error=error)
+      RETURN
+    END IF
+
+    ! actually perform the i/o - on the ionode only
+    IF (unit_nr>0) THEN
 
       WRITE(unit_nr,'(I2)') 1
       WRITE(stmp1,*) pint_env%iter
@@ -438,9 +491,10 @@ MODULE pint_io
       WRITE(unit_nr,'(A2,3(1X,F20.10))') "X ", (com_r(ic),ic=1,3)
 
       CALL m_flush(unit_nr)
-      CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
 
     END IF
+
+    CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
 
     RETURN
   END SUBROUTINE pint_write_com
@@ -462,7 +516,7 @@ MODULE pint_io
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: unit_nr, ndof
     LOGICAL                                  :: failure, file_is_new
     REAL(kind=dp)                            :: t, temp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -483,6 +537,13 @@ MODULE pint_io
       unit_nr=cp_print_key_unit_nr(logger,print_key,middle_name="energy",&
         extension=".dat",is_new_file=file_is_new,error=error )
 
+      ! don't write the 0-th frame if the file already exists
+      IF ( .NOT. file_is_new .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
+        CALL cp_print_key_finished_output(unit_nr,logger,&
+             print_key, error=error)
+        RETURN
+      END IF
+
       ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
       IF (unit_nr>0) THEN
 
@@ -502,8 +563,12 @@ MODULE pint_io
 
         t=cp_unit_from_cp2k(pint_env%t,"fs",error=error)
 
+        ndof = pint_env%p
+        IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
+          ndof = ndof - 1
+        END IF
         temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
-               REAL(pint_env%p,dp)/REAL(pint_env%ndim,dp),&
+               REAL(ndof,dp)/REAL(pint_env%ndim,dp),&
                "K",error=error)
 
         WRITE (unit_nr,"(I8,1X,F12.3,1X,5(F20.9,1X),F12.1)")&
@@ -589,5 +654,101 @@ MODULE pint_io
 
     RETURN
   END SUBROUTINE pint_write_step_info
+
+  ! ***************************************************************************
+  !> \brief  Write radii of gyration according to PINT%PRINT%CENTROID_GYR
+  !> \author Lukasz Walewski
+  !> \date   2011-01-07
+  ! ***************************************************************************
+  SUBROUTINE pint_write_rgyr( pint_env, error )
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_rgyr', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: stmp1, stmp2, unit_str
+    INTEGER                                  :: ia, ib, ic, idim, unit_nr
+    LOGICAL                                  :: failure, should_output, new_file
+    REAL(kind=dp)                            :: nb, ss, unit_conv
+    REAL(kind=dp), DIMENSION(3)              :: com_r
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    ! decide whether to write anything or not
+    NULLIFY(print_key)
+    print_key => section_vals_get_subs_vals(pint_env%input, &
+      "MOTION%PINT%PRINT%CENTROID_GYR", error=error)
+    should_output = BTEST(cp_print_key_should_output( &
+      iteration_info=logger%iter_info,&
+      basis_section=print_key,error=error),cp_p_file)
+    IF ( .NOT. should_output ) THEN
+      RETURN
+    END IF
+
+    ! get the units conversion factor
+    CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str,error=error)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+
+    ! calculate the centroid positions
+    nb=REAL(pint_env%p,dp)
+    idim=0
+    DO ia = 1, pint_env%ndim/3
+      DO ic = 1, 3
+        idim=idim+1
+        ss=0.0_dp
+        DO ib = 1, pint_env%p
+          ss=ss+pint_env%x(ib,idim)
+        END DO
+        pint_env%rtmp_ndim(idim) = ss/nb
+      END DO
+    END DO
+
+    ! calculate the radii of gyration
+    idim=0
+    DO ia = 1, pint_env%ndim/3
+      ss=0.0_dp
+      DO ic = 1, 3
+        idim=idim+1
+        DO ib = 1, pint_env%p
+          ss=ss+(pint_env%x(ib,idim)-pint_env%rtmp_ndim(idim))**2
+        END DO
+      END DO
+      pint_env%rtmp_natom(ia) = SQRT(ss/nb) * unit_conv
+    END DO
+
+    unit_nr=cp_print_key_unit_nr(logger, print_key, is_new_file=new_file, &
+            middle_name="centroid-gyr",extension=".dat",error=error)
+
+    ! don't write the 0-th frame if the file already exists
+    IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
+      CALL cp_print_key_finished_output(unit_nr,logger,&
+           print_key, error=error)
+      RETURN
+    END IF
+
+    ! actually perform the i/o - on the ionode only
+    IF (unit_nr>0) THEN
+
+      DO ia = 1, pint_env%ndim/3
+        WRITE(unit_nr,'(F20.10,1X)',ADVANCE='NO') pint_env%rtmp_natom(ia)
+      END DO
+      WRITE(unit_nr,'(A)') ""
+
+      CALL m_flush(unit_nr)
+
+    END IF
+
+    CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+
+    RETURN
+  END SUBROUTINE pint_write_rgyr
 
 END MODULE pint_io

@@ -15,12 +15,15 @@ MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_external_control,             ONLY: external_control
+  USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+                                             cp_sll_val_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -38,7 +41,8 @@ MODULE pint_methods
   USE helium_sampling,                 ONLY: helium_do_run,&
                                              helium_step
   USE helium_types,                    ONLY: helium_solvent_type
-  USE input_constants,                 ONLY: transformation_stage
+  USE input_constants,                 ONLY: transformation_normal,&
+                                              transformation_stage
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -47,8 +51,12 @@ MODULE pint_methods
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
-                                             section_vals_val_unset
+                                             section_vals_val_unset,&
+                                             section_vals_list_get
+  USE input_val_types,                 ONLY: val_get,&
+                                             val_type
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
   USE mathconstants,                   ONLY: twopi
@@ -57,7 +65,8 @@ MODULE pint_methods
                                              create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
-                                             next_rng_seed
+                                             next_rng_seed,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE pint_gle,                        ONLY: pint_calc_gle_energy,&
                                              pint_gle_init,&
@@ -65,12 +74,17 @@ MODULE pint_methods
   USE pint_io,                         ONLY: pint_write_centroids,&
                                              pint_write_com,&
                                              pint_write_ener,&
+                                             pint_write_line,&
                                              pint_write_step_info,&
-                                             pint_write_trajectory
+                                             pint_write_trajectory,&
+                                             pint_write_rgyr
   USE pint_normalmode,                 ONLY: normalmode_calc_uf_h,&
                                              normalmode_env_create,&
                                              normalmode_init_masses,&
                                              normalmode_release
+  USE pint_public,                     ONLY: pint_com_pos, &
+                                             pint_free_part_bead_x,&
+                                             pint_levy_walk
   USE pint_staging,                    ONLY: staging_calc_uf_h,&
                                              staging_env_create,&
                                              staging_init_masses,&
@@ -126,7 +140,7 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: output_file_name, project_name
     INTEGER                                  :: handle, iat, ib, idim, idir, &
                                                 ierr, itmp, nrep, prep, stat
-    LOGICAL                                  :: explicit, failure, wrong_input
+    LOGICAL                                  :: explicit, failure, wrong_input, ltmp
     REAL(kind=dp)                            :: mass
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
     TYPE(cp_error_type)                      :: new_error
@@ -298,13 +312,11 @@ CONTAINS
             pint_env%uv_new(pint_env%p,pint_env%ndim),     &
             pint_env%uf(pint_env%p,pint_env%ndim),         &
             pint_env%uf_h(pint_env%p,pint_env%ndim),       &
+            pint_env%rtmp_ndim(pint_env%ndim),             &
+            pint_env%rtmp_natom(pint_env%ndim/3),          &
             STAT=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-       DO ib=1,pint_env%p
-          DO idim=1,pint_env%ndim
-             pint_env%x(ib,idim)=pint_env%replicas%r(idim,ib)
-          END DO
-       END DO
+       pint_env%x        = 0._dp
        pint_env%v        = 0._dp
        pint_env%f        = 0._dp
        pint_env%external_f= 0._dp
@@ -314,6 +326,9 @@ CONTAINS
        pint_env%uv_new   = 0._dp
        pint_env%uf       = 0._dp
        pint_env%uf_h     = 0._dp
+       pint_env%rtmp_ndim= 0._dp
+       pint_env%rtmp_natom= 0._dp
+       pint_env%time_per_step = 0.0_dp
 
        IF (pint_env%transform == transformation_stage) THEN
           transform_section => section_vals_get_subs_vals(input,&
@@ -399,6 +414,13 @@ CONTAINS
          END IF
        END IF
 
+       CALL section_vals_val_get(pint_section,"FIX_CENTROID_POS",&
+            l_val=ltmp,error=error)
+       IF ( ltmp .AND. (pint_env%transform .EQ. transformation_normal) ) THEN
+         pint_env%first_propagated_mode = 2
+       ELSE
+         pint_env%first_propagated_mode = 1
+       END IF
 
     END IF
 
@@ -496,6 +518,10 @@ CONTAINS
         DEALLOCATE(pint_env%uf,STAT=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         DEALLOCATE(pint_env%uf_h,STAT=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(pint_env%rtmp_ndim,STAT=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(pint_env%rtmp_natom,STAT=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
         IF(pint_env%pimd_thermostat==thermostat_nose) THEN
@@ -598,7 +624,7 @@ CONTAINS
         CALL cp_log(logger,cp_note_level+1,routineP,"diff_f_h="//cp_to_string(err),&
              local=.FALSE.)
      END IF
-  END IF
+    END IF
     RETURN
   END SUBROUTINE pint_test
 
@@ -626,7 +652,7 @@ CONTAINS
                                                 solute_only_mid = 2, &
                                                 solute_with_helium_mid = 3
 
-    INTEGER                                  :: handle, mode
+    INTEGER                                  :: handle, mode, idim, ib
     LOGICAL                                  :: explicit, failure, &
                                                 helium_only, solvent_present
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -688,15 +714,20 @@ CONTAINS
 
       CASE (solute_only_mid)
         CALL pint_create(pint_env,input,para_env,error=error)
-        CALL pint_start(pint_env,error=error)
+        CALL pint_init(pint_env,error)
         CALL pint_do_run(pint_env,globenv,error=error)
         CALL pint_release(pint_env,error=error)
 
       CASE (solute_with_helium_mid)
         CALL pint_create(pint_env,input,para_env,error=error)
+        ! init pint wihtout helium forces (they are not yet initialized)
+        CALL pint_init(pint_env,error)
+        ! init helium with solute's positions (they are already initialized)
         CALL helium_create(helium,input,solute=pint_env,error=error)
         CALL helium_init(helium,pint_env,error)
-        CALL pint_start(pint_env,helium_solvent=helium,error=error)
+        ! reinit pint forces with helium forces (they are now initialized)
+        CALL pint_init_f( pint_env, helium_solvent=helium, error=error )
+
         CALL pint_do_run(pint_env,globenv,helium=helium,error=error)
         CALL helium_release(helium,error=error)
         CALL pint_release(pint_env,error=error)
@@ -720,259 +751,487 @@ CONTAINS
   !> \par    History
   !>           11.2003 created [fawzi]
   !>           actually ASSIGN input pointer [hforbert]
+  !>           2010-12-16 turned into a wrapper routine [lwalewski]
   ! ***************************************************************************
-  SUBROUTINE pint_start(pint_env, helium_solvent, error)
+  SUBROUTINE pint_init(pint_env, error)
+
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(helium_solvent_type), OPTIONAL, &
-      POINTER                                :: helium_solvent
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_start', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ib, idim, ii, inos, n_rep_val
-    LOGICAL                                  :: centroid_speed, explicit, &
-                                                failure, gle_restart, &
-                                                randomize_pos
-    REAL(kind=dp)                            :: rv
-    REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
-    TYPE(section_vals_type), POINTER         :: beads_section, coord_section, &
-                                                gle_section, input, &
-                                                nose_section, velocity_section
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
-
-    NULLIFY(input, nose_section,coord_section,velocity_section,gle_section)
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-      input => pint_env%input
-      CALL pint_init_v(pint_env,error=error)
-      CALL section_vals_val_get(input,"MOTION%PINT%INIT%CENTROID_SPEED",&
-           l_val=centroid_speed,error=error)
-      IF (centroid_speed) THEN
-        CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-        DO idim=1,pint_env%ndim
-          rv = next_random_number(rng_stream=pint_env%randomG,&
-                                  variance=pint_env%mass(idim)*pint_env%kT,&
-                                  error=error)/pint_env%mass(idim)
+    IF ( failure ) THEN
+      RETURN
+    END IF
+
+    CALL pint_init_v( pint_env, error=error )
+    CALL pint_init_t( pint_env, error=error )
+    CALL pint_init_x( pint_env, error )
+    CALL pint_init_f( pint_env, error=error )
+
+    RETURN
+  END SUBROUTINE pint_init
+
+
+  ! ***************************************************************************
+  !> \brief  Assign initial postions to the beads.
+  !> \author Lukasz Walewski
+  !> \date   2010-12-15
+  !> \descr  Initialization is done in the following way:
+  !>           1. assign all beads with the same classical positions from
+  !>              FORCE_EVAL (hot start)
+  !>           2. spread the beads around classical positions as if they were
+  !>              free particles (if requested)
+  !>           3. replace positions generated in steps 1-2 with the explicit
+  !>              ones if they are explicitly given in the input structure
+  !>           4. apply Gaussian noise to the positions generated so far (if
+  !>              requested)
+  ! ***************************************************************************
+  SUBROUTINE pint_init_x( pint_env, error )
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_x', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: msg
+    INTEGER                                  :: idim, ia, ib, ic, istat, nb, n_rep_val, input_seed
+    LOGICAL                                  :: failure, explicit, ltmp, done_levy, done_init, done_rand
+    REAL(kind=dp)                            :: var, tcorr
+    REAL(kind=dp), DIMENSION(3, 2)           :: seed
+    REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals, bx
+    REAL(kind=dp), DIMENSION(3)              :: x0
+    TYPE(rng_stream_type), POINTER           :: rng_gaussian
+    TYPE(section_vals_type), POINTER         :: input_section
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF ( failure ) THEN
+      RETURN
+    END IF
+
+    DO idim = 1, pint_env%ndim
+      DO ib=1,pint_env%p
+        pint_env%x(ib,idim)=pint_env%replicas%r(idim,ib)
+      END DO
+    END DO
+
+    done_levy = .FALSE.
+    CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%INIT%LEVY_POS_SAMPLE",&
+         l_val=ltmp,error=error)
+    CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%INIT%LEVY_TEMP_FACTOR",&
+         r_val=tcorr,error=error)
+    IF ( ltmp ) THEN
+
+      NULLIFY(bx)
+      ALLOCATE(bx(3*pint_env%p), STAT=istat)
+      CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
+      NULLIFY (rng_gaussian)
+      CALL section_vals_val_get(pint_env%input,&
+           "MOTION%PINT%INIT%LEVY_SEED",i_val=input_seed,error=error)
+      seed(:,:) = REAL(input_seed,KIND=dp)
+!      seed(:,:) = next_rng_seed(error=error)
+      CALL create_rng_stream(rng_gaussian,&
+                             name="tmp_rng_gaussian",&
+                             distribution_type=GAUSSIAN,&
+                             extended_precision=.TRUE.,&
+                             seed=seed,error=error)
+      idim = 0
+      DO ia = 1, pint_env%ndim/3
+!        var = SQRT(1.0_dp/(pint_env%kT*tcorr*4.0_dp*pint_env%mass(3*ia)))
+!        CALL pint_free_part_bead_x(pint_env%p,var,rng_gaussian,bx,nb,error)
+!        CPPostcondition(nb==pint_env%p,cp_fatal_level,routineP,error,failure)
+        x0(1) = pint_env%x(1,3*(ia-1)+1)
+        x0(2) = pint_env%x(1,3*(ia-1)+2)
+        x0(3) = pint_env%x(1,3*(ia-1)+3)
+        var = SQRT(1.0_dp/(pint_env%kT*tcorr*pint_env%mass(3*ia)))
+        CALL pint_levy_walk( x0, pint_env%p, var, bx, rng_gaussian, error )
+        DO ic = 1, 3
+          idim = idim + 1
           DO ib=1,pint_env%p
-            pint_env%v(ib,idim)=pint_env%v(ib,idim)+rv
+            pint_env%x(ib,idim) = pint_env%x(ib,idim) + bx(3*(ib-1)+ic)
           END DO
         END DO
-        CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-      END IF
-   
-      IF(pint_env%pimd_thermostat==thermostat_nose) THEN
-         nose_section => section_vals_get_subs_vals(input,"MOTION%PINT%NOSE",&
-            error=error)
-         coord_section => section_vals_get_subs_vals(nose_section,"COORD",&
-            error=error)
-         CALL section_vals_get(coord_section,explicit=explicit,error=error)
-         IF (explicit) THEN
-           CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                n_rep_val=n_rep_val,error=error)
-           IF (n_rep_val>0) THEN
-             CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
-             CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                  r_vals=r_vals,error=error)
-             CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
-                  cp_failure_level,cp_assertion_failed,&
-                  "Invalid size of MOTION%PINT%NOSE%COORD "//&
-                  CPSourceFileRef,&
-                  routineP,error,failure)
-             ii=0
-             DO idim=1,pint_env%ndim
-               DO ib=1,pint_env%p
-                 DO inos=1,pint_env%nnos
-                   ii=ii+1
-                   pint_env%tx(inos,ib,idim)=r_vals(ii)
-                 END DO
-               END DO
-             END DO
-           END IF
-         END IF
-         velocity_section => section_vals_get_subs_vals(nose_section,"VELOCITY",&
-             error=error)
-         CALL section_vals_get(velocity_section,explicit=explicit,error=error)
-         IF (explicit) THEN
-           CALL section_vals_val_get(velocity_section,"_DEFAULT_KEYWORD_",&
-                 n_rep_val=n_rep_val,error=error)
-           IF (n_rep_val>0) THEN
-             CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
-             CALL section_vals_val_get(velocity_section,"_DEFAULT_KEYWORD_",&
-               r_vals=r_vals,error=error)
-             CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
-               cp_failure_level,cp_assertion_failed,&
-               "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
-               CPSourceFileRef,&
-               routineP,error,failure)
-             ii=0
-             DO idim=1,pint_env%ndim
-               DO ib=1,pint_env%p
-                 DO inos=1,pint_env%nnos
-                   ii=ii+1
-                   pint_env%tv(inos,ib,idim)=r_vals(ii)
-                 END DO
-               END DO
-             END DO
-           END IF
-         END IF
-      ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
-         gle_section => section_vals_get_subs_vals(input,"MOTION%PINT%GLE",&
-              error=error)
-         CALL section_vals_get(gle_section,explicit=explicit,error=error)
-         IF (explicit) THEN
-            CALL restart_gle(pint_env%gle,gle_section,save_mem=.FALSE.,restart=gle_restart,error=error)
-         END IF
-      END IF
-      beads_section => section_vals_get_subs_vals(input,"MOTION%PINT%BEADS",&
-          error=error)
-      coord_section => section_vals_get_subs_vals(beads_section,"COORD",&
-          error=error)
-      CALL section_vals_get(coord_section,explicit=explicit,error=error)
-      IF (explicit) THEN
-        CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-             n_rep_val=n_rep_val,error=error)
-        IF (n_rep_val>0) THEN
-           CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
-           CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                r_vals=r_vals,error=error)
-           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
-                cp_failure_level,cp_assertion_failed,&
-                "Invalid size of MOTION%PINT%BEADS%COORD "//&
-                CPSourceFileRef,&
-                routineP,error,failure)
-           ii=0
-           DO idim=1,pint_env%ndim
-              DO ib=1,pint_env%p
-                    ii=ii+1
-                    pint_env%x(ib,idim)=r_vals(ii)
-              END DO
-           END DO
-        ELSE
+      END DO
+      CALL delete_rng_stream(rng_gaussian,error=error)
+      DEALLOCATE(bx, STAT=istat)
+      CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
+      done_levy = .TRUE.
+    END IF
 
-        END IF
-      END IF
-      velocity_section => section_vals_get_subs_vals(beads_section,"VELOCITY",&
-          error=error)
-      CALL section_vals_get(velocity_section,explicit=explicit,error=error)
-      IF (explicit) THEN
-        CALL section_vals_val_get(velocity_section,"_DEFAULT_KEYWORD_",&
-             n_rep_val=n_rep_val,error=error)
-        IF (n_rep_val>0) THEN
-           CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
-           CALL section_vals_val_get(velocity_section,"_DEFAULT_KEYWORD_",&
-                r_vals=r_vals,error=error)
-           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
-                cp_failure_level,cp_assertion_failed,&
-                "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
-                CPSourceFileRef,&
-                routineP,error,failure)
-           ii=0
-           DO idim=1,pint_env%ndim
-              DO ib=1,pint_env%p
-                 ii=ii+1
-                 pint_env%v(ib,idim)=r_vals(ii)
-              END DO
-           END DO
-           CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-        END IF
-      END IF
-
-      CALL section_vals_val_get(input,"MOTION%PINT%INIT%RANDOMIZE_POS",&
-          l_val=randomize_pos,error=error)
-      IF (randomize_pos) THEN
+    done_init = .FALSE.
+    NULLIFY(input_section)
+    input_section => section_vals_get_subs_vals(pint_env%input,&
+                     "MOTION%PINT%BEADS%COORD",&
+                     error=error)
+    CALL section_vals_get(input_section,explicit=explicit,error=error)
+    IF (explicit) THEN
+      CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+           n_rep_val=n_rep_val,error=error)
+      IF (n_rep_val>0) THEN
+        CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
+        CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+             r_vals=r_vals,error=error)
+        CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
+             cp_failure_level,cp_assertion_failed,&
+             "Invalid size of MOTION%PINT%BEADS%COORD "//&
+             CPSourceFileRef,&
+             routineP,error,failure)
+        ic=0
         DO idim=1,pint_env%ndim
-           DO ib=1,pint_env%p
-              pint_env%x(ib,idim) = pint_env%x(ib,idim) + &
-                              next_random_number(rng_stream=pint_env%randomG,&
-                                 variance=pint_env%beta/&
-                                 SQRT(12.0_dp*pint_env%mass(idim)),&
-                                 error=error)
-           END DO
+          DO ib=1,pint_env%p
+            ic=ic+1
+            pint_env%x(ib,idim)=r_vals(ic)
+          END DO
         END DO
+        done_init = .TRUE.
       END IF
     END IF
 
-    CALL pint_setup(pint_env,helium_solvent=helium_solvent,error=error)
+    done_rand = .FALSE.
+    CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%INIT%RANDOMIZE_POS",&
+         l_val=ltmp,error=error)
+    IF ( ltmp ) THEN
+      DO idim=1,pint_env%ndim
+        DO ib=1,pint_env%p
+          pint_env%x(ib,idim) = pint_env%x(ib,idim) + &
+                                next_random_number(rng_stream=pint_env%randomG,&
+                                variance=pint_env%beta/&
+                                SQRT(12.0_dp*pint_env%mass(idim)),&
+                                error=error)
+        END DO
+      END DO
+      done_rand = .TRUE.
+    END IF
+
+    WRITE(msg,'(A)') "Bead positions initialization:"
+    IF ( done_init ) THEN
+      WRITE(msg,'(A,A)') TRIM(msg), " input structure"
+    ELSE IF ( done_levy ) THEN
+      WRITE(msg,'(A,A)') TRIM(msg), " Levy random walk"
+    ELSE
+      WRITE(msg,'(A,A)') TRIM(msg), " hot start"
+    END IF
+    CALL pint_write_line(msg, error)
+
+    IF ( done_levy ) THEN
+      WRITE(msg,'(A,F6.3)') "Levy walk at effective temperature: ", tcorr
+    END IF
+
+    IF ( done_rand ) THEN
+      WRITE(msg,'(A)') "Added gaussian noise to the positions of the beads."
+      CALL pint_write_line(msg, error)
+    END IF
 
     RETURN
-  END SUBROUTINE pint_start
+  END SUBROUTINE pint_init_x
+
 
   ! ***************************************************************************
-  !> \brief  Perform the PIMD simulation (main MD loop)
-  !> \author Fawzi Mohamed
-  !> \note   Everything should be read for an md step.
+  !> \brief  Initialize velocities
+  !> \param  pint_env the pint env in which you should initialize the
+  !>         velocity
+  !> \param  kT the temperature the particles should be initialized to
+  !>         (defaults to pint_env%kT)
+  !> \param  error variable to control error logging, stopping,...
+  !>         see module cp_error_handling
   !> \par    History
-  !>         2003-11 created [fawzi]
-  !>         renamed from pint_run to pint_do_run because of conflicting name
-  !>           of pint_run in input_constants [hforbert]
-  !>         2009-12-14 globenv parameter added to handle soft exit
-  !>           requests [lwalewski]
+  !>         2010-12-16 gathered all velocity-init code here [lwalewski]
+  !>         2011-04-05 added centroid velocity initialization [lwalewski]
+  !> \author fawzi
   ! ***************************************************************************
-  SUBROUTINE pint_do_run(pint_env, globenv, helium, error)
+  SUBROUTINE pint_init_v(pint_env,kT,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(helium_solvent_type), OPTIONAL, &
-      POINTER                                :: helium
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_v', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: step, tot_steps
-    LOGICAL                                  :: failure, should_stop
-    REAL(kind=dp)                            :: scal
+    CHARACTER(len=default_string_length)     :: msg, unit_str
+    INTEGER                                  :: ia, ib, ic, idim, ii, inos, n_rep_val, istat, p, i, j, k, li
+    LOGICAL                                  :: failure, explicit, ltmp, done_init, done_cntr, done_sped, is_ok
+    REAL(kind=dp)                            :: mykt, rv, vv, effkt, kt1, kt2, var, s, unit_conv
+    REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
+    TYPE(section_vals_type), POINTER         :: input_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_val_type), POINTER           :: vel_list
+    TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF ( failure ) THEN
+      RETURN
+    END IF
 
-    NULLIFY(pint_env%logger)
-    pint_env%logger => cp_error_get_logger(error)
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
-    ! create iteration level and initialize iteration info
-    CALL cp_add_iter_level(pint_env%logger%iter_info,"MD",error=error)
-    CALL cp_iterate(pint_env%logger%iter_info,iter_nr=pint_env%first_step,error=error)
-    tot_steps = pint_env%first_step
-    ! main PIMD loop
-    DO step = 1, pint_env%num_steps
+    mykt=pint_env%kT
+    IF (PRESENT(kT)) mykt=kT
 
-      tot_steps = tot_steps + 1
-      CALL cp_iterate(pint_env%logger%iter_info,last=(step==pint_env%num_steps),iter_nr=tot_steps,error=error)
-      pint_env%t = pint_env%t + pint_env%dt
-      pint_env%iter = tot_steps
+    done_cntr = .FALSE.
+    CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%INIT%CENTROID_VELOCITY",&
+         l_val=ltmp,error=error)
+    IF ( ltmp ) THEN
 
+      ! assign all the beads with the same velocities from the classical
+      ! input given in FORCE_EVAL%SUBSYS%VELOCITY
+      NULLIFY(input_section)
+      input_section => section_vals_get_subs_vals(pint_env%input,&
+                       "FORCE_EVAL%SUBSYS%VELOCITY",&
+                       error=error)
+      CALL section_vals_get(input_section,explicit=explicit,error=error)
+      IF (explicit) THEN
+        CALL section_vals_val_get(input_section,"PINT_UNIT",c_val=unit_str,error=error)
+        unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
-      IF (pint_env%t_tol > 0.0_dp) THEN
-        IF (ABS(2._dp*pint_env%e_kin_beads/(pint_env%p*pint_env%ndim)&
-          -pint_env%kT)>pint_env%t_tol) THEN
-          scal=SQRT(pint_env%kT*(pint_env%p*pint_env%ndim)/(2.0_dp*pint_env%e_kin_beads))
-          pint_env%uv=scal*pint_env%uv
-          CALL pint_setup(pint_env,helium_solvent=helium,error=error)
-        END IF
+        ! done the same way as in md_vel_utils%initialize_velocities
+        NULLIFY(vel_list)
+        CALL section_vals_list_get(input_section,"_DEFAULT_KEYWORD_",&
+             list=vel_list,error=error)
+        NULLIFY(r_vals, val)
+        DO ia=1,pint_env%ndim/3
+          is_ok=cp_sll_val_next(vel_list,val,error=error)
+          CALL val_get(val,r_vals=r_vals,error=error)
+          DO ib=1,pint_env%p
+            DO ic=1,3
+            idim = 3*(ia-1)+ic
+            pint_env%v(ib,idim)=r_vals(ic)*unit_conv
+            END DO
+          END DO
+        END DO
+      ELSE
+        WRITE(msg,'(A)') "Centroid velocities requested but none given."
+        CALL cp_assert(.FALSE.,&
+                       cp_failure_level,cp_assertion_failed,&
+                       TRIM(msg)//&
+                       CPSourceFileRef,&
+                       routineP,error,failure)
       END IF
-      CALL pint_step(pint_env,helium_solvent=helium,error=error)
 
-      CALL pint_write_ener(pint_env,error=error)
-      CALL pint_write_centroids(pint_env,error=error)
-      CALL pint_write_trajectory(pint_env,error=error)
-      CALL pint_write_com(pint_env,error=error)
+      ! draw velocities for non-centroid modes from M-B distribution
+      CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+      DO idim = 1, pint_env%ndim
+        DO ib = 2, pint_env%p
+        rv = next_random_number(rng_stream=pint_env%randomG,&
+             variance=pint_env%kT/pint_env%mass_fict(ib,idim),&
+             error=error)
+          pint_env%uv(ib,idim) = rv
+        END DO
+      END DO
 
-      CALL write_restart(root_section=pint_env%input,&
-           pint_env=pint_env, helium_env=helium, error=error)
+      done_cntr = .TRUE.
+    ELSE
 
-      ! exit from the main loop if soft exit has been requested
-      CALL external_control(should_stop,"MD",globenv=globenv,error=error)
-      IF (should_stop) EXIT
+      DO idim=1,SIZE(pint_env%uv,2)
+        DO ib=1,SIZE(pint_env%uv,1)
+          pint_env%uv(ib,idim) = &
+            next_random_number(rng_stream=pint_env%randomG,&
+                               variance=mykT/pint_env%mass_fict(ib,idim),&
+                               error=error)
+        END DO
+      END DO
 
-    END DO
+    END IF
 
-    ! remove iteration level
-    CALL cp_rm_iter_level(pint_env%logger%iter_info,"MD",error=error)
+    ! add random component to the centroid velocity
+    done_sped = .FALSE.
+    CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%INIT%CENTROID_SPEED",&
+         l_val=ltmp,error=error)
+    IF (ltmp) THEN
+      CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+      DO idim=1,pint_env%ndim
+        rv = next_random_number(rng_stream=pint_env%randomG,&
+                                variance=pint_env%mass(idim)*pint_env%kT,&
+                                error=error)/pint_env%mass(idim)
+        DO ib=1,pint_env%p
+          pint_env%v(ib,idim)=pint_env%v(ib,idim)+rv
+        END DO
+      END DO
+      CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+      done_sped = .TRUE.
+    END IF
+
+    done_init = .FALSE.
+    NULLIFY(input_section)
+    input_section => section_vals_get_subs_vals(pint_env%input,&
+                     "MOTION%PINT%BEADS%VELOCITY",&
+                     error=error)
+    CALL section_vals_get(input_section,explicit=explicit,error=error)
+    IF (explicit) THEN
+      CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+           n_rep_val=n_rep_val,error=error)
+      IF (n_rep_val>0) THEN
+        CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
+        CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+             r_vals=r_vals,error=error)
+        CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
+                       cp_failure_level,cp_assertion_failed,&
+                       "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
+                       CPSourceFileRef,&
+                       routineP,error,failure)
+        ii=0
+        DO idim=1,pint_env%ndim
+          DO ib=1,pint_env%p
+            ii=ii+1
+            pint_env%v(ib,idim)=r_vals(ii)
+          END DO
+        END DO
+        CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+        done_init = .TRUE.
+      END IF
+    END IF
+
+    WRITE(msg,'(A)') "Bead velocities initialization:"
+    IF ( done_init ) THEN
+      WRITE(msg,'(A,A)') TRIM(msg), " input structure"
+    ELSE IF ( done_cntr ) THEN
+      WRITE(msg,'(A,A)') TRIM(msg), " centroid + Maxwell-Boltzmann"
+    ELSE
+      WRITE(msg,'(A,A)') TRIM(msg), " Maxwell-Boltzmann"
+    END IF
+    CALL pint_write_line(msg, error)
+
+    IF (( .NOT. done_init ) .AND. ( done_sped )) THEN
+      WRITE(msg,'(A)') "Added random component to the initial centroid velocities."
+      CALL pint_write_line(msg, error)
+    END IF
 
     RETURN
-  END SUBROUTINE pint_do_run
+  END SUBROUTINE pint_init_v
+
+
+  ! ***************************************************************************
+  !> \brief  Assign initial postions and velocities to the thermostats.
+  !> \author Lukasz Walewski
+  !> \date   2010-12-15
+  !> \note   Extracted from pint_init
+  ! ***************************************************************************
+  SUBROUTINE pint_init_t( pint_env, kT, error )
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_t', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ii, ib, idim, inos, n_rep_val
+    LOGICAL                                  :: failure, explicit, gle_restart
+    REAL(kind=dp)                            :: mykt
+    REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
+    TYPE(section_vals_type), POINTER         :: input_section
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF ( failure ) THEN
+      RETURN
+    END IF
+
+    IF(pint_env%pimd_thermostat==thermostat_nose) THEN
+
+      mykt=pint_env%kT
+      IF (PRESENT(kT)) mykt=kT
+      DO idim=1,SIZE(pint_env%tv,3)
+        DO ib=1,SIZE(pint_env%tv,2)
+          DO inos=1,SIZE(pint_env%tv,1)
+             pint_env%tv(inos,ib,idim) = &
+               next_random_number(rng_stream=pint_env%randomG,&
+                                  variance=mykT/pint_env%Q(ib),&
+                                  error=error)
+          END DO
+        END DO
+      END DO
+
+      NULLIFY(input_section)
+      input_section => section_vals_get_subs_vals(pint_env%input,&
+                       "MOTION%PINT%NOSE%COORD",&
+                       error=error)
+      CALL section_vals_get(input_section,explicit=explicit,error=error)
+      IF (explicit) THEN
+        CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+                                  n_rep_val=n_rep_val,error=error)
+        IF (n_rep_val>0) THEN
+          CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
+          CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+                                    r_vals=r_vals,error=error)
+          CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
+                         cp_failure_level,cp_assertion_failed,&
+                         "Invalid size of MOTION%PINT%NOSE%COORD "//&
+                         CPSourceFileRef,&
+                         routineP,error,failure)
+          ii=0
+          DO idim=1,pint_env%ndim
+            DO ib=1,pint_env%p
+              DO inos=1,pint_env%nnos
+                ii=ii+1
+                pint_env%tx(inos,ib,idim)=r_vals(ii)
+              END DO
+            END DO
+          END DO
+        END IF
+      END IF
+
+      NULLIFY(input_section)
+      input_section => section_vals_get_subs_vals(pint_env%input,&
+                       "MOTION%PINT%NOSE%VELOCITY",&
+                       error=error)
+      CALL section_vals_get(input_section,explicit=explicit,error=error)
+      IF (explicit) THEN
+        CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+                                  n_rep_val=n_rep_val,error=error)
+        IF (n_rep_val>0) THEN
+          CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
+          CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+                                    r_vals=r_vals,error=error)
+          CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
+                         cp_failure_level,cp_assertion_failed,&
+                         "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
+                         CPSourceFileRef,&
+                         routineP,error,failure)
+          ii=0
+          DO idim=1,pint_env%ndim
+            DO ib=1,pint_env%p
+              DO inos=1,pint_env%nnos
+                ii=ii+1
+                pint_env%tv(inos,ib,idim)=r_vals(ii)
+              END DO
+            END DO
+          END DO
+        END IF
+      END IF
+
+    ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
+      NULLIFY(input_section)
+      input_section => section_vals_get_subs_vals(pint_env%input,&
+                       "MOTION%PINT%GLE",&
+                       error=error)
+      CALL section_vals_get(input_section,explicit=explicit,error=error)
+      IF (explicit) THEN
+        CALL restart_gle(pint_env%gle,input_section,save_mem=.FALSE.,&
+                         restart=gle_restart,error=error)
+      END IF
+    END IF
+
+    RETURN
+  END SUBROUTINE pint_init_t
+
 
   ! ***************************************************************************
   !> \brief  Prepares the forces, etc. to perform an MD step
@@ -981,13 +1240,13 @@ CONTAINS
   !>           Added nh_energy calculation [hforbert]
   !>           Bug fixes for no thermostats [hforbert]
   ! ***************************************************************************
-  SUBROUTINE pint_setup(pint_env,helium_solvent,error)
+  SUBROUTINE pint_init_f( pint_env, helium_solvent, error )
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(helium_solvent_type), OPTIONAL, &
       POINTER                                :: helium_solvent
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_setup', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_f', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, inos
@@ -1010,16 +1269,22 @@ CONTAINS
           pint_env%f(:,:) = pint_env%f(:,:) + helium_solvent%force_avrg(:,:)
         END IF
       END IF
-
       CALL pint_f2uf(pint_env,error=error)
+
+      ! set the centroid forces to 0 if FIX_CENTROID_POS
+      IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
+        pint_env%uf(1,:) = 0.0_dp
+      END IF
+
       CALL pint_calc_e_kin_beads_u(pint_env,error=error)
       CALL pint_calc_e_vir(pint_env,error=error)
       DO idim=1,SIZE(pint_env%uf_h,2)
-        DO ib=1,SIZE(pint_env%uf_h,1)
+        DO ib=pint_env%first_propagated_mode,SIZE(pint_env%uf_h,1)
           pint_env%uf_h(ib,idim)=pint_env%uf_h(ib,idim)&
                +REAL(pint_env%nrespa,dp)*pint_env%uf(ib,idim)
         END DO
       END DO
+
       IF (pint_env%nnos > 0) THEN
         DO idim=1,SIZE(pint_env%uf_h,2)
           DO ib=1,SIZE(pint_env%uf_h,1)
@@ -1044,7 +1309,94 @@ CONTAINS
       END IF
     END IF
     RETURN
-  END SUBROUTINE pint_setup
+  END SUBROUTINE pint_init_f
+
+
+  ! ***************************************************************************
+  !> \brief  Perform the PIMD simulation (main MD loop)
+  !> \author Fawzi Mohamed
+  !> \note   Everything should be read for an md step.
+  !> \par    History
+  !>         2003-11 created [fawzi]
+  !>         renamed from pint_run to pint_do_run because of conflicting name
+  !>           of pint_run in input_constants [hforbert]
+  !>         2009-12-14 globenv parameter added to handle soft exit
+  !>           requests [lwalewski]
+  ! ***************************************************************************
+  SUBROUTINE pint_do_run(pint_env, globenv, helium, error)
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(helium_solvent_type), OPTIONAL, &
+      POINTER                                :: helium
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: step, tot_steps
+    LOGICAL                                  :: failure, should_stop
+    REAL(kind=dp)                            :: scal, rtmp
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(pint_env%logger)
+    pint_env%logger => cp_error_get_logger(error)
+
+    ! create iteration level and initialize iteration info
+    CALL cp_add_iter_level(pint_env%logger%iter_info,"MD",error=error)
+    CALL cp_iterate(pint_env%logger%iter_info,iter_nr=pint_env%first_step,error=error)
+    tot_steps = pint_env%first_step
+
+    ! write the properties at 0-th step
+    CALL pint_calc_energy(pint_env,error)
+    CALL pint_write_ener(pint_env,error=error)
+    CALL pint_write_centroids(pint_env,error=error)
+    CALL pint_write_trajectory(pint_env,error=error)
+    CALL pint_write_com(pint_env,error=error)
+    CALL pint_write_rgyr(pint_env,error=error)
+
+    ! main PIMD loop
+    DO step = 1, pint_env%num_steps
+
+      tot_steps = tot_steps + 1
+      CALL cp_iterate(pint_env%logger%iter_info,&
+                      last=(step==pint_env%num_steps),&
+                      iter_nr=tot_steps,error=error)
+      pint_env%t = pint_env%t + pint_env%dt
+      pint_env%iter = tot_steps
+
+      IF (pint_env%t_tol > 0.0_dp) THEN
+        IF (ABS(2._dp*pint_env%e_kin_beads/(pint_env%p*pint_env%ndim)&
+          -pint_env%kT)>pint_env%t_tol) THEN
+          scal=SQRT(pint_env%kT*(pint_env%p*pint_env%ndim)/(2.0_dp*pint_env%e_kin_beads))
+          pint_env%uv=scal*pint_env%uv
+          CALL pint_init_f(pint_env,helium_solvent=helium,error=error)
+        END IF
+      END IF
+      CALL pint_step(pint_env,helium_solvent=helium,error=error)
+
+      CALL pint_write_ener(pint_env,error=error)
+      CALL pint_write_centroids(pint_env,error=error)
+      CALL pint_write_trajectory(pint_env,error=error)
+      CALL pint_write_com(pint_env,error=error)
+      CALL pint_write_rgyr(pint_env,error=error)
+
+      CALL write_restart(root_section=pint_env%input,&
+           pint_env=pint_env, helium_env=helium, error=error)
+
+      ! exit from the main loop if soft exit has been requested
+      CALL external_control(should_stop,"MD",globenv=globenv,error=error)
+      IF (should_stop) EXIT
+
+    END DO
+
+    ! remove iteration level
+    CALL cp_rm_iter_level(pint_env%logger%iter_info,"MD",error=error)
+
+    RETURN
+  END SUBROUTINE pint_do_run
+
 
   ! ***************************************************************************
   !> \brief  Does an MD step (and nrespa harmonic evaluations)
@@ -1082,14 +1434,23 @@ CONTAINS
      dti2=dti/2._dp
      tdti=2.*dti
      dti22=dti**2/2._dp
+
      DO iresp=1,pint_env%nrespa
-        ! integrate bead positions
+        ! integrate bead positions, first_propagated_mode = { 1, 2 }
         IF (pint_env%pimd_thermostat==thermostat_nose) THEN
-           pint_env%ux=pint_env%ux+dti*pint_env%uv+dti22* &
-                       (pint_env%uf_h-pint_env%uv*pint_env%tv(1,:,:))
-           pint_env%tx=pint_env%tx+dti*pint_env%tv+dti22*pint_env%tf
+          DO i = pint_env%first_propagated_mode, pint_env%p
+            pint_env%ux(i,:) = pint_env%ux(i,:) + &
+                               dti*pint_env%uv(i,:) + &
+                               dti22*(pint_env%uf_h(i,:) - &
+                               pint_env%uv(i,:)*pint_env%tv(1,i,:))
+          END DO
+          pint_env%tx=pint_env%tx+dti*pint_env%tv+dti22*pint_env%tf
         ELSE
-           pint_env%ux=pint_env%ux+dti*pint_env%uv+dti22*pint_env%uf_h
+           DO i = pint_env%first_propagated_mode, pint_env%p
+             pint_env%ux(i,:) = pint_env%ux(i,:) + &
+                                dti*pint_env%uv(i,:) + &
+                                dti22*pint_env%uf_h(i,:)
+           END DO
         END IF
         ! integrate nh vars
         ! integrate v at half step
@@ -1118,6 +1479,7 @@ CONTAINS
            IF (PRESENT(helium_solvent)) THEN
              IF (ASSOCIATED(helium_solvent)) THEN
                helium_solvent%current_step = pint_env%iter
+               helium_solvent%origin = pint_com_pos(pint_env,error)
                CALL helium_step( helium_solvent, pint_env, error )
                pint_env%f(:,:)=pint_env%f(:,:)+helium_solvent%force_avrg(:,:)
              END IF
@@ -1125,6 +1487,11 @@ CONTAINS
 
            CALL pint_f2uf(pint_env,error=error)
            pint_env%uf_h=pint_env%uf_h+rn*pint_env%uf
+        END IF
+
+        ! set the centroid forces to 0 if FIX_CENTROID_POS
+        IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
+          pint_env%uf_h(1,:) = 0.0_dp
         END IF
 
         ! add the new forces to v
@@ -1181,28 +1548,7 @@ CONTAINS
      END DO
 
      ! calculate the energy components
-     CALL pint_calc_e_kin_beads_u(pint_env,error=error)
-     CALL pint_calc_e_vir(pint_env,error=error)
-     IF(pint_env%pimd_thermostat==thermostat_nose)THEN
-       CALL pint_calc_nh_energy(pint_env,error=error)
-     ELSEIF(pint_env%pimd_thermostat==thermostat_gle)THEN
-       CALL pint_calc_gle_energy(pint_env,error=error)
-     END IF
-
-     pint_env%energy(e_kin_thermo_id) = &
-       0.5_dp * REAL(pint_env%p,dp) * REAL(pint_env%ndim,dp) * pint_env%kT - &
-       pint_env%e_pot_h
-
-     pint_env%energy(e_potential_id) = &
-       SUM(pint_env%e_pot_bead) / REAL(pint_env%p,dp)
-
-     pint_env%energy(e_conserved_id) = &
-       pint_env%energy(e_potential_id) + &
-       pint_env%e_pot_h + &
-       pint_env%e_kin_beads + &
-       pint_env%e_pot_t + &
-       pint_env%e_kin_t + pint_env%e_gle
- 
+     CALL pint_calc_energy( pint_env, error )
 
      ! check that the number of MD steps matches
      ! the number of force evaluations done so far
@@ -1228,54 +1574,45 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_step
 
-  ! ***************************************************************************
-  !> \brief  Initialize velocities
-  !> \param  pint_env the pint env in which you should initialize the
-  !>         velocity
-  !> \param  kT the temperature the particles should be initialized to
-  !>         (defaults to pint_env%kT)
-  !> \param  error variable to control error logging, stopping,...
-  !>         see module cp_error_handling
-  !> \author fawzi
-  ! ***************************************************************************
-  SUBROUTINE pint_init_v(pint_env,kT,error)
-    TYPE(pint_env_type), POINTER             :: pint_env
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_v', &
+  ! ***************************************************************************
+  !> \brief  Calculate the energy components (private wrapper function)
+  !> \author Lukasz Walewski
+  !> \date   2011-01-07
+  ! ***************************************************************************
+  SUBROUTINE pint_calc_energy( pint_env, error )
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ib, idim, inos
-    LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: mykt
+    CALL pint_calc_e_kin_beads_u(pint_env,error=error)
+    CALL pint_calc_e_vir(pint_env,error=error)
 
-    failure=.FALSE.
-
-    mykt=pint_env%kT
-    IF (PRESENT(kT)) mykt=kT
-    DO idim=1,SIZE(pint_env%uv,2)
-      DO ib=1,SIZE(pint_env%uv,1)
-        pint_env%uv(ib,idim) = &
-          next_random_number(rng_stream=pint_env%randomG,&
-                             variance=mykT/pint_env%mass_fict(ib,idim),&
-                             error=error)
-      END DO
-    END DO
-    IF(pint_env%pimd_thermostat==thermostat_nose) THEN
-      DO idim=1,SIZE(pint_env%tv,3)
-        DO ib=1,SIZE(pint_env%tv,2)
-          DO inos=1,SIZE(pint_env%tv,1)
-             pint_env%tv(inos,ib,idim) = &
-               next_random_number(rng_stream=pint_env%randomG,&
-                                  variance=mykT/pint_env%Q(ib),&
-                                  error=error)
-          END DO
-        END DO
-      END DO
+    IF (pint_env%pimd_thermostat==thermostat_nose) THEN
+      CALL pint_calc_nh_energy(pint_env,error=error)
+    ELSEIF (pint_env%pimd_thermostat==thermostat_gle) THEN
+      CALL pint_calc_gle_energy(pint_env,error=error)
     END IF
+
+    pint_env%energy(e_kin_thermo_id) = &
+      0.5_dp * REAL(pint_env%p,dp) * REAL(pint_env%ndim,dp) * pint_env%kT - &
+      pint_env%e_pot_h
+
+    pint_env%energy(e_potential_id) = &
+      SUM(pint_env%e_pot_bead) / REAL(pint_env%p,dp)
+
+    pint_env%energy(e_conserved_id) = &
+      pint_env%energy(e_potential_id) + &
+      pint_env%e_pot_h + &
+      pint_env%e_kin_beads + &
+      pint_env%e_pot_t + &
+      pint_env%e_kin_t + pint_env%e_gle
+
     RETURN
-  END SUBROUTINE pint_init_v
+  END SUBROUTINE pint_calc_energy
 
   ! ***************************************************************************
   !> \brief  Calculate the harmonic force in the u basis
@@ -1296,9 +1633,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
-!  REAL(kind=dp), DIMENSION(:,:), INTENT(out), OPTIONAL, TARGET :: uf_h
-!  REAL(kind=dp), DIMENSION(:,:), INTENT(in), OPTIONAL, TARGET :: ux
 
     failure=.FALSE.
 

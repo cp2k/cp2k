@@ -72,6 +72,8 @@ MODULE helium_types
 !>    iter_rot      - number of rotations to try
 !>                    total number of iterations is iter_norot*iter_rot
 !>    iter          - number of iterations tried so far
+!>    first_step    - first step, restarted from MOTION%PINT%ITERATION (def val =0)
+!>    current_step  - first_step + number of steps performed so far
 !>    accepts       - number of accepted new configurations
 !>    num_accepted  - average number of accepted permutations of a given length
 !>                    on a given Levy level, plus one additional level which
@@ -142,7 +144,6 @@ MODULE helium_types
      INTEGER, DIMENSION(:), POINTER :: ptable
      INTEGER, DIMENSION(:), POINTER :: permutation
      INTEGER, DIMENSION(:), POINTER :: iperm
-     INTEGER, DIMENSION(:), POINTER :: itmp_atoms_1d, itmp_atoms_np_1d
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: pos
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: work
      REAL(kind=dp), DIMENSION(:,:), POINTER :: tmatrix
@@ -152,13 +153,18 @@ MODULE helium_types
      TYPE (spline_data_p_type), DIMENSION(:,:), POINTER :: uij
      TYPE (spline_data_p_type), DIMENSION(:,:), POINTER :: eij
      REAL(kind=dp), DIMENSION(e_num_ids) :: energy_inst, energy_avrg
-     REAL(kind=dp), DIMENSION(3)         :: wnumber_inst, wnumber_avrg
+     REAL(kind=dp), DIMENSION(3)         :: wnumber_inst, wnumber_avrg, origin
      REAL(kind=dp) :: sdensity_inst, sdensity_avrg
      REAL(kind=dp), DIMENSION(:,:), POINTER :: num_accepted
      REAL(kind=dp), DIMENSION(:), POINTER :: plength_avrg, plength_inst
      INTEGER :: rdf_nbin
      REAL(kind=dp) :: rdf_delr, rdf_maxr
      REAL(kind=dp), DIMENSION(:), POINTER :: rdf_inst, rdf_avrg
+     INTEGER :: rho_nbin, rho_minb, rho_iweight
+     REAL(kind=dp) :: rho_delr, rho_maxr
+     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho_s_inst, rho_s_avrg, rho_s_rstr
+     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho_n_inst, rho_n_avrg, rho_n_rstr
+     LOGICAL :: rho_restart, rho_present
      TYPE(rng_stream_type), POINTER :: rng_stream_gaussian, rng_stream_uniform
      ! variables that describe the solvated molecular system
      LOGICAL :: solute_present
@@ -168,6 +174,7 @@ MODULE helium_types
      INTEGER, DIMENSION(:,:), POINTER :: solute_index
      TYPE(cell_type), POINTER  :: solute_cell
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: force_avrg, force_inst
+     INTEGER, DIMENSION(:), POINTER         :: itmp_atoms_1d, itmp_atoms_np_1d
      REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_3_np_1d, rtmp_p_ndim_1d, rtmp_p_ndim_np_1d
      REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_3_atoms_beads_1d, rtmp_3_atoms_beads_np_1d
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: rtmp_p_ndim_2d
