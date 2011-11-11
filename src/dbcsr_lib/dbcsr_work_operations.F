@@ -113,7 +113,7 @@ MODULE dbcsr_work_operations
 
 
 
-  PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize
+  PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize, dbcsr_special_finalize
   PUBLIC :: dbcsr_work_destroy, dbcsr_add_wm_from_matrix,&
             add_work_coordinate
 
@@ -813,13 +813,12 @@ CONTAINS
        CALL dbcsr_repoint_index (matrix%m)
     ENDIF
     !$OMP END MASTER
-!$OMP BARRIER
     !
     ! If the matrix, work matricies, and environment fit several
     ! criteria, then a quick O(1) finalization is performed.
     IF (can_quickly_finalize (matrix) .AND. .NOT. sort_data) THEN
        !$OMP BARRIER
-       CALL quick_finalize (matrix, error)
+       CALL quick_finalize (matrix, error=error)
     ELSE
        !
        !$OMP MASTER
@@ -919,6 +918,107 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
 
+  SUBROUTINE dbcsr_special_finalize(matrix, reshuffle, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_special_finalize', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    INTEGER                                  :: error_handler
+    LOGICAL                                  :: sort_data
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
+    CALL dbcsr_assert (matrix%m%nblks .EQ. 0,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Optimized finalize requires empty matrix.",__LINE__,error)
+    CALL dbcsr_assert (.NOT. dbcsr_valid_index(matrix),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Optimized finalize requires invalid matrix.",__LINE__,error)
+    CALL dbcsr_assert (ASSOCIATED (matrix%m%wms),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Optimized finalize requires work matrices exist.",__LINE__,error)
+    CALL dbcsr_assert (SIZE(matrix%m%wms).EQ. 1,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Optimized finalize requires single work matrix",__LINE__,error)
+     CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%predistributed),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Optimized finalize requires no pre-distribution",__LINE__,error)
+
+    IF (dbcsr_buffers_2d_needed) THEN
+       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
+    ENDIF
+    !
+    ! If possible, data copying is avoided.
+    IF (PRESENT (reshuffle)) THEN
+       sort_data = reshuffle
+    ELSE
+       sort_data = .FALSE.
+    ENDIF
+
+    !$OMP BARRIER
+
+    ! If the matrix, work matricies, and environment fit several
+    ! criteria, then a quick O(1) finalization is performed.
+    IF (can_quickly_finalize (matrix) .AND. .NOT. sort_data) THEN
+       CALL quick_finalize (matrix, error=error)
+    ELSE
+       CALL dbcsr_assert (sort_data,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "merge_single_wm only supports data sorting",__LINE__,error)
+       !
+       ! Ensure needed index arrays at least exist.
+       !$OMP MASTER
+       !
+       IF (.NOT. ASSOCIATED (matrix%m%wms(1)%row_i)) THEN
+          CALL ensure_array_size(matrix%m%wms(1)%row_i, ub=0, error=error)
+       ENDIF
+       IF (.NOT. ASSOCIATED (matrix%m%wms(1)%col_i)) THEN
+          CALL ensure_array_size(matrix%m%wms(1)%col_i, ub=0, error=error)
+       ENDIF
+       IF (.NOT. ASSOCIATED (matrix%m%wms(1)%blk_p)) THEN
+          CALL ensure_array_size(matrix%m%wms(1)%blk_p, ub=0, error=error)
+       ENDIF
+       !
+       !$OMP END MASTER
+       !$OMP BARRIER
+       !
+       !$OMP PARALLEL DEFAULT (none), SHARED(matrix, error)
+         CALL dbcsr_merge_single_wm (matrix%m,&
+            error=error)
+       !$OMP END PARALLEL
+
+    ENDIF
+
+    !$OMP MASTER
+    ! Clean up.
+    IF (ASSOCIATED (matrix%m%wms)) THEN
+       CALL dbcsr_work_destroy_all(matrix%m)
+    ENDIF
+    matrix%m%valid = .TRUE.
+    !$OMP END MASTER
+    !$OMP BARRIER
+    IF (dbg) THEN
+       !$OMP SINGLE
+       CALL dbcsr_verify_matrix (matrix, error=error)
+       !$OMP END SINGLE
+    ENDIF
+    IF (dbcsr_buffers_2d_needed) THEN
+       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
+            error=error)
+    ENDIF
+    !$OMP BARRIER
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_special_finalize
+
 ! *****************************************************************************
 !> \brief Checks whether the matrix can be finalized with minimal copying.
 !> \param[in] matrix          matrix to check
@@ -975,6 +1075,7 @@ CONTAINS
          matrix%m%wms(1)%row_i,&
          matrix%m%wms(1)%col_i,&
          matrix%m%wms(1)%blk_p)
+    CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_row_p)
     CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_col_i)
     CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_blk_p)
     CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
@@ -1575,7 +1676,7 @@ CONTAINS
     ! Creates a new index array.
     !
     !$OMP MASTER
-    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_row_p)
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
     CALL dbcsr_addto_index_array (matrix, dbcsr_slot_row_p,&
@@ -1632,6 +1733,104 @@ CONTAINS
     IF (dbg) WRITE(*,*)routineN//" stopped"
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_merge_all
+
+! *****************************************************************************
+!> \brief Sort data from the WM into the final matrix, based closely on dbcsr_merge_all
+!>
+!> \param[in,out] matrix      matrix to work on
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE dbcsr_merge_single_wm (matrix, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_single_wm', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: index_blocks = 1, &
+                                                index_data = 2
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    INTEGER                                  :: error_handler, nblks, nrows
+    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: new_blk_p_sorted, &
+                                                new_blk_sizes, new_row_p
+    INTEGER, ALLOCATABLE, DIMENSION(:), &
+      SAVE, TARGET                           :: blk_d
+    INTEGER, DIMENSION(:), POINTER, SAVE     :: cbs, rbs
+    TYPE(dbcsr_work_type), POINTER           :: wm
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    !> \par Outline
+
+    !> There is a single work matrix.  Data blocks are sorted and copied
+    !> into the matrix data area (which is empty).  The index is made consistent
+
+    nrows = matrix%nblkrows_total
+    wm => matrix%wms(1)
+    nblks = wm%lastblk
+    CALL dbcsr_assert (.NOT.dbcsr_wm_use_mutable (wm),&
+          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+          "Number of threads does not match number of work matrices.",&
+          __LINE__, error=error)
+    !
+    ! The following is valid because the data actually referenced
+    ! by blocks is explicitly calculated in dbcsr_finalize.
+    !$OMP MASTER
+    rbs => array_data(matrix%row_blk_size)
+    cbs => array_data(matrix%col_blk_size)
+    !
+    ! Initializations
+    !
+    ALLOCATE (new_row_p(nrows+1))
+    ALLOCATE (blk_d(nblks))
+    ALLOCATE (new_blk_p_sorted (nblks))
+    ALLOCATE (new_blk_sizes (nblks))
+    !
+    ! Master thread creates a row_p index for the (sorted) blocks.
+    CALL dbcsr_sort_indices (nblks, wm%row_i, wm%col_i, wm%blk_p)
+    CALL dbcsr_make_dbcsr_index (new_row_p, wm%row_i, nrows, nblks)
+    !
+    !
+    ! The matrix data area is resized.  Blocks from the work
+    ! matrices will be copied into it in order.
+    !
+    CALL dbcsr_data_ensure_size(matrix%data_area, wm%datasize, nocopy=.TRUE., error=error)
+    !$OMP END MASTER
+    !$OMP BARRIER
+    CALL dbcsr_calc_block_sizes(new_blk_sizes,&
+         new_row_p, wm%col_i, rbs, cbs)
+    CALL dbcsr_sort_data (new_blk_p_sorted, wm%blk_p,&
+         new_blk_sizes, dsts=matrix%data_area,&
+         src=wm%data_area,&
+         error=error)
+    !
+    ! Creates a new index array.
+    !
+    !$OMP MASTER
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_row_p)
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
+    CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
+    CALL dbcsr_addto_index_array (matrix, dbcsr_slot_row_p,&
+         DATA=new_row_p(1:nrows+1), extra=nblks*2, error=error)
+    CALL dbcsr_addto_index_array (matrix, dbcsr_slot_col_i,&
+         DATA=wm%col_i(1:nblks), error=error)
+    CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
+            DATA=new_blk_p_sorted, error=error)
+    matrix%nblks = nblks
+    matrix%nze = wm%datasize
+    matrix%index(dbcsr_slot_nblks) = matrix%nblks
+    matrix%index(dbcsr_slot_nze) = matrix%nze
+    CALL dbcsr_repoint_index(matrix)
+    DEALLOCATE (new_row_p)
+    DEALLOCATE (new_blk_sizes)
+    DEALLOCATE (new_blk_p_sorted)
+    DEALLOCATE (blk_d)
+    !$OMP END MASTER
+    IF (dbg) WRITE(*,*)routineN//" stopped"
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_merge_single_wm
+
 
 
 ! *****************************************************************************

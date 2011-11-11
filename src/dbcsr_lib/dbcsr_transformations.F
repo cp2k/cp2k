@@ -110,6 +110,7 @@ MODULE dbcsr_transformations
                                              nfull_elements
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
+                                             dbcsr_special_finalize,&
                                              dbcsr_work_create
 
   !$ USE OMP_LIB
@@ -1104,6 +1105,9 @@ CONTAINS
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
     ! Fill in the meta data structures and copy the data.
+!$omp end master
+!$omp barrier
+!$omp master
     DO dst_p = 0, numproc-1
        total_send_count(1, dst_p) = SUM (send_count (1, :, :, dst_p))
        total_send_count(2, dst_p) = SUM (send_count (2, :, :, dst_p))
@@ -1178,21 +1182,17 @@ CONTAINS
 !$omp barrier
 !$omp master
     DEALLOCATE (all_total_send_offset)
-!$omp end master
     t_error = dbcsr_error
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
           CALL dbcsr_work_create(ums%mats(row_img, col_img),&
                SUM(recv_count(1,row_img,col_img,:)), n=1, error=t_error)
-!$omp barrier
-!$omp master
           CALL dbcsr_data_hold (received_data_area)
           CALL dbcsr_data_release (ums%mats(row_img,col_img)%m%wms(1)%data_area)
           ums%mats(row_img,col_img)%m%wms(1)%data_area = received_data_area
-!$omp end master
-!$omp barrier
        ENDDO
     ENDDO
+!$omp end master
 !$omp barrier
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
@@ -1355,9 +1355,9 @@ CONTAINS
                ums%mats(row_img,col_img)%m%wms(1)%data_area,&
                ums%mats(row_img,col_img)%m%wms(1)%datasize)
           IF (nrow_images.EQ.1 .AND. ncol_images.eq.1 .OR. nocopy) THEN
-             CALL dbcsr_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.,error=dbcsr_error)
+             CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.,error=dbcsr_error)
           ELSE
-             CALL dbcsr_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.,error=dbcsr_error)
+             CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.,error=dbcsr_error)
           ENDIF
           ! Save the home process and image row and column
           CALL image_calculator (target_imgdist,&
