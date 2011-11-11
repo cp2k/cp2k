@@ -501,7 +501,8 @@ CONTAINS
 !$     CALL mpi_init_thread (MPI_THREAD_FUNNELED, provided_tsl, ierr)
 !$     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init_thread @ mp_world_init" )
 !$     IF (provided_tsl .LT. MPI_THREAD_FUNNELED) THEN
-!$        CALL mp_stop (0, "MPI library does support the requested level of threading.")
+!$        CALL mp_stop (0, "MPI library does not support the requested level &
+!$                          of threading (MPI_THREAD_FUNNELED).")
 !$     ENDIF
 !$OMP END MASTER
 !$  ENDIF
