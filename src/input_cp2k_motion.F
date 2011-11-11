@@ -2854,7 +2854,7 @@ CONTAINS
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="Whether or not to actually calculate densities "//&
          "(requires significant amount of memory, depending on the value of NBIN)",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
