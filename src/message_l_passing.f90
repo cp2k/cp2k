@@ -751,7 +751,7 @@
   END SUBROUTINE mp_bcast_lm
 
 ! *****************************************************************************
-!> \brief Broadcasts rank-2 data to all processes
+!> \brief Broadcasts rank-3 data to all processes
 !> \param[in] msg             Data to broadcast
 !> \sa mp_bcast_l1
 ! *****************************************************************************
