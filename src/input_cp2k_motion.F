@@ -2676,7 +2676,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection, subsubsection
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)

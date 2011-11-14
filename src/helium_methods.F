@@ -54,14 +54,13 @@ MODULE helium_methods
   USE physcon,                         ONLY: angstrom,&
                                              kelvin,&
                                              massunit
-  USE pint_types,                      ONLY: pint_env_type
   USE pint_public,                     ONLY: pint_com_pos
+  USE pint_types,                      ONLY: pint_env_type
   USE splines_methods,                 ONLY: init_spline,&
                                              init_splinexy
   USE splines_types,                   ONLY: spline_data_create,&
                                              spline_data_release,&
                                              spline_data_retain
-  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -89,7 +88,7 @@ MODULE helium_methods
   SUBROUTINE helium_create( helium, input, solute, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(pint_env_type), OPTIONAL, POINTER  :: solute
+    TYPE(pint_env_type), OPTIONAL, POINTER   :: solute
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_create', &
@@ -101,7 +100,8 @@ MODULE helium_methods
                                                 itmp, j, nlines, ntab, stat
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
-                                                expl_nats, explicit, failure, ltmp
+                                                expl_nats, explicit, failure, &
+                                                ltmp
     REAL(KIND=dp)                            :: cgeof, dx, rtmp, tcheck, x1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_transfer
@@ -853,10 +853,9 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: explicit, &
-                                                explicit_presample, &
-                                                failure, presample, &
-                                                coords_presampled
+    LOGICAL                                  :: coords_presampled, explicit, &
+                                                explicit_presample, failure, &
+                                                presample
     TYPE(section_vals_type), POINTER         :: helium_section, sec
 
     CALL timeset(routineN,handle)
@@ -1658,10 +1657,10 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp1, stmp2
-    INTEGER                                  :: msglen, istat, itmp
-    REAL(kind=dp), DIMENSION(:), POINTER     :: message_s, message_n
-    LOGICAL                                  :: ltmp, failure
+    INTEGER                                  :: istat, itmp, msglen
+    LOGICAL                                  :: failure, ltmp
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
+    REAL(kind=dp), DIMENSION(:), POINTER     :: message_n, message_s
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: f
 
@@ -1746,8 +1745,8 @@ MODULE helium_methods
 
     CHARACTER(LEN=2)                         :: my_element_symbol
     CHARACTER(LEN=2), DIMENSION(:), POINTER  :: element
-    INTEGER                                  :: i, j, natoms, nelements, &
-                                                istat, mnum
+    INTEGER                                  :: i, istat, j, mnum, natoms, &
+                                                nelements
     LOGICAL                                  :: found, my_failure
     REAL(KIND=dp)                            :: mass
     TYPE(cp_error_type)                      :: my_error

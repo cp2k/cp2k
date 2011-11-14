@@ -16,17 +16,18 @@ MODULE helium_sampling
                                              cp_rm_iter_level
   USE global_types,                    ONLY: global_environment_type
   USE helium_common,                   ONLY: &
-       helium_boxmean_3d, helium_calc_plength, helium_calc_rdf, helium_calc_rho, &
-       helium_calc_wnumber, helium_eval_expansion, helium_pbc, helium_rotate, &
-       helium_spline, helium_update_transition_matrix
+       helium_boxmean_3d, helium_calc_plength, helium_calc_rdf, &
+       helium_calc_rho, helium_calc_wnumber, helium_eval_expansion, &
+       helium_pbc, helium_rotate, helium_spline, &
+       helium_update_transition_matrix
   USE helium_interactions,             ONLY: helium_bead_solute_e,&
                                              helium_calc_energy,&
                                              helium_solute_e_f
   USE helium_io,                       ONLY: &
        helium_write_accepts, helium_write_coordinates, helium_write_energy, &
-       helium_write_force, helium_write_force_inst, helium_write_line, &
-       helium_write_perm, helium_write_plength, helium_write_rdf, &
-       helium_write_rho, helium_write_sdensity, helium_write_wnumber
+       helium_write_force, helium_write_line, helium_write_perm, &
+       helium_write_plength, helium_write_rdf, helium_write_rho, &
+       helium_write_sdensity, helium_write_wnumber
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
   USE input_cp2k_restarts,             ONLY: write_restart
@@ -71,7 +72,6 @@ MODULE helium_sampling
 
     INTEGER                                  :: step, tot_steps
     LOGICAL                                  :: failure, should_stop
-    REAL(kind=dp)                            :: rtmp
     TYPE(pint_env_type), POINTER             :: pint_env
 
     failure=.FALSE.

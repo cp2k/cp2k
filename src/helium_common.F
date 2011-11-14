@@ -26,8 +26,7 @@ MODULE helium_common
   USE splines_methods,                 ONLY: spline_value
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE timings,                         ONLY: timeset
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -344,7 +343,7 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, handle, ia, ib
+    INTEGER                                  :: bin, ia, ib
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ri
     REAL(kind=dp), DIMENSION(3)              :: r, r0
@@ -403,9 +402,9 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bx, by, bz, handle, ia, ib, itmp, path_length, npaths
+    INTEGER                                  :: bx, by, bz, ia, ib, itmp
     LOGICAL                                  :: failure, ltmp
-    REAL(kind=dp)                            :: delrinv, incr_s, incr_n, mHe, T, c, dv
+    REAL(kind=dp)                            :: c, delrinv, incr_n, incr_s
     REAL(kind=dp), DIMENSION(3)              :: r, r0
 
 !    CALL timeset(routineN,handle)
@@ -1156,13 +1155,14 @@ END SUBROUTINE helium_update_transition_matrix
 
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, DIMENSION(:), POINTER           :: permutation
+    INTEGER                                  :: num_cycles
 
-    INTEGER                                  :: curr_idx, prev_idx, clen, cycle_idx, &
-                                                ia, ia2, ib, ic, num_cycles
+    INTEGER                                  :: clen, curr_idx, cycle_idx, &
+                                                ia, ia2, ib, ic, prev_idx
     INTEGER, DIMENSION(:), POINTER           :: cycle_index, cycle_length
     LOGICAL                                  :: new_cycle
-    REAL(KIND=dp), DIMENSION(3)              :: r, v, w
-    REAL(KIND=dp), DIMENSION(128,3)              :: cycle_w
+    REAL(KIND=dp), DIMENSION(128, 3)         :: cycle_w
+    REAL(KIND=dp), DIMENSION(3)              :: r, v
 
     NULLIFY(cycle_index)
     cycle_index => helium%itmp_atoms_1d
@@ -1247,9 +1247,9 @@ END SUBROUTINE helium_update_transition_matrix
 
     END DO
 
-do ic = 1, num_cycles
-  print *, ic, cycle_index(ic), cycle_length(ic), cycle_w(ic,:)
-end do
+DO ic = 1, num_cycles
+  PRINT *, ic, cycle_index(ic), cycle_length(ic), cycle_w(ic,:)
+END DO
 
     cycle_index(:) = 0
     NULLIFY(cycle_index)
@@ -1311,7 +1311,8 @@ end do
 
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: atom_number
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: pos
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: pos
     INTEGER, DIMENSION(:), POINTER           :: permutation
     LOGICAL                                  :: is_winding
 
@@ -1319,7 +1320,7 @@ end do
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: ia, ib, atom_idx, path_length
+    INTEGER                                  :: atom_idx, ia, ib, path_length
     LOGICAL                                  :: path_end_reached
     REAL(KIND=dp), DIMENSION(3)              :: r, v, w
 
@@ -1396,9 +1397,9 @@ end do
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: ia, ib, atom_idx, path_length
+    INTEGER                                  :: atom_idx, ia, ib, path_length
     LOGICAL                                  :: path_end_reached
-    REAL(KIND=dp)                             :: wsq
+    REAL(KIND=dp)                            :: wsq
     REAL(KIND=dp), DIMENSION(3)              :: r, v, w
 
     v(:) = 0.0_dp

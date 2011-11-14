@@ -121,6 +121,7 @@ MODULE pint_public
 !
     INTEGER, INTENT(IN)                      :: n
     REAL(kind=dp), INTENT(IN)                :: t
+    TYPE(rng_stream_type), POINTER           :: rng_gaussian
     REAL(kind=dp), DIMENSION(:), POINTER     :: x
     INTEGER, INTENT(OUT)                     :: nout
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -128,12 +129,11 @@ MODULE pint_public
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nlevels, stat, il, ic,&
-                                                ip, np, dl, j, i1, i2, ib
+    INTEGER                                  :: dl, i1, i2, ib, ic, il, ip, &
+                                                j, nlevels, np
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: rtmp, tcheck, vrnc, xc
     REAL(kind=dp), DIMENSION(3)              :: cntrd_r
-    TYPE(rng_stream_type), POINTER           :: rng_gaussian
 
     failure=.FALSE.
     nout = 0
@@ -215,8 +215,8 @@ MODULE pint_public
   ! ***************************************************************************
   SUBROUTINE pint_levy_walk( x0, n, v, x, rng_gaussian, error )
 
-    INTEGER, INTENT(IN)                      :: n
     REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: x0
+    INTEGER, INTENT(IN)                      :: n
     REAL(kind=dp), INTENT(IN)                :: v
     REAL(kind=dp), DIMENSION(:), POINTER     :: x
     TYPE(rng_stream_type), POINTER           :: rng_gaussian
@@ -225,7 +225,7 @@ MODULE pint_public
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_levy_walk', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ib, ic, istat
+    INTEGER                                  :: ib, ic
     REAL(kind=dp)                            :: r, tau_i, tau_i1
     REAL(kind=dp), DIMENSION(3)              :: cntrd_r
 

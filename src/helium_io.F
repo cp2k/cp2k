@@ -27,12 +27,9 @@ MODULE helium_io
                                              e_id_total,&
                                              e_id_virial,&
                                              helium_solvent_type
-  USE input_constants,                 ONLY: fmt_id_pdb,&
-                                             fmt_id_xyz,&
-                                             helium_cell_shape_cube,&
+  USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_octahedron
-  USE input_section_types,             ONLY: section_vals_val_get, &
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -610,8 +607,9 @@ MODULE helium_io
                                                 icycle, irank, msglen, &
                                                 offset, tmp1, tmp2, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: my_perm
-    LOGICAL                                  :: are_connected, failure, ltmp, &
-                                                should_output, is_winding
+    LOGICAL                                  :: are_connected, failure, &
+                                                is_winding, ltmp, &
+                                                should_output
     REAL(kind=dp)                            :: xtmp, ytmp, ztmp
     REAL(kind=dp), DIMENSION(3)              :: r0, r1, r2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -889,10 +887,11 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, unit_nr_s, unit_nr_n, N, &
-                                                 ix, iy, iz, itmp, nsteps, istat, iweight
-    LOGICAL                                  :: failure, is_new, should_output
-    REAL(kind=dp)                            :: rtmp, rx, ry, rz, inv_norm
+    INTEGER                                  :: handle, itmp, iweight, ix, &
+                                                iy, iz, N, nsteps, unit_nr_n, &
+                                                unit_nr_s
+    LOGICAL                                  :: failure, should_output
+    REAL(kind=dp)                            :: inv_norm, rtmp, rx, ry, rz
     REAL(kind=dp), DIMENSION(3)              :: r0
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key

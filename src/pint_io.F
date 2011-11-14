@@ -443,7 +443,8 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: stmp1, stmp2
     INTEGER                                  :: ic, unit_nr
-    LOGICAL                                  :: failure, should_output, new_file
+    LOGICAL                                  :: failure, new_file, &
+                                                should_output
     REAL(kind=dp), DIMENSION(3)              :: com_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -516,7 +517,7 @@ MODULE pint_io
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr, ndof
+    INTEGER                                  :: ndof, unit_nr
     LOGICAL                                  :: failure, file_is_new
     REAL(kind=dp)                            :: t, temp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -668,11 +669,11 @@ MODULE pint_io
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_rgyr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: stmp1, stmp2, unit_str
+    CHARACTER(len=default_string_length)     :: unit_str
     INTEGER                                  :: ia, ib, ic, idim, unit_nr
-    LOGICAL                                  :: failure, should_output, new_file
+    LOGICAL                                  :: failure, new_file, &
+                                                should_output
     REAL(kind=dp)                            :: nb, ss, unit_conv
-    REAL(kind=dp), DIMENSION(3)              :: com_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 

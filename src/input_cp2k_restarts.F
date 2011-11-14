@@ -1093,10 +1093,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: handle, itmp, msglen, offset, &
-                                                reqlen, status, nsteps, iweight
+    INTEGER                                  :: handle, itmp, iweight, &
+                                                msglen, nsteps, offset, &
+                                                reqlen, status
     INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
-    LOGICAL                                  :: failure, lbf, explicit
+    LOGICAL                                  :: explicit, failure, lbf
     REAL(kind=dp)                            :: bf, bu, rtmp
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, ig
     REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather

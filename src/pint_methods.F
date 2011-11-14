@@ -42,17 +42,12 @@ MODULE pint_methods
                                              helium_step
   USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: transformation_normal,&
-                                              transformation_stage
+                                             transformation_stage
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_val_unset,&
-                                             section_vals_list_get
+  USE input_section_types,             ONLY: &
+       section_vals_get, section_vals_get_subs_vals, section_vals_list_get, &
+       section_vals_release, section_vals_retain, section_vals_type, &
+       section_vals_val_get, section_vals_val_set, section_vals_val_unset
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE kinds,                           ONLY: default_path_length,&
@@ -75,15 +70,14 @@ MODULE pint_methods
                                              pint_write_com,&
                                              pint_write_ener,&
                                              pint_write_line,&
+                                             pint_write_rgyr,&
                                              pint_write_step_info,&
-                                             pint_write_trajectory,&
-                                             pint_write_rgyr
+                                             pint_write_trajectory
   USE pint_normalmode,                 ONLY: normalmode_calc_uf_h,&
                                              normalmode_env_create,&
                                              normalmode_init_masses,&
                                              normalmode_release
-  USE pint_public,                     ONLY: pint_com_pos, &
-                                             pint_free_part_bead_x,&
+  USE pint_public,                     ONLY: pint_com_pos,&
                                              pint_levy_walk
   USE pint_staging,                    ONLY: staging_calc_uf_h,&
                                              staging_env_create,&
@@ -138,9 +132,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: output_file_name, project_name
-    INTEGER                                  :: handle, iat, ib, idim, idir, &
+    INTEGER                                  :: handle, iat, idim, idir, &
                                                 ierr, itmp, nrep, prep, stat
-    LOGICAL                                  :: explicit, failure, wrong_input, ltmp
+    LOGICAL                                  :: explicit, failure, ltmp, &
+                                                wrong_input
     REAL(kind=dp)                            :: mass
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
     TYPE(cp_error_type)                      :: new_error
@@ -652,7 +647,7 @@ CONTAINS
                                                 solute_only_mid = 2, &
                                                 solute_with_helium_mid = 3
 
-    INTEGER                                  :: handle, mode, idim, ib
+    INTEGER                                  :: handle, mode
     LOGICAL                                  :: explicit, failure, &
                                                 helium_only, solvent_present
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -802,12 +797,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: msg
-    INTEGER                                  :: idim, ia, ib, ic, istat, nb, n_rep_val, input_seed
-    LOGICAL                                  :: failure, explicit, ltmp, done_levy, done_init, done_rand
-    REAL(kind=dp)                            :: var, tcorr
-    REAL(kind=dp), DIMENSION(3, 2)           :: seed
-    REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals, bx
+    INTEGER                                  :: ia, ib, ic, idim, input_seed, &
+                                                istat, n_rep_val
+    LOGICAL                                  :: done_init, done_levy, &
+                                                done_rand, explicit, failure, &
+                                                ltmp
+    REAL(kind=dp)                            :: tcorr, var
     REAL(kind=dp), DIMENSION(3)              :: x0
+    REAL(kind=dp), DIMENSION(3, 2)           :: seed
+    REAL(kind=dp), DIMENSION(:), POINTER     :: bx, r_vals
     TYPE(rng_stream_type), POINTER           :: rng_gaussian
     TYPE(section_vals_type), POINTER         :: input_section
 
@@ -960,13 +958,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: msg, unit_str
-    INTEGER                                  :: ia, ib, ic, idim, ii, inos, n_rep_val, istat, p, i, j, k, li
-    LOGICAL                                  :: failure, explicit, ltmp, done_init, done_cntr, done_sped, is_ok
-    REAL(kind=dp)                            :: mykt, rv, vv, effkt, kt1, kt2, var, s, unit_conv
+    INTEGER                                  :: ia, ib, ic, idim, ii, &
+                                                n_rep_val
+    LOGICAL                                  :: done_cntr, done_init, &
+                                                done_sped, explicit, failure, &
+                                                is_ok, ltmp
+    REAL(kind=dp)                            :: mykt, rv, unit_conv
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
-    TYPE(section_vals_type), POINTER         :: input_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: vel_list
+    TYPE(section_vals_type), POINTER         :: input_section
     TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.
@@ -1131,8 +1132,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_t', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, ib, idim, inos, n_rep_val
-    LOGICAL                                  :: failure, explicit, gle_restart
+    INTEGER                                  :: ib, idim, ii, inos, n_rep_val
+    LOGICAL                                  :: explicit, failure, gle_restart
     REAL(kind=dp)                            :: mykt
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: input_section
@@ -1335,7 +1336,7 @@ CONTAINS
 
     INTEGER                                  :: step, tot_steps
     LOGICAL                                  :: failure, should_stop
-    REAL(kind=dp)                            :: scal, rtmp
+    REAL(kind=dp)                            :: scal
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
