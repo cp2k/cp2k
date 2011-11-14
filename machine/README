@@ -24,12 +24,12 @@ arch/Linux-x86-64-ma.sopt. The necessary modifications are:
 1) Add either -D__HWLOC or -D__LIBNUMA to the DFLAGS environmental
    variable.
 
-2) Set the HWLOC variable, e.g., set it to the base HWLOc directory.
+2) Set the HWLOC variable, e.g., set it to the base HWLOC directory.
 
 3) Add libhwloc.so or libnuma.so to the LIBS variable. It is also
    possible to add the static version of such libraries to LIBS.
 
-4) Add a CFLAGS variable and include the same DFLAGS used for GFLAGS
+4) Add a CFLAGS variable and include the same DFLAGS used for FCFLAGS
    as well as the include path to the HWLOC headers (e.g.,
    $(HWLOC)/include).
 
