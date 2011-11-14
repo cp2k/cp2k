@@ -20,9 +20,10 @@ MODULE mp2
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_type
-  USE input_constants
+  USE input_constants,                 ONLY: do_mp2_potential_TShPSC
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -35,8 +36,10 @@ MODULE mp2
                                              mp_sum,&
                                              mp_sync
   USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
+  USE mp2_gpw,                         ONLY: mp2_gpw_main
   USE mp2_types,                       ONLY: mp2_biel_type,&
                                              mp2_method_direct,&
+                                             mp2_method_gpw,&
                                              mp2_method_laplace,&
                                              mp2_type
   USE particle_types,                  ONLY: particle_type
@@ -78,8 +81,9 @@ MODULE mp2
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: Emp2, Emp2_AA, Emp2_AB, &
-                                                Emp2_BB, mem_real, t1, t2
+    REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
+      Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
+      Emp2_ex, mem_real, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, Auto_alpha, Auto_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, C_alpha, C_beta
@@ -128,6 +132,7 @@ MODULE mp2
        WRITE(unit_nr,*)
     ENDIF
 
+
     IF(mp2_env%mp2_num_proc<=0 .OR. mp2_env%mp2_num_proc>para_env%num_pe .OR. MOD(para_env%num_pe,mp2_env%mp2_num_proc).NE.0) THEN
        IF (unit_nr>0 .AND. mp2_env%mp2_num_proc.NE.-1) &
            WRITE(unit_nr,'(T3,A,T76,I5)') 'Requested number of processes per group:', mp2_env%mp2_num_proc
@@ -145,6 +150,7 @@ MODULE mp2
 
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
                                                     mp2_env%mp2_memory, ' MB'
+
 
     nspins=qs_env%dft_control%nspins
 
@@ -181,6 +187,8 @@ MODULE mp2
     CALL build_index_table(natom,max_nset,mp2_biel%index_table,basis_parameter,kind_of)
 
     Emp2=0.D+00
+    Emp2_Cou=0.D+00
+    Emp2_ex=0.D+00
     SELECT CASE(mp2_env%method)
      CASE(mp2_method_laplace)
        CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -235,7 +243,9 @@ MODULE mp2
 
          ! calculate the alpha-alpha MP2
          Emp2_AA=0.0_dp
-         CALL mp2_direct_energy(dimen,nelec_alpha,nelec_alpha,mp2_biel,mp2_env,C_alpha,Auto_alpha,Emp2_AA,&
+         Emp2_AA_Cou=0.0_dp
+         Emp2_AA_ex=0.0_dp
+         CALL mp2_direct_energy(dimen,nelec_alpha,nelec_alpha,mp2_biel,mp2_env,C_alpha,Auto_alpha,Emp2_AA,Emp2_AA_Cou,Emp2_AA_ex,&
                                 kind_of,basis_parameter,&
                                 qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                 unit_nr,error=error)       
@@ -243,7 +253,9 @@ MODULE mp2
          IF (unit_nr>0) WRITE(unit_nr,*)
 
          Emp2_BB=0.0_dp
-         CALL mp2_direct_energy(dimen,nelec_beta,nelec_beta,mp2_biel,mp2_env,C_beta,Auto_beta,Emp2_BB,&
+         Emp2_BB_Cou=0.0_dp
+         Emp2_BB_ex=0.0_dp
+         CALL mp2_direct_energy(dimen,nelec_beta,nelec_beta,mp2_biel,mp2_env,C_beta,Auto_beta,Emp2_BB,Emp2_BB_Cou,Emp2_BB_ex,&
                                 kind_of,basis_parameter,&
                                 qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                 unit_nr,error=error)
@@ -251,8 +263,10 @@ MODULE mp2
          IF (unit_nr>0) WRITE(unit_nr,*)
 
          Emp2_AB=0.0_dp
+         Emp2_AB_Cou=0.0_dp
+         Emp2_AB_ex=0.0_dp
          CALL mp2_direct_energy(dimen,nelec_alpha,nelec_beta,mp2_biel,mp2_env,C_alpha,&
-                                Auto_alpha,Emp2_AB,&
+                                Auto_alpha,Emp2_AB,Emp2_AB_Cou,Emp2_AB_ex,&
                                 kind_of,basis_parameter,&
                                 qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                 unit_nr,C_beta,Auto_beta,error=error)
@@ -260,6 +274,8 @@ MODULE mp2
          IF (unit_nr>0) WRITE(unit_nr,*)
 
          Emp2=Emp2_AA+Emp2_BB+Emp2_AB*2.0_dp !+Emp2_BA
+         Emp2_Cou=Emp2_AA_Cou+Emp2_BB_Cou+Emp2_AB_Cou*2.0_dp !+Emp2_BA
+         Emp2_ex=Emp2_AA_ex+Emp2_BB_ex+Emp2_AB_ex*2.0_dp !+Emp2_BA
 
        ELSE
 
@@ -278,7 +294,7 @@ MODULE mp2
          CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE., error)
          Auto(:)=mo_eigenvalues(:)
 
-         CALL mp2_direct_energy(dimen,nelectron/2,nelectron/2,mp2_biel,mp2_env,C,Auto,Emp2,&
+         CALL mp2_direct_energy(dimen,nelectron/2,nelectron/2,mp2_biel,mp2_env,C,Auto,Emp2,Emp2_Cou,Emp2_ex,&
                                 kind_of,basis_parameter,&
                                 qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                 unit_nr,error=error)
@@ -290,8 +306,13 @@ MODULE mp2
        t2=m_walltime()
 
        IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Time:',t2-t1
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Exchange Energy = ', Emp2_ex
        IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Canonical Energy = ', Emp2
        IF (unit_nr>0) WRITE(unit_nr,*)
+
+     CASE (mp2_method_gpw)
+       CALL  mp2_gpw_main(qs_env,mp2_env,para_env,unit_nr,error)
 
      CASE DEFAULT 
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -332,7 +353,7 @@ MODULE mp2
 
   END SUBROUTINE build_index_table
 
-  SUBROUTINE mp2_direct_energy(dimen,occ_i,occ_j,mp2_biel,mp2_env,C_i,Auto_i,Emp2,&
+  SUBROUTINE mp2_direct_energy(dimen,occ_i,occ_j,mp2_biel,mp2_env,C_i,Auto_i,Emp2,Emp2_Cou,Emp2_ex,&
                                kind_of,basis_parameter,&                      
                                qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                unit_nr,C_j,Auto_j,error)                                      
@@ -341,7 +362,7 @@ MODULE mp2
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), DIMENSION(dimen, dimen)   :: C_i
     REAL(KIND=dp), DIMENSION(dimen)          :: Auto_i
-    REAL(KIND=dp)                            :: Emp2
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
     INTEGER, DIMENSION(:)                    :: kind_of
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -513,8 +534,8 @@ MODULE mp2
                        (8*(2*dimen-occ_i)*INT(dimen,KIND=int_8)*my_J_batch_size/para_env_sub%num_pe))) &               
                    ,my_I_batch_size)                                                                                            
     IF(max_batch_size<1) THEN                                                                                                   
-       max_batch_size=(8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2                                                         
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MB'                                       
+       max_batch_size=(8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MB'
        max_batch_size=1                                                                                                         
     END IF                                                                                                                      
                                                                                                                                 
@@ -564,6 +585,8 @@ MODULE mp2
                                       
     CALL mp_sync(para_env%group)                                     
     Emp2=zero                                                        
+    Emp2_Cou=zero                                                        
+    Emp2_ex=zero                                                        
     i_batch_start=my_I_occupied_start-1                              
     j_batch_start=my_J_occupied_start-1                              
     Nj_occupied=my_J_batch_size                                      
@@ -607,12 +630,12 @@ MODULE mp2
          DEALLOCATE(ij_list_proc_temp)
 
          IF(.NOT.alpha_bata_case) THEN
-           CALL mp2_canonical_direct_single_batch(Emp2,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
+           CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
                                         elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                         error=error)
          ELSE
-           CALL mp2_canonical_direct_single_batch(Emp2,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
+           CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
                                         elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                         occ_j,C_j,Auto_j,error=error)
@@ -624,6 +647,8 @@ MODULE mp2
 
     END DO
 
+    CALL mp_sum(Emp2_Cou,para_env%group)
+    CALL mp_sum(Emp2_Ex,para_env%group)
     CALL mp_sum(Emp2,para_env%group)
 
     CALL cp_para_env_release(para_env_sub,error)

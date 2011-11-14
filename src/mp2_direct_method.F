@@ -86,12 +86,12 @@ MODULE mp2_direct_method
 !>      06.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,mp2_env,qs_env,rho,hfx_section,para_env,& 
+  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_section,para_env,& 
                                                mp2_biel,dimen,C,Auto,i_batch_start,Ni_occupied,&
                                                occupied,elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                                occupied_beta,C_beta,Auto_beta,error)
 
-    REAL(KIND=dp)                            :: Emp2
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1143,12 +1143,12 @@ MODULE mp2_direct_method
     IF(.NOT.alpha_beta_case) THEN
       CALL transform_virtual_orbitals_and_accumulate(dimen,occupied,dimen-occupied,i_batch_start,Ni_occupied,&
                                                      Nj_occupied,j_batch_start,BIb,C,Auto,para_env,elements_ij_proc,ij_list_proc,&
-                                                     nspins,Emp2,error=error)
+                                                     nspins,Emp2,Emp2_Cou,Emp2_ex,error=error)
     ELSE
       CALL transform_virtual_orbitals_and_accumulate_ABcase(dimen,occupied,occupied_beta,dimen-occupied,dimen-occupied_beta,&
                                                      i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
                                                      BIb,C,C_beta,Auto,Auto_beta,&
-                                                     para_env,elements_ij_proc,ij_list_proc,Emp2,error=error)
+                                                     para_env,elements_ij_proc,ij_list_proc,Emp2,Emp2_Cou,Emp2_ex,error=error)
       DEALLOCATE(C_beta_T)
     END IF
 
@@ -1582,7 +1582,7 @@ MODULE mp2_direct_method
 
   SUBROUTINE transform_virtual_orbitals_and_accumulate(dimen,occupied,virtual,i_batch_start,Ni_occupied,&
                                                    Nj_occupied,j_batch_start,BIb,C,Auto,para_env,elements_ij_proc,&
-                                                   ij_list_proc,nspins,Emp2,error)
+                                                   ij_list_proc,nspins,Emp2,Emp2_Cou,Emp2_ex,error)
 
     INTEGER                                  :: dimen, occupied, virtual, &
                                                 i_batch_start, Ni_occupied, &
@@ -1595,7 +1595,7 @@ MODULE mp2_direct_method
     INTEGER                                  :: elements_ij_proc
     INTEGER, DIMENSION(elements_ij_proc, 2)  :: ij_list_proc
     INTEGER                                  :: nspins
-    REAL(KIND=dp)                            :: Emp2
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1651,8 +1651,13 @@ MODULE mp2_direct_method
            iajb=BIb(a,b,index_ij)
            ibja=BIb(b,a,index_ij)
            parz=iajb/(Auto(i_global)+Auto(j_global)-Auto(a_global)-Auto(b_global))
-           parz=parz*(two*iajb-ibja)
-           Emp2=Emp2+parz/nspins
+           ! parz=parz*(two*iajb-ibja)   !Full
+           ! parz=parz*(iajb)            !Coulomb
+           ! parz=parz*(ibja)            !Coulomb
+           ! Emp2=Emp2+parz/nspins
+           Emp2_Cou=Emp2_Cou+parz*two*(iajb)/nspins
+           Emp2_ex=Emp2_ex-parz*(ibja)/nspins
+           Emp2=Emp2+parz*(two*iajb-ibja)/nspins
          END DO
        END DO
     END DO
@@ -1666,7 +1671,7 @@ MODULE mp2_direct_method
 
   SUBROUTINE transform_virtual_orbitals_and_accumulate_ABcase(dimen,occ_i,occ_j,virt_i,virt_j,i_batch_start,Ni_occupied,&
                                                    Nj_occupied,j_batch_start,BIb,C_i,C_j,Auto_i,Auto_j,para_env,elements_ij_proc,&
-                                                   ij_list_proc,Emp2,error)
+                                                   ij_list_proc,Emp2,Emp2_Cou,Emp2_ex,error)
 
     INTEGER                                  :: dimen, occ_i, occ_j, virt_i, &
                                                 virt_j, i_batch_start, &
@@ -1679,7 +1684,7 @@ MODULE mp2_direct_method
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: elements_ij_proc
     INTEGER, DIMENSION(elements_ij_proc, 2)  :: ij_list_proc
-    REAL(KIND=dp)                            :: Emp2
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1751,6 +1756,8 @@ MODULE mp2_direct_method
            b_global=b+occ_j        
            iajb=BIb(a,b,index_ij)  
            parz=iajb*iajb/(Auto_i(i_global)+Auto_j(j_global)-Auto_i(a_global)-Auto_j(b_global))
+           ! Emp2=Emp2+parz/two
+           Emp2_Cou=Emp2_Cou+parz/two
            Emp2=Emp2+parz/two
          END DO                                                                                
        END DO                                                                                  

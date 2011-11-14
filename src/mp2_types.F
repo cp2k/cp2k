@@ -12,6 +12,7 @@
 MODULE mp2_types
   USE hfx_types,                       ONLY: pair_list_element_type
   USE input_constants,                 ONLY: mp2_method_direct,&
+                                             mp2_method_gpw,&
                                              mp2_method_laplace,&
                                              mp2_method_none
   USE kinds,                           ONLY: default_path_length,&
@@ -32,11 +33,12 @@ MODULE mp2_types
                                         mp2_method_none,&
                                         mp2_method_laplace,&
                                         mp2_method_direct,&
+                                        mp2_method_gpw,&
                                         init_TShPSC_lmax
 
   PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
             pair_list_type_mp2,&
-            mp2_potential_type
+            mp2_potential_type, mp2_gpw_type
 
   INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -77,6 +79,10 @@ MODULE mp2_types
     CHARACTER(default_path_length)           :: filename
   END TYPE
 
+  TYPE mp2_gpw_type
+       REAL(KIND=dp)            :: eps_grid, eps_filter
+  END TYPE mp2_gpw_type
+
   TYPE mp2_type
        REAL(KIND=dp)            :: energy
        LOGICAL                  :: compute_reference
@@ -84,17 +90,10 @@ MODULE mp2_types
 !      TYPE(mp2_laplace_type)   :: laplace
        TYPE(mp2_direct_type)    :: direct_canonical
        TYPE(mp2_potential_type) :: potential_parameter
+       TYPE(mp2_gpw_type)       :: mp2_gpw 
        REAL(dp) :: mp2_memory
        INTEGER  :: mp2_num_proc
   END TYPE
-
-!  TYPE pair_list_element_type
-!      INTEGER, DIMENSION(2) :: pair
-!      INTEGER, DIMENSION(2) :: set_bounds
-!      INTEGER, DIMENSION(2) :: kind_pair
-!      REAL(KIND=dp)         :: r1(3),r2(3)
-!      REAL(KIND=dp)         :: dist2
-!  END TYPE
 
   TYPE pair_list_type_mp2
     TYPE(pair_list_element_type), DIMENSION(:), ALLOCATABLE :: elements

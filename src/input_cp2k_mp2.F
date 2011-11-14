@@ -69,10 +69,11 @@ CONTAINS
             name="METHOD",&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD LAPLACE",&
-            enum_c_vals=s2a("NONE","DIRECT_CANONICAL"),&
-            enum_i_vals=(/mp2_method_none,mp2_method_direct/),&
+            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW"),&
+            enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw/),&
             enum_desc=s2a("Skip MP2 calculation",&
-                          "Use the direct mp2 canonical approach"),&
+                          "Use the direct mp2 canonical approach",&
+                          "Use a GPW approach"),&
             default_i_val=mp2_method_direct, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -108,6 +109,10 @@ CONTAINS
        CALL section_release(print_key,error=error)
        
        CALL create_mp2_direct(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_mp2_gpw(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -154,6 +159,45 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_mp2_direct
+
+  SUBROUTINE create_mp2_GPW(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_GPW', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"MP2_GPW",&
+            description="Parameters for the GPW approach",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="EPS_GRID",&
+            description="Determines a threshold for the GPW based integration",&
+            usage="EPS_GRID 1.0E-5 ",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-6_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_FILTER",&
+            description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID).",&
+            usage="EPS_FILTER 1.0E-6 ",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-7_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_mp2_GPW
+
 
   SUBROUTINE create_mp2_potential(section,error)
     TYPE(section_type), POINTER              :: section

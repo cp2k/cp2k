@@ -376,6 +376,7 @@ OBJECTS_GENERIC =\
  mp2_types.o\
  mp2_setup.o\
  mp2_direct_method.o\
+ mp2_gpw.o\
  t_sh_p_s_c.o\
  mt_util.o\
  mulliken.o\

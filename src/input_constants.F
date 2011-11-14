@@ -873,6 +873,7 @@ MODULE input_constants
   ! some MP2 parameters
   INTEGER, PARAMETER, PUBLIC               :: mp2_method_none=0,&
                                               mp2_method_laplace=2,&
-                                              mp2_method_direct=4
+                                              mp2_method_direct=4,&
+                                              mp2_method_gpw=6
 
 END MODULE input_constants

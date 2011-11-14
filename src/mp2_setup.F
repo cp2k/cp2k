@@ -16,6 +16,7 @@ MODULE mp2_setup
                                              section_vals_type,&
                                              section_vals_val_get
   USE mp2_types,                       ONLY: mp2_method_direct,&
+                                             mp2_method_gpw,&
                                              mp2_method_none,&
                                              mp2_type
   USE timings,                         ONLY: timeset,&
@@ -64,6 +65,11 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%TShPSC_DATA",&
                               c_val=mp2_env%potential_parameter%filename, error=error)
 
+    CALL section_vals_val_get(mp2_section,"MP2_GPW%EPS_FILTER",&
+                              r_val=mp2_env%mp2_gpw%eps_filter, error=error)
+    CALL section_vals_val_get(mp2_section,"MP2_GPW%EPS_GRID",&
+                              r_val=mp2_env%mp2_gpw%eps_grid, error=error)
+
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&
          extension=".mp2Log",error=error)
@@ -72,6 +78,8 @@ CONTAINS
        SELECT CASE(mp2_env%method)
        CASE(mp2_method_direct)
          WRITE(unit_nr,'(T2,A)') "MP2| using direct canonical MP2"
+       CASE(mp2_method_gpw)
+         WRITE(unit_nr,'(T2,A)') "MP2| using MP2 GPW style"
        CASE DEFAULT
          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
