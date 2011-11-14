@@ -189,6 +189,7 @@ MODULE mp2
     Emp2=0.D+00
     Emp2_Cou=0.D+00
     Emp2_ex=0.D+00
+    t1=m_walltime()
     SELECT CASE(mp2_env%method)
      CASE(mp2_method_laplace)
        CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -206,7 +207,6 @@ MODULE mp2
           ENDIF
        ENDDO
 
-       t1=m_walltime()
        IF (unit_nr>0) WRITE(unit_nr,*)
 
        IF(nspins==2) THEN
@@ -298,25 +298,23 @@ MODULE mp2
                                 kind_of,basis_parameter,&
                                 qs_env,matrix_ks,rho,hfx_sections,para_env, &
                                 unit_nr,error=error)
-         IF (unit_nr>0) WRITE(unit_nr,*)
          
 
        END IF
 
-       t2=m_walltime()
-
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Time:',t2-t1
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Exchange Energy = ', Emp2_ex
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Canonical Energy = ', Emp2
-       IF (unit_nr>0) WRITE(unit_nr,*)
-
      CASE (mp2_method_gpw)
-       CALL  mp2_gpw_main(qs_env,mp2_env,para_env,unit_nr,error)
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,para_env,unit_nr,error)
 
      CASE DEFAULT 
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
    END SELECT
+   t2=m_walltime()
+   IF (unit_nr>0) WRITE(unit_nr,*)
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Time:',t2-t1
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Exchange Energy = ', Emp2_ex
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Canonical Energy = ', Emp2
+   IF (unit_nr>0) WRITE(unit_nr,*)
 
    ! we have it !!!!
    energy%mp2=Emp2

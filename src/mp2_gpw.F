@@ -128,9 +128,10 @@ MODULE mp2_gpw
 !> \brief with a big bang to mp2 
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,para_env,unit_nr,error)
+  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,para_env,unit_nr,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
+    REAL(KIND=dp)                            :: Emp2
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -444,7 +445,7 @@ MODULE mp2_gpw
     CALL cp_dbcsr_filter(mo_coeff_v,mp2_env%mp2_gpw%eps_filter,error=error_sub)
 
     ! now we're kind of ready to go....
-    CALL mp2_gpw_compute(qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+    CALL mp2_gpw_compute(Emp2,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                           atomic_kind_set,mo_coeff,C,auto,nmo,homo,rho_r,rho_g,pot_g,&
                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,error_sub)
@@ -510,12 +511,13 @@ MODULE mp2_gpw
 
   END SUBROUTINE mp2_gpw_main
 
-  SUBROUTINE mp2_gpw_compute(qs_env,para_env,para_env_sub,color_sub,dft_control,&
+  SUBROUTINE mp2_gpw_compute(Emp2,qs_env,para_env,para_env_sub,color_sub,dft_control,&
                  cell,particle_set,atomic_kind_set,mo_coeff,C,auto,nmo,homo,&
                  rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                  poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
                  error_sub)
 
+    REAL(KIND=dp)                            :: Emp2
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: color_sub
@@ -559,7 +561,7 @@ MODULE mp2_gpw
                                                 vector_batch_I_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: exchange_group_sizes
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: E_mp2, pair_energy
+    REAL(KIND=dp)                            :: pair_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_Ex, BIb_send
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
@@ -736,7 +738,7 @@ MODULE mp2_gpw
                         pw_env_sub,external_vector=C(:,i),error=error_sub)
     END DO
 
-    E_mp2=0.0_dp
+    Emp2=0.0_dp
     ALLOCATE(BIb_C(virtual,homo,my_I_batch_size))
     DO a=homo+my_A_virtual_start, homo+my_A_virtual_end
     ! psi_a
@@ -782,7 +784,7 @@ MODULE mp2_gpw
           DO b=1,col_size
           DO j=1,row_size
              ! This was for coulom only
-             ! E_mp2=E_mp2-data_block(j,b)**2/(Auto(a)+Auto(homo+col_offset+b-1)-Auto(i)-Auto(row_offset+j-1))
+             ! Emp2=Emp2-data_block(j,b)**2/(Auto(a)+Auto(homo+col_offset+b-1)-Auto(i)-Auto(row_offset+j-1))
              !
              ! now fill the matrix
              BIb_C(col_offset+b-1,row_offset+j-1,i_counter)=data_block(j,b)
@@ -804,7 +806,7 @@ MODULE mp2_gpw
         IF(MOD(i_counter,para_env_sub%num_pe)/=para_env_sub%mepos) CYCLE
         DO j=my_I_occupied_start,my_I_occupied_end
           DO b=1, virtual
-            E_mp2=E_mp2-BIb_C(b,j,i) * &
+            Emp2=Emp2-BIb_C(b,j,i) * &
                   (2.0_dp*BIb_C(b,j,i)-&
                   BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1))&
                   /(Auto(a)+Auto(homo+b)-Auto(i+my_I_occupied_start-1)-Auto(j))
@@ -847,7 +849,7 @@ MODULE mp2_gpw
           IF(MOD(i_counter,para_env_sub%num_pe)/=para_env_sub%mepos) CYCLE
           DO j=1,size_EX
             DO b=1, virtual
-              E_mp2=E_mp2-BIb_C(b,j+EX_start-1,i) * &
+              Emp2=Emp2-BIb_C(b,j+EX_start-1,i) * &
                     (2.0_dp*BIb_C(b,j+EX_start-1,i)-&
                     BIb_EX(b,i,j))&
                     /(Auto(a)+Auto(homo+b)-Auto(i+my_I_occupied_start-1)-Auto(j+EX_start-1))
@@ -863,11 +865,7 @@ MODULE mp2_gpw
 
     ENDDO
 
-    CALL mp_sum(E_mp2,para_env%group)
-    IF(para_env%mepos==0) THEN
-      IF (unit_nr>0) WRITE(unit_nr,*)
-      IF (unit_nr>0) WRITE(unit_nr,*) 'MP2 Energy', E_mp2
-    END IF
+    CALL mp_sum(Emp2,para_env%group)
     ! let's all dump integrals
     ! CALL cp_dbcsr_print(matrix_ia_jb, nodata=.FALSE., matlab_format=.TRUE., &
     !     variable_name="(ia|jb)", unit_nr=1000+para_env%mepos, error=error_sub)
