@@ -69,6 +69,8 @@ CONTAINS
                               r_val=mp2_env%mp2_gpw%eps_filter, error=error)
     CALL section_vals_val_get(mp2_section,"MP2_GPW%EPS_GRID",&
                               r_val=mp2_env%mp2_gpw%eps_grid, error=error)
+    CALL section_vals_val_get(mp2_section,"MP2_GPW%PRINT_LEVEL",&
+                              i_val=mp2_env%mp2_gpw%print_level, error=error)
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&

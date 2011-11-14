@@ -64,6 +64,7 @@ MODULE mp2_gpw
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_comm_split_direct,&
                                              mp_sendrecv,&
@@ -199,8 +200,6 @@ MODULE mp2_gpw
     failure=.FALSE.
 
     ! ... setup needed to be able to qs_integrate in a subgroup.
-    logger => cp_error_get_logger(error)
-    local_unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
 
     ! a para_env
     color_sub=para_env%mepos/mp2_env%mp2_num_proc
@@ -208,11 +207,21 @@ MODULE mp2_gpw
     NULLIFY(para_env_sub)
     CALL cp_para_env_create(para_env_sub,comm_sub,error=error)
 
+    ! each of the sub groups might need to generate output
+    logger => cp_error_get_logger(error)
+    IF (para_env%mepos==para_env%source) THEN
+       local_unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    ELSE
+       local_unit_nr=default_output_unit
+    ENDIF
+
     ! a logger
     NULLIFY(logger_sub)
     CALL cp_logger_create(logger_sub,para_env=para_env_sub,&
                default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
     CALL cp_logger_set(logger_sub,local_filename="MP2_localLog")
+    ! set to a custom print level (we could also have a different print level for para_env%source)
+    logger_sub%iter_info%print_level=mp2_env%mp2_gpw%print_level
 
     ! a error
     CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
