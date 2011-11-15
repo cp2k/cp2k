@@ -8,10 +8,7 @@
     &END MGRID
     &QS
       &DISTRIBUTION
-        &CLUSTERING
-           METHOD BOX
-        &END
-        BASIC_OPTIMIZATION T
+        BASIC_SPATIAL_OPTIMIZATION T
       &END
     &END QS
     &SCF
@@ -26,7 +23,6 @@
   &END DFT
   &SUBSYS
     &CELL
-      PERIODIC XZ
       ABC 10.0 10.0 10.0
     &END CELL
     &COORD
@@ -48,6 +44,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O-dist-14
+  PROJECT H2O-dist-8
   PRINT_LEVEL LOW
 &END GLOBAL
