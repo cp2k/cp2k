@@ -2878,21 +2878,8 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     NULLIFY(subsubsection)
-    CALL section_create(subsubsection,name="CUBE_DATA_S",&
-         description="Density (S) data used for restarts",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
-    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-         description="Cubefile data", &
-         repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>",&
-         type_of_var=real_t, n_var=-1, error=error)
-    CALL section_add_keyword(subsubsection,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(subsection,subsubsection,error=error)
-    CALL section_release(subsubsection,error=error)
-
-    CALL section_create(subsubsection,name="CUBE_DATA_N",&
-         description="Density (N) data used for restarts",&
+    CALL section_create(subsubsection,name="CUBE_DATA",&
+         description="Density data used for restarts",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&

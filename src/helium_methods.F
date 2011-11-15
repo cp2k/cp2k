@@ -40,7 +40,8 @@ MODULE helium_methods
                                              section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp
+                                             dp, &
+                                             max_line_length
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_bcast
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
@@ -97,7 +98,7 @@ MODULE helium_methods
     CHARACTER(len=default_path_length)       :: potential_file_name
     CHARACTER(len=default_string_length)     :: msg_str, stmp
     INTEGER                                  :: handle, i, input_unit, isize, &
-                                                itmp, j, nlines, ntab, stat
+                                                itmp, jtmp, j, nlines, ntab, stat
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
                                                 expl_nats, explicit, failure, &
@@ -149,7 +150,8 @@ MODULE helium_methods
                  helium%rdf_avrg,&
                  helium%rdf_inst,&
                  helium%plength_avrg, &
-                 helium%plength_inst &
+                 helium%plength_inst, &
+                 helium%atom_plength &
                 )
 
        helium%ref_count=1
@@ -509,8 +511,11 @@ MODULE helium_methods
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%plength_inst(helium%atoms),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%atom_plength(helium%atoms),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! density related data
+       helium%rho_num = 1
        CALL section_vals_val_get(helium_section, &
             "RHO%_SECTION_PARAMETERS_", &
             l_val=helium%rho_present, error=error)
@@ -524,18 +529,13 @@ MODULE helium_methods
          helium%rho_delr = helium%rho_maxr / REAL(helium%rho_nbin)
          helium%rho_minb = INT(-helium%cell_size / 2.0_dp / helium%rho_delr )
          itmp = helium%rho_nbin
-         ALLOCATE(helium%rho_s_avrg(itmp,itmp,itmp),STAT=stat)
+         jtmp = helium%rho_num
+         ALLOCATE(helium%rho_avrg(jtmp,itmp,itmp,itmp),STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(helium%rho_n_avrg(itmp,itmp,itmp),STAT=stat)
+         ALLOCATE(helium%rho_inst(jtmp,itmp,itmp,itmp),STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(helium%rho_s_inst(itmp,itmp,itmp),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(helium%rho_n_inst(itmp,itmp,itmp),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         helium%rho_s_inst(:,:,:) = 0.0_dp
-         helium%rho_n_inst(:,:,:) = 0.0_dp
-         helium%rho_s_avrg(:,:,:) = 0.0_dp
-         helium%rho_n_avrg(:,:,:) = 0.0_dp
+         helium%rho_avrg(:,:,:,:) = 0.0_dp
+         helium%rho_inst(:,:,:,:) = 0.0_dp
 
          ! make sure that the density gets actually printed,
          ! as we will make so much effort to calculated it
@@ -713,27 +713,24 @@ MODULE helium_methods
 
         IF ( helium%rho_present ) THEN
           IF ( helium%rho_restart ) THEN
-            DEALLOCATE( helium%rho_n_rstr, helium%rho_s_rstr, STAT=stat )
+            DEALLOCATE( helium%rho_rstr, STAT=stat )
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-            NULLIFY( helium%rho_n_rstr, helium%rho_s_rstr )
+            NULLIFY( helium%rho_rstr )
           END IF
           DEALLOCATE( &
-            helium%rho_n_inst, &
-            helium%rho_s_inst, &
-            helium%rho_n_avrg, &
-            helium%rho_s_avrg, &
+            helium%rho_inst, &
+            helium%rho_avrg, &
             STAT=stat &
           )
           NULLIFY(&
-            helium%rho_n_inst, &
-            helium%rho_s_inst, &
-            helium%rho_n_avrg, &
-            helium%rho_s_avrg &
+            helium%rho_inst, &
+            helium%rho_avrg &
           )
         END IF
 
         ! DEALLOCATE helium-related arrays
         DEALLOCATE ( &
+          helium%atom_plength, &
           helium%plength_inst, &
           helium%plength_avrg, &
           helium%rdf_inst, &
@@ -751,6 +748,7 @@ MODULE helium_methods
           STAT=stat )
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         NULLIFY( &
+          helium%atom_plength, &
           helium%plength_inst, &
           helium%plength_avrg, &
           helium%rdf_inst, &
@@ -1646,7 +1644,6 @@ MODULE helium_methods
   !> \brief  Restore the densities from the input structure.
   !> \author Lukasz Walewski
   !> \date   2011-06-22
-  !> \author Lukasz Walewski
   ! ***************************************************************************
   SUBROUTINE helium_densities_restore( helium, error )
 
@@ -1659,25 +1656,23 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp1, stmp2
     INTEGER                                  :: istat, itmp, msglen
     LOGICAL                                  :: failure, ltmp
-    LOGICAL, DIMENSION(:, :, :), POINTER     :: m
-    REAL(kind=dp), DIMENSION(:), POINTER     :: message_n, message_s
-    REAL(kind=dp), DIMENSION(:, :, :), &
+    LOGICAL, DIMENSION(:,:,:,:), POINTER     :: m
+    REAL(kind=dp), DIMENSION(:), POINTER     :: message
+    REAL(kind=dp), DIMENSION(:,:,:,:), &
       POINTER                                :: f
 
     itmp = helium%rho_nbin
-    ALLOCATE(helium%rho_s_rstr(itmp,itmp,itmp),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(helium%rho_n_rstr(itmp,itmp,itmp),STAT=istat)
+    ALLOCATE(helium%rho_rstr(5,itmp,itmp,itmp),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! assign pointers to the memory locations in the input structure, where
     ! the old densities are stored and check if the sizes match
-    NULLIFY(message_s)
+    NULLIFY(message)
     CALL section_vals_val_get( helium%input, &
-         "MOTION%PINT%HELIUM%RHO%CUBE_DATA_S%_DEFAULT_KEYWORD_", &
-         r_vals=message_s, error=error)
-    msglen = SIZE(message_s)
-    itmp = (helium%rho_nbin)**3
+         "MOTION%PINT%HELIUM%RHO%CUBE_DATA%_DEFAULT_KEYWORD_", &
+         r_vals=message, error=error)
+    msglen = SIZE(message)
+    itmp = SIZE(helium%rho_rstr)
     ltmp = ( msglen .EQ. itmp )
     IF ( .NOT. ltmp ) THEN
       stmp1 = ""
@@ -1691,40 +1686,21 @@ MODULE helium_methods
       CALL cp_assert(.FALSE.,cp_failure_level,&
            cp_assertion_failed, routineP, err_str)
     END IF
-    NULLIFY(message_n)
-    CALL section_vals_val_get( helium%input, &
-         "MOTION%PINT%HELIUM%RHO%CUBE_DATA_N%_DEFAULT_KEYWORD_", &
-         r_vals=message_n, error=error)
-    itmp = SIZE(message_n)
-    ltmp = ( msglen .EQ. itmp )
-    IF ( .NOT. ltmp ) THEN
-      stmp1 = ""
-      WRITE(stmp1,*) msglen
-      stmp2 = ""
-      WRITE(stmp2,*) itmp
-      err_str = "Size of the S density array (" // &
-                TRIM(ADJUSTL(stmp1)) // &
-                ") .NE. size of the N array (" // &
-                TRIM(ADJUSTL(stmp2)) // ")."
-      CALL cp_assert(.FALSE.,cp_failure_level,&
-           cp_assertion_failed, routineP, err_str)
-    END IF
 
     itmp = helium%rho_nbin
     NULLIFY(m,f)
-    ALLOCATE(m(itmp,itmp,itmp),STAT=istat)
+    ALLOCATE(m(5,itmp,itmp,itmp),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(f(itmp,itmp,itmp),STAT=istat)
+    ALLOCATE(f(5,itmp,itmp,itmp),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    m(:,:,:) = .TRUE.
-    f(:,:,:) = 0.0_dp
+    m(:,:,:,:) = .TRUE.
+    f(:,:,:,:) = 0.0_dp
 
-    helium%rho_s_rstr(:,:,:) = UNPACK(message_s(1:msglen), MASK=m, FIELD=f)
-    helium%rho_n_rstr(:,:,:) = UNPACK(message_n(1:msglen), MASK=m, FIELD=f)
+    helium%rho_rstr(:,:,:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f)
 
     DEALLOCATE(f,m,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(message_s, message_n)
+    NULLIFY(message)
 
     RETURN
   END SUBROUTINE helium_densities_restore

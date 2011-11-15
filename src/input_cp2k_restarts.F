@@ -1093,7 +1093,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: handle, itmp, iweight, &
+    INTEGER                                  :: handle, i, itmp, iweight, &
                                                 msglen, nsteps, offset, &
                                                 reqlen, status
     INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
@@ -1103,6 +1103,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: tmpsec
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: message
 
     CALL timeset(routineN,handle)
 
@@ -1293,59 +1294,42 @@ CONTAINS
       END IF
 
       ! work on the temporary array so that accumulated data remains intact
-      helium%rho_s_inst(:,:,:) = helium%rho_s_avrg(:,:,:)
-      helium%rho_n_inst(:,:,:) = helium%rho_n_avrg(:,:,:)
+      helium%rho_inst(:,:,:,:) = helium%rho_avrg(:,:,:,:)
 
-      ! average the densities over helium environments
-      CALL mp_sum(helium%rho_s_inst,logger%para_env%group)
-      CALL mp_sum(helium%rho_n_inst,logger%para_env%group)
+      ! average all the density estimators over helium environments
+      DO i = 1, helium%rho_num
+        NULLIFY(message)
+        message => helium%rho_inst(i,1::1,1::1,1::1)
+        CALL mp_sum(message,logger%para_env%group)
+      END DO
       itmp = logger%para_env%num_pe
       CPPostcondition(itmp>0,cp_failure_level,routineP,error,failure)
       rtmp = 1.0_dp / REAL(itmp,dp)
-      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * rtmp
-      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * rtmp
+      helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
 
       ! average over steps performed so far in this run
       nsteps = helium%current_step-helium%first_step
       CPPostcondition(nsteps>0,cp_failure_level,routineP,error,failure)
       rtmp = 1.0_dp / REAL(nsteps,dp)
-      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * rtmp
-      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * rtmp
+      helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
 
       iweight = helium%rho_iweight
       rtmp = 1.0_dp / REAL(nsteps+iweight,dp)
       IF ( helium%rho_restart ) THEN
         ! average over the old and the current density (observe the weights!)
-
-        helium%rho_s_inst(:,:,:) = nsteps * helium%rho_s_inst(:,:,:) + &
-                                   iweight * helium%rho_s_rstr(:,:,:)
-        helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * rtmp
-
-        helium%rho_n_inst(:,:,:) = nsteps * helium%rho_n_inst(:,:,:) + &
-                                   iweight * helium%rho_n_rstr(:,:,:)
-        helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * rtmp
-
+        helium%rho_inst(:,:,:,:) = nsteps * helium%rho_inst(:,:,:,:) + &
+                                   iweight * helium%rho_rstr(:,:,:,:)
+        helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
       END IF
 
-      ! update the density (S) in the global input structure
+      ! update the densities in the global input structure
       NULLIFY(real_msg)
-      msglen = SIZE(helium%rho_s_avrg)
+      msglen = SIZE(helium%rho_inst)
       ALLOCATE(real_msg(msglen),STAT=status)
       CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
-      real_msg(:) = PACK( helium%rho_s_inst, .TRUE. )
+      real_msg(:) = PACK( helium%rho_inst, .TRUE. )
       CALL section_vals_val_set(helium%input, &
-           "MOTION%PINT%HELIUM%RHO%CUBE_DATA_S%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=real_msg,error=error)
-      NULLIFY(real_msg)
-
-      ! update the density (N) in the global input structure
-      NULLIFY(real_msg)
-      msglen = SIZE(helium%rho_n_avrg)
-      ALLOCATE(real_msg(msglen),STAT=status)
-      CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
-      real_msg(:) = PACK( helium%rho_n_inst, .TRUE. )
-      CALL section_vals_val_set(helium%input, &
-           "MOTION%PINT%HELIUM%RHO%CUBE_DATA_N%_DEFAULT_KEYWORD_", &
+           "MOTION%PINT%HELIUM%RHO%CUBE_DATA%_DEFAULT_KEYWORD_", &
            r_vals_ptr=real_msg,error=error)
       NULLIFY(real_msg)
 

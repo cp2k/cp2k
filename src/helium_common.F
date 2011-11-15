@@ -26,7 +26,8 @@ MODULE helium_common
   USE splines_methods,                 ONLY: spline_value
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type
-  USE timings,                         ONLY: timeset
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -392,7 +393,11 @@ MODULE helium_common
 !> \brief  Calculate helium density distribution function wrt <r0>.
 !> \author Lukasz Walewski
 !> \date   2011-06-14
-!> \descr  The calculated density is stored in the helium%rho_s_inst array.
+!> \descr  The calculated density is stored in the helium%rho_inst array.
+!> \note   This version of helium_calc_rho routine calculates only the total
+!>         He density but it implements the data structure that is already
+!>         suitable for the superfluid density estimator calculation
+!>         (full version still in the development branch) [lwalewski]
 ! *****************************************************************************
   SUBROUTINE helium_calc_rho( helium, error )
 
@@ -402,35 +407,23 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bx, by, bz, ia, ib, itmp
+    INTEGER                                  :: bx, by, bz, ia, ib, ic, itmp
     LOGICAL                                  :: failure, ltmp
-    REAL(kind=dp)                            :: c, delrinv, incr_n, incr_s
+    REAL(kind=dp)                            :: c, delrinv
     REAL(kind=dp), DIMENSION(3)              :: r, r0
+    INTEGER, DIMENSION(:), POINTER           :: clen
 
 !    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
 
-    helium%rho_s_inst(:,:,:) = 0.0_dp
-    helium%rho_n_inst(:,:,:) = 0.0_dp
+    helium%rho_inst(:,:,:,:) = 0.0_dp
     r0(:) = helium%origin(:)
     delrinv = 1.0_dp / helium%rho_delr
-!    dv = (helium%cell_size)**3
-!    IF ( helium%cell_shape .EQ. helium_cell_shape_octahedron ) THEN
-!      dv = dv / 2.0_dp
-!    END IF
-!    c = 1.0_dp / helium%beads / dv
     c = 1.0_dp / helium%beads
-    incr_n = c
 
     DO ia = 1, helium%atoms
-
-      IF (helium_is_winding(helium, ia, helium%pos, helium%permutation)) THEN
-        incr_s = c
-      ELSE
-        incr_s = 0.0_dp
-      END IF
 
       DO ib = 1, helium%beads
 
@@ -449,8 +442,7 @@ MODULE helium_common
         ltmp = (0 .LT. bz) .AND. ( bz .LE. itmp )
         CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
 
-        helium%rho_s_inst(bx,by,bz) = helium%rho_s_inst(bx,by,bz) + incr_s
-        helium%rho_n_inst(bx,by,bz) = helium%rho_n_inst(bx,by,bz) + incr_n
+        helium%rho_inst(1,bx,by,bz) = helium%rho_inst(ic,bx,by,bz) + c
 
       END DO
     END DO
@@ -1247,9 +1239,9 @@ END SUBROUTINE helium_update_transition_matrix
 
     END DO
 
-DO ic = 1, num_cycles
-  PRINT *, ic, cycle_index(ic), cycle_length(ic), cycle_w(ic,:)
-END DO
+!do ic = 1, num_cycles
+!  print *, ic, cycle_index(ic), cycle_length(ic), cycle_w(ic,:)
+!end do
 
     cycle_index(:) = 0
     NULLIFY(cycle_index)
@@ -1456,6 +1448,89 @@ END DO
 
     RETURN
   END FUNCTION helium_sdensity_part
+
+
+  ! ***************************************************************************
+  !> \brief  Given the permutation state assign cycle lengths to all He atoms.
+  !> \author Lukasz Walewski
+  !> \date   2011-07-06
+  !> \descr  The helium%atom_plength array is filled with cycle lengths,
+  !>         each atom gets the length of the permutation cycle it belongs to.
+  ! ***************************************************************************
+  SUBROUTINE helium_calc_atom_cycle_length( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_atom_cycle_length',&
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: err_str
+    INTEGER :: ia, clen, nat_in_cycle, start_idx, curr_idx, handle
+    INTEGER, DIMENSION(:), POINTER :: atoms_in_cycle
+    LOGICAL :: path_end_reached, atoms_left
+    LOGICAL, DIMENSION(:), POINTER :: atom_was_used
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(atoms_in_cycle)
+    atoms_in_cycle => helium%itmp_atoms_1d
+    atoms_in_cycle(:) = 0
+
+    NULLIFY(atom_was_used)
+    atom_was_used => helium%ltmp_atoms_1d
+    atom_was_used(:) = .FALSE.
+
+    helium%atom_plength(:) = 0
+
+    start_idx = 1
+    DO
+      clen = 0
+      path_end_reached = .FALSE.
+      curr_idx = start_idx
+      DO ia = 1, helium%atoms
+        clen = clen + 1
+        atoms_in_cycle(clen) = curr_idx
+        atom_was_used(curr_idx) = .TRUE.
+
+        ! follow to the next atom in the cycle
+        curr_idx = helium%permutation(curr_idx)
+        IF ( curr_idx .EQ. start_idx ) THEN
+          path_end_reached = .TRUE.
+          EXIT
+        END IF
+      END DO
+      err_str = "Permutation path is not cyclic."
+      CALL cp_assert(path_end_reached,cp_failure_level,&
+           cp_assertion_failed, routineP, err_str)
+
+      ! assign the cycle length to the collected atoms
+      DO ia = 1, clen
+        helium%atom_plength(atoms_in_cycle(ia)) = clen
+      END DO
+
+      ! go to the next "unused" atom
+      atoms_left = .FALSE.
+      DO ia = 1, helium%atoms
+        IF ( .NOT. atom_was_used(ia) ) THEN
+          start_idx = ia
+          atoms_left = .TRUE.
+          EXIT
+        END IF
+      END DO
+
+      IF (.NOT. atoms_left) EXIT
+    END DO
+
+    atoms_in_cycle(:) = 0
+    NULLIFY(atoms_in_cycle)
+    atom_was_used(:) = .FALSE.
+    NULLIFY(atom_was_used)
+
+    CALL timestop(handle)
+
+    RETURN
+  END SUBROUTINE helium_calc_atom_cycle_length
 
 
 END MODULE helium_common

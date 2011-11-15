@@ -199,10 +199,8 @@ MODULE helium_sampling
       helium%plength_avrg(:) = helium%plength_avrg(:) + helium%plength_inst(:)
       helium%rdf_avrg(:) = helium%rdf_avrg(:) + helium%rdf_inst(:)
       IF (helium%rho_present) THEN
-        helium%rho_s_avrg(:,:,:) = helium%rho_s_avrg(:,:,:) + &
-                                   helium%rho_s_inst(:,:,:) * inv_iter_rot
-        helium%rho_n_avrg(:,:,:) = helium%rho_n_avrg(:,:,:) + &
-                                   helium%rho_n_inst(:,:,:) * inv_iter_rot
+        helium%rho_avrg(:,:,:,:) = helium%rho_avrg(:,:,:,:) + &
+                                   helium%rho_inst(:,:,:,:) * inv_iter_rot
       END IF
 
     END DO
@@ -335,7 +333,7 @@ MODULE helium_sampling
     REAL(KIND=dp)                            :: r, rnd, x
 
    IF (helium%maxcycle>1) CALL helium_update_transition_matrix(helium,error)
-helium%work(:,:,:)=helium%pos(:,:,:)
+     helium%work(:,:,:)=helium%pos(:,:,:)
 
    ! the inner MC loop (without rotation in imaginary time)
    DO ni = 1, helium%iter_norot

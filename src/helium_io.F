@@ -878,6 +878,9 @@ MODULE helium_io
   !> \brief  Write helium densities according to HELIUM%PRINT%RHO
   !> \author Lukasz Walewski
   !> \date   2011-06-21
+  !> \par    History
+  !>         2011-11-11 output of any number of density estimators to different
+  !>                    files according to helium%rho_num
   ! ***************************************************************************
   SUBROUTINE helium_write_rho( helium, error )
 
@@ -887,14 +890,15 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, itmp, iweight, ix, &
-                                                iy, iz, N, nsteps, unit_nr_n, &
-                                                unit_nr_s
+    CHARACTER(len=default_string_length)     :: stmp
+    INTEGER                                  :: handle, itmp, iweight, i, ix, &
+                                                iy, iz, N, nsteps, unit_nr
     LOGICAL                                  :: failure, should_output
     REAL(kind=dp)                            :: inv_norm, rtmp, rx, ry, rz
     REAL(kind=dp), DIMENSION(3)              :: r0
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: message
 
     CALL timeset(routineN,handle)
 
@@ -912,47 +916,34 @@ MODULE helium_io
     IF (should_output) THEN
 
       ! work on the temporary array so that accumulated data remains intact
-      helium%rho_s_inst(:,:,:) = helium%rho_s_avrg(:,:,:)
-      helium%rho_n_inst(:,:,:) = helium%rho_n_avrg(:,:,:)
+      helium%rho_inst(:,:,:,:) = helium%rho_avrg(:,:,:,:)
 
       ! average over helium environments
-      CALL mp_sum(helium%rho_s_inst,logger%para_env%group)
-      CALL mp_sum(helium%rho_n_inst,logger%para_env%group)
+      DO i = 1, helium%rho_num
+        NULLIFY(message)
+        message => helium%rho_inst(i,1::1,1::1,1::1)
+        CALL mp_sum(message,logger%para_env%group)
+      END DO
       itmp = logger%para_env%num_pe
       CPPostcondition(itmp>0,cp_failure_level,routineP,error,failure)
       inv_norm = 1.0_dp / REAL(itmp,dp)
-      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * inv_norm
-      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * inv_norm
+      helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * inv_norm
 
       ! average over steps performed so far in this run
       nsteps = helium%current_step-helium%first_step
       CPPostcondition(nsteps>0,cp_failure_level,routineP,error,failure)
       inv_norm = 1.0_dp / REAL(nsteps,dp)
-      helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) * inv_norm
-      helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) * inv_norm
+      helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * inv_norm
 
       iweight = helium%rho_iweight
       IF ( helium%rho_restart ) THEN
         ! average over the old and the current density (observe the weights!)
-
-        helium%rho_s_inst(:,:,:) = nsteps * helium%rho_s_inst(:,:,:) + &
-                                   iweight * helium%rho_s_rstr(:,:,:)
-        helium%rho_s_inst(:,:,:) = helium%rho_s_inst(:,:,:) / ( nsteps + iweight )
-
-        helium%rho_n_inst(:,:,:) = nsteps * helium%rho_n_inst(:,:,:) + &
-                                   iweight * helium%rho_n_rstr(:,:,:)
-        helium%rho_n_inst(:,:,:) = helium%rho_n_inst(:,:,:) / ( nsteps + iweight )
-
+        helium%rho_inst(:,:,:,:) = nsteps * helium%rho_inst(:,:,:,:) + &
+                                   iweight * helium%rho_rstr(:,:,:,:)
+        helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) / ( nsteps + iweight )
       END IF
 
       IF (logger%para_env%ionode) THEN
-
-        unit_nr_s=cp_print_key_unit_nr(logger,print_key, &
-          middle_name="helium-rho-s", extension=".cube", &
-          file_position="REWIND", do_backup=.TRUE., error=error)
-        unit_nr_n=cp_print_key_unit_nr(logger,print_key, &
-          middle_name="helium-rho-n", extension=".cube", &
-          file_position="REWIND", do_backup=.TRUE., error=error)
 
         N = helium%rho_nbin
         rtmp = cp_unit_from_cp2k(helium%rho_delr, "bohr", error=error)
@@ -961,48 +952,45 @@ MODULE helium_io
         ry = r0(2) - helium%rho_maxr / 2.0_dp
         rz = r0(3) - helium%rho_maxr / 2.0_dp
 
-        WRITE(unit_nr_s,'(A)') "Helium 'superfluidity' indicator"
-        WRITE(unit_nr_s,'(A)') "CP2K"
-        WRITE(unit_nr_s,'(I5,3F12.8)') 1, rx, ry, rz
-        WRITE(unit_nr_s,'(I5,3F12.8)') N, rtmp, 0.0_dp, 0.0_dp
-        WRITE(unit_nr_s,'(I5,3F12.8)') N, 0.0_dp, rtmp, 0.0_dp
-        WRITE(unit_nr_s,'(I5,3F12.8)') N, 0.0_dp, 0.0_dp, rtmp
-        WRITE(unit_nr_s,'(I5,4F12.8)') 1, 0.0_dp, r0(1), r0(2), r0(3)
+        DO i = 1, helium%rho_num
+        stmp = ""
+        WRITE(stmp,*) i
+        unit_nr=cp_print_key_unit_nr(logger,print_key, &
+          middle_name="helium-rho-"//TRIM(ADJUSTL(stmp)), &
+          extension=".cube", &
+          file_position="REWIND", do_backup=.TRUE., error=error)
 
-        WRITE(unit_nr_n,'(A)') "Helium density"
-        WRITE(unit_nr_n,'(A)') "CP2K"
-        WRITE(unit_nr_n,'(I5,3F12.8)') 1, rx, ry, rz
-        WRITE(unit_nr_n,'(I5,3F12.8)') N, rtmp, 0.0_dp, 0.0_dp
-        WRITE(unit_nr_n,'(I5,3F12.8)') N, 0.0_dp, rtmp, 0.0_dp
-        WRITE(unit_nr_n,'(I5,3F12.8)') N, 0.0_dp, 0.0_dp, rtmp
-        WRITE(unit_nr_n,'(I5,4F12.8)') 1, 0.0_dp, r0(1), r0(2), r0(3)
-
+        WRITE(unit_nr,'(A)') "Helium density " // TRIM(ADJUSTL(stmp))
+        WRITE(unit_nr,'(A)') "CP2K"
+        WRITE(unit_nr,'(I5,3F12.8)') 1, rx, ry, rz
+        WRITE(unit_nr,'(I5,3F12.8)') N, rtmp, 0.0_dp, 0.0_dp
+        WRITE(unit_nr,'(I5,3F12.8)') N, 0.0_dp, rtmp, 0.0_dp
+        WRITE(unit_nr,'(I5,3F12.8)') N, 0.0_dp, 0.0_dp, rtmp
+        WRITE(unit_nr,'(I5,4F12.8)') 1, 0.0_dp, r0(1), r0(2), r0(3)
         DO ix = 1, N
           DO iy = 1, N
             DO iz = 1, N
-              WRITE(unit_nr_s,'(E13.5,1X)', ADVANCE='NO') helium%rho_s_inst(ix,iy,iz)
-              WRITE(unit_nr_n,'(E13.5,1X)', ADVANCE='NO') helium%rho_n_inst(ix,iy,iz)
+              WRITE(unit_nr,'(E13.5,1X)', ADVANCE='NO') helium%rho_inst(i,ix,iy,iz)
               IF ( MOD(iz,6) .EQ. 5 ) THEN
-                WRITE(unit_nr_s,*)
-                WRITE(unit_nr_n,*)
+                WRITE(unit_nr,*)
               END IF
             END DO
-            WRITE(unit_nr_s,*)
-            WRITE(unit_nr_n,*)
+            WRITE(unit_nr,*)
           END DO
         END DO
 
-        CALL m_flush(unit_nr_s)
-        CALL cp_print_key_finished_output(unit_nr_s,logger,print_key,&
+        CALL m_flush(unit_nr)
+        CALL cp_print_key_finished_output(unit_nr,logger,print_key,&
           error=error)
-        CALL m_flush(unit_nr_n)
-        CALL cp_print_key_finished_output(unit_nr_n,logger,print_key,&
-          error=error)
+
+        END DO
+
       END IF
     END IF
 
     CALL timestop(handle)
   END SUBROUTINE helium_write_rho
+
 
   ! ***************************************************************************
   !> \brief  Write helium permutation length according to HELIUM%PRINT%PLENGTH

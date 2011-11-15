@@ -1334,7 +1334,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: step, tot_steps
+    INTEGER                                  :: step
     LOGICAL                                  :: failure, should_stop
     REAL(kind=dp)                            :: scal
 
@@ -1347,7 +1347,7 @@ CONTAINS
     ! create iteration level and initialize iteration info
     CALL cp_add_iter_level(pint_env%logger%iter_info,"MD",error=error)
     CALL cp_iterate(pint_env%logger%iter_info,iter_nr=pint_env%first_step,error=error)
-    tot_steps = pint_env%first_step
+    pint_env%iter = pint_env%first_step
 
     ! write the properties at 0-th step
     CALL pint_calc_energy(pint_env,error)
@@ -1360,12 +1360,11 @@ CONTAINS
     ! main PIMD loop
     DO step = 1, pint_env%num_steps
 
-      tot_steps = tot_steps + 1
+      pint_env%iter = pint_env%iter + 1
       CALL cp_iterate(pint_env%logger%iter_info,&
                       last=(step==pint_env%num_steps),&
-                      iter_nr=tot_steps,error=error)
+                      iter_nr=pint_env%iter,error=error)
       pint_env%t = pint_env%t + pint_env%dt
-      pint_env%iter = tot_steps
 
       IF (pint_env%t_tol > 0.0_dp) THEN
         IF (ABS(2._dp*pint_env%e_kin_beads/(pint_env%p*pint_env%ndim)&

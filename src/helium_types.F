@@ -98,6 +98,7 @@ MODULE helium_types
 !>    iperm         - inverse of the current permutation state INTEGER(ATOMS)
 !>    plength_avrg  - permutation length probability distribution REAL(ATOMS)
 !>    plength_inst  - instantaneous permutation length probability REAL(ATOMS)
+!>    atom_plength  - length of the permutation cycle the atom belongs to INTEGER(ATOMS)
 !>    uij           - pair density matrix coefficients (action)
 !>    eij           - pair density matrix coefficients (energy)
 !>    bead_ratio    - ratio of helium beads to system beads
@@ -157,13 +158,13 @@ MODULE helium_types
      REAL(kind=dp) :: sdensity_inst, sdensity_avrg
      REAL(kind=dp), DIMENSION(:,:), POINTER :: num_accepted
      REAL(kind=dp), DIMENSION(:), POINTER :: plength_avrg, plength_inst
+     INTEGER, DIMENSION(:), POINTER :: atom_plength
      INTEGER :: rdf_nbin
      REAL(kind=dp) :: rdf_delr, rdf_maxr
      REAL(kind=dp), DIMENSION(:), POINTER :: rdf_inst, rdf_avrg
-     INTEGER :: rho_nbin, rho_minb, rho_iweight
+     INTEGER :: rho_nbin, rho_minb, rho_iweight, rho_num
      REAL(kind=dp) :: rho_delr, rho_maxr
-     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho_s_inst, rho_s_avrg, rho_s_rstr
-     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho_n_inst, rho_n_avrg, rho_n_rstr
+     REAL(kind=dp), DIMENSION(:,:,:,:), POINTER :: rho_inst, rho_avrg, rho_rstr
      LOGICAL :: rho_restart, rho_present
      TYPE(rng_stream_type), POINTER :: rng_stream_gaussian, rng_stream_uniform
      ! variables that describe the solvated molecular system
