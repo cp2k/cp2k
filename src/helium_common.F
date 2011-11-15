@@ -407,7 +407,7 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bx, by, bz, ia, ib, ic, itmp
+    INTEGER                                  :: bx, by, bz, ia, ib, itmp
     LOGICAL                                  :: failure, ltmp
     REAL(kind=dp)                            :: c, delrinv
     REAL(kind=dp), DIMENSION(3)              :: r, r0
@@ -442,7 +442,7 @@ MODULE helium_common
         ltmp = (0 .LT. bz) .AND. ( bz .LE. itmp )
         CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
 
-        helium%rho_inst(1,bx,by,bz) = helium%rho_inst(ic,bx,by,bz) + c
+        helium%rho_inst(1,bx,by,bz) = helium%rho_inst(1,bx,by,bz) + c
 
       END DO
     END DO
