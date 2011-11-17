@@ -43,9 +43,10 @@ CONTAINS
 !>      12.2002 updated, added n optional parm [fawzi]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
+  SUBROUTINE cp_fm_cholesky_decompose(matrix,n,info_out,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
+    INTEGER, INTENT(out), OPTIONAL           :: info_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_decompose', &
@@ -53,7 +54,7 @@ CONTAINS
 
     INTEGER                                  :: handle, info, my_n
     INTEGER, DIMENSION(9)                    :: desca
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 
@@ -89,7 +90,13 @@ CONTAINS
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    IF(PRESENT(info_out)) THEN
+      info_out=info
+      if(info/=0) write(*,*) 'cholesky_decomposition error at vector ', info
+    ELSE
+      if(info/=0) write(*,*) 'cholesky_decomposition error at vector ', info
+      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL timestop(handle)
 
@@ -246,8 +253,8 @@ CPSourceFileRef,&
     REAL(KIND = sp), DIMENSION(:,:), POINTER         :: a_sp,b_sp,out_sp
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n
-    LOGICAL                                   :: ionode, failure
-    REAL(KIND = dp)                                  :: alpha
+    LOGICAL                                   :: failure
+    REAL(KIND = dp)                           :: alpha
     INTEGER                                   :: myprow, mypcol, i
     INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context

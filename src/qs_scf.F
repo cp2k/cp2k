@@ -124,6 +124,7 @@ MODULE qs_scf
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
+                                             block_davidson_deallocate,&
                                              block_davidson_env_create
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_density_mixing_types,         ONLY: &
@@ -1405,7 +1406,6 @@ END SUBROUTINE qs_scf_print_summary
     ! if using mo_coeff_b then copy to fm
     DO ispin=1,SIZE(mos)!fm->dbcsr
        IF(mos(1)%mo_set%use_mo_coeff_b)THEN!fm->dbcsr
-          !write(*,*) routinen//' copy_dbcsr_to_fm',__LINE__
           CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr
        ENDIF!fm->dbcsr
     ENDDO!fm->dbcsr
@@ -2309,7 +2309,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
 
        DO ispin=1,SIZE(qs_env%mos)!fm->dbcsr
           IF(qs_env%mos(ispin)%mo_set%use_mo_coeff_b) THEN
-             !WRITE(*,*) routinen//' copy_fm_to_dbcsr',__LINE__
              CALL copy_fm_to_dbcsr(qs_env%mos(ispin)%mo_set%mo_coeff,&
                   qs_env%mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
           ENDIF
@@ -2384,8 +2383,9 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
           !
        CASE(special_diag_method_nr)
           !
-       CASE(block_krylov_diag_method_nr,block_davidson_diag_method_nr)
-          !
+       CASE(block_krylov_diag_method_nr)
+       CASE(block_davidson_diag_method_nr)
+           CALL block_davidson_deallocate(scf_env%block_davidson_env,error=error)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&

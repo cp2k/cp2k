@@ -2742,7 +2742,9 @@ WRITE(*,*) 'tend',t(13)-t(12)
 
     SELECT CASE(prec_type)
         CASE(ot_precond_none)
-           !
+           DO ispin = 1,SIZE(ot_preconditioner)
+             ot_preconditioner(ispin)%preconditioner%in_use=0
+           END DO
         CASE(ot_precond_full_all,ot_precond_full_single_inverse)
            do_co_rotate = ASSOCIATED(qs_env%mo_derivs)
            

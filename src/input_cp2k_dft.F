@@ -5799,6 +5799,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SPARSE_MOS",&
+            description="Use MOS as sparse matrix and avoid as much as possible multiplications with full matrices",&
+            usage="SPARSE_MOS",default_l_val=.TRUE.,&
+            lone_keyword_l_val=.TRUE.,error=error) 
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_davidson_section

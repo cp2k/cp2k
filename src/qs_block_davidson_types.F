@@ -34,14 +34,15 @@ MODULE qs_block_davidson_types
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_block_davidson_types'
 
-  PUBLIC :: block_davidson_allocate, block_davidson_release, block_davidson_env_create, davidson_type
+  PUBLIC :: block_davidson_allocate, block_davidson_deallocate, block_davidson_release,  &
+            block_davidson_env_create, davidson_type
 
   TYPE davidson_type
      INTEGER :: max_iter, prec_type,solver_type,niter_new_prec, first_prec
+     LOGICAL :: use_sparse_mos
      REAL(KIND = dp) :: conv_percent, energy_gap, eps_iter
-     REAL(KIND = dp),  DIMENSION(:), POINTER :: evals
      TYPE(cp_fm_type), POINTER :: H_block_mat, H_block_vec,&
-                                  matrix_z, S_block_mat, W_block_mat
+                                  matrix_z, matrix_pz, S_block_mat, W_block_mat
   END TYPE davidson_type
 
 CONTAINS
@@ -74,8 +75,8 @@ CONTAINS
           NULLIFY(bdav_env(ispin)%H_block_vec)
           NULLIFY(bdav_env(ispin)%S_block_mat)
           NULLIFY(bdav_env(ispin)%W_block_mat)
-          NULLIFY(bdav_env(ispin)%evals)
           NULLIFY(bdav_env(ispin)%matrix_z)
+          NULLIFY(bdav_env(ispin)%matrix_pz)
 
           CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%PRECONDITIONER",&
              i_val=bdav_env(ispin)%prec_type,error=error)
@@ -93,6 +94,8 @@ CONTAINS
              i_val=bdav_env(ispin)%first_prec,error=error)
          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT",&
              r_val=bdav_env(ispin)%conv_percent,error=error)
+         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%SPARSE_MOS",&
+             l_val=bdav_env(ispin)%use_sparse_mos,error=error)
 
         END DO 
       END IF
@@ -122,29 +125,57 @@ CONTAINS
     CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
 
     nmox2 = 2*nmo
-!    write(*,*) nmo, nmox2
-!    stop 'alloc' 
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmox2, ncol_global=nmox2,&
-                             para_env=mo_coeff%matrix_struct%para_env, &
-                             context=mo_coeff%matrix_struct%context,error=error)
-    CALL cp_fm_create(bdav_env%H_block_mat,fm_struct_tmp,name="H_dav",error=error)
-    CALL cp_fm_create(bdav_env%S_block_mat,fm_struct_tmp,name="S_dav",error=error)
-    CALL cp_fm_create(bdav_env%H_block_vec,fm_struct_tmp,name="C_dav",error=error)
-    CALL cp_fm_create(bdav_env%W_block_mat,fm_struct_tmp,name="W_dav",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    ALLOCATE(bdav_env%evals(nmox2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmox2, ncol_global=nmox2,&
+!                             para_env=mo_coeff%matrix_struct%para_env, &
+!                             context=mo_coeff%matrix_struct%context,error=error)
+!    CALL cp_fm_create(bdav_env%H_block_mat,fm_struct_tmp,name="H_dav",error=error)
+!    CALL cp_fm_create(bdav_env%S_block_mat,fm_struct_tmp,name="S_dav",error=error)
+!    CALL cp_fm_create(bdav_env%H_block_vec,fm_struct_tmp,name="C_dav",error=error)
+!    CALL cp_fm_create(bdav_env%W_block_mat,fm_struct_tmp,name="W_dav",error=error)
+!    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo,&
                              para_env=mo_coeff%matrix_struct%para_env, &
                              context=mo_coeff%matrix_struct%context,error=error)
     CALL cp_fm_create(bdav_env%matrix_z,fm_struct_tmp,name="Z_mat",error=error)
+    CALL cp_fm_create(bdav_env%matrix_pz,fm_struct_tmp,name="Z_mat",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE block_davidson_allocate
+
+  SUBROUTINE block_davidson_deallocate(bdav_env,error)
+
+    TYPE(davidson_type), DIMENSION(:), &
+      POINTER                                :: bdav_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_deallocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, nspins, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF(ASSOCIATED(bdav_env)) THEN
+
+      nspins = SIZE(bdav_env)
+      DO ispin = 1,nspins
+
+        CALL cp_fm_release(bdav_env(ispin)%matrix_z,error=error)
+        CALL cp_fm_release(bdav_env(ispin)%matrix_pz,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%H_block_mat,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%S_block_mat,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%W_block_mat,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%H_block_vec,error=error)
+
+      END DO 
+
+    END IF
+
+  END SUBROUTINE block_davidson_deallocate
 
   SUBROUTINE block_davidson_release(bdav_env,error)
 
@@ -165,14 +196,14 @@ CONTAINS
       nspins = SIZE(bdav_env)
       DO ispin = 1,nspins
 
-
-        CALL cp_fm_release(bdav_env(ispin)%matrix_z,error=error)
-        CALL cp_fm_release(bdav_env(ispin)%H_block_mat,error=error)
-        CALL cp_fm_release(bdav_env(ispin)%S_block_mat,error=error)
-        CALL cp_fm_release(bdav_env(ispin)%W_block_mat,error=error)
-        CALL cp_fm_release(bdav_env(ispin)%H_block_vec,error=error)
-        DEALLOCATE(bdav_env(ispin)%evals,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        IF(ASSOCIATED(bdav_env(ispin)%matrix_z)) THEN
+          CALL cp_fm_release(bdav_env(ispin)%matrix_z,error=error)
+          CALL cp_fm_release(bdav_env(ispin)%matrix_pz,error=error)
+        END IF
+!        CALL cp_fm_release(bdav_env(ispin)%H_block_mat,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%S_block_mat,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%W_block_mat,error=error)
+!        CALL cp_fm_release(bdav_env(ispin)%H_block_vec,error=error)
 
       END DO 
       DEALLOCATE(bdav_env,STAT=stat)

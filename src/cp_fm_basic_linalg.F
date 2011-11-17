@@ -887,7 +887,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 ! *****************************************************************************
 !> \brief given an upper triangular matrix computes the corresponding full matrix
-!> \param matrix the upper triangular matrix
+!> \param matrix the upper triangular matrix as input, the full matrix as output
 !> \param work a matrix of the same size as matrix
 !> \note
 !>       the lower triangular part is irrelevant
@@ -1174,9 +1174,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !> \brief inverts a triangular matrix
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE cp_fm_triangular_invert(matrix_a,error)
+  SUBROUTINE cp_fm_triangular_invert(matrix_a,uplo_tr,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_a
+    CHARACTER, INTENT(IN), OPTIONAL          :: uplo_tr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_triangular_invert', &
@@ -1194,6 +1195,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     unit_diag='N'
     uplo='U'
+    IF(PRESENT(uplo_tr)) uplo=uplo_tr
 
     ncol_global =matrix_a%matrix_struct%ncol_global
 

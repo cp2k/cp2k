@@ -38,6 +38,7 @@ MODULE qs_scf_diagonalization
   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
                                              cp_fm_create,&
                                              cp_fm_to_fm,&
+                                             cp_fm_release,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -235,6 +236,15 @@ CONTAINS
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
     END DO
+
+
+!dbg
+!     write(*,*) 'mo_coeff '
+!     Do ispin=1,5
+!       write(*,*) ispin, mos(1)%mo_set%mo_coeff%local_data(ispin,1:5)
+!     end do
+!dbg
+
 
   END SUBROUTINE do_general_diag
 
@@ -1229,8 +1239,16 @@ END SUBROUTINE diag_subspace_allocate
 
     INTEGER                                  :: handle, ispin, nspins, &
                                                 output_unit
-    LOGICAL                                  :: failure, my_check_moconv_only
+    LOGICAL                                  :: failure, do_prec, my_check_moconv_only
     TYPE(cp_logger_type), POINTER            :: logger
+
+! dbg
+!    integer:: i,nao,nmo
+!        TYPE(cp_fm_struct_type), POINTER         ::  fm_struct_tmp
+!       TYPE(cp_fm_type), POINTER                :: matrix_tmp, matrix_sc
+!dbg
+
+
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -1253,29 +1271,30 @@ END SUBROUTINE diag_subspace_allocate
 
     my_check_moconv_only = .FALSE.
     IF(PRESENT(check_moconv_only)) my_check_moconv_only=check_moconv_only
+    do_prec=.FALSE.
+    IF( scf_env%block_davidson_env(1)%prec_type/=0 .AND.&
+        scf_env%iter_count>=scf_env%block_davidson_env(1)%first_prec)THEN
+       do_prec=.TRUE.
+    END IF
 
     nspins = SIZE(matrix_ks)
  
-    IF( scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
-          MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0) THEN
-
+    IF( do_prec .AND. (scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
+          MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0)) THEN
+!dbg
+!  write(*,*) '++++  RECOMPUTE PRECONDITIONER ++++++++'
+!dbg
        CALL restart_preconditioner(qs_env,scf_env%ot_preconditioner,&
             prec_type=scf_env%block_davidson_env(1)%prec_type,nspins=nspins,error=error)
        CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&
             scf_env%block_davidson_env(1)%prec_type, &
             scf_env%block_davidson_env(1)%solver_type,&
             scf_env%block_davidson_env(1)%energy_gap,nspins,error=error)
-
     END IF
 
- 
     DO ispin = 1,nspins
-!       mos(ispin)%mo_set%use_mo_coeff_b=.false.
-!     write(*,*) 'sparse ',  mos(ispin)%mo_set%use_mo_coeff_b
-!dbg
-      IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN
-!      IF(scf_env%block_davidson_env(ispin)%use_dbcsr) THEN
-        IF(scf_env%iter_count<scf_env%block_davidson_env(ispin)%first_prec) THEN
+      IF(scf_env%block_davidson_env(ispin)%use_sparse_mos) THEN
+        IF(.NOT. do_prec) THEN
           CALL generate_extended_space_sparse(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
              matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
              error=error)
@@ -1284,8 +1303,9 @@ END SUBROUTINE diag_subspace_allocate
              matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
              scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
         END IF
+
       ELSE
-        IF(scf_env%iter_count<scf_env%block_davidson_env(ispin)%first_prec) THEN
+        IF(.NOT. do_prec) THEN
           CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
              matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
              error=error)
@@ -1306,7 +1326,31 @@ END SUBROUTINE diag_subspace_allocate
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
     END DO
-
+!dbg
+!      write(*,*) 'mo_coeff '
+!      Do ispin=1,5
+!         write(*,*) ispin, mos(1)%mo_set%mo_coeff%local_data(ispin,1:5)
+!      end do
+!      CALL get_mo_set(mo_set= mos(1)%mo_set,nao=nao,nmo=nmo)
+!      
+!      CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo,ncol_global=nmo, &
+!                             context=mos(1)%mo_set%mo_coeff%matrix_struct%context, &
+!                             para_env=mos(1)%mo_set%mo_coeff%matrix_struct%para_env,error=error)
+!      CALL cp_fm_create(matrix_tmp,fm_struct_tmp,name="matrix_tmp",error=error)
+!      CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+!
+!      CALL cp_fm_create(matrix_sc,mos(1)%mo_set%mo_coeff%matrix_struct,name="sc",error=error)
+!      CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, mos(1)%mo_set%mo_coeff,matrix_sc,nmo,error=error)
+!      CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mos(1)%mo_set%mo_coeff,matrix_sc,0.0_dp,matrix_tmp,error=error)
+!
+!      write(*,*) ' diag CHC'
+!!      do i=1,nmo
+!         write(*,*)  (matrix_tmp%local_data(i,i), i=1,nmo)
+!!      end do 
+!      CALL cp_fm_release(matrix_tmp,error=error)
+!      CALL cp_fm_release(matrix_sc,error=error)
+!
+!dbg
 
     IF (output_unit > 0) THEN
           WRITE(output_unit,"(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
