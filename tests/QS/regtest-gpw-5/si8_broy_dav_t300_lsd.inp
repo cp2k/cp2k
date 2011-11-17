@@ -27,18 +27,18 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF   20
+      MAX_SCF   5
       EPS_SCF 1.0e-5
       CHOLESKY INVERSE
       &DIAGONALIZATION
         ALGORITHM DAVIDSON
-        MAX_ITER 10
-        EPS_ITER 1.e-10
+        MAX_ITER 1
+        EPS_ITER 1.e-6
         &DAVIDSON
            ENERGY_GAP  0.2
            NEW_PREC_EACH 20
            FIRST_PREC 2
-           CONV_MOS_PERCENT 0.9
+           CONV_MOS_PERCENT 0.5
         &END
       &END DIAGONALIZATION
 

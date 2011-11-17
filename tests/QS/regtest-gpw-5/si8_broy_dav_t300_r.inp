@@ -29,13 +29,17 @@
     &SCF
       SCF_GUESS RESTART
       MAX_SCF   20
-      EPS_SCF 1.0e-6
+      EPS_SCF 1.0e-5
       CHOLESKY INVERSE
       &DIAGONALIZATION
         ALGORITHM DAVIDSON
-        MAX_ITER 20
-        EPS_ADAPT  0.0001
+        MAX_ITER 5
+        EPS_ITER 1.e-6
         &DAVIDSON
+           ENERGY_GAP  0.02
+           NEW_PREC_EACH 20
+           FIRST_PREC 2
+           CONV_MOS_PERCENT 0.5
         &END
       &END DIAGONALIZATION
 

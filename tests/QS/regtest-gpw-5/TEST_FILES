@@ -37,3 +37,6 @@ si8_broy_dav_t300.inp  1
 si8_broy_dav_t300_r.inp  1
 si8_broy_dav_t5000_r.inp  1
 si8_broy_dav_t300_lsd.inp  1
+si8_broy_std_md.inp        1
+si8_broy_dav_md.inp        1
+si8_broy_davsparse_md.inp  1

@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT  si8_broy_dav
+  PROJECT  si8_broy_std_md
   PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
+  RUN_TYPE MD
   FLUSH_SHOULD_FLUSH
 &END GLOBAL
 
@@ -30,17 +30,6 @@
       EPS_SCF 1.0e-5
       CHOLESKY INVERSE
       &DIAGONALIZATION
-        ALGORITHM DAVIDSON
-        MAX_ITER 4
-        EPS_ITER 1.e-6
-        &DAVIDSON
-           ENERGY_GAP  0.02
-           NEW_PREC_EACH 20
-           FIRST_PREC 2
-           CONV_MOS_PERCENT 0.5
-          SPARSE_MOS .FALSE.
-
-        &END
       &END DIAGONALIZATION
 
       &SMEAR
@@ -93,4 +82,14 @@
 
   &END SUBSYS
 &END FORCE_EVAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+  &END
+&END
+
 

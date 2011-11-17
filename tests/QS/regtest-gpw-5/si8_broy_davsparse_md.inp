@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT  si8_broy_dav
+  PROJECT  si8_broy_davsparse_md
   PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
+  RUN_TYPE MD
   FLUSH_SHOULD_FLUSH
 &END GLOBAL
 
@@ -31,15 +31,15 @@
       CHOLESKY INVERSE
       &DIAGONALIZATION
         ALGORITHM DAVIDSON
-        MAX_ITER 4
-        EPS_ITER 1.e-6
+        MAX_ITER 1
+        EPS_ITER 1.e-4
         &DAVIDSON
-           ENERGY_GAP  0.02
+           ENERGY_GAP  0.2
            NEW_PREC_EACH 20
-           FIRST_PREC 2
-           CONV_MOS_PERCENT 0.5
-          SPARSE_MOS .FALSE.
-
+#           FIRST_PREC 2
+           PRECONDITIONER FULL_ALL
+           CONV_MOS_PERCENT 0.8
+           SPARSE_MOS .TRUE.
         &END
       &END DIAGONALIZATION
 
@@ -53,7 +53,7 @@
           BETA   1.0
           NBROYDEN 15
       &END
-      ADDED_MOS   20 20
+      ADDED_MOS   20  
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -93,4 +93,14 @@
 
   &END SUBSYS
 &END FORCE_EVAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+  &END
+&END
+
 
