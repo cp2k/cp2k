@@ -238,8 +238,13 @@ SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
     INTEGER                                  :: ierr,ilen
-
+    ! this is needed to load a statically linked binary on some architectures.
+#if defined(__HAS_NO_GETLOG)
+    user="root ;-)"
+#else
     CALL pxfgetlogin(user,ilen,ierr)
+#endif
+
 END SUBROUTINE m_getlog
 
 ! *****************************************************************************
