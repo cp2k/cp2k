@@ -77,6 +77,8 @@ MODULE dbcsr_test_multiply
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_multiply'
 
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
+
 CONTAINS
 
   SUBROUTINE dbcsr_test_multiplies( group, mp_env, npdims, ionode, narg, args, error)
@@ -511,6 +513,17 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+
+    IF (debug_mod .AND. io_unit .GT. 0) THEN
+       WRITE(io_unit, *) REPEAT("*",70)
+       WRITE(io_unit, *) " -- TESTING dbcsr_multiply (",transa,", ",transb,&
+            ", ",dbcsr_get_data_type( m_a ),&
+            ", ",dbcsr_get_matrix_type( m_a ),&
+            ", ",dbcsr_get_matrix_type( m_b ),&
+            ", ",dbcsr_get_matrix_type( m_c ),&
+            ") ............... !"
+       WRITE(io_unit, *) REPEAT("*",70)
+    ENDIF
 
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)

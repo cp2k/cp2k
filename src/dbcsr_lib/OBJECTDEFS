@@ -36,11 +36,9 @@ LIB3_OBJECTS = array_types.o\
                dbcsr_test_add.o\
                dbcsr_test_methods.o\
                dbcsr_test_multiply.o\
-               dbcsr_test_driver.o\
 	       dbcsr_toollib.o\
                dbcsr_types.o\
                dbcsr_operations.o\
-               dbcsr_performance_driver.o\
                dbcsr_performance_multiply.o\
                dbcsr_ptr_util.o\
                dbcsr_transformations.o\

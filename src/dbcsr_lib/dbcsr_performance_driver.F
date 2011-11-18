@@ -93,7 +93,7 @@ PROGRAM dbcsr_performance_driver
   CALL mp_bcast(narg, 0, group)
   CALL mp_bcast(args, 0, group)
 
-  CALL dbcsr_assert( narg.GE.1 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
+  CALL dbcsr_assert( narg, "GE", 1 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
        routineN, "nargs not correct", __LINE__, error )
   !
   ! Select the operation

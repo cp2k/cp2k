@@ -443,6 +443,7 @@ CONTAINS
              IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
           ENDIF
           IF (quick) CALL dlarnv( 1, iseed, 1, value )
+          IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
           IF (value(1) .LT. my_sparsity) CYCLE
           IF (quick) THEN
              nze = rbs(row) * cbs(col)

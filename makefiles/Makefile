@@ -56,6 +56,8 @@ LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 DOXYGENDIR   = $(DOCDIR)/doxygen
+DBCSR_TEST_PROG =$(EXEDIR)/dbcsr_test_driver.$(VERSION)
+DBCSR_PERF_PROG =$(EXEDIR)/dbcsr_performance_driver.$(VERSION)
 
 ### Definition of the multiple targets ###
 #
@@ -74,7 +76,8 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 # lists the targets that are not files
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
-         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool
+         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool\
+          dbcsr_test dbcsr_perf
 
 ### Master rules ###
 build: dirs deptool
@@ -116,6 +119,12 @@ progr:
 	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
 cpshell:
 	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
+
+dbcsr_test:
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_dbcsr_test build
+
+dbcsr_perf:
+	+$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_dbcsr_perf build
 
 #
 # on a parallel build only one task should go a build the deptool
@@ -242,6 +251,8 @@ _all: $(ALL_LIB) $(PROG) fes $(CP2KSHELL)
 _progr: $(PROG)
 _lib: $(ALL_LIB)
 _cpshell: $(CP2KSHELL)
+_dbcsr_test: $(DBCSR_TEST_PROG)
+_dbcsr_perf: $(DBCSR_PERF_PROG)
 
 _pretty:$(OBJECTS:.o=.pretty)
 _pretty_lib1:$(LIB1_OBJECTS:.o=.pretty)
@@ -309,6 +320,19 @@ $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
 
 $(FES): $(FESOBJS) graph.o 
 	+$(LD) $(LDFLAGS) -o $(FES) graph.o $(FESOBJS)
+
+timings_mp_dep = timings_mp.o $(ALL_LIB)
+
+$(DBCSR_TEST_PROG): dbcsr_test_driver.o $(LIB3_ARCHIVE) $(LIB4_ARCHIVE)
+	+$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+$(DBCSR_PERF_PROG): dbcsr_performance_driver.o $(LIB3_ARCHIVE) $(LIB4_ARCHIVE)
+	+$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+
+dbcsr_test_driver.o: $(LIB3_ARCHIVE)
+
+dbcsr_performance_driver.o: $(LIB3_ARCHIVE)
 
 #
 # these are tools, but their integration in the build is ugly at least (e.g. see dependencies).

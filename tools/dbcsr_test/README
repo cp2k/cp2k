@@ -1,0 +1,33 @@
+DBCSR Testing and Performance
+
+(C) 2010-2011 Valéry Weber, Urban Borštnik, and CP2K developers group.
+Licensed under the GNU Public Licence v2 and v3.
+
+Testing:
+
+* The dbcsr_testing.py script runs several tests of the addition and
+  multiplication operations.  Tests are described in .par files in this
+  directory or its subdirectories.
+
+* Building: compile CP2K as usual but use the dbcsr_test target, i.e.,
+cd $CP2K_HOME/src
+make -j -f ../makefiles/Makefile ARCH=Linux-x86-64-gfortran VERSION=psmp dbcsr_test
+
+* Running, example:
+  python dbcsr_testing.py -n "n1 n2 ns" -t "t1 t2 ts" -e "../../exe/Linux-x86-64-gfortran/dbcsr_test_driver.psmp"
+  to test all combinations of node counts from n1 to n2 with stride ns
+  and thread counts from t1 to t2 with stride ts.
+
+
+Performance:
+
+* Building: compile CP2K as usual but use the dbcsr_test target, i.e.,
+cd $CP2K_HOME/src
+make -j -f ../makefiles/Makefile ARCH=Linux-x86-64-gfortran VERSION=psmp dbcsr_test
+
+* Running:
+
+  Modify the perf/test.perf input file and pass it as standard input
+  to the executable generated above, e.g.,
+mpiexec -np 4096 ../../exe/Linux-x86-64-gfortran/dbcsr_performance_driver < perf/test.perf
+

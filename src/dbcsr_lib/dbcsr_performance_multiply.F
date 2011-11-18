@@ -15,10 +15,12 @@
 MODULE dbcsr_performance_multiply
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
-                                             array_release
+                                             array_release,&
+                                             array_size
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_negative,&
                                              dbcsr_scalar_one
+  USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -35,12 +37,12 @@ MODULE dbcsr_performance_multiply
                                              mp_sum,&
                                              mp_sync
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_offsets, dbcsr_col_block_sizes, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_new, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_offsets, &
-       dbcsr_row_block_sizes
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_row_block_offsets, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_multiply,&
                                              dbcsr_scale
@@ -48,8 +50,7 @@ MODULE dbcsr_performance_multiply
                                              atol,&
                                              ator,&
                                              dbcsr_make_random_block_sizes,&
-                                             dbcsr_make_random_matrix,&
-                                             dbcsr_random_dist
+                                             dbcsr_make_random_matrix
   USE dbcsr_transformations,           ONLY: dbcsr_redistribute
   USE dbcsr_types,                     ONLY: &
        dbcsr_conjugate_transpose, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -97,7 +98,21 @@ CONTAINS
 !
 ! parsing
 
-    CALL dbcsr_assert( narg.GE.28 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
+    IF (narg .LT. 28) THEN
+       WRITE(*,*)"Input file format:"
+       WRITE(*,*)"      dbcsr_multiply \\"
+       WRITE(*,*)"      M N K \\"
+       WRITE(*,*)"      SpA SpB SpC \\"
+       WRITE(*,*)"      TrA TrB \\"
+       WRITE(*,*)"      SymA SymB SymC \\"
+       WRITE(*,*)"      data_type \\"
+       WRITE(*,*)"      Re(alpha) Im(alpha) Re(beta) Im(beta) \\"
+       WRITE(*,*)"      limRowL limRowU limColL limColU limKL limKU \\"
+       WRITE(*,*)"      retain_sparsity nrep \\"
+       WRITE(*,*)"      nmblksizes nnblksizes nkblksizes \\"
+       WRITE(*,*)"      [mblksizes] [nblksizes] [kblksizes]"
+    ENDIF
+    CALL dbcsr_assert( narg, "GE", 28 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
          routineN, "narg not correct", __LINE__, error )
 
      matrix_sizes(1) = atoi(args( 2))
@@ -128,7 +143,7 @@ CONTAINS
      nblk_to_read    = atoi(args(27))
      kblk_to_read    = atoi(args(28))
 
-     CALL dbcsr_assert( narg.GE.28+2*(mblk_to_read+nblk_to_read+kblk_to_read) , &
+     CALL dbcsr_assert( narg, "GE", 28+2*(mblk_to_read+nblk_to_read+kblk_to_read) , &
           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "narg not correct", &
           __LINE__, error )
 
@@ -196,7 +211,7 @@ CONTAINS
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_perf_multiply_low (mp_group, mp_env, npdims, io_unit, &
-       matrix_sizes, bs_m, bs_n, bs_k, sparsities, trans, symmetries, TYPE, &
+       matrix_sizes, bs_m, bs_n, bs_k, sparsities, trans, symmetries, data_type, &
        alpha_in, beta_in, limits, retain_sparsity, nrep, error)
     INTEGER, INTENT(IN)                      :: mp_group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -206,7 +221,7 @@ CONTAINS
     REAL(real_8), DIMENSION(3), INTENT(in)   :: sparsities
     CHARACTER, DIMENSION(2), INTENT(in)      :: trans
     CHARACTER, DIMENSION(3), INTENT(in)      :: symmetries
-    INTEGER, INTENT(IN)                      :: TYPE
+    INTEGER, INTENT(IN)                      :: data_type
     REAL(real_8), DIMENSION(2), INTENT(in)   :: alpha_in, beta_in
     INTEGER, DIMENSION(6), INTENT(in)        :: limits
     LOGICAL, INTENT(in)                      :: retain_sparsity
@@ -221,11 +236,13 @@ CONTAINS
     INTEGER                                  :: error_handler, mynode, &
                                                 numnodes
     LOGICAL                                  :: do_complex
-    TYPE(array_i1d_obj)                      :: my_sizes_k, my_sizes_m, &
-                                                my_sizes_n, sizes_k, sizes_m, &
-                                                sizes_n
+    LOGICAL, DIMENSION(2)                    :: trs
+    TYPE(array_i1d_obj) :: col_dist_a, col_dist_b, col_dist_c, my_sizes_k, &
+      my_sizes_m, my_sizes_n, row_dist_a, row_dist_b, row_dist_c, sizes_k, &
+      sizes_m, sizes_n
     TYPE(dbcsr_data_obj)                     :: data_a, data_b, data_c, &
                                                 data_c_dbcsr
+    TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
     TYPE(dbcsr_scalar_type)                  :: alpha, beta
 
@@ -242,7 +259,7 @@ CONTAINS
        WRITE(io_unit,*) 'sparsities',sparsities
        WRITE(io_unit,*) 'trans ',trans
        WRITE(io_unit,*) 'symmetries ',symmetries
-       WRITE(io_unit,*) 'type ',TYPE
+       WRITE(io_unit,*) 'type ',data_type
        WRITE(io_unit,*) 'alpha_in',alpha_in
        WRITE(io_unit,*) 'beta_in',beta_in
        WRITE(io_unit,*) 'limits',limits
@@ -262,9 +279,9 @@ CONTAINS
     IF( b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3) ) STOP
     IF( c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2) ) STOP
 
-    do_complex = TYPE.EQ.dbcsr_type_complex_4.OR.TYPE.EQ.dbcsr_type_complex_8
+    do_complex = data_type.EQ.dbcsr_type_complex_4.OR.data_type.EQ.dbcsr_type_complex_8
 
-    SELECT CASE (TYPE)
+    SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        alpha = dbcsr_scalar (REAL(alpha_in(1), real_4))
        beta  = dbcsr_scalar (REAL( beta_in(1), real_4))
@@ -334,35 +351,70 @@ CONTAINS
             routineN, " something wrong here... ",__LINE__,error)
     ENDIF
 
-
-    !
-    ! Create the undistributed matrices.
-    CALL dbcsr_make_random_matrix (matrix_c, my_sizes_m, my_sizes_n, "Matrix C",&
-         sparsities(3),&
-         mp_group, data_type=TYPE, symmetry=c_symm, error=error)
-
-    IF (transa.NE.dbcsr_no_transpose) THEN
-       CALL dbcsr_make_random_matrix (matrix_a, my_sizes_k, my_sizes_m, "Matrix A",&
-            sparsities(1),&
-            mp_group, data_type=TYPE, symmetry=a_symm, error=error)
+    ! Create the random matrices.
+    trs(1) = transa .EQ. dbcsr_no_transpose
+    trs(2) = transb .EQ. dbcsr_no_transpose
+    CALL dbcsr_dist_bin (row_dist_c, array_size(sizes_m), npdims(1),&
+         array_data(sizes_m), error=error)
+    CALL dbcsr_dist_bin (col_dist_c, array_size(sizes_n), npdims(2),&
+         array_data(sizes_n), error=error)
+    CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
+    CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
+         REAL(sparsities(3), real_8),&
+         mp_group, data_type=data_type, dist=dist_c, nondet=.TRUE.,&
+         error=error)
+    CALL dbcsr_distribution_release (dist_c)
+    IF (trs(1)) THEN
+       CALL dbcsr_dist_bin (row_dist_a, array_size(sizes_k), npdims(1),&
+            array_data(sizes_k), error=error)
+       CALL dbcsr_dist_bin (col_dist_a, array_size(sizes_m), npdims(2),&
+            array_data(sizes_m), error=error)
+       CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
+       CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
+            REAL(sparsities(1), real_8),&
+            mp_group, data_type=data_type, dist=dist_a, nondet=.TRUE.,&
+            error=error)
+       CALL array_release (row_dist_a)
+       CALL array_release (col_dist_a)
     ELSE
-       CALL dbcsr_make_random_matrix (matrix_a, my_sizes_m, my_sizes_k, "Matrix A",&
-            sparsities(1),&
-            mp_group, data_type=TYPE, symmetry=a_symm, error=error)
+       CALL dbcsr_dist_bin (col_dist_a, array_size(sizes_k), npdims(2),&
+            array_data(sizes_k), error=error)
+       CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
+       CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
+            REAL(sparsities(1), real_8),&
+            mp_group, data_type=data_type, dist=dist_a, nondet=.TRUE.,&
+            error=error)
+       CALL array_release (col_dist_a)
     ENDIF
-    IF (transb.NE.dbcsr_no_transpose) THEN
-       CALL dbcsr_make_random_matrix (matrix_b, my_sizes_n, my_sizes_k, "Matrix B",&
-            sparsities(2),&
-            mp_group, data_type=TYPE, symmetry=b_symm, error=error)
+    CALL dbcsr_distribution_release (dist_a)
+    IF (trs(2)) THEN
+       CALL dbcsr_dist_bin (row_dist_b, array_size(sizes_n), npdims(1),&
+            array_data(sizes_n), error=error)
+       CALL dbcsr_dist_bin (col_dist_b, array_size(sizes_k), npdims(2),&
+            array_data(sizes_k), error=error)
+       CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
+       CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
+            REAL(sparsities(2), real_8),&
+            mp_group, data_type=data_type, dist=dist_b, nondet=.TRUE.,&
+            error=error)
+       CALL array_release (row_dist_b)
+       CALL array_release (col_dist_b)
     ELSE
-       CALL dbcsr_make_random_matrix (matrix_b, my_sizes_k, my_sizes_n, "Matrix B",&
-            sparsities(2),&
-            mp_group, data_type=TYPE, symmetry=b_symm, error=error)
+       CALL dbcsr_dist_bin (row_dist_b, array_size(sizes_k), npdims(1),&
+            array_data(sizes_k), error=error)
+       CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
+       CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
+            REAL(sparsities(2), real_8),&
+            mp_group, data_type=data_type, dist=dist_b, nondet=.TRUE.,&
+            error=error)
+       CALL array_release (row_dist_b)
     ENDIF
-
+    CALL dbcsr_distribution_release (dist_b)
+    CALL array_release (row_dist_c)
+    CALL array_release (col_dist_c)
     CALL array_release (sizes_m)
     CALL array_release (sizes_n)
-    CALL array_release (sizes_k)             
+    CALL array_release (sizes_k)
 
     !
     ! if C has a symmetry, we build it accordingly, i.e. C=A*A and C=A*(-A)
@@ -372,7 +424,7 @@ CONTAINS
        IF( c_symm.EQ.dbcsr_type_antisymmetric ) THEN
           CALL dbcsr_scale(matrix_b, &
                alpha_scalar=dbcsr_scalar_negative(&
-               dbcsr_scalar_one(TYPE)), error=error)
+               dbcsr_scalar_one(data_type)), error=error)
        ENDIF
     ENDIF
 
@@ -485,21 +537,16 @@ CONTAINS
     CALL dbcsr_init (m_c_orig)
 
     ! Row & column distributions
-    CALL dbcsr_random_dist (row_dist_a, dbcsr_nblkrows_total (matrix_a), npdims(1))
-    CALL dbcsr_random_dist (col_dist_a, dbcsr_nblkcols_total (matrix_a), npdims(2))
-    CALL dbcsr_random_dist (row_dist_b, dbcsr_nblkrows_total (matrix_b), npdims(1))
-    CALL dbcsr_random_dist (col_dist_b, dbcsr_nblkcols_total (matrix_b), npdims(2))
-    CALL dbcsr_random_dist (row_dist_c, dbcsr_nblkrows_total (matrix_c), npdims(1))
-    CALL dbcsr_random_dist (col_dist_c, dbcsr_nblkcols_total (matrix_c), npdims(2))
+    row_dist_c = dbcsr_distribution_row_dist (dbcsr_distribution (matrix_c))
+    col_dist_c = dbcsr_distribution_col_dist (dbcsr_distribution (matrix_c))
+    row_dist_a = row_dist_c
+    col_dist_a = dbcsr_distribution_col_dist (dbcsr_distribution (matrix_a))
+    row_dist_b = dbcsr_distribution_row_dist (dbcsr_distribution (matrix_b))
+    col_dist_b = col_dist_c
+
     CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
     CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
-    CALL array_release (row_dist_a)
-    CALL array_release (col_dist_a)
-    CALL array_release (row_dist_b)
-    CALL array_release (col_dist_b)
-    CALL array_release (row_dist_c)
-    CALL array_release (col_dist_c)
     ! Redistribute the matrices
     ! A
     CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name (matrix_a)),&
@@ -603,7 +650,7 @@ CONTAINS
     t = SUM(times, DIM=1) / REAL(numnodes, real_8)
     flop_sum = SUM(flops, DIM=1)
     t_max = MAX (t_max, 0.001_real_8)
-    flops_all = REAL(flop_sum, KIND=real_8) / t_max * 1.0e-9_real_8
+    flops_all = REAL(flop_sum, KIND=real_8) / t_max !* 1.0e-9_real_8
     flops_node = flops_all / REAL(numnodes, real_8) 
     flops_thread = flops_node / REAL(nthreads, real_8)
     load_imb = t_max - t / REAL(numnodes, real_8)
@@ -629,14 +676,14 @@ CONTAINS
        WRITE(io_unit, *)
        WRITE(io_unit, *)
        WRITE(io_unit, '(T4,A)')          "                       mean        std         minmin      maxmax"
-       WRITE(io_unit, '(T4,A,4E12.2,A)') "time            = ", mean(t), std(t), &
+       WRITE(io_unit, '(T4,A,4EN12.2,A)') "time            = ", mean(t), std(t), &
             MINVAL(times), MAXVAL(times),' seconds'
-       WRITE(io_unit, '(T4,A,4E12.2,A)') "perf total      = ", mean(flops_all), std(flops_all), &
-            MINVAL(flops_all), MAXVAL(flops_all),' GFLOPS'
-       WRITE(io_unit, '(T4,A,4E12.2,A)') "perf per node   = ", mean(flops_node), std(flops_node), &
-            MINVAL(flops_node), MAXVAL(flops_node),' GFLOPS'
-       WRITE(io_unit, '(T4,A,4E12.2,A)') "perf per thread = ", mean(flops_thread), std(flops_thread), &
-            MINVAL(flops_thread), MAXVAL(flops_thread),' GFLOPS'
+       WRITE(io_unit, '(T4,A,4EN12.2,A)') "perf total      = ", mean(flops_all), std(flops_all), &
+            MINVAL(flops_all), MAXVAL(flops_all),' FLOPS'
+       WRITE(io_unit, '(T4,A,4EN12.2,A)') "perf per node   = ", mean(flops_node), std(flops_node), &
+            MINVAL(flops_node), MAXVAL(flops_node),' FLOPS'
+       WRITE(io_unit, '(T4,A,4EN12.2,A)') "perf per thread = ", mean(flops_thread), std(flops_thread), &
+            MINVAL(flops_thread), MAXVAL(flops_thread),' FLOPS'
        WRITE(io_unit, '(T4,A,4E12.2,A)') "load imbalance  = ", mean(load_imb), std(load_imb), &
             MINVAL(load_imb),MAXVAL(load_imb),''
        WRITE(io_unit, '(T4,A,4E12.2,A)') "rel load imbal  = ", mean(load_imb/t_max), std(load_imb/t_max), &
