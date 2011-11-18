@@ -1471,6 +1471,7 @@ CONTAINS
        !$OMP PRIVATE (my_cnt, ithread, blk, thr) &
        !$OMP SHARED (td, blki, nthreads, thr_c, nblks, matrix, error, local_rows)
        !
+       ithread = 0
        !$ ithread = OMP_GET_THREAD_NUM ()
        !$OMP MASTER
        !$ nthreads = OMP_GET_NUM_THREADS ()
