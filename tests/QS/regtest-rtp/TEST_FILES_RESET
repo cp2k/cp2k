@@ -261,3 +261,5 @@ wfn_mix_loc_mark-0.inp
 wfn_mix_loc_mark-1.inp
 #  
 H2O_excit_emd.inp
+#
+wfn_mix_1.inp
