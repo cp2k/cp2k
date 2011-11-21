@@ -648,7 +648,7 @@ CONTAINS
     IF(m.GT.10000) m=0
     IF(n.GT.10000) n=0
     IF(m*n.LT.1 .OR. m*n.GT.SIZE(matrix)) RETURN
-    WRITE(iunit,FMT="('(',I4,'(F9.4))')")cols
+    WRITE(f,FMT="('(',I4,'(F9.4))')")cols
     DO r = 1, rows
        !WRITE(iunit,FMT=f)matrix(r,1:(n-1)*m+r:n)
        IF(.NOT.t) THEN
