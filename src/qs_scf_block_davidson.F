@@ -28,16 +28,16 @@ MODULE qs_scf_block_davidson
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,cp_fm_symm,&
-                                             cp_fm_lu_decompose,&
+                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
                                              cp_fm_transpose,&
                                              cp_fm_triangular_invert,&
-                                             cp_fm_triangular_multiply,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd, cp_fm_power
+  USE cp_fm_diag,                      ONLY: cp_fm_power,&
+                                             cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -53,14 +53,14 @@ MODULE qs_scf_block_davidson
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_norm_column,&
                                              dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default, dbcsr_type_symmetric
+                                             dbcsr_type_real_default,&
+                                             dbcsr_type_symmetric
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_block_davidson_types,         ONLY: davidson_type
-  USE qs_mo_methods,                   ONLY: make_basis_lowdin
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
   USE timings,                         ONLY: timeset,&
@@ -152,25 +152,27 @@ CONTAINS
       POINTER                                :: preconditioner
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i_first, i_last, imo, info, istat, iter, &
-                                                j, jj, max_iter, n, nmat,nmat2, nao, nset, nset_conv, nset_not_conv, nmo, &
-                                                nmo_converged, nmo_not_converged
+    INTEGER :: handle, homo, i_first, i_last, imo, istat, iter, j, jj, &
+      max_iter, n, nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, &
+      nset, nset_conv, nset_not_conv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv, inotconv
-    INTEGER, ALLOCATABLE, DIMENSION(:,:)     :: iconv_set, inotconv_set
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iconv_set, inotconv_set
     LOGICAL                                  :: converged, &
                                                 do_apply_preconditioner, &
                                                 failure
-    REAL(dp)                                 :: lambda, max_norm, min_norm, t1, t2, det
+    REAL(dp)                                 :: lambda, max_norm, min_norm, &
+                                                t1, t2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ritz_coeff, vnorm
-    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, evals, eig_not_conv
+    REAL(dp), DIMENSION(:), POINTER          :: eig_not_conv, eigenvalues, &
+                                                evals
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: c_conv, c_notconv, c_out, c_z, c_pz, m_hc, m_sc, m_tmp, mt_tmp,&
-                                                h_block, h_fm, s_block, s_fm, v_block, w_block, mo_coeff
+    TYPE(cp_fm_type), POINTER :: c_conv, c_notconv, c_out, c_pz, c_z, &
+      h_block, h_fm, m_hc, m_sc, m_tmp, mo_coeff, mt_tmp, s_block, s_fm, &
+      v_block, w_block
 
     failure=.FALSE.
 
@@ -199,7 +201,7 @@ CONTAINS
 
     ALLOCATE(iconv(nmo), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    Allocate(inotconv(nmo), STAT=istat)
+    ALLOCATE(inotconv(nmo), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ritz_coeff(nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -258,22 +260,22 @@ CONTAINS
       IF(nmo_converged>0) THEN
         ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        Allocate(inotconv_set(nmo_not_converged,2), STAT=istat)
+        ALLOCATE(inotconv_set(nmo_not_converged,2), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         i_last = iconv(1)
         nset = 0
         DO j = 1,nmo_converged
           imo=iconv(j)
             
-          if(imo==i_last+1) THEN
+          IF(imo==i_last+1) THEN
            i_last=imo
            iconv_set(nset,2)=imo
-          else
+          ELSE
            i_last=imo
            nset=nset+1
            iconv_set(nset,1)=imo
            iconv_set(nset,2)=imo
-          end if
+          END IF
         END DO
         nset_conv = nset
 
@@ -282,15 +284,15 @@ CONTAINS
         DO j = 1,nmo_not_converged
           imo=inotconv(j)
             
-          if(imo==i_last+1) THEN
+          IF(imo==i_last+1) THEN
            i_last=imo
            inotconv_set(nset,2)=imo
-          else
+          ELSE
            i_last=imo
            nset=nset+1
            inotconv_set(nset,1)=imo
            inotconv_set(nset,2)=imo
-          end if
+          END IF
         END DO
         nset_not_conv = nset
         CALL cp_fm_release(m_sc,error=error)
@@ -434,7 +436,7 @@ CONTAINS
        CALL cp_fm_create(h_block,fm_struct_tmp,name="hb",error=error)
        CALL cp_fm_create(v_block,fm_struct_tmp,name="vb",error=error)
        CALL cp_fm_create(w_block,fm_struct_tmp,name="wb",error=error)
-       allocate(evals(nmat2))
+       ALLOCATE(evals(nmat2))
    
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
        
@@ -497,7 +499,7 @@ CONTAINS
        CALL cp_fm_release(w_block,error=error)
        CALL cp_fm_release(v_block,error=error)
    
-       if(nmo_converged>0) THEN
+       IF(nmo_converged>0) THEN
          CALL cp_fm_release(c_z,error=error)
          CALL cp_fm_release(c_pz,error=error)
          jj=1
@@ -558,29 +560,27 @@ CONTAINS
       routineN = 'generate_extended_space_sparse', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i_first, i_last, imo, info, istat, iter, j, jj, k, &
-                                                max_iter, n, nao, nmat, nmat2, nmo, &
-                                                nmo_converged, &
-                                                nmo_not_converged, nset, nset_conv, nset_not_conv
+    INTEGER :: handle, homo, i_first, i_last, imo, istat, iter, j, jj, k, &
+      max_iter, n, nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, &
+      nset, nset_conv, nset_not_conv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv, inotconv
-    INTEGER, ALLOCATABLE, DIMENSION(:,:)     :: iconv_set, inotconv_set
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iconv_set, inotconv_set
     LOGICAL                                  :: converged, &
                                                 do_apply_preconditioner, &
                                                 failure
-    REAL(dp)                                 :: lambda, max_norm, min_norm, t1, t2
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ritz_coeff, evals, vnorm, eig_not_conv
+    REAL(dp)                                 :: lambda, max_norm, min_norm, &
+                                                t1, t2
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig_not_conv, evals, &
+                                                ritz_coeff, vnorm
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist
-    TYPE(cp_dbcsr_type), POINTER             :: c_out, matrix_hc, matrix_mm, &
-                                                matrix_pz, matrix_sc, &
-                                                matrix_z, mo_coeff_b,&
-                                                mo_conv, mo_notconv, smo_conv
+    TYPE(cp_dbcsr_type), POINTER :: c_out, matrix_hc, matrix_mm, matrix_pz, &
+      matrix_sc, matrix_z, mo_coeff_b, mo_conv, mo_notconv, smo_conv
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: h_block, matrix_mm_fm, &
-                                                matrix_mmt_fm, matrix_nm_fm, &
-                                                matrix_z_fm, mo_coeff,mo_conv_fm, mo_notconv_fm,&
-                                                s_block, v_block, w_block
+    TYPE(cp_fm_type), POINTER :: h_block, matrix_mm_fm, matrix_mmt_fm, &
+      matrix_nm_fm, matrix_z_fm, mo_coeff, mo_conv_fm, mo_notconv_fm, &
+      s_block, v_block, w_block
     TYPE(dbcsr_distribution_obj)             :: dist
 
     failure=.FALSE.
@@ -614,7 +614,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iconv(nmo), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    Allocate(inotconv(nmo), STAT=istat)
+    ALLOCATE(inotconv(nmo), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(vnorm(nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -698,22 +698,22 @@ CONTAINS
       IF(nmo_converged>0) THEN
         ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        Allocate(inotconv_set(nmo_not_converged,2), STAT=istat)
+        ALLOCATE(inotconv_set(nmo_not_converged,2), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         i_last = iconv(1)
         nset = 0
         DO j = 1,nmo_converged
           imo=iconv(j)
             
-          if(imo==i_last+1) THEN
+          IF(imo==i_last+1) THEN
            i_last=imo
            iconv_set(nset,2)=imo
-          else
+          ELSE
            i_last=imo
            nset=nset+1
            iconv_set(nset,1)=imo
            iconv_set(nset,2)=imo
-          end if
+          END IF
         END DO
         nset_conv = nset
 
@@ -722,15 +722,15 @@ CONTAINS
         DO j = 1,nmo_not_converged
           imo=inotconv(j)
             
-          if(imo==i_last+1) THEN
+          IF(imo==i_last+1) THEN
            i_last=imo
            inotconv_set(nset,2)=imo
-          else
+          ELSE
            i_last=imo
            nset=nset+1
            inotconv_set(nset,1)=imo
            inotconv_set(nset,2)=imo
-          end if
+          END IF
         END DO
         nset_not_conv = nset
 
@@ -931,7 +931,7 @@ CONTAINS
        CALL cp_fm_create(h_block,fm_struct_tmp,name="hb",error=error)
        CALL cp_fm_create(v_block,fm_struct_tmp,name="vb",error=error)
        CALL cp_fm_create(w_block,fm_struct_tmp,name="wb",error=error)
-       allocate(evals(nmat2))
+       ALLOCATE(evals(nmat2))
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
       ! compute CSC
@@ -1065,7 +1065,8 @@ CONTAINS
 
   SUBROUTINE  reduce_extended_space(s_block,h_block,v_block,w_block, evals, ndim, error)
 
-    TYPE(cp_fm_type), POINTER                :: s_block,h_block,v_block,w_block
+    TYPE(cp_fm_type), POINTER                :: s_block, h_block, v_block, &
+                                                w_block
     REAL(dp), DIMENSION(:)                   :: evals
     INTEGER                                  :: ndim
     TYPE(cp_error_type), INTENT(inout)       :: error

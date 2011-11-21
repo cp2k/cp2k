@@ -38,7 +38,6 @@ MODULE qs_scf_diagonalization
   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
                                              cp_fm_create,&
                                              cp_fm_to_fm,&
-                                             cp_fm_release,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -1239,7 +1238,8 @@ END SUBROUTINE diag_subspace_allocate
 
     INTEGER                                  :: handle, ispin, nspins, &
                                                 output_unit
-    LOGICAL                                  :: failure, do_prec, my_check_moconv_only
+    LOGICAL                                  :: do_prec, failure, &
+                                                my_check_moconv_only
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! dbg
@@ -1247,8 +1247,6 @@ END SUBROUTINE diag_subspace_allocate
 !        TYPE(cp_fm_struct_type), POINTER         ::  fm_struct_tmp
 !       TYPE(cp_fm_type), POINTER                :: matrix_tmp, matrix_sc
 !dbg
-
-
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)

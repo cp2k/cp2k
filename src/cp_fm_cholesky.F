@@ -92,9 +92,9 @@ CONTAINS
 
     IF(PRESENT(info_out)) THEN
       info_out=info
-      if(info/=0) write(*,*) 'cholesky_decomposition error at vector ', info
+      IF(info/=0) WRITE(*,*) 'cholesky_decomposition error at vector ', info
     ELSE
-      if(info/=0) write(*,*) 'cholesky_decomposition error at vector ', info
+      IF(info/=0) WRITE(*,*) 'cholesky_decomposition error at vector ', info
       CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
     END IF
 

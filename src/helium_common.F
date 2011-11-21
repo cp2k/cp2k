@@ -411,7 +411,6 @@ MODULE helium_common
     LOGICAL                                  :: failure, ltmp
     REAL(kind=dp)                            :: c, delrinv
     REAL(kind=dp), DIMENSION(3)              :: r, r0
-    INTEGER, DIMENSION(:), POINTER           :: clen
 
 !    CALL timeset(routineN,handle)
 
@@ -1462,14 +1461,16 @@ END SUBROUTINE helium_update_transition_matrix
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_atom_cycle_length',&
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'helium_calc_atom_cycle_length', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str
-    INTEGER :: ia, clen, nat_in_cycle, start_idx, curr_idx, handle
-    INTEGER, DIMENSION(:), POINTER :: atoms_in_cycle
-    LOGICAL :: path_end_reached, atoms_left
-    LOGICAL, DIMENSION(:), POINTER :: atom_was_used
+    INTEGER                                  :: clen, curr_idx, handle, ia, &
+                                                start_idx
+    INTEGER, DIMENSION(:), POINTER           :: atoms_in_cycle
+    LOGICAL                                  :: atoms_left, path_end_reached
+    LOGICAL, DIMENSION(:), POINTER           :: atom_was_used
 
     CALL timeset(routineN,handle)
 

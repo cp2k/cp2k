@@ -344,7 +344,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, dir, handle, iatom, iexp_nlcc, ikind, ithread, j, n, &
-      natom, natom_of_kind, nc, nexp_nlcc, ni, npme, nthread, stat, tp(3)
+      natom, nc, nexp_nlcc, ni, npme, nthread, stat, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
     LOGICAL                                  :: failure, nlcc, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace

@@ -40,8 +40,7 @@ MODULE helium_methods
                                              section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp, &
-                                             max_line_length
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_bcast
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
@@ -98,7 +97,8 @@ MODULE helium_methods
     CHARACTER(len=default_path_length)       :: potential_file_name
     CHARACTER(len=default_string_length)     :: msg_str, stmp
     INTEGER                                  :: handle, i, input_unit, isize, &
-                                                itmp, jtmp, j, nlines, ntab, stat
+                                                itmp, j, jtmp, nlines, ntab, &
+                                                stat
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
                                                 expl_nats, explicit, failure, &
@@ -1656,9 +1656,9 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp1, stmp2
     INTEGER                                  :: istat, itmp, msglen
     LOGICAL                                  :: failure, ltmp
-    LOGICAL, DIMENSION(:,:,:,:), POINTER     :: m
+    LOGICAL, DIMENSION(:, :, :, :), POINTER  :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
-    REAL(kind=dp), DIMENSION(:,:,:,:), &
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: f
 
     itmp = helium%rho_nbin

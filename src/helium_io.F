@@ -891,14 +891,15 @@ MODULE helium_io
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: stmp
-    INTEGER                                  :: handle, itmp, iweight, i, ix, &
+    INTEGER                                  :: handle, i, itmp, iweight, ix, &
                                                 iy, iz, N, nsteps, unit_nr
     LOGICAL                                  :: failure, should_output
     REAL(kind=dp)                            :: inv_norm, rtmp, rx, ry, rz
     REAL(kind=dp), DIMENSION(3)              :: r0
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: message
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: message
 
     CALL timeset(routineN,handle)
 

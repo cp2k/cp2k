@@ -112,7 +112,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nao, nmo, nmox2, stat
+    INTEGER                                  :: handle, nao, nmo, nmox2
     LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -154,7 +154,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins, stat
+    INTEGER                                  :: ispin, nspins
     LOGICAL                                  :: failure
 
     failure = .FALSE.

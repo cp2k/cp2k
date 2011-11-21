@@ -1101,9 +1101,10 @@ CONTAINS
     REAL(kind=dp)                            :: bf, bu, rtmp
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, ig
     REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: message
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: tmpsec
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: message
 
     CALL timeset(routineN,handle)
 
