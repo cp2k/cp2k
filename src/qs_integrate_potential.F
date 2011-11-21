@@ -275,7 +275,7 @@ CONTAINS
           END DO
           IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
               ! replicated realspace grid, split the atoms up between procs
-              IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
+              IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
                  npme = npme + 1
                  cores (npme) = iatom
               ENDIF
@@ -486,7 +486,7 @@ CONTAINS
             END DO
             IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                 ! replicated realspace grid, split the atoms up between procs
-                IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
+                IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
                    npme = npme + 1
                    cores (npme) = iatom
                 ENDIF
@@ -662,7 +662,7 @@ CONTAINS
               END DO
               IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
-                  IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
+                  IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
                      npme = npme + 1
                      cores (npme) = iatom
                   ENDIF

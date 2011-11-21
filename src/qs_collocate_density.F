@@ -293,7 +293,7 @@ CONTAINS
             ra(:) = pbc(particle_set(atom_a)%r,cell)
             IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
                ! replicated realspace grid, split the atoms up between procs
-               IF (MODULO(natom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+               IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
                   npme = npme + 1
                   cores (npme) = iatom
                ENDIF
@@ -477,7 +477,7 @@ CONTAINS
          ra(:) = pbc(particle_set(atom_a)%r,cell)
          IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
-            IF (MODULO(natom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+            IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
                npme = npme + 1
                cores (npme) = iatom
             ENDIF
@@ -805,7 +805,7 @@ CONTAINS
          ra(:) = pbc(particle_set(atom_a)%r,cell)
          IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
-            IF (MODULO(natom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+            IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
                npme = npme + 1
                cores (npme) = iatom
             ENDIF
