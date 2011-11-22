@@ -7657,11 +7657,46 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="APPLY_DELTA_PULSE",&
+            description="Applies a delta kick to the initial wfn (only RTP for now - the EMD "//&
+            " case is not yet implemented).",&
+            usage="APPLY_DELTA_PULSE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Apply a delta-kick that is compatible with periodic boundary conditions"//&
+            " for any value of DELTA_PULSE_SCALE. Uses perturbation theory for the preparation of"//&
+            " the initial wfn.",&
+            usage="PERIODIC",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DELTA_PULSE_DIRECTION",&
+            description="Direction of the applied electric field. The k vector is given as"//&
+            " 2*Pi*[i,j,k]*inv(h_mat), which for PERIODIC .FALSE. yields exp(ikr) periodic with"//&
+            " the unit cell, only if DELTA_PULSE_SCALE is set to unity. For an orthorhombic cell"//&
+            " [1,0,0] yields [2*Pi/L_x,0,0]. For small cells, this results in a very large kick.",&
+            usage="DELTA_PULSE_DIRECTION 1 1 1",n_var=3,default_i_vals=(/1,0,0/),&
+            type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DELTA_PULSE_SCALE",&
+            description="Scale the k vector, which for PERIODIC .FALSE. results in exp(ikr) no"//&
+            " longer being periodic with the unit cell. The norm of k is the strength of the"//&
+            " applied electric field in atomic units.",&
+            usage="DELTA_PULSE_SCALE 0.01 ",n_var=1,default_r_val=0.001_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="HFX_BALANCE_IN_CORE",&
-         description="If HFX is used, this keyword forces a redistribution/recalculation"//&
-         " of the integrals, balanced with respect to the in core steps.",&
-         usage="HFX_BALANCE_IN_CORE",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            description="If HFX is used, this keyword forces a redistribution/recalculation"//&
+            " of the integrals, balanced with respect to the in core steps.",&
+            usage="HFX_BALANCE_IN_CORE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7680,7 +7715,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
 
-        CALL cp_print_key_section_create(print_key,"RESTART",&
+       CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the dumping of the MO restart file during rtp."//&
                         "By default keeps a short history of three restarts."//&
                         "See also RESTART_HISTORY", &
@@ -7688,9 +7723,9 @@ CONTAINS
             each_iter_names=s2a("MD"),each_iter_values=(/20/), &
             add_last=add_last_numeric,filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
-             description="Specifies the maximum index of backup copies.",&
-             usage="BACKUP_COPIES {int}",&
-             default_i_val=3, error=error)
+            description="Specifies the maximum index of backup copies.",&
+            usage="BACKUP_COPIES {int}",&
+            default_i_val=3, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(print_section,print_key,error=error)
@@ -7703,9 +7738,9 @@ CONTAINS
             each_iter_values=(/500/), &
             filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
-             description="Specifies the maximum index of backup copies.",&
-             usage="BACKUP_COPIES {int}",&
-             default_i_val=3, error=error)
+            description="Specifies the maximum index of backup copies.",&
+            usage="BACKUP_COPIES {int}",&
+            default_i_val=3, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(print_section,print_key,error=error)

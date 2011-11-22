@@ -286,6 +286,15 @@ CONTAINS
          "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
        nders = 1
     END IF
+
+    ! the delta pulse in the periodic case needs the momentum operator,
+    ! which is equivalent to the derivative of the overlap matrix
+    IF (ASSOCIATED(qs_env%dft_control%rtp_control)) THEN
+       IF (qs_env%dft_control%rtp_control%apply_delta_pulse .AND. &
+           qs_env%dft_control%rtp_control%periodic) THEN
+           nders = 1
+       ENDIF
+    ENDIF
     
     maxder = ncoset(nder)
 

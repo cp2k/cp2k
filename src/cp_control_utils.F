@@ -1640,6 +1640,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
+    INTEGER, DIMENSION(:), POINTER           :: tmp
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1663,6 +1664,15 @@ CPSourceFileRef,&
       i_val=dft_control%rtp_control%initial_wfn,error=error)
     CALL section_vals_val_get(rtp_section,"HFX_BALANCE_IN_CORE",&
       l_val=dft_control%rtp_control%hfx_redistribute,error=error)
+    CALL section_vals_val_get(rtp_section,"APPLY_DELTA_PULSE",&
+      l_val=dft_control%rtp_control%apply_delta_pulse,error=error)
+    CALL section_vals_val_get(rtp_section,"PERIODIC",&
+      l_val=dft_control%rtp_control%periodic,error=error)
+    CALL section_vals_val_get(rtp_section,"DELTA_PULSE_SCALE",&
+      r_val=dft_control%rtp_control%delta_pulse_scale,error=error)
+    CALL section_vals_val_get(rtp_section,"DELTA_PULSE_DIRECTION",&
+      i_vals=tmp,error=error)
+    dft_control%rtp_control%delta_pulse_direction=tmp
     CALL section_vals_val_get(rtp_section,"SC_CHECK_START",&
       i_val=dft_control%rtp_control%sc_check_start,error=error)
 

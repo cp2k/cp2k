@@ -1212,47 +1212,47 @@ CONTAINS
       DO l=0,nmom
         SELECT CASE (l)
           CASE (0)
-            WRITE(unit_number,"(T3,A,T32,3F16.8)") "Reference Point [Bohr]",rcc
+            WRITE(unit_number,"(T3,A,T32,3F14.8)") "Reference Point [Bohr]",rcc
             WRITE(unit_number,"(T3,A)") "Charges"
-            WRITE(unit_number,"(T5,A,T18,F12.4,T36,A,T42,F12.4,T60,A,T68,F12.4)") &
+            WRITE(unit_number,"(T5,A,T18,F14.8,T36,A,T42,F14.8,T60,A,T68,F14.8)") &
              "Electronic=",rmom(1,1),"Core=",rmom(1,2),"Total=",rmom(1,3)
           CASE (1)
             IF (periodic) THEN
                 WRITE(unit_number,"(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
                 WRITE(unit_number,"(T3,A)") "They are defined modulo integer multiples of the cell matrix [Debye]."
-                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "[X] [",cell%hmat(1,:)*debye,"] [i]"
-                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "[Y]=[",cell%hmat(2,:)*debye,"]*[j]"
-                WRITE(unit_number,"(T3,A,3(F12.4,1X),A)") "[Z] [",cell%hmat(3,:)*debye,"] [k]"
+                WRITE(unit_number,"(T3,A,3(F14.8,1X),A)") "[X] [",cell%hmat(1,:)*debye,"] [i]"
+                WRITE(unit_number,"(T3,A,3(F14.8,1X),A)") "[Y]=[",cell%hmat(2,:)*debye,"]*[j]"
+                WRITE(unit_number,"(T3,A,3(F14.8,1X),A)") "[Z] [",cell%hmat(3,:)*debye,"] [k]"
             ELSE
                 WRITE(unit_number,"(T3,A)") "Dipoles are based on the traditional operator."
             ENDIF
             dd=SQRT(SUM(rmom(2:4,3)**2))*debye
             WRITE(unit_number,"(T3,A)") "Dipole moment [Debye]"
-            WRITE(unit_number,"(T5,3(A,A,F12.4,4X),T60,A,T68,F12.5)") &
+            WRITE(unit_number,"(T5,3(A,A,F14.8,1X),T60,A,T68,F14.8)") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye,i=2,4),"Total=",dd
           CASE (2)
             WRITE(unit_number,"(T3,A)") "Quadrupole moment [Debye*Angstrom]"
-            WRITE(unit_number,"(T17,3(A,A,F12.4,9X))") &
+            WRITE(unit_number,"(T17,3(A,A,F14.8,9X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr,i=5,7)
-            WRITE(unit_number,"(T17,3(A,A,F12.4,9X))") &
+            WRITE(unit_number,"(T17,3(A,A,F14.8,9X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr,i=8,10)
           CASE (3)
             WRITE(unit_number,"(T3,A)") "Octapole moment [Debye*Angstrom**2]"
-            WRITE(unit_number,"(T7,4(A,A,F12.4,3X))") &
+            WRITE(unit_number,"(T7,4(A,A,F14.8,3X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr,i=11,14)
-            WRITE(unit_number,"(T7,4(A,A,F12.4,3X))") &
+            WRITE(unit_number,"(T7,4(A,A,F14.8,3X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr,i=15,18)
-            WRITE(unit_number,"(T7,4(A,A,F12.4,3X))") &
+            WRITE(unit_number,"(T7,4(A,A,F14.8,3X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr,i=19,20)
           CASE (4)
             WRITE(unit_number,"(T3,A)") "Hexadecapole moment [Debye*Angstrom**3]"
-            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+            WRITE(unit_number,"(T6,4(A,A,F14.8,2X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=21,24)
-            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+            WRITE(unit_number,"(T6,4(A,A,F14.8,2X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=25,28)
-            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+            WRITE(unit_number,"(T6,4(A,A,F14.8,2X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=29,32)
-            WRITE(unit_number,"(T6,4(A,A,F12.4,2X))") &
+            WRITE(unit_number,"(T6,4(A,A,F14.8,2X))") &
              (TRIM(rlab(i)),"=",rmom(i,3)*debye/bohr/bohr/bohr,i=32,35)
           CASE DEFAULT
             WRITE(unit_number,"(T3,A,A,I2)") "Higher moment [Debye*Angstrom**(L-1)]",&
@@ -1261,7 +1261,7 @@ CONTAINS
             i1 = (6 + 11*l + 6*l**2 + l**3)/6 - 1
             dd = debye/(bohr)**(l-1)
             DO i=i0,i1,3
-              WRITE(unit_number,"(T18,3(A,A,F12.4,4X))") &
+              WRITE(unit_number,"(T18,3(A,A,F14.8,4X))") &
                 (TRIM(rlab(j+1)),"=",rmom(j+1,3)*dd,j=i,MIN(i1,i+2))
             END DO
         END SELECT

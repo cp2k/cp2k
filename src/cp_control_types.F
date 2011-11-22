@@ -60,6 +60,10 @@ MODULE cp_control_types
      INTEGER                              :: aspc_order
      INTEGER                              :: extrapolation
      INTEGER                              :: sc_check_start
+     LOGICAL                              :: apply_delta_pulse
+     LOGICAL                              :: periodic
+     INTEGER, DIMENSION(3)                :: delta_pulse_direction
+     REAL(KIND=dp)                        :: delta_pulse_scale
   END TYPE rtp_control_type
 ! *****************************************************************************
 ! \brief Control parameters for DFTB calculations
