@@ -866,6 +866,13 @@ MODULE helium_methods
     helium_section => section_vals_get_subs_vals(helium%input, &
       "MOTION%PINT%HELIUM", error=error)
 
+    ! set the origin for rdf and density calculations
+    IF (helium%solute_present) THEN
+      helium%origin = pint_com_pos(pint_env,error)
+    ELSE
+      helium%origin = (/0.0_dp, 0.0_dp, 0.0_dp/)
+    END IF
+
     ! restore RNG state
     NULLIFY(sec)
     sec => section_vals_get_subs_vals(helium_section,"RNG_STATE",error=error)
@@ -956,13 +963,6 @@ MODULE helium_methods
           CALL helium_write_line("Forces on the solute initialized as zero.",error)
         END IF
       END IF
-    END IF
-
-    ! set the origin for rdf and density calculations
-    IF (helium%solute_present) THEN
-      helium%origin = pint_com_pos(pint_env,error)
-    ELSE
-      helium%origin = (/0.0_dp, 0.0_dp, 0.0_dp/)
     END IF
 
     CALL timestop(handle)
@@ -1662,7 +1662,7 @@ MODULE helium_methods
       POINTER                                :: f
 
     itmp = helium%rho_nbin
-    ALLOCATE(helium%rho_rstr(5,itmp,itmp,itmp),STAT=istat)
+    ALLOCATE(helium%rho_rstr(helium%rho_num,itmp,itmp,itmp),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! assign pointers to the memory locations in the input structure, where
@@ -1689,9 +1689,9 @@ MODULE helium_methods
 
     itmp = helium%rho_nbin
     NULLIFY(m,f)
-    ALLOCATE(m(5,itmp,itmp,itmp),STAT=istat)
+    ALLOCATE(m(helium%rho_num,itmp,itmp,itmp),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(f(5,itmp,itmp,itmp),STAT=istat)
+    ALLOCATE(f(helium%rho_num,itmp,itmp,itmp),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     m(:,:,:,:) = .TRUE.
     f(:,:,:,:) = 0.0_dp
