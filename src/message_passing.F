@@ -1586,13 +1586,16 @@ CONTAINS
   SUBROUTINE mp_proc_name(host_name)
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_proc_name', &
          routineP = moduleN//':'//routineN
-    INTEGER                                  :: ierr,len_name
-#if defined(__parallel)
-    CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME)    :: host_name
-    CALL mpi_get_processor_name(host_name,len_name,ierr)
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_get_processor_name @ "//routineN )
-#else
     CHARACTER(LEN=default_string_length)     :: host_name
+    INTEGER                                  :: ierr,len_name
+
+#if defined(__parallel)
+    CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME)    :: hname
+    CALL mpi_get_processor_name(hname,len_name,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_get_processor_name @ "//routineN )
+    len_name = MIN (default_string_length, MPI_MAX_PROCESSOR_NAME)
+    host_name(1:len_name) = hname(1:len_name)
+#else
     host_name = "localhost"
 #endif
   END SUBROUTINE mp_proc_name
