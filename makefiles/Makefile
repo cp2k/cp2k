@@ -251,7 +251,7 @@ fft.dep: $(LIB2_OBJECTS:.o=.F)
 dbcsr.dep: $(LIB3_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/dbcsr.dep || ( rm -f $(OBJDIR)/$(VERSION)/dbcsr.dep ; exit 1 )
 
-ma.dep: $(LIB4_OBJECTS:.o=.F) machine.F
+ma.dep: $(LIB4_OBJECTS:.o=.F) machine.F message_passing.F
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/ma.dep || ( rm -f $(OBJDIR)/$(VERSION)/ma.dep ; exit 1 )
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.

@@ -24,14 +24,14 @@ MODULE machine_architecture
   USE ISO_C_BINDING
 #endif 
 
+  USE machine,                      ONLY: m_getpid
   USE machine_architecture_types
   USE machine_architecture_utils
   USE ma_dummy_c_bindings
   USE ma_kinds 
-  USE ma_message_passing,           ONLY: mp_allgather,mp_sum, mp_proc_name
   USE ma_errors,                    ONLY: ma_error_stop, ma_error_allocation, &
                                           ma_error_finalize
-  USE machine, ONLY: m_getpid
+  USE message_passing,              ONLY: mp_allgather,mp_sum, mp_proc_name
  
   IMPLICIT NONE
 

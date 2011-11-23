@@ -24,8 +24,8 @@ MODULE message_passing
                                              mp_free_mem
   USE f77_blas
   USE kinds,                           ONLY: &
-       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
-       real_8_size
+       default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
+       real_4, real_4_size, real_8, real_8_size
   USE machine,                         ONLY: default_output_unit,&
                                              m_abort,&
                                              m_flush,&
@@ -101,6 +101,7 @@ MODULE message_passing
   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
   PUBLIC :: mp_group
   PUBLIC :: cp2k_is_parallel
+  PUBLIC :: mp_proc_name
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
@@ -1572,6 +1573,29 @@ CONTAINS
 #endif
 
   END SUBROUTINE mp_comm_split
+
+
+! *****************************************************************************
+!> \brief Extract the processor name of a MPI process
+!> \param[out] msg    The MPI process host name
+!> \author Christiane Ribeiro Pousa
+!> \History
+!> - 2011-11-23 [UB] Copied from old ma_message_passing and correctly set
+!>                   string length.
+! *****************************************************************************
+  SUBROUTINE mp_proc_name(host_name)
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_proc_name', &
+         routineP = moduleN//':'//routineN
+    INTEGER                                  :: ierr,len_name
+#if defined(__parallel)
+    CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME)    :: host_name
+    CALL mpi_get_processor_name(host_name,len_name,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_get_processor_name @ "//routineN )
+#else
+    CHARACTER(LEN=default_string_length)     :: host_name
+    host_name = "localhost"
+#endif
+  END SUBROUTINE mp_proc_name
 
 ! a bunch of currently unused features
 !..mp_group

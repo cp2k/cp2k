@@ -31,11 +31,11 @@ MODULE ma_affinity
  USE ma_config
  USE ma_dummy_c_bindings
  USE ma_kinds
- USE ma_message_passing,           ONLY: mp_allgather,mp_sum, & 
-                                         mp_proc_name
  USE ma_errors,                    ONLY: ma_error_stop, &
                                          ma_error_allocation, &
                                          ma_error_finalize
+ USE message_passing,              ONLY: mp_allgather,mp_sum, &
+                                         mp_proc_name
                                          
 !$ USE OMP_LIB
  IMPLICIT NONE
