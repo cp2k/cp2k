@@ -1,0 +1,16 @@
+cublas.o : cublas.cu
+cuda_memory_cu.o : cuda_memory_cu.cu cuda_memory_cu.h
+cuda_pw_cu.o : cuda_pw_cu.cu
+cufft.o : cufft.cu cufft.h
+
+dbcsr_cuda.o : dbcsr_cuda.h
+dbcsr_cuda_calc.o : dbcsr_cuda_calc.cu dbcsr_cuda.h
+dbcsr_cuda_calc_c.o : dbcsr_cuda_calc_c.cu dbcsr_cuda.h
+dbcsr_cuda_calc_d.o : dbcsr_cuda_calc_d.cu dbcsr_cuda.h
+dbcsr_cuda_calc_r.o : dbcsr_cuda_calc_r.cu dbcsr_cuda.h
+dbcsr_cuda_calc_z.o : dbcsr_cuda_calc_z.cu dbcsr_cuda.h
+dbcsr_cuda_dev.o : dbcsr_cuda_dev.cu dbcsr_cuda.h
+dbcsr_cuda_mem.o : dbcsr_cuda_mem.cu dbcsr_cuda.h
+dbcsr_cuda_timing.o : dbcsr_cuda_timing.cu
+
+ma_cuda_prop.o : ma_cuda_prop.cu
