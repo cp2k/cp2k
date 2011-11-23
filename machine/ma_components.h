@@ -10,6 +10,7 @@
 #define OS  0
 #define LOCAL 1
 #define INTERLEAVE 2
+#define MANUAL -1
 
 /*
 * Describes the machine components
@@ -97,6 +98,7 @@ struct node{
 int hw_topology_init (struct arch_topology *topo);
 int hw_topology_destroy (struct arch_topology *topo);
 
+void get_phys_id(hwloc_topology_t topology, int ncores,int cur_core);  
 void set_phys_siblings(int index, unsigned myid, hwloc_obj_t obj, int ncores, 
                        int nsiblings,int type);
 void set_node_cores(hwloc_topology_t topology, hwloc_obj_t obj, int num_core);
@@ -116,10 +118,11 @@ void print_machine_branch(hwloc_topology_t topology, hwloc_obj_t obj, int depth,
                           int obj_type);
 
 //Process related functions - set/get core, numa node, mempol
-int hw_proc_node();
-int hw_proc_core();
+int hw_get_proc_node();
+int hw_get_proc_core();
+void hw_set_proc_node(int node);
 void hw_set_proc_core(int core);
-void hw_set_mempol(int mempol);
+int hw_set_mempol(int mempol, int node);
 void hw_get_mempol(int *node, int *mempol);
 
 //Thread related functions - set/get core and numa node

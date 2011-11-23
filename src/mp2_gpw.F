@@ -648,22 +648,42 @@ MODULE mp2_gpw
     END IF
 
     ! give to each group its (ia| block
+    !group_counter=0
+    !i_group_counter=0
+    !my_I_occupied_start=1
+    !DO i=0, p_best-1
+    !  my_A_virtual_start=1
+    !  a_group_counter=0
+    !  DO j=0, q_best-1
+    !    group_counter=group_counter+1
+    !    IF(color_sub==group_counter-1) EXIT
+    !    my_A_virtual_start=my_A_virtual_start+vector_batch_A_size_group(j)
+    !    a_group_counter=a_group_counter+1
+    !  END DO
+    !  IF(color_sub==group_counter-1) EXIT
+    !  my_I_occupied_start=my_I_occupied_start+vector_batch_I_size_group(i)
+    !  i_group_counter=i_group_counter+1
+    !END DO
+    
+    !XXXXXXXXXXXXX inverse group distribution
     group_counter=0
-    i_group_counter=0
-    my_I_occupied_start=1
-    DO i=0, p_best-1
-      my_A_virtual_start=1
-      a_group_counter=0
-      DO j=0, q_best-1
+    a_group_counter=0
+    my_A_virtual_start=1
+    DO j=0, q_best-1
+      my_I_occupied_start=1
+      i_group_counter=0
+      DO i=0, p_best-1
         group_counter=group_counter+1
         IF(color_sub==group_counter-1) EXIT
-        my_A_virtual_start=my_A_virtual_start+vector_batch_A_size_group(j)
-        a_group_counter=a_group_counter+1
+        my_I_occupied_start=my_I_occupied_start+vector_batch_I_size_group(i)
+        i_group_counter=i_group_counter+1
       END DO
       IF(color_sub==group_counter-1) EXIT
-      my_I_occupied_start=my_I_occupied_start+vector_batch_I_size_group(i)
-      i_group_counter=i_group_counter+1
+      my_A_virtual_start=my_A_virtual_start+vector_batch_A_size_group(j)
+      a_group_counter=a_group_counter+1
     END DO
+    !XXXXXXXXXXXXX inverse group distribution
+
     my_I_occupied_end=my_I_occupied_start+vector_batch_I_size_group(i_group_counter)-1
     my_I_batch_size=vector_batch_I_size_group(i_group_counter)
     my_A_virtual_end=my_A_virtual_start+vector_batch_A_size_group(a_group_counter)-1

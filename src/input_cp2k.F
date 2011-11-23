@@ -707,27 +707,47 @@ CONTAINS
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="SCHED_THREAD",&
          description="Enable thread scheduling on the machine.", &
-         usage="SCHED_THREAD type (L=linear)",&
-         default_c_val='N',error=error)
+         usage="SCHED_THREAD type (N=none L=linear I=interleaved, G=group,M=manual)",&
+         default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
   !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="SCHED_MPI",&
          description="Enable process scheduling on the machine.", &
-         usage="SCHED_MPI type (L=linear)",&
-         default_c_val='N',error=error)
+         usage="SCHED_MPI type (N=none L=linear I=interleaved, G=group, M=manual)",&
+         default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
    !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="MEM_POL",&
          description="Enable memory binding on the machine.", &
-         usage="MEM_POL type (D=default, L=local, I=interleave )",&
-         default_c_val='N',error=error)
+         usage="MEM_POL type (D=default, L=local, I=interleave, M=manual )",&
+         default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
    !
+   NULLIFY(keyword)
+   CALL keyword_create(keyword, name="PROCESS",&
+        description="MPI Processes cores", n_var=-1,&
+        usage="PROCESS 0 1 2 NMPI",default_i_vals=(/0/),error=error)
+   CALL section_add_keyword(section,keyword,error=error)
+   CALL keyword_release(keyword,error=error)
+   !
+   NULLIFY(keyword)
+   CALL keyword_create(keyword, name="THREAD",&
+        description="Threads cores", n_var=-1,&
+        usage="THREAD 0 1 2 NThreads",default_i_vals=(/0/),error=error)
+   CALL section_add_keyword(section,keyword,error=error)
+   CALL keyword_release(keyword,error=error)
+   !
+   NULLIFY(keyword)
+   CALL keyword_create(keyword, name="MEMORY",&
+        description="MPI Processes memory bank", n_var=-1,&
+        usage="MEMORY 0 1 2 NMPI",default_i_vals=(/0/),error=error)
+   CALL section_add_keyword(section,keyword,error=error)
+   CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_march_section
 

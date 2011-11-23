@@ -31,7 +31,8 @@ MODULE ma_config
   PUBLIC :: ma_set_conf_sched, ma_get_conf_sched
   PUBLIC :: ma_set_conf_mpiSched, ma_get_conf_mpiSched  
   PUBLIC :: ma_set_conf_mempol, ma_get_conf_mempol
-
+  PUBLIC :: ma_set_conf_comm_thread, ma_get_conf_comm_thread
+  PUBLIC :: ma_set_all_affinty, ma_valid_inputs
 
   ! These are for Machine Architecture internal use.
   !
@@ -43,18 +44,26 @@ MODULE ma_config
             print_thread_cur
   PUBLIC :: use_sched, &
             use_mempol, &
-            mpi_sched
-  PUBLIC :: isconfigured
+            mpi_sched, &
+            comm_thread
+  PUBLIC :: isconfigured, isdefault
 
+! this is for manual setting of all affinity
+  PUBLIC process, memory, thread
+
+  INTEGER, DIMENSION(:), POINTER :: process
+  INTEGER, DIMENSION(:), POINTER :: thread
+  INTEGER, DIMENSION(:), POINTER :: memory
 
   ! Possible prints 
   LOGICAL            :: print_branch, print_resume, &
                         print_full, print_proc, print_thread, & 
-                        print_thread_cur
+                        print_thread_cur, comm_thread
 
   CHARACTER(len=1)   :: use_sched, mpi_sched, use_mempol
 
   LOGICAL, SAVE :: isconfigured = .FALSE.
+  LOGICAL, SAVE :: isdefault = .FALSE.
 
 CONTAINS
 
@@ -71,6 +80,7 @@ CONTAINS
     print_thread_cur = .FALSE.
     use_sched = 'N'
     mpi_sched = 'N'
+    comm_thread = .FALSE.
   END SUBROUTINE ma_init_conf
 
   SUBROUTINE ma_set_conf_print_branch (branch)
@@ -135,6 +145,25 @@ CONTAINS
 
     print_proc = proc
   END SUBROUTINE ma_set_conf_print_proc
+
+  SUBROUTINE ma_set_conf_comm_thread (comm)
+    LOGICAL, INTENT(IN)                      :: comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_set_conf_comm_thread', &
+      routineP = moduleN//':'//routineN
+
+    comm_thread = comm
+    
+  END SUBROUTINE ma_set_conf_comm_thread
+
+  FUNCTION ma_get_conf_comm_thread () RESULT (comm)
+    LOGICAL                                  :: comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_get_conf_comm_thread', &
+      routineP = moduleN//':'//routineN
+
+    comm = comm_thread
+  END FUNCTION ma_get_conf_comm_thread
 
   FUNCTION ma_get_conf_print_proc () RESULT (proc)
     LOGICAL                                  :: proc
@@ -205,7 +234,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ma_get_conf_mpiSched', &
       routineP = moduleN//':'//routineN
 
-    sched = mpi_sched 
+    sched = mpi_sched
+    
   END FUNCTION ma_get_conf_mpiSched
 
 
@@ -235,5 +265,35 @@ CONTAINS
 
     mempol = use_mempol
   END FUNCTION ma_get_conf_mempol
+
+  SUBROUTINE ma_set_all_affinty (proc, thr, mem)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: proc, thr, mem
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_set_all_affinty', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: size_mem, size_proc, size_thr
+
+    size_proc = SIZE(proc)
+    size_mem = SIZE(mem)
+    size_thr = SIZE(thr)
+    ALLOCATE(process(size_proc))
+    ALLOCATE(memory(size_mem))
+    ALLOCATE(thread(size_thr))
+    process(:) = proc(:)
+    memory(:)= mem(:)
+    thread(:)= thr(:)
+
+  END SUBROUTINE ma_set_all_affinty
+
+  LOGICAL FUNCTION ma_valid_inputs(nMPI) RESULT(istat)
+    INTEGER :: nMPI
+
+    istat = .FALSE.
+    IF (SIZE(process) .GE. nMPI .AND. &
+        SIZE(memory) .GE. nMPI) THEN
+      istat = .TRUE. 
+    END IF
+  END FUNCTION ma_valid_inputs
 
 END MODULE ma_config

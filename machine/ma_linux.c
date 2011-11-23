@@ -21,16 +21,6 @@
 #include "ma_components.h"
 
 
-/* manage bitmap */
-#define BITS_IN_BYTES 8
-#define WORD_SIZE       (8*sizeof(unsigned long))
-#define BITS_IN_WORDS (BITS_IN_BYTES*WORD_SIZE)
-
-/* Mark/Clear bits with given index */
-#define markbit(M,i)       (M[i / BITS_IN_WORDS] |= 1 << (i % BITS_IN_WORDS))
-#define clearbit(M,i)      (M[i / BITS_IN_WORDS] &= ~(1 << (i % BITS_IN_WORDS)))
-#define bit_is_marked(M,i) (M[i / BITS_IN_WORDS] & (1 << (i % BITS_IN_WORDS)))
-
 static struct node *machine_nodes;
 static struct arch_topology *local_topo;
 
@@ -50,13 +40,17 @@ int linux_topology_init(struct arch_topology *topo)
   topo->ngpus = nDev;
 #endif
 
+  local_topo = malloc(sizeof(struct arch_topology));
+
   topo->nnodes = linux_get_nnodes();
+  local_topo->nnodes = topo->nnodes;
   topo->ncores = linux_get_ncores();
+  local_topo->ncores = topo->ncores;
   topo->npus = topo->ncores;
+  local_topo->npus = topo->npus;
 
   topo->nsockets = linux_get_nsockets();
-  
-  local_topo = topo;
+  local_topo->nsockets = topo->nsockets;
    //Compute number of memory controlers per socket
    //basically the number of NUMA nodes per socket
   if (topo->nnodes > topo->nsockets)
@@ -66,10 +60,14 @@ int linux_topology_init(struct arch_topology *topo)
                   
   topo->ncaches = linux_get_ncaches(); 
 
-  local_topo = topo;
-  
+   local_topo->nmemcontroller = topo->nmemcontroller;
+   local_topo->ncaches = topo->ncaches;
+
   topo->nshared_caches = linux_get_nshared_caches();
   topo->nsiblings = linux_get_nsiblings();  
+
+  local_topo->nshared_caches =  topo->nshared_caches;
+  local_topo->nsiblings = topo->nsiblings;
 
   //Machine node and core representation
   machine_nodes = (struct node*) malloc (topo->nnodes*sizeof(struct node));
@@ -88,7 +86,6 @@ int linux_topology_init(struct arch_topology *topo)
 #endif
    }
 
-   local_topo = topo;       
 }
 
 int linux_get_nshared_caches()
@@ -170,6 +167,23 @@ void linux_set_my_core(int core)
 }
 
 /*
+* Set the core where the current thread will run
+* return the core
+*/
+void linux_set_proc_cores(int distance, int core)
+{
+  cpu_set_t set;
+  int i;
+
+  CPU_ZERO(&set);
+  for(i=core;i<core+distance;i++)
+       CPU_SET(i,&set);
+  
+  if(sched_setaffinity(syscall(SYS_gettid),sizeof(set),&set)!=0)
+     printf("\n Error binding threads");
+}
+
+/*
 * Get the core where the current thread is running
 * return the core
 */
@@ -224,7 +238,8 @@ int linux_get_nsockets()
         char            temp[33];
         struct dirent   *dirent;
         FILE             *file;
-        int maxcores = linux_get_ncores(),cores=0;
+        int maxcores = local_topo->ncores,cores=0;
+       
 
         temp[0]=dirnamep[0]='\0';
 
@@ -351,7 +366,7 @@ int linux_get_nodeid()
         struct dirent   *dirent;
         DIR             *dir;
         int maxnodes;
-        maxnodes  =  linux_get_nnodes();
+        maxnodes  =  local_topo->nnodes;
         cpu = sched_getcpu();
       
       if( maxnodes > 1){  
@@ -391,11 +406,11 @@ int linux_get_nodeid_cpu(int cpu)
         int             i;
         int             node=-1;
         char            dirnamep[256];
-        char            cpuid[7],temp[33];
-        struct dirent   *dirent;
+        char            cpuid[8],temp[33];
+        struct dirent   *dirent=NULL;
         DIR             *dir;
         int maxnodes;
-        maxnodes  =  linux_get_nnodes();
+        maxnodes  =  local_topo->nnodes;
 
       if( maxnodes > 1){
           temp[0]=cpuid[0]=dirnamep[0]='\0';
@@ -409,19 +424,21 @@ int linux_get_nodeid_cpu(int cpu)
         strcpy(dirnamep,"/sys/devices/system/node/node");
         temp[0]='\0';
         sprintf(temp, "%i", i);
+        strcat(temp,"\0");
         strcat(dirnamep,temp);
         dir = opendir(dirnamep);
         if (dir == NULL) {
-                return 0;
+               return 0;
         }
-        while ((dirent = readdir(dir)) != 0) {
-                if (strcmp(cpuid, dirent->d_name)==0) {
-                        node = i;
-                        break;
-                }
+        dirent = readdir(dir);
+        while (dirent != NULL) {
+          if (strcmp(cpuid, dirent->d_name)==0) {
+                        node = i;                   
+           }
+         dirent = readdir(dir);
         }
-        closedir(dir);
      }
+       closedir(dir);
     }
     else
       node = 0;
@@ -429,41 +446,70 @@ int linux_get_nodeid_cpu(int cpu)
   return node;
 }
 
+void linux_set_proc_node(int node)
+{
+   cpu_set_t set;
+   int i;
 
+   CPU_ZERO(&set);
+
+   for(i=0;i<local_topo->ncores;i++)
+    if(linux_get_nodeid_cpu(i) == node)
+        CPU_SET(i,&set);
+
+   if(sched_setaffinity(syscall(SYS_gettid),sizeof(set),&set)!=0)
+         printf("\n Error binding threads");
+
+}
 
 /*
 * Set the memory policy for data allocation for a process
 */
-void linux_set_mempol(int mempol)
+void linux_set_mempol(int mempol, int realnode)
 {
 
-  int node = numa_max_node();
-  int core, i;
+  int node = local_topo->nnodes;
+  int core, i, error;
   unsigned long mask;
 
   switch(mempol)
   {
    case OS:
     if(node > 0)
-      set_mempolicy(MPOL_DEFAULT,NULL,0); 
+      error = set_mempolicy(MPOL_DEFAULT,NULL,0); 
    break;
    case LOCAL:   
     if(node >0)
     {  
      core = sched_getcpu();
-     node = linux_get_nodeid(core); 
-     mask = 1 << node;
-     set_mempolicy(MPOL_BIND,&mask,sizeof(unsigned long)+1);
+     realnode = linux_get_nodeid(core);
+     mask = 1 << realnode;
+     error = set_mempolicy(MPOL_BIND,&mask,sizeof(unsigned long)+1);
     }
    break;
    case INTERLEAVE:
     if(node >0){
       for(i=0;i<node+1;i++)
         mask = mask + (1 << i);
-        set_mempolicy(MPOL_INTERLEAVE,&mask,sizeof(mask)+1);      
+        error = set_mempolicy(MPOL_INTERLEAVE,&mask,sizeof(mask)+1);      
     }
    break;
+   case MANUAL:   
+    if(node >0)
+    {  
+     mask = 1 << realnode;
+     error = set_mempolicy(MPOL_BIND,&mask,sizeof(unsigned long)+1);
+    }
+   break;
+   default:
+    if(node > 0)
+      error = set_mempolicy(MPOL_DEFAULT,NULL,0); 
+   break;
   }
+
+  if (error < 0)
+    printf("\nWARNING: Memory binding not supported or can not be enforced\n");
+
 }
 
 /*
@@ -471,18 +517,16 @@ void linux_set_mempol(int mempol)
 */
 void linux_get_mempol(int *node, int *mem_pol)
 {
-  unsigned long *nset;
+  unsigned long nset;
   unsigned long addr;
-  int mempol=-1,nnodes,i;
- 
-  nset = calloc((1+(8*sizeof(unsigned long)-1))/((8 * sizeof(unsigned long))), sizeof(unsigned long));
+  int mempol=-1,nnodes,i, error;
     
-  nnodes = linux_get_nnodes();
+  nnodes = local_topo->nnodes;
 
  if (nnodes != 0 ){
   (*node) = 0;
 
-  get_mempolicy (&mempol,nset,8*sizeof(nset)+1,0,0); 
+  error = get_mempolicy (&mempol,NULL,0,0,0); 
 
   switch(mempol)
   {
@@ -491,10 +535,7 @@ void linux_get_mempol(int *node, int *mem_pol)
    break;
    case MPOL_BIND:
      (*mem_pol) = LOCAL;
-     (*node)   =  -1;
-     for(i=0; i< nnodes;i++)
-       if(mask_isset(nset,sizeof(nset),i))
-          *(node) = i;
+     (*node)   =  linux_get_nodeid();
    break;
    case MPOL_INTERLEAVE:
      (*mem_pol) = INTERLEAVE;
@@ -508,7 +549,13 @@ void linux_get_mempol(int *node, int *mem_pol)
  }
  else
   (*mem_pol) = -1;
+
+ if (error < 0)
+   printf("\nWARNING: Can not retrieve memory binding.\n");
+
 }
+
+
 
 #ifdef  __DBCSR_CUDA
 
@@ -541,6 +588,8 @@ int linux_my_gpu(int coreId, int myRank, int nMPIs)
   devList = malloc(ngpus*sizeof(int));
 
   nodeId = linux_get_nodeid_cpu(coreId);
+
+
   linux_my_gpuList(nodeId,devList);
 
 /*
@@ -560,12 +609,19 @@ int linux_my_gpu(int coreId, int myRank, int nMPIs)
    return devList[myRank%ngpus];
   else {
    ma_get_nDevcu(nodeId,&nDev);
-   if (( nMPIs == ngpus ) || (nDev == 0))
+   if (nDev == 0)
     return devList[myRank%ngpus];
    else  
     return devList[myRank%nDev];  
  }
 
+}
+
+int linux_get_gpu_node(gpu)
+{
+  int node=0;
+  ma_get_NUMAnode_cu(gpu, &node);
+  return node;
 }
 #endif
 

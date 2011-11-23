@@ -24,6 +24,7 @@ static hwloc_topology_t topology;
 static struct core *machine_cores;
 static struct node *machine_nodes;
 static struct arch_topology *local_topo;
+static int *phys_cpus;
 
 //String for the output in the console
 static char console_output[8192];
@@ -43,7 +44,7 @@ int hw_topology_init (struct arch_topology *topo)
   if(!error)
   {
     hwloc_topology_load(topology);
-
+    local_topo = malloc(sizeof(struct arch_topology));
 #ifdef  __DBCSR_CUDA
   int nDev;
   ma_get_ndevices_cu(&nDev);
@@ -103,11 +104,14 @@ int hw_topology_init (struct arch_topology *topo)
   //Machine node and core representation
   machine_nodes = (struct node*) malloc (topo->nnodes*sizeof(struct node));
   machine_cores = (struct core*) malloc (topo->ncores*sizeof(struct core));
+
+  phys_cpus = malloc (topo->ncores*sizeof(int));
+  get_phys_id(topology, topo->ncores, 0);
  
   //Get the caches sizes and other information for each core  
   for (i = 0; i < topo->ncores ; i++)
    {
-	machine_cores[i].caches = malloc (topo->ncaches*sizeof(size_t));
+	      machine_cores[i].caches = malloc (topo->ncaches*sizeof(size_t));
         machine_cores[i].shared_caches = malloc (topo->ncaches*sizeof(int));
 
         for (j = 0; j < topo->ncaches; j++)
@@ -117,38 +121,34 @@ int hw_topology_init (struct arch_topology *topo)
 
         machine_cores[i].nsiblings = topo->nsiblings;
         machine_cores[i].siblings_id = malloc (topo->nsiblings*sizeof(unsigned));
-
         if(topo->ncores == topo->npus){
           core1 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, i);
- 	  machine_cores[i].id = core1->os_index;
+ 	         machine_cores[i].id = core1->os_index;
           count = 0;
           for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_PU,i);
               obj; obj = obj->parent) {
-	      if (obj->type == HWLOC_OBJ_CACHE)
-		{
-	        	machine_cores[i].caches[count] = obj->attr->cache.size / 1024;
-			count++;
-		}
-              if (obj->type == HWLOC_OBJ_NODE)
-                machine_cores[i].numaNode = obj->logical_index;                
- 	   }
-
-        }
-        else{
-	  core1 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, i);
- 	  machine_cores[i].id = core1->os_index;
+	          if (obj->type == HWLOC_OBJ_CACHE){
+	        	  machine_cores[i].caches[count] = obj->attr->cache.size / 1024;
+			        count++;
+		        }
+            if (obj->type == HWLOC_OBJ_NODE)
+              machine_cores[i].numaNode = obj->logical_index;                
+ 	        }
+       }
+       else{
+	        core1 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, i);
+ 	        machine_cores[i].id = core1->os_index;
           count = 0;
           for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_CORE,i);
               obj; obj = obj->parent) {
-	      if (obj->type == HWLOC_OBJ_CACHE)
-		{
-	        	machine_cores[i].caches[count] = obj->attr->cache.size / 1024;
-			count++;
-		}
-              if (obj->type == HWLOC_OBJ_NODE)
+	          if (obj->type == HWLOC_OBJ_CACHE) {
+    	        	machine_cores[i].caches[count] = obj->attr->cache.size / 1024;
+			          count++;
+		        }
+           if (obj->type == HWLOC_OBJ_NODE)
                 machine_cores[i].numaNode = obj->logical_index;
- 	   }
-        }
+ 	        }
+       }
    }    
 
   //Get siblings id - so each core knows its siblings
@@ -171,8 +171,8 @@ int hw_topology_init (struct arch_topology *topo)
    {
         obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_NODE, i);
         
-	machine_nodes[i].id = obj->os_index;
-	machine_nodes[i].memory = obj->memory.total_memory;
+      	machine_nodes[i].id = obj->os_index;
+      	machine_nodes[i].memory = obj->memory.total_memory;
         machine_nodes[i].ncores = ncore_node;
         machine_nodes[i].mycores = malloc (ncore_node*sizeof(unsigned)); 
 
@@ -190,11 +190,35 @@ int hw_topology_init (struct arch_topology *topo)
    }    
 
  /*Local copy of the machine topology components*/ 
- local_topo = topo;
+ local_topo->nnodes = topo->nnodes;
+ local_topo->nsockets = topo->nsockets;
+ local_topo->ncores = topo->ncores;
+ local_topo->npus = topo->npus;
+ local_topo->ngpus = topo->ngpus;
+ local_topo->ncaches = topo->ncaches;
+ local_topo->nshared_caches = topo->nshared_caches;
+ local_topo->nsiblings = topo->nsiblings;
+ local_topo->nmemcontroller =  topo->nmemcontroller;
 }
 
  return error;
 
+}
+
+
+/*
+* Get the phys ids for cores
+*/
+void get_phys_id(hwloc_topology_t topology, int ncores,int cur_core)
+{
+    unsigned i;
+    hwloc_obj_t obj;
+
+    for (i = 0; i < ncores; i++){
+       obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, i);
+       phys_cpus[cur_core] = obj->os_index;
+       cur_core++;
+    }
 }
 
 /*
@@ -513,6 +537,9 @@ void print_machine_branch(hwloc_topology_t topology, hwloc_obj_t obj, int depth,
 
     if (obj->type != HWLOC_OBJ_MACHINE ){
      if(obj->type == HWLOC_OBJ_NODE){
+       hwloc_obj_snprintf(string, sizeof(string), topology, obj, "#", 0);
+       sprintf(out_string,"%*s%s\n", depth, "", string); 
+       strcat(console_output,out_string);      
 #ifdef __DBCSR_CUDA
        if ((local_topo->ngpus > 0) && (local_topo->ngpus < local_topo->ncores)){
                 ma_get_nDevcu(obj->logical_index, &countDev);
@@ -591,7 +618,7 @@ void hw_high_level_show(struct machine_output *ma_out)
 * Get the node where the current process is running
 * return the node of the core
 */
-int hw_proc_node()
+int hw_get_proc_node()
 {
   int node;
   hwloc_cpuset_t set;
@@ -610,6 +637,58 @@ int hw_proc_node()
    node = -1;
 
   return node;
+}
+
+/*
+* Set the node where the current process will run
+*/
+void hw_set_proc_node(int node)
+{
+  hwloc_nodeset_t nset;
+  hwloc_cpuset_t set;
+
+  if (local_topo->nnodes != 0 ){
+    nset = hwloc_bitmap_alloc();
+    set = hwloc_bitmap_alloc();
+    hwloc_bitmap_zero(nset);
+    hwloc_bitmap_set(nset,node);
+    hwloc_cpuset_from_nodeset(topology,set,nset);
+    hwloc_set_proc_cpubind (topology,0,set,HWLOC_CPUBIND_PROCESS);
+    hwloc_bitmap_free(set);
+    hwloc_bitmap_free(nset);
+  }
+}
+
+/*
+* Set the node where the current process will run
+*/
+void hw_set_proc_cores(int distance, int core)
+{
+    int i;
+    hwloc_cpuset_t set;
+    set = hwloc_bitmap_alloc();
+
+    hwloc_bitmap_zero(set);
+    for(i=core;i<core+distance;i++)
+       hwloc_bitmap_set(set,i);
+    hwloc_set_proc_cpubind (topology,0,set,HWLOC_CPUBIND_PROCESS);
+    hwloc_bitmap_free(set);
+}
+
+/*
+* Set the node where the current process will run
+*/
+void hw_set_thread_cores(int distance, int core)
+{
+    int i;
+    hwloc_cpuset_t set;
+    set = hwloc_bitmap_alloc();
+
+    hwloc_bitmap_zero(set);
+    for(i=core;i<core+distance;i++)
+       hwloc_bitmap_set(set,i);
+    hwloc_set_proc_cpubind (topology,0,set,HWLOC_CPUBIND_THREAD);
+    hwloc_bitmap_free(set);
 }
 
 /*
@@ -653,6 +732,7 @@ void hw_set_proc_core(int core)
 {
   hwloc_cpuset_t set;
 
+  core = phys_cpus[core]; 
   set = hwloc_bitmap_alloc();
   hwloc_bitmap_zero(set);
   hwloc_bitmap_set(set,core);
@@ -662,9 +742,10 @@ void hw_set_proc_core(int core)
 
 /*
 * Get the core where the current process is running
+* param flag set of cores is possible
 * return the core
 */
-int hw_proc_core()
+int hw_get_proc_core(int flag)
 {
   int core;
 
@@ -673,6 +754,10 @@ int hw_proc_core()
   hwloc_get_proc_cpubind (topology,0,set,HWLOC_CPUBIND_PROCESS);
   core = hwloc_bitmap_first(set);
   hwloc_bitmap_free(set);
+
+  //hwloc can't detect the thread core - use linux based syscall
+  if (flag)
+     core = sched_getcpu();
 
   return core;
 }
@@ -715,9 +800,9 @@ void hw_get_mempol(int *node, int *mem_pol)
 /*
 * Set the memory policy for data allocation for a process
 */
-void hw_set_mempol(int mempol)
+int hw_set_mempol(int mempol, int node)
 {
-  int node;
+  int error;
 
   switch(mempol)
   {
@@ -725,27 +810,44 @@ void hw_set_mempol(int mempol)
     if (local_topo->nnodes != 0 ){
       hwloc_obj_t obj;
       obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_MACHINE,0);
-      hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_FIRSTTOUCH,0);
+      error = hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_FIRSTTOUCH,0);
      }     
    break;
    case LOCAL:
      if (local_topo->nnodes != 0 ){
-      node =  hw_proc_node(); 
+      node =  hw_get_proc_node(); 
       hwloc_obj_t obj;
       obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_NODE, node);
-      hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_BIND,0);
+      error = hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_BIND,0);
      }
   break;
    case INTERLEAVE:
     if (local_topo->nnodes != 0 ){
-      node =  hw_proc_node();      
+      node =  hw_get_proc_node();      
       hwloc_obj_t obj;
       obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_NODE, node);
       obj = obj->parent;
-      hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_INTERLEAVE,0);
-    }
+      error = hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_INTERLEAVE,0);
+    }    
+   break;
+   case MANUAL:
+     if (local_topo->nnodes != 0 ){
+      if (node == -1) 
+        node =  hw_get_proc_node();  
+      hwloc_obj_t obj;
+      obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_NODE, node);
+      error = hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_BIND,0);
+     }
+   break;
+   default:
+   if (local_topo->nnodes != 0 ){
+      hwloc_obj_t obj;
+      obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_MACHINE,0);
+      error = hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_FIRSTTOUCH,0);
+     }     
    break;
   }
+ return error;
 }
 
 /*
@@ -757,6 +859,7 @@ void hw_set_my_core(int cpu)
  
   hwloc_cpuset_t set;
 
+  cpu = phys_cpus[cpu];
   set = hwloc_bitmap_alloc();
   hwloc_bitmap_zero(set);
   hwloc_bitmap_set(set,cpu);
@@ -778,12 +881,22 @@ int hw_my_core()
   core = hwloc_bitmap_first(set);
   hwloc_bitmap_free(set);
 
+  //hwloc can't detect the thread core - use linux based syscall
+  if (core == 0)
+    core = sched_getcpu();
+
   return core;
 }
 
 int hw_get_myNode(int coreId)
 {
   return  machine_cores[coreId].numaNode;
+}
+
+//TODO - NOT YET IMPLEMENTED
+int hw_my_netCard(int core)
+{
+  return 0;
 }
 
 #ifdef  __DBCSR_CUDA
@@ -811,7 +924,6 @@ int hw_my_gpu(int coreId, int myRank, int nMPIs)
 
   nodeId = hw_get_myNode(coreId);
   hw_my_gpuList(nodeId,devList);
-
 /*
  * The algorithm:
  *  if UMA machine - similar costs to access devices
@@ -825,17 +937,24 @@ int hw_my_gpu(int coreId, int myRank, int nMPIs)
  *      try to balance the GPU usage
  **/
 
-
  if( local_topo->nnodes == 0 )
    return devList[myRank%ngpus];
   else {
    ma_get_nDevcu(nodeId,&nDev);
-   if (( nMPIs == ngpus ) || (nDev == 0))
+   if (nDev == 0)
     return devList[myRank%ngpus];
    else
     return devList[myRank%nDev];
  }
 
 }
+
+int hw_get_gpu_node(gpu)
+{
+    int node=0;
+      ma_get_NUMAnode_cu(gpu, &node);
+    return node;
+}
+
 #endif
 #endif

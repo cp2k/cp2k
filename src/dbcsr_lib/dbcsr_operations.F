@@ -143,7 +143,7 @@ MODULE dbcsr_operations
                                              dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
-  USE machine_architecture,            ONLY: ma_getcuDev
+  USE ma_affinity,                     ONLY: ma_set_gpu_affinity
   USE machine_architecture_types,      ONLY: has_ma
 
   !$ USE OMP_LIB
@@ -4501,7 +4501,7 @@ CONTAINS
        ngpus = dbcsr_cuda_get_n_devices (error)
 
     IF (has_ma) THEN 
-       CALL dbcsr_cuda_init (card_num=ma_getcuDev(mynode), error=error)
+       CALL dbcsr_cuda_init (card_num=ma_set_gpu_affinity(mynode), error=error)
     ELSE
        CALL dbcsr_cuda_init (card_num=MOD(mynode, ngpus), error=error)
     ENDIF 

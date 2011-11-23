@@ -16,9 +16,9 @@
 MODULE machine_architecture_types
 #if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#else
-  USE dummy_c_bindings
-#endif
+#endif  
+  USE ma_dummy_c_bindings
+
  IMPLICIT NONE
   
  PRIVATE
@@ -61,14 +61,20 @@ MODULE machine_architecture_types
  PUBLIC                   :: threads, mpi
  INTEGER, PARAMETER       :: threads = 0
  INTEGER, PARAMETER       :: mpi     = 1 
- 
- 
+
+ ! For manual setting of all affinity
+ PUBLIC :: manual
+ INTEGER, PARAMETER       :: manual = -1
 
  ! MPI/Thread scheduling policies
- PUBLIC  :: nosched, linear
+ PUBLIC  :: def, nosched, linear, scatter, group
  
  INTEGER, PARAMETER       :: nosched = 0
  INTEGER, PARAMETER       :: linear  = 1
+ INTEGER, PARAMETER       :: scatter = 2
+ INTEGER, PARAMETER       :: group = 3 
+ INTEGER, PARAMETER       :: def = 4 
+
 
 !Information of the mempory
  TYPE :: mem_inf
@@ -77,11 +83,12 @@ MODULE machine_architecture_types
 
  ! For machine architecture internal use
  ! Memory binding policies
- PUBLIC  :: os, local, interleave
+ PUBLIC  :: none_pol, os, local, interleave
 
  INTEGER, PARAMETER       :: os         = 0
  INTEGER, PARAMETER       :: local      = 1
  INTEGER, PARAMETER       :: interleave = 2
+ INTEGER, PARAMETER       :: none_pol   = 4
 
 
 #if defined (__HWLOC) 
@@ -98,8 +105,6 @@ MODULE machine_architecture_types
 #endif
 
 
-
-
  PUBLIC :: ma_mp_type, ma_process
  
 ! *****************************************************************************
@@ -113,6 +118,7 @@ MODULE machine_architecture_types
      INTEGER                            :: myproc, numproc
      INTEGER                            :: mp_group
      INTEGER                            :: refcount
+     INTEGER                            :: myid
   END TYPE ma_mp_type
 
 ! *****************************************************************************
@@ -129,6 +135,7 @@ MODULE machine_architecture_types
      INTEGER                                     :: nr_threads
      INTEGER                                     :: nr_neighbors 
      INTEGER                                     :: core, node
+     INTEGER                                     :: gpu
   END TYPE ma_process
 
 END MODULE machine_architecture_types

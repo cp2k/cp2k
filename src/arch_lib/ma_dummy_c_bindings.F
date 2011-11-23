@@ -16,7 +16,7 @@
 !>      preprocessor commands.
 !>
 !> <b>Modification history:</b>
-!> - Created 2011-04-14
+!> - Modified 11-21-2011 - Christiane Pousa 
 ! *****************************************************************************
 MODULE ma_dummy_c_bindings
 
@@ -27,19 +27,10 @@ MODULE ma_dummy_c_bindings
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_dummy_c_bindings'
 
 #if defined (__HAS_NO_ISO_C_BINDING)
-#if defined (__HWLOC) || defined(__LIBNUMA)
+#if defined (__HWLOC) || defined (__LIBNUMA) 
   ! Compile-time error.  These two flags are incompatible.
   STOP "Arch Lib needs ISO_C_BINDING.  Compile without __HAS_NO_ISO_C_BINDING"
-#endif
-#endif
-
-#if defined (__HWLOC) && defined(__LIBNUMA)
-  ! Compile-time error.  These two flags are incompatible.
-  STOP "HWLOC and LIBNUMA libraries are incompatible! Try without one of them."
-#endif
-
-#if defined (__HAS_NO_ISO_C_BINDING)
-#if !defined (__HWLOC) || !defined (__LIBNUMA)
+#else
   PUBLIC :: c_int 
   PUBLIC :: c_char
 
@@ -50,5 +41,11 @@ MODULE ma_dummy_c_bindings
   INTEGER, PARAMETER :: c_int    = KIND(0)
 #endif
 #endif
+
+#if defined (__HWLOC) && defined(__LIBNUMA)
+  ! Compile-time error.  These two flags are incompatible.
+  STOP "HWLOC and LIBNUMA libraries are incompatible! Try with only one of them."
+#endif
+
 
 END MODULE ma_dummy_c_bindings

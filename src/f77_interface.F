@@ -24,7 +24,10 @@ MODULE f77_interface
                                              cp_dbcsr_init_lib
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
-  USE cp_ma_interface,                 ONLY: cp_ma_init_lib
+  USE cp_ma_interface,                 ONLY: cp_ma_default_affinity,&
+                                             cp_ma_finalize_lib,&
+                                             cp_ma_init_lib,&
+                                             has_ma
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -230,7 +233,11 @@ CONTAINS
        CALL add_all_references()
 
        ! Initialize the MA_ARCH configuration  
-       CALL cp_ma_init_lib(group=mpi_comm_default,error=error)
+       IF (has_ma) THEN 
+         CALL cp_ma_init_lib(group=mpi_comm_default,error=error)
+         !default binding only if mpi_init - all MPI tasks will be present
+         CALL cp_ma_default_affinity(init_mpi)         
+       ENDIF 
 
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
@@ -261,6 +268,9 @@ CONTAINS
     ELSE
        ! Finalize the DBCSR configuration
        CALL cp_dbcsr_finalize_lib (error=error)
+       IF (has_ma) THEN
+         CALL cp_ma_finalize_lib(error=error)
+       ENDIF
        CALL cp_error_init(error, stop_level=cp_fatal_level)
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)

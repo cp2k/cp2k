@@ -16,9 +16,8 @@
 MODULE machine_architecture_utils
 #if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#else
+#endif  
   USE dummy_c_bindings
-#endif
 
  USE machine_architecture_types
  USE ma_kinds
@@ -31,6 +30,9 @@ MODULE machine_architecture_utils
 
  PUBLIC :: ma_pack_threads, ma_unpack_threads
  PUBLIC :: ma_create_process, ma_set_threads
+
+ PUBLIC :: ascii_to_string, string_to_ascii
+ PUBLIC :: integer_to_string
 
  CONTAINS
 
@@ -51,6 +53,7 @@ MODULE machine_architecture_utils
  proc_info%nr_threads = nr_threads
  proc_info%core = core
  proc_info%node = node
+ proc_info%mp_info%myid = mp_env%myid
 
  ALLOCATE (proc_info%threads_info(nr_threads))
   
@@ -97,6 +100,10 @@ MODULE machine_architecture_utils
 
  END SUBROUTINE ma_pack_threads
 
+! *****************************************************************************
+!> \brief   Unpack components of a machine architecture into the thread 
+!>          structre
+! *****************************************************************************
  SUBROUTINE ma_unpack_threads(proc_info, thread_recv, thread_map)
     TYPE(ma_process), INTENT(IN)             :: proc_info
     INTEGER, DIMENSION(:, :, :), &
@@ -117,5 +124,57 @@ MODULE machine_architecture_utils
   END DO
  END DO
  END SUBROUTINE ma_unpack_threads
+
+ ! *****************************************************************************
+ ! COPY from string_utils - Convert a sequence of integer numbers (ASCII code)
+ ! to a string.
+ ! *****************************************************************************
+   SUBROUTINE ascii_to_string(nascii,string)
+
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nascii
+    CHARACTER(LEN=*), INTENT(OUT)            :: string
+
+    INTEGER                                  :: i
+
+   string = ""
+
+    DO i=1,MIN(LEN(string),SIZE(nascii))
+      IF ((nascii(i) >= 0).AND.(nascii(i) <= 127)) THEN
+             string(i:i) = CHAR(nascii(i))
+      ELSE
+          string(i:i) = " "
+      END IF
+    END DO
+
+END SUBROUTINE ascii_to_string
+
+! *****************************************************************************
+! COPY from string_utils - Convert a string to sequence of integer numbers.
+! *****************************************************************************
+  SUBROUTINE string_to_ascii(string,nascii)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: nascii
+
+    INTEGER                                  :: i
+
+  nascii(:) = 0
+
+  DO i=1,MIN(LEN(string),SIZE(nascii))
+         nascii(i) = ICHAR(string(i:i))
+  END DO
+
+END SUBROUTINE string_to_ascii
+
+! *****************************************************************************
+! COPY from string_utils - Convert a integer to a string.
+! *****************************************************************************
+SUBROUTINE integer_to_string(inumber,string)
+    INTEGER, INTENT(IN)                      :: inumber
+    CHARACTER(LEN=*), INTENT(OUT)            :: string
+
+ WRITE (UNIT=string,FMT='(I0)') inumber
+
+END SUBROUTINE integer_to_string
 
 END MODULE machine_architecture_utils

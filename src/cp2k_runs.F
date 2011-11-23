@@ -21,9 +21,6 @@ MODULE cp2k_runs
                                              cp_dbcsr_print_config
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_ma_interface,                 ONLY: cp_ma_finalize_lib,&
-                                             cp_ma_init_lib,&
-                                             has_ma
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
@@ -179,8 +176,6 @@ CONTAINS
     NULLIFY(para_env, f_env)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
-
-    CALL cp_ma_init_lib(group=mpi_comm,error=error)
 
     CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
 
@@ -450,10 +445,6 @@ CONTAINS
 
     CALL cp_dbcsr_finalize_lib (error=error)
  
-    IF (has_ma) THEN
-       CALL cp_ma_finalize_lib(error=error)
-    ENDIF
-
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)
     cp2k_run_OK = .NOT. failure

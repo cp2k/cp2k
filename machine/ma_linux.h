@@ -10,7 +10,7 @@
 #define OS  0
 #define LOCAL 1
 #define INTERLEAVE 2
-
+#define MANUAL -1
 /*
  * * Describes the machine components
  * * Used as an interface between Fortran and C
@@ -71,7 +71,7 @@ void linux_set_my_core(int core);
 int linux_my_core();
 
 int linux_get_nodeid();
-void linux_set_mempol(int mempol);
+void linux_set_mempol(int mempol, int node);
 
 #endif
 #endif

@@ -20,7 +20,14 @@ MODULE environment
        r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_ma_interface
+  USE cp_ma_interface,                 ONLY: cp_ma_config,&
+                                             cp_ma_current_thread_run,&
+                                             cp_ma_mempol,&
+                                             cp_ma_mpi_sched,&
+                                             cp_ma_print_machine,&
+                                             cp_ma_run_on,&
+                                             cp_ma_thread_run_on,&
+                                             cp_ma_thread_sched
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -59,7 +66,6 @@ MODULE environment
                                              m_flush_internal,&
                                              m_memory_details,&
                                              m_procrun
-  USE machine_architecture
   USE machine_architecture_types
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
@@ -658,7 +664,7 @@ CONTAINS
     SReclaimable=SReclaimable/1024
     MemLikelyFree=MemLikelyFree/1024
 
-   ! Initialize the HWLOC 
+   ! Initialize the MA configurations 
     IF (has_ma) THEN
       CALL cp_ma_config(root_section,error)
       CALL cp_ma_mempol(error)

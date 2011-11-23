@@ -13,7 +13,8 @@
 MODULE ma_message_passing
   USE ma_c_mpi_calls,                  ONLY: mp_alloc_mem,&
                                              mp_free_mem
-  USE ma_kinds,                        ONLY: dp,&
+  USE ma_kinds,                        ONLY: default_string_length,&
+                                             dp,&
                                              int_4,&
                                              int_8,&
                                              real_4,&
@@ -58,6 +59,7 @@ MODULE ma_message_passing
   PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
   PUBLIC :: mp_comm_dup, mp_comm_split
+  PUBLIC :: mp_proc_name
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, dmp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
@@ -1899,6 +1901,25 @@ CONTAINS
     CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
   END SUBROUTINE mp_irecv_custom
+
+! *****************************************************************************
+!> \brief Extract the processor name for a MPI process
+!> \param[out] msg         The MPI process host name
+! *****************************************************************************
+  SUBROUTINE mp_proc_name(host_name)
+  CHARACTER(len=*), PARAMETER :: routineN = 'mp_proc_name', &
+          routineP = moduleN//':'//routineN
+  INTEGER                                  :: ierr,len_name
+  CHARACTER(LEN=default_string_length)     :: host_name
+
+#if defined(__parallel)
+  CALL mpi_get_processor_name(host_name,len_name,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_get_processor_name @ "//routineN )
+#else
+  host_name = "localhost"
+#endif
+
+  END SUBROUTINE mp_proc_name
 
 
 #include "ma_message_passing_i.F"
