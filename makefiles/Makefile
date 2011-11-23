@@ -59,6 +59,15 @@ DOXYGENDIR   = $(DOCDIR)/doxygen
 DBCSR_TEST_PROG =$(EXEDIR)/dbcsr_test_driver.$(VERSION)
 DBCSR_PERF_PROG =$(EXEDIR)/dbcsr_performance_driver.$(VERSION)
 
+# SMART_MODULES prevents unnecessary recompilation of files depending
+# on unchanged modules.
+# Set SMART_MODULES=yes in your environment, make argument, or ARCH file.
+# Needs the md5sum program somewhere in the $PATH.
+# Unneeded for gfortran >= 4.5.  No effect with compilers that output a
+# different .mod files even for unchanged input files.
+# Assumes file case preservation.
+SMART_MODULES ?= no
+
 ### Definition of the multiple targets ###
 #
 # Should really be
@@ -163,6 +172,11 @@ endif
 ifneq ($(HWLOC),)
   LIBMA_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_ma.a
 endif
+
+ifneq ($(SMART_MODULES),no)
+MD5 := $(shell which md5sum)
+endif
+
 
 
 # Define the whole bunch of libraries needed
@@ -346,12 +360,25 @@ makedepf90:
 # only if CPP is different from null we do a step over the C preprocessor (which is slower)
 # in the other case the fortran compiler takes care of this directly
 #
+# With appropriate SMART_MODULES and MD5 settings an attempt is made
+# to prevent unnecessary recompiling.  A generated .mod file is
+# compared to a previously seen version.  If the module has not
+# changed then its timestamp is reset to the past known version;
+# otherwise the current version is remembered.  If no past known
+# version is known then the current version is remembered.
 %.o: %.F
 ifneq ($(CPP),)
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 	$(FC) -c $(FCFLAGS) $*.f90
 else
 	$(FC) -c $(FCFLAGS) $<
+endif
+ifneq ($(SMART_MODULES),no)
+ifneq ($(MD5),)
+	@$(MD5) $*.mod &> /dev/null && ( \
+	$(MD5) --status -c $*.mod.md5 2> /dev/null && touch -r $*.mod.md5 $*.mod \
+	|| $(MD5) $*.mod > $*.mod.md5 ) || true
+endif
 endif
 
 %.pretty: %.F 
