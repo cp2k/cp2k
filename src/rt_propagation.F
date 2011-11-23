@@ -379,7 +379,8 @@ CONTAINS
        ! now obtain the initial condition in mos_old
        CALL cp_fm_to_fm(eigenvectors,mos_old(2*ispin-1)%matrix,nmo,1,1)
        CALL cp_fm_gemm("N","N",nao,nmo,nvirt,1.0_dp,virtuals,momentum,0.0_dp,mos_old(2*ispin)%matrix,error=error)
-
+ 
+       CALL cp_fm_release(virtuals, error=error)
        CALL cp_fm_release(momentum, error=error)
 
        ! orthonormalize afterwards
@@ -443,7 +444,6 @@ CONTAINS
     CALL cp_fm_release(S_chol, error=error)
     CALL cp_fm_release(mat_ks, error=error)
     CALL cp_fm_release(eigenvectors, error=error)
-    CALL cp_fm_release(virtuals, error=error)
 
     CALL timestop(handle)
 
