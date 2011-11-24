@@ -17,9 +17,9 @@ MODULE atom_fit
   USE atom_output,                     ONLY: atom_print_basis,&
                                              atom_print_basis_file
   USE atom_types,                      ONLY: &
-       GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
-       atom_p_type, atom_potential_type, atom_type, create_opgrid, &
-       opgrid_type, release_opgrid, set_atom
+       GTO_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
+       atom_integrals, atom_p_type, atom_potential_type, atom_type, &
+       create_opgrid, opgrid_type, release_opgrid, set_atom
   USE atom_utils,                      ONLY: &
        atom_consistent_method, atom_denmat, atom_density, &
        atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, &
@@ -32,7 +32,8 @@ MODULE atom_fit
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv
-  USE mathconstants,                   ONLY: fourpi,&
+  USE mathconstants,                   ONLY: fac,&
+                                             fourpi,&
                                              pi
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: bohr,&
@@ -150,11 +151,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ierr, j, k, l, ll, m, n, &
-                                                n10, nr
+                                                n10, nl, nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
     LOGICAL                                  :: explicit, failure = .FALSE., &
                                                 mult
-    REAL(KIND=dp)                            :: al, ear, fopt, rk
+    REAL(KIND=dp)                            :: al, ear, fopt, pf, rk
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: wem
@@ -202,6 +203,27 @@ CONTAINS
              x(i) = SQRT(LOG(1._dp+x(i)))
            END DO
          END IF
+       CASE (STO_BASIS)
+         ll = MAXVAL(basis%nbas(:))
+         ALLOCATE(xtob(ll,0:3),STAT=ierr)
+         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         xtob = 0
+         ll = SUM(basis%nbas(:))
+         ALLOCATE(x(ll),STAT=ierr)
+         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         x = 0._dp
+         ll = 0
+         DO l=0,3
+           DO i=1,basis%nbas(l)
+             ll = ll + 1
+             x(ll) = basis%as(i,l)
+             xtob(i,l) = ll
+           END DO
+         END DO
+         ostate%nvar = ll
+         DO i=1,ostate%nvar
+           x(i) = SQRT(LOG(1._dp+x(i)))
+         END DO
     END SELECT
 
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
@@ -279,12 +301,35 @@ CONTAINS
               nr = basis%grid%nr
               DO l=0,3
                 DO i=1,basis%nbas(l)
-                  al  = basis%am(i,l)
+                  al = basis%am(i,l)
                   DO k=1,nr
                     rk  = basis%grid%rad(k)
                     ear = EXP(-al*basis%grid%rad(k)**2)
                     basis%bf(k,i,l) = rk**l * ear
                     basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+                  END DO
+                END DO
+              END DO
+            CASE (STO_BASIS)
+              DO l=0,3
+                DO i=1,basis%nprim(l)
+                  al = x(xtob(i,l))**2
+                  basis%as(i,l) = EXP(al) - 1._dp
+                END DO
+              END DO
+              basis%bf =  0._dp
+              basis%dbf = 0._dp
+              nr = basis%grid%nr
+              DO l=0,3
+                DO i=1,basis%nbas(l)
+                  al  = basis%as(i,l)
+                  nl  = basis%ns(i,l)
+                  pf  = (2._dp*al)**(nl-1) * SQRT(2._dp*al/fac(2*nl))
+                  DO k=1,nr
+                    rk  = basis%grid%rad(k)
+                    ear = EXP(-al*basis%grid%rad(k))
+                    basis%bf(k,i,l) = pf * rk**(nl-1) * ear
+                    basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * rk**(nl-1) * ear
                   END DO
                 END DO
               END DO
@@ -347,6 +392,29 @@ CONTAINS
                   ear = EXP(-al*basis%grid%rad(k)**2)
                   basis%bf(k,i,l) = rk**l * ear
                   basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+                END DO
+              END DO
+            END DO
+          CASE (STO_BASIS)
+            DO l=0,3
+              DO i=1,basis%nprim(l)
+                al = x(xtob(i,l))**2
+                basis%as(i,l) = EXP(al) - 1._dp
+              END DO
+            END DO
+            basis%bf =  0._dp
+            basis%dbf = 0._dp
+            nr = basis%grid%nr
+            DO l=0,3
+              DO i=1,basis%nbas(l)
+                al  = basis%as(i,l)
+                nl  = basis%ns(i,l)
+                pf  = (2._dp*al)**(nl-1) * SQRT(2._dp*al/fac(2*nl))
+                DO k=1,nr
+                  rk  = basis%grid%rad(k)
+                  ear = EXP(-al*basis%grid%rad(k))
+                  basis%bf(k,i,l) = pf * rk**(nl-1) * ear
+                  basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * rk**(nl-1) * ear
                 END DO
               END DO
             END DO

@@ -282,7 +282,20 @@ CONTAINS
         END DO
         WRITE(iw,'(" ",79("*"))')
       CASE (STO_BASIS)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        WRITE(iw,'(/," ",28("*"),A,29("*"))') " Slater Type Orbitals "
+        DO i=1,atom_basis%nbas(0)
+          WRITE(iw,'(T10,I1,A,T40,F25.12)') atom_basis%ns(i,0),"S Exponent :",atom_basis%as(i,0)
+        END DO
+        DO i=1,atom_basis%nbas(1)
+          WRITE(iw,'(T10,I1,A,T40,F25.12)') atom_basis%ns(i,1),"P Exponent :",atom_basis%as(i,1)
+        END DO
+        DO i=1,atom_basis%nbas(2)
+          WRITE(iw,'(T10,I1,A,T40,F25.12)') atom_basis%ns(i,2),"D Exponent :",atom_basis%as(i,2)
+        END DO
+        DO i=1,atom_basis%nbas(3)
+          WRITE(iw,'(T10,I1,A,T40,F25.12)') atom_basis%ns(i,3),"F Exponent :",atom_basis%as(i,3)
+        END DO
+        WRITE(iw,'(" ",79("*"))')
       CASE (NUM_BASIS)
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE DEFAULT
@@ -313,24 +326,48 @@ CONTAINS
         END IF
         IF ( atom_basis%nbas(0) > 0 ) THEN
           WRITE(iw,'(T7,A,20F15.8)') &
-           "S_Exponents ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
+           "S_EXPONENTS ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
         END IF
         IF ( atom_basis%nbas(1) > 0 ) THEN
           WRITE(iw,'(T7,A,20F15.8)') &
-           "P_Exponents ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
+           "P_EXPONENTS ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
         END IF
         IF ( atom_basis%nbas(2) > 0 ) THEN
           WRITE(iw,'(T7,A,20F15.8)') &
-           "D_Exponents ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
+           "D_EXPONENTS ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
         END IF
         IF ( atom_basis%nbas(3) > 0 ) THEN
           WRITE(iw,'(T7,A,20F15.8)') &
-           "F_Exponents ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+           "F_EXPONENTS ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
         END IF
       CASE (CGTO_BASIS)
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (STO_BASIS)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        WRITE(iw,'(A)') "      BASIS_TYPE SLATER"
+        IF ( atom_basis%nbas(0) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "S_EXPONENTS ",(atom_basis%as(i,0),i=1,atom_basis%nbas(0))
+          WRITE(iw,'(T7,A,20I5)') &
+           "S_QUANTUM_NUMBERS ",(atom_basis%ns(i,0),i=1,atom_basis%nbas(0))
+        END IF
+        IF ( atom_basis%nbas(1) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "P_EXPONENTS ",(atom_basis%as(i,1),i=1,atom_basis%nbas(1))
+          WRITE(iw,'(T7,A,20I5)') &
+           "P_QUANTUM_NUMBERS ",(atom_basis%ns(i,1),i=1,atom_basis%nbas(1))
+        END IF
+        IF ( atom_basis%nbas(2) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "D_EXPONENTS ",(atom_basis%as(i,2),i=1,atom_basis%nbas(2))
+          WRITE(iw,'(T7,A,20I5)') &
+           "D_QUANTUM_NUMBERS ",(atom_basis%ns(i,2),i=1,atom_basis%nbas(2))
+        END IF
+        IF ( atom_basis%nbas(3) > 0 ) THEN
+          WRITE(iw,'(T7,A,20F15.8)') &
+           "F_EXPONENTS ",(atom_basis%as(i,3),i=1,atom_basis%nbas(3))
+          WRITE(iw,'(T7,A,20I5)') &
+           "F_QUANTUM_NUMBERS ",(atom_basis%ns(i,3),i=1,atom_basis%nbas(3))
+        END IF
       CASE (NUM_BASIS)
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE DEFAULT

@@ -124,7 +124,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ELECTRON_CONFIGURATION",&
-            description="Specifies the electron configurationi.",&
+            description="Specifies the electron configuration. "//&
+            "Optional the multiplicity (m) and a core state [XX] can be declared",&
             usage="ELECTRON_CONFIGURATION (1) [Ne] 3s2 ... ", required=.TRUE., repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -393,6 +394,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NUM_SLATER",&
+            description="Number of Slater type functions for s, p, d, ...",&
+            usage="NUM_SLATER 5 5 5 ",n_var=-1,type_of_var=integer_t,&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="START_INDEX",&
             description="Starting index for Geometrical Basis sets",&
             usage="START_INDEX 0 2 5 4 ",n_var=-1,type_of_var=integer_t,&
@@ -418,6 +426,27 @@ CONTAINS
        CALL keyword_create(keyword, name="F_EXPONENTS",&
             description="Exponents for f functions",&
             usage="F_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="S_QUANTUM_NUMBERS",&
+            description="Main quantum numbers for s functions",&
+            usage="S_QUANTUM_NUMBERS 1 2 ... ",n_var=-1,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="P_QUANTUM_NUMBERS",&
+            description="Main quantum numbers for p functions",&
+            usage="P_QUANTUM_NUMBERS 2 3 ... ",n_var=-1,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="D_QUANTUM_NUMBERS",&
+            description="Main quantum numbers for d functions",&
+            usage="D_QUANTUM_NUMBERS 3 4 ... ",n_var=-1,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="F_QUANTUM_NUMBERS",&
+            description="Main quantum numbers for f functions",&
+            usage="F_QUANTUM_NUMBERS 4 5 ... ",n_var=-1,type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

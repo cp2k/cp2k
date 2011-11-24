@@ -36,6 +36,7 @@ MODULE atom_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
                                              pi
   USE periodic_table,                  ONLY: ptable
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
@@ -68,6 +69,7 @@ MODULE atom_types
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: am         !GTO exponents
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: cm         !Contraction coeffs
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: as         !STO exponents
+    INTEGER,DIMENSION(:,:),POINTER                :: ns         !STO n-quantum numbers
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: bf         !num. bsf
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dbf        !derivatives (num)
     REAL(KIND=dp)                                 :: eps_eig
@@ -304,11 +306,14 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: basis_fn, basis_name
     INTEGER                                  :: basistype, i, ierr, j, k, l, &
-                                                ll, m, ngp, nr, nu, quadtype
+                                                ll, m, ngp, nl, nr, nu, &
+                                                quadtype
     INTEGER, DIMENSION(0:3)                  :: starti
-    INTEGER, DIMENSION(:), POINTER           :: num_gto, sindex
+    INTEGER, DIMENSION(:), POINTER           :: nqm, num_gto, num_slater, &
+                                                sindex
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: al, amax, aval, cval, ear, rk
+    REAL(KIND=dp)                            :: al, amax, aval, cval, ear, &
+                                                pf, rk
     REAL(KIND=dp), DIMENSION(:), POINTER     :: expo
     TYPE(section_vals_type), POINTER         :: gto_basis_section
 
@@ -318,7 +323,7 @@ CONTAINS
 !   btyp = AP : high accuracy pseudopotential basis
 
     failure = .FALSE.
-    NULLIFY(basis%am,basis%cm,basis%as,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid 
     CALL allocate_grid_atom(basis%grid,error)
@@ -538,7 +543,100 @@ CONTAINS
          END DO
       CASE (slater)
          basis%basis_type = STO_BASIS
-         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+         NULLIFY(num_slater)
+         CALL section_vals_val_get(basis_section,"NUM_SLATER",i_vals=num_slater,error=error)
+         IF ( num_slater(1) < 1 ) THEN
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+         ELSE
+           basis%nbas = 0
+           DO i=1,SIZE(num_slater)
+             basis%nbas(i-1) = num_slater(i)
+           END DO
+           basis%nprim = basis%nbas
+           m  = MAXVAL(basis%nbas)
+           ALLOCATE (basis%as(m,0:3),basis%ns(m,0:3),STAT=ierr)
+           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+           basis%as = 0._dp
+           basis%ns = 0
+           IF ( basis%nbas(0) > 0 ) THEN
+             NULLIFY(expo)
+             CALL section_vals_val_get(basis_section,"S_EXPONENTS",r_vals=expo,error=error)
+             CPPostcondition(SIZE(expo)>=basis%nbas(0), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(0)
+               basis%as(i,0) = expo(i)
+             END DO
+             NULLIFY(nqm)
+             CALL section_vals_val_get(basis_section,"S_QUANTUM_NUMBERS",i_vals=nqm,error=error)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(0), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(0)
+               basis%ns(i,0) = nqm(i)
+             END DO
+           END IF
+           IF ( basis%nbas(1) > 0 ) THEN
+             NULLIFY(expo)
+             CALL section_vals_val_get(basis_section,"P_EXPONENTS",r_vals=expo,error=error)
+             CPPostcondition(SIZE(expo)>=basis%nbas(1), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(1)
+               basis%as(i,1) = expo(i)
+             END DO
+             NULLIFY(nqm)
+             CALL section_vals_val_get(basis_section,"P_QUANTUM_NUMBERS",i_vals=nqm,error=error)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(1), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(1)
+               basis%ns(i,1) = nqm(i)
+             END DO
+           END IF
+           IF ( basis%nbas(2) > 0 ) THEN
+             NULLIFY(expo)
+             CALL section_vals_val_get(basis_section,"D_EXPONENTS",r_vals=expo,error=error)
+             CPPostcondition(SIZE(expo)>=basis%nbas(2), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(2)
+               basis%as(i,2) = expo(i)
+             END DO
+             NULLIFY(nqm)
+             CALL section_vals_val_get(basis_section,"D_QUANTUM_NUMBERS",i_vals=nqm,error=error)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(2), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(2)
+               basis%ns(i,2) = nqm(i)
+             END DO
+           END IF
+           IF ( basis%nbas(3) > 0 ) THEN
+             NULLIFY(expo)
+             CALL section_vals_val_get(basis_section,"F_EXPONENTS",r_vals=expo,error=error)
+             CPPostcondition(SIZE(expo)>=basis%nbas(3), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(3)
+               basis%as(i,3) = expo(i)
+             END DO
+             NULLIFY(nqm)
+             CALL section_vals_val_get(basis_section,"F_QUANTUM_NUMBERS",i_vals=nqm,error=error)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(3), cp_failure_level, routineP, error, failure)
+             DO i=1,basis%nbas(3)
+               basis%ns(i,3) = nqm(i)
+             END DO
+           END IF
+         END IF
+         ! initialize basis function on a radial grid
+         nr = basis%grid%nr
+         m  = MAXVAL(basis%nbas)
+         ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
+         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
+         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         basis%bf =  0._dp
+         basis%dbf = 0._dp
+         DO l=0,3
+           DO i=1,basis%nbas(l)
+             al  = basis%as(i,l)
+             nl  = basis%ns(i,l)
+             pf  = (2._dp*al)**nl * SQRT(2._dp*al/fac(2*nl))
+             DO k=1,nr
+               rk  = basis%grid%rad(k)
+               ear = EXP(-al*rk)
+               basis%bf(k,i,l) = pf * rk**(nl-1) * ear
+               basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * rk**(nl-1) * ear
+             END DO
+           END DO
+         END DO
       CASE (numerical)
          basis%basis_type = NUM_BASIS
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -568,6 +666,10 @@ CONTAINS
     END IF
     IF(ASSOCIATED(basis%as)) THEN
        DEALLOCATE (basis%as,STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    END IF
+    IF(ASSOCIATED(basis%ns)) THEN
+       DEALLOCATE (basis%ns,STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF
     IF(ASSOCIATED(basis%bf)) THEN

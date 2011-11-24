@@ -13,11 +13,13 @@
 MODULE atom_operators
   USE ai_onecenter,                    ONLY: &
        sg_conf, sg_coulomb, sg_erf, sg_exchange, sg_gpot, sg_kinetic, &
-       sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol
+       sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol, sto_conf, sto_kinetic, &
+       sto_nuclear, sto_overlap
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_integrals, atom_potential_type, atom_state
   USE atom_utils,                      ONLY: coulomb_potential_numeric,&
+                                             integrate_grid,&
                                              numpot_matrix,&
                                              slater_density,&
                                              wigner_slater_functional
@@ -34,6 +36,8 @@ MODULE atom_operators
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv,&
                                              lapack_ssyev
+  USE mathconstants,                   ONLY: gamma1,&
+                                             sqrt2
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: a_fine
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -272,7 +276,21 @@ CONTAINS
             END DO
           END IF
         CASE (STO_BASIS)
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          DO l=0,3
+            n = integrals%n(l)
+            CALL sto_overlap ( integrals%ovlp(1:n,1:n,l), basis%ns(1:n,l), basis%as(1:n,l), &
+                               basis%ns(1:n,l), basis%as(1:n,l) )
+            CALL sto_kinetic ( integrals%kin(1:n,1:n,l), l, basis%ns(1:n,l), basis%as(1:n,l), &
+                               basis%ns(1:n,l), basis%as(1:n,l) )
+            IF ( PRESENT(potential) ) THEN
+              IF ( potential%confinement ) THEN
+                CALL sto_conf ( integrals%conf(1:n,1:n,l), potential%rcon, potential%ncon/2, &
+                                basis%ns(1:n,l), basis%as(1:n,l), basis%ns(1:n,l), basis%as(1:n,l) )
+              END IF
+            END IF
+          END DO
+          CPAssert(.NOT.integrals%eri_coulomb,cp_failure_level,routineP,error,failure)
+          CPAssert(.NOT.integrals%eri_exchange,cp_failure_level,routineP,error,failure)
         CASE (NUM_BASIS)
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
@@ -328,12 +346,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, k, l, m, n
+    INTEGER                                  :: handle, i, ierr, ii, j, k, l, &
+                                                m, n
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xmat
+    REAL(KIND=dp)                            :: al, alpha, rc
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, xmat
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat, spmat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rad
 
     failure = .FALSE.
 
@@ -502,7 +522,92 @@ CONTAINS
           END SELECT
 
         CASE (STO_BASIS)
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+
+          SELECT CASE (potential%ppot_type)
+            CASE (NO_PSEUDO)
+              DO l=0,3
+                n = integrals%n(l)
+                CALL sto_nuclear ( integrals%core(1:n,1:n,l), basis%ns(1:n,l), basis%as(1:n,l),&
+                                   basis%ns(1:n,l), basis%as(1:n,l) )
+              END DO
+            CASE (GTH_PSEUDO)
+              rad => basis%grid%rad
+              m = basis%grid%nr
+              ALLOCATE (cpot(1:m),STAT=ierr)
+              CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+              rc = potential%gth_pot%rc
+              alpha = 1._dp/rc/SQRT(2._dp)
+
+              ! local pseudopotential, we use erf = 1/r - erfc
+              integrals%core = 0._dp
+              cpot(1:m) = potential%gth_pot%zion*erfc(alpha*rad)/rad
+              DO i=1,potential%gth_pot%ncl
+                ii = 2*(i-1)
+                cpot(1:m) = cpot(1:m) + potential%gth_pot%cl(i) * (rad/rc)**ii * EXP(-0.5_dp*(rad/rc)**2)
+              END DO
+              IF (potential%gth_pot%lpotextended) THEN
+                DO k=1,potential%gth_pot%nexp_lpot
+                  al = potential%gth_pot%alpha_lpot(k)
+                  DO i=1,potential%gth_pot%nct_lpot(k)
+                    ii = 2*(i-1)
+                    cpot(1:m) = cpot(1:m) + potential%gth_pot%cval_lpot(i,k)*(rad/al)**ii * EXP(-0.5_dp*(rad/al)**2)
+                  END DO
+                END DO
+              END IF
+              CALL numpot_matrix(integrals%core,cpot,basis,0,error)
+              DO l=0,3
+                n = integrals%n(l)
+                ALLOCATE (omat(n,n),STAT=ierr)
+                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                omat = 0._dp
+                CALL sto_nuclear ( omat(1:n,1:n), basis%ns(1:n,l), basis%as(1:n,l),&
+                                   basis%ns(1:n,l), basis%as(1:n,l) )
+                integrals%core(1:n,1:n,l) = integrals%core(1:n,1:n,l) - potential%gth_pot%zion*omat(1:n,1:n)
+                DEALLOCATE (omat,STAT=ierr)
+                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+              END DO
+
+              IF (potential%gth_pot%lsdpot) THEN
+                cpot = 0._dp
+                DO k=1,potential%gth_pot%nexp_lsd
+                  al = potential%gth_pot%alpha_lsd(k)
+                  DO i=1,potential%gth_pot%nct_lsd(k)
+                    ii = 2*(i-1)
+                    cpot = cpot + potential%gth_pot%cval_lsd(i,k)*(rad/al)**ii * EXP(-0.5_dp*(rad/al)**2)
+                  END DO
+                END DO
+                CALL numpot_matrix(integrals%clsd,cpot,basis,0,error)
+              END IF
+
+              DO l=0,3
+                n = integrals%n(l)
+                ! non local pseudopotential
+                ALLOCATE (spmat(n,5),STAT=ierr)
+                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                spmat = 0._dp
+                k = potential%gth_pot%nl(l)
+                DO i=1,k
+                  rc = potential%gth_pot%rcnl(l)
+                  cpot = sqrt2/SQRT(gamma1(l+2*i-1))*rad**(l+2*i-2) * EXP(-0.5_dp*(rad/rc)**2) / rc**(l+2*i-0.5_dp)
+                  DO j=1,basis%nbas(l)
+                    spmat(j,i) = integrate_grid(cpot,basis%bf(:,j,l),basis%grid)
+                  END DO
+                END DO
+                integrals%hnl(1:n,1:n,l) = MATMUL(spmat(1:n,1:k),&
+                    MATMUL(potential%gth_pot%hnl(1:k,1:k,l),TRANSPOSE(spmat(1:n,1:k))))
+
+                DEALLOCATE (spmat,STAT=ierr)
+                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+              END DO
+
+              DEALLOCATE (cpot,STAT=ierr)
+              CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+            CASE DEFAULT
+              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+
         CASE (NUM_BASIS)
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT

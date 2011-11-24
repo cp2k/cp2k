@@ -13,7 +13,7 @@
 !   Calculates atomic integrals over normalized Slater type functions
 !-----------------------------------------------------------------------------!
 !
-!   phi(r) = N(nlm) r^n * exp[-p*r] Ylm
+!   phi(r) = N(nlm) r^(n-1) * exp[-p*r] Ylm
 !   N(nlm) = [(2n)!]^(-1/2) (2p)^(n+1/2)
 !
 !-----------------------------------------------------------------------------!
@@ -597,8 +597,8 @@ CONTAINS
         vpq1 = vsto(na(ip)+nb(iq)-1,0.5_dp*(pa(ip)+pb(iq)))
         vpq2 = vsto(na(ip)+nb(iq)-2,0.5_dp*(pa(ip)+pb(iq)))
         wp = wsto(l,na(ip),pa(ip))
-        kmat ( ip, iq ) = 0.5_dp*pa(ip)*pb(iq)/SQRT(vp*vq)*vpq &
-            -(wp+wq)*vpq1 + wp*wq*vpq2
+        kmat ( ip, iq ) = 0.5_dp*pa(ip)*pb(iq)/SQRT(vp*vq)*&
+            (vpq -(wp+wq)*vpq1 + wp*wq*vpq2)
       END DO
     END DO
 
@@ -679,7 +679,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: v
 
-    v = dfac(n-1)/x**(0.5_dp*(n+1))
+    v = fac(n)/x**(n+1)
 
   END FUNCTION vsto
 

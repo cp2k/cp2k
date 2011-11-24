@@ -251,7 +251,7 @@ CONTAINS
     grid%nr = ngp
     basis%grid => grid
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
     basis%basis_type = CGTO_BASIS
     basis%eps_eig = 1.e-12_dp
 
