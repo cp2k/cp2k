@@ -986,7 +986,8 @@ CONTAINS
        END IF
        colv_list(ncolv_mol)%expected_value_growth_speed = cons_info%const_colv_target_growth(j)
        ! In case of Restraint let's check for possible restart values
-       IF (colv_list(ncolv_mol)%restraint%active) THEN
+       IF (colv_list(ncolv_mol)%restraint%active.AND.&
+           (colv_list(ncolv_mol)%expected_value_growth_speed == 0.0_dp)) THEN
           gind = gind + 1
           IF (restart_restraint_clv) THEN
              CALL section_vals_val_get(colvar_rest,"_DEFAULT_KEYWORD_",&
