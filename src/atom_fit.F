@@ -312,7 +312,7 @@ CONTAINS
               END DO
             CASE (STO_BASIS)
               DO l=0,3
-                DO i=1,basis%nprim(l)
+                DO i=1,basis%nbas(l)
                   al = x(xtob(i,l))**2
                   basis%as(i,l) = EXP(al) - 1._dp
                 END DO
@@ -324,7 +324,7 @@ CONTAINS
                 DO i=1,basis%nbas(l)
                   al  = basis%as(i,l)
                   nl  = basis%ns(i,l)
-                  pf  = (2._dp*al)**(nl-1) * SQRT(2._dp*al/fac(2*nl))
+                  pf  = (2._dp*al)**nl * SQRT(2._dp*al/fac(2*nl))
                   DO k=1,nr
                     rk  = basis%grid%rad(k)
                     ear = EXP(-al*basis%grid%rad(k))
@@ -409,7 +409,7 @@ CONTAINS
               DO i=1,basis%nbas(l)
                 al  = basis%as(i,l)
                 nl  = basis%ns(i,l)
-                pf  = (2._dp*al)**(nl-1) * SQRT(2._dp*al/fac(2*nl))
+                pf  = (2._dp*al)**nl * SQRT(2._dp*al/fac(2*nl))
                 DO k=1,nr
                   rk  = basis%grid%rad(k)
                   ear = EXP(-al*basis%grid%rad(k))

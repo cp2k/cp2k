@@ -664,7 +664,7 @@ CONTAINS
     DO iq = 1, m
       DO ip = 1, n
         gmat ( ip, iq ) = (2._dp*pa(ip))**(na(ip)+0.5_dp)/SQRT(fac(2*na(ip))) &
-                        * (2._dp*pa(ip))**(na(ip)+0.5_dp)/SQRT(fac(2*na(ip))) &
+                        * (2._dp*pb(iq))**(nb(iq)+0.5_dp)/SQRT(fac(2*nb(iq))) &
                         / rc**(2*k) / (pa(ip)+pb(iq))**(na(ip)+nb(iq)+2*k+1)  &
                         * gamma0(na(ip)+nb(iq)+2*k+1)
       END DO
