@@ -24,6 +24,7 @@ MODULE atom_operators
                                              slater_density,&
                                              wigner_slater_functional
   USE dkh_main,                        ONLY: dkh_atom_transformation
+  USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE input_constants,                 ONLY: do_dkh0_atom,&
                                              do_dkh1_atom,&
@@ -540,7 +541,9 @@ CONTAINS
 
               ! local pseudopotential, we use erf = 1/r - erfc
               integrals%core = 0._dp
-              cpot(1:m) = potential%gth_pot%zion*erfc(alpha*rad)/rad
+              DO i=1,m
+                cpot(i) = potential%gth_pot%zion*erfc(alpha*rad(i))/rad(i)
+              END DO
               DO i=1,potential%gth_pot%ncl
                 ii = 2*(i-1)
                 cpot(1:m) = cpot(1:m) + potential%gth_pot%cl(i) * (rad/rc)**ii * EXP(-0.5_dp*(rad/rc)**2)
