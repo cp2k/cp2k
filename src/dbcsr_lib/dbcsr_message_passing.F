@@ -1068,7 +1068,7 @@ CONTAINS
 #if defined(__parallel)
     count=SIZE(requests)
     ALLOCATE(status(MPI_STATUS_SIZE,count))
-    t_start = m_walltime ( )
+    !t_start = m_walltime ( )
 
     CALL mpi_testany(count,requests,completed_l,flag_l,status,ierr)
     ! we do not check the status
@@ -1077,7 +1077,7 @@ CONTAINS
     IF (PRESENT(completed)) completed = completed_l
     IF (PRESENT(flag)) flag = flag_l
 
-    t_end = m_walltime ( )
+    !t_end = m_walltime ( )
     DEALLOCATE(status)
 #endif
   END SUBROUTINE mp_testany

@@ -38,6 +38,7 @@ MODULE dbcsr_operations
                                              detailed_timing,&
                                              has_cuda,&
                                              is_configured,&
+                                             mm_async,&
                                              mm_driver,&
                                              mm_driver_cuda,&
                                              mm_driver_plasma
@@ -72,7 +73,8 @@ MODULE dbcsr_operations
                                              dbcsr_repoint_index
   USE dbcsr_internal_operations,       ONLY: dbcsr_insert_blocks,&
                                              dbcsr_mult_m_e_e
-  USE dbcsr_io,                        ONLY: dbcsr_print
+  USE dbcsr_io,                        ONLY: dbcsr_print,&
+                                             print_mult_timings
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -114,6 +116,7 @@ MODULE dbcsr_operations
                                              dbcsr_send_any
   USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
                                              dbcsr_plasma_init
+  USE dbcsr_pq_types,                  ONLY: mult_timers
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_toollib,                   ONLY: ceil_log2,&
@@ -391,6 +394,7 @@ CONTAINS
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
 !   ---------------------------------------------------------------------------
+! Pre-init card for nicer time acconting.
 
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        CALL dbcsr_cuda_dev_mem_setup (a_tmp, dbcsr_type_real_8)
@@ -399,6 +403,7 @@ CONTAINS
     ENDIF
     !
     CALL dbcsr_error_set(routineN, error_handler, error)
+    mult_timers(:) = 0.0_dp
     mult_time = -m_walltime()
     !
     ! check parameters
@@ -518,7 +523,7 @@ CONTAINS
     !
     ! No dense multiplication when filtering is used.
     use_dense_mult = .NOT. PRESENT (filter_eps)
-    IF (mm_driver .EQ. mm_driver_cuda) use_dense_mult = .FALSE.
+    IF (mm_async) use_dense_mult = .FALSE.
     ! we skip dense multiply for (anti)symmetric matrices (slowdown for S/H * C)
     IF (use_dense_mult) THEN
        IF(dbcsr_has_symmetry (matrix_left) .OR. &
@@ -1056,6 +1061,11 @@ CONTAINS
             "     Complete Multiplication time ",mult_time,"and ",&
             (REAL(my_flop, dp)/1000000.0_dp)/mult_time,&
             "MFLOP/s"
+    ENDIF
+    IF (.FALSE.) THEN
+       !$OMP PARALLEL
+       CALL print_mult_timings (mult_timers)
+       !$OMP END PARALLEL
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multiply_anytype
@@ -4471,6 +4481,7 @@ CONTAINS
 
     INTEGER                                  :: error_handle, mynode, ngpus, &
                                                 numnode
+    TYPE(dbcsr_error_type)                   :: t_error
 
 !   ---------------------------------------------------------------------------
 
@@ -4499,13 +4510,16 @@ CONTAINS
     IF (has_cuda) THEN
        CALL mp_environ (numnode, mynode, group)
        ngpus = dbcsr_cuda_get_n_devices (error)
-
-    IF (has_ma) THEN 
-       CALL dbcsr_cuda_init (card_num=ma_set_gpu_affinity(mynode), error=error)
-    ELSE
-       CALL dbcsr_cuda_init (card_num=MOD(mynode, ngpus), error=error)
-    ENDIF 
-
+       !$OMP PARALLEL default (none), &
+       !$OMP          private (t_error) &
+       !$OMP          shared (mynode, ngpus, error)
+       t_error = error
+       IF (has_ma) THEN
+          CALL dbcsr_cuda_init (card_num=ma_set_gpu_affinity(mynode), error=error)
+       ELSE
+          CALL dbcsr_cuda_init (card_num=MOD(mynode, ngpus), error=error)
+       ENDIF
+       !$OMP END PARALLEL
     ENDIF
     !
     is_configured = .TRUE.

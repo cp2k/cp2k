@@ -124,8 +124,13 @@ extern "C" int dc_do_stack_cu(
 	struct cudaDeviceProp devProperties;
 	int mn, mk, nk, maxb, liter;
 
-	if (verbose_print)
+	if (verbose_print) {
 		printf("Locks address %p.\n", c_locks);
+		printf("A data %p.\n", a_data);
+		printf("B data %p.\n", b_data);
+		printf("C data %p.\n", c_data);
+		printf("params %p.\n", param_stack);
+	}
 
 	maxt = m_max * n_max;
 
@@ -157,7 +162,9 @@ extern "C" int dc_do_stack_cu(
 		//shared_size = 0*sizeof(double);
 		if (shared_size > devProperties.sharedMemPerBlock) return 4;
 		if (def_mnk) {
-			//printf("Defined m,n,k: %d %d %d; %d.\n", m_max, n_max, k_max, stack_size);
+			if (verbose_print)
+				printf("Defined m,n,k: %d %d %d; %d.\n",
+				       m_max, n_max, k_max, stack_size);
 			if (0) {
 				mn = m_max * n_max;
 				mk = m_max * k_max;
@@ -189,6 +196,10 @@ extern "C" int dc_do_stack_cu(
 				nruns = stack_size - careful * GROUPING;
 				maxb = MAX(mk, nk);
 				liter = (maxb-1) / maxt;
+				if (verbose_print)
+					printf("#: %d, maxt: %d, shr: %d, liter %d, sz: %d\n",
+					      (stack_size+GROUPING-1)/GROUPING,
+					       maxt, shared_size, liter, stack_size);
 				stack_mm_mnk_d <<< (stack_size+GROUPING-1)/GROUPING, maxt, shared_size >>>
 					(param_stack, careful, nruns,
 					 m_max, n_max, k_max,
@@ -198,7 +209,11 @@ extern "C" int dc_do_stack_cu(
 					 c_locks);
 			}
 		} else {
-			//printf("Generic m,n,k: %d %d %d; %d.\n", m_max, n_max, k_max, stack_size);
+			//if (verbose_print)
+			//	printf("Generic m,n,k: %d %d %d; %d.\n", m_max, n_max, k_max, stack_size);
+			//if (verbose_print)
+			//	printf("#: %d, maxt: %d, shr: %d\n",
+			//	       stack_size, maxt, shared_size);
 			stack_mm_d <<< stack_size, maxt, shared_size >>>
 				(param_stack, stack_size, nparams,
 				 (double *) a_data, (double *) b_data, (double *) c_data,

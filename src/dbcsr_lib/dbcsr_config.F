@@ -14,6 +14,8 @@
 ! *****************************************************************************
 MODULE dbcsr_config
   USE dbcsr_error_handling
+  USE dbcsr_kinds,                     ONLY: dp
+  USE dbcsr_machine,                   ONLY: m_walltime
 
   IMPLICIT NONE
 
@@ -37,6 +39,8 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
 
+  PUBLIC :: driver_is_async
+
   ! These are for DBCSR internal use.
   !
   PUBLIC :: has_MPI
@@ -44,17 +48,19 @@ MODULE dbcsr_config
             has_smm_gemm,&
             has_plasma,&
             has_cuda
+  PUBLIC :: has_omp_2_5
   PUBLIC :: use_subcommunicators
   PUBLIC :: use_combined_types
   PUBLIC :: use_MPI_memory
   PUBLIC :: use_CUDA_host_pinned_memory
   PUBLIC :: mm_stack_size
-  PUBLIC :: mm_driver,&
+  PUBLIC :: mm_driver, mm_host_driver,&
             mm_driver_blas,&
             mm_driver_matmul,&
             mm_driver_smm,&
             mm_driver_plasma,&
             mm_driver_cuda
+  PUBLIC :: mm_async
   PUBLIC :: mm_name_blas,&
             mm_name_matmul,&
             mm_name_smm,&
@@ -66,6 +72,8 @@ MODULE dbcsr_config
   !
   PUBLIC :: detailed_timing, kernel_timing
   PUBLIC :: is_configured
+  PUBLIC :: mm_workshare
+  PUBLIC :: epoch_time
 
 
   ! First the constants are declared.
@@ -112,6 +120,8 @@ MODULE dbcsr_config
   
 #endif
 
+  LOGICAL, PARAMETER :: has_omp_2_5 = .TRUE.
+
 
   ! Now the fallback defaults are defined.  The defaults should be set
   ! by calling the dbcsr_init_conf() subroutine.
@@ -130,6 +140,12 @@ MODULE dbcsr_config
 
   ! Which driver to use for matrix multiplications.
   INTEGER, SAVE :: mm_driver = mm_driver_smm
+
+  ! Which driver to use for matrix multiplications (on the host).
+  INTEGER, SAVE :: mm_host_driver = mm_driver_smm
+
+  ! Whether an accelerator such as a GPU is used.
+  LOGICAL, SAVE :: mm_async = .FALSE.
 
   ! Stack size to use for multiplication parameters
   INTEGER, SAVE :: mm_stack_size = 1000
@@ -150,6 +166,13 @@ MODULE dbcsr_config
   INTEGER, SAVE :: comm_thread_load = 100 
 
   LOGICAL, SAVE :: is_configured = .FALSE.
+
+  ! Worksharing between threads
+  LOGICAL, SAVE :: mm_workshare = .TRUE.
+
+  REAL(KIND=dp), SAVE :: epoch_time = 0.0_dp
+  !$OMP THREADPRIVATE (epoch_time)
+
 
 CONTAINS
 
@@ -183,6 +206,17 @@ CONTAINS
     !
     use_comm_thread = .TRUE.
     comm_thread_load = 100
+    mm_workshare = .FALSE.
+    !$ mm_workshare = .TRUE.
+    mm_async = driver_is_async (mm_driver)
+    IF (mm_async) THEN
+       mm_host_driver = mm_driver_smm
+       mm_workshare = .TRUE.
+    ELSE
+       mm_host_driver = mm_driver
+    ENDIF
+    epoch_time = m_walltime()
+    IF (has_cuda) mm_workshare = .TRUE.
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf
 
@@ -219,6 +253,12 @@ CONTAINS
             "Support for CUDA not compiled in.", __LINE__, error=error)
        mm_driver = mm_driver_cuda
     END SELECT
+    mm_async = driver_is_async (mm_driver)
+    IF (mm_async) THEN
+       mm_host_driver = mm_driver_smm
+    ELSE
+       mm_host_driver = mm_driver
+    ENDIF
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_mm_driver
 
@@ -449,5 +489,18 @@ CONTAINS
 
     load = comm_thread_load
   END FUNCTION dbcsr_get_conf_comm_thread_load
+
+
+  PURE FUNCTION driver_is_async (driver)
+    INTEGER, INTENT(IN)                      :: driver
+    LOGICAL                                  :: driver_is_async
+
+    driver_is_async = .FALSE.
+    SELECT CASE (driver)
+       CASE (mm_driver_cuda)
+          driver_is_async = .TRUE.
+    END SELECT
+  END FUNCTION driver_is_async
+
 
 END MODULE dbcsr_config

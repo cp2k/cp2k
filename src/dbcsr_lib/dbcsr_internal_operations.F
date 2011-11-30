@@ -10,43 +10,38 @@
 !> \version 0.9
 !>
 !> <b>Modification history:</b>
-!  - 2010-02-23 Moved from dbcsr_operations
+!>  - 2010-02-23 Moved from dbcsr_operations
+!>  - 2011-11    Moved parameter-stack processing routines to
+!>               dbcsr_mm_methods.
 ! *****************************************************************************
 MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data,&
                                              array_equality,&
                                              array_exists,&
-                                             array_hold,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release
+                                             array_hold
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
-  USE dbcsr_block_operations,          ONLY: block_add,&
-                                             dbcsr_data_clear
+  USE dbcsr_block_operations,          ONLY: block_add
   USE dbcsr_config,                    ONLY: &
-       dbcsr_get_conf_nstacks, detailed_timing, kernel_timing, mm_driver, &
-       mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
-       mm_driver_smm, mm_stack_size, use_CUDA_host_pinned_memory, &
+       dbcsr_get_conf_nstacks, detailed_timing, mm_async, mm_driver, &
+       mm_driver_blas, mm_driver_cuda, mm_driver_plasma, mm_host_driver, &
+       mm_stack_size, mm_workshare, use_CUDA_host_pinned_memory, &
        use_MPI_memory, use_combined_types, use_comm_thread
-  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_thread_sync
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
-                                             dbcsr_cuda_dev_mem_dealloc,&
                                              dbcsr_cuda_dev_mem_hold,&
                                              dbcsr_cuda_dev_mem_new,&
-                                             dbcsr_cuda_dev_mem_realloc,&
                                              dbcsr_cuda_dev_mem_release,&
                                              dbcsr_cuda_dev_mem_zero
   USE dbcsr_cuda_methods,              ONLY: dbcsr_cuda_dev_mem_get_alloc
   USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_cp_dev_to_host,&
-                                             dbcsr_cuda_cp_host_to_dev,&
-                                             dbcsr_cuda_do_mm_stack
+                                             dbcsr_cuda_cp_host_to_dev
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
-       dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_data_set_size_referenced, dbcsr_data_zero, dbcsr_get_data_p_c, &
+       dbcsr_data_get_size_referenced, dbcsr_data_get_type, &
+       dbcsr_data_get_type_size, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_release, dbcsr_data_set_pointer, &
+       dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_dist_operations,           ONLY: dbcsr_reset_vlocals,&
                                              image_calculator
@@ -62,8 +57,8 @@ MODULE dbcsr_internal_operations
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: &
-       dp, int_1, int_2, int_4, int_4_size, int_8, real_4, real_4_size, &
-       real_8, real_8_size, sp
+       dp, int_1, int_4, int_4_size, int_8, real_4, real_4_size, real_8, &
+       real_8_size, sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush,&
                                              m_walltime
@@ -83,25 +78,29 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_valid_index
+  USE dbcsr_mm_stack,                  ONLY: &
+       enqueue_ps_group, get_stack_or_process_queue, process_queue_complete, &
+       process_queue_mine, process_queue_others, process_queue_preempt, &
+       show_levels, t_calc_step, t_dev_idle, t_dev_sync, t_process_stack
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
   USE dbcsr_pq_methods,                ONLY: &
-       dbcsr_pq_add_stack, dbcsr_pq_create, dbcsr_pq_destroy, &
-       dbcsr_pq_get_a_stack, dbcsr_ps_fin_q_add, dbcsr_ps_fin_q_pop, &
-       dbcsr_ps_set_advance, dbcsr_ps_set_create, dbcsr_ps_set_destroy, &
-       dbcsr_ps_set_get_group_p, dbcsr_ps_target_add_data, &
+       dbcsr_pq_create, dbcsr_pq_destroy, dbcsr_pq_flush_level_chg, &
+       dbcsr_pq_mark_done, dbcsr_pq_refresh, dbcsr_pq_share, &
+       dbcsr_pq_unshare, dbcsr_ps_set_advance, dbcsr_ps_set_create, &
+       dbcsr_ps_set_destroy, dbcsr_ps_set_get_group_p, &
+       dbcsr_ps_set_get_n_working, dbcsr_ps_target_add_data, &
        dbcsr_ps_target_add_data_cuda, dbcsr_ps_target_new, &
        dbcsr_ps_target_release, dbcsr_psg_add_data_ab, &
-       dbcsr_psg_add_data_cuda_ab, dbcsr_psg_rm_data_ab, &
-       dbcsr_psg_rm_data_cuda_ab, dbcsr_psg_set_state, dbcsr_psg_view_close, &
-       dbcsr_psg_view_open
+       dbcsr_psg_add_data_cuda_ab, dbcsr_psg_get_state, dbcsr_psg_rm_data_ab, &
+       dbcsr_psg_rm_data_cuda_ab, dbcsr_psg_view_close, dbcsr_psg_view_open
   USE dbcsr_pq_types,                  ONLY: &
-       dbcsr_pq_type, dbcsr_ps_fqx_len, dbcsr_ps_fqx_tgt_offset, &
-       dbcsr_ps_fqx_tmp_offset, dbcsr_ps_fqx_width, dbcsr_ps_group_type, &
-       dbcsr_ps_obj, dbcsr_ps_set_type, dbcsr_ps_state_empty, &
-       dbcsr_ps_state_working, dbcsr_ps_target_obj, dbcsr_ps_target_type, &
-       dbcsr_ps_type, dbcsr_ps_width
+       dbcsr_pq_type, dbcsr_ps_group_type, dbcsr_ps_set_type, &
+       dbcsr_ps_state_empty, dbcsr_ps_state_queued, dbcsr_ps_target_obj, &
+       dbcsr_ps_target_type, dbcsr_ps_width, mult_timers, p_a_first, &
+       p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, tmr_mult_finish2, &
+       tmr_sync
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, &
@@ -111,7 +110,10 @@ MODULE dbcsr_internal_operations
        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_work_type
   USE dbcsr_util,                      ONLY: count_bins,&
                                              dbcsr_checksum,&
-                                             map_most_common
+                                             map_most_common,&
+                                             xtime_set,&
+                                             xtime_start,&
+                                             xtime_stop
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
 
@@ -130,41 +132,12 @@ MODULE dbcsr_internal_operations
 
   INTEGER :: multrec_calls = 0
 
-
-#if defined(__HAS_NO_OMP_3)
-#define __COLLAPSE2
-#else
-#define __COLLAPSE2 collapse(2)
-#endif
-
-
-
   PUBLIC :: dbcsr_mult_m_e_e
   PUBLIC :: dbcsr_insert_blocks
-
 
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-
-#define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
-
-  INTEGER, PARAMETER, PRIVATE :: rpslot_owner = 1
-  INTEGER, PARAMETER, PRIVATE :: rpslot_addblks = 2
-  INTEGER, PARAMETER, PRIVATE :: rpslot_addoffset = 3
-  INTEGER, PARAMETER, PRIVATE :: rpslot_oldblks = 4
-  INTEGER, PARAMETER, PRIVATE :: rpslot_oldoffset = 5
-  INTEGER, PARAMETER, PRIVATE :: rpslot_totaloffset = 6
-  INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
-
-  INTEGER, PARAMETER, PRIVATE :: n_mult_params = dbcsr_ps_width
-  INTEGER, PARAMETER, PRIVATE :: p_m = 1
-  INTEGER, PARAMETER, PRIVATE :: p_n = 2
-  INTEGER, PARAMETER, PRIVATE :: p_k = 3
-  INTEGER, PARAMETER, PRIVATE :: p_a_first = 4
-  INTEGER, PARAMETER, PRIVATE :: p_b_first = 5
-  INTEGER, PARAMETER, PRIVATE :: p_c_first = 6
-  INTEGER, PARAMETER, PRIVATE :: p_c_blk = 7
 
   !> \var max_stack_block_size  The maximal block size to be specially
   !>                            treated.
@@ -249,12 +222,12 @@ MODULE dbcsr_internal_operations
      LOGICAL :: local_indexing
      TYPE(hash_table_type), DIMENSION(:), POINTER  :: c_hashes
      TYPE(dbcsr_pq_type), POINTER                  :: queue
-     TYPE(dbcsr_ps_set_type)     :: param_sets
+     TYPE(dbcsr_ps_set_type)                       :: param_sets
      INTEGER, DIMENSION(:), POINTER :: m_sizes, n_sizes, k_sizes
      INTEGER, DIMENSION(:), POINTER :: c_local_rows, c_local_cols, k_locals,&
                                        c_global_rows, c_global_cols
      INTEGER                        :: max_m, max_n, max_k
-     INTEGER(KIND=int_2), DIMENSION(:), POINTER :: m_size_maps,&
+     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: m_size_maps,&
                                                    n_size_maps,&
                                                    k_size_maps
      INTEGER                        :: m_size_maps_size,&
@@ -279,9 +252,11 @@ MODULE dbcsr_internal_operations
 
 
   REAL(kind=dp) :: t_xfer_c_in, t_xfer_c_out, t_xfer_a, t_xfer_b,&
-       t_calc, t_xfer_params, t_devdata_resize, t_calc_step, t_process_stack,&
-       t_dev_sync, t_dev_idle, t_tmp
+       t_calc, t_xfer_params, t_devdata_resize, &
+       t_tmp
+  !$OMP THREADPRIVATE (t_tmp, t_xfer_c_in, t_xfer_c_out)
   INTEGER :: len_xfer_a, len_xfer_b, len_xfer_c_in, len_xfer_c_out
+  !$OMP THREADPRIVATE (len_xfer_c_in, len_xfer_c_out)
   !REAL :: t_r
 
   REAL(kind=dp), PRIVATE :: index_time
@@ -353,7 +328,7 @@ CONTAINS
       right_send_pcol, right_send_prow, right_send_vcol, right_send_vrow, &
       right_src_icol, right_src_irow, right_src_p, right_src_pcol, &
       right_src_prow, right_src_vcol, right_src_vrow, row, size_guess, stat, &
-      threads_finished, v_k, v_ki
+      threads_finished, type_size, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
@@ -859,10 +834,10 @@ CONTAINS
 !$omp parallel &
 !$omp default (none) &
 !$omp shared (left_buffer_comm, right_buffer_comm, product_matrix,&
-!$omp         keep_sparsity, filter_eps, row_max_epss, error, &
+!$omp         keep_sparsity, filter_eps, row_max_epss,&
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
 !$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
-!$omp shared (a_dev, b_dev)
+!$omp shared (a_dev, b_dev) firstprivate (error)
     CALL dbcsr_multrec_init(&
          left_buffer_comm%mats(1, 1)%m,&
          right_buffer_comm%mats(1, 1)%m,&
@@ -1302,6 +1277,14 @@ CONTAINS
                 !$OMP END PARALLEL
                 len_xfer_a = len_xfer_a + left_max_nze
                 t_xfer_a = t_xfer_a + m_walltime()
+                IF (verbose_acc) THEN
+                   type_size = dbcsr_data_get_type_size(&
+                        left_buffer_calc%mats(1,v_ki+1)%m%data_area)
+                   WRITE(*,'(3(1X,A,EN12.3,A))')routineN//" xfer time",&
+                        t_xfer_a, "s",&
+                        "BW",REAL(len_xfer_a)*REAL(type_size)/t_xfer_a,"B/s",&
+                        "Vol",REAL(len_xfer_a)*REAL(type_size),"B"
+                ENDIF
                 !
                 t_xfer_b = t_xfer_b - m_walltime()
                 IF (verbose_acc) WRITE(*,*)'copy in b', v_ki, right_max_nze
@@ -1311,11 +1294,20 @@ CONTAINS
                 CALL dbcsr_cuda_cp_host_to_dev(&
                      right_buffer_calc%mats(v_ki+1,1)%m%data_area,&
                      carrier%param_sets%groups(1,1)%master%s%right_data_cuda,&
+                     async = .TRUE.,&
                      error=error)
                 !$OMP END MASTER
                 !$OMP END PARALLEL
                 len_xfer_b = len_xfer_b + right_max_nze
                 t_xfer_b = t_xfer_b + m_walltime()
+                IF (verbose_acc) THEN
+                   type_size = dbcsr_data_get_type_size(&
+                        right_buffer_calc%mats(v_ki+1,1)%m%data_area)
+                   WRITE(*,'(3(1X,A,EN12.3,A))')routineN//" xfer time",&
+                        t_xfer_b, "s",&
+                        "BW",REAL(len_xfer_b)*REAL(type_size)/t_xfer_b,"B/s",&
+                        "Vol", REAL(len_xfer_b)*REAL(type_size), "B"
+                ENDIF
              ENDIF tmp_aix_bix
              !
              IF (.FALSE.) WRITE(*,*)routineN//" TICK", v_ki
@@ -1357,9 +1349,10 @@ CONTAINS
 !$omp         keep_sparsity, error, threads_finished, &
 !$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
 !$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, use_comm_thread,error_handler2) &
-!$omp private (ithread,nthreads) &
+!$omp private (ithread,nthreads, t_error) &
 !$omp reduction (+: flop_single, t_all, t_gemm)
-             CALL dbcsr_error_set(routineN//"_multrec_sparse", error_handler2, error)
+             t_error=error
+             CALL dbcsr_error_set(routineN//"_multrec_sparse", error_handler2, t_error)
              CALL dbcsr_multrec_sparse(&
                   left_buffer_calc%mats(1, v_ki+1)%m,&
                   right_buffer_calc%mats(v_ki+1, 1)%m,&
@@ -1370,7 +1363,7 @@ CONTAINS
                   a_norms=left_norms, b_norms=right_norms,&
                   eps=filter_eps,&
                   row_max_epss = row_max_epss, &
-                  t_all=t_all, t_gemm=t_gemm, error=error)
+                  t_all=t_all, t_gemm=t_gemm, error=t_error)
              ! once multiplication is complete, thread zero polls MPI until
              ! all other threads have also completed
 !$omp atomic
@@ -1385,7 +1378,10 @@ CONTAINS
 !$omp flush (threads_finished)
                END DO
              END IF
-             CALL dbcsr_error_stop(error_handler2, error)
+             CALL xtime_start (mult_timers(tmr_sync))
+             !$OMP BARRIER
+             CALL xtime_stop (mult_timers(tmr_sync))
+             CALL dbcsr_error_stop(error_handler2, t_error)
 !$omp end parallel
              flop_total = flop_total + flop_single
              flop_metronome=flop_metronome+flop_single
@@ -1462,15 +1458,21 @@ CONTAINS
             "MFLOP/s"
     ENDIF
     !
+!$omp parallel &
+!$omp default (none) &
+!$omp private (tmp_data, data_type, data_size, ithread, t_error, type_size) &
+!$omp shared (product_matrix, mm_driver, error)
+    !
+    t_error = error
+    ithread = 0
+    !$ ithread = omp_get_thread_num()
     !
     ! Transfer data from GPU to host.
     cuda_copyout_c: IF (mm_driver .EQ. mm_driver_cuda) THEN
-       !CALL dbcsr_data_ensure_size(product_matrix%m%wms(1)%data_area,&
-       !     carrier%datasize, error=error)
        t_tmp = -m_walltime()
        CALL dbcsr_data_init (tmp_data)
        CALL dbcsr_data_new (tmp_data,&
-            data_type = dbcsr_data_get_type(product_matrix%m%wms(1)%data_area),&
+            data_type = dbcsr_data_get_type(product_matrix%m%wms(ithread+1)%data_area),&
             data_size = carrier%datasize)
        t_tmp = t_tmp + m_walltime()
        IF (verbose_acc)&
@@ -1482,37 +1484,35 @@ CONTAINS
             carrier%param_sets%groups(1,1)%master%s%t%t%product_data_cuda,&
             !product_matrix%m%wms(1)%data_area,&
             tmp_data,&
-            error=error)
+            error=t_error)
        len_xfer_c_out = carrier%datasize
        t_xfer_c_out = t_xfer_c_out + m_walltime()
        IF (verbose_acc) THEN
+          type_size = dbcsr_data_get_type_size(tmp_data)
           WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"Cout regular",&
                t_xfer_c_out, "s",&
-               REAL(len_xfer_c_out*8,kind=dp)/t_xfer_c_out, "B/s",&
-               REAL(len_xfer_c_out*8), "B"
+               REAL(len_xfer_c_out,kind=dp)*REAL(type_size)/t_xfer_c_out,"B/s",&
+               REAL(len_xfer_c_out)*REAL(type_size), "B"
        ENDIF
        !
        t_tmp = -m_walltime()
-       CALL dbcsr_data_ensure_size(product_matrix%m%wms(1)%data_area,&
-            carrier%datasize, error=error)
+       CALL dbcsr_data_ensure_size(product_matrix%m%wms(ithread+1)%data_area,&
+            carrier%datasize, error=t_error)
        t_tmp = t_tmp + m_walltime()
        IF (verbose_acc) WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"C resize",&
             t_tmp, "s"
        !
        t_tmp = -m_walltime()
-       CALL block_add (product_matrix%m%wms(1)%data_area, tmp_data,&
-            len=carrier%datasize, error=error)
+       CALL block_add (product_matrix%m%wms(ithread+1)%data_area, tmp_data,&
+            len=carrier%datasize, error=t_error)
        t_tmp = t_tmp + m_walltime()
        IF (verbose_acc) WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"C add",&
             t_tmp, "s"
        CALL dbcsr_data_release (tmp_data)
     ENDIF cuda_copyout_c
-    ! Finalize multiplication
     !
-!$omp parallel &
-!$omp default (none) &
-!$omp shared (product_matrix, error)
-    CALL dbcsr_multrec_finalize (carrier, product_matrix%m, error)
+    ! Finalize multiplication
+    CALL dbcsr_multrec_finalize (carrier, product_matrix%m, t_error)
 !$omp end parallel
     !
     IF (ALLOCATED (right_norms)) THEN
@@ -1769,12 +1769,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: ithread, nthreads, ps_buffer, &
-                                                ps_memreg, t_a_f, t_a_l, &
-                                                t_b_f, t_b_l
+    INTEGER                                  :: ithread, my_driver, nthreads, &
+                                                ps_buffer, ps_memreg, t_a_f, &
+                                                t_a_l, t_b_f, t_b_l
     INTEGER, DIMENSION(:), POINTER           :: k_locals
-    LOGICAL                                  :: local_cols, local_indexing, &
-                                                local_rows
+    LOGICAL                                  :: i_interface, local_cols, &
+                                                local_indexing, local_rows
     REAL(KIND=dp)                            :: epoch
     TYPE(dbcsr_ps_group_type), POINTER       :: stack_group
 
@@ -1809,6 +1809,11 @@ CONTAINS
        ENDDO
     ENDDO
     !
+    ! Quick reset of the queue to avoid heavyweight de/allocations.
+    CALL dbcsr_pq_refresh (carrier%queue,&
+         flush_level=(carrier%param_sets%nbuffers*carrier%param_sets%group_size),&
+         error=error)
+    !
     ! Find out the local A columns / B rows and sizes
     ! The right%local_rows is setup by the communication engine.
     IF (local_indexing) THEN
@@ -1824,12 +1829,12 @@ CONTAINS
     carrier%a_norms => a_norms
     carrier%b_norms => b_norms
     !
+    IF (mm_workshare) THEN
+       !$OMP BARRIER
+    ENDIF
+    !
     ! Start local multiplication
     IF (.TRUE.) THEN
-       IF (dbg) THEN
-          WRITE(*,*)"Calling sparse_multrec", left%nblkrows_local,&
-               right%nblkcols_local, SIZE(k_locals), left%nblks, right%nblks
-       ENDIF
        t_a_f = 1
        t_a_l = left%nblks
        t_b_f = 1
@@ -1855,6 +1860,8 @@ CONTAINS
                carrier, error, 0)
        ENDIF
     ELSE
+       ! For debugging.  This avoids the recursion but it might not
+       ! work anymore.
        IF (left%local_indexing) THEN
           CALL csr_multiply_unwrap(&
                1, left%nblkrows_local,&
@@ -1874,17 +1881,59 @@ CONTAINS
        ENDIF
     ENDIF
     !
-    ! Flush the MM stack
+    ! Mark myself as done with indexing.
+    CALL dbcsr_pq_mark_done (carrier%queue, error)
+    my_driver = mm_host_driver
+    i_interface = .FALSE.
+    IF (mm_workshare) THEN
+       !$OMP MASTER
+       !
+       ! I am the thread that interfaces to the accelerator.
+       i_interface = mm_async
+       my_driver = mm_driver
+       !$OMP END MASTER
+    ENDIF
+    !
+    ! Queue all outstanding stacks.
     DO ps_memreg = 1, carrier%param_sets%nmemregs
        DO ps_buffer = 1, carrier%param_sets%nbuffers
           stack_group => dbcsr_ps_set_get_group_p (carrier%param_sets,&
-               ps_buffer, ps_memreg, error=error)
-          CALL enqueue_ps_group (carrier%queue,&
-               carrier%param_sets%groups(ps_buffer,ps_memreg), error)
+               wait=.FALSE., error=error)
+          ! Only enqueue the stack group if it is not already queued
+          ! or being processed.
+          IF (dbcsr_psg_get_state (stack_group, error) &
+               .LT. dbcsr_ps_state_queued) THEN
+             CALL enqueue_ps_group (carrier%queue,&
+                  stack_group, error)
+          ENDIF
        ENDDO
     ENDDO
     !
+    ! Process my queues now.
+    IF (.NOT. i_interface) THEN
+       ! Non-master threads just do CPU calculations.
+       CALL xtime_start (mult_timers(tmr_mult_finish2))
+       CALL process_queue_complete(carrier%queue, driver=mm_host_driver,&
+            error=error)
+       CALL xtime_stop (mult_timers(tmr_mult_finish2))
+    ELSE
+       ! The master thread tries to fill up the accelerator.
+       CALL process_queue_mine (carrier%queue, driver=mm_driver, error=error)
+       CALL process_queue_others (carrier%queue, forever=.FALSE.,&
+            driver=mm_driver, error=error)
+       CALL process_queue_mine (carrier%queue,&
+            driver=mm_host_driver, error=error)
+       CALL process_queue_others (carrier%queue, forever=.TRUE.,&
+            driver=mm_driver, error=error)
+    ENDIF
+    !
     flop = carrier%flop
+    !
+    IF (mm_workshare) THEN
+       CALL xtime_start (mult_timers(tmr_sync))
+       !$OMP BARRIER
+       CALL xtime_stop (mult_timers(tmr_sync))
+    ENDIF
     !
     !$OMP CRITICAL (crit_data)
     CALL dbcsr_psg_rm_data_ab (stack_group, error=error)
@@ -2023,6 +2072,11 @@ CONTAINS
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     carrier%id = ithread
+    !
+    !$ CALL dbcsr_assert (mm_async, "IMP", mm_workshare,&
+    !$      dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+    !$      "Must use mm_workshare option with multithreaded CUDA.",&
+    !$      __LINE__, error=error)
     !
     ! Ensures that the index is correctly defined.
     CALL dbcsr_assert (left%list_indexing,&
@@ -2223,15 +2277,26 @@ CONTAINS
        !$OMP MASTER
        data_type = dbcsr_data_get_type (left%data_area)
        IF (verbose_acc) WRITE(*,*)routineN//" Allocating a, b"
+       CALL xtime_set (t_tmp)
        CALL dbcsr_cuda_dev_mem_new (a_dev, data_type, error=error)
        CALL dbcsr_cuda_dev_mem_new (b_dev, data_type, error=error)
        CALL dbcsr_cuda_dev_mem_alloc (a_dev,&
             dbcsr_data_get_size (left%data_area), error=error)
        CALL dbcsr_cuda_dev_mem_alloc (b_dev,&
             dbcsr_data_get_size (right%data_area), error=error)
+       CALL xtime_stop (t_tmp)
+       IF (verbose_acc)&
+            WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation time", t_tmp
        !$OMP END MASTER
        CALL init_card_c (product, product_target%t, error)
        !$OMP BARRIER
+       IF (.FALSE.) THEN
+          ! Left in for mental accounting
+          !$OMP CRITICAL
+          CALL dbcsr_cuda_dev_mem_hold (a_dev, error=error)
+          CALL dbcsr_cuda_dev_mem_hold (b_dev, error=error)
+          !$OMP END CRITICAL
+       ENDIF
     ELSE
        !$OMP MASTER
        NULLIFY (a_dev, b_dev)
@@ -2353,12 +2418,23 @@ CONTAINS
              !$OMP END CRITICAL (crit_data_card)
           ENDDO
        ENDDO
+       IF (.FALSE.) THEN
+          ! Left in for mental accounting
+          !$OMP CRITICAL
+          CALL dbcsr_cuda_dev_mem_release (a_dev, error=error)
+          CALL dbcsr_cuda_dev_mem_release (b_dev, error=error)
+          !$OMP END CRITICAL
+       ENDIF
+       !$OMP BARRIER
+       !$OMP MASTER
        CALL dbcsr_cuda_dev_mem_release (a_dev, error=error)
        CALL dbcsr_cuda_dev_mem_release (b_dev, error=error)
+       !$OMP END MASTER
     ENDIF
     !
     ALLOCATE (carrier%queue)
     CALL dbcsr_pq_create (carrier%queue, error)
+    CALL dbcsr_pq_share (carrier%queue, error)
     !
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multrec_init
@@ -2447,6 +2523,7 @@ CONTAINS
     carrier%my_wm%datasize = carrier%datasize
     product%wms(ithread+1) = carrier%my_wm
     !
+    CALL dbcsr_pq_unshare (carrier%queue, error)
     CALL dbcsr_pq_destroy (carrier%queue, error)
     DEALLOCATE (carrier%queue)
 
@@ -2743,7 +2820,17 @@ CONTAINS
        CALL build_csr_index (ki,kf,bi,bf,b_row_p, b_blk_info, b_index,&
             n_b_norms, csr_b_norms, carrier%b_norms)
        !
-       ps_group => dbcsr_ps_set_get_group_p (carrier%param_sets, error=error)
+       ! This is called here to get the ps_group, a parameter stack.
+       ! The memory region (of the parameter set) it belongs to must
+       ! remain unchanged throughout the csr_multiply call while the
+       ! buffer is allowed to change.  The parameter stack groups of
+       ! all the buffers of a memory region share one "super parameter
+       ! stack" (\see dbcsr_ps_set_create).  This super parameter
+       ! stack is passed directly to the csr_multiply routine
+       ! (ps_group%master%s%parameters) for efficiency reasons.
+       CALL get_stack_or_process_queue (carrier%param_sets, carrier%queue,&
+            ps_group, driver=mm_host_driver, error=error)
+       !
        nstacks = SIZE(ps_group%stacks)
        CALL csr_multiply (mi, mf, ni, nf, ki, kf,&
             ai, af, a_row_p, a_blk_info, bi, bf, b_row_p, b_blk_info,&
@@ -2765,7 +2852,7 @@ CONTAINS
             carrier%flop, carrier%t_gemm, error)
        !
        ! If a stack group was filled up during the csr_multiply call then
-       ! we roll around to a new memregiation.
+       ! we roll around to a new memory region.
        IF (advance_memreg) THEN 
             CALL dbcsr_ps_set_advance (carrier%param_sets,&
                  advance_memreg = .TRUE.,&
@@ -2786,6 +2873,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs multiplication of smaller submatrices.
+!> \note The queue parameter could be INTENT(INOUT) when OpenMP is not used.
 ! *****************************************************************************
   SUBROUTINE csr_multiply(mi, mf, ni, nf, ki, kf,&
        ai, af, a_row_p, a_blk_info, bi, bf, b_row_p, b_blk_info,&
@@ -2818,19 +2906,19 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: c_has_symmetry, &
                                                 keep_sparsity, use_eps
     TYPE(dbcsr_ps_set_type), INTENT(INOUT)   :: param_sets
-    TYPE(dbcsr_pq_type)                      :: queue
+    TYPE(dbcsr_pq_type), POINTER             :: queue
     INTEGER, DIMENSION(*), INTENT(INOUT)     :: params_array
     LOGICAL, INTENT(OUT)                     :: advance_memreg
     INTEGER, INTENT(IN)                      :: row_size_maps_size, &
                                                 k_size_maps_size, &
                                                 col_size_maps_size
-    INTEGER(KIND=int_2), &
+    INTEGER(KIND=int_4), &
       DIMENSION(0:row_size_maps_size-1), &
       INTENT(IN)                             :: row_size_maps
-    INTEGER(KIND=int_2), &
+    INTEGER(KIND=int_4), &
       DIMENSION(0:col_size_maps_size-1), &
       INTENT(IN)                             :: col_size_maps
-    INTEGER(KIND=int_2), &
+    INTEGER(KIND=int_4), &
       DIMENSION(0:k_size_maps_size-1), &
       INTENT(IN)                             :: k_size_maps
     INTEGER, INTENT(IN)                      :: nm_stacks, nn_stacks, &
@@ -2857,7 +2945,8 @@ CONTAINS
     INTEGER, DIMENSION(nstacks)              :: param_starts, stack_p
     INTEGER, DIMENSION(:), POINTER           :: params_array_direct
     INTEGER(KIND=int_4)                      :: offset
-    LOGICAL                                  :: block_exists, flush_stack
+    LOGICAL                                  :: block_exists, do_wait, &
+                                                flush_stack, i_interface
     REAL(kind=dp)                            :: t_gemm_me
     REAL(kind=sp)                            :: a_norm, a_row_eps, b_norm
     TYPE(dbcsr_ps_group_type), POINTER       :: ps_group
@@ -2871,6 +2960,14 @@ CONTAINS
     t_gemm_me = REAL(0, KIND(t_gemm_me))
     !
     advance_memreg = .FALSE.
+    i_interface = .FALSE.
+    IF (mm_workshare) THEN
+       !$OMP MASTER
+       ! I am the thread that interfaces to the accelerator.
+       i_interface = mm_async
+       !$OMP END MASTER
+    ENDIF
+    !
     ! Each thread always shares the same zero_first, zero_last, and
     ! new_blk.  All of the parameter stacks should have the same
     ! value.
@@ -2992,25 +3089,45 @@ CONTAINS
                 IF (do_index_time) index_time = index_time + m_walltime()
                 CALL dbcsr_psg_view_close (ps_group, params_array_direct,&
                      stack_p, zero_first, zero_last, new_blk, error=error)
-                IF (local_timing) THEN
-                   !$ IF (.TRUE.) THEN
-                   !$    t_gemm_me = t_gemm_me - OMP_GET_WTIME()
-                   !$ ELSE
-                   t_gemm_me = t_gemm_me - m_walltime()
-                   !$ ENDIF
+                do_wait = mm_workshare
+                IF (mm_workshare) THEN
+                   IF (dbcsr_ps_set_get_n_working (param_sets, error) .EQ. 0) THEN
+                      do_wait = .FALSE.
+                      !> If no stack in currently being processed then it
+                      !> is assumed the accelerator can handle the stacks
+                      !> on its own.  The queue's flush_level is thus
+                      !> increased, making it less favorable for the host
+                      !> CPU to process stacks from the queue.
+                      !> \see process_queue_preempt
+                      !> \see get_stack_or_process_queue
+                      CALL dbcsr_pq_flush_level_chg (queue,&
+                           MAX(1,param_sets%nbuffers/1), param_sets)
+                      !$ IF (show_levels) &
+                      !$      WRITE(*,*)"GPU flush level:",&
+                      !$      queue%flush_level, omp_get_thread_num()
+                   ENDIF
                 ENDIF
                 CALL enqueue_ps_group (queue, ps_group, error=error)
-                IF (local_timing) THEN
-                   !$ IF (.TRUE.) THEN
-                   !$    t_gemm_me = t_gemm_me + OMP_GET_WTIME()
-                   !$ ELSE
-                   t_gemm_me = t_gemm_me + m_walltime()
-                   !$ ENDIF
+                !
+                IF (i_interface) THEN
+                   CALL process_queue_mine (queue, &
+                        driver=mm_driver, error=error)
+                   CALL process_queue_others (queue, forever=.FALSE.,&
+                        driver=mm_driver, error=error)
                 ENDIF
+                IF (mm_async) THEN
+                   ! Do some CPU stack calculations when needed.
+                   CALL process_queue_preempt (queue, param_sets,&
+                        driver=mm_host_driver, error=error)
+                ENDIF
+                !
                 CALL dbcsr_ps_set_advance (param_sets,&
                      advance_memreg = .FALSE.,&
                      error=error)
-                ps_group => dbcsr_ps_set_get_group_p (param_sets, error=error)
+                !
+                CALL get_stack_or_process_queue (param_sets,&
+                     queue, ps_group, driver=mm_host_driver, error=error)
+                !
                 CALL dbcsr_psg_view_open (ps_group, params_array_direct,&
                      stack_p, zero_first, zero_last, new_blk,&
                      param_starts, error=error)
@@ -3025,6 +3142,7 @@ CONTAINS
     !
     CALL dbcsr_psg_view_close (ps_group, params_array_direct,&
          stack_p, zero_first, zero_last, new_blk, error=error)
+
     !
     t_gemm = t_gemm + t_gemm_me
     !
@@ -3220,463 +3338,6 @@ CONTAINS
   END SUBROUTINE crop_0_1
 
 
-  SUBROUTINE enqueue_ps_group (queue, param_group, error)
-    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
-    TYPE(dbcsr_ps_group_type), INTENT(INOUT) :: param_group
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'enqueue_ps_group', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod
-
-    INTEGER                                  :: error_handle, i
-
-    IF (careful_mod) &
-         CALL dbcsr_error_set(routineN, error_handle, error)
-    CALL dbcsr_psg_set_state (param_group, dbcsr_ps_state_working, error)
-    CALL process_target_fin_q (param_group%master%s%t%t, error)
-    param_group%master%s%driver = mm_driver
-    DO i = 1, SIZE(param_group%stacks)
-       param_group%stacks(i)%s%driver = mm_driver
-       !write(*,*)routineN//" ss",&
-       !     param_group%stacks(i)%s%m,&
-       !     param_group%stacks(i)%s%n,&
-       !     param_group%stacks(i)%s%k,&
-       !     param_group%stacks(i)%s%stack_p
-       CALL dbcsr_pq_add_stack (queue, param_group%stacks(i), error=error)
-    ENDDO
-    !write(*,*)routineN
-    CALL process_ps_target_low (param_group%master%s%t%t%product_data_area,&
-         param_group%master%s%t%t%zero_first,&
-         param_group%master%s%t%t%zero_last,&
-         param_group%master%s%t%t%last_c_blk,&
-         param_group%master%s%driver,&
-         param_group%master%s%t%t%product_data_cuda,&
-         param_group%master%s%t%t%c_locks_dev,&
-         error)
-    CALL process_queue(queue, error)
-    CALL process_target_fin_q (param_group%master%s%t%t, error)
-    IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE enqueue_ps_group
-
-  SUBROUTINE process_queue (queue, error)
-    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_queue', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod
-
-    INTEGER                                  :: error_handle
-    LOGICAL                                  :: found
-    TYPE(dbcsr_ps_obj)                       :: stack
-
-    IF (careful_mod) &
-         CALL dbcsr_error_set(routineN, error_handle, error)
-    !
-    !CALL dbcsr_pq_get_a_stack (queue, stack0, found0, error)
-    !
-    !CALL dbcsr_pq_get_defined_stack (queue, stack, found, error)
-    !DO WHILE (found)
-    !   CALL process_ps_stack(stack%s, error=error)
-    !   CALL dbcsr_pq_get_defined_stack (queue, stack, found, error)
-    !ENDDO
-    !x
-    CALL dbcsr_pq_get_a_stack (queue, stack, found, error)
-    DO WHILE (found)
-       !stack%s%driver = mm_driver_smm
-       CALL process_ps_stack(stack%s, error=error)
-       CALL dbcsr_pq_get_a_stack (queue, stack, found, error)
-    ENDDO
-    !
-    !if (found0) then
-    !   !stack0%s%driver = mm_driver_smm
-    !   CALL process_ps_stack(stack0%s, error=error)
-    !endif
-    IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE process_queue
-
-  SUBROUTINE process_ps_stack(param_stack, error)
-    TYPE(dbcsr_ps_type), INTENT(INOUT)       :: param_stack
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_ps_stack', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod
-
-    INTEGER                                  :: error_handle
-
-    IF (careful_mod) &
-         CALL dbcsr_error_set(routineN, error_handle, error)
-    IF (careful_mod) THEN
-       IF (param_stack%driver .EQ. mm_driver_cuda) THEN
-          CALL dbcsr_assert (param_stack%has_cuda_ab_data,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "A or B matrix data not present in stack.",&
-               __LINE__, error=error)
-       ELSE
-          CALL dbcsr_assert (param_stack%has_ab_data,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "A or B matrix data not present in stack.",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
-    CALL process_mm_stack(param_stack%parameters,&
-         param_stack%stack_p,&
-         param_stack%left_data_area, param_stack%right_data_area,&
-         param_stack%t%t%product_data_area,&
-         param_stack%t%t%product_data_cuda, param_stack%t%t%has_cuda_c_data,&
-         param_stack%left_data_cuda, param_stack%right_data_cuda,&
-         param_stack%t%t%zero_first, param_stack%t%t%zero_last,&
-         param_stack%t%t%last_c_blk,&
-         param_stack%state, param_stack%t%t%stack_state_dev,&
-         param_stack%m, param_stack%n, param_stack%k,&
-         param_stack%max_m, param_stack%max_n, param_stack%max_k,&
-         param_stack%defined_mnk,&
-         param_stack%t%t%c_locks_dev, param_stack%t%t%params_dev,&
-         error=error)
-    IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE process_ps_stack
-
-
-  SUBROUTINE process_ps_target_low (product_data_area,&
-       zero_first, zero_last, nblks, driver, card_data, c_locks_dev, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
-    INTEGER, INTENT(INOUT)                   :: zero_first, zero_last
-    INTEGER, INTENT(IN)                      :: nblks, driver
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: card_data, c_locks_dev
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_ps_target_low', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod, &
-                                                dbg = .FALSE., &
-                                                remote_memory = .FALSE.
-    REAL, PARAMETER                          :: resize_factor = 1.618034
-
-    INTEGER                                  :: c_size, istat, maxs, tmp_i
-
-!   ---------------------------------------------------------------------------
-!
-! Resize target data area if necessary.
-! Here we want the actual allocation size.
-
-    maxs = dbcsr_data_get_size(product_data_area)
-    IF (zero_last .GT. maxs) THEN
-       maxs = zero_last
-       IF (dbg) &
-            WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
-       CALL dbcsr_data_ensure_size (product_data_area,&
-            maxs, factor=resize_factor, error=error)
-    ENDIF
-    CALL dbcsr_data_set_size_referenced (product_data_area, zero_last)
-    !
-    ! Zero new blocks
-    IF (zero_last .GE. zero_first) THEN
-       CALL dbcsr_data_clear (product_data_area, lb=zero_first, ub=zero_last)
-    ENDIF
-    !
-    ! Cuda on-device resizing
-    cuda_process_target: IF (driver .EQ. mm_driver_cuda) THEN
-       c_size = dbcsr_cuda_dev_mem_get_alloc(card_data)
-       ! Resize & zero product data if too big.
-       IF (zero_last .GT. c_size) THEN
-          !WRITE(*,*)routineN//" reallocating c_dev",&
-          !     c_size, zero_last
-          IF (detailed_timing) THEN
-             t_dev_sync = t_dev_sync - m_walltime()
-             CALL dbcsr_cuda_thread_sync(error=error)
-             t_dev_sync = t_dev_sync + m_walltime()
-          ENDIF
-          tmp_i = MAX(zero_last, INT(REAL(zero_last)*resize_factor) )
-          IF (verbose_acc) WRITE(*,*)routineN//" reallocating c_dev",&
-               tmp_i, c_size
-          !WRITE(*,*)routineN//" reallocating c_dev", tmp_i, c_size
-          CALL dbcsr_cuda_dev_mem_realloc (card_data, tmp_i, stat=istat)
-          IF (istat /= 0) THEN
-             IF (verbose_acc) WRITE(*,*)routineN//" Running out of memory"
-             CALL dbcsr_cuda_dev_mem_realloc (card_data, zero_last, stat=istat)
-          ENDIF
-          c_size = dbcsr_cuda_dev_mem_get_alloc(card_data)
-          !WRITE(*,*)routineN//" reallocated c_dev", c_size
-          CALL dbcsr_cuda_dev_mem_zero(card_data,&
-               first=zero_first, last=c_size, error=error)
-       ENDIF
-       !
-       ! Resize block count.
-       IF (nblks .GT. dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)) THEN
-          maxs = dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
-          IF (detailed_timing) THEN
-             t_dev_sync = t_dev_sync - m_walltime()
-             CALL dbcsr_cuda_thread_sync(error=error)
-             t_dev_sync = t_dev_sync + m_walltime()
-          ENDIF
-          IF (verbose_acc) WRITE(*,*)routineN//" reallocating locks", maxs
-          CALL dbcsr_cuda_dev_mem_dealloc(c_locks_dev, error=error)
-          tmp_i = INT(REAL(nblks*4,kind=dp)*default_resize_factor)
-          !WRITE(*,*)routineN//" reallocating locks", tmp_i, maxs
-          CALL dbcsr_cuda_dev_mem_alloc(c_locks_dev, tmp_i, stat=istat)
-          IF (istat /= 0) THEN
-             IF (verbose_acc) WRITE(*,*)routineN//" Trying smaller allocation"
-             tmp_i = nblks
-             CALL dbcsr_cuda_dev_mem_alloc(c_locks_dev, tmp_i, error=error)
-          ENDIF
-          !WRITE(*,*)routineN//" nblks, tmp_i, size", nblks, tmp_i,&
-          !     dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
-          !CALL dbcsr_cuda_thread_sync(error=error)
-          CALL dbcsr_cuda_dev_mem_zero(c_locks_dev,&
-               first=1, last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
-               error=error)
-          IF (.FALSE.) THEN
-             t_dev_sync = t_dev_sync - m_walltime()
-             CALL dbcsr_cuda_thread_sync(error=error)
-             t_dev_sync = t_dev_sync + m_walltime()
-          ENDIF
-          !write(*,*)routineN//" done zeroing"
-       ENDIF
-    ENDIF cuda_process_target
-    zero_first = zero_last + 1
-  END SUBROUTINE process_ps_target_low
-
-
-
-! *****************************************************************************
-!> \brief Issues actual GEMM calls.
-!>
-!> \param[in] params           Stack of GEMM parameters
-!> \param[in] n                Number of parameters
-!> \param[in] left_data_area   Left-matrix data
-!> \param[in] right_data_area  Right-matrix data
-!> \param[in,out] zero_first   Zero product data area starting from this
-!>                             element
-!> \param[in,out] zero_last    Zero product data area up to this element
-!> \param[in] lastblk          Number of blocks in product
-!> \param[in,out] product_data_area  Data for results
-! *****************************************************************************
-  SUBROUTINE process_mm_stack(params,&
-       stack_size, &
-       left_data_area, right_data_area, product_data_area,&
-       product_data_card, has_product_data_card,&
-       a_dev, b_dev,&
-       zero_first, zero_last, nblks, state, stack_state_dev,&
-       m, n, k, max_m, max_n, max_k, defined_mnk,&
-       c_locks_dev, params_dev, &
-       error)
-    INTEGER, INTENT(INOUT)                   :: stack_size
-    INTEGER, &
-      DIMENSION(n_mult_params, stack_size), &
-      INTENT(IN)                             :: params
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: left_data_area, &
-                                                right_data_area
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: product_data_card
-    LOGICAL, INTENT(IN)                      :: has_product_data_card
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: a_dev, b_dev
-    INTEGER, INTENT(INOUT)                   :: zero_first, zero_last
-    INTEGER, INTENT(IN)                      :: nblks
-    INTEGER, POINTER                         :: state
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: stack_state_dev
-    INTEGER, INTENT(IN)                      :: m, n, k, max_m, max_n, max_k
-    LOGICAL, INTENT(IN)                      :: defined_mnk
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: c_locks_dev, params_dev
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_mm_stack', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod, &
-                                                dbg = .FALSE.
-    REAL, PARAMETER                          :: resize_factor = 1.618034
-
-    INTEGER                                  :: sp
-    INTEGER, DIMENSION(6)                    :: bounds
-    REAL(KIND=dp)                            :: t_tmp
-
-!   ---------------------------------------------------------------------------
-
-    t_tmp=m_walltime()
-    !$OMP ATOMIC
-    t_process_stack = t_process_stack - t_tmp
-    IF (dbg) THEN
-       WRITE(*,*)routineN//" Stack size", stack_size, n_mult_params
-       CALL print_gemm_parameters(params(:,1:stack_size))
-    ENDIF
-    !
-    ! Verify stack consistency.  Only the upper bound is verified.
-    IF (careful) THEN
-       DO sp = 1, stack_size
-          CALL dbcsr_assert (params(p_a_first,sp)&
-               + params(p_m,sp) * params(p_k,sp) - 1,&
-               "LE", dbcsr_data_get_size (left_data_area),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "A data out of bounds.", __LINE__, error=error)
-          CALL dbcsr_assert (params(p_b_first,sp)&
-               + params(p_k,sp) * params(p_n,sp) - 1,&
-               "LE", dbcsr_data_get_size (right_data_area),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "B data out of bounds.", __LINE__, error=error)
-          CALL dbcsr_assert (params(p_c_first,sp)&
-               + params(p_m,sp) * params(p_n,sp) - 1,&
-               "LE", dbcsr_data_get_size (product_data_area),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "C data out of bounds.", __LINE__, error=error)
-       ENDDO
-    ENDIF
-    !
-    SELECT CASE (mm_driver)
-    CASE (mm_driver_matmul)
-       SELECT CASE (product_data_area%d%data_type)
-       CASE (dbcsr_type_real_4)
-          CALL internal_process_mm_stack_s (params, &
-               stack_size, &
-               left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area%d%r_sp,&
-               error=error)
-       CASE (dbcsr_type_real_8)
-          CALL internal_process_mm_stack_d (params,&
-               stack_size,&
-               left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area%d%r_dp,&
-               error=error)
-       CASE (dbcsr_type_complex_4)
-          CALL internal_process_mm_stack_c (params,&
-               stack_size,&
-               left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area%d%c_sp,&
-               error=error)
-       CASE (dbcsr_type_complex_8)
-          CALL internal_process_mm_stack_z (params,&
-               stack_size,&
-               left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area%d%c_dp,&
-               error=error)
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
-       state = dbcsr_ps_state_empty
-    CASE (mm_driver_smm)
-       SELECT CASE (product_data_area%d%data_type)
-       CASE (dbcsr_type_real_4)
-          CALL smm_process_mm_stack_s (params, &
-               stack_size, &
-               left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area%d%r_sp,&
-               error=error)
-       CASE (dbcsr_type_real_8)
-          CALL smm_process_mm_stack_d (params,&
-               stack_size,&
-               left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area%d%r_dp,&
-               error=error)
-       CASE (dbcsr_type_complex_4)
-          CALL smm_process_mm_stack_c (params,&
-               stack_size,&
-               left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area%d%c_sp,&
-               error=error)
-       CASE (dbcsr_type_complex_8)
-          CALL smm_process_mm_stack_z (params,&
-               stack_size,&
-               left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area%d%c_dp,&
-               error=error)
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
-       state = dbcsr_ps_state_empty
-    CASE (mm_driver_plasma)
-       SELECT CASE (product_data_area%d%data_type)
-       CASE (dbcsr_type_real_4)
-          CALL plasma_process_mm_stack_s (params,&
-               stack_size,&
-               left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area%d%r_sp,&
-               error=error)
-       CASE (dbcsr_type_real_8)
-          CALL plasma_process_mm_stack_d (params,&
-               stack_size,&
-               left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area%d%r_dp,&
-               error=error)
-       CASE (dbcsr_type_complex_4)
-          CALL plasma_process_mm_stack_c (params,&
-               stack_size,&
-               left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area%d%c_sp,&
-               error=error)
-       CASE (dbcsr_type_complex_8)
-          CALL plasma_process_mm_stack_z (params,&
-               stack_size,&
-               left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area%d%c_dp,&
-               error=error)
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
-       state = dbcsr_ps_state_empty
-    CASE (mm_driver_blas)
-       SELECT CASE (product_data_area%d%data_type)
-       CASE (dbcsr_type_real_4)
-          CALL blas_process_mm_stack_s (params,&
-               stack_size,&
-               left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area%d%r_sp,&
-               error=error)
-       CASE (dbcsr_type_real_8)
-          CALL blas_process_mm_stack_d (params,&
-               stack_size,&
-               left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area%d%r_dp,&
-               error=error)
-       CASE (dbcsr_type_complex_4)
-          CALL blas_process_mm_stack_c (params,&
-               stack_size,&
-               left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area%d%c_sp,&
-               error=error)
-       CASE (dbcsr_type_complex_8)
-          CALL blas_process_mm_stack_z (params,&
-               stack_size,&
-               left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area%d%c_dp,&
-               error=error)
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
-       state = dbcsr_ps_state_empty
-    CASE (mm_driver_cuda)
-       IF (.NOT. has_product_data_card) &
-            CALL dbcsr_assert (.FALSE.,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "No C data on card is specified.",&
-            __LINE__, error=error)
-       CALL cuda_process_mm_stack (params,&
-            stack_size,&
-            a_dev, b_dev, product_data_card,&
-            c_locks_dev,&
-            params_dev,&
-            m, n, k, max_m, max_n, max_k, defined_mnk,&
-            state, stack_state_dev,&
-            error=error)
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Invalid multiplication driver",__LINE__,error)
-    END SELECT
-    stack_size = 0
-    t_tmp=m_walltime()
-    !$OMP ATOMIC
-    t_process_stack = t_process_stack + t_tmp
-  END SUBROUTINE process_mm_stack
-
-  SUBROUTINE print_gemm_parameters(params)
-    INTEGER, DIMENSION(:, :), INTENT(in)     :: params
-
-    INTEGER                                  :: sp
-
-    DO sp = 1, SIZE(params,2)
-       WRITE(*,'(1X,A,1X,I7,":",3(1X,I4,","),".",3(1X,I7,","))')&
-            "GEMM PARAMETERS",&
-               sp,&
-               params(p_m,sp),&
-               params(p_k,sp),&
-               params(p_n,sp),&
-               params(p_a_first,sp),&
-               params(p_b_first,sp),&
-               params(p_c_first,sp)
-    ENDDO
-  END SUBROUTINE print_gemm_parameters
-
-
 ! *****************************************************************************
 !> \brief Switches pointers between two matrices
 !> \param[in,out] set1p, set2p
@@ -3798,18 +3459,6 @@ CONTAINS
     transpose = BTEST(column+row, 0) .EQV. column.GE.row
 
   END FUNCTION my_checker_tr
-
-  SUBROUTINE xtime_set(timer)
-    REAL(kind=dp), INTENT(out)               :: timer
-
-    timer = -m_walltime()
-  END SUBROUTINE xtime_set
-  SUBROUTINE xtime_stop(timer)
-    REAL(kind=dp), INTENT(inout)             :: timer
-
-    timer = timer + m_walltime()
-  END SUBROUTINE xtime_stop
-
 
 ! *****************************************************************************
 !> \brief Fills row hashtable from an existing matrix.
@@ -4178,17 +3827,15 @@ CONTAINS
 ! End of hashtable
 ! -----------------------------------------------------------------------------
 
-  pure SUBROUTINE memcpy (out, in, n)
-    REAL(kind=real_8), DIMENSION(*), &
-      INTENT(out)                            :: out
-    REAL(kind=real_8), DIMENSION(*), &
-      INTENT(in)                             :: in
-    INTEGER, INTENT(in)                      :: n
 
-    out(1:n) = in(1:n)
-  END SUBROUTINE memcpy
-
-
+! *****************************************************************************
+!> \brief Gathers the local elements from all data (full_data)
+!>
+!> \param[in] full_data       All elements
+!> \param[in] nle             Number of local elements
+!> \param[in] local_elements  List of local elements
+!> \param[out] local_data     Local elements obtained from all elements
+! *****************************************************************************
   PURE SUBROUTINE local_filter (full_data, nle, local_elements, local_data)
     INTEGER, DIMENSION(:), INTENT(IN)        :: full_data
     INTEGER, INTENT(IN)                      :: nle
@@ -4202,6 +3849,11 @@ CONTAINS
     END FORALL
   END SUBROUTINE local_filter
 
+! *****************************************************************************
+!> \brief Gathers the local elements from all data (full_data) for
+!>        single precision elements.
+!> \see local_filter
+! *****************************************************************************
   PURE SUBROUTINE local_filter_sp (full_data, nle, local_elements, local_data)
     REAL(KIND=sp), DIMENSION(:), INTENT(IN)  :: full_data
     INTEGER, INTENT(IN)                      :: nle
@@ -4216,322 +3868,10 @@ CONTAINS
     END FORALL
   END SUBROUTINE local_filter_sp
 
-#include "dbcsr_internal_operations_d.F"
-#include "dbcsr_internal_operations_z.F"
-#include "dbcsr_internal_operations_s.F"
-#include "dbcsr_internal_operations_c.F"
-
-
 ! *****************************************************************************
-!> \brief Processes MM stack using CUDA.
-!>
-!> \param[in] params           Stack of MM parameters
-!> \param[in] stack_size       Number of parameters
-!> \param[in] a_data           Left-matrix data
-!> \param[in] b_data           Right-matrix data
-!> \param[in,out] c_data       Product data
-!> \param[in,out] error        error
+!> \brief Perform allocations and setup needed for multiplication on an
+!>        accelerator card.
 ! *****************************************************************************
-  SUBROUTINE cuda_process_mm_stack(params,&
-       stack_size,&
-       data_a_dev, data_b_dev, data_c_dev,&
-       c_locks,&
-       params_dev,&
-       m, n, k, max_m, max_n, max_k, defined_mnk,&
-       state, stack_state_dev,&
-       error)
-    INTEGER, INTENT(IN)                      :: stack_size
-    INTEGER, &
-      DIMENSION(n_mult_params*stack_size), &
-      INTENT(IN), TARGET                     :: params
-    TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: data_a_dev, data_b_dev
-    TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: data_c_dev, c_locks, &
-                                                params_dev
-    INTEGER, INTENT(IN)                      :: m, n, k, max_m, max_n, max_k
-    LOGICAL, INTENT(IN)                      :: defined_mnk
-    INTEGER, POINTER                         :: state
-    TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: stack_state_dev
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cuda_process_mm_stack', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle, k_max, m_max, &
-                                                n_max, sp
-    INTEGER, DIMENSION(:), POINTER           :: params_p
-    REAL(kind=dp)                            :: kt
-    REAL(kind=dp), SAVE                      :: index_time = 0
-
-!   ---------------------------------------------------------------------------
-
-    IF (stack_size .EQ. 0) THEN
-       state = dbcsr_ps_state_empty
-       RETURN
-    ENDIF
-    IF (careful_mod) &
-         CALL dbcsr_error_set (routineN, error_handle, error)
-    IF (.NOT. kernel_timing) t_calc_step = t_calc_step - m_walltime()
-    IF (kernel_timing) THEN
-       index_time = index_time + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Index time", index_time, "s"
-    ENDIF
-    params_p => params
-    IF (kernel_timing) kt = -m_walltime()
-    IF (m .GT. 0) THEN ; m_max = m ; ELSE ; m_max = -max_m ; ENDIF
-    IF (n .GT. 0) THEN ; n_max = n ; ELSE ; n_max = -max_n ; ENDIF
-    IF (k .GT. 0) THEN ; k_max = k ; ELSE ; k_max = -max_k ; ENDIF
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Max size time", kt, "s"
-    ENDIF
-    IF (kernel_timing) kt = -m_walltime()
-    IF (kernel_timing) &
-         CALL dbcsr_cuda_thread_sync (error=error)
-    IF (measure_idle) THEN
-       t_dev_idle = t_dev_idle - m_walltime()
-       CALL dbcsr_cuda_thread_sync (error=error)
-       t_dev_idle = t_dev_idle + m_walltime()
-    ENDIF
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Thread sync time", kt, "s"
-    ENDIF
-    !
-    IF (kernel_timing) kt = -m_walltime()
-    CALL dbcsr_cuda_cp_host_to_dev (params_p,&
-         params_dev%d_i, n_mult_params*stack_size, async=.TRUE., error=error)
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Parameter copy time", kt, "s"
-    ENDIF
-    !
-    IF (kernel_timing) kt = -m_walltime()
-    CALL dbcsr_cuda_cp_dev_to_host (stack_state_dev%d_i, state, async=.TRUE.,&
-         error=error)
-    IF (kernel_timing) THEN
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"State update time", kt, "s"
-    ENDIF
-    !
-    !WRITE(*,*)routineN//" calling kernel", stack_size,&
-    !     dbcsr_cuda_dev_mem_get_type(data_c_dev)
-    IF (kernel_timing) CALL m_flush(6)
-    IF (kernel_timing) kt = -m_walltime()
-    CALL dbcsr_cuda_do_mm_stack (params_dev%d_i, stack_size, n_mult_params,&
-         data_a_dev, data_b_dev, data_c_dev,&
-         c_locks%d_i, ABS(m_max), ABS(n_max), ABS(k_max), defined_mnk,&
-         error=error)
-    IF (kernel_timing) THEN
-       CALL dbcsr_cuda_thread_sync (error=error)
-       kt = kt + m_walltime()
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Kernel time", kt, "s"
-       t_calc_step = t_calc_step + kt
-    ENDIF
-    !
-    IF (.FALSE.) THEN
-       CALL dbcsr_cuda_thread_sync (error=error)
-       state = dbcsr_ps_state_empty
-    ENDIF
-    !
-    IF (kernel_timing) index_time = -m_walltime()
-    IF (.NOT. kernel_timing) t_calc_step = t_calc_step + m_walltime()
-
-    IF (careful_mod) &
-         CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE cuda_process_mm_stack
-
-
-! *****************************************************************************
-!> \brief Process the finalization queue
-! *****************************************************************************
-  SUBROUTINE process_target_fin_q (t, error)
-    TYPE(dbcsr_ps_target_type), &
-      INTENT(INOUT)                          :: t
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_target_fin_q', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod
-
-    INTEGER                                  :: data_type, error_handle, &
-                                                nxlate
-    LOGICAL                                  :: found
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_dp
-    TYPE(array_i1d_obj)                      :: xlate
-    TYPE(dbcsr_data_obj)                     :: new_data
-
-    IF (careful_mod) &
-         CALL dbcsr_error_set(routineN, error_handle, error)
-    !write(*,*)routineN//" processing..."
-    !$OMP CRITICAL (crit_target)
-    CALL dbcsr_ps_fin_q_pop (t%fin_queue, new_data, xlate, nxlate, found, error)
-    !$OMP END CRITICAL (crit_target)
-    DO WHILE (found)
-       data_type = dbcsr_data_get_type(t%product_data_area)
-       SELECT CASE (data_type)
-       CASE (dbcsr_type_real_8)
-          data_dp => dbcsr_get_data_p_d(t%product_data_area)
-          CALL process_fin_low_d (data_dp,&
-               dbcsr_get_data_p_d(new_data),&
-               nxlate, array_data(xlate))
-       CASE default
-          CALL dbcsr_assert (.FALSE.,&
-               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-               "Invalid data type.", __LINE__, error)
-       END SELECT
-       CALL dbcsr_data_release (new_data)
-       CALL array_release (xlate)
-       !$OMP CRITICAL (crit_target)
-       CALL dbcsr_ps_fin_q_pop (t%fin_queue, new_data, xlate, nxlate, found, error)
-       !$OMP END CRITICAL (crit_target)
-    ENDDO
-    IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE process_target_fin_q
-
-
-  PURE SUBROUTINE process_fin_low_d(dst_data, src_data, nxlate, xlate)
-    REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: dst_data
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: src_data
-    INTEGER, INTENT(IN)                      :: nxlate
-    INTEGER, DIMENSION(dbcsr_ps_fqx_width, &
-      nxlate), INTENT(IN)                    :: xlate
-
-    INTEGER                                  :: doff, i, len, soff
-
-    DO i = 1, nxlate
-       len = xlate(dbcsr_ps_fqx_len, i) - 1
-       doff = xlate(dbcsr_ps_fqx_tgt_offset, i)
-       soff = xlate(dbcsr_ps_fqx_tmp_offset, i)
-       dst_data(doff:doff+len) = dst_data(doff:doff+len) + src_data(soff:soff+len)
-    ENDDO
-  END SUBROUTINE process_fin_low_d
-
-
-! *****************************************************************************
-!> \brief Process a foreign stack
-! *****************************************************************************
-  SUBROUTINE process_foreign_ps (param_stack, error)
-    TYPE(dbcsr_ps_type), INTENT(INOUT)       :: param_stack
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'process_foreign_ps', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod
-
-    INTEGER                                  :: blk_p, error_handle, nparams, &
-                                                nx
-    INTEGER, DIMENSION(:), POINTER           :: xa
-    TYPE(array_i1d_obj)                      :: xlate
-    TYPE(dbcsr_data_obj)                     :: new_data
-
-    IF (careful_mod) &
-         CALL dbcsr_error_set(routineN, error_handle, error)
-    IF (careful_mod) THEN
-       IF (param_stack%driver .EQ. mm_driver_cuda) THEN
-          CALL dbcsr_assert (param_stack%has_cuda_ab_data,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "A or B matrix data not present in stack.",&
-               __LINE__, error=error)
-       ELSE
-          CALL dbcsr_assert (param_stack%has_ab_data,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "A or B matrix data not present in stack.",&
-               __LINE__, error=error)
-       ENDIF
-    ENDIF
-    nparams = param_stack%stack_p
-    IF (nparams .GT. 0) THEN
-       ALLOCATE (xa(nparams * dbcsr_ps_fqx_width))
-       !write(*,*)routineN//" old", nparams
-       !write(*,'(7(1X,I7))')param_stack%parameters(1:nparams*7)
-       CALL change_stack (nparams, param_stack%parameters, xa, nx, blk_p)
-       !write(*,*)routineN//" new"
-       !write(*,'(7(1X,I7))')param_stack%parameters(1:nparams*7)
-       !write(*,*)routineN//" tmp", blk_p
-       !write(*,'(3(1X,I7))')xa
-       CALL array_new (xlate, xa, gift = .TRUE.)
-       CALL dbcsr_data_init (new_data)
-       CALL dbcsr_data_new (new_data,&
-            dbcsr_data_get_type (param_stack%t%t%product_data_area), blk_p)
-       CALL dbcsr_data_zero(new_data, (/1/), (/ blk_p /), error=error)
-       CALL process_mm_stack(param_stack%parameters,&
-            param_stack%stack_p,&
-            param_stack%left_data_area, param_stack%right_data_area,&
-            new_data,&
-            param_stack%t%t%product_data_cuda,&
-            param_stack%t%t%has_cuda_c_data,&
-            param_stack%left_data_cuda, param_stack%right_data_cuda,&
-            param_stack%t%t%zero_first, param_stack%t%t%zero_last,&
-            param_stack%t%t%last_c_blk,&
-            param_stack%state, param_stack%t%t%stack_state_dev,&
-            param_stack%m, param_stack%n, param_stack%k,&
-            param_stack%max_m, param_stack%max_n, param_stack%max_k,&
-            param_stack%defined_mnk,&
-            param_stack%t%t%c_locks_dev, param_stack%t%t%params_dev, &
-            error=error)
-       !$OMP CRITICAL (crit_target)
-       CALL dbcsr_ps_fin_q_add (param_stack%t%t%fin_queue,&
-            new_data, xlate, nx, error)
-       !$OMP END CRITICAL (crit_target)
-       CALL dbcsr_data_release (new_data)
-       CALL array_release (xlate)
-    ENDIF
-    IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE process_foreign_ps
-
-
-! *****************************************************************************
-!> \brief Computes new stack translation array when processing foreign stacks.
-! *****************************************************************************
-  SUBROUTINE change_stack(nparam, param_stack, xlate, nxlate, blk_p)
-    INTEGER, INTENT(IN)                      :: nparam
-    INTEGER, &
-      DIMENSION(n_mult_params, nparam), &
-      INTENT(INOUT)                          :: param_stack
-    INTEGER, DIMENSION(dbcsr_ps_fqx_width, &
-      nparam), INTENT(OUT)                   :: xlate
-    INTEGER, INTENT(OUT)                     :: nxlate, blk_p
-
-    INTEGER                                  :: i, mn, new_blk_p, old_blk_p
-
-    blk_p = 1
-    old_blk_p = 1
-    nxlate = 0
-    IF (nparam .GE. 1) THEN
-       i = 1
-       nxlate = 1
-       xlate(dbcsr_ps_fqx_tgt_offset, nxlate) = param_stack(p_c_first, i)
-       param_stack(p_c_first, i)              = 1
-       xlate(dbcsr_ps_fqx_tmp_offset, nxlate) = 1
-       mn = param_stack(p_m, i) * param_stack(p_n, i)
-       xlate(dbcsr_ps_fqx_len, nxlate)        = mn
-       blk_p = blk_p + mn
-       old_blk_p = 1
-    ENDIF
-    DO i = 2, nparam
-       ! If this is a new block then advance the data position.
-       IF (xlate(dbcsr_ps_fqx_tgt_offset, nxlate) .NE. param_stack(p_c_first,i)) THEN
-          new_blk_p = blk_p
-          nxlate = nxlate + 1
-       ELSE
-          new_blk_p = old_blk_p
-       ENDIF
-       xlate(dbcsr_ps_fqx_tgt_offset, nxlate) = param_stack(p_c_first, i)
-       param_stack(p_c_first, i)              = new_blk_p
-       xlate(dbcsr_ps_fqx_tmp_offset, nxlate) = new_blk_p
-       mn = param_stack(p_m, i) * param_stack(p_n, i)
-       xlate(dbcsr_ps_fqx_len, nxlate)        = mn
-       old_blk_p = new_blk_p
-       blk_p     = old_blk_p + mn
-    ENDDO
-    blk_p = blk_p - 1
-  END SUBROUTINE change_stack
-
-
-!> \brief Perform allocations and setup on card
   SUBROUTINE init_card_c (host_matrix, product_target, error)
     TYPE(dbcsr_type), INTENT(IN)             :: host_matrix
     TYPE(dbcsr_ps_target_type), &
@@ -4564,34 +3904,18 @@ CONTAINS
     CALL dbcsr_cuda_dev_mem_alloc (c_dev, data_size, error=error)
     t_xfer_c_in = t_xfer_c_in + m_walltime()
     IF (verbose_acc) THEN
-       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Device Allocation",&
+       WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Device C Allocation",&
             t_xfer_c_in, "s"
     ENDIF
+    !
+    ! To finish allocations before the zeroing is launched.
+    !
+    !$OMP BARRIER
     !
     ! Zero C data on card.  This assumes that data will be
     ! summed with the host data after the multiplication is done.
     CALL dbcsr_cuda_dev_mem_zero(c_dev, first=1,&
          last=data_size, error=error)
-    !
-    !! Time transfer from regular memory to GPU device memory.
-    !t_xfer_c_in = -m_walltime()
-    !data_used = dbcsr_data_get_size_referenced (&
-    !     product_matrix%m%wms(ithread+1)%data_area)
-    !IF (verbose_acc) WRITE(*,*)routineN//" copy in c", data_used
-    !CALL dbcsr_cuda_cp_host_to_dev (&
-    !     product_matrix%m%wms(ithread+1)%data_area,&
-    !     c_dev, error=error)
-    !t_xfer_c_in = m_walltime() + t_xfer_c_in
-    !IF (verbose_acc) THEN
-    !   WRITE(*,'(1X,A20,3(1X,EN12.3,1X,A))')"Cin regular", t_xfer_c_in, "s",&
-    !        REAL(len_xfer_c_in*8,kind=dp)/t_xfer_c_in, "B/s",&
-    !        REAL(len_xfer_c_in*8), "B"
-    !ENDIF
-    !data_size = dbcsr_cuda_dev_mem_get_alloc (c_dev)
-    !IF (data_size .gt. data_used) then
-    !   CALL dbcsr_cuda_dev_mem_zero(c_dev, first=data_used+1,&
-    !        last=data_size, error=error)
-    !ENDIF
     !
     ! Attach C data on card to the product target descriptor
     CALL dbcsr_ps_target_add_data_cuda (product_target, c_dev, error)
@@ -4603,11 +3927,15 @@ CONTAINS
          dbcsr_type_int_4, error)
     IF (verbose_acc) WRITE(*,*)'allocating',&
          host_matrix%wms(ithread+1)%lastblk*4, 'locks'
+    CALL xtime_set (t_tmp)
     CALL dbcsr_cuda_dev_mem_alloc (c_locks_dev,&
-         MAX(1, host_matrix%wms(ithread+1)%lastblk*4), error=error)
+         MAX(1, host_matrix%wms(ithread+1)%lastblk*2), error=error)
     CALL dbcsr_cuda_dev_mem_zero (c_locks_dev,&
          first=1,last=dbcsr_cuda_dev_mem_get_alloc(c_locks_dev),&
          error=error)
+    CALL xtime_stop (t_tmp)
+    IF (verbose_acc)&
+         WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation & 0 time", t_tmp
     product_target%c_locks_dev =>  c_locks_dev
     !
     ! Have a source from which to update states and setup the on-card
@@ -4615,29 +3943,44 @@ CONTAINS
     !
     !$OMP MASTER
     IF (verbose_acc) WRITE(*,*)routineN//" Allocating stack state"
+    CALL xtime_set (t_tmp)
     CALL dbcsr_cuda_dev_mem_new (stack_state_dev, dbcsr_type_int_4,&
          error=error)
     CALL dbcsr_cuda_dev_mem_alloc (stack_state_dev, 1, error=error)
     state_tmp_tgt = dbcsr_ps_state_empty
     state_tmp => state_tmp_tgt
     CALL dbcsr_cuda_cp_host_to_dev (state_tmp, stack_state_dev%d_i, error=error)
+    CALL xtime_stop (t_tmp)
+    IF (verbose_acc)&
+         WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation & xfer time", t_tmp
     ! And parameter stacks
     IF (verbose_acc) WRITE(*,*)routineN//" Allocating parameters"
+    CALL xtime_set (t_tmp)
     CALL dbcsr_cuda_dev_mem_new (params_dev, dbcsr_type_int_4, error)
-    CALL dbcsr_cuda_dev_mem_alloc (params_dev, mm_stack_size*n_mult_params,&
+    CALL dbcsr_cuda_dev_mem_alloc (params_dev, mm_stack_size*dbcsr_ps_width,&
          error=error)
+    CALL xtime_stop (t_tmp)
+    IF (verbose_acc)&
+         WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation & time", t_tmp
     !$OMP END MASTER
     !$OMP BARRIER
     !$OMP CRITICAL (crit_data_card)
-    CALL dbcsr_cuda_dev_mem_hold (stack_state_dev, error=error)
-    CALL dbcsr_cuda_dev_mem_hold (params_dev, error=error)
-    !$OMP END CRITICAL (crit_data_card)
+    !
+    IF (.FALSE.) THEN
+       ! Left in for mental accounting
+       CALL dbcsr_cuda_dev_mem_hold (stack_state_dev, error=error)
+       CALL dbcsr_cuda_dev_mem_hold (params_dev, error=error)
+    ENDIF
     product_target%stack_state_dev => stack_state_dev
     product_target%params_dev => params_dev
-    !$OMP CRITICAL (crit_data_card)
-    CALL dbcsr_cuda_dev_mem_release (stack_state_dev, error=error)
-    CALL dbcsr_cuda_dev_mem_release (params_dev, error=error)
+    IF (.FALSE.) THEN
+       ! Left in for mental accounting
+       CALL dbcsr_cuda_dev_mem_release (stack_state_dev, error=error)
+       CALL dbcsr_cuda_dev_mem_release (params_dev, error=error)
+    ENDIF
+    !
     !$OMP END CRITICAL (crit_data_card)
+    !$OMP BARRIER
     !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE init_card_c
@@ -4658,5 +4001,9 @@ CONTAINS
     CALL mp_testany(carrier%left_index_rr)
   END SUBROUTINE
 
+#include "dbcsr_internal_operations_d.F"
+#include "dbcsr_internal_operations_z.F"
+#include "dbcsr_internal_operations_s.F"
+#include "dbcsr_internal_operations_c.F"
 
 END MODULE dbcsr_internal_operations

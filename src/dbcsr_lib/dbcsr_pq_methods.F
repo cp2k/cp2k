@@ -13,24 +13,28 @@
 !> - Created 2011-06-17
 ! *****************************************************************************
 MODULE dbcsr_pq_methods
-  USE array_types,                     ONLY: array_hold,&
-                                             array_i1d_obj
+  USE dbcsr_config,                    ONLY: has_omp_2_5,&
+                                             mm_workshare
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_hold,&
                                              dbcsr_cuda_dev_mem_release
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
-  USE dbcsr_data_methods,              ONLY: dbcsr_data_hold,&
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
+                                             dbcsr_data_hold,&
                                              dbcsr_data_init,&
                                              dbcsr_data_release
   USE dbcsr_error_handling
   USE dbcsr_pq_types,                  ONLY: &
-       dbcsr_pq_type, dbcsr_ps_fin_q_type, dbcsr_ps_fin_type, &
-       dbcsr_ps_group_type, dbcsr_ps_obj, dbcsr_ps_set_type, &
-       dbcsr_ps_state_empty, dbcsr_ps_state_filled, dbcsr_ps_state_filling, &
-       dbcsr_ps_state_working, dbcsr_ps_target_obj, dbcsr_ps_target_type, &
-       dbcsr_ps_type, dbcsr_ps_width
+       dbcsr_pq_all_type, dbcsr_pq_type, dbcsr_ps_group_type, dbcsr_ps_obj, &
+       dbcsr_ps_set_type, dbcsr_ps_state_empty, dbcsr_ps_state_filled, &
+       dbcsr_ps_state_filling, dbcsr_ps_state_queued, dbcsr_ps_state_working, &
+       dbcsr_ps_target_obj, dbcsr_ps_target_type, dbcsr_ps_type, &
+       dbcsr_ps_width, max_regions, p_c_first
   USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate
   USE dbcsr_types,                     ONLY: dbcsr_data_obj
+
+  !$ USE OMP_LIB
+
 
   IMPLICIT NONE
 
@@ -38,7 +42,12 @@ MODULE dbcsr_pq_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_pq_methods'
 
+  LOGICAL, PARAMETER :: debug_mod = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: full_target_lock = .TRUE.
+
+  INTEGER, SAVE, PUBLIC :: s_sid = 0
+  INTEGER, SAVE, PRIVATE :: sid = 0
 
   PUBLIC :: dbcsr_ps_create, dbcsr_ps_create_p, dbcsr_ps_destroy
   PUBLIC :: dbcsr_ps_init, dbcsr_ps_new, dbcsr_ps_new_p,&
@@ -58,24 +67,32 @@ MODULE dbcsr_pq_methods
   PUBLIC :: dbcsr_psg_rm_data_cuda_ab
 
   PUBLIC :: dbcsr_psg_view_open, dbcsr_psg_view_close
-  PUBLIC :: dbcsr_psg_set_state
+  PUBLIC :: dbcsr_psg_set_state, dbcsr_psg_get_state
 
   PUBLIC :: dbcsr_ps_target_init, dbcsr_ps_target_new
   PUBLIC :: dbcsr_ps_target_create, dbcsr_ps_target_destroy
   PUBLIC :: dbcsr_ps_target_hold, dbcsr_ps_target_release
   PUBLIC :: dbcsr_ps_target_rm_data, dbcsr_ps_target_add_data
   PUBLIC :: dbcsr_ps_target_rm_data_cuda, dbcsr_ps_target_add_data_cuda
+  
+  PUBLIC :: dbcsr_ps_target_lock_main, dbcsr_ps_target_unlock_main
+  PUBLIC :: dbcsr_ps_target_lock_regions, dbcsr_ps_target_unlock_regions
+
+  PUBLIC :: dbcsr_ps_target_new_regions
 
   PUBLIC :: dbcsr_ps_set_create, dbcsr_ps_set_destroy
   PUBLIC :: dbcsr_ps_set_set_b_master
   PUBLIC :: dbcsr_ps_set_advance,&
-            dbcsr_ps_set_get_group_p
+            dbcsr_ps_set_get_group_p,&
+            dbcsr_ps_set_get_n_working
 
   PUBLIC :: dbcsr_pq_create, dbcsr_pq_destroy
+  PUBLIC :: dbcsr_pq_share, dbcsr_pq_unshare, dbcsr_pq_refresh
   PUBLIC :: dbcsr_pq_add_stack
-  PUBLIC :: dbcsr_pq_get_a_stack, dbcsr_pq_get_defined_stack
-
-  PUBLIC :: dbcsr_ps_fin_q_add, dbcsr_ps_fin_q_pop
+  PUBLIC :: dbcsr_pq_get_own_stack, dbcsr_pq_get_any_stack
+  PUBLIC :: dbcsr_pq_get_far_stack, dbcsr_pq_get_defined_stack
+  PUBLIC :: dbcsr_pq_mark_done
+  PUBLIC :: dbcsr_pq_flush_level_chg
 
 CONTAINS
 
@@ -89,8 +106,13 @@ CONTAINS
     TYPE(dbcsr_pq_type), INTENT(OUT)         :: queue
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    ALLOCATE (queue%stacks(1))
+    ALLOCATE (queue%stacks(20))
     queue%nstacks = 0
+    !$ ALLOCATE (queue%queue_lock)
+    !$ queue%queue_lock = 0
+    !$ CALL OMP_INIT_LOCK (queue%queue_lock)
+    NULLIFY (queue%all_queues)
+    CALL dbcsr_pq_refresh (queue, flush_level=0, error=error)
   END SUBROUTINE dbcsr_pq_create
 
 
@@ -105,98 +127,389 @@ CONTAINS
 
     DEALLOCATE (queue%stacks)
     queue%nstacks = 0
+    !$ CALL OMP_DESTROY_LOCK (queue%queue_lock)
+    !$ DEALLOCATE (queue%queue_lock)
   END SUBROUTINE dbcsr_pq_destroy
+
+! *****************************************************************************
+!> \brief Creates a queue of parameter stacks
+!> \param[out] queue              Queue of parameter stacks to create.
+!> \param[in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_refresh (queue, flush_level, error)
+    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+    INTEGER, INTENT(IN)                      :: flush_level
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    IF (careful_mod) THEN
+       CALL dbcsr_assert (queue%nstacks, "EQ", 0,&
+            dbcsr_fatal_level, dbcsr_internal_error, "dbcsr_pq_refresh",&
+            "Local queue not empty", __LINE__, error=error)
+    ENDIF
+    queue%nstacks = 0
+    queue%first_stack = 1
+    queue%last_stack = 0
+    queue%done = .FALSE.
+    queue%flush_level = flush_level
+    !$OMP BARRIER
+    !$OMP MASTER
+    !$ IF (ASSOCIATED (queue%all_queues)) THEN
+    !$    queue%all_queues%n_done = 0
+    !$    queue%all_queues%n_working = OMP_GET_NUM_THREADS()
+    !$    queue%all_queues%working(:) = .TRUE.
+    !$ ENDIF
+    !$OMP END MASTER
+    !$OMP BARRIER
+  END SUBROUTINE dbcsr_pq_refresh
+
+
+! *****************************************************************************
+!> \brief Shares queues among threads
+!> \param[in,out] queue           Queue of parameter stacks local to thread
+!> \param[in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_share (queue, error)
+    TYPE(dbcsr_pq_type), POINTER             :: queue
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: t
+    TYPE(dbcsr_pq_all_type), POINTER, SAVE   :: all_queues
+
+! This save here is just to get shared access...
+
+    !$OMP MASTER
+    ALLOCATE (all_queues)
+    all_queues%n_done = 0
+    all_queues%n_working = 1
+    !$ all_queues%n_working = OMP_GET_NUM_THREADS()
+    ALLOCATE (all_queues%queues(all_queues%n_working))
+    ALLOCATE (all_queues%working(all_queues%n_working))
+    all_queues%working(:) = .TRUE.
+    !$OMP END MASTER
+    !$OMP BARRIER
+    queue%all_queues => all_queues
+    t = 0
+    !$ t = OMP_GET_THREAD_NUM ()
+    all_queues%queues(t+1)%pq => queue
+    !$OMP BARRIER
+  END SUBROUTINE dbcsr_pq_share
+
+! *****************************************************************************
+!> \brief Shares queues among threads
+!> \param[in,out] queue           Queue of parameter stacks local to thread
+!> \param[in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_unshare (queue, error)
+    TYPE(dbcsr_pq_type), POINTER             :: queue
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    !$OMP BARRIER
+    !$OMP MASTER 
+    DEALLOCATE (queue%all_queues%queues)
+    DEALLOCATE (queue%all_queues%working)
+    DEALLOCATE (queue%all_queues)
+    !$OMP END MASTER
+  END SUBROUTINE dbcsr_pq_unshare
+
+
+! *****************************************************************************
+!> \brief Marks a queue as done
+!> \param[in,out] queue           Queue of parameter stacks local to thread
+!> \param[in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_mark_done (queue, error)
+    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: t
+
+    !$OMP FLUSH
+    queue%done = .TRUE.
+    t = 0
+    !$ t = OMP_GET_THREAD_NUM ()
+    queue%all_queues%working(t+1) = .FALSE.
+    !$OMP ATOMIC
+    queue%all_queues%n_done = queue%all_queues%n_done + 1
+    !$OMP ATOMIC
+    queue%all_queues%n_working = queue%all_queues%n_working - 1
+    !$OMP FLUSH
+  END SUBROUTINE dbcsr_pq_mark_done
+
+! *****************************************************************************
+!> \brief Changes the flush level of a queue
+!> \see process_queue_preempt
+!> \param[in,out] queue           Queue of parameter stacks
+!> \param[in] chg                 Amount by which to change the flush level
+!> \param[in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_flush_level_chg (queue, chg, param_sets)
+    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+    INTEGER, INTENT(IN)                      :: chg
+    TYPE(dbcsr_ps_set_type), INTENT(IN)      :: param_sets
+
+    queue%flush_level = MAX(0,&
+                        MIN(param_sets%nbuffers*param_sets%group_size,&
+                        queue%flush_level + chg))
+  END SUBROUTINE dbcsr_pq_flush_level_chg
 
 
 ! *****************************************************************************
 !> \brief Adds a stack to a queue
-!> \param[in,out] queue              Queue of parameter stacks to create.
+!>
+!> Stacks with common m, n, and k values are added to the end while mixed
+!> stacks are added to the beginning of the queue
+!> \param[in,out] queue           Add stacks to this queue of parameter stacks
+!> \param[in] stack               Stack to add to queue
 !> \param[in,out] error           error
+!> \note The queue parameter could be INTENT(INOUT) when OpenMP is not used.
 ! *****************************************************************************
   SUBROUTINE dbcsr_pq_add_stack (queue, stack, error)
-    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+    TYPE(dbcsr_pq_type), POINTER             :: queue
     TYPE(dbcsr_ps_obj), INTENT(IN)           :: stack
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pq_add_stack', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, new_n, old_s
+    INTEGER                                  :: error_handle, new_first, &
+                                                new_last, new_n, old_s, si
+    LOGICAL                                  :: post, pre
     TYPE(dbcsr_ps_obj), DIMENSION(:), &
       POINTER                                :: new_queue
 
     IF (careful_mod) &
          CALL dbcsr_error_set(routineN, error_handle, error)
+    !$ CALL OMP_SET_LOCK (queue%queue_lock)
+    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    ENDIF
+    !$OMP CRITICAL
+    s_sid = s_sid + 1
+    si = s_sid
+    !$OMP END CRITICAL
+    IF (stack%s%stack_p .EQ. 0) THEN
+       WRITE(*,*)"Adding 0 size"
+    ENDIF
+    IF (.FALSE.) THEN
+       WRITE(*,*)routineN//" Adding stack size",&
+            stack%s%stack_p, "ids", stack%s%id, si
+    ENDIF
+    !
+    post = stack%s%defined_mnk
+    pre = .NOT. post
     new_n = queue%nstacks + 1
+    IF (post) THEN
+       new_last = queue%last_stack + 1
+       new_first = queue%first_stack
+    ELSE
+       new_last = queue%last_stack
+       new_first = queue%first_stack-1
+    ENDIF
     old_s = SIZE (queue%stacks)
-    IF (new_n .GT. old_s) THEN
+    IF (new_last .GT. old_s .OR. new_first .LE. 0) THEN
+       !new_first = MAX(1,old_s - new_n/2)
+       IF (new_last .GT. old_s) THEN
+          new_first = MAX(1,old_s/2 - new_n/2)
+       ELSE
+          new_first = MAX(1,old_s*3/4 - new_n/2)
+       ENDIF
+       new_last = new_first + new_n-1
        ALLOCATE (new_queue (MAX(new_n, old_s*2)))
-       new_queue(1:queue%nstacks) = queue%stacks(1:queue%nstacks)
+       IF (post) THEN
+          new_queue(new_first:new_last-1) = queue%stacks(queue%first_stack&
+                                                        :queue%last_stack)
+       ELSE
+          new_queue(new_first+1:new_last) = queue%stacks(queue%first_stack&
+                                                        :queue%last_stack)
+       ENDIF
        DEALLOCATE (queue%stacks)
        queue%stacks => new_queue
+       queue%first_stack = new_first
+       queue%last_stack = new_last
     ENDIF
-    queue%stacks(new_n) = stack
-    queue%nstacks = new_n
+    IF (post) THEN
+       queue%last_stack = new_last
+       queue%stacks(new_last) = stack
+       queue%stacks(new_last)%s%sid = si
+    ELSE
+       queue%first_stack = new_first
+       queue%stacks(new_first) = stack
+       queue%stacks(new_first)%s%sid = si
+    ENDIF
+    !$ IF (.FALSE.) &
+    !$      WRITE(*,*)"dbcsr_pq_add_stack    stack size is", stack%s%stack_p,&
+    !$      omp_get_thread_num(), stack%s%t%t%owner, stack%s%driver,&
+    !$      stack%s%sid, stack%s%id
+    !$OMP FLUSH
+    !$OMP ATOMIC
+    queue%nstacks = queue%nstacks + 1
+    !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
     IF (careful_mod) &
          CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_pq_add_stack
 
 
 ! *****************************************************************************
-!> \brief Gets a stack from the queue
+!> \brief Gets a stack from my queue.
+!> \note Currently makes this data structure act as a stack and not a queue.
+!> \param[in,out] queue              Queue of parameter stacks to create.
+!> \param[out] stack                 Stack to processes according to criteria
+!> \param[out] found                 Whether a stack matching the criteria
+!>                                   was found
+!> \param[in] easy                   Stack should not be friendly to
+!>                                   accelerators
+!> \param[in,out] error           error
+!> \note The queue parameter could be INTENT(INOUT) when OpenMP is not used.
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_get_own_stack (queue, stack, found, easy,&
+       error)
+    TYPE(dbcsr_pq_type), POINTER             :: queue
+    TYPE(dbcsr_ps_obj), INTENT(OUT)          :: stack
+    LOGICAL, INTENT(OUT)                     :: found
+    LOGICAL, INTENT(IN)                      :: easy
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    IF (easy) THEN
+       CALL dbcsr_pq_get_defined_stack (queue, stack, found, error=error)
+    ELSE
+       CALL dbcsr_pq_get_far_stack (queue, stack, found, error=error)
+    ENDIF
+  END SUBROUTINE dbcsr_pq_get_own_stack
+
+! *****************************************************************************
+!> \brief Gets a stack from my queue or others' queues.
+!>
+!> Other threads' stacks are taken if the other thread is still indexing or
+!> the anyways argument is set.
+!> \param[in,out] queue              Queue of parameter stacks to create.
+!> \param[out] stack                 Stack to processes according to criteria
+!> \param[out] found                 Whether a stack matching the criteria
+!>                                   was found
+!> \param[in] easy                   Stack should be friendly to accelerators
+!> \param[in] anyways                Get stacks even if other thread is done
+!>                                   indexing
+!> \param[in,out] thread_ptr         thread counter for stack skimming
+!> \param[in,out] error           error
+!> \note The queue parameter could be INTENT(INOUT) when OpenMP is not used.
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_get_any_stack (queue, stack, found, easy, &
+       anyways, thread_ptr, error)
+    TYPE(dbcsr_pq_type), POINTER             :: queue
+    TYPE(dbcsr_ps_obj), INTENT(OUT)          :: stack
+    LOGICAL, INTENT(OUT)                     :: found
+    LOGICAL, INTENT(IN)                      :: easy, anyways
+    INTEGER, INTENT(INOUT)                   :: thread_ptr
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    INTEGER                                  :: i, myt, nt, t
+
+    found = .FALSE.
+    nt = 1
+    myt = 0
+    !$ myt = OMP_GET_THREAD_NUM ()
+    !$ nt = OMP_GET_NUM_THREADS ()
+    !$OMP FLUSH
+    DO i = thread_ptr, thread_ptr + nt-1
+       t = MOD (myt + i, nt)+1
+       IF (anyways .OR. queue%all_queues%working(t)) THEN
+          IF (easy) THEN
+             CALL dbcsr_pq_get_defined_stack (queue%all_queues%queues(t)%pq,&
+                  stack, found, error=error)
+          ELSE
+             CALL dbcsr_pq_get_far_stack (queue%all_queues%queues(t)%pq,&
+                  stack, found, error=error)
+          ENDIF
+          IF (found) &
+               EXIT
+       ENDIF
+    ENDDO
+    thread_ptr = MOD(i, nt)+1
+  END SUBROUTINE dbcsr_pq_get_any_stack
+
+
+! *****************************************************************************
+!> \brief Gets a stack from the queue from the end.
 !> \param[in,out] queue              Queue of parameter stacks to create.
 !> \param[in,out] error           error
+!> \note The queue parameter could be INTENT(INOUT) when OpenMP is not used.
 ! *****************************************************************************
-  SUBROUTINE dbcsr_pq_get_a_stack (queue, stack, found, error)
-    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+  SUBROUTINE dbcsr_pq_get_far_stack (queue, stack, found, error)
+    TYPE(dbcsr_pq_type), POINTER             :: queue
     TYPE(dbcsr_ps_obj), INTENT(OUT)          :: stack
     LOGICAL, INTENT(OUT)                     :: found
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    !$ CALL OMP_SET_LOCK (queue%queue_lock)
+    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    ENDIF
     IF (queue%nstacks .GE. 1) THEN
-       stack = queue%stacks(queue%nstacks)
+       stack = queue%stacks(queue%first_stack)
        queue%nstacks = queue%nstacks - 1
+       queue%first_stack = queue%first_stack + 1
        found = .TRUE.
     ELSE
        found = .FALSE.
     ENDIF
-  END SUBROUTINE dbcsr_pq_get_a_stack
+    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    ENDIF
+    !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
+  END SUBROUTINE dbcsr_pq_get_far_stack
+
 
 
 ! *****************************************************************************
-!> \brief Gets a stack from the queue
+!> \brief Gets a stack with defined m, n, and k from the queue.
 !> \param[in,out] queue              Queue of parameter stacks to create.
 !> \param[in,out] error           error
+!> \note The queue parameter could be INTENT(INOUT) when OpenMP is not used.
 ! *****************************************************************************
   SUBROUTINE dbcsr_pq_get_defined_stack (queue, stack, found, error)
-    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+    TYPE(dbcsr_pq_type), POINTER             :: queue
     TYPE(dbcsr_ps_obj), INTENT(OUT)          :: stack
     LOGICAL, INTENT(OUT)                     :: found
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: i
-    TYPE(dbcsr_ps_type)                      :: s
+    LOGICAL                                  :: dbg = .FALSE.
+    TYPE(dbcsr_ps_type), POINTER             :: s
 
+    !$ CALL OMP_SET_LOCK (queue%queue_lock)
+    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    ENDIF
+    !$ IF (dbg) WRITE(*,*)'checking stacks', omp_get_thread_num(),&
+    !$      queue%nstacks,&
+    !$      queue%first_stack, queue%last_stack
     IF (queue%nstacks .GE. 1) THEN
        found = .FALSE.
-       DO i = queue%nstacks, 1, -1
-          s = queue%stacks(i)%s
-          !if (s%m .gt. 0 .and. &
-          !     s%n .gt. 0 .and. &
-          !     s%k .gt. 0) then
-          !if (s%defined_mnk) then
-          IF (.TRUE.) THEN
+       DO i = queue%last_stack, queue%first_stack, -1
+          s => queue%stacks(i)%s
+          IF (s%defined_mnk) THEN
              found = .TRUE.
              stack = queue%stacks(i)
-             queue%stacks(i:queue%nstacks-1) = &
-                  queue%stacks(i+1:queue%nstacks)
+             queue%stacks(i:queue%last_stack-1) = &
+                  queue%stacks(i+1:queue%last_stack)
+             !$OMP ATOMIC
              queue%nstacks = queue%nstacks - 1
-             RETURN
+             !$OMP ATOMIC
+             queue%last_stack = queue%last_stack - 1
+             !write(*,*)'get_defined: found', stack%s%sid, stack%s%stack_p
+             EXIT
           ENDIF
        ENDDO
     ELSE
        found = .FALSE.
     ENDIF
+    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    ENDIF
+    !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
+    !$ IF (dbg .AND. found) &
+    !$     write(*,*)"got stack", omp_get_thread_num(), "id", stack%s%sid
   END SUBROUTINE dbcsr_pq_get_defined_stack
 
 
@@ -241,6 +554,8 @@ CONTAINS
     TYPE(dbcsr_ps_target_type), INTENT(OUT)  :: t
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    !$ INTEGER :: i
+
     t%zero_first = 1
     t%zero_last = 0
     t%has_c_data = .FALSE.
@@ -249,13 +564,23 @@ CONTAINS
     NULLIFY (t%c_locks_dev)
     NULLIFY (t%stack_state_dev)
     NULLIFY (t%params_dev)
-    CALL dbcsr_ps_fin_q_create (t%fin_queue, error)
+    t%owner = 0
+    !$ t%owner = OMP_GET_THREAD_NUM ()
+    !$ t%owner_wants_lock = .FALSE.
+    !$ t%n_use = 0
+    !$ CALL OMP_INIT_LOCK (t%target_lock)
+    !$ ALLOCATE (t%region_locks(1024))
+    !$ DO i = 1, SIZE(t%region_locks)
+    !$    CALL OMP_INIT_LOCK (t%region_locks(i))
+    !$ ENDDO
   END SUBROUTINE dbcsr_ps_target_create
 
   SUBROUTINE dbcsr_ps_target_destroy (t, error)
     TYPE(dbcsr_ps_target_type), &
       INTENT(INOUT)                          :: t
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    !$ INTEGER :: i
 
     IF (t%has_c_data) THEN
        CALL dbcsr_data_release (t%product_data_area)
@@ -272,7 +597,11 @@ CONTAINS
     IF (ASSOCIATED (t%params_dev)) THEN
        CALL dbcsr_cuda_dev_mem_release (t%params_dev, error=error)
     ENDIF
-    CALL dbcsr_ps_fin_q_destroy (t%fin_queue, error)
+    !$ CALL OMP_DESTROY_LOCK (t%target_lock)
+    !$ DO i = 1, SIZE(t%region_locks)
+    !$    CALL OMP_DESTROY_LOCK (t%region_locks(i))
+    !$ ENDDO
+    !$ DEALLOCATE (t%region_locks)
   END SUBROUTINE dbcsr_ps_target_destroy
 
   SUBROUTINE dbcsr_ps_target_rm_data (t, error)
@@ -310,6 +639,9 @@ CONTAINS
     t%zero_first = last_nze+1
     t%zero_last = last_nze
     t%has_c_data = .TRUE.
+    !$ CALL dbcsr_ps_target_new_regions (t,&
+    !$      dbcsr_data_get_size (t%product_data_area),&
+    !$      error=error)
   END SUBROUTINE dbcsr_ps_target_add_data
 
   SUBROUTINE dbcsr_ps_target_add_data_cuda (t, product_cuda_data, error)
@@ -325,6 +657,8 @@ CONTAINS
     CALL dbcsr_cuda_dev_mem_hold (t%product_data_cuda, error)
     t%has_cuda_c_data = .TRUE.
   END SUBROUTINE dbcsr_ps_target_add_data_cuda
+
+
 
 
   SUBROUTINE dbcsr_ps_init (stack, error)
@@ -409,6 +743,13 @@ CONTAINS
          mem_type=mem_type, error=error)
     stack%own_data = .TRUE.
     stack%start_p = 1
+    !$omp critical
+    sid = sid+1
+    stack%id = -1
+    stack%id = sid
+    !$omp end critical
+    stack%id = -1
+    stack%sid = -7
     IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_ps_create
 
@@ -450,6 +791,12 @@ CONTAINS
          (stack_start+stack_size-1)*dbcsr_ps_width)
     stack%own_data = .FALSE.
     stack%start_p = stack_start
+    !$omp critical
+    sid = sid+1
+    stack%id = -1
+    stack%id = sid
+    !$omp end critical
+    stack%sid = -7
     IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_ps_create_p
 
@@ -463,7 +810,7 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     stack%mem_type = 0
-    stack%start_p = 0
+    stack%start_p = 1
     stack%stack_p = 0
     IF (PRESENT (state)) THEN
        stack%state => state
@@ -885,6 +1232,7 @@ CONTAINS
     stack_set%nmemregs = nmemregs
     stack_set%next_buffer = 1
     stack_set%next_memreg = 1
+    stack_set%group_size = group_size
     ALLOCATE (stack_set%all_states (nmemregs))
     DO k = 1, stack_set%nmemregs
        ! Allocates the state array for all (non-master) stacks in this
@@ -1010,6 +1358,7 @@ CONTAINS
 !> \param[in] memreg          (optional) Return stack group from this memory
 !>                            region
 !> \param[in] master_array    returns the actual stack array
+!> \param[in] wait            wait for stack group to be free; default is TRUE
 !> \param[in,out] error    error
 !> \par master_array
 !>      The master array is the pointer to the master array associated
@@ -1018,17 +1367,19 @@ CONTAINS
 !>      view. \see dbcsr_psg_view_open
 ! *****************************************************************************
   FUNCTION dbcsr_ps_set_get_group_p (stack_set, buffer, memreg,&
-       master_array, error) RESULT (ps_group)
+       master_array, wait, error) RESULT (ps_group)
     TYPE(dbcsr_ps_set_type), INTENT(INOUT)   :: stack_set
     INTEGER, INTENT(IN), OPTIONAL            :: buffer, memreg
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: master_array
+    LOGICAL, INTENT(IN), OPTIONAL            :: wait
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     TYPE(dbcsr_ps_group_type), POINTER       :: ps_group
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_set_get_group_p', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: a, b, error_handle
+    INTEGER                                  :: a, b, error_handle, state
+    LOGICAL                                  :: my_wait
 
 !   ---------------------------------------------------------------------------
 
@@ -1045,16 +1396,54 @@ CONTAINS
        a = stack_set%next_memreg
        !stack_set%next_memreg = MOD(stack_set%next_memreg-1, stack_set%nmemregs)+1
     ENDIF
-    ! Busy loop until processing of the requested group has finished.
-    DO WHILE (dbcsr_psg_get_state (stack_set%groups(b, a), error) &
-         .EQ. dbcsr_ps_state_working)
-    ENDDO
+    IF (PRESENT (wait)) THEN
+       my_wait = wait
+    ELSE
+       my_wait = .TRUE.
+    ENDIF
+    IF (my_wait) THEN
+       ! Busy loop until processing of the requested group has finished.
+       !$OMP FLUSH
+       state = dbcsr_psg_get_state (stack_set%groups(b, a), error)
+       DO WHILE (state .GE. dbcsr_ps_state_queued)
+          !write(*,*)routineN//" Waiting", OMP_GET_THREAD_NUM()
+          !$OMP FLUSH
+          state = dbcsr_psg_get_state (stack_set%groups(b, a), error)
+       ENDDO
+    ENDIF
     ps_group => stack_set%groups(b, a)
     IF (PRESENT (master_array)) THEN
        master_array => ps_group%master%s%parameters
     ENDIF
     IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END FUNCTION dbcsr_ps_set_get_group_p
+
+! *****************************************************************************
+!> \brief Gets the number of stacks in the entire set of stacks being
+!>        processed.
+!>
+!> This is used to balance work between an accelerator and the host CPU.
+! *****************************************************************************
+  FUNCTION dbcsr_ps_set_get_n_working (stack_set, error) RESULT (n_working)
+    TYPE(dbcsr_ps_set_type), INTENT(INOUT)   :: stack_set
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+    INTEGER                                  :: n_working
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_set_get_n_working', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: mem_region
+    INTEGER, DIMENSION(:), POINTER           :: region_states
+
+    n_working = 0
+    !$OMP FLUSH
+    DO mem_region = 1, SIZE(stack_set%all_states)
+       region_states => stack_set%all_states(mem_region)%data
+       n_working = n_working + &
+            COUNT (region_states .EQ. dbcsr_ps_state_working)
+    ENDDO
+  END FUNCTION dbcsr_ps_set_get_n_working
+
 
   !> \brief Sets state for a whole process stack group
   SUBROUTINE dbcsr_psg_set_state (ps_group, state, error)
@@ -1119,90 +1508,243 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_set_advance', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: last_a
+    INTEGER                                  :: last_mr
 
 ! First advance group; if it wraps then advance the buffer
 
-    last_a = stack_set%next_memreg
-    IF (advance_memreg) &
+    last_mr = stack_set%next_memreg
+    IF (advance_memreg) THEN
          stack_set%next_memreg = MOD(stack_set%next_memreg, stack_set%nmemregs)+1
-    IF (stack_set%next_memreg .LE. last_a .OR. .NOT. advance_memreg) THEN
-       stack_set%next_buffer = MOD(stack_set%next_buffer, stack_set%nbuffers)+1
-    ENDIF
+      ELSE
+         stack_set%next_buffer = MOD(stack_set%next_buffer, stack_set%nbuffers)+1
+      ENDIF
   END SUBROUTINE dbcsr_ps_set_advance
 
-
-  SUBROUTINE dbcsr_ps_fin_q_create (fin_queue, error)
-    TYPE(dbcsr_ps_fin_q_type), INTENT(OUT)   :: fin_queue
+! *****************************************************************************
+!> \brief Locks the target
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_target_lock_main (t, flush, error)
+    TYPE(dbcsr_ps_target_type), POINTER      :: t
+    LOGICAL, INTENT(IN), OPTIONAL            :: flush
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    ALLOCATE (fin_queue%f(1))
-    fin_queue%n = 0
-  END SUBROUTINE dbcsr_ps_fin_q_create
+    LOGICAL, PARAMETER                       :: dbg = .FALSE., &
+                                                owner_priority = .TRUE.
 
-  SUBROUTINE dbcsr_ps_fin_q_destroy (fin_queue, error)
-    TYPE(dbcsr_ps_fin_q_type), INTENT(INOUT) :: fin_queue
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    fin_queue%n = 0
-    DEALLOCATE (fin_queue%f)
-  END SUBROUTINE dbcsr_ps_fin_q_destroy
-
-  SUBROUTINE dbcsr_ps_fin_q_add (fin_queue, DATA, xlate, nxlate, error)
-    TYPE(dbcsr_ps_fin_q_type), INTENT(INOUT) :: fin_queue
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: DATA
-    TYPE(array_i1d_obj), INTENT(IN)          :: xlate
-    INTEGER, INTENT(IN)                      :: nxlate
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_fin_q_add', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: new_n, new_s, old_n, old_s
-    TYPE(dbcsr_ps_fin_type), DIMENSION(:), &
-      POINTER                                :: tmp_f
-
-    old_n = fin_queue%n
-    new_n = old_n + 1
-    old_s = SIZE (fin_queue%f)
-    IF (new_n .GT. old_s) THEN
-       new_s = MAX(new_n, old_s*2)
-       ALLOCATE (tmp_f (new_s))
-       tmp_f(1:old_n) = fin_queue%f(1:old_n)
-       DEALLOCATE (fin_queue%f)
-       fin_queue%f => tmp_f
+    IF (owner_priority) THEN
+       !$ IF (t%owner .EQ. OMP_GET_THREAD_NUM()) THEN
+       !$    t%owner_wants_lock = .TRUE.
+       !$OMP FLUSH
+       !$ ELSE
+       !$    DO WHILE (t%owner_wants_lock)
+               !$OMP FLUSH
+       !$    ENDDO
+       !$ ENDIF
     ENDIF
-    fin_queue%n = new_n
-    fin_queue%f(new_n)%src_data = DATA
-    fin_queue%f(new_n)%xlate = xlate
-    fin_queue%f(new_n)%n = nxlate
-    CALL dbcsr_data_hold (fin_queue%f(new_n)%src_data)
-    CALL array_hold (fin_queue%f(new_n)%xlate)
-  END SUBROUTINE dbcsr_ps_fin_q_add
+    !$ CALL OMP_SET_LOCK (t%target_lock)
+    !$ IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    !$ ENDIF
+    !$ if (dbg) write(*,*)"  locked main", OMP_GET_THREAD_NUM(), t%owner
+    IF (owner_priority) THEN
+       !$ IF (t%owner .EQ. OMP_GET_THREAD_NUM()) THEN
+       !$    t%owner_wants_lock = .FALSE.
+             !$OMP FLUSH
+       !$ ENDIF
+       !$ IF (PRESENT (FLUSH)) THEN
+       !$    IF (FLUSH) THEN
+                !$OMP FLUSH
+       !$       DO WHILE (t%n_use .GT. 0)
+       !$          if (dbg) WRITE(*,*)" waiting", OMP_GET_THREAD_NUM(), t%n_use
+                   !$OMP FLUSH
+       !$       ENDDO
+       !$    ENDIF
+       !$ ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_ps_target_lock_main
 
-  SUBROUTINE dbcsr_ps_fin_q_pop (fin_queue, DATA, xlate, nxlate, found, error)
-    TYPE(dbcsr_ps_fin_q_type), INTENT(INOUT) :: fin_queue
-    TYPE(dbcsr_data_obj), INTENT(OUT)        :: DATA
-    TYPE(array_i1d_obj), INTENT(OUT)         :: xlate
-    INTEGER, INTENT(OUT)                     :: nxlate
-    LOGICAL, INTENT(OUT)                     :: found
+
+! *****************************************************************************
+!> \brief Unlocks the target
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_target_unlock_main (t, error)
+    TYPE(dbcsr_ps_target_type), POINTER      :: t
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_fin_q_pop', &
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    !$ IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
+    !$ ENDIF
+    !$ CALL OMP_UNSET_LOCK (t%target_lock)
+    !$ if (dbg) write(*,*)"unlocked main", OMP_GET_THREAD_NUM(), t%owner
+  END SUBROUTINE dbcsr_ps_target_unlock_main
+
+
+! *****************************************************************************
+!> \brief Locks target areas used for this stack processing
+!> \param[in,out] target_desc     Unlocks this target
+!> \param[in] stack_size          Size of stack
+!> \param[in] parameters          Stack of paramaters
+!> \param[in] bit_shift           Bit shift used to map target matrix data
+!>                                offsets to regions
+!> \param[in,out] which_locks     Locks taken
+!> \param[in] nregions            Number of regions
+!> \param]in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_target_lock_regions(target_desc, stack_size, parameters,&
+       bit_shift, which_locks, nregions, error)
+    TYPE(dbcsr_ps_target_type), POINTER      :: target_desc
+    INTEGER, INTENT(IN)                      :: stack_size
+    INTEGER, DIMENSION(dbcsr_ps_width, &
+      stack_size), INTENT(IN)                :: parameters
+    INTEGER, INTENT(IN)                      :: bit_shift
+    LOGICAL, DIMENSION(:), INTENT(INOUT)     :: which_locks
+    INTEGER, INTENT(OUT)                     :: nregions
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_target_lock_regions', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: old_n
+    INTEGER                                  :: error_handle
 
-    old_n = fin_queue%n
-    IF (old_n .GE. 1) THEN
-       DATA  = fin_queue%f(old_n)%src_data
-       xlate = fin_queue%f(old_n)%xlate
-       nxlate = fin_queue%f(old_n)%n
-       fin_queue%n = old_n - 1
-       found = .TRUE.
+    !$ INTEGER                               :: sp, sft
+
+    IF (careful_mod) &
+         CALL dbcsr_error_set(routineN, error_handle, error)
+    !$ IF (dbg .AND. OMP_GET_THREAD_NUM () .NE. target_desc%owner) THEN
+    !$    write(*,*)"  lckng rgn  ", OMP_GET_THREAD_NUM(), target_desc%owner
+    !$ ENDIF
+
+    !$ CALL dbcsr_ps_target_lock_main (target_desc, error=error)
+
+    IF (.NOT. full_target_lock) THEN
+      !$ nregions = SIZE(target_desc%region_locks)
+         !$OMP ATOMIC
+      !$ target_desc%n_use = target_desc%n_use + 1
+         !$OMP FLUSH
+      !$ IF (dbg) WRITE(*,*)routineN//"    added one", OMP_GET_THREAD_NUM(),&
+      !$      target_desc%n_use, target_desc%owner
+      !$ which_locks(:) = .FALSE.
+      !$ sft = -bit_shift
+      !$ DO sp = 1, stack_size
+      !$    which_locks(1+ISHFT(parameters(p_c_first,sp), sft)) = .TRUE.
+      !$ ENDDO
+      !$ DO sp = 1, nregions
+      !$    IF (which_locks(sp)) THEN
+      !$       CALL OMP_SET_LOCK (target_desc%region_locks(sp))
+      !$    ENDIF
+      !$ ENDDO
+      !$ IF (dbg) WRITE(*,*)OMP_GET_THREAD_NUM(), which_locks
+      !$ CALL dbcsr_ps_target_unlock_main (target_desc, error=error)
+    ENDIF
+    IF (careful_mod) &
+         CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_ps_target_lock_regions
+
+
+! *****************************************************************************
+!> \brief Unlocks target areas used for this stack processing
+!> \param[in,out] target_desc     Unlocks this target
+!> \param[in,out] which_locks     Locks to unlock--those that I have held
+!> \param[in] nregions            Number of regions
+!> \param]in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_target_unlock_regions(target_desc, &
+       which_locks, nregions, error)
+    TYPE(dbcsr_ps_target_type), POINTER      :: target_desc
+    LOGICAL, DIMENSION(:), INTENT(INOUT)     :: which_locks
+    INTEGER, INTENT(IN)                      :: nregions
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_ps_target_unlock_regions', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
+    INTEGER                                  :: error_handle
+
+    !$ INTEGER                               :: sp
+
+    IF (careful_mod) &
+         CALL dbcsr_error_set(routineN, error_handle, error)
+
+    IF (full_target_lock) THEN
+       !$   CALL dbcsr_ps_target_unlock_main (target_desc, error=error)
     ELSE
-       found = .FALSE.
+      !$ DO sp = 1, nregions
+      !$    IF (which_locks(sp)) THEN
+      !$       CALL OMP_UNSET_LOCK (target_desc%region_locks(sp))
+      !$    ENDIF
+      !$ ENDDO
+         !$OMP FLUSH
+         !$OMP ATOMIC
+      !$ target_desc%n_use = target_desc%n_use - 1
+      !$ IF (dbg) WRITE(*,*)routineN//" subbed one", OMP_GET_THREAD_NUM(),&
+      !$      target_desc%n_use, target_desc%owner
+      !$ IF (dbg) THEN
+      !$   write(*,*)OMP_GET_THREAD_NUM(), which_locks
+      !$   DO sp = 1, nregions
+      !$      which_locks(sp) =  OMP_TEST_LOCK (target_desc%region_locks(sp))
+      !$   ENDDO
+      !$   WRITE(*,*)OMP_GET_THREAD_NUM(), which_locks
+      !$   DO sp = 1, nregions
+      !$     IF (which_locks(sp)) &
+      !$          CALL OMP_UNSET_LOCK (target_desc%region_locks(sp))
+      !$   ENDDO
+      !$ ENDIF
     ENDIF
-  END SUBROUTINE dbcsr_ps_fin_q_pop
+    IF (careful_mod) &
+         CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_ps_target_unlock_regions
+
+
+! *****************************************************************************
+!> \brief Resizes the set of region locks used for the target region
+!> \param[in,out] t        Resize locks of this target
+!> \param[in] max_size     Size of the data area
+!> \param]in,out] error    error
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_target_new_regions (t, max_size, error)
+    TYPE(dbcsr_ps_target_type), &
+      INTENT(INOUT)                          :: t
+    INTEGER, INTENT(IN)                      :: max_size
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_target_new_regions', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = debug_mod
+
+    INTEGER                                  :: error_handle, i, new_n_regions
+
+    IF (careful_mod .OR. dbg) &
+         CALL dbcsr_error_set(routineN, error_handle, error)
+    !!$ new_n_regions = MAX(64, NINT (LOG(REAL(max_size))/LOG(2.0)))
+    !$ new_n_regions = MIN(max_regions,&
+    !$                     MAX(1024,&
+    !$                         NINT (LOG(REAL(max_size))/LOG(2.0))))
+    !$ t%bit_shift = CEILING (LOG(REAL(max_size)/REAL(new_n_regions))/LOG(2.0))
+    !$ IF (new_n_regions .GT. SIZE(t%region_locks)) THEN
+    !$    IF (dbg) WRITE(*,*)"new_regions", max_size, new_n_regions, t%bit_shift
+    !$    DO i = 1, SIZE(t%region_locks)
+    !$       IF (dbg) THEN
+    !$          IF (.NOT. OMP_TEST_LOCK (t%region_locks(i)))&
+    !$               WRITE(*,*)'oops! lock is set'
+    !$          CALL OMP_UNSET_LOCK (t%region_locks(i))
+    !$       ENDIF
+    !$       CALL OMP_DESTROY_LOCK (t%region_locks(i))
+    !$    ENDDO
+    !$    DEALLOCATE (t%region_locks)
+    !$    ALLOCATE (t%region_locks(new_n_regions))
+    !$    DO i = 1, SIZE(t%region_locks)
+    !  !$       t%region_locks(i) = 0
+    !$       CALL OMP_INIT_LOCK (t%region_locks(i))
+    !$    ENDDO
+    !$ ENDIF
+    IF (careful_mod .OR. dbg) &
+         CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_ps_target_new_regions
+
 
 END MODULE dbcsr_pq_methods

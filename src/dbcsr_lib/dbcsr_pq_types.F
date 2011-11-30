@@ -13,10 +13,12 @@
 !> - Created 2011-06-17
 ! *****************************************************************************
 MODULE dbcsr_pq_types
-  USE array_types,                     ONLY: array_i1d_obj
   USE dbcsr_cuda_types,                ONLY: dbcsr_cuda_mem_type
   USE dbcsr_error_handling
+  USE dbcsr_kinds,                     ONLY: dp
   USE dbcsr_types,                     ONLY: dbcsr_data_obj
+
+  !$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -24,93 +26,123 @@ MODULE dbcsr_pq_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_pq_types'
 
-  INTEGER, PARAMETER :: dbcsr_ps_width = 7
-  INTEGER, PARAMETER :: dbcsr_ps_fqx_width = 3
+  ! Definitions for the members of a parameter stack.
+  INTEGER, PARAMETER, PUBLIC :: dbcsr_ps_width = 7
+  INTEGER, PARAMETER, PUBLIC :: p_m = 1
+  INTEGER, PARAMETER, PUBLIC :: p_n = 2
+  INTEGER, PARAMETER, PUBLIC :: p_k = 3
+  INTEGER, PARAMETER, PUBLIC :: p_a_first = 4
+  INTEGER, PARAMETER, PUBLIC :: p_b_first = 5
+  INTEGER, PARAMETER, PUBLIC :: p_c_first = 6
+  INTEGER, PARAMETER, PUBLIC :: p_c_blk = 7
 
-  !> \var dbcsr_ps_fqx_tmp_offset  Index in the xlate array describing 
-  !>                               the location of a block in src_data.
-  !>                               \see dbcsr_ps_fin_type
-  !> \var dbcsr_ps_fqx_tgt_offset  Index in the xlate array describing 
-  !>                               the location of a block in the target data
-  !>                               area.
-  !>                               \see dbcsr_ps_fin_type
-  !> \var dbcsr_ps_fqx_len         Index in the xlate array describing
-  !>                               the block length.
-  !>                               \see dbcsr_ps_fin_type
-  INTEGER, PARAMETER :: dbcsr_ps_fqx_tmp_offset = 1
-  INTEGER, PARAMETER :: dbcsr_ps_fqx_tgt_offset = 2
-  INTEGER, PARAMETER :: dbcsr_ps_fqx_len = 3
 
+  ! Possible queue states.
   INTEGER, PARAMETER :: dbcsr_ps_state_empty   = 0
   INTEGER, PARAMETER :: dbcsr_ps_state_filling = 1
   INTEGER, PARAMETER :: dbcsr_ps_state_filled  = 2
-  INTEGER, PARAMETER :: dbcsr_ps_state_working = 3
+  INTEGER, PARAMETER :: dbcsr_ps_state_queued  = 3
+  INTEGER, PARAMETER :: dbcsr_ps_state_working = 4
 
-  LOGICAL, PARAMETER :: careful_mod = .TRUE.
+  ! The maximum number of regions to use for region-based locking of
+  ! target data areas.
+  INTEGER, PARAMETER :: max_regions = 1024
+
+  ! Timer types
+  INTEGER, PARAMETER, PUBLIC :: tmr_wait_for_empty_stack  = 1,&
+                                tmr_fill_stack            = 2,&
+                                tmr_wait_for_my_target    = 3,&
+                                tmr_process_target        = 4,&
+                                tmr_get_a_stack           = 5,&
+                                tmr_process_stack         = 6,&
+                                tmr_kernel_time           = 7,&
+                                tmr_wait_for_other_target = 8,&
+                                tmr_mult_finish           = 9,&
+                                tmr_mult_inner            = 10,&
+                                tmr_mult_resize           = 11,&
+                                tmr_mult_reindex          = 12,&
+                                tmr_mult_recursive        = 13,&
+                                tmr_mult_local            = 14,&
+                                tmr_sync                  = 15,&
+                                tmr_mult_finish1          = 16,&
+                                tmr_mult_finish2          = 17,&
+                                tmr_mult_finish3          = 18,&
+                                tmr_process_other_stack   = 19,&
+                                tmr_process_me            = 20,&
+                                ntmr                      = 20
+
+  REAL(KIND=dp), DIMENSION(ntmr), PUBLIC :: mult_timers
+  !$OMP THREADPRIVATE (mult_timers)
+
+
+
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
   PUBLIC :: dbcsr_ps_type, dbcsr_ps_obj
   PUBLIC :: dbcsr_ps_group_type, dbcsr_ps_group_obj
   PUBLIC :: dbcsr_ps_set_type
-  PUBLIC :: dbcsr_pq_type
   PUBLIC :: dbcsr_ps_target_obj, dbcsr_ps_target_type
 
-  PUBLIC :: dbcsr_ps_width
+  PUBLIC :: dbcsr_pq_type
+  PUBLIC :: dbcsr_pq_type_p
+  PUBLIC :: dbcsr_pq_all_type
+
   PUBLIC :: dbcsr_ps_state_empty, dbcsr_ps_state_filling,&
-            dbcsr_ps_state_filled, dbcsr_ps_state_working
-
-  PUBLIC :: dbcsr_ps_fin_q_type, dbcsr_ps_fin_type
-
-  PUBLIC :: dbcsr_ps_fqx_width
-  PUBLIC :: dbcsr_ps_fqx_tmp_offset, dbcsr_ps_fqx_tgt_offset, dbcsr_ps_fqx_len
+            dbcsr_ps_state_filled,&
+            dbcsr_ps_state_queued, dbcsr_ps_state_working
 
   ! Just for correctness
   PUBLIC :: int_p_type
 
-
-!> \brief Used for finalizing data crunched by foreign cores.
-!> \var src_data  Temporary data to be moved to the target area
-!> \var xlate     Translation array.
-!>                \see dbcsr_ps_fqx_tmp_offset
-!>                \see dbcsr_ps_fqx_tgt_offset
-!>                \see dbcsr_ps_fqx_len
-  TYPE dbcsr_ps_fin_type
-     TYPE(dbcsr_data_obj)  :: src_data
-     TYPE(array_i1d_obj)   :: xlate
-     INTEGER :: n
-  END TYPE dbcsr_ps_fin_type
-
-  TYPE dbcsr_ps_fin_q_type
-     TYPE(dbcsr_ps_fin_type), DIMENSION(:), POINTER :: f
-     INTEGER :: n
-  END TYPE dbcsr_ps_fin_q_type
+  PUBLIC :: max_regions
 
 
   !> \brief Product matrix meta information.
   !>
   !> Every product data area (i.e., each thread's) should have one of these
   !> objects describing its current status.
+  !> \var product_data_area   Product matrix data
+  !> \var product_data_cuda   Product matrix data on accelerator
   !> \var has_c_data          Whether product data data area is valid
+  !> \var has_cuda_c_data     Whether CUDA product data descriptor is valid
   !> \var has_cuda_ab_data    Whether CUDA data descriptors (for left and right
   !>                          matrices) are valid
-  !> \var has_c_data          Whether CUDA product data descriptor is valid
-  !> \var product_data_area   Product matrix data
   !> \var zero_first    First element of C matrix data to zero
   !> \var zero_last     Last element of C matrix data to zero
   !> \var last_c_blk    Last block of the C matrix
-  !> \var fin_queue     Foreign work finalization queue
+  !> \var c_locks_dev   Locks on the accelerator card
+  !> \var stack_state_dev   Value of "empty stack" to copy off accelerator
+  !>                        card, which signals the stack can be reused.
+  !> \var params_dev        Parameters on the card
+  !> \var owner             Thread owning this target
+  !> \var lock_owner        Current lock owner
+  !> \var refcount          Reference counter
+  !> \var target_lock       Lock for this instance
+  !> \var owner_wants_lock  Other threads should let owner take lock
+  !> \var n_use             Number of threads holding region locks on this
+  !>                        instance
+  !> \var bit_shift         Bit shift used to calculate regions from
+  !>                        data area offset
+  !> \var region_locks      Region locks
   TYPE dbcsr_ps_target_type
      TYPE(dbcsr_data_obj)               :: product_data_area
      TYPE(dbcsr_cuda_mem_type), POINTER :: product_data_cuda
      LOGICAL :: has_c_data, has_cuda_c_data
      INTEGER :: zero_first, zero_last
      INTEGER :: last_c_blk
-     TYPE(dbcsr_ps_fin_q_type) :: fin_queue
      TYPE(dbcsr_cuda_mem_type), POINTER :: c_locks_dev, stack_state_dev
      TYPE(dbcsr_cuda_mem_type), POINTER :: params_dev
+     !$ INTEGER(KIND=omp_lock_kind) :: target_lock = 0
+     !$ LOGICAL :: owner_wants_lock
+     !$ INTEGER :: n_use
+     !$ INTEGER :: bit_shift
+     !$ INTEGER(KIND=omp_lock_kind), DIMENSION(:), POINTER :: region_locks
+     INTEGER :: owner, lock_owner
      INTEGER :: refcount
   END TYPE dbcsr_ps_target_type
 
 
+  !> \brief Object for dbcsr_ps_target_type
   TYPE dbcsr_ps_target_obj
      TYPE(dbcsr_ps_target_type), POINTER :: t
   END TYPE dbcsr_ps_target_obj
@@ -128,7 +160,6 @@ MODULE dbcsr_pq_types
   !>                          are valid
   !> \var left_data_area      Left matrix data
   !> \var right_data_area     Right matrix data
-  !> \var product_data_cuda   Product matrix data in CUDA address space
   !> \var left_data_cuda      Left matrix data in CUDA address space
   !> \var right_data_cuda     Right matrix data in CUDA address space
   !> \var state               State of the stack
@@ -139,12 +170,14 @@ MODULE dbcsr_pq_types
   !> \var max_m               Maximum m that can be found in this stack
   !> \var max_n               Maximum n that can be found in this stack
   !> \var max_k               Maximum n that can be found in this stack
+  !> \var defined_mnk         All stack entries have a common m, n, and k values
   !> \var state               State of the stack (used for asynchrony).
   !> \var own_state           Whether the state is allocated and must be
   !>                          deallocated or whether it points into a
   !>                          common state array. \see
   !>                          dbcsr_ps_set_type
   TYPE dbcsr_ps_type
+     INTEGER :: id, sid
      INTEGER, DIMENSION(:), POINTER :: parameters
      LOGICAL :: own_data
      INTEGER :: start_p
@@ -198,16 +231,43 @@ MODULE dbcsr_pq_types
   TYPE dbcsr_ps_set_type
      TYPE(dbcsr_ps_group_type), DIMENSION(:,:), POINTER :: groups
      TYPE(int_p_type), DIMENSION(:), POINTER            :: all_states
-     INTEGER :: nbuffers, nmemregs
+     INTEGER :: nbuffers, nmemregs, group_size
      INTEGER :: next_buffer, next_memreg
   END TYPE dbcsr_ps_set_type
 
-  !> \brief Parameter queue
-  !> \var stacks    The parameter stacks
-  !> \var nstacs    The number of valid stacks
+  !> \brief Queue of parameter stacks
+  !>
+  !> Not a real queue but a list.
+  !> \var stacks       The parameter stacks
+  !> \var nstacks      The number of valid stacks
+  !> \var first_stack  First valid stack in the list
+  !> \var last_stack   Last valid stack in the list
+  !> \var done         Signals that the queue owner is done with indexing
+  !> \var all_queues   Collection of queues from all threads
+  !> \var flush_level  The approximate level at which the queue is getting full
+  !> \var queue_lock   Lock used to access queue
   TYPE dbcsr_pq_type
      TYPE(dbcsr_ps_obj), DIMENSION(:), POINTER :: stacks
-     INTEGER :: nstacks
+     INTEGER :: nstacks, first_stack, last_stack
+     !$ INTEGER(KIND=omp_lock_kind), POINTER :: queue_lock
+     LOGICAL :: done
+     TYPE(dbcsr_pq_all_type), POINTER :: all_queues
+     INTEGER :: flush_level
   END TYPE dbcsr_pq_type
+
+  TYPE dbcsr_pq_type_p
+     TYPE(dbcsr_pq_type), POINTER :: pq
+  END TYPE dbcsr_pq_type_p
+
+  !> \brief Structure to hold all queues
+  !> \var queues  Collection of all queues
+  !> \var n_done  Number of threads that have finished indexing
+  !> \var n_working  Number of threads that are still indexing
+  !> \var working    Bitmap of threads showing working status
+  TYPE dbcsr_pq_all_type
+     TYPE(dbcsr_pq_type_p), DIMENSION(:), POINTER :: queues
+     INTEGER :: n_done, n_working
+     LOGICAL, DIMENSION(:), POINTER :: working
+  END TYPE dbcsr_pq_all_type
 
 END MODULE dbcsr_pq_types

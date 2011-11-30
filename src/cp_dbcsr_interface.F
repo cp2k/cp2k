@@ -46,7 +46,8 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
        detailed_timing, has_cuda, has_mpi, kernel_timing, mm_driver_blas, &
        mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, mm_driver_smm, &
-       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, mm_name_smm
+       mm_name_blas, mm_name_cuda, mm_name_matmul, mm_name_plasma, &
+       mm_name_smm, mm_workshare
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all,&
                                              dbcsr_scalar_get_value,&
@@ -451,6 +452,8 @@ CONTAINS
          "mm_stack_size", i_val=mm_ss, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "mm_driver", i_val=mm_driver, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "mm_workshare", l_val=mm_workshare, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "detailed_timing", l_val=detailed_timing, error=error)
     CALL section_vals_val_get(dbcsr_section,&

@@ -17,6 +17,8 @@ MODULE dbcsr_error_handling
                                              m_flush
   USE dbcsr_message_passing,           ONLY: mp_abort
 
+  !$ USE OMP_LIB
+
   IMPLICIT NONE
   PRIVATE
 
@@ -41,7 +43,7 @@ MODULE dbcsr_error_handling
      MODULE PROCEDURE dbcsr_true_assert!bcsr_assert,
   END INTERFACE
 
-  INTEGER, PARAMETER :: dbcsr_error_stack_size = 10
+  INTEGER, PARAMETER :: dbcsr_error_stack_size = 30
   !! level of an error
   INTEGER, PARAMETER :: dbcsr_fatal_level=3
   !! level of a failure
@@ -129,7 +131,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_error_stop(handler, error)
     INTEGER, INTENT(inout)                   :: handler
-    TYPE(dbcsr_error_type)                   :: error
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
 !$OMP MASTER
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
@@ -143,7 +145,8 @@ CONTAINS
        WRITE(*,*) 'get handler=',handler
        WRITE(*,*) 'expected handler=',error%stack%handler(error%stack%level)
        WRITE(*,*) 'you may have forget to call dbcsr_error_stop (may be a RETURN)...'
-       STOP
+       CALL dbcsr_abort (error%stack%level, dbcsr_failure_level, error%routine,&
+            "", error%line, error)
     ENDIF
 #if defined(__USE_CP2K_TRACE)
     CALL timestop_mp(error%stack%cp2k_handler(error%stack%level) )

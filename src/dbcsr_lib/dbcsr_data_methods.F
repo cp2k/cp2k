@@ -23,7 +23,9 @@ MODULE dbcsr_data_methods
        dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
        dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size
   USE dbcsr_message_passing,           ONLY: mp_allocate,&
                                              mp_deallocate
   USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
@@ -61,7 +63,8 @@ MODULE dbcsr_data_methods
             dbcsr_scalar_fill_all, dbcsr_scalar_get_value
   PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type,&
-            dbcsr_data_reset_type, dbcsr_data_query_type
+            dbcsr_data_reset_type, dbcsr_data_query_type,&
+            dbcsr_data_get_type_size
   PUBLIC :: dbcsr_data_resize
   PUBLIC :: dbcsr_get_data, &
             dbcsr_data_set_pointer,&
@@ -143,6 +146,28 @@ CONTAINS
 
     memory_type = area%d%memory_type
   END FUNCTION dbcsr_data_get_memory_type
+
+! *****************************************************************************
+!> \brief Returns size in bytes used to store one data element
+!> \param[in] area         data area
+!> \result type_size       data type of the data area
+! *****************************************************************************
+  PURE FUNCTION dbcsr_data_get_type_size (area) RESULT (type_size)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: type_size
+
+    SELECT CASE (dbcsr_type_2d_to_1d(area%d%data_type))
+       CASE (dbcsr_type_real_4)
+          type_size = real_4_size
+       CASE (dbcsr_type_real_8)
+          type_size = real_8_size
+       CASE (dbcsr_type_complex_4)
+          type_size = 2*real_4_size
+       CASE (dbcsr_type_complex_8)
+          type_size = 2*real_8_size
+    END SELECT
+  END FUNCTION dbcsr_data_get_type_size
+
 
 ! Data type transformations
   FUNCTION data_type_2d_from_1d (type_1d) RESULT (type_2d)

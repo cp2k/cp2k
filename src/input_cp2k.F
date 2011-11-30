@@ -28,7 +28,7 @@ MODULE input_cp2k
        dbcsr_get_conf_use_comm_thread, has_blas, has_cuda, has_plasma, &
        has_smm_gemm, mm_driver_blas, mm_driver_cuda, mm_driver_matmul, &
        mm_driver_plasma, mm_driver_smm, mm_name_blas, mm_name_cuda, &
-       mm_name_matmul, mm_name_plasma, mm_name_smm
+       mm_name_matmul, mm_name_plasma, mm_name_smm, mm_workshare
   USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -640,8 +640,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_march_section', &
       routineP = moduleN//':'//routineN
-    CHARACTER(len=32), PARAMETER             :: has = "", &
-                                                hasnot = " (not available)"
+    CHARACTER(len=32), PARAMETER :: has = "", &
+      hasnot = " (not available in this binary)"
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
@@ -765,7 +765,7 @@ CONTAINS
     CHARACTER(len=32), PARAMETER             :: has = "", &
                                                 hasnot = " (not available)"
 
-    CHARACTER(len=32)                        :: a_blas, a_cuda, a_plasma, &
+    CHARACTER(len=64)                        :: a_blas, a_cuda, a_plasma, &
                                                 a_smm
     INTEGER                                  :: n_buffers, n_mem_regions
     INTEGER, DIMENSION(3)                    :: nstacks
@@ -789,7 +789,7 @@ CONTAINS
     IF (has_smm_gemm) THEN
        a_smm = has
     ELSE
-       a_smm = " (only BLAS wrapper available)"
+       a_smm = " (only BLAS wrapper available in this binary)"
     ENDIF
     IF (has_plasma) THEN
        a_plasma = has
@@ -813,7 +813,7 @@ CONTAINS
     !
     CALL keyword_create(keyword, name="combined_types",&
          description="Combine matrix index and data into "// &
-         "a single MPI derived data type for communication.",&
+         "a single MPI derived data type for communication (avoid using).",&
          usage="combined_types T",&
          default_l_val=dbcsr_get_conf_combtypes(),error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -829,8 +829,8 @@ CONTAINS
     !
     CALL keyword_create(keyword, name="use_CUDA_host_allocation",&
          description=TRIM("Allow use of CUDA-allocated host-pinned memory "//&
-         "for faster transfers to and from the GPU."//a_cuda),&
-         usage="use_CUDA_allocation T",&
+         "(avoid using)."//a_cuda),&
+         usage="use_CUDA_allocation F",&
          default_l_val=dbcsr_get_conf_cuda_mem(),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -889,6 +889,13 @@ CONTAINS
          // " (e.g., number of GPU cards per MPI process)",&
          usage="n_stack_memory_regions 2",&
          default_i_val=n_mem_regions,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="mm_workshare",&
+         description="Share MM work (e.g., multiple threads, CPU/GPU, ...).",&
+         usage="mm_workshare T",&
+         default_l_val=mm_workshare,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !

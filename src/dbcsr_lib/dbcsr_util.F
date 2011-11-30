@@ -17,13 +17,15 @@ MODULE dbcsr_util
   USE array_types,                     ONLY: array_data,&
                                              array_hold,&
                                              array_i1d_obj
+  USE dbcsr_config,                    ONLY: epoch_time
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_get_data
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_2,&
+                                             int_4,&
                                              real_4,&
                                              real_8
+  USE dbcsr_machine,                   ONLY: m_walltime
   USE dbcsr_message_passing,           ONLY: mp_sum
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_row_offset, &
@@ -73,6 +75,7 @@ MODULE dbcsr_util
             map_most_common
   ! utility routines
   PUBLIC :: count_bins, sgn
+  PUBLIC :: xtime_set, xtime_start, xtime_stop
 
 
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
@@ -964,7 +967,7 @@ CONTAINS
   SUBROUTINE map_most_common(array, most_common_map, nmost_common,&
        most_common_elements, size_limit, max_val)
     INTEGER, DIMENSION(:), INTENT(IN)        :: array
-    INTEGER(KIND=int_2), DIMENSION(:), &
+    INTEGER(KIND=int_4), DIMENSION(:), &
       POINTER                                :: most_common_map
     INTEGER, INTENT(IN)                      :: nmost_common
     INTEGER, DIMENSION(:), INTENT(OUT)       :: most_common_elements
@@ -1014,5 +1017,24 @@ CONTAINS
     DEALLOCATE (permutation)
   END SUBROUTINE map_most_common
 
+  !\brief Initializes a timer to start measuring current time.
+  SUBROUTINE xtime_set(timer)
+    REAL(kind=dp), INTENT(OUT)               :: timer
+
+    timer = - (m_walltime() - epoch_time)
+  END SUBROUTINE xtime_set
+
+  !\brief Starts timing an existing timer
+  SUBROUTINE xtime_start(timer)
+    REAL(kind=dp), INTENT(INOUT)             :: timer
+
+    timer = timer - (m_walltime() - epoch_time)
+  END SUBROUTINE xtime_start
+  !\brief Stops timing an existing timer
+  SUBROUTINE xtime_stop(timer)
+    REAL(kind=dp), INTENT(INOUT)             :: timer
+
+    timer = timer + (m_walltime() - epoch_time)
+  END SUBROUTINE xtime_stop
 
 END MODULE dbcsr_util

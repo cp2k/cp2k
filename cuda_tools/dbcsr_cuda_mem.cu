@@ -28,7 +28,7 @@ extern "C" int dc_dev_mem_alloc (void **dev_mem, size_t n) {
 	if (cuda_error_check (cErr)) return 1;
 	if (cuda_error_check (cudaGetLastError())) return 1;
 	if (dev_mem == NULL) return 2;
-	if (verbose_print) printf("Device allocation address %p\n", *dev_mem);
+	if (verbose_print) printf("Device allocation address %p, size %ld\n", *dev_mem, (long) n);
 
 	return 0;
 }
@@ -44,8 +44,7 @@ extern "C" int dc_dev_mem_realloc (void **dev_mem, size_t n, size_t old_n, int *
 	if (cuda_error_check (cErr)) return 1;
 	if (cuda_error_check (cudaGetLastError())) return 1;
 	if (new_dev_mem == NULL) return 2;
-	if (verbose_print) printf("Device allocation address %p\n", new_dev_mem);
-
+	if (verbose_print) printf("Device allocation address %p, size %ld\n", new_dev_mem, (long) n);
 	count = MIN(old_n, n);
 	if (count > 0) {
 		if (verbose_print) printf("Copy %d bytes.\n", (int) count);
