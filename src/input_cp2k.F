@@ -724,7 +724,7 @@ CONTAINS
     CALL keyword_create(keyword, name="MEM_POL",&
          description="Enable memory binding on the machine.", &
          usage="MEM_POL type (D=default, L=local, I=interleave, M=manual )",&
-         default_c_val='D',error=error)
+         default_c_val='X',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
    !

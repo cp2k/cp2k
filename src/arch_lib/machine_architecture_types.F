@@ -37,7 +37,7 @@ MODULE machine_architecture_types
    INTEGER(C_INT)         :: ncores, npus
    INTEGER(C_INT)         :: ngpus, ncaches
    INTEGER(C_INT)         :: nshared_caches, nsiblings
-   INTEGER(C_INT)          :: nmemcontroller                 
+   INTEGER(C_INT)          :: nmemcontroller, nnetcards                 
   END TYPE arch_topology
 
 !Interface with the console output
@@ -92,11 +92,11 @@ MODULE machine_architecture_types
 
 
 #if defined (__HWLOC) 
-  LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .TRUE.
+  LOGICAL,  PUBLIC                   :: has_ma = .TRUE.
 #elif defined (__LIBNUMA)
-  LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .TRUE.
+  LOGICAL,  PUBLIC                   :: has_ma = .TRUE.
 #else
-  LOGICAL, PARAMETER, PUBLIC                   :: has_ma = .FALSE.
+  LOGICAL,  PUBLIC                   :: has_ma = .FALSE.
 #endif
 #if defined (__parallel)
   LOGICAL, PARAMETER, PUBLIC                   :: has_MPI = .TRUE.
@@ -119,6 +119,7 @@ MODULE machine_architecture_types
      INTEGER                            :: mp_group
      INTEGER                            :: refcount
      INTEGER                            :: myid
+     LOGICAL                            :: all_proc
   END TYPE ma_mp_type
 
 ! *****************************************************************************

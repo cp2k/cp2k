@@ -51,7 +51,7 @@ MODULE ma_affinity
  PUBLIC :: ma_scatter_place,ma_group_place
  PUBLIC :: ma_manual_place
  
- PUBLIC :: ma_verify_place, ma_running_on
+ PUBLIC :: ma_verify_place
  PUBLIC :: ma_thread_running_on, ma_current_thread_run
  PUBLIC :: ma_current_mpi_run
 
@@ -89,7 +89,7 @@ INTEGER FUNCTION ma_init_affinity(ma_env, num_threads, core, node) RESULT(istat)
   ALLOCATE(thread_mapping(ma_env%numproc,num_threads),STAT=istat)
   CALL ma_create_process(my_info,ma_env,num_threads,core,node)
   CALL ma_set_neighbors(ma_env)
-
+  
 END FUNCTION ma_init_affinity
 
 ! *****************************************************************************
@@ -111,6 +111,8 @@ END SUBROUTINE ma_finalize_affinity
 ! *****************************************************************************
 SUBROUTINE ma_set_default_affinity()
   INTEGER :: node,id, gpus_numa
+
+ 
 #if defined (__LIBNUMA) || defined (__HWLOC)
 !Place MPI closer to GPU
 #ifdef  __DBCSR_CUDA
@@ -130,17 +132,17 @@ SUBROUTINE ma_set_default_affinity()
    IF (my_info%nr_neighbors .GT. 1) THEN
       CALL ma_set_mempol(local)
    ELSE
-      CALL ma_set_mempol(interleave)
+     IF ( my_info%nr_threads .GT. topology%ncores/topology%nnodes) THEN 
+       CALL ma_set_mempol(interleave)    
+     ENDIF
    ENDIF
-    
+#endif  
 !$omp parallel private(id)
 !$ id = omp_get_thread_num()
 !$ CALL ma_group_place(id,threads)  
 !$omp end parallel
-   
-#endif  
-   isdefault = .TRUE.
 #endif
+isdefault = .TRUE.
 END SUBROUTINE ma_set_default_affinity
 
 
@@ -181,20 +183,23 @@ SUBROUTINE  ma_set_mempol (mempol)
   ENDIF
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
- istat = ma_hw_set_mempol(mempol,realnode)
- unit_nr = 6 
- IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
+ IF (.NOT. isdefault) THEN  
+  istat = ma_hw_set_mempol(mempol,realnode)
+  unit_nr = 6 
+  IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
    WRITE(unit_nr,'(T2,A,A)') "WARNING: Memory binding not supported", &
             " or can not be enforced - Using OS memory policy"
- END IF
-
+  END IF
+ ENDIF 
 #endif  
 #if defined (__LIBNUMA) && !defined (__HWLOC)
- istat = ma_linux_set_mempol(mempol,realnode)
- IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
+ IF (.NOT. isdefault) THEN
+  istat = ma_linux_set_mempol(mempol,realnode)
+  IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
    WRITE(unit_nr,'(T2,A,A)') "WARNING: Memory binding not supported", &
             " or can not be enforced - Using OS memory policy"
- END IF
+  END IF
+ END IF 
 #endif
 
 END SUBROUTINE ma_set_mempol
@@ -231,28 +236,32 @@ END SUBROUTINE ma_get_mempol
     INTEGER                                  :: istat, jpe, nr_occu
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
 
-    ALLOCATE (all_host(default_string_length,ma_env%numproc),STAT=istat)
+    IF (ma_env%all_proc) THEN
+
+      ALLOCATE (all_host(default_string_length,ma_env%numproc),STAT=istat)
     
-    IF (istat /= 0) THEN
-      CALL ma_error_stop(ma_error_allocation)
-    END IF
+      IF (istat /= 0) THEN
+        CALL ma_error_stop(ma_error_allocation)
+      END IF
        
-    all_host(:,:) = 0
-    CALL mp_proc_name(host_name)  
+      all_host(:,:) = 0
+      CALL mp_proc_name(host_name)  
 
-    CALL string_to_ascii(host_name,all_host(:,ma_env%myproc+1))
-    CALL mp_sum(all_host,ma_env%mp_group)
+      CALL string_to_ascii(host_name,all_host(:,ma_env%myproc+1))
+      CALL mp_sum(all_host,ma_env%mp_group)
 
-    nr_occu = 0
-    DO jpe=1,ma_env%numproc
+      nr_occu = 0
+      DO jpe=1,ma_env%numproc
          CALL ascii_to_string(all_host(:,jpe),string)
          IF  (string .EQ. host_name) THEN
               nr_occu = nr_occu +1
          ENDIF
-    END DO
+      END DO
 
-  my_info%nr_neighbors = nr_occu
-
+      my_info%nr_neighbors = nr_occu
+   ELSE
+      my_info%nr_neighbors = ma_get_ncores()
+   ENDIF
   END SUBROUTINE ma_set_neighbors
 
 ! *****************************************************************************
@@ -282,33 +291,11 @@ END SUBROUTINE ma_get_mempol
 !> \var id thread OMP id - MPI rank
 ! *****************************************************************************
   SUBROUTINE ma_def_place(id, sched_unit)
-  INTEGER :: id,core, sched_unit
-#if defined (__HWLOC)  && !defined (__LIBNUMA)
- IF ( sched_unit .EQ. threads ) THEN
-  my_info%threads_info(id+1)%core = ma_get_mycore()
-  my_info%threads_info(id+1)%node = ma_get_mynode()
-  my_info%threads_info(id+1)%id_omp = id
-  my_info%threads_info(id+1)%id_real = ma_get_thread_id()  
- ELSE
-  my_info%threads_info(1)%core = ma_get_proc_core(1)
-  my_info%threads_info(1)%node =  my_info%node
-  my_info%threads_info(1)%id_omp = id
-  my_info%threads_info(1)%id_real = my_info%mp_info%myid
- END IF
-#endif
-#if defined (__LIBNUMA) && !defined (__HWLOC)
- IF ( sched_unit .EQ. threads ) THEN
-  my_info%threads_info(id+1)%core = ma_linux_get_core()
-  my_info%threads_info(id+1)%node = ma_linux_get_mynode()
-  my_info%threads_info(id+1)%id_omp = id
-  my_info%threads_info(id+1)%id_real = ma_linux_get_thread_id()
- ELSE
-  my_info%threads_info(1)%core = ma_linux_get_core()
-  my_info%threads_info(1)%node = my_info%node
-  my_info%threads_info(1)%id_omp = id
-  my_info%threads_info(1)%id_real = my_info%mp_info%myid
- END IF
-#endif
+    INTEGER                                  :: id, sched_unit
+
+  CALL ma_set_default_affinity()
+  isdefault = .TRUE. 
+
   END SUBROUTINE ma_def_place
 
 ! *****************************************************************************
@@ -359,6 +346,8 @@ END SUBROUTINE ma_get_mempol
   my_info%node = my_info%threads_info(1)%node
  END IF
 #endif
+  ! NOT USING NET AFFINITY
+  hasnet = .FALSE. 
   END SUBROUTINE ma_no_place
 
 ! *****************************************************************************
@@ -399,6 +388,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = core
     my_info%node = my_info%threads_info(1)%node
    END IF
+   !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN 
+      CALL ma_set_net_affinity(sched_unit,id)
+   ENDIF 
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
     IF (sched_unit .EQ. threads) THEN
@@ -422,6 +415,10 @@ END SUBROUTINE ma_get_mempol
     my_info%mp_info%myid = my_info%threads_info(1)%id_real
     my_info%core = core
     my_info%node = my_info%threads_info(1)%node    
+   ENDIF
+   !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+        CALL ma_set_net_affinity(sched_unit,id)
    ENDIF
 #endif
      END SUBROUTINE ma_linear_place
@@ -463,6 +460,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = core
     my_info%node = my_info%threads_info(1)%node
    END IF
+   !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+         CALL ma_set_net_affinity(sched_unit,id)
+   ENDIF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
     IF (sched_unit .EQ. threads) THEN
@@ -484,6 +485,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = core
     my_info%node = my_info%threads_info(1)%node
    ENDIF
+   !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+         CALL ma_set_net_affinity(sched_unit,id)
+   ENDIF
 #endif
      END SUBROUTINE ma_scatter_place
 
@@ -502,10 +507,16 @@ END SUBROUTINE ma_get_mempol
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
+   IF (my_info%nr_threads .GT. (topology%ncores/topology%nnodes)) THEN
+    CALL ma_set_thread_allnodes()
+   ELSE
    ! threads inherit their parent CPU mask
    ! just get where they are running
-    my_info%threads_info(id+1)%core = ma_get_mycore()
-    my_info%threads_info(id+1)%node = ma_get_mynode()
+    CALL ma_set_thread_node(my_info%node)
+   ENDIF
+    core = ma_get_mycore()
+    my_info%threads_info(id+1)%core = core
+    my_info%threads_info(id+1)%node = ma_get_core_node(core)
     my_info%threads_info(id+1)%id_omp = id
     my_info%threads_info(id+1)%id_real = ma_get_thread_id()
  ELSE
@@ -515,13 +526,18 @@ END SUBROUTINE ma_get_mempol
        node = 0
      ELSE
        id = MOD(my_info%mp_info%myproc,my_info%nr_neighbors)
-       node = id/(my_info%nr_neighbors/topology%nnodes)
+       IF ( my_info%nr_neighbors .LE. topology%nnodes) THEN 
+         node = id
+       ELSE  
+         node = MOD(id/(my_info%nr_neighbors/topology%nnodes),topology%nnodes)
+       ENDIF
      ENDIF
      CALL ma_set_proc_node(node)
     ELSE ! UMA machine
      distance = topology%ncores/my_info%nr_neighbors
      core = (MOD(my_info%mp_info%myproc,ma_get_ncores()))*distance
      node = 0
+     CALL ma_set_thread_cores(distance, core)
     END IF
     my_info%threads_info(1)%core = ma_get_proc_core(1)  
     my_info%threads_info(1)%node = node
@@ -531,6 +547,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = my_info%threads_info(1)%core
     my_info%node = node
  END IF
+  !only if it is the Process/Thread - rank 0
+  IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+         CALL ma_set_net_affinity(sched_unit,id)
+  ENDIF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
  IF (sched_unit .EQ. threads) THEN
@@ -561,6 +581,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = my_info%threads_info(1)%core
     my_info%node = node
  END IF
+ !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+     CALL ma_set_net_affinity(sched_unit,id)
+   ENDIF
 #endif
    END SUBROUTINE ma_group_place
  
@@ -570,7 +594,7 @@ END SUBROUTINE ma_get_mempol
 ! *****************************************************************************
 ! Group the MPI processes in a NUMA way following the machine topology
   SUBROUTINE ma_numa_node_place(node,id,sched_unit) 
-  INTEGER :: id, node, core, distance, sched_unit
+  INTEGER :: id, node, core, sched_unit
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
@@ -590,6 +614,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = my_info%threads_info(1)%core
     my_info%node = node
    END IF
+   !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+         CALL ma_set_net_affinity(sched_unit,id)
+   ENDIF
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
  IF (sched_unit .EQ. threads) THEN
@@ -609,6 +637,10 @@ END SUBROUTINE ma_get_mempol
     my_info%core = my_info%threads_info(1)%core
     my_info%node = node
    END IF
+   !only if it is the Process/Thread - rank 0
+   IF (( id .EQ. 0 ).AND. ( my_info%mp_info%myproc .EQ. 0 )) THEN
+         CALL ma_set_net_affinity(sched_unit,id)
+   ENDIF
 #endif
 
   END SUBROUTINE ma_numa_node_place 
@@ -711,7 +743,11 @@ END SUBROUTINE ma_get_mempol
     CHARACTER(len=10)                        :: all_cores
 
 #if defined (__HWLOC) || defined (__LIBNUMA)
-  IF (has_MPI) THEN
+  ! If not all MPI are present  
+  IF (.NOT. my_info%mp_info%all_proc) THEN  
+    CALL ma_show_threads(unit_num)
+  ELSE
+   IF (has_MPI) THEN
 
     ALLOCATE(thread_send(4,my_info%nr_threads))
     ALLOCATE(thread_recv(4,my_info%nr_threads,my_info%mp_info%numproc))
@@ -722,7 +758,7 @@ END SUBROUTINE ma_get_mempol
     CALL ma_pack_threads(my_info,thread_send)
     CALL mp_allgather(thread_send, thread_recv, my_info%mp_info%mp_group)
     CALL ma_unpack_threads(my_info,thread_recv,thread_mapping)
-  ENDIF
+   ENDIF
    
    IF(unit_num .GT. 0) THEN
    IF (my_info%nr_threads .GT. 1) THEN 
@@ -747,31 +783,10 @@ END SUBROUTINE ma_get_mempol
      WRITE(unit_num,'()')  
    ENDIF
    ENDIF
+  ENDIF 
 #endif
   END SUBROUTINE ma_thread_running_on
 
-! *****************************************************************************
-!> \brief Update for all processes where the threads are running, also print
-!>        To be called inside the cp2k libraries
-! *****************************************************************************    
-  SUBROUTINE ma_thread_run ()
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: thread_send
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: thread_recv
-
-  IF (has_MPI) THEN
-
-    ALLOCATE(thread_send(4,my_info%nr_threads))
-    ALLOCATE(thread_recv(4,my_info%nr_threads,my_info%mp_info%numproc))
-
-    thread_send(:,:) = 0
-    thread_recv(:,:,:) = 0
-
-    CALL ma_pack_threads(my_info,thread_send)
-    CALL mp_allgather(thread_send, thread_recv, my_info%mp_info%mp_group)
-    CALL ma_unpack_threads(my_info,thread_recv,thread_mapping)
-  ENDIF
-
-  END SUBROUTINE ma_thread_run
 
 ! *****************************************************************************
 !> \brief Shows threads of each MPI process
@@ -784,11 +799,11 @@ END SUBROUTINE ma_get_mempol
     INTEGER                                  :: core, id, p
 
   IF ( print_thread ) THEN
-   IF(unit_num .GT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
+   IF(unit_num .GT. 0) THEN
    IF (my_info%nr_threads .GT. 1) THEN
      WRITE(unit_num,"()")
      WRITE(unit_num,"(T2,A)") "OMP | Thread placement"
-     DO p=1, my_info%mp_info%numproc
+      p=my_info%mp_info%numproc+1
       WRITE(unit_num, "(T2,A,I4)") "Processs ", p-1
       DO id=1, my_info%nr_threads
            core = thread_mapping(p,id)%core
@@ -803,7 +818,6 @@ END SUBROUTINE ma_get_mempol
               thread_mapping(p,id)%id_omp," running on NUMA node ",&
               thread_mapping(p,id)%node, " core ", all_cores
        ENDIF
-      END DO
      END DO
      WRITE(unit_num,'()')
    ENDIF
@@ -824,7 +838,6 @@ END SUBROUTINE ma_get_mempol
      core = ma_get_proc_core(1)
      node = ma_get_proc_node()  
 
-    unit_num = 6
     IF(unit_num .GT. 0) THEN
       IF (node .EQ. -1 .AND. core .EQ. -1) THEN
         WRITE(unit_num, "(T2,A)") "WARNING: Compile with HWLOC"
@@ -832,7 +845,7 @@ END SUBROUTINE ma_get_mempol
          WRITE(unit_num, "(T2,A,I6,A,I4,2X,A,I3)") "MPI | Process ", id,&
          " saved id ", my_info%mp_info%myproc, " running on core ", core
       ELSE
-        WRITE(unit_num, "(T2,A,I6,A,I4,2X,A,I4,2X,A,I4)")   "MPI | Process ", &
+        WRITE(unit_num, "(T2,A,I6,A,I6,2X,A,I4,2X,A,I4)")   "MPI | Process ", &
              id, " saved id ", my_info%mp_info%myproc, &
              " running on NUMA node ", node, " core ", core
      ENDIF
@@ -959,22 +972,36 @@ END SUBROUTINE ma_get_mempol
   END SUBROUTINE ma_verify_place
 
 ! *****************************************************************************
-!> \brief Set the network for a MPI process, returns the core that the network
-!> \brief card is connect to
+!> \brief Map the MPI process 0 to the NUMA node that holds the network card(s) 
 !> \var myRank the MPI rank of the process
 ! *****************************************************************************
- INTEGER FUNCTION ma_set_net_affinity (myRank) RESULT (cardId)
-   INTEGER(KIND=C_INT) ::  myRank, rank,core
+  SUBROUTINE ma_set_net_affinity (proc, id)
+    INTEGER(KIND=C_INT)                      :: proc, id
 
-   core = my_info%core
-   cardId = 0
+    INTEGER(KIND=C_INT)                      :: node
 
-  IF (myRank .EQ. 0) THEN
+   node = my_info%node
+
 #if defined (__HWLOC)
-   cardId = ma_get_netDev(core)
+ IF(id .EQ. 0) THEN
+   IF ( ma_get_nnetDev(node) .GT. 0 ) THEN
+     CALL ma_set_first_core(node, proc)  
+   ELSE
+     node = ma_get_node_netDev()
+     CALL ma_set_first_core(node, proc)
+     my_info%node = node
+   ENDIF
+ ENDIF  
+#elif defined (__LINUMA)
+ IF(id .EQ. 0) THEN 
+   !usually node 0 and core 0 are the ones connect to I/O
+   my_info%node = 0
+   my_info%core = 0
+   CALL ma_linux_set_core(my_info%core)
+ ENDIF 
 #endif
-  ENDIF 
- END FUNCTION ma_set_net_affinity 
+
+ END SUBROUTINE ma_set_net_affinity 
 
 ! *****************************************************************************
 !> \brief Get the Network card affinity for the rank 0 process
@@ -982,11 +1009,12 @@ END SUBROUTINE ma_get_mempol
   SUBROUTINE ma_get_net_affinity (cardId)
     INTEGER                                  :: cardId
 
-    cardId = 0
+!no net card affinity
 
-!TODO - NETWORK CARD    
+    cardId = -1 
+
 #if defined (__HWLOC) 
-     cardId =  0
+     cardId = ma_get_netDev(my_info%core, my_info%mp_info%myproc)
 #endif
    END SUBROUTINE ma_get_net_affinity
 
@@ -1034,12 +1062,17 @@ END SUBROUTINE ma_get_mempol
     LOGICAL                                  :: print_proc, print_mem
     INTEGER                                  :: unit_nr
 
+    CHARACTER(len=1)                         :: mem_pol
     CHARACTER(len=10)                        :: all_cores, mempolicy
     CHARACTER(len=4)                         :: first_core, second_core
     INTEGER                                  :: core, ipe, istat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_core, all_gpu, &
                                                 all_memory, all_node, &
                                                 all_node_mem, all_pid
+
+    IF ((.NOT. my_info%mp_info%all_proc) .AND. print_proc) THEN
+      CALL ma_current_mpi_run(my_info%mp_info%myid,unit_nr)
+    ELSE
 
       ALLOCATE (all_core(my_info%mp_info%numproc),STAT=istat)
       IF (istat /= 0) THEN
@@ -1107,12 +1140,18 @@ END SUBROUTINE ma_get_mempol
  
       IF (unit_nr>0) THEN
 
+       ! Inform the user about the network affinity
+       IF (hasnet) THEN
+          WRITE (unit_nr,"(T2,A)") "NETWORK| Affinity is on"
+          WRITE (unit_nr,"()")
+       ENDIF   
+
        IF ( ma_get_conf_mpiSched() .EQ. 'N' .OR. &
             ma_get_conf_mpiSched() .EQ. 'n' .OR. &
             ma_get_conf_mpiSched() .EQ. 'D' ) THEN
-        WRITE (unit_nr,"(T2,A)") "SCHED| Processes are now runing"
+          WRITE (unit_nr,"(T2,A)") "SCHED| Processes are now runing"
        ELSE
-        WRITE (unit_nr,"(T2,A)") "SCHED| Processes mapping"
+          WRITE (unit_nr,"(T2,A)") "SCHED| Processes mapping"
        ENDIF 
 
         DO ipe=1,my_info%mp_info%numproc
@@ -1158,9 +1197,10 @@ END SUBROUTINE ma_get_mempol
         WRITE (unit_nr,"(T2,A)") ""
         IF (ma_get_nnodes() .GT. 0 .AND. ma_get_conf_mempol() .NE. 'N') THEN 
            WRITE (unit_nr,"(T2,A)") "MEMORY| Processes memory mapping"
+           mem_pol = ma_get_conf_mempol()
 
            DO ipe=1,my_info%mp_info%numproc
-            IF (ma_get_conf_mempol() .EQ. 'D') THEN
+            IF (mem_pol .EQ. 'D') THEN
               WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A)") &
                     "Process ", ipe-1, " ", all_pid(ipe)," OS memory policy"
             ELSE
@@ -1214,7 +1254,7 @@ END SUBROUTINE ma_get_mempol
       END IF
 #endif
 #endif      
-
+  ENDIF
    END SUBROUTINE ma_print_proc_affinity
 
 

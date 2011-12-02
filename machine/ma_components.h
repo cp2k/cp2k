@@ -35,6 +35,7 @@ struct arch_topology
  int nshared_caches;
  int nsiblings;
  int nmemcontroller;
+ int nnetcards;
 };
 
 /*
@@ -130,7 +131,7 @@ int hw_my_node();
 int hw_my_core();
 unsigned hw_get_myid();
 void hw_set_my_core(int cpu);
-
+void hw_set_thread_cores(int distance,int core);
 
 /*******************************************************************************
  LINUX based functions

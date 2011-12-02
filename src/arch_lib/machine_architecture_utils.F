@@ -54,7 +54,7 @@ MODULE machine_architecture_utils
  proc_info%core = core
  proc_info%node = node
  proc_info%mp_info%myid = mp_env%myid
-
+ proc_info%mp_info%all_proc = mp_env%all_proc
  ALLOCATE (proc_info%threads_info(nr_threads))
   
  END SUBROUTINE ma_create_process

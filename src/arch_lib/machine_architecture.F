@@ -31,7 +31,6 @@ MODULE machine_architecture
   USE ma_kinds 
   USE ma_errors,                    ONLY: ma_error_stop, ma_error_allocation, &
                                           ma_error_finalize
-  USE message_passing,              ONLY: mp_allgather,mp_sum, mp_proc_name
  
   IMPLICIT NONE
 
@@ -44,7 +43,7 @@ MODULE machine_architecture
   PUBLIC :: ma_get_id
 
   PUBLIC :: ma_get_nnodes, ma_get_nsockets, ma_get_ncores, ma_get_ncaches 
-  PUBLIC :: ma_get_nshared_caches, ma_get_nsiblings
+  PUBLIC :: ma_get_nshared_caches, ma_get_nsiblings, ma_get_nnet_cards
   
   PUBLIC :: ma_get_proc_core
   PUBLIC :: ma_get_mynode, ma_get_mycore
@@ -58,9 +57,11 @@ MODULE machine_architecture
   PUBLIC :: ma_get_thread_id, ma_set_proc_core
   PUBLIC :: ma_set_core, ma_get_core
   PUBLIC :: ma_set_proc_cores, ma_set_procnode
+  PUBLIC :: ma_set_thread_node, ma_set_thread_allnodes
   PUBLIC :: ma_get_core_node, ma_set_thread_cores
   PUBLIC :: ma_get_cuDev, ma_get_gpu_node
-  PUBLIC :: ma_get_netDev
+  PUBLIC :: ma_get_netDev, ma_get_nnetDev
+  PUBLIC :: ma_set_first_core, ma_get_node_netDev
 #endif
 
 #if defined (__LIBNUMA)
@@ -163,12 +164,21 @@ MODULE machine_architecture
   END INTERFACE 
 
  INTERFACE 
-  FUNCTION ma_get_netDev(coreId) RESULT (netDev) BIND(C, name="hw_my_netCard") 
+  FUNCTION ma_get_netDev(coreId, myRank) RESULT (netDev) BIND(C, name="hw_my_netCard") 
     USE ISO_C_BINDING
-    INTEGER(KIND=C_INT), VALUE               :: coreId
+    INTEGER(KIND=C_INT), VALUE               :: coreId, myRank
     INTEGER(KIND=C_INT)                      :: netDev
 
     END FUNCTION ma_get_netDev
+  END INTERFACE 
+
+ INTERFACE 
+  FUNCTION ma_get_nnetDev(node) RESULT (nnetDev) BIND(C, name="hw_get_nnetcards") 
+    USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), VALUE               :: node
+    INTEGER(KIND=C_INT)                      :: nnetDev
+
+    END FUNCTION ma_get_nnetDev
   END INTERFACE 
 
   INTERFACE 
@@ -204,6 +214,20 @@ MODULE machine_architecture
     END SUBROUTINE ma_set_procnode
   END INTERFACE
 
+  INTERFACE
+    SUBROUTINE ma_set_thread_node(node) BIND(C, name="hw_set_thread_node")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), VALUE               :: node
+
+    END SUBROUTINE ma_set_thread_node
+  END INTERFACE
+
+  INTERFACE
+    SUBROUTINE ma_set_thread_allnodes() BIND(C, name="hw_set_thread_allnodes")
+       USE ISO_C_BINDING
+    END SUBROUTINE ma_set_thread_allnodes
+  END INTERFACE
+
  INTERFACE
     SUBROUTINE ma_set_proc_cores(dist, core) BIND(C, name="hw_set_proc_cores")
        USE ISO_C_BINDING
@@ -221,11 +245,27 @@ MODULE machine_architecture
   END INTERFACE
 
   INTERFACE 
+      SUBROUTINE ma_set_first_core(node,proc) BIND(C, name="hw_set_first_core_node") 
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), VALUE               :: node, proc
+
+     END SUBROUTINE ma_set_first_core
+  END INTERFACE
+
+  INTERFACE 
       SUBROUTINE ma_set_core(cpu) BIND(C, name="hw_set_my_core") 
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT), VALUE               :: cpu
 
      END SUBROUTINE ma_set_core
+  END INTERFACE
+
+  INTERFACE 
+      FUNCTION ma_get_node_netDev() RESULT (node) BIND(C, name="hw_get_node_net") 
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT)                      :: node
+
+     END FUNCTION ma_get_node_netDev
   END INTERFACE
 
   INTERFACE 
@@ -477,7 +517,6 @@ CONTAINS
 INTEGER FUNCTION ma_get_id() RESULT (pid)
   INTEGER                                  :: getpid
 
-  !pid = getpid()
   CALL m_getpid(pid)
 END FUNCTION ma_get_id
 
@@ -567,29 +606,33 @@ SUBROUTINE ma_set_proc_node(node)
 #endif 
   END SUBROUTINE ma_set_proc_node
 
- INTEGER FUNCTION ma_get_nnodes()
-     ma_get_nnodes = topology%nnodes 
+ INTEGER FUNCTION ma_get_nnodes() RESULT (nnodes)
+     nnodes = topology%nnodes 
   END FUNCTION ma_get_nnodes 
 
- INTEGER FUNCTION ma_get_nsockets()
-     ma_get_nsockets = topology%nsockets 
+ INTEGER FUNCTION ma_get_nsockets() RESULT (nsockets)
+     nsockets = topology%nsockets 
   END FUNCTION ma_get_nsockets 
 
-  INTEGER FUNCTION ma_get_ncores()
-     ma_get_ncores = topology%ncores 
+  INTEGER FUNCTION ma_get_ncores() RESULT (ncores)
+     ncores = topology%ncores 
   END FUNCTION ma_get_ncores
 
- INTEGER FUNCTION ma_get_ncaches()
-     ma_get_ncaches = topology%ncaches 
+ INTEGER FUNCTION ma_get_ncaches() RESULT (ncaches)
+     ncaches = topology%ncaches 
   END FUNCTION ma_get_ncaches
 
- INTEGER FUNCTION ma_get_nshared_caches()
-     ma_get_nshared_caches = topology%nshared_caches 
+ INTEGER FUNCTION ma_get_nshared_caches() RESULT (nshared_caches)
+     nshared_caches = topology%nshared_caches 
   END FUNCTION ma_get_nshared_caches
 
- INTEGER FUNCTION ma_get_nsiblings()
-     ma_get_nsiblings = topology%nsiblings 
+ INTEGER FUNCTION ma_get_nsiblings() RESULT (nsiblings)
+     nsiblings = topology%nsiblings 
   END FUNCTION ma_get_nsiblings
+
+ INTEGER FUNCTION ma_get_nnet_cards() RESULT (netcards)
+    netcards = topology%nnetcards
+  END FUNCTION ma_get_nnet_cards
 
 ! *****************************************************************************
 !> \brief Prints in text format the machine abstraction - the full machine node
@@ -626,6 +669,10 @@ SUBROUTINE ma_set_proc_node(node)
                                 topology%ncaches
      WRITE(unit_num, "(T2,A,27X,I3)")      "MACHINE| Number of shared caches                 ",&
                                 topology%nshared_caches
+     IF (topology%nnetcards .GT. 0) THEN
+        WRITE(unit_num, "(T2,A,27X,I3)")   "MACHINE| Number of network cards                 ",&
+                                topology%nnetcards
+     ENDIF                           
      WRITE(unit_num, "()")     
     ENDIF
   END SUBROUTINE ma_show_topology

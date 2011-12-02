@@ -46,7 +46,7 @@ MODULE ma_config
             use_mempol, &
             mpi_sched, &
             comm_thread
-  PUBLIC :: isconfigured, isdefault
+  PUBLIC :: isconfigured, isdefault, hasnet
 
 ! this is for manual setting of all affinity
   PUBLIC process, memory, thread
@@ -64,6 +64,7 @@ MODULE ma_config
 
   LOGICAL, SAVE :: isconfigured = .FALSE.
   LOGICAL, SAVE :: isdefault = .FALSE.
+  LOGICAL, SAVE :: hasnet = .TRUE. 
 
 CONTAINS
 

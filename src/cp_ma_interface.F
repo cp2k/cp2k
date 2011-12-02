@@ -50,7 +50,8 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_thread_sched, cp_ma_verify_place 
   PUBLIC :: cp_ma_mpi_sched
   PUBLIC :: cp_ma_print_machine
-  PUBLIC :: cp_ma_get_cuDev 
+  PUBLIC :: cp_ma_get_cuDev
+  PUBLIC :: cp_ma_net_affinity
 
 CONTAINS
 
@@ -114,6 +115,18 @@ CONTAINS
 
   END SUBROUTINE cp_ma_config
 
+! *****************************************************************************
+!> \brief Set the network card affinity for a MPI
+!> \var proc is mpi for MPI process and threads for OpenMP threads
+!> \var id is the MPI rank or thread openmp id
+! NOTE: ONLY work on scenarios of one MPI per compute node
+! *****************************************************************************
+SUBROUTINE cp_ma_net_affinity(proc,id)
+    INTEGER                                  :: proc, id
+
+   CALL ma_set_net_affinity (proc,id)
+    
+END SUBROUTINE cp_ma_net_affinity 
 
 ! *****************************************************************************
 !> \brief Get the cuda devices for the MPIs
@@ -283,7 +296,6 @@ CONTAINS
 
     IF ( has_ma ) THEN 
       CALL ma_print_proc_affinity(print_proc, print_mem, unit_num)
-
     ELSE
      CALL cp_assert (.NOT. print_proc,&
         cp_warning_level, cp_unimplemented_error_nr, routineP,&
@@ -310,12 +322,19 @@ CONTAINS
 !> \brief Set the number of neighbors for a process. Neighbors is the process
 !> \brief running on the same machine
 ! *****************************************************************************
-  SUBROUTINE cp_ma_set_neighbors(ma_env, error)
-    TYPE(ma_mp_type)                         :: ma_env
+  SUBROUTINE cp_ma_set_neighbors(para_env, error)
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_set_neighbors', &
       routineP = moduleN//':'//routineN
+
+    TYPE(ma_mp_type)                         :: ma_env
+
+    ma_env%numproc = para_env%num_pe 
+    ma_env%mp_group = para_env%group
+    ma_env%myid = r_pid
+    ma_env%myproc = para_env%mepos
 
     IF ( has_ma ) THEN
         CALL ma_set_neighbors(ma_env)
@@ -354,15 +373,9 @@ CONTAINS
    ENDIF
 
   IF (ma_interface .NE. ma_int_none) THEN
-   IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l' .OR. &
-       sched_thread .EQ. 'S' .OR. sched_thread .EQ. 's' .OR. &
-       sched_thread .EQ. 'G' .OR. sched_thread .EQ. 'g' .OR. &
-       sched_thread .EQ. 'N' .OR. sched_thread .EQ. 'n' .OR. &
-       sched_thread .EQ. 'M' .OR. sched_thread .EQ. 'm') THEN
      IF (print_thread) THEN
       CALL ma_thread_running_on(unit_num)
      ENDIF
-   ENDIF 
   ELSE
      CALL cp_assert (.NOT. print_thread,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
@@ -424,7 +437,7 @@ CONTAINS
     INTEGER                                  :: mem_pol
 
     mempol = ma_get_conf_mempol()
-
+    
     IF (ma_interface .NE. ma_int_none) THEN
       IF (mempol .EQ. 'D' .OR. mempol .EQ. 'd') THEN
            mem_pol = os
@@ -438,7 +451,10 @@ CONTAINS
            mem_pol = none_pol        
       ENDIF
 
-    IF (mem_pol .NE. none_pol) CALL ma_set_mempol(mem_pol)
+    IF (mem_pol .NE. none_pol) THEN
+       isdefault = .FALSE.
+       CALL ma_set_mempol(mem_pol)
+    ENDIF
     
     ELSE
       CALL cp_assert (.FALSE.,&
@@ -485,7 +501,7 @@ CONTAINS
          CALL stop_program(routineN,moduleN,__LINE__,&
               "Need to specify Processors and memory for all MPI")              
       ELSE
-        CALL ma_sched_mpi(pol_sched)
+        IF (pol_sched .NE. def )  CALL ma_sched_mpi(pol_sched)
       END IF
     ELSE
       CALL cp_assert (.TRUE.,&
@@ -527,7 +543,7 @@ CONTAINS
       ELSE
            pol_sched = nosched
       ENDIF
-      CALL ma_sched_threads(id, pol_sched)
+      IF (pol_sched .NE. def) CALL ma_sched_threads(id, pol_sched)
     ELSE
       CALL cp_assert (.TRUE.,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
@@ -584,7 +600,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes Machine Architecture
 ! *****************************************************************************
-  SUBROUTINE cp_ma_init_lib (group, error)
+  SUBROUTINE cp_ma_init_lib (init_mpi, group, error)
+    LOGICAL, INTENT(in)                      :: init_mpi
     INTEGER, INTENT(IN)                      :: group
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -609,15 +626,25 @@ CONTAINS
           ENDIF
         ENDIF
         num_threads=1
+
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
-        CALL mp_environ (numnode, mynode, group)
+
+      CALL mp_environ(numnode, mynode, group)
+      IF(init_mpi) THEN
         ma_env%numproc = numnode
         ma_env%mp_group = group
         ma_env%myid = r_pid
         ma_env%myproc = mynode
-       
+        ma_env%all_proc = .TRUE.
+      ELSE ! the communicator is not usefull
+        ma_env%numproc = numnode
+        ma_env%mp_group = group 
+        ma_env%myid = r_pid
+        ma_env%myproc = mynode
+        ma_env%all_proc = .FALSE.
+      ENDIF
        istat = ma_init_machine(core,node)
        IF (istat /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
@@ -641,21 +668,19 @@ CONTAINS
         ENDIF
         isconfigured = .TRUE.
     ENDIF
+
     
   END SUBROUTINE cp_ma_init_lib
 
 ! *****************************************************************************
 !> \brief Performs the default binding of process
 ! *****************************************************************************
-  SUBROUTINE cp_ma_default_affinity(isdefault)
-    LOGICAL                                  :: isdefault
+  SUBROUTINE cp_ma_default_affinity(isallproc)
+    LOGICAL                                  :: isallproc
 
-   IF(isdefault) THEN
+   IF(isallproc) THEN
       CALL ma_set_default_affinity()
-   ELSE
-      CALL ma_set_conf_mpiSched('N')
-      CALL ma_set_conf_mempol('N')
-      CALL ma_set_conf_sched('N')
+      isdefault = isallproc
    ENDIF
   END SUBROUTINE cp_ma_default_affinity
  

@@ -49,6 +49,10 @@ int linux_topology_init(struct arch_topology *topo)
   topo->npus = topo->ncores;
   local_topo->npus = topo->npus;
 
+  //libnuma has no support for I/O devices
+  topo->nnetcards = 0;
+  local->nnetcards = 0;
+
   topo->nsockets = linux_get_nsockets();
   local_topo->nsockets = topo->nsockets;
    //Compute number of memory controlers per socket

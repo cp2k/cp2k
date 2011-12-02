@@ -234,9 +234,9 @@ CONTAINS
 
        ! Initialize the MA_ARCH configuration  
        IF (has_ma) THEN 
-         CALL cp_ma_init_lib(group=mpi_comm_default,error=error)
+         CALL cp_ma_init_lib(init_mpi,group=mpi_comm_default,error=error)
          !default binding only if mpi_init - all MPI tasks will be present
-         CALL cp_ma_default_affinity(init_mpi)         
+         CALL cp_ma_default_affinity(init_mpi)
        ENDIF 
 
        ! Initialize the DBCSR configuration

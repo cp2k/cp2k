@@ -34,6 +34,7 @@ struct arch_topology
  int nshared_caches;
  int nsiblings;
  int nmemcontroller;
+ int nnetcards;
 };
 
 /*

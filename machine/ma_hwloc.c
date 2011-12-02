@@ -35,10 +35,9 @@ int hw_topology_init (struct arch_topology *topo)
   hwloc_obj_t obj, obj1, obj2, core1, core2, ant;
   int count, i, j, error;
 
- 
+
   //Create the machine representation
   error = hwloc_topology_init(&topology);
-  
   //Go throught the topology only if HWLOC is 
   //successifully initialized
   if(!error)
@@ -189,7 +188,27 @@ int hw_topology_init (struct arch_topology *topo)
 #endif    	
    }    
 
- /*Local copy of the machine topology components*/ 
+  //counting network cards
+  count = 0;
+  hwloc_topology_t topo_net;
+  error = hwloc_topology_init(&topo_net);  
+  hwloc_topology_set_flags(topo_net, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);  
+  if (!error){
+      hwloc_topology_load(topo_net);
+      for (obj = hwloc_get_obj_by_type(topo_net, HWLOC_OBJ_OS_DEVICE, 0);
+           obj;
+           obj = hwloc_get_next_osdev(topo_net,obj))
+        if (obj->attr->osdev.type == HWLOC_OBJ_OSDEV_NETWORK ||
+            obj->attr->osdev.type == HWLOC_OBJ_OSDEV_OPENFABRICS)
+              count++;   
+      topo->nnetcards = count;
+  } 
+  else //if can not load I/O devices
+   topo->nnetcards = 0;  
+  hwloc_topology_destroy(topo_net); 
+  
+
+ /*Local copy of the machine topology components*/  
  local_topo->nnodes = topo->nnodes;
  local_topo->nsockets = topo->nsockets;
  local_topo->ncores = topo->ncores;
@@ -199,6 +218,7 @@ int hw_topology_init (struct arch_topology *topo)
  local_topo->nshared_caches = topo->nshared_caches;
  local_topo->nsiblings = topo->nsiblings;
  local_topo->nmemcontroller =  topo->nmemcontroller;
+ local_topo->nnetcards = topo->nnetcards;
 }
 
  return error;
@@ -249,6 +269,7 @@ int hw_topology_destroy (struct arch_topology *topo)
     hwloc_topology_destroy(topology);
     topo->nnodes = topo->nsockets = topo->ncores = 0;
     topo->nshared_caches = topo->nsiblings = 0;
+    free(local_topo);
     return 0;
   }
   else
@@ -317,7 +338,7 @@ void print_children_physical(hwloc_topology_t topology, hwloc_obj_t obj)
  
     for (i = 0; i < arity; i++) {
         print_children_physical(topology, obj->children[i]);
-        if( obj->children[i]->next_sibling ){
+        if( obj->children[i]->next_sibling ){ 
            sprintf(out_string,", ", string);
            strcat(console_output,out_string);
         }
@@ -340,12 +361,18 @@ void print_children_physical(hwloc_topology_t topology, hwloc_obj_t obj)
 */
 void hw_phys_pu_topology(struct machine_output *ma_out)
 {
-   console_output[0] = '\0';
-   strcpy(ma_out->console_output, "\n MACHINE| Physical processing units organization\n");
-   print_children_physical(topology, hwloc_get_root_obj(topology));
-   strcat(ma_out->console_output, console_output);
-   strcat(ma_out->console_output, "\0");
-   ma_out->len = strlen(ma_out->console_output);
+   hwloc_topology_t topo;
+   int error;
+   error = hwloc_topology_init(&topo);  
+   if (!error){
+      hwloc_topology_load(topo);
+      console_output[0] = '\0';
+      strcpy(ma_out->console_output, "\n MACHINE| Physical processing units organization\n");
+      print_children_physical(topo, hwloc_get_root_obj(topo));
+      strcat(ma_out->console_output, console_output);
+      strcat(ma_out->console_output, "\0");
+      ma_out->len = strlen(ma_out->console_output);
+   }   
 }
 
 /*
@@ -383,12 +410,18 @@ void print_children_mem(hwloc_topology_t topology, hwloc_obj_t obj, int depth)
 */
 void hw_mem_topology (struct machine_output *ma_out)
 {
-   console_output[0] = '\0';
-   strcpy(ma_out->console_output, "\n MACHINE| Physical memory subsystem organization\n");
-   print_children_mem(topology, hwloc_get_root_obj(topology), 0);
-   strcat(ma_out->console_output, console_output);
-   strcat(ma_out->console_output, "\0");
-   ma_out->len = strlen(ma_out->console_output);
+   hwloc_topology_t topo;
+   int error;
+   error = hwloc_topology_init(&topo);  
+   if (!error){
+    hwloc_topology_load(topo);  
+    console_output[0] = '\0';
+    strcpy(ma_out->console_output, "\n MACHINE| Physical memory subsystem organization\n");
+     print_children_mem(topo, hwloc_get_root_obj(topo), 0);
+     strcat(ma_out->console_output, console_output);
+     strcat(ma_out->console_output, "\0");
+     ma_out->len = strlen(ma_out->console_output);
+   }  
 }
 
 /*
@@ -437,9 +470,9 @@ void hw_pu_topology (struct machine_output *ma_out)
 * obj: the current object in the topology
 * depth: the horizontal level in the machine topology 
 */
-void print_machine(hwloc_topology_t topology, hwloc_obj_t obj, int depth)
+void print_machine(hwloc_topology_t topo, hwloc_obj_t obj, int depth)
 {
-    char string[128], out_string[128];
+    char string[256], out_string[256];
     unsigned i,arity;
     int *devIds,devId,countDev;
 
@@ -485,18 +518,25 @@ void print_machine(hwloc_topology_t topology, hwloc_obj_t obj, int depth)
        strcat(console_output,out_string);	
 #endif
       }
-      else if (obj->type == HWLOC_OBJ_CACHE && obj->arity>1){
-       hwloc_obj_type_snprintf(string, sizeof(string), obj, 0);
-       sprintf(out_string,"%*s%s", depth, "", string);
-       strcat(console_output,out_string);
-       sprintf(out_string," (%dMB)\n", obj->attr->cache.size/(1024*1024));
-       strcat(console_output,out_string);       
-      }
+      else if (obj->type == HWLOC_OBJ_CACHE && obj->arity>1 ){
+           hwloc_obj_type_snprintf(string, sizeof(string), obj, 0);
+           sprintf(out_string,"%*s%s", depth, "", string);
+           strcat(console_output,out_string);
+           sprintf(out_string," (%dMB)\n", obj->attr->cache.size/(1024*1024));
+           strcat(console_output,out_string);       
+         }
+      else if (obj->type == HWLOC_OBJ_OS_DEVICE ||
+               obj->type == HWLOC_OBJ_PCI_DEVICE ||
+               obj->type == HWLOC_OBJ_BRIDGE){
+               if(obj->attr->osdev.type == HWLOC_OBJ_OSDEV_NETWORK ){
+                sprintf(out_string,"%*s%s\n", depth, "--", "Network Card");
+                  strcat(console_output,out_string);}
+       }
       else {
-       sprintf(out_string,"%*s%s\t", depth, "", string);
-       strcat(console_output,out_string);
-      }
-     }                 
+            sprintf(out_string,"%*s%s\t", depth, "", string);
+           strcat(console_output,out_string);
+         }
+     }  
     if (obj->type != HWLOC_OBJ_PU) {//it is not a PU
       if((obj->first_child && obj->first_child->type == HWLOC_OBJ_PU))
        arity = 1; //number of children
@@ -504,7 +544,7 @@ void print_machine(hwloc_topology_t topology, hwloc_obj_t obj, int depth)
        arity = obj->arity;
 
     for (i = 0; i < arity; i++) 
-        print_machine(topology, obj->children[i],depth+1);
+        print_machine(topo, obj->children[i],depth+1);
    }
 }
 
@@ -514,12 +554,19 @@ void print_machine(hwloc_topology_t topology, hwloc_obj_t obj, int depth)
 */
 void hw_machine_topology (struct machine_output *ma_out)
 {
-  console_output[0] = '\0';
-  strcpy(ma_out->console_output, "\n MACHINE| Architecture organization\n\n");
-  print_machine(topology, hwloc_get_root_obj(topology), 0);
-  strcat(ma_out->console_output, console_output);
-  strcat(ma_out->console_output, "\0");
-  ma_out->len = strlen(ma_out->console_output);
+   hwloc_topology_t topo;
+   int error;
+   error = hwloc_topology_init(&topo);  
+   hwloc_topology_set_flags(topo, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);  
+   if (!error){
+      hwloc_topology_load(topo);
+      console_output[0] = '\0';
+      strcpy(ma_out->console_output, "\n MACHINE| Architecture organization\n\n");
+      print_machine(topo, hwloc_get_root_obj(topo), 0);
+      strcat(ma_out->console_output, console_output);
+      strcat(ma_out->console_output, "\0");
+      ma_out->len = strlen(ma_out->console_output);
+   }   
 }
 
 /*
@@ -659,6 +706,62 @@ void hw_set_proc_node(int node)
   }
 }
 
+/*
+* Set the node where the current thread will run
+*/
+void hw_set_thread_node(int node)
+{
+  hwloc_nodeset_t nset;
+  hwloc_cpuset_t set;
+
+  if (local_topo->nnodes != 0 ){
+    nset = hwloc_bitmap_alloc();
+    set = hwloc_bitmap_alloc();
+    hwloc_bitmap_zero(nset);
+    hwloc_bitmap_set(nset,node);
+    hwloc_cpuset_from_nodeset(topology,set,nset);
+    hwloc_set_proc_cpubind (topology,0,set,HWLOC_CPUBIND_THREAD);
+    hwloc_bitmap_free(set);
+    hwloc_bitmap_free(nset);
+  }
+}
+
+/*
+* Allow threads to run on all cores
+*/
+void hw_set_thread_allnodes()
+{
+  hw_set_thread_cores(local_topo->ncores,0);
+}
+
+/*
+* Set the node where the current process will run
+*/
+void hw_set_first_core_node(int node, int proc)
+{
+  hwloc_nodeset_t nset;
+  hwloc_cpuset_t set,newset;
+
+  if (local_topo->nnodes != 0 ){
+    nset = hwloc_bitmap_alloc();
+    set = hwloc_bitmap_alloc();
+    newset = hwloc_bitmap_alloc();
+    hwloc_bitmap_zero(set);
+    hwloc_bitmap_zero(newset);  
+    hwloc_bitmap_zero(nset);
+    hwloc_bitmap_set(nset,node);
+    hwloc_cpuset_from_nodeset(topology,set,nset);
+    int core = hwloc_bitmap_first(set);
+    hwloc_bitmap_set(newset,core);
+    if (proc) 
+       hwloc_set_proc_cpubind (topology,0,newset,HWLOC_CPUBIND_PROCESS);
+    else
+       hwloc_set_proc_cpubind (topology,0,newset,HWLOC_CPUBIND_THREAD);
+    hwloc_bitmap_free(newset);     
+    hwloc_bitmap_free(set);
+    hwloc_bitmap_free(nset);
+  }
+}
 /*
 * Set the node where the current process will run
 */
@@ -840,11 +943,7 @@ int hw_set_mempol(int mempol, int node)
      }
    break;
    default:
-   if (local_topo->nnodes != 0 ){
-      hwloc_obj_t obj;
-      obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_MACHINE,0);
-      error = hwloc_set_membind_nodeset(topology,obj->nodeset,HWLOC_MEMBIND_FIRSTTOUCH,0);
-     }     
+     error = 1;
    break;
   }
  return error;
@@ -874,29 +973,115 @@ void hw_set_my_core(int cpu)
 int hw_my_core()
 {
   int core;
-  hwloc_cpuset_t set;
-
-  set = hwloc_bitmap_alloc();
-  hwloc_get_cpubind (topology,set,HWLOC_CPUBIND_THREAD);
-  core = hwloc_bitmap_first(set);
-  hwloc_bitmap_free(set);
 
   //hwloc can't detect the thread core - use linux based syscall
-  if (core == 0)
-    core = sched_getcpu();
+  core = sched_getcpu();
 
   return core;
 }
 
+/*
+ * Get from the machine cores table the numaNode of a core
+ * */
 int hw_get_myNode(int coreId)
 {
   return  machine_cores[coreId].numaNode;
 }
 
-//TODO - NOT YET IMPLEMENTED
-int hw_my_netCard(int core)
+/*
+ * Find a NUMA node with network cards
+ * */
+int hw_get_node_net()
 {
-  return 0;
+  int net_NUMAnode=0, error;
+  hwloc_obj_t obj, obj_anc;
+
+  
+ hwloc_topology_t topo_net;
+ error = hwloc_topology_init(&topo_net);
+ hwloc_topology_set_flags(topo_net, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);
+ if (!error){
+     hwloc_topology_load(topo_net);
+     obj = hwloc_get_obj_by_type(topo_net, HWLOC_OBJ_OS_DEVICE, 0);
+      if (obj != NULL){
+        obj_anc = hwloc_get_non_io_ancestor_obj(topo_net,obj);
+        net_NUMAnode = hwloc_bitmap_first(obj_anc->nodeset);
+      }  
+ }
+
+ return net_NUMAnode;
+}
+
+
+/*
+ * Get the number of net cards in a NUMA node
+ */
+int hw_get_nnetcards(int NUMAnode)
+{
+  int count, net_NUMAnode, error;
+  hwloc_obj_t obj, obj_anc;
+
+ count = 0;
+ hwloc_topology_t topo_net;
+ error = hwloc_topology_init(&topo_net);
+ hwloc_topology_set_flags(topo_net, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);
+ if (!error){
+    hwloc_topology_load(topo_net);
+    for (obj = hwloc_get_obj_by_type(topo_net, HWLOC_OBJ_OS_DEVICE, 0);
+         obj;
+         obj = hwloc_get_next_osdev(topo_net,obj))
+         if (obj->attr->osdev.type == HWLOC_OBJ_OSDEV_NETWORK ||
+             obj->attr->osdev.type == HWLOC_OBJ_OSDEV_OPENFABRICS){
+             obj_anc = hwloc_get_non_io_ancestor_obj(topo_net,obj);
+             net_NUMAnode = hwloc_bitmap_first(obj_anc->nodeset);
+             //only if the MPI NUMA node is equal to the found net card
+               if(NUMAnode == net_NUMAnode)
+                 count++;
+         }        
+  }         
+  hwloc_topology_destroy(topo_net);
+
+  return count;
+}
+
+/*
+ * Returns the network card of a MPI process
+ * */
+int hw_my_netCard(int core, int myRank)
+{
+  int card=0, error, nnetcards, *netcards, my_local_cards=0;
+  int NUMAnode = hw_get_myNode(core), net_NUMAnode; 
+  hwloc_obj_t obj, obj_anc;
+
+  nnetcards = hw_get_nnetcards(NUMAnode);
+  netcards = malloc(nnetcards*sizeof(int));
+
+  hwloc_topology_t topo_net;
+  error = hwloc_topology_init(&topo_net);
+  hwloc_topology_set_flags(topo_net, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);
+  if (!error){
+    hwloc_topology_load(topo_net);
+    my_local_cards = 0;
+    for (obj = hwloc_get_obj_by_type(topo_net, HWLOC_OBJ_OS_DEVICE, 0);
+         obj ;
+         obj = hwloc_get_next_osdev(topo_net,obj))
+         if (obj->attr->osdev.type == HWLOC_OBJ_OSDEV_NETWORK ||
+         obj->attr->osdev.type == HWLOC_OBJ_OSDEV_OPENFABRICS)
+         {
+           obj_anc = hwloc_get_non_io_ancestor_obj(topo_net,obj);
+           net_NUMAnode = hwloc_bitmap_first(obj_anc->nodeset);
+           if ( net_NUMAnode == NUMAnode ) {
+              netcards[my_local_cards] = obj->os_index;
+              my_local_cards++;}
+         }
+  }
+
+  hwloc_topology_destroy(topo_net);
+
+  if (!my_local_cards)
+    return -1; //no net affinity
+  else  
+    return netcards[myRank%nnetcards];
 }
 
 #ifdef  __DBCSR_CUDA
@@ -929,12 +1114,9 @@ int hw_my_gpu(int coreId, int myRank, int nMPIs)
  *  if UMA machine - similar costs to access devices
  *    just make a round-robin distribution of the GPUs
  *  if NUMA machine - not similar costs to access devices
- *    if number of MPI process equal to number of GPUs
- *      just give one GPU for each MPI process
- *    if the MPI is in a NUMA node that has no GPU
- *      just make a round-robin distribution of the GPUs
- *    if number of MPIs is larger than number of GPUs
- *      try to balance the GPU usage
+ *    -MPI running on a node without GPUs - bind it to some
+ *    GPU in the closest NUMA node
+ *    -MPI NUMA node has GPU, bind it to this GPU
  **/
 
  if( local_topo->nnodes == 0 )
