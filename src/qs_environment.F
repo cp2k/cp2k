@@ -876,7 +876,7 @@ CONTAINS
     END IF
 
     IF ((MODULO(nelectron,2) /= 0).AND.(dft_control%nspins == 1)) THEN
-       IF ( .NOT. dft_control%qs_control%ofgpw ) THEN
+       IF ( .NOT. dft_control%qs_control%ofgpw .AND.  .NOT. dft_control%smear) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Use the LSD option for an odd number of electrons.")
        END IF
@@ -933,7 +933,11 @@ CONTAINS
           maxocc = 2.0_dp
           nelectron_spin(1) = nelectron
           nelectron_spin(2) = 0
-          n_mo(1) = nelectron/2
+          IF (MODULO(nelectron,2) ==0) THEN
+            n_mo(1) = nelectron/2
+          ELSE
+            n_mo(1) = INT(nelectron/2._dp) + 1
+          END IF
           n_mo(2) = 0
        ELSE
           maxocc=1.0_dp

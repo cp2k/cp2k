@@ -814,7 +814,16 @@ CONTAINS
       RETURN
     END IF
 
-    nomo = NINT(mo_set%nelectron/mo_set%maxocc)
+    IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN 
+      nomo = NINT(mo_set%nelectron/mo_set%maxocc)
+      ! Initialize MO occupations
+      mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
+    ELSE
+      nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
+      ! Initialize MO occupations
+      mo_set%occupation_numbers(1:nomo-1) = mo_set%maxocc
+      mo_set%occupation_numbers(nomo) = mo_set%nelectron -(nomo-1)* mo_set%maxocc
+    END IF
     nmo  = SIZE(mo_set%eigenvalues)
     xas_estate =  -1
     occ_estate = 0.0_dp
@@ -822,8 +831,6 @@ CONTAINS
     CPPrecondition((nmo >= nomo),cp_failure_level,routineP,error,failure)
     CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
 
-    ! Initialize MO occupations
-    mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
     IF(PRESENT(xas_env) )THEN
       CALL get_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_estate=xas_estate,&
                   xas_nelectron=xas_nelectron,error=error)
