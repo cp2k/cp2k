@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+ !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2011  Urban Borstnik and the CP2K developers group   !
 !-----------------------------------------------------------------------------!
@@ -58,57 +58,11 @@ MODULE dbcsr_cuda_device
   LOGICAL, PARAMETER :: careful_mod = .TRUE.
 
 
-  PUBLIC :: dbcsr_cuda_init, dbcsr_cuda_thread_sync,&
+  PUBLIC :: dbcsr_cuda_init, dbcsr_cuda_device_sync,&
             dbcsr_cuda_get_n_devices
+  PUBLIC :: dbcsr_cuda_create_streams, dbcsr_cuda_destroy_streams
 
 #if defined (__DBCSR_CUDA)
-  INTERFACE
-     FUNCTION cuda_memcpy_h2d_cu(host, dev, count, async_type) RESULT (istat) &
-          BIND(C, name="dc_memcpy_h2d_cu")
-       USE ISO_C_BINDING
-    TYPE(C_PTR), INTENT(IN), VALUE           :: host
-    TYPE(C_PTR), VALUE                       :: dev
-    INTEGER(KIND=C_SIZE_T), INTENT(IN), &
-      VALUE                                  :: count
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type
-    INTEGER(KIND=C_INT)                      :: istat
-
-     END FUNCTION cuda_memcpy_h2d_cu
-  END INTERFACE
-
-  INTERFACE
-     FUNCTION cuda_memcpy_d2h_cu(dev, host, count, async_type) RESULT (istat) &
-          BIND(C, name="dc_memcpy_d2h_cu")
-       USE ISO_C_BINDING
-    TYPE(C_PTR), INTENT(IN), VALUE           :: dev
-    TYPE(C_PTR), VALUE                       :: host
-    INTEGER(KIND=C_SIZE_T), INTENT(IN), &
-      VALUE                                  :: count
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type
-    INTEGER(KIND=C_INT)                      :: istat
-
-     END FUNCTION cuda_memcpy_d2h_cu
-  END INTERFACE
-
-
-  INTERFACE
-     FUNCTION cuda_do_stack_cu(param_stack, stack_size, nparams,&
-          data_type,&
-          a_data, b_data, c_data, c_locks, m_max, n_max, k_max)&
-          RESULT (istat) &
-          BIND(C, name="dc_do_stack_cu")
-       USE ISO_C_BINDING
-    TYPE(C_PTR), INTENT(IN), VALUE           :: param_stack
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: stack_size, nparams, data_type
-    TYPE(C_PTR), INTENT(IN), VALUE           :: a_data, b_data
-    TYPE(C_PTR), VALUE                       :: c_data, c_locks
-    INTEGER(KIND=C_INT), VALUE               :: m_max, n_max, k_max
-    INTEGER(KIND=C_INT)                      :: istat
-
-     END FUNCTION cuda_do_stack_cu
-  END INTERFACE
-
-
   INTERFACE
      FUNCTION cuda_set_device_cu (device_id) RESULT (istat) &
           BIND(C, name="dc_set_device_cu")
@@ -131,11 +85,30 @@ MODULE dbcsr_cuda_device
 
 
   INTERFACE
-     FUNCTION cuda_thread_sync_cu() RESULT (istat) BIND(C, name="dc_thread_sync_cu")
+     FUNCTION cuda_device_sync_cu() RESULT (istat) BIND(C, name="dc_device_sync_cu")
        USE ISO_C_BINDING
     INTEGER(KIND=C_INT)                      :: istat
 
-     END FUNCTION cuda_thread_sync_cu
+     END FUNCTION cuda_device_sync_cu
+  END INTERFACE
+
+  INTERFACE
+     FUNCTION dc_create_streams(n_streams) RESULT (istat) &
+          BIND(C, name="dc_create_streams")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: n_streams
+    INTEGER(KIND=C_INT)                      :: istat
+
+     END FUNCTION dc_create_streams
+  END INTERFACE
+
+  INTERFACE
+     FUNCTION dc_destroy_streams() RESULT (istat) &
+          BIND(C, name="dc_destroy_streams")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT)                      :: istat
+
+     END FUNCTION dc_destroy_streams
   END INTERFACE
 #endif
 
@@ -204,11 +177,11 @@ CONTAINS
   END FUNCTION dbcsr_cuda_get_n_devices
 
 
-  SUBROUTINE dbcsr_cuda_thread_sync(error)
+  SUBROUTINE dbcsr_cuda_device_sync(error)
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_thread_sync', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_device_sync', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
@@ -217,7 +190,7 @@ CONTAINS
 
     CALL dbcsr_error_set (routineN, error_handle, error)
 #if defined (__DBCSR_CUDA)
-    istat = cuda_thread_sync_cu();
+    istat = cuda_device_sync_cu();
 #else
     istat = -1
 #endif
@@ -230,7 +203,64 @@ CONTAINS
        ENDIF
     ENDIF
     CALL dbcsr_error_stop (error_handle, error)
-  END SUBROUTINE dbcsr_cuda_thread_sync
+  END SUBROUTINE dbcsr_cuda_device_sync
+
+  SUBROUTINE dbcsr_cuda_create_streams(n, error)
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(dbcsr_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_create_streams', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, istat
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
+    istat = dc_create_streams (INT(n, C_INT))
+#else
+    istat = -1
+#endif
+    IF (istat /= 0) THEN
+       IF (PRESENT(error)) THEN
+          CALL dbcsr_assert (istat, "EQ", 0,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Could not create streams",&
+               __LINE__, error=error)
+       ENDIF
+    ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_cuda_create_streams
+
+  SUBROUTINE dbcsr_cuda_destroy_streams(error)
+    TYPE(dbcsr_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_destroy_streams', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, istat
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
+    istat = dc_destroy_streams ()
+#else
+    istat = -1
+#endif
+    IF (istat /= 0) THEN
+       IF (PRESENT(error)) THEN
+          CALL dbcsr_assert (istat, "EQ", 0,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Could not destroy streams",&
+               __LINE__, error=error)
+       ENDIF
+    ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_cuda_destroy_streams
 
 
 END MODULE dbcsr_cuda_device

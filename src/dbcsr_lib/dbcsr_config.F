@@ -211,12 +211,12 @@ CONTAINS
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
        mm_host_driver = mm_driver_smm
-       mm_workshare = .TRUE.
+       mm_workshare = .FALSE.
     ELSE
        mm_host_driver = mm_driver
     ENDIF
     epoch_time = m_walltime()
-    IF (has_cuda) mm_workshare = .TRUE.
+    IF (has_cuda) mm_workshare = .FALSE.
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_init_conf
 

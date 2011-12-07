@@ -99,7 +99,7 @@ extern "C" int dc_host_mem_dealloc (void *host_mem) {
 }
 
 
-extern "C" int dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t count, int async_type) {
+extern "C" int dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t count, int async_type, int stream_id) {
 	cudaError_t cErr;
 
 	if (verbose_print) {
@@ -116,10 +116,10 @@ extern "C" int dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t cou
 		break;
 	case 1:
 		/* Asynchronous */
-		cErr = cudaMemcpyAsync(dev_mem, host_mem, count, cudaMemcpyHostToDevice, (cudaStream_t) 0);
+		cErr = cudaMemcpyAsync(dev_mem, host_mem, count, cudaMemcpyHostToDevice, (cudaStream_t) dc_get_stream(stream_id));
 		break;
 	case 2:
-		cErr = cudaMemcpyAsync(dev_mem, host_mem, count, cudaMemcpyHostToDevice, (cudaStream_t) 0);
+		cErr = cudaMemcpyAsync(dev_mem, host_mem, count, cudaMemcpyHostToDevice, (cudaStream_t) dc_get_stream(stream_id));
 		/* Try async if sync is unsuccessful. */
 		if (cuda_error_check (cErr)) {
 			if (verbose_print)
@@ -135,7 +135,7 @@ extern "C" int dc_memcpy_h2d_cu (const void *host_mem, void *dev_mem, size_t cou
 }
 
 
-extern "C" int dc_memcpy_d2h_cu (const void *dev_mem, void *host_mem, size_t count, int async_type) {
+extern "C" int dc_memcpy_d2h_cu (const void *dev_mem, void *host_mem, size_t count, int async_type, int stream_id) {
 	cudaError_t cErr;
 
 	if (verbose_print) {
@@ -150,10 +150,10 @@ extern "C" int dc_memcpy_d2h_cu (const void *dev_mem, void *host_mem, size_t cou
 		break;
 	case 1:
 		/* Asynchronous */
-		cErr = cudaMemcpyAsync(host_mem, dev_mem, count, cudaMemcpyDeviceToHost, (cudaStream_t) 0);
+		cErr = cudaMemcpyAsync(host_mem, dev_mem, count, cudaMemcpyDeviceToHost, (cudaStream_t) dc_get_stream(stream_id));
 		break;
 	case 2:
-		cErr = cudaMemcpyAsync(host_mem, dev_mem, count, cudaMemcpyDeviceToHost, (cudaStream_t) 0);
+		cErr = cudaMemcpyAsync(host_mem, dev_mem, count, cudaMemcpyDeviceToHost, (cudaStream_t) dc_get_stream(stream_id));
 		/* Try async if sync is unsuccessful. */
 		if (cuda_error_check (cErr)) {
 			if (verbose_print)

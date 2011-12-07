@@ -28,11 +28,7 @@ MODULE dbcsr_io
                                              dbcsr_mp_group,&
                                              dbcsr_mp_numnodes,&
                                              dbcsr_valid_index
-  USE dbcsr_pq_types,                  ONLY: ntmr,&
-                                             tmr_fill_stack,&
-                                             tmr_mult_local,&
-                                             tmr_process_me,&
-                                             tmr_process_stack
+  USE dbcsr_pq_types,                  ONLY: ntmr
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_complex_4,&
@@ -730,9 +726,9 @@ CONTAINS
     WRITE(*,*)"OMP Timings", t
     WRITE(*,fmt)times(:)
     !
-    WRITE(fmt,'("(",I2,"(1X,EN12.3))")')4
-    WRITE(*,fmt)times(tmr_fill_stack),times(tmr_process_stack),&
-         times(tmr_process_me),times(tmr_mult_local)
+    !WRITE(fmt,'("(",I2,"(1X,EN12.3))")')4
+    !WRITE(*,fmt)times(tmr_fill_stack),times(tmr_process_stack),&
+    !     times(tmr_process_me),times(tmr_mult_local)
     !$OMP END CRITICAL
   END SUBROUTINE print_mult_timings
 

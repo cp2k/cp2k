@@ -50,26 +50,21 @@ MODULE dbcsr_pq_types
 
   ! Timer types
   INTEGER, PARAMETER, PUBLIC :: tmr_wait_for_empty_stack  = 1,&
-                                tmr_fill_stack            = 2,&
-                                tmr_wait_for_my_target    = 3,&
-                                tmr_process_target        = 4,&
-                                tmr_get_a_stack           = 5,&
+                                tmr_wait_for_my_target    = 2,&
+                                tmr_process_target        = 3,&
+                                tmr_get_a_stack           = 4,&
+                                tmr_get_other_stack       = 5,&
                                 tmr_process_stack         = 6,&
-                                tmr_kernel_time           = 7,&
-                                tmr_wait_for_other_target = 8,&
-                                tmr_mult_finish           = 9,&
-                                tmr_mult_inner            = 10,&
-                                tmr_mult_resize           = 11,&
-                                tmr_mult_reindex          = 12,&
-                                tmr_mult_recursive        = 13,&
-                                tmr_mult_local            = 14,&
-                                tmr_sync                  = 15,&
-                                tmr_mult_finish1          = 16,&
-                                tmr_mult_finish2          = 17,&
-                                tmr_mult_finish3          = 18,&
-                                tmr_process_other_stack   = 19,&
-                                tmr_process_me            = 20,&
-                                ntmr                      = 20
+                                tmr_process_other_stack   = 7,&
+                                tmr_kernel_time           = 8,&
+                                tmr_wait_for_other_target = 9,&
+                                tmr_mult_finish           = 10,&
+                                tmr_sync                  = 11,&
+                                tmr_mult_finish1          = 12,&
+                                tmr_mult_finish2          = 13,&
+                                tmr_mult_finish3          = 14,&
+                                tmr_process_me            = 15,&
+                                ntmr                      = 15
 
   REAL(KIND=dp), DIMENSION(ntmr), PUBLIC :: mult_timers
   !$OMP THREADPRIVATE (mult_timers)
@@ -171,6 +166,7 @@ MODULE dbcsr_pq_types
   !> \var max_n               Maximum n that can be found in this stack
   !> \var max_k               Maximum n that can be found in this stack
   !> \var defined_mnk         All stack entries have a common m, n, and k values
+  !> \var size_bin            Which bin to put this stack into
   !> \var state               State of the stack (used for asynchrony).
   !> \var own_state           Whether the state is allocated and must be
   !>                          deallocated or whether it points into a
@@ -179,6 +175,7 @@ MODULE dbcsr_pq_types
   TYPE dbcsr_ps_type
      INTEGER :: id, sid
      INTEGER, DIMENSION(:), POINTER :: parameters
+     INTEGER :: size_hint
      LOGICAL :: own_data
      INTEGER :: start_p
      INTEGER :: mem_type
@@ -192,6 +189,7 @@ MODULE dbcsr_pq_types
      LOGICAL :: own_state
      LOGICAL :: defined_mnk
      INTEGER :: m, n, k, max_m, max_n, max_k
+     INTEGER :: size_bin
      INTEGER :: refcount
   END TYPE dbcsr_ps_type
 
@@ -239,20 +237,22 @@ MODULE dbcsr_pq_types
   !>
   !> Not a real queue but a list.
   !> \var stacks       The parameter stacks
-  !> \var nstacks      The number of valid stacks
-  !> \var first_stack  First valid stack in the list
-  !> \var last_stack   Last valid stack in the list
+  !> \var nstacks_total  The number of valid stacks
+  !> \var nstacks_l    Number of valid stack for each size bin
   !> \var done         Signals that the queue owner is done with indexing
   !> \var all_queues   Collection of queues from all threads
   !> \var flush_level  The approximate level at which the queue is getting full
   !> \var queue_lock   Lock used to access queue
   TYPE dbcsr_pq_type
-     TYPE(dbcsr_ps_obj), DIMENSION(:), POINTER :: stacks
-     INTEGER :: nstacks, first_stack, last_stack
+     TYPE(dbcsr_ps_obj), DIMENSION(:,:), ALLOCATABLE :: stacks
+     INTEGER :: nstacks_total, nbins
+     INTEGER, DIMENSION(:), ALLOCATABLE :: nstacks
      !$ INTEGER(KIND=omp_lock_kind), POINTER :: queue_lock
      LOGICAL :: done
      TYPE(dbcsr_pq_all_type), POINTER :: all_queues
      INTEGER :: flush_level
+     INTEGER :: handoff
+     INTEGER :: nworking
   END TYPE dbcsr_pq_type
 
   TYPE dbcsr_pq_type_p

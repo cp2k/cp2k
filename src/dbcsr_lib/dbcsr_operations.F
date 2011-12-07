@@ -267,6 +267,7 @@ MODULE dbcsr_operations
 
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  LOGICAL, PARAMETER :: do_print_mult_timings = .FALSE.
 
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
@@ -1062,7 +1063,7 @@ CONTAINS
             (REAL(my_flop, dp)/1000000.0_dp)/mult_time,&
             "MFLOP/s"
     ENDIF
-    IF (.FALSE.) THEN
+    IF (do_print_mult_timings) THEN
        !$OMP PARALLEL
        CALL print_mult_timings (mult_timers)
        !$OMP END PARALLEL

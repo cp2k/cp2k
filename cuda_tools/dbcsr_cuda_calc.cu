@@ -114,7 +114,7 @@ extern "C" int dc_do_stack_cu(
 	int which_data,
 	void *a_data, void *b_data, void *c_data,
 	int *c_locks,
-	int m_max, int n_max, int k_max, int def_mnk)
+	int m_max, int n_max, int k_max, int def_mnk, int stream_id)
 {
 
 	int maxt, nmat, careful, nruns;
@@ -123,6 +123,7 @@ extern "C" int dc_do_stack_cu(
 	size_t shared_size;
 	struct cudaDeviceProp devProperties;
 	int mn, mk, nk, maxb, liter;
+	cudaStream_t stream;
 
 	if (verbose_print) {
 		printf("Locks address %p.\n", c_locks);
@@ -131,6 +132,8 @@ extern "C" int dc_do_stack_cu(
 		printf("C data %p.\n", c_data);
 		printf("params %p.\n", param_stack);
 	}
+
+	stream = dc_get_stream(stream_id);
 
 	maxt = m_max * n_max;
 
@@ -143,7 +146,6 @@ extern "C" int dc_do_stack_cu(
 	if (maxt > devProperties.maxThreadsPerBlock)
 		return 3;
 
-
 	switch (which_data) {
 		/* The data type identifier numbers correspond to the values
 		   defined in dbcsr_types.F. */
@@ -151,7 +153,7 @@ extern "C" int dc_do_stack_cu(
 		/* Real, single precision */
 		shared_size = (m_max*k_max + k_max*n_max)*sizeof(float);
 		if (shared_size > devProperties.sharedMemPerBlock) return 4;
-		stack_mm_r <<< stack_size, maxt, shared_size >>>
+		stack_mm_r <<< stack_size, maxt, shared_size, stream>>>
 			(param_stack, stack_size, nparams,
 			 (float *) a_data, (float *) b_data, (float *) c_data,
 			 c_locks);
@@ -175,7 +177,7 @@ extern "C" int dc_do_stack_cu(
 				careful = (stack_size/GROUPING);
 				nruns = stack_size - careful * GROUPING;
 				shared_size = 0;
-				stack_mm_mnk_vec_d <<< (stack_size+nmat-1)/nmat, nmat*m_max, shared_size >>>
+				stack_mm_mnk_vec_d <<< (stack_size+nmat-1)/nmat, nmat*m_max, shared_size, stream >>>
 					(param_stack, stack_size, nmat,
 					 m_max, n_max, k_max, mn,
 					 (double *) a_data, (double *) b_data, (double *) c_data,
@@ -183,7 +185,7 @@ extern "C" int dc_do_stack_cu(
 			} else if (0) {
 				careful = (stack_size/GROUPING);
 				nruns = stack_size - careful * GROUPING;
-				stack_mm_mnk_d_direct <<< (stack_size+GROUPING-1)/GROUPING, maxt, 0 >>>
+				stack_mm_mnk_d_direct <<< (stack_size+GROUPING-1)/GROUPING, maxt, 0, stream >>>
 					(param_stack, careful, nruns,
 					 m_max, n_max, k_max, m_max*n_max,
 					 (double *) a_data, (double *) b_data, (double *) c_data,
@@ -200,7 +202,7 @@ extern "C" int dc_do_stack_cu(
 					printf("#: %d, maxt: %d, shr: %d, liter %d, sz: %d\n",
 					      (stack_size+GROUPING-1)/GROUPING,
 					       maxt, shared_size, liter, stack_size);
-				stack_mm_mnk_d <<< (stack_size+GROUPING-1)/GROUPING, maxt, shared_size >>>
+				stack_mm_mnk_d <<< (stack_size+GROUPING-1)/GROUPING, maxt, shared_size, stream >>>
 					(param_stack, careful, nruns,
 					 m_max, n_max, k_max,
 					 //mn, mk, nk, maxb, liter,
@@ -214,7 +216,7 @@ extern "C" int dc_do_stack_cu(
 			//if (verbose_print)
 			//	printf("#: %d, maxt: %d, shr: %d\n",
 			//	       stack_size, maxt, shared_size);
-			stack_mm_d <<< stack_size, maxt, shared_size >>>
+			stack_mm_d <<< stack_size, maxt, shared_size, stream >>>
 				(param_stack, stack_size, nparams,
 				 (double *) a_data, (double *) b_data, (double *) c_data,
 				 c_locks);
@@ -224,16 +226,16 @@ extern "C" int dc_do_stack_cu(
 		/* Complex, single precision */
 		shared_size = (m_max*k_max + k_max*n_max)*sizeof(float)*2;
 		if (shared_size > devProperties.sharedMemPerBlock) return 4;
-		stack_mm_c <<< stack_size, maxt, shared_size >>>
+		stack_mm_c <<< stack_size, maxt, shared_size, stream >>>
 			(param_stack, stack_size, nparams,
 			 (float *) a_data, (float *) b_data, (float *) c_data,
 			 c_locks);
 		break;
 	case 7:
-		/* Complex, single precision */
+		/* Complex, double precision */
 		shared_size = (m_max*k_max + k_max*n_max)*sizeof(double)*2;
 		if (shared_size > devProperties.sharedMemPerBlock) return 4;
-		stack_mm_z <<< stack_size, maxt, shared_size >>>
+		stack_mm_z <<< stack_size, maxt, shared_size, stream >>>
 			(param_stack, stack_size, nparams,
 			 (double *) a_data, (double *) b_data, (double *) c_data,
 			 c_locks);

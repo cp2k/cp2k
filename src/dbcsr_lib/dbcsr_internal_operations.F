@@ -27,6 +27,8 @@ MODULE dbcsr_internal_operations
        mm_driver_blas, mm_driver_cuda, mm_driver_plasma, mm_host_driver, &
        mm_stack_size, mm_workshare, use_CUDA_host_pinned_memory, &
        use_MPI_memory, use_combined_types, use_comm_thread
+  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_create_streams,&
+                                             dbcsr_cuda_destroy_streams
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
                                              dbcsr_cuda_dev_mem_hold,&
                                              dbcsr_cuda_dev_mem_new,&
@@ -79,17 +81,17 @@ MODULE dbcsr_internal_operations
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_valid_index
   USE dbcsr_mm_stack,                  ONLY: &
-       enqueue_ps_group, get_stack_or_process_queue, process_queue_complete, &
-       process_queue_mine, process_queue_others, process_queue_preempt, &
-       show_levels, t_calc_step, t_dev_idle, t_dev_sync, t_process_stack
+       enqueue_ps_group, get_stack_or_process_queue, process_queue_mine, &
+       process_queue_others, process_queue_preempt, t_calc_step, t_dev_idle, &
+       t_dev_sync, t_process_stack
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
   USE dbcsr_pq_methods,                ONLY: &
        dbcsr_pq_create, dbcsr_pq_destroy, dbcsr_pq_flush_level_chg, &
-       dbcsr_pq_mark_done, dbcsr_pq_refresh, dbcsr_pq_share, &
-       dbcsr_pq_unshare, dbcsr_ps_set_advance, dbcsr_ps_set_create, &
-       dbcsr_ps_set_destroy, dbcsr_ps_set_get_group_p, &
+       dbcsr_pq_handoff_level_chg, dbcsr_pq_mark_done, dbcsr_pq_refresh, &
+       dbcsr_pq_share, dbcsr_pq_unshare, dbcsr_ps_set_advance, &
+       dbcsr_ps_set_create, dbcsr_ps_set_destroy, dbcsr_ps_set_get_group_p, &
        dbcsr_ps_set_get_n_working, dbcsr_ps_target_add_data, &
        dbcsr_ps_target_add_data_cuda, dbcsr_ps_target_new, &
        dbcsr_ps_target_release, dbcsr_psg_add_data_ab, &
@@ -99,8 +101,8 @@ MODULE dbcsr_internal_operations
        dbcsr_pq_type, dbcsr_ps_group_type, dbcsr_ps_set_type, &
        dbcsr_ps_state_empty, dbcsr_ps_state_queued, dbcsr_ps_target_obj, &
        dbcsr_ps_target_type, dbcsr_ps_width, mult_timers, p_a_first, &
-       p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, tmr_mult_finish2, &
-       tmr_sync
+       p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, tmr_mult_finish, &
+       tmr_mult_finish1, tmr_mult_finish2, tmr_mult_finish3, tmr_sync
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_iterator, &
@@ -1769,9 +1771,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: ithread, my_driver, nthreads, &
-                                                ps_buffer, ps_memreg, t_a_f, &
-                                                t_a_l, t_b_f, t_b_l
+    INTEGER                                  :: ithread, nthreads, ps_buffer, &
+                                                ps_memreg, t_a_f, t_a_l, &
+                                                t_b_f, t_b_l
     INTEGER, DIMENSION(:), POINTER           :: k_locals
     LOGICAL                                  :: i_interface, local_cols, &
                                                 local_indexing, local_rows
@@ -1881,17 +1883,18 @@ CONTAINS
        ENDIF
     ENDIF
     !
+    CALL xtime_set (mult_timers(tmr_mult_finish))
     ! Mark myself as done with indexing.
     CALL dbcsr_pq_mark_done (carrier%queue, error)
-    my_driver = mm_host_driver
     i_interface = .FALSE.
     IF (mm_workshare) THEN
        !$OMP MASTER
        !
        ! I am the thread that interfaces to the accelerator.
        i_interface = mm_async
-       my_driver = mm_driver
        !$OMP END MASTER
+    ELSE
+       i_interface = mm_async
     ENDIF
     !
     ! Queue all outstanding stacks.
@@ -1912,20 +1915,37 @@ CONTAINS
     ! Process my queues now.
     IF (.NOT. i_interface) THEN
        ! Non-master threads just do CPU calculations.
-       CALL xtime_start (mult_timers(tmr_mult_finish2))
-       CALL process_queue_complete(carrier%queue, driver=mm_host_driver,&
+       CALL xtime_set (mult_timers(tmr_mult_finish1))
+       CALL process_queue_mine(carrier%queue, driver=mm_host_driver,&
             error=error)
-       CALL xtime_stop (mult_timers(tmr_mult_finish2))
+       CALL xtime_stop (mult_timers(tmr_mult_finish1))
     ELSE
        ! The master thread tries to fill up the accelerator.
-       CALL process_queue_mine (carrier%queue, driver=mm_driver, error=error)
-       CALL process_queue_others (carrier%queue, forever=.FALSE.,&
-            driver=mm_driver, error=error)
+       CALL xtime_set (mult_timers(tmr_mult_finish1))
+       CALL process_queue_mine (carrier%queue, driver=mm_driver,&
+            error=error)
+       CALL xtime_stop (mult_timers(tmr_mult_finish1))
+
+       IF (mm_workshare) THEN
+          CALL xtime_set (mult_timers(tmr_mult_finish2))
+          CALL process_queue_others (carrier%queue, forever=.FALSE.,&
+               driver=mm_driver, error=error)
+          CALL xtime_stop (mult_timers(tmr_mult_finish2))
+       ENDIF
+
+       CALL xtime_set (mult_timers(tmr_mult_finish1))
        CALL process_queue_mine (carrier%queue,&
             driver=mm_host_driver, error=error)
-       CALL process_queue_others (carrier%queue, forever=.TRUE.,&
-            driver=mm_driver, error=error)
+       CALL xtime_stop (mult_timers(tmr_mult_finish1))
+
+       IF (mm_workshare) THEN
+          CALL xtime_set (mult_timers(tmr_mult_finish3))
+          CALL process_queue_others (carrier%queue, forever=.TRUE.,&
+               driver=mm_driver, error=error)
+          CALL xtime_stop (mult_timers(tmr_mult_finish3))
+       ENDIF
     ENDIF
+    CALL xtime_stop (mult_timers(tmr_mult_finish))
     !
     flop = carrier%flop
     !
@@ -2072,11 +2092,6 @@ CONTAINS
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     carrier%id = ithread
-    !
-    !$ CALL dbcsr_assert (mm_async, "IMP", mm_workshare,&
-    !$      dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-    !$      "Must use mm_workshare option with multithreaded CUDA.",&
-    !$      __LINE__, error=error)
     !
     ! Ensures that the index is correctly defined.
     CALL dbcsr_assert (left%list_indexing,&
@@ -2275,6 +2290,10 @@ CONTAINS
     ENDIF
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        !$OMP MASTER
+       !
+       ! Setup threads<->streams
+       CALL dbcsr_cuda_create_streams (nthreads, error)
+       !
        data_type = dbcsr_data_get_type (left%data_area)
        IF (verbose_acc) WRITE(*,*)routineN//" Allocating a, b"
        CALL xtime_set (t_tmp)
@@ -2378,6 +2397,10 @@ CONTAINS
                       ps_group%stacks(ps_g)%s%max_n = n_size
                       ps_group%stacks(ps_g)%s%max_k = k_size
                       ps_group%stacks(ps_g)%s%defined_mnk = .TRUE.
+                      ! The bins are quasi-sorted according from those
+                      ! with largest sizes (best for accelerators) to
+                      ! those with smallest (worst for accelerators).
+                      ps_group%stacks(ps_g)%s%size_bin = ps_g
                    ENDDO
                 ENDDO
              ELSE
@@ -2397,6 +2420,7 @@ CONTAINS
                       ps_group%stacks(ps_g)%s%max_n = carrier%max_n
                       ps_group%stacks(ps_g)%s%max_k = carrier%max_k
                       ps_group%stacks(ps_g)%s%defined_mnk = .FALSE.
+                      ps_group%stacks(ps_g)%s%size_bin = default_stack
                    ENDDO
                 ENDDO
              END IF
@@ -2433,7 +2457,7 @@ CONTAINS
     ENDIF
     !
     ALLOCATE (carrier%queue)
-    CALL dbcsr_pq_create (carrier%queue, error)
+    CALL dbcsr_pq_create (carrier%queue, nstacks, error)
     CALL dbcsr_pq_share (carrier%queue, error)
     !
     CALL dbcsr_error_stop(error_handler, error)
@@ -2500,6 +2524,9 @@ CONTAINS
     !CALL dbcsr_psg_rm_data_c (&
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
     CALL dbcsr_ps_set_destroy (carrier%param_sets, error=error)
+    !$OMP MASTER
+    CALL dbcsr_cuda_destroy_streams (error=error)
+    !$OMP END MASTER
     !
     IF (carrier%local_indexing) THEN
        CALL remap_local2global(carrier%my_wm%row_i, carrier%my_wm%col_i,&
@@ -2940,12 +2967,12 @@ CONTAINS
 
     INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c, c_blk_id, &
       c_blk_pt, c_col_logical, c_nze, c_row_logical, ithread, k_size, m_size, &
-      mapped_col_size, mapped_k_size, mapped_row_size, n_size, new_blk, s_dp, &
-      ws, zero_first, zero_last
+      mapped_col_size, mapped_k_size, mapped_row_size, n_size, new_blk, &
+      nworking, s_dp, ws, zero_first, zero_last
     INTEGER, DIMENSION(nstacks)              :: param_starts, stack_p
     INTEGER, DIMENSION(:), POINTER           :: params_array_direct
     INTEGER(KIND=int_4)                      :: offset
-    LOGICAL                                  :: block_exists, do_wait, &
+    LOGICAL                                  :: block_exists, do_preempt, &
                                                 flush_stack, i_interface
     REAL(kind=dp)                            :: t_gemm_me
     REAL(kind=sp)                            :: a_norm, a_row_eps, b_norm
@@ -2966,6 +2993,8 @@ CONTAINS
        ! I am the thread that interfaces to the accelerator.
        i_interface = mm_async
        !$OMP END MASTER
+    ELSE
+       i_interface = mm_async
     ENDIF
     !
     ! Each thread always shares the same zero_first, zero_last, and
@@ -3089,10 +3118,11 @@ CONTAINS
                 IF (do_index_time) index_time = index_time + m_walltime()
                 CALL dbcsr_psg_view_close (ps_group, params_array_direct,&
                      stack_p, zero_first, zero_last, new_blk, error=error)
-                do_wait = mm_workshare
-                IF (mm_workshare) THEN
-                   IF (dbcsr_ps_set_get_n_working (param_sets, error) .EQ. 0) THEN
-                      do_wait = .FALSE.
+                do_preempt = mm_async
+                IF (mm_async) THEN
+                   nworking = dbcsr_ps_set_get_n_working (param_sets, error)
+                   queue%nworking = nworking
+                   IF (nworking .EQ. 0) THEN
                       !> If no stack in currently being processed then it
                       !> is assumed the accelerator can handle the stacks
                       !> on its own.  The queue's flush_level is thus
@@ -3102,9 +3132,9 @@ CONTAINS
                       !> \see get_stack_or_process_queue
                       CALL dbcsr_pq_flush_level_chg (queue,&
                            MAX(1,param_sets%nbuffers/1), param_sets)
-                      !$ IF (show_levels) &
-                      !$      WRITE(*,*)"GPU flush level:",&
-                      !$      queue%flush_level, omp_get_thread_num()
+                      CALL dbcsr_pq_handoff_level_chg (queue,&
+                           MAX(1,param_sets%group_size/2), param_sets)
+                      do_preempt = .FALSE.
                    ENDIF
                 ENDIF
                 CALL enqueue_ps_group (queue, ps_group, error=error)
@@ -3112,10 +3142,12 @@ CONTAINS
                 IF (i_interface) THEN
                    CALL process_queue_mine (queue, &
                         driver=mm_driver, error=error)
-                   CALL process_queue_others (queue, forever=.FALSE.,&
-                        driver=mm_driver, error=error)
+                   IF (mm_workshare) THEN
+                      CALL process_queue_others (queue, forever=.FALSE.,&
+                           driver=mm_driver, error=error)
+                   ENDIF
                 ENDIF
-                IF (mm_async) THEN
+                IF (do_preempt) THEN
                    ! Do some CPU stack calculations when needed.
                    CALL process_queue_preempt (queue, param_sets,&
                         driver=mm_host_driver, error=error)
@@ -3885,12 +3917,21 @@ CONTAINS
                                                 error_handle, ithread
     INTEGER, POINTER                         :: state_tmp
     INTEGER, TARGET                          :: state_tmp_tgt
-    TYPE(dbcsr_cuda_mem_type), POINTER       :: c_dev, c_locks_dev
+    LOGICAL                                  :: do_master_work
+    TYPE(dbcsr_cuda_mem_type), POINTER       :: c_dev, c_locks_dev, &
+                                                params_dev_l
     TYPE(dbcsr_cuda_mem_type), POINTER, SAVE :: params_dev, stack_state_dev
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handle, error)
+
+    ! Only the master thread does common work in when threads share work.
+    do_master_work = .NOT. mm_workshare
+    do_master_work = .TRUE.
+    !$OMP MASTER
+    do_master_work = .TRUE.
+    !$OMP END MASTER
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
@@ -3953,34 +3994,47 @@ CONTAINS
     CALL xtime_stop (t_tmp)
     IF (verbose_acc)&
          WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation & xfer time", t_tmp
-    ! And parameter stacks
-    IF (verbose_acc) WRITE(*,*)routineN//" Allocating parameters"
-    CALL xtime_set (t_tmp)
-    CALL dbcsr_cuda_dev_mem_new (params_dev, dbcsr_type_int_4, error)
-    CALL dbcsr_cuda_dev_mem_alloc (params_dev, mm_stack_size*dbcsr_ps_width,&
-         error=error)
-    CALL xtime_stop (t_tmp)
-    IF (verbose_acc)&
-         WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation & time", t_tmp
     !$OMP END MASTER
+    IF (do_master_work) THEN
+       ! Allocate the on-card parameter stack.
+       IF (verbose_acc) WRITE(*,*)routineN//" Allocating parameters"
+       CALL xtime_set (t_tmp)
+       CALL dbcsr_cuda_dev_mem_new (params_dev_l, dbcsr_type_int_4, error)
+       CALL dbcsr_cuda_dev_mem_alloc (params_dev_l, mm_stack_size*dbcsr_ps_width,&
+            error=error)
+       !$OMP MASTER
+       params_dev => params_dev_l
+       !$OMP END MASTER
+       CALL xtime_stop (t_tmp)
+       IF (verbose_acc)&
+            WRITE(*,'(1X,A,EN12.3)')routineN//" Allocation & time", t_tmp
+    ENDIF
     !$OMP BARRIER
     !$OMP CRITICAL (crit_data_card)
     !
     IF (.FALSE.) THEN
        ! Left in for mental accounting
        CALL dbcsr_cuda_dev_mem_hold (stack_state_dev, error=error)
-       CALL dbcsr_cuda_dev_mem_hold (params_dev, error=error)
     ENDIF
     product_target%stack_state_dev => stack_state_dev
-    product_target%params_dev => params_dev
+    IF (do_master_work) THEN
+       product_target%params_dev => params_dev_l
+    ELSE
+       product_target%params_dev => params_dev
+    ENDIF
+    CALL dbcsr_cuda_dev_mem_hold (product_target%params_dev, error=error)
     IF (.FALSE.) THEN
        ! Left in for mental accounting
        CALL dbcsr_cuda_dev_mem_release (stack_state_dev, error=error)
-       CALL dbcsr_cuda_dev_mem_release (params_dev, error=error)
     ENDIF
     !
     !$OMP END CRITICAL (crit_data_card)
     !$OMP BARRIER
+    IF (do_master_work) THEN
+       !$OMP CRITICAL (crit_data_card)
+       CALL dbcsr_cuda_dev_mem_release (params_dev_l, error=error)
+       !$OMP END CRITICAL (crit_data_card)
+    ENDIF
     !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE init_card_c

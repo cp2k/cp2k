@@ -45,6 +45,7 @@ MODULE dbcsr_pq_methods
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
   LOGICAL, PARAMETER :: full_target_lock = .TRUE.
+  LOGICAL, PARAMETER :: print_flush_level = .FALSE.
 
   INTEGER, SAVE, PUBLIC :: s_sid = 0
   INTEGER, SAVE, PRIVATE :: sid = 0
@@ -93,6 +94,7 @@ MODULE dbcsr_pq_methods
   PUBLIC :: dbcsr_pq_get_far_stack, dbcsr_pq_get_defined_stack
   PUBLIC :: dbcsr_pq_mark_done
   PUBLIC :: dbcsr_pq_flush_level_chg
+  PUBLIC :: dbcsr_pq_handoff_level_chg
 
 CONTAINS
 
@@ -100,14 +102,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a queue of parameter stacks
 !> \param[out] queue              Queue of parameter stacks to create.
+!> \param[in] nbins               Number of different bins to create.
 !> \param[in,out] error           error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_pq_create (queue, error)
+  SUBROUTINE dbcsr_pq_create (queue, nbins, error)
     TYPE(dbcsr_pq_type), INTENT(OUT)         :: queue
+    INTEGER, INTENT(IN)                      :: nbins
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    ALLOCATE (queue%stacks(20))
-    queue%nstacks = 0
+    ALLOCATE (queue%stacks(20, nbins))
+    queue%nstacks_total = 0
+    ALLOCATE (queue%nstacks(nbins))
+    queue%nstacks(:) = 0
+    queue%nbins = nbins
     !$ ALLOCATE (queue%queue_lock)
     !$ queue%queue_lock = 0
     !$ CALL OMP_INIT_LOCK (queue%queue_lock)
@@ -126,7 +133,8 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     DEALLOCATE (queue%stacks)
-    queue%nstacks = 0
+    DEALLOCATE (queue%nstacks)
+    queue%nstacks_total = 0
     !$ CALL OMP_DESTROY_LOCK (queue%queue_lock)
     !$ DEALLOCATE (queue%queue_lock)
   END SUBROUTINE dbcsr_pq_destroy
@@ -142,15 +150,16 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     IF (careful_mod) THEN
-       CALL dbcsr_assert (queue%nstacks, "EQ", 0,&
+       CALL dbcsr_assert (queue%nstacks_total, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, "dbcsr_pq_refresh",&
             "Local queue not empty", __LINE__, error=error)
     ENDIF
-    queue%nstacks = 0
-    queue%first_stack = 1
-    queue%last_stack = 0
+    queue%nstacks(:) = 0
+    queue%nstacks_total = 0
     queue%done = .FALSE.
     queue%flush_level = flush_level
+    queue%handoff = 0
+    queue%nworking = 0
     !$OMP BARRIER
     !$OMP MASTER
     !$ IF (ASSOCIATED (queue%all_queues)) THEN
@@ -250,7 +259,38 @@ CONTAINS
     queue%flush_level = MAX(0,&
                         MIN(param_sets%nbuffers*param_sets%group_size,&
                         queue%flush_level + chg))
+    IF (print_flush_level) THEN
+       !$ IF (.FALSE.) THEN
+       WRITE(*,*)"GPU flush level", chg, queue%flush_level
+       !$ ELSE
+       !$ WRITE(*,*)"GPU flush level", OMP_GET_THREAD_NUM(), chg, queue%flush_level
+       !$ ENDIF
+    ENDIF
   END SUBROUTINE dbcsr_pq_flush_level_chg
+
+! *****************************************************************************
+!> \brief Changes the handoff level of a queue
+!> \see process_queue_preempt
+!> \param[in,out] queue           Queue of parameter stacks
+!> \param[in] chg                 Amount by which to change the flush level
+!> \param[in,out] error           error
+! *****************************************************************************
+  SUBROUTINE dbcsr_pq_handoff_level_chg (queue, chg, param_sets)
+    TYPE(dbcsr_pq_type), INTENT(INOUT)       :: queue
+    INTEGER, INTENT(IN)                      :: chg
+    TYPE(dbcsr_ps_set_type), INTENT(IN)      :: param_sets
+
+    queue%handoff = MAX(0,&
+                        MIN(param_sets%nbuffers*param_sets%group_size,&
+                        queue%handoff + chg))
+    IF (print_flush_level) THEN
+       !$ IF (.FALSE.) THEN
+       WRITE(*,*)"GPU handoff lvl", chg, queue%handoff
+       !$ ELSE
+       !$ WRITE(*,*)"GPU handoff lvl", OMP_GET_THREAD_NUM(), chg, queue%handoff
+       !$ ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_pq_handoff_level_chg
 
 
 ! *****************************************************************************
@@ -271,11 +311,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pq_add_stack', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, new_first, &
-                                                new_last, new_n, old_s, si
-    LOGICAL                                  :: post, pre
-    TYPE(dbcsr_ps_obj), DIMENSION(:), &
-      POINTER                                :: new_queue
+    INTEGER                                  :: bin, error_handle, i, new_n, &
+                                                si
+    TYPE(dbcsr_ps_obj), DIMENSION(:, :), &
+      POINTER                                :: new_stacks
 
     IF (careful_mod) &
          CALL dbcsr_error_set(routineN, error_handle, error)
@@ -287,7 +326,7 @@ CONTAINS
     s_sid = s_sid + 1
     si = s_sid
     !$OMP END CRITICAL
-    IF (stack%s%stack_p .EQ. 0) THEN
+    IF (stack%s%stack_p .EQ. 0 .AND. debug_mod) THEN
        WRITE(*,*)"Adding 0 size"
     ENDIF
     IF (.FALSE.) THEN
@@ -295,54 +334,40 @@ CONTAINS
             stack%s%stack_p, "ids", stack%s%id, si
     ENDIF
     !
-    post = stack%s%defined_mnk
-    pre = .NOT. post
-    new_n = queue%nstacks + 1
-    IF (post) THEN
-       new_last = queue%last_stack + 1
-       new_first = queue%first_stack
-    ELSE
-       new_last = queue%last_stack
-       new_first = queue%first_stack-1
+    IF (.TRUE.) THEN
+       CALL dbcsr_assert (stack%s%size_bin, "LE", queue%nbins,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Invalid size bin", __LINE__, error=error)
+       CALL dbcsr_assert (stack%s%size_bin, "GE", 1,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Invalid size bin", __LINE__, error=error)
     ENDIF
-    old_s = SIZE (queue%stacks)
-    IF (new_last .GT. old_s .OR. new_first .LE. 0) THEN
-       !new_first = MAX(1,old_s - new_n/2)
-       IF (new_last .GT. old_s) THEN
-          new_first = MAX(1,old_s/2 - new_n/2)
-       ELSE
-          new_first = MAX(1,old_s*3/4 - new_n/2)
-       ENDIF
-       new_last = new_first + new_n-1
-       ALLOCATE (new_queue (MAX(new_n, old_s*2)))
-       IF (post) THEN
-          new_queue(new_first:new_last-1) = queue%stacks(queue%first_stack&
-                                                        :queue%last_stack)
-       ELSE
-          new_queue(new_first+1:new_last) = queue%stacks(queue%first_stack&
-                                                        :queue%last_stack)
-       ENDIF
+    !
+    bin = stack%s%size_bin
+    new_n = queue%nstacks(bin) + 1
+    !
+    IF (new_n .GT. SIZE(queue%stacks, 1)) THEN
+       ! Resize the stacks
+       ALLOCATE (new_stacks(SIZE(queue%stacks, 1), queue%nbins))
+       DO i = 1, queue%nbins
+          new_stacks(1:queue%nstacks(bin), i) =&
+               queue%stacks(1:queue%nstacks(bin), i)
+       ENDDO
        DEALLOCATE (queue%stacks)
-       queue%stacks => new_queue
-       queue%first_stack = new_first
-       queue%last_stack = new_last
+       ALLOCATE (queue%stacks(MAX(new_n, 2*SIZE(queue%stacks, 1)), queue%nbins))
+       DO i = 1, queue%nbins
+          queue%stacks(1:queue%nstacks(bin), i) = &
+               new_stacks(1:queue%nstacks(bin), i)
+       ENDDO
+       DEALLOCATE (new_stacks)
     ENDIF
-    IF (post) THEN
-       queue%last_stack = new_last
-       queue%stacks(new_last) = stack
-       queue%stacks(new_last)%s%sid = si
-    ELSE
-       queue%first_stack = new_first
-       queue%stacks(new_first) = stack
-       queue%stacks(new_first)%s%sid = si
+    !
+    queue%stacks(new_n,bin) = stack
+    queue%nstacks(bin) = queue%nstacks(bin) + 1
+    queue%nstacks_total = queue%nstacks_total + 1
+    IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
+       !$OMP FLUSH
     ENDIF
-    !$ IF (.FALSE.) &
-    !$      WRITE(*,*)"dbcsr_pq_add_stack    stack size is", stack%s%stack_p,&
-    !$      omp_get_thread_num(), stack%s%t%t%owner, stack%s%driver,&
-    !$      stack%s%sid, stack%s%id
-    !$OMP FLUSH
-    !$OMP ATOMIC
-    queue%nstacks = queue%nstacks + 1
     !$ CALL OMP_UNSET_LOCK (queue%queue_lock)
     IF (careful_mod) &
          CALL dbcsr_error_stop(error_handle, error)
@@ -441,15 +466,23 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: found
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    INTEGER                                  :: bin
+
     !$ CALL OMP_SET_LOCK (queue%queue_lock)
     IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
-    IF (queue%nstacks .GE. 1) THEN
-       stack = queue%stacks(queue%first_stack)
-       queue%nstacks = queue%nstacks - 1
-       queue%first_stack = queue%first_stack + 1
-       found = .TRUE.
+    found = .FALSE.
+    IF (queue%nstacks_total .GE. 1) THEN
+       DO bin = queue%nbins, 1, -1
+          IF (queue%nstacks(bin) .GT. 0) THEN
+             stack = queue%stacks(queue%nstacks(bin),bin)
+             queue%nstacks_total = queue%nstacks_total - 1
+             queue%nstacks(bin) = queue%nstacks(bin) - 1
+             found = .TRUE.
+             EXIT
+          ENDIF
+       ENDDO
     ELSE
        found = .FALSE.
     ENDIF
@@ -473,32 +506,28 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: found
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i
+    INTEGER                                  :: bin
     LOGICAL                                  :: dbg = .FALSE.
-    TYPE(dbcsr_ps_type), POINTER             :: s
 
     !$ CALL OMP_SET_LOCK (queue%queue_lock)
     IF (mm_workshare .AND. .NOT. has_omp_2_5) THEN
        !$OMP FLUSH
     ENDIF
     !$ IF (dbg) WRITE(*,*)'checking stacks', omp_get_thread_num(),&
-    !$      queue%nstacks,&
-    !$      queue%first_stack, queue%last_stack
-    IF (queue%nstacks .GE. 1) THEN
-       found = .FALSE.
-       DO i = queue%last_stack, queue%first_stack, -1
-          s => queue%stacks(i)%s
-          IF (s%defined_mnk) THEN
-             found = .TRUE.
-             stack = queue%stacks(i)
-             queue%stacks(i:queue%last_stack-1) = &
-                  queue%stacks(i+1:queue%last_stack)
-             !$OMP ATOMIC
-             queue%nstacks = queue%nstacks - 1
-             !$OMP ATOMIC
-             queue%last_stack = queue%last_stack - 1
-             !write(*,*)'get_defined: found', stack%s%sid, stack%s%stack_p
-             EXIT
+    !$      queue%nstacks_total, queue%nstacks
+    found = .FALSE.
+    IF (queue%nstacks_total .GE. 1) THEN
+       DO bin = 1, queue%nbins
+          IF (queue%nstacks(bin) .GT. 0) THEN
+             IF (queue%stacks(queue%nstacks(bin),bin)%s%defined_mnk) THEN
+                stack = queue%stacks(queue%nstacks(bin),bin)
+                queue%nstacks(bin) = queue%nstacks(bin) - 1
+                queue%nstacks_total = queue%nstacks_total - 1
+                found = .TRUE.
+                EXIT
+             ELSE
+                EXIT
+             ENDIF
           ENDIF
        ENDDO
     ELSE
@@ -834,6 +863,7 @@ CONTAINS
     stack%n = 0
     stack%k = 0
     stack%defined_mnk = .FALSE.
+    stack%size_bin = -1
   END SUBROUTINE ps_clear
 
 

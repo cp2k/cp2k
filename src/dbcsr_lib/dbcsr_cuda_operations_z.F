@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
   SUBROUTINE do_mm_stack_z (param_stack, stack_size, nparams,&
-       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk, error)
+       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk, stream, error)
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: param_stack
     INTEGER, INTENT(IN)                      :: stack_size, nparams
     TYPE(dbcsr_cuda_mem_type_c8), INTENT(IN) :: a_data, b_data
@@ -13,17 +13,23 @@
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: c_locks
     INTEGER, INTENT(IN)                      :: m_max, n_max, k_max
     LOGICAL, INTENT(IN)                      :: def_mnk
+    INTEGER, INTENT(IN), OPTIONAL            :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_mm_stack_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=C_INT)                      :: mnk
+    INTEGER(KIND=C_INT)                      :: mnk, stream_l
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (PRESENT (stream)) THEN
+       stream_l = stream
+    ELSE
+       stream_l = default_stream
+    ENDIF
 #if defined (__DBCSR_CUDA)
     IF (def_mnk) THEN
        mnk = 1
@@ -35,7 +41,7 @@
          INT(dbcsr_type_complex_8, KIND=C_INT),&
          a_data%ref, b_data%ref, c_data%ref, c_locks%ref,&
          INT(m_max,KIND=C_INT), INT(n_max,KIND=C_INT), INT(k_max,KIND=C_INT),&
-         mnk)
+         mnk, stream_l)
 #else
     istat = -1
 #endif
@@ -51,20 +57,21 @@
 
 
 
-  SUBROUTINE cp_host_to_dev_z (host_mem, dev_mem, n, async, error)
+  SUBROUTINE cp_host_to_dev_z (host_mem, dev_mem, n, async, stream, error)
     INTEGER, INTENT(IN)                         :: n
     TYPE(dbcsr_cuda_mem_type_c8),&
          INTENT(INOUT)                          :: dev_mem
     !complex(kind=real_8), DIMENSION(1:n), INTENT(IN), TARGET :: host_mem
     COMPLEX(kind=real_8), DIMENSION(:), POINTER              :: host_mem
     LOGICAL, INTENT(IN), OPTIONAL               :: async
+    INTEGER, INTENT(IN), OPTIONAL               :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_host_to_dev_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=C_INT)                      :: async_type
+    INTEGER(KIND=C_INT)                      :: async_type, stream_l
     COMPLEX(kind=real_8), POINTER                         :: host_first_el
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
@@ -85,6 +92,11 @@
     ELSE
        async_type = 2 ! Sync if Async not possible
     ENDIF
+    IF (PRESENT (stream)) THEN
+       stream_l = stream
+    ELSE
+       stream_l = default_stream
+    ENDIF
 #if defined (__DBCSR_CUDA)
     IF (n .GT. 0) THEN
        host_first_el => host_mem(1)
@@ -92,7 +104,7 @@
     ENDIF
     IF (n .GT. 0) THEN
        istat = cuda_memcpy_h2d_cu(host_mem_c_ptr, dev_mem%ref,&
-            INT(n*(2*real_8_size), KIND=C_SIZE_T), async_type)
+            INT(n*(2*real_8_size), KIND=C_SIZE_T), async_type, stream_l)
     ELSE
        istat = 0
     ENDIF
@@ -109,20 +121,21 @@
   END SUBROUTINE cp_host_to_dev_z
 
 
-  SUBROUTINE cp_dev_to_host_z (dev_mem, host_mem, n, async, error)
+  SUBROUTINE cp_dev_to_host_z (dev_mem, host_mem, n, async, stream, error)
     TYPE(dbcsr_cuda_mem_type_c8), INTENT(IN) :: dev_mem
     INTEGER, INTENT(IN)                      :: n
     !complex(kind=real_8), DIMENSION(1:n), INTENT(OUT),&
     !  TARGET                                 :: host_mem
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: host_mem
     LOGICAL, INTENT(IN), OPTIONAL            :: async
+    INTEGER, INTENT(IN), OPTIONAL            :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dev_to_host_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=C_INT)                      :: async_type
+    INTEGER(KIND=C_INT)                      :: async_type, stream_l
     COMPLEX(kind=real_8), POINTER                         :: host_first_el
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
@@ -143,6 +156,11 @@
     ELSE
        async_type = 2 ! Sync if Async not possible
     ENDIF
+    IF (PRESENT (stream)) THEN
+       stream_l = stream
+    ELSE
+       stream_l = default_stream
+    ENDIF
 #if defined (__DBCSR_CUDA)
     IF (n .GT. 0) THEN
        host_first_el => host_mem(1)
@@ -150,7 +168,7 @@
     ENDIF
     IF (n .GT. 0) THEN
        istat = cuda_memcpy_d2h_cu(dev_mem%ref, host_mem_c_ptr,&
-            INT(n*(2*real_8_size), KIND=C_SIZE_T), async_type)
+            INT(n*(2*real_8_size), KIND=C_SIZE_T), async_type, stream_l)
     ELSE
        istat = 0
     ENDIF
@@ -169,18 +187,19 @@
 
 
 
-  SUBROUTINE cp_host_to_dev_z0 (host_mem, dev_mem, async, error)
+  SUBROUTINE cp_host_to_dev_z0 (host_mem, dev_mem, async, stream, error)
     TYPE(dbcsr_cuda_mem_type_c8),&
          INTENT(INOUT)                          :: dev_mem
     COMPLEX(kind=real_8), POINTER                            :: host_mem
     LOGICAL, INTENT(IN), OPTIONAL               :: async
+    INTEGER, INTENT(IN), OPTIONAL               :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_host_to_dev_z0', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=C_INT)                      :: async_type
+    INTEGER(KIND=C_INT)                      :: async_type, stream_l
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
 !   ---------------------------------------------------------------------------
@@ -200,10 +219,15 @@
     ELSE
        async_type = 2 ! Sync if Async not possible
     ENDIF
+    IF (PRESENT (stream)) THEN
+       stream_l = stream
+    ELSE
+       stream_l = default_stream
+    ENDIF
 #if defined (__DBCSR_CUDA)
     host_mem_c_ptr = C_LOC (host_mem)
     istat = cuda_memcpy_h2d_cu(host_mem_c_ptr, dev_mem%ref,&
-         INT(1*(2*real_8_size), KIND=C_SIZE_T), async_type)
+         INT(1*(2*real_8_size), KIND=C_SIZE_T), async_type, stream_l)
 #else
     istat = -1
 #endif
@@ -218,17 +242,18 @@
 
 
 
-  SUBROUTINE cp_dev_to_host_z0 (dev_mem, host_mem, async, error)
+  SUBROUTINE cp_dev_to_host_z0 (dev_mem, host_mem, async, stream, error)
     TYPE(dbcsr_cuda_mem_type_c8), INTENT(IN) :: dev_mem
     COMPLEX(kind=real_8), POINTER                         :: host_mem
     LOGICAL, INTENT(IN), OPTIONAL            :: async
+    INTEGER, INTENT(IN), OPTIONAL            :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dev_to_host_z0', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat
-    INTEGER(KIND=C_INT)                      :: async_type
+    INTEGER(KIND=C_INT)                      :: async_type, stream_l
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
 !   ---------------------------------------------------------------------------
@@ -248,10 +273,15 @@
     ELSE
        async_type = 2 ! Sync if Async not possible
     ENDIF
+    IF (PRESENT (stream)) THEN
+       stream_l = stream
+    ELSE
+       stream_l = default_stream
+    ENDIF
 #if defined (__DBCSR_CUDA)
     host_mem_c_ptr = C_LOC (host_mem)
     istat = cuda_memcpy_d2h_cu(dev_mem%ref, host_mem_c_ptr,&
-         INT(1*(2*real_8_size), KIND=C_SIZE_T), async_type)
+         INT(1*(2*real_8_size), KIND=C_SIZE_T), async_type, stream_l)
 #else
     istat = -1
 #endif

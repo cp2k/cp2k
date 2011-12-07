@@ -57,6 +57,8 @@ MODULE dbcsr_cuda_operations
 
   LOGICAL, PARAMETER :: careful_mod = .TRUE.
 
+  INTEGER, PARAMETER :: default_stream = 0
+
 
   PUBLIC :: dbcsr_cuda_cp_host_to_dev, dbcsr_cuda_cp_dev_to_host
 
@@ -92,28 +94,28 @@ MODULE dbcsr_cuda_operations
 
 #if defined (__DBCSR_CUDA)
   INTERFACE
-     FUNCTION cuda_memcpy_h2d_cu(host, dev, count, async_type) RESULT (istat) &
+     FUNCTION cuda_memcpy_h2d_cu(host, dev, count, async_type, stream_id) RESULT (istat) &
           BIND(C, name="dc_memcpy_h2d_cu")
        USE ISO_C_BINDING
     TYPE(C_PTR), INTENT(IN), VALUE           :: host
     TYPE(C_PTR), VALUE                       :: dev
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: count
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type, stream_id
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_memcpy_h2d_cu
   END INTERFACE
 
   INTERFACE
-     FUNCTION cuda_memcpy_d2h_cu(dev, host, count, async_type) RESULT (istat) &
+     FUNCTION cuda_memcpy_d2h_cu(dev, host, count, async_type, stream_id) RESULT (istat) &
           BIND(C, name="dc_memcpy_d2h_cu")
        USE ISO_C_BINDING
     TYPE(C_PTR), INTENT(IN), VALUE           :: dev
     TYPE(C_PTR), VALUE                       :: host
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: count
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: async_type, stream_id
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_memcpy_d2h_cu
@@ -123,7 +125,8 @@ MODULE dbcsr_cuda_operations
   INTERFACE
      FUNCTION cuda_do_stack_cu(param_stack, stack_size, nparams,&
           data_type,&
-          a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk)&
+          a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk,&
+          stream_id)&
           RESULT (istat) &
           BIND(C, name="dc_do_stack_cu")
        USE ISO_C_BINDING
@@ -131,7 +134,8 @@ MODULE dbcsr_cuda_operations
     INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: stack_size, nparams, data_type
     TYPE(C_PTR), INTENT(IN), VALUE           :: a_data, b_data
     TYPE(C_PTR), VALUE                       :: c_data, c_locks
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: m_max, n_max, k_max, def_mnk
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: m_max, n_max, k_max, def_mnk, &
+                                                stream_id
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_do_stack_cu
@@ -146,7 +150,8 @@ CONTAINS
 ! Encapsulated data routines
 
   SUBROUTINE do_mm_stack_any (param_stack, stack_size, nparams,&
-       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk, error)
+       a_data, b_data, c_data, c_locks, m_max, n_max, k_max, def_mnk, stream,&
+       error)
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: param_stack
     INTEGER, INTENT(IN)                      :: stack_size, nparams
     TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: a_data, b_data
@@ -154,6 +159,7 @@ CONTAINS
     TYPE(dbcsr_cuda_mem_type_i4), INTENT(IN) :: c_locks
     INTEGER, INTENT(IN)                      :: m_max, n_max, k_max
     LOGICAL, INTENT(IN)                      :: def_mnk
+    INTEGER, INTENT(IN), OPTIONAL            :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_mm_stack_any', &
@@ -178,19 +184,19 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_r, b_data%d_r, c_data%d_r,&
-             c_locks, m_max, n_max, k_max, def_mnk, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, stream=stream, error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_d, b_data%d_d, c_data%d_d,&
-             c_locks, m_max, n_max, k_max, def_mnk, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, stream=stream, error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_c, b_data%d_c, c_data%d_c,&
-             c_locks, m_max, n_max, k_max, def_mnk, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, stream=stream, error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_cuda_do_mm_stack (param_stack, stack_size, nparams,&
              a_data%d_z, b_data%d_z, c_data%d_z,&
-             c_locks, m_max, n_max, k_max, def_mnk, error=error)
+             c_locks, m_max, n_max, k_max, def_mnk, stream=stream, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -200,10 +206,11 @@ CONTAINS
   END SUBROUTINE do_mm_stack_any
 
 
-  SUBROUTINE cp_host_to_dev_any (host_mem, dev_mem, async, error)
+  SUBROUTINE cp_host_to_dev_any (host_mem, dev_mem, async, stream, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: host_mem
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: dev_mem
     LOGICAL, INTENT(IN), OPTIONAL            :: async
+    INTEGER, INTENT(IN), OPTIONAL            :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -226,19 +233,19 @@ CONTAINS
     SELECT CASE (dbcsr_cuda_dev_mem_get_type (dev_mem))
     CASE (dbcsr_type_real_4)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_s(host_mem),&
-            dev_mem%d_r, n, async=async,&
+            dev_mem%d_r, n, async=async, stream=stream,&
             error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_d(host_mem),&
-            dev_mem%d_d, n, async=async,&
+            dev_mem%d_d, n, async=async, stream=stream,&
             error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_c(host_mem),&
-            dev_mem%d_c, n, async=async,&
+            dev_mem%d_c, n, async=async, stream=stream,&
             error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_cuda_cp_host_to_dev (dbcsr_get_data_p_z(host_mem),&
-            dev_mem%d_z, n, async=async,&
+            dev_mem%d_z, n, async=async, stream=stream,&
             error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
@@ -250,10 +257,11 @@ CONTAINS
   END SUBROUTINE cp_host_to_dev_any
 
 
-  SUBROUTINE cp_dev_to_host_any (dev_mem, host_mem, async, error)
+  SUBROUTINE cp_dev_to_host_any (dev_mem, host_mem, async, stream, error)
     TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: dev_mem
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: host_mem
     LOGICAL, INTENT(IN), OPTIONAL            :: async
+    INTEGER, INTENT(IN), OPTIONAL            :: stream
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -283,19 +291,19 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (host_mem, d_r4)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_r,&
-            d_r4, n, async=async, error=error)
+            d_r4, n, async=async, stream=stream, error=error)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (host_mem, d_r8)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_d,&
-            d_r8, n, async=async, error=error)
+            d_r8, n, async=async, stream=stream, error=error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (host_mem, d_c4)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_c,&
-            d_c4, n, async=async, error=error)
+            d_c4, n, async=async, stream=stream, error=error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (host_mem, d_c8)
        CALL dbcsr_cuda_cp_dev_to_host (dev_mem%d_z,&
-            d_c8, n, async=async, error=error)
+            d_c8, n, async=async, stream=stream, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&

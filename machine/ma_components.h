@@ -102,7 +102,7 @@ int hw_topology_destroy (struct arch_topology *topo);
 void get_phys_id(hwloc_topology_t topology, int ncores,int cur_core);  
 void set_phys_siblings(int index, unsigned myid, hwloc_obj_t obj, int ncores, 
                        int nsiblings,int type);
-void set_node_cores(hwloc_topology_t topology, hwloc_obj_t obj, int numa_node, int num_core);
+void set_node_cores(hwloc_topology_t topology, hwloc_obj_t obj, int num_core);
 
 void hw_phys_pu_topology(struct machine_output *ma_out);
 void hw_mem_topology (struct machine_output *ma_out);
