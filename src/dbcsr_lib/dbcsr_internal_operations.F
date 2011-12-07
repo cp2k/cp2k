@@ -2525,7 +2525,9 @@ CONTAINS
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
     CALL dbcsr_ps_set_destroy (carrier%param_sets, error=error)
     !$OMP MASTER
-    CALL dbcsr_cuda_destroy_streams (error=error)
+    IF (mm_driver .EQ. mm_driver_cuda) THEN
+       CALL dbcsr_cuda_destroy_streams (error=error)
+    ENDIF
     !$OMP END MASTER
     !
     IF (carrier%local_indexing) THEN
