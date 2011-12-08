@@ -92,11 +92,11 @@ MODULE machine_architecture_types
 
 
 #if defined (__HWLOC) 
-  LOGICAL,  PUBLIC                   :: has_ma = .TRUE.
+  LOGICAL,  PUBLIC, PARAMETER        :: has_ma = .TRUE.
 #elif defined (__LIBNUMA)
-  LOGICAL,  PUBLIC                   :: has_ma = .TRUE.
+  LOGICAL,  PUBLIC, PARAMETER        :: has_ma = .TRUE.
 #else
-  LOGICAL,  PUBLIC                   :: has_ma = .FALSE.
+  LOGICAL,  PUBLIC, PARAMETER        :: has_ma = .FALSE.
 #endif
 #if defined (__parallel)
   LOGICAL, PARAMETER, PUBLIC                   :: has_MPI = .TRUE.
