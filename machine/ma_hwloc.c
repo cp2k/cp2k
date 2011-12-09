@@ -165,6 +165,7 @@ int hw_topology_init (struct arch_topology *topo)
   }
 
    int ncore_node = topo->ncores/topo->nnodes;
+   int count_cores;
   //Get the information for each NUMAnode
   for (i = 0; i < topo->nnodes ; i++)
    {
@@ -176,7 +177,8 @@ int hw_topology_init (struct arch_topology *topo)
         machine_nodes[i].mycores = malloc (ncore_node*sizeof(unsigned)); 
 
         //Get the cores id of each NUMAnode
-        set_node_cores(topology, obj, i, ncore_node - 1);
+        count_cores = 0;
+        set_node_cores(topology, obj, i, &count_cores);
 
        //GPU support
 #ifdef  __DBCSR_CUDA
@@ -247,14 +249,16 @@ void get_phys_id(hwloc_topology_t topology, int ncores,int cur_core)
 *an group them into hierarchical groups 
 * topology: the HWLOC NUMA node object
 */
-void set_node_cores(hwloc_topology_t topology, hwloc_obj_t obj, int numa_node, int num_core)
+void set_node_cores(hwloc_topology_t topology, hwloc_obj_t obj, int numa_node, int *num_core)
 {
     unsigned i;
 
-    if(obj->type == HWLOC_OBJ_PU)
-        machine_nodes[numa_node].mycores[num_core] = obj->os_index;
+    if(obj->type == HWLOC_OBJ_PU){
+        machine_nodes[numa_node].mycores[*num_core] = obj->os_index;
+        *num_core = *num_core + 1;
+    }    
     for (i = 0; i < obj->arity; i++) {
-        set_node_cores(topology, obj->children[i], numa_node, num_core - 1);
+        set_node_cores(topology, obj->children[i], numa_node, num_core);
     }
 }
 
