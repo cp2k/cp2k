@@ -14,6 +14,7 @@ MODULE input_cp2k_xc
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Ortiz1994, Perdew1981, Perdew1996, &
        Proynov2007, Tao2003, Vosko1980, Zhang1998
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
@@ -753,7 +754,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
@@ -880,6 +881,15 @@ CONTAINS
             repeats=.TRUE., n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PRINT_DFTD",&
+         description="Controls the printing of some info about DFTD contributions",&
+         print_level=high_print_level,add_last=add_last_numeric,filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

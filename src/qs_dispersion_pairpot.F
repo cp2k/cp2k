@@ -614,7 +614,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, ia, &
       iatom, icx, icy, icz, ikind, ilist, istat, jatom, jkind, katom, kkind, &
       kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, nkind, &
-      za, zb, zc
+      unit_nr, za, zb, zc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, atomnumber, &
                                                 kind_of
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
@@ -646,6 +646,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dcnum_type), ALLOCATABLE, &
       DIMENSION(:)                           :: dcnum
@@ -661,20 +662,29 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(section_vals_type), POINTER         :: dftd_section, input
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (atomic_kind_set,sab_vdw)
+    NULLIFY (atomic_kind_set,sab_cn, sab_vdw,input)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env, energy=energy, atomic_kind_set=atomic_kind_set,&
          cell=cell, virial=virial, dft_control=dft_control, para_env=para_env,&
-         dispersion_env=dispersion_env, atprop=atprop, error=error)
+         dispersion_env=dispersion_env, atprop=atprop, input=input, error=error)
     debugx = dispersion_env%verbose
     debugall = debugx
     debug = debugx .AND. para_env%ionode
     nkind = SIZE(atomic_kind_set)
+
+    dftd_section => section_vals_get_subs_vals(input,"DFT%XC%vdw_potential%PAIR_POTENTIAL",&
+         error=error)
+    unit_nr = cp_print_key_unit_nr(logger,dftd_section,"PRINT_DFTD",extension=".dftd",&
+         error=error)
 
     ! atomic energy and stress arrays
     atenergy = atprop%energy
@@ -694,9 +704,11 @@ CONTAINS
 
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
 
-       IF(debug) WRITE(*,*) 
-       IF(debug) WRITE(*,*) " Pair potential vdW calculation"
-       IF(debug) WRITE(*,*) " Dispersion potential type: ",TRIM(dispersion_env%pp_type)
+       IF(unit_nr>0) THEN
+        WRITE(unit_nr,*) 
+        WRITE(unit_nr,*) " Pair potential vdW calculation"
+        WRITE(unit_nr,*) " Dispersion potential type: ",TRIM(dispersion_env%pp_type)
+       END IF
 
        NULLIFY (particle_set)
        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
@@ -741,8 +753,10 @@ CONTAINS
        IF ( dispersion_env%pp_type == "DFTD2" ) THEN
           s6 = dispersion_env%scaling
           dd = dispersion_env%exp_pre
-          IF(debug) WRITE(*,*) " Scaling parameter (s6) ",s6
-          IF(debug) WRITE(*,*) " Exponential prefactor  ",dd
+          IF(unit_nr>0) THEN
+             WRITE(unit_nr,*) " Scaling parameter (s6) ",s6
+             WRITE(unit_nr,*) " Exponential prefactor  ",dd
+          END IF
        ELSE IF ( dispersion_env%pp_type == "DFTD3" ) THEN
           maxc = SIZE(dispersion_env%c6ab,3)
           max_elem = SIZE(dispersion_env%c6ab,1)
@@ -757,13 +771,16 @@ CONTAINS
           e6tot = 0._dp
           e8tot = 0._dp
           e9tot = 0._dp
-          IF(debug) WRITE(*,*) " Scaling parameter (s6) ",s6
-          IF(debug) WRITE(*,*) " Scaling parameter (s8) ",s8
-          IF(debug) WRITE(*,*) " Scaling parameter (sr6)",rs6
-          IF(debug) WRITE(*,*) " Scaling parameter (sr8)",rs8
-          IF(debug) WRITE(*,*) " Cutoff coordination numbers",eps_cn
-          IF (dispersion_env%lrc) THEN
-            IF (debug) WRITE(*,*) " Apply a long range correction"
+          
+          IF(unit_nr>0) THEN
+            WRITE(unit_nr,*) " Scaling parameter (s6) ",s6
+            WRITE(unit_nr,*) " Scaling parameter (s8) ",s8
+            WRITE(unit_nr,*) " Scaling parameter (sr6)",rs6
+            WRITE(unit_nr,*) " Scaling parameter (sr8)",rs8
+            WRITE(unit_nr,*) " Cutoff coordination numbers",eps_cn
+            IF (dispersion_env%lrc) THEN
+              WRITE(unit_nr,*) " Apply a long range correction"
+            END IF
           END IF
           ! Calculate coordination numbers
           NULLIFY (particle_set)
@@ -828,14 +845,15 @@ CONTAINS
           ! for parallel runs we have to update dcnum on all processors
           IF(calculate_forces .OR. debugall) THEN
             CALL dcnum_distribute(dcnum,para_env,error)
-          END IF
-          IF (debug) THEN
-            WRITE(*,*)
-            WRITE(*,*) "  ATOM       Coordination   Neighbors"
-            DO i=1,natom
-               WRITE(*,"(I6,F20.10,I12)") i,cnumbers(i),dcnum(i)%neighbors
-            END DO
-            WRITE(*,*)
+
+            IF (unit_nr>0 .AND. SIZE(dcnum)>0) THEN
+              WRITE(unit_nr,*)
+              WRITE(unit_nr,*) "  ATOM       Coordination   Neighbors"
+              DO i=1,natom
+                 WRITE(unit_nr,"(I6,F20.10,I12)") i,cnumbers(i),dcnum(i)%neighbors
+              END DO
+              WRITE(unit_nr,*)
+            END IF
           END IF
        END IF
 
@@ -848,15 +866,15 @@ CONTAINS
           sab_max(2) = rcc/plane_distance(0,1,0,cell)
           sab_max(3) = rcc/plane_distance(0,0,1,cell)
           ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-          IF (debug) THEN
-            WRITE(*,*) " Calculate C9 Terms"
-            WRITE(*,"(A,T20,I3,A,I3)") "  Search in cells ",-ncell(1),":",ncell(1)
-            WRITE(*,"(T20,I3,A,I3)") -ncell(2),":",ncell(2)
-            WRITE(*,"(T20,I3,A,I3)") -ncell(3),":",ncell(3)
-            WRITE(*,*)
+          IF (unit_nr>0) THEN
+            WRITE(unit_nr,*) " Calculate C9 Terms"
+            WRITE(unit_nr,"(A,T20,I3,A,I3)") "  Search in cells ",-ncell(1),":",ncell(1)
+            WRITE(unit_nr,"(T20,I3,A,I3)") -ncell(2),":",ncell(2)
+            WRITE(unit_nr,"(T20,I3,A,I3)") -ncell(3),":",ncell(3)
+            WRITE(unit_nr,*)
           END IF
           IF (dispersion_env%c9cnst) THEN
-            IF (debug) WRITE(*,*) " Use reference coordination numbers for C9 term"
+            IF (unit_nr>0) WRITE(unit_nr,*) " Use reference coordination numbers for C9 term"
             ALLOCATE (cnumfix(natom),STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             cnumfix = 0._dp
@@ -890,13 +908,14 @@ CONTAINS
                 END DO
               END DO
             END IF
-            IF (debug) THEN
+            IF (unit_nr>0) THEN
               DO i=1,natom
                 IF (ABS(cnumbers(i)-cnumfix(i)) > 0.5_dp) THEN
-                  WRITE(*,"(A,T20,A,I6,T41,2F10.3)") "  Difference in CN ","Atom:",i,cnumbers(i),cnumfix(i)
+                  WRITE(unit_nr,"(A,T20,A,I6,T41,2F10.3)") "  Difference in CN ","Atom:",&
+                        i,cnumbers(i),cnumfix(i)
                 END IF
               END DO
-              WRITE(*,*)
+              WRITE(unit_nr,*)
             END IF
           END IF
        END IF
@@ -1355,25 +1374,31 @@ CONTAINS
          e6tot = e6tot+elrc6
          e8tot = e8tot+elrc8
          e9tot = e9tot+elrc9
-         IF(debug) WRITE(*,"(A,F20.0)") "  E6 vdW terms              :",nab
-         IF(debug) WRITE(*,*) " E6 vdW energy [au/kcal]   :",e6tot,e6tot*kcalmol
-         IF(debug) WRITE(*,*) " E8 vdW energy [au/kcal]   :",e8tot,e8tot*kcalmol
-         IF(debug) WRITE(*,*) " %E8 on total vdW energy   :",e8tot/evdw*100._dp
-         IF(debug) WRITE(*,"(A,F20.0)") "  E9 vdW terms              :",nabc
-         IF(debug) WRITE(*,*) " E9 vdW energy [au/kcal]   :",e9tot,e9tot*kcalmol
-         IF(debug) WRITE(*,*) " %E9 on total vdW energy   :",e9tot/evdw*100._dp
-         IF (dispersion_env%lrc) THEN
-           IF(debug) WRITE(*,*) " E LRC C6 [au/kcal]        :",elrc6,elrc6*kcalmol
-           IF(debug) WRITE(*,*) " E LRC C8 [au/kcal]        :",elrc8,elrc8*kcalmol
-           IF(debug) WRITE(*,*) " E LRC C9 [au/kcal]        :",elrc9,elrc9*kcalmol
+         IF(unit_nr>0) THEN
+            WRITE(unit_nr,"(A,F20.0)") "  E6 vdW terms              :",nab
+            WRITE(unit_nr,*) " E6 vdW energy [au/kcal]   :",e6tot,e6tot*kcalmol
+            WRITE(unit_nr,*) " E8 vdW energy [au/kcal]   :",e8tot,e8tot*kcalmol
+            WRITE(unit_nr,*) " %E8 on total vdW energy   :",e8tot/evdw*100._dp
+            WRITE(unit_nr,"(A,F20.0)") "  E9 vdW terms              :",nabc
+            WRITE(unit_nr,*) " E9 vdW energy [au/kcal]   :",e9tot,e9tot*kcalmol
+            WRITE(unit_nr,*) " %E9 on total vdW energy   :",e9tot/evdw*100._dp
+            IF (dispersion_env%lrc) THEN
+              WRITE(unit_nr,*) " E LRC C6 [au/kcal]        :",elrc6,elrc6*kcalmol
+              WRITE(unit_nr,*) " E LRC C8 [au/kcal]        :",elrc8,elrc8*kcalmol
+              WRITE(unit_nr,*) " E LRC C9 [au/kcal]        :",elrc9,elrc9*kcalmol
+            END IF
          END IF
        END IF
-       IF(debug) WRITE(*,*) " Total vdW energy [au]     :",evdw 
-       IF(debug) WRITE(*,*) " Total vdW energy [kcal]   :",evdw * kcalmol
-       IF(debug) WRITE(*,*) 
+       IF(unit_nr>0) THEN
+         WRITE(unit_nr,*) " Total vdW energy [au]     :",evdw 
+         WRITE(unit_nr,*) " Total vdW energy [kcal]   :",evdw * kcalmol
+         WRITE(unit_nr,*) 
+       END IF
        IF(calculate_forces .AND. debugall) THEN
-         IF(debug) WRITE(*,*) " Dispersion Forces         "
-         IF(debug) WRITE(*,*) " Atom   Kind                            Forces    "
+         IF(unit_nr>0) THEN
+            WRITE(unit_nr,*) " Dispersion Forces         "
+            WRITE(unit_nr,*) " Atom   Kind                            Forces    "
+         END IF
          gnorm=0._dp
          DO iatom=1,natom
            ikind=kind_of(iatom)
@@ -1381,18 +1406,22 @@ CONTAINS
            fdij(1:3) = force(ikind)%dispersion(:,atom_a)
            CALL mp_sum(fdij,para_env%group)
            gnorm = gnorm + SUM(ABS(fdij))
-           IF(debug) WRITE(*,"(i5,i7,3F20.14)") iatom,ikind,fdij
+           IF(unit_nr>0) WRITE(unit_nr,"(i5,i7,3F20.14)") iatom,ikind,fdij
          END DO
-         IF(debug) WRITE(*,*) 
-         IF(debug) WRITE(*,*) "|G| = ",gnorm
-         IF(debug) WRITE(*,*) 
+         IF(unit_nr>0) THEN
+           WRITE(unit_nr,*) 
+           WRITE(unit_nr,*) "|G| = ",gnorm
+           WRITE(unit_nr,*) 
+         END IF
          IF ( use_virial ) THEN
            dvirial = virial%pv_virial - dvirial
            CALL mp_sum(dvirial,para_env%group)
-           IF(debug) WRITE(*,*) "Stress Tensor (dispersion)" 
-           IF(debug) WRITE(*,"(3G20.12)") dvirial
-           IF(debug) WRITE(*,*) "  Tr(P)/3 :  ",(dvirial(1,1)+dvirial(2,2)+dvirial(3,3) )/3._dp
-           IF(debug) WRITE(*,*) 
+           IF(unit_nr>0) THEN
+              WRITE(unit_nr,*) "Stress Tensor (dispersion)" 
+              WRITE(unit_nr,"(3G20.12)") dvirial
+              WRITE(unit_nr,*) "  Tr(P)/3 :  ",(dvirial(1,1)+dvirial(2,2)+dvirial(3,3) )/3._dp
+              WRITE(unit_nr,*) 
+           END IF
          END IF
        END IF
 
@@ -1405,6 +1434,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,dftd_section,"PRINT_DFTD", error=error)
 
     CALL timestop(handle)
 
