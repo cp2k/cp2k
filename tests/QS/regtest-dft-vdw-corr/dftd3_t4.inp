@@ -31,6 +31,8 @@
             D3_SCALING   1.0e0 1.139e0 1.683e0
             CALCULATE_C9_TERM T
             R_CUTOFF 20.e0
+            &PRINT_DFTD
+            &END
          &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
     &END XC

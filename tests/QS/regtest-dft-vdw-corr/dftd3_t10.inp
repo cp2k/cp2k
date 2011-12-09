@@ -44,6 +44,8 @@
             EPS_CN 0.01
             ATOM_COORDINATION_NUMBERS   0.00   1
             ATOM_COORDINATION_NUMBERS   0.00   2 3 4
+            &PRINT_DFTD
+            &END
          &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
     &END XC

@@ -29,6 +29,8 @@
             TYPE DFTD3
             PARAMETER_FILE_NAME ../dftd3.dat
             REFERENCE_FUNCTIONAL PBE
+            &PRINT_DFTD
+            &END
          &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
     &END XC
