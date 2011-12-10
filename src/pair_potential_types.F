@@ -189,9 +189,10 @@ MODULE pair_potential_types
 ! *****************************************************************************
   TYPE gp_pot_type
      INTEGER                                   :: myid
-     CHARACTER ( LEN = default_path_length )   :: potential
-     CHARACTER ( LEN = default_string_length ), POINTER, DIMENSION(:) :: parameters
-     CHARACTER ( LEN = default_string_length ) :: variables
+     CHARACTER (LEN=default_path_length)       :: potential
+     CHARACTER (LEN=default_string_length), &
+       POINTER, DIMENSION(:)                   :: parameters, units
+     CHARACTER (LEN=default_string_length)     :: variables
      REAL(KIND=dp), DIMENSION(:), POINTER      :: values
   END TYPE gp_pot_type
 

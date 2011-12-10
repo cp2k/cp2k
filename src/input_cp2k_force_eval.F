@@ -221,6 +221,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="UNITS",&
+            description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
+                        "It is assumed that the corresponding parameter value is specified in this unit.",&
+            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", required=.FALSE., type_of_var=char_t,&
+            n_var=-1, repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="DX",&
             description="Parameter used for computing the derivative with the Ridders method.",&
             usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)

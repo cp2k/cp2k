@@ -1018,9 +1018,17 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
-            description="Defines the values of  parameter of the functional form",&
+            description="Defines the values of parameter of the functional form",&
             usage="VALUES ", required=.TRUE., type_of_var=real_t,&
             n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="UNITS",&
+            description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
+                        "It is assumed that the corresponding parameter value is specified in this unit.",&
+            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", required=.FALSE., type_of_var=char_t,&
+            n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -21,6 +21,7 @@ MODULE force_fields_util
   USE colvar_types,                    ONLY: dist_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE f77_blas
@@ -1302,15 +1303,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: my_par, my_par_tmp, my_var
+      DIMENSION(:), POINTER                  :: my_par, my_par_tmp, my_units, &
+                                                my_units_tmp, my_var
     INTEGER                                  :: i, ind, irep, isize, j, &
-                                                mydim, n_par, n_val, nblank, &
-                                                stat
+                                                mydim, n_par, n_units, n_val, &
+                                                nblank, stat
     LOGICAL                                  :: check, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val, my_val_tmp
 
     failure = .FALSE.
     NULLIFY(my_var, my_par, my_val, my_par_tmp, my_val_tmp)
+    NULLIFY (my_units)
+    NULLIFY (my_units_tmp)
     IF (ASSOCIATED(parameters)) THEN
        DEALLOCATE(parameters,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1342,6 +1346,7 @@ CONTAINS
     CALL section_vals_val_get(gen_section,"VALUES",i_rep_section=irep,n_rep_val=n_val,error=error)
     check = (n_par>0).EQV.(n_val>0)
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    CALL section_vals_val_get(gen_section,"UNITS",i_rep_section=irep,n_rep_val=n_units,error=error)
     IF (n_par>0) THEN
        ! Parameters
        ALLOCATE(my_par(0),stat=stat)
@@ -1354,7 +1359,7 @@ CONTAINS
           nblank = COUNT(my_par_tmp=="")
           CALL reallocate(my_par, 1, isize+SIZE(my_par_tmp)-nblank)
           ind = 0
-          DO j = 1, SIZE(my_par_tmp)
+          DO j = 1, SIZE(my_par_tmp) 
              IF (my_par_tmp(j)=="") CYCLE
              ind = ind + 1
              my_par(isize+ind)=my_par_tmp(j)
@@ -1367,11 +1372,31 @@ CONTAINS
           my_val(isize+1:isize+SIZE(my_val_tmp))=my_val_tmp
        END DO
        CPPrecondition(SIZE(my_par)==SIZE(my_val),cp_failure_level,routineP,error,failure)
+       ! Optionally read the units for each parameter value
+       ALLOCATE (my_units(0),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (n_units > 0) THEN
+          DO i=1,n_units
+             isize = SIZE(my_units)
+             CALL section_vals_val_get(gen_section,"UNITS",i_rep_section=irep,i_rep_val=i,c_vals=my_units_tmp,error=error)
+             nblank = COUNT(my_units_tmp == "")
+             CALL reallocate(my_units,1,isize+SIZE(my_units_tmp)-nblank)
+             ind = 0
+             DO j=1,SIZE(my_units_tmp)
+                IF (my_units_tmp(j) == "") CYCLE
+                ind = ind + 1
+                my_units(isize+ind) = my_units_tmp(j)
+             END DO
+          END DO
+          CPPrecondition(SIZE(my_units)==SIZE(my_val),cp_failure_level,routineP,error,failure)
+       END IF
        mydim=mydim+SIZE(my_val)
        IF (SIZE(my_val)==0) THEN
           DEALLOCATE(my_par,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(my_val,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(my_units,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
@@ -1388,8 +1413,14 @@ CONTAINS
           values(1:SIZE(my_var)) = var_values
        END IF
        IF (ASSOCIATED(my_val)) THEN
-          parameters(SIZE(my_var)+1:) = my_par(1:SIZE(my_val))
-          values(SIZE(my_var)+1:)     = my_val(1:SIZE(my_val))
+          DO i=1,SIZE(my_val)
+             parameters(SIZE(my_var)+i) = my_par(i)
+             IF (n_units > 0) THEN
+                values(SIZE(my_var)+i) = cp_unit_to_cp2k(my_val(i),TRIM(ADJUSTL(my_units(i))),error=error)
+             ELSE
+                values(SIZE(my_var)+i) = my_val(i)
+             END IF
+          END DO
        END IF
     END IF
     IF (ASSOCIATED(my_par)) THEN
@@ -1398,6 +1429,10 @@ CONTAINS
     END IF
     IF (ASSOCIATED(my_val)) THEN
        DEALLOCATE(my_val,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (ASSOCIATED(my_units)) THEN
+       DEALLOCATE(my_units,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (PRESENT(input_variables)) THEN

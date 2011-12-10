@@ -96,3 +96,5 @@ UO2-2x2x2-binary_restart-cs-7.inp 11
 UO2-2x2x2-binary_restart-cs-8.inp 11
 # Non-harmonic core-shell spring potential
 UO2-2x2x2-non-harm-cs.inp 11
+# GENPOT: Enable units for parameter values
+UO2-2x2x2-genpot_units.inp 11
