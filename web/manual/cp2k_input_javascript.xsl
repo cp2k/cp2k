@@ -24,8 +24,8 @@
     <big class="tt">--xml</big> command line option (see
     <a href="generate_manual_howto.html">how to generate this manual</a>).
     Thus the manual describes exactly this version of the code.
-    The latest CVS log file entry found was
-    <xsl:value-of select="COMPILE_LASTCVS"/>.
+    The SVN source code revision number is
+    <xsl:value-of select="COMPILE_REVISION"/>.
    </p>
    <p>
     <xsl:call-template name="searchform"/>

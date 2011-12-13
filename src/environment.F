@@ -15,7 +15,7 @@ MODULE environment
   USE bibliography,                    ONLY: Frigo2005,&
                                              cite_reference
   USE cp2k_info,                       ONLY: &
-       compile_arch, compile_date, compile_host, compile_lastcvs, cp2k_home, &
+       compile_arch, compile_date, compile_host, compile_revision, cp2k_home, &
        cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
        r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
@@ -129,8 +129,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dev_flag
-    INTEGER                                  :: ipe, my_output_unit, &
-                                                strend, strstart
+    INTEGER                                  :: ipe, my_output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -142,19 +141,19 @@ CONTAINS
     ! message passing performance
     CALL add_mp_perf_env()
 
-    !   *** Set the default logical output and error unit number ***
-    !   *** write to screen in case of error on non-io nodes, and hope this is appropriate
+    ! Set the default logical output and error unit number
+    ! write to screen in case of error on non-io nodes, and hope this is appropriate
     IF (para_env%ionode) THEN
        CALL set_error_unit(output_unit)
     ELSE
        CALL set_error_unit(6)
     ENDIF
 
-    !   *** Set flag if this is a development version
+    ! Set flag if this is a development version
     dev_flag = ""
     IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
 
-    !   *** Init the default logger
+    ! Init the default logger
     IF (para_env%source==para_env%mepos) THEN
        my_output_unit=output_unit
     ELSE
@@ -167,16 +166,19 @@ CONTAINS
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
 
-    !   *** Initialize timing ***
+    ! Initialize timing
     CALL timeset ("CP2K",globenv%handle)
 
-    !   *** Print header ***
+    ! Print header
     CALL cp2k_header(my_output_unit,wdir)
 
     IF (my_output_unit>0) THEN
        WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
             "CP2K| version string: ",&
             ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
+       WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
+            "CP2K| source code revision number:",&
+            ADJUSTR(compile_revision)
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| is freely available from ",&
             ADJUSTR(TRIM(cp2k_home))
@@ -189,11 +191,6 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
             "CP2K| Program compiled for",&
             ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-       strend=MAX(1,LEN(compile_lastcvs)-2)
-       strstart=MAX(2,strend-50)
-       WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
-            "CP2K| Last CVS entry",&
-            ADJUSTR(compile_lastcvs(strstart:strend))
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
             "CP2K| Input file name",&
             ADJUSTR(TRIM(input_file_name))

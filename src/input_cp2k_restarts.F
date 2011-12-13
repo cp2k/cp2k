@@ -17,7 +17,7 @@ MODULE input_cp2k_restarts
   USE cp2k_info,                       ONLY: compile_arch,&
                                              compile_date,&
                                              compile_host,&
-                                             compile_lastcvs
+                                             compile_revision
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
@@ -239,7 +239,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=256)                       :: cwd, datx
-    INTEGER                                  :: strend, strstart
 
     CALL m_datum(datx)
     CALL m_getcwd(cwd)
@@ -257,11 +256,9 @@ CONTAINS
     WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
          "# Program compiled for",&
          ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-    strend=MAX(1,LEN(compile_lastcvs)-2)
-    strstart=MAX(2,strend-50)
     WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-         "# Last CVS entry",&
-         ADJUSTR(compile_lastcvs(strstart:strend))
+         "# Source code revision number",&
+         ADJUSTR(compile_revision)
 
   END SUBROUTINE write_restart_header
 

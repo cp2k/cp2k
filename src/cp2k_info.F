@@ -27,7 +27,7 @@ MODULE cp2k_info
   PRIVATE
 
   PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version
-  PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
+  PUBLIC :: compile_arch,compile_date,compile_host,compile_revision
   PUBLIC :: print_cp2k_license, get_runtime_info
 
   ! the version string of CP2K intended to be adjust after releases and branches
@@ -38,10 +38,16 @@ MODULE cp2k_info
   INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.3.44 (r12079)"
+#if defined(__COMPILE_REVISION)
+  CHARACTER(LEN=*), PARAMETER :: compile_revision = __COMPILE_REVISION
+#else
+  CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
+#endif
+
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.3"
   CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2011"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
-  CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://cp2k.berlios.de/"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://www.cp2k.org/"
 
   ! compile time information
 #if defined(__COMPILE_ARCH)
@@ -60,12 +66,6 @@ MODULE cp2k_info
   CHARACTER(LEN=*), PARAMETER :: compile_host = __COMPILE_HOST
 #else
   CHARACTER(LEN=*), PARAMETER :: compile_host = "unknown: -D__COMPILE_HOST=?"
-#endif
-
-#if defined(__COMPILE_LASTCVS)
-  CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = __COMPILE_LASTCVS
-#else
-  CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = "/No CVS/Entry in src dir//"
 #endif
 
   ! Local runtime informations

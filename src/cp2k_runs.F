@@ -11,7 +11,7 @@ MODULE cp2k_runs
   USE cell_opt,                        ONLY: cp_cell_opt
   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
   USE cp2k_info,                       ONLY: compile_date,&
-                                             compile_lastcvs,&
+                                             compile_revision,&
                                              cp2k_version,&
                                              cp2k_year,&
                                              enable_color_tags
@@ -898,8 +898,7 @@ CONTAINS
             "This html manual can be generated automatically from a given cp2k executable "// &
             "using the --html-manual command line option. The manual describes exactly that version of the code. "//&
             "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
-            "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
-
+            "The SVN source code revision number is "//TRIM(compile_revision)//"."
 
        WRITE(unit_nr,FMT='(A)') '<H2>Search the online input reference manual</H2>'
        WRITE(unit_nr,FMT='(A)') '<TABLE><TR><TD>'
@@ -1055,7 +1054,7 @@ CONTAINS
         " <CP2K_VERSION>"//TRIM(cp2k_version)//"</CP2K_VERSION>",&
         " <CP2K_YEAR>"//TRIM(cp2k_year)//"</CP2K_YEAR>",&
         " <COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
-        " <COMPILE_LASTCVS>"//TRIM(compile_lastcvs)//"</COMPILE_LASTCVS>"
+        " <COMPILE_REVISION>"//TRIM(compile_revision)//"</COMPILE_REVISION>"
 
       DO i=1,root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section,1,unit_number,error)

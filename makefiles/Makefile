@@ -11,55 +11,58 @@ SHELL = /bin/sh
 # adding a symbolic link from the src directory to the Makefile in makefiles/ 
 # also works fine
 #
-CP2KHOME  := $(PWD)/..
-ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
+CP2KHOME := $(PWD)/..
+ARCH     := $(shell $(CP2KHOME)/tools/get_arch_code)
 LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
 LIB3      = cp2k_dbcsr_lib
 LIB4      = cp2k_ma_lib
 LIBCP2K   = cp2k_lib
+
 export VERSION=sopt
 export WHAT   =_progr
 
 ### Dependent variables ###
 
-ARCHDIR      = $(CP2KHOME)/arch
-DOCDIR       = $(CP2KHOME)/doc
-MAINEXEDIR   = $(CP2KHOME)/exe
-MAINLIBDIR   = $(CP2KHOME)/lib
-MAINOBJDIR   = $(CP2KHOME)/obj
-PRETTYOBJDIR = $(CP2KHOME)/obj/prettified
-TOOLDIR      = $(OBJDIR)/tools
-TOOLSRC      = $(CP2KHOME)/tools
-SRCDIR       = $(CP2KHOME)/src
-SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/machine
-MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
-MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
-PROG         = $(EXEDIR)/cp2k.$(VERSION)
-CP2KSHELL    = $(EXEDIR)/cp2k_shell.$(VERSION)
-FES          = $(EXEDIR)/fes.$(VERSION)
-EXEDIR       = $(MAINEXEDIR)/$(ARCH)
-LIBDIR       = $(MAINLIBDIR)/$(ARCH)
-OBJDIR       = $(MAINOBJDIR)/$(ARCH)
-OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
-LIB1_OBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
-LIB2_OBJECTDEFS= $(SRCDIR)/dbcsr_lib/OBJECTDEFS
-LIB3_OBJECTDEFS= $(SRCDIR)/fft_lib/OBJECTDEFS
-LIB4_OBJECTDEFS= $(SRCDIR)/arch_lib/OBJECTDEFS
-LIBNVOBJECTDEFS= $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
-LIBMA_OBJECTDEFS=$(CP2KHOME)/machine/LIBMA_OBJECTDEFS
+ARCHDIR              = $(CP2KHOME)/arch
+DOCDIR               = $(CP2KHOME)/doc
+MAINEXEDIR           = $(CP2KHOME)/exe
+MAINLIBDIR           = $(CP2KHOME)/lib
+MAINOBJDIR           = $(CP2KHOME)/obj
+PRETTYOBJDIR         = $(CP2KHOME)/obj/prettified
+TOOLDIR              = $(OBJDIR)/tools
+TOOLSRC              = $(CP2KHOME)/tools
+SRCDIR               = $(CP2KHOME)/src
+SRCDIRS              = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(CP2KHOME)/machine
+MAKEFILE             = $(CP2KHOME)/makefiles/Makefile
+MACHINEDEFS          = $(ARCHDIR)/$(ARCH).$(VERSION)
+PROG                 = $(EXEDIR)/cp2k.$(VERSION)
+CP2KSHELL            = $(EXEDIR)/cp2k_shell.$(VERSION)
+FES                  = $(EXEDIR)/fes.$(VERSION)
+EXEDIR               = $(MAINEXEDIR)/$(ARCH)
+LIBDIR               = $(MAINLIBDIR)/$(ARCH)
+OBJDIR               = $(MAINOBJDIR)/$(ARCH)
+OBJECTDEFS           = $(SRCDIR)/OBJECTDEFS
+LIB1_OBJECTDEFS      = $(SRCDIR)/lib/OBJECTDEFS
+LIB2_OBJECTDEFS      = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
+LIB3_OBJECTDEFS      = $(SRCDIR)/fft_lib/OBJECTDEFS
+LIB4_OBJECTDEFS      = $(SRCDIR)/arch_lib/OBJECTDEFS
+LIBNVOBJECTDEFS      = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
+LIBMA_OBJECTDEFS     = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
-LIBMA_DEPENDENCIES =   $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
-LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
-LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
-LIB3_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
-LIB4_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
-LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
-SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
-FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
-DOXYGENDIR   = $(DOCDIR)/doxygen
-DBCSR_TEST_PROG =$(EXEDIR)/dbcsr_test_driver.$(VERSION)
-DBCSR_PERF_PROG =$(EXEDIR)/dbcsr_performance_driver.$(VERSION)
+LIBMA_DEPENDENCIES   = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
+LIB1_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+LIB2_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
+LIB3_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
+LIB4_ARCHIVE         = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
+LIB_CP2K_ARCHIVE     = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
+SRCENTRY             = $(SRCDIR)/.svn/entries
+FESOBJECTDEFS        = $(TOOLSRC)/metadyn/OBJECTDEFS
+DOXYGENDIR           = $(DOCDIR)/doxygen
+DBCSR_TEST_PROG      = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
+DBCSR_PERF_PROG      = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
+
+REVISION := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
 
 # SMART_MODULES prevents unnecessary recompilation of files depending
 # on unchanged modules.
@@ -88,7 +91,7 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool\
-          dbcsr_test dbcsr_perf
+         dbcsr_test dbcsr_perf mrproper
 
 ### Master rules ###
 build: dirs deptool
@@ -187,14 +190,13 @@ endif
 ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) 
 
 #
-# some practical variables for the build.
-# note that the last cvs entry is not necessarily the most recent
+# some practical variables for the build
 #
 ifeq ($(CPPSHELL),)
 CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
             -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
+	    -D__COMPILE_REVISION="\"$(strip $(REVISION))\""
 endif
 
 ifneq ($(CPP),)
@@ -436,11 +438,16 @@ realclean: clean
 	-rm -f $(LIB4_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
 #
-# really remove all build files not in CVS
+# Remove all files from previous builds
 #
 distclean:
 	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
-
+#
+# Remove ALL files not in SVN
+# NOTE: This removes really everything not committed to SVN
+#
+mrproper:
+	cd $(CP2KHOME); ./tools/clean_cwd.sh
 #
 # so far CP2K does not install, but give a hint to the user
 #
@@ -467,13 +474,12 @@ doxygen: doxygen/clean
 	{ cd $(SRCDIR)/arch_lib ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
-# an additional dependency of the CVS entries in the source directory
-# to recpp cp2k_info.F whenever the CVS/Entries file is updated (and exists)
+# an additional dependency of the SVN entry in the source directory
+# to recpp cp2k_info.F whenever the .svn/entries file is updated (and exists)
 #
 ifneq ($(strip $(SRCENTRY)),)
-cp2k_info.o:$(SRCENTRY)
+cp2k_info.o: $(SRCENTRY)
 endif
-
 #
 # Load the automatically generated rules of makedepf90 
 #

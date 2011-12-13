@@ -29,7 +29,7 @@ PROGRAM cp2k_shell
   USE cp2k_info,                       ONLY: compile_arch,&
                                              compile_date,&
                                              compile_host,&
-                                             compile_lastcvs,&
+                                             compile_revision,&
                                              cp2k_home,&
                                              cp2k_version,&
                                              id_cp2k_version,&
@@ -502,7 +502,6 @@ CONTAINS
 
     CHARACTER(len=200)                       :: cwd
     CHARACTER(len=80)                        :: dev_flag, host_name, user_name
-    INTEGER                                  :: strend, strstart
 
     CALL m_getcwd(cwd)
     CALL m_getpid(pid)
@@ -521,6 +520,9 @@ CONTAINS
     WRITE (UNIT=unit,FMT="(/,T2,A,T31,A50)")&
          "CP2K| version string: ",&
          ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
+    WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
+         "CP2K| source code revision number:",&
+         ADJUSTR(compile_revision)
     WRITE (UNIT=unit,FMT="(T2,A,T41,A40)")&
          "CP2K| is freely available from ",&
          ADJUSTR(TRIM(cp2k_home))
@@ -533,11 +535,6 @@ CONTAINS
     WRITE (UNIT=unit,FMT="(T2,A,T31,A50)")&
          "CP2K| Program compiled for",&
          ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-    strend=MAX(1,LEN(compile_lastcvs)-2)
-    strstart=MAX(2,strend-50)
-    WRITE (UNIT=unit,FMT="(T2,A,T31,A50)")&
-         "CP2K| Last CVS entry",&
-         ADJUSTR(compile_lastcvs(strstart:strend))
  END SUBROUTINE
 
 ! *****************************************************************************
