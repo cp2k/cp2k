@@ -358,7 +358,7 @@ dbcsr_performance_driver.o: $(LIB3_ARCHIVE)
 # these are tools, but their integration in the build is ugly at least (e.g. see dependencies).
 #
 makedepf90:
-	-test -d $(TOOLDIR)/makedepf90-build || cp -r $(TOOLSRC)/makedepf90 makedepf90-build
+	-test -d $(TOOLDIR)/makedepf90-build || ( mkdir makedepf90-build ; cp $(TOOLSRC)/makedepf90/* makedepf90-build )
 	{ cd makedepf90-build ; ./configure --prefix=$(TOOLDIR) --bindir=$(TOOLDIR) ; $(MAKE) VERSION="2.8.8cp2k" ; $(MAKE) install ; }
 
 #
