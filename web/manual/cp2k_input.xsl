@@ -24,8 +24,8 @@
     <big class="tt">--xml</big> command line option (see
     <a href="generate_manual_howto.html">how to generate this manual</a>).
     Thus the manual describes exactly this version of the code.
-    The SVN source code revision number is
-    <xsl:value-of select="COMPILE_REVISION"/>.
+    The corresponding SVN source code revision number is
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/trunk/cp2k/src/&#63;sortby=date&#38;pathrev={string(COMPILE_REVISION)}" target="_blank"><xsl:value-of select="COMPILE_REVISION"/></a>.
    </p>
    <p>
     <xsl:call-template name="searchform"/>
@@ -210,7 +210,7 @@
  <table class="default">
   <tr>
    <td align="left">
-    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://cp2k.berlios.de">CP2K home page</a>
+    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
    </td>
    <td align="right">
     (Last update:
@@ -224,8 +224,8 @@
  <form method="get" action="http://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://cp2k.berlios.de/manual/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://cp2k.berlios.de/manual/" checked="checked"/>
+  <input type="hidden" name="domains" value="http://people.web.psi.ch/krack/cp2k/manual/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://people.web.psi.ch/krack/cp2k/manual/" checked="checked"/>
  </form>
 </xsl:template>
 
