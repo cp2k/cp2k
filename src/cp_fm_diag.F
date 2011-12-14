@@ -61,12 +61,12 @@ MODULE cp_fm_diag
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Computes all eigenvalues and vectors of a real symmetric matrix
+!>          significantly faster than syevx, scales also much better.
+!>          Needs workspace to allocate all the eigenvectors
+!> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
+! *****************************************************************************
   SUBROUTINE cp_fm_syevd(matrix,eigenvectors,eigenvalues,error)
-
-    ! Computes all eigenvalues and vectors of a real symmetric matrix
-    ! should be quite a bit faster than syevx for that case
-    ! especially in parallel with thightly clustered evals
-    ! needs more workspace in the worst case, but much better distributed
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
@@ -297,6 +297,7 @@ CONTAINS
     ! (it seems to depend on the block size used)
 
     lwork = NINT(work(1)+100000)
+!    lwork = NINT(work(1))
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
@@ -626,6 +627,7 @@ CONTAINS
 
     ! -------------------------------------------------------------------------
 
+
     ! by default all
     n = matrix%matrix_struct%nrow_global
     neig=n
@@ -639,8 +641,8 @@ CONTAINS
     IF (neig <= 0) RETURN
 
     CALL timeset(routineN,handle)
-
     failure =.FALSE.
+
     needs_evecs=PRESENT(eigenvectors)
 
     logger => cp_error_get_logger(error)
@@ -687,8 +689,11 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(6*n), STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-!    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+#if defined (__SCALAPACK2)
+    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+#endif
     lwork = INT(work(1))
+    lwork = NINT(work(1)+300000)
     liwork = iwork(1)
     IF(lwork>SIZE(work,1)) THEN
       DEALLOCATE(work,STAT=istat)
@@ -703,7 +708,9 @@ CONTAINS
 
     !Second call: solve the eigenvalue problem
     info = 0
-!    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+#if defined (__SCALAPACK2)
+    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+#endif
 
     IF(info>0) THEN
       WRITE(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO 
@@ -766,7 +773,6 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
-
 
   END SUBROUTINE cp_fm_syevr
 
