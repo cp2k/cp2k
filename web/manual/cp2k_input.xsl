@@ -196,6 +196,9 @@
    <td align="left">
     Back to the <a href="{$root}index.html">main page</a> of this manual
    </td>
+   <td align="center">
+    C2PK input reference of SVN source code revision <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/trunk/cp2k/src/&#63;sortby=date&#38;pathrev={string(/CP2K_INPUT/COMPILE_REVISION)}" target="_blank"><xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/></a>
+   </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
    </td>
@@ -213,8 +216,7 @@
     Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
    </td>
    <td align="right">
-    (Last update:
-    <xsl:value-of select="day-from-dateTime(current-dateTime())"/>.<xsl:value-of select="month-from-dateTime(current-dateTime())"/>.<xsl:value-of select="year-from-dateTime(current-dateTime())"/>)
+    (Last update: <xsl:value-of select="day-from-dateTime(current-dateTime())"/>.<xsl:value-of select="month-from-dateTime(current-dateTime())"/>.<xsl:value-of select="year-from-dateTime(current-dateTime())"/>)
    </td>
   </tr>
  </table>
