@@ -341,12 +341,22 @@ $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
 $(FES): $(FESOBJS) graph.o 
 	+$(LD) $(LDFLAGS) -o $(FES) graph.o $(FESOBJS)
 
-timings_mp_dep = timings_mp.o $(ALL_LIB)
 
-$(DBCSR_TEST_PROG): dbcsr_test_driver.o $(LIB3_ARCHIVE) $(LIB4_ARCHIVE)
+DBCSR_STANDALONE_DEPS += $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB4_ARCHIVE)
+
+ifneq ($(HWLOC),)
+DBCSR_STANDALONE_DEPS += $(LIB3_ARCHIVE) $(LIB4_ARCHIVE)
+endif
+
+ifneq ($(NVCC),)
+DBCSR_STANDALONE_DEPS += $(LIBNV_ARCHIVE)
+endif
+
+
+$(DBCSR_TEST_PROG): dbcsr_test_driver.o $(ALL_LIB)
 	+$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-$(DBCSR_PERF_PROG): dbcsr_performance_driver.o $(LIB3_ARCHIVE) $(LIB4_ARCHIVE)
+$(DBCSR_PERF_PROG): dbcsr_performance_driver.o $(ALL_LIB)
 	+$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 
