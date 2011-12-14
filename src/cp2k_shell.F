@@ -520,7 +520,7 @@ CONTAINS
     WRITE (UNIT=unit,FMT="(/,T2,A,T31,A50)")&
          "CP2K| version string: ",&
          ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
-    WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
+    WRITE (UNIT=unit,FMT="(T2,A,T41,A40)")&
          "CP2K| source code revision number:",&
          ADJUSTR(compile_revision)
     WRITE (UNIT=unit,FMT="(T2,A,T41,A40)")&
