@@ -183,7 +183,7 @@ SUBROUTINE  ma_set_mempol (mempol)
   ENDIF
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
- IF (.NOT. isdefault) THEN  
+ IF (.NOT. isdefault) THEN 
   istat = ma_hw_set_mempol(mempol,realnode)
   unit_nr = 6 
   IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
@@ -195,6 +195,7 @@ SUBROUTINE  ma_set_mempol (mempol)
 #if defined (__LIBNUMA) && !defined (__HWLOC)
  IF (.NOT. isdefault) THEN
   istat = ma_linux_set_mempol(mempol,realnode)
+  unit_nr = 6
   IF (istat .LT. 0 .AND. my_info%mp_info%myproc .EQ. 0) THEN
    WRITE(unit_nr,'(T2,A,A)') "WARNING: Memory binding not supported", &
             " or can not be enforced - Using OS memory policy"
@@ -659,6 +660,7 @@ END SUBROUTINE ma_get_mempol
   
 #if defined (__HWLOC) && !defined (__LIBNUMA)
  IF (sched_unit .EQ. threads) THEN
+ ! offset to the parent MPI process 
     core = my_info%core+thread(id+1)
     CALL ma_set_core(core)
     my_info%threads_info(id+1)%core = core
@@ -680,6 +682,7 @@ END SUBROUTINE ma_get_mempol
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
  IF (sched_unit .EQ. threads) THEN
+ !offset to the parent MPI process
     core = my_info%core+thread(id+1)
     CALL ma_linux_set_core(core)
     my_info%threads_info(id+1)%core = core

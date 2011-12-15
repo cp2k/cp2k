@@ -49,6 +49,7 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_set_neighbors, cp_ma_get_neighbors
   PUBLIC :: cp_ma_thread_sched, cp_ma_verify_place 
   PUBLIC :: cp_ma_mpi_sched
+  PUBLIC :: cp_ma_mempol
   PUBLIC :: cp_ma_print_machine
   PUBLIC :: cp_ma_get_cuDev
   PUBLIC :: cp_ma_net_affinity
@@ -453,6 +454,7 @@ END SUBROUTINE cp_ma_net_affinity
 
     IF (mem_pol .NE. none_pol) THEN
        isdefault = .FALSE.
+
        CALL ma_set_mempol(mem_pol)
     ENDIF
     

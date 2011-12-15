@@ -15,6 +15,7 @@
 #include <math.h>
 #include <string.h>
 
+#define MAX_SIZE 8192
 #include "ma_components.h"
 
 
@@ -27,12 +28,12 @@ static struct arch_topology *local_topo;
 static int *phys_cpus;
 
 //String for the output in the console
-static char console_output[8192];
+static char console_output[MAX_SIZE];
 
 //Initializes HWLOC and load the machine architecture
 int hw_topology_init (struct arch_topology *topo)
 {
-  hwloc_obj_t obj, obj1, obj2, core1, core2, ant;
+  hwloc_obj_t obj, core1, core2;
   int count, i, j, error;
 
 
@@ -44,12 +45,13 @@ int hw_topology_init (struct arch_topology *topo)
   {
     hwloc_topology_load(topology);
     local_topo = malloc(sizeof(struct arch_topology));
+
 #ifdef  __DBCSR_CUDA
   int nDev;
   ma_get_ndevices_cu(&nDev);
 #endif
 
-    //Extract direct information
+    //Extract number of NUMA nodes
     if (hwloc_get_type_depth (topology, HWLOC_OBJ_NODE))
      topo->nnodes = hwloc_get_nbobjs_by_depth (topology, hwloc_get_type_depth (topology, HWLOC_OBJ_NODE));
     else
@@ -68,27 +70,19 @@ int hw_topology_init (struct arch_topology *topo)
     topo->nmemcontroller = 1;
 
    count = 0; 
-   //Get derivate information
+   topo->nshared_caches = 0;
+   //Get derivate information - get number of cache per PU
    for(obj = hwloc_get_obj_by_type(topology,HWLOC_OBJ_PU,0);
       obj; obj = obj->parent)
    {
-	if (obj->type == HWLOC_OBJ_CACHE)
-	{
-	  count++;
-	  topo->ncaches = count;
-	}  
+	   if (obj->type == HWLOC_OBJ_CACHE)
+	   { 
+       if (obj->arity>1)
+        topo->nshared_caches++; 
+       else  
+       { count++;  topo->ncaches = count;	}  
+     } 
    }
-
-   //Get the number of shared caches per siblings cores
-   count = 0; 
-   obj1 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, 0);
-   do{
-        if ((obj1->type == HWLOC_OBJ_CACHE) && (obj1->arity>1))         
-                      count++;
-        obj1 = obj1->parent;
-    }while(obj1);
-
-  topo->nshared_caches = count;
 
   //Number of direct siblings
   //Siblings cores are the ones that share at least one component
