@@ -355,11 +355,11 @@ CONTAINS
 
       IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,&
-              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
+              FMT="(/,T2,A,T51,A,/,(T52,I6,T73,I8))")&
               "DISTRIBUTION OF THE MOLECULES",&
-              "Process   Number of molecules",&
+              "Process    Number of molecules",&
               (ipe-1,work(ipe),ipe=1,npe)
-         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
+         WRITE (UNIT=output_unit,FMT="(T55,A3,T73,I8)")&
               "Sum",SUM(work)
          CALL m_flush(output_unit)
       END IF
@@ -372,12 +372,12 @@ CONTAINS
                  "Process   Kind   Local molecules (global indices)"
             DO imolecule_kind=1,nmolecule_kind
                IF (imolecule_kind == 1) THEN
-                  WRITE (UNIT=iw,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
+                  WRITE (UNIT=iw,FMT="(T4,I6,2X,I5,(T21,10I6))")&
                        ipe-1,imolecule_kind,&
                        (local_molecules%list(imolecule_kind)%array(imolecule),&
                        imolecule=1,nmolecule_local(imolecule_kind))
                ELSE
-                  WRITE (UNIT=iw,FMT="(T12,I5,(T20,10I6))")&
+                  WRITE (UNIT=iw,FMT="(T12,I5,(T21,10I6))")&
                        imolecule_kind,&
                        (local_molecules%list(imolecule_kind)%array(imolecule),&
                        imolecule=1,nmolecule_local(imolecule_kind))
@@ -397,11 +397,11 @@ CONTAINS
 
       IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,&
-              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
+              FMT="(/,T2,A,T51,A,/,(T52,I6,T73,I8))")&
               "DISTRIBUTION OF THE PARTICLES",&
-              "Process   Number of particles",&
+              "Process    Number of particles",&
               (ipe-1,work(ipe),ipe=1,npe)
-         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
+         WRITE (UNIT=output_unit,FMT="(T55,A3,T73,I8)")&
               "Sum",SUM(work)
          CALL m_flush(output_unit)
       END IF
@@ -414,7 +414,7 @@ CONTAINS
                  "Process   Kind   Local particles (global indices)"
             DO iparticle_kind=1,nparticle_kind
                IF (iparticle_kind == 1) THEN
-                  WRITE (UNIT=iw,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
+                  WRITE (UNIT=iw,FMT="(T4,I6,2X,I5,(T20,10I6))")&
                        ipe-1,iparticle_kind,&
                        (local_particles%list(iparticle_kind)%array(iatom),&
                        iatom=1,nparticle_local(iparticle_kind))

@@ -579,52 +579,54 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
   IF (ASSOCIATED(distribution_2d)) THEN
      IF (my_local) THEN
         WRITE (unit=unit_nr,&
-             fmt="(' <distribution_2d>{ id_nr=',i10,'ref_count=',i10,',')")&
+             fmt="(/,' <distribution_2d> {      id_nr=',i10,'      ref_count=',i10,',')")&
              distribution_2d%id_nr, distribution_2d%ref_count
 
-        WRITE (unit=unit_nr,fmt="(' n_row_distribution=',i15,',')")distribution_2d%n_row_distribution
+        WRITE (unit=unit_nr,fmt="('    n_row_distribution=',i15,',')")&
+             distribution_2d%n_row_distribution
         IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
            IF (my_long_description) THEN
-              WRITE (unit=unit_nr,fmt="(' row_distribution= (')", advance="no")
+              WRITE (unit=unit_nr,fmt="('      row_distribution= (')", advance="no")
               DO i=1,SIZE(distribution_2d%row_distribution)
                  WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%row_distribution(i)
                  ! keep lines finite, so that we can open outputs in vi
-                 IF (MODULO(i,10)==0 .AND. i.NE.SIZE(distribution_2d%row_distribution)) &
+                 IF (MODULO(i,8)==0 .AND. i.NE.SIZE(distribution_2d%row_distribution)) &
                     WRITE(unit=unit_nr,fmt='()')
               END DO
               WRITE (unit=unit_nr,fmt="('),')")
            ELSE
-              WRITE (unit=unit_nr,fmt="(' row_distribution= array(',i6,':',i6,'),')")&
+              WRITE (unit=unit_nr,fmt="('      row_distribution= array(',i6,':',i6,'),')")&
                    LBOUND(distribution_2d%row_distribution),&
                    UBOUND(distribution_2d%row_distribution)
            END IF
         ELSE
-           WRITE (unit=unit_nr,fmt="(' row_distribution=*null*,')")
+           WRITE (unit=unit_nr,fmt="('       row_distribution=*null*,')")
         END IF
 
-        WRITE (unit=unit_nr,fmt="(' n_col_distribution=',i15,',')")distribution_2d%n_col_distribution
+        WRITE (unit=unit_nr,fmt="('    n_col_distribution=',i15,',')")&
+             distribution_2d%n_col_distribution
         IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
            IF (my_long_description) THEN
-              WRITE (unit=unit_nr,fmt="(' col_distribution= (')", advance="no")
+              WRITE (unit=unit_nr,fmt="('      col_distribution= (')", advance="no")
               DO i=1,SIZE(distribution_2d%col_distribution)
                  WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%col_distribution(i)
                  ! keep lines finite, so that we can open outputs in vi
-                 IF (MODULO(i,10)==0 .AND. i.NE.SIZE(distribution_2d%col_distribution)) &
+                 IF (MODULO(i,8)==0 .AND. i.NE.SIZE(distribution_2d%col_distribution)) &
                     WRITE(unit=unit_nr,fmt='()')
               END DO
               WRITE (unit=unit_nr,fmt="('),')")
            ELSE
-              WRITE (unit=unit_nr,fmt="(' col_distribution= array(',i6,':',i6,'),')")&
+              WRITE (unit=unit_nr,fmt="('      col_distribution= array(',i6,':',i6,'),')")&
                    LBOUND(distribution_2d%col_distribution),&
                    UBOUND(distribution_2d%col_distribution)
            END IF
         ELSE
-           WRITE (unit=unit_nr,fmt="(' col_distribution=*null*,')")
+           WRITE (unit=unit_nr,fmt="('       col_distribution=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%n_local_rows)) THEN
            IF (my_long_description) THEN
-              WRITE (unit=unit_nr,fmt="(' n_local_rows= (')", advance="no")
+              WRITE (unit=unit_nr,fmt="('    n_local_rows= (')", advance="no")
               DO i=1,SIZE(distribution_2d%n_local_rows)
                  WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%n_local_rows(i)
                  ! keep lines finite, so that we can open outputs in vi
@@ -633,16 +635,16 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
               END DO
               WRITE (unit=unit_nr,fmt="('),')")
            ELSE
-              WRITE (unit=unit_nr,fmt="(' n_local_rows= array(',i6,':',i6,'),')")&
+              WRITE (unit=unit_nr,fmt="('    n_local_rows= array(',i6,':',i6,'),')")&
                    LBOUND(distribution_2d%n_local_rows),&
                    UBOUND(distribution_2d%n_local_rows)
            END IF
         ELSE
-           WRITE (unit=unit_nr,fmt="(' n_local_rows=*null*,')")
+           WRITE (unit=unit_nr,fmt="('    n_local_rows=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%local_rows)) THEN
-           WRITE (unit=unit_nr,fmt="(' local_rows=(')")
+           WRITE (unit=unit_nr,fmt="('      local_rows=(')")
            DO i=1,SIZE(distribution_2d%local_rows)
               IF (ASSOCIATED(distribution_2d%local_rows(i)%array)) THEN
                  IF (my_long_description) THEN
@@ -659,12 +661,12 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
            END DO
            WRITE (unit=unit_nr,fmt="(' ),')")
         ELSE
-           WRITE (unit=unit_nr,fmt="(' local_rows=*null*,')")
+           WRITE (unit=unit_nr,fmt="('      local_rows=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%n_local_cols)) THEN
            IF (my_long_description) THEN
-              WRITE (unit=unit_nr,fmt="(' n_local_cols= (')", advance="no")
+              WRITE (unit=unit_nr,fmt="('    n_local_cols= (')", advance="no")
               DO i=1,SIZE(distribution_2d%n_local_cols)
                  WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%n_local_cols(i)
                  ! keep lines finite, so that we can open outputs in vi
@@ -673,16 +675,16 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
               END DO
               WRITE (unit=unit_nr,fmt="('),')")
            ELSE
-              WRITE (unit=unit_nr,fmt="(' n_local_cols= array(',i6,':',i6,'),')")&
+              WRITE (unit=unit_nr,fmt="('    n_local_cols= array(',i6,':',i6,'),')")&
                    LBOUND(distribution_2d%n_local_cols),&
                    UBOUND(distribution_2d%n_local_cols)
            END IF
         ELSE
-           WRITE (unit=unit_nr,fmt="(' n_local_cols=*null*,')")
+           WRITE (unit=unit_nr,fmt="('    n_local_cols=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%local_cols)) THEN
-           WRITE (unit=unit_nr,fmt="(' local_cols=(')")
+           WRITE (unit=unit_nr,fmt="('      local_cols=(')")
            DO i=1,SIZE(distribution_2d%local_cols)
               IF (ASSOCIATED(distribution_2d%local_cols(i)%array)) THEN
                  IF (my_long_description) THEN
@@ -699,20 +701,20 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
            END DO
            WRITE (unit=unit_nr,fmt="(' ),')")
         ELSE
-           WRITE (unit=unit_nr,fmt="(' local_cols=*null*,')")
+           WRITE (unit=unit_nr,fmt="('      local_cols=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%blacs_env)) THEN
            IF (my_long_description) THEN
-              WRITE (unit=unit_nr,fmt="(' blacs_env=')",advance="no")
+              WRITE (unit=unit_nr,fmt="('    blacs_env=')",advance="no")
               CALL cp_blacs_env_write(distribution_2d%blacs_env,unit_nr=unit_nr,&
                    error=error)
            ELSE
-              WRITE (unit=unit_nr,fmt="(' blacs_env=<blacs_env id=',i6,'>')")&
+              WRITE (unit=unit_nr,fmt="('    blacs_env=<blacs_env id=',i6,'>')")&
                    distribution_2d%blacs_env%group
            END IF
         ELSE
-           WRITE (unit=unit_nr,fmt="(' blacs_env=*null*')")
+           WRITE (unit=unit_nr,fmt="('    blacs_env=*null*')")
         END IF
 
         WRITE (unit=unit_nr,fmt="(' }')")
