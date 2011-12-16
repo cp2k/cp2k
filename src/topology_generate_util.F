@@ -941,7 +941,7 @@ CONTAINS
        CALL deallocate_atomic_kind_set(atomic_kind_set,error)
        !
        CALL timestop(handle2)
-       IF (output_unit>0) THEN
+       IF (output_unit>0 .AND. n_bonds > 0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Bonds generated:",&
                n_bonds
        END IF
@@ -1647,7 +1647,7 @@ CONTAINS
        CALL reallocate(conn_info%theta_a,1,ntheta)
        CALL reallocate(conn_info%theta_b,1,ntheta)
        CALL reallocate(conn_info%theta_c,1,ntheta)
-       IF (output_unit>0) THEN
+       IF (output_unit>0 .AND. ntheta > 0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Bends generated:",&
                ntheta
        END IF
@@ -1848,7 +1848,7 @@ CONTAINS
        conn_info%ub_b(itheta) = conn_info%theta_b(itheta)
        conn_info%ub_c(itheta) = conn_info%theta_c(itheta)
     END DO
-    IF (output_unit>0) THEN
+    IF (output_unit>0 .AND. ntheta > 0) THEN
        WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of UB generated:",&
             ntheta
     END IF
@@ -1944,7 +1944,7 @@ CONTAINS
        CALL reallocate(conn_info%phi_b,1,nphi)
        CALL reallocate(conn_info%phi_c,1,nphi)
        CALL reallocate(conn_info%phi_d,1,nphi)
-       IF (output_unit>0) THEN
+       IF (output_unit>0 .AND. nphi > 0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Torsions generated:",&
                nphi
        END IF
@@ -2063,7 +2063,7 @@ CONTAINS
        CALL reallocate(conn_info%impr_b,1,nimpr)
        CALL reallocate(conn_info%impr_c,1,nimpr)
        CALL reallocate(conn_info%impr_d,1,nimpr)
-       IF (output_unit>0) THEN
+       IF (output_unit>0 .AND. nimpr > 0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Impropers generated:",&
                nimpr
        END IF       
@@ -2187,7 +2187,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Final output
-    IF (output_unit>0) THEN
+    IF (output_unit>0 .AND. ionfo > 0) THEN
        WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of 1-4 interactions generated:",&
             ionfo
     END IF
