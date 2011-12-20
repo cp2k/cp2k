@@ -2086,7 +2086,7 @@ END SUBROUTINE get_atom_pair
 SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      natoms, scatter, error, hmat )
 
-!$  USE omp_lib
+!$ USE omp_lib
 
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -2101,27 +2101,28 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: acol, arow, handle, i, j, k, &
-                                                l, nblkcols_total, &
-                                                nblkrows_total, ncol, nrow, &
-                                                stat,nthread
+    INTEGER :: acol, arow, handle, i, j, k, l, me, nblkcols_total, &
+      nblkrows_total, ncol, nrow, nthread, nthread_left, stat
     INTEGER(KIND=int_8)                      :: natom8, pair
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
-                                                last_col, last_row, &
-                                                recv_disps, recv_sizes, &
-                                                send_disps, send_sizes, &
-                                                send_pair_count,recv_pair_count, &
-                                                send_pair_disps,recv_pair_disps
-    LOGICAL                                  :: found
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, &
+      last_row, recv_disps, recv_pair_count, recv_pair_disps, recv_sizes, &
+      send_disps, send_pair_count, send_pair_disps, send_sizes
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
-    TYPE(realspace_grid_desc_type), POINTER       :: desc 
+    TYPE(realspace_grid_desc_type), POINTER  :: desc
 
 !$  INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
 
   CALL timeset(routineN,handle)
 
+  IF (.not.scatter) THEN
+    failure = .FALSE.
+    CPPrecondition(PRESENT(hmat),cp_failure_level,routineP,error,failure)
+  END IF
+
   desc => rs_descs(1)%rs_desc
+  me = desc%my_pos+1
 
   ! allocate local arrays
   ALLOCATE (send_sizes(desc%group_size),STAT=stat)
@@ -2156,7 +2157,6 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
             first_col(nblkcols_total), last_col(nblkcols_total))
   CALL convert_sizes_to_offsets (array_data (cp_dbcsr_row_block_sizes (pmat)), first_row, last_row)
   CALL convert_sizes_to_offsets (array_data (cp_dbcsr_col_block_sizes (pmat)), first_col, last_col)
-
   ! set up send buffer sizes
   natom8=natoms
 
@@ -2187,20 +2187,63 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      send_pair_disps(i) = send_pair_disps(i-1) + send_pair_count(i-1)
   ENDDO
 
+
   ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
   IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                   "send_buf_r",dp_size*SUM(send_sizes))
 
+  ! set up recv buffer
+
+  recv_sizes = 0
+  recv_pair_count = 0
+  DO i = 1, SIZE(atom_pair_recv)
+
+     ! proc we're receiving this data from
+     k = atom_pair_recv(i) / natom8**2 + 1
+
+     pair = MOD(atom_pair_recv(i),natom8**2)
+
+     arow = pair / natom8 + 1
+     acol = MOD(pair,natom8) + 1
+
+     nrow = last_row(arow) - first_row(arow) + 1
+     ncol = last_col(acol) - first_col(acol) + 1
+
+     recv_sizes(k) = recv_sizes(k) + nrow * ncol
+     recv_pair_count(k) = recv_pair_count(k) + 1
+
+  ENDDO
+
+  recv_disps = 0
+  recv_pair_disps = 0
+  DO i = 2, desc % group_size
+     recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
+     recv_pair_disps(i) = recv_pair_disps(i-1) + recv_pair_count(i-1)
+  ENDDO
+  ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
+  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                  "recv_buf_r",dp_size*SUM(recv_sizes))
+
+!$omp parallel default(none), &
+!$omp          shared(desc,send_pair_count,send_pair_disps,natom8),&
+!$omp          shared(last_row,first_row,last_col,first_col),&
+!$omp          shared(pmat,send_buf_r,send_disps,send_sizes),&
+!$omp          shared(atom_pair_send,me,hmat,nblkrows_total),&
+!$omp          shared(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
+!$omp          shared(recv_sizes,recv_disps,recv_pair_count,locks), &
+!$omp          private(i,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
+!$omp          private(nthread,h_block,error,nthread_left)
+
+  nthread = 1
+!$ nthread = omp_get_num_threads()
+  nthread_left = 1
+!$ nthread_left = MAX(1, nthread-1)
+
   ! do packing
-  send_sizes=0
-!$omp parallel do default(none), &
-!$omp             shared(desc,send_pair_count,send_pair_disps,natom8),&
-!$omp             shared(last_row,first_row,last_col,first_col),&
-!$omp             shared(pmat,send_buf_r,send_disps,send_sizes),&
-!$omp             shared(atom_pair_send),&
-!$omp             private(i,pair,arow,acol,nrow,ncol,p_block),&
-!$omp             private(found,k,j)
+!$omp do schedule(guided)
   DO l =1, desc%group_size
+   IF (l .EQ. me) CYCLE 
+    send_sizes(l)=0
     DO i = 1, send_pair_count(l)
      pair = MOD(atom_pair_send(send_pair_disps(l)+i),natom8**2)
 
@@ -2224,62 +2267,19 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      send_sizes(l)=send_sizes(l)+nrow*ncol
     ENDDO
   ENDDO
-!$omp end parallel do
+!$omp end do
 
-  ! set up recv buffer
-
-  recv_sizes = 0
-  recv_pair_count = 0
-  DO i = 1, SIZE(atom_pair_recv)
-
-     ! proc we're receiving this data from
-     k = atom_pair_recv(i) / natom8**2 + 1
-
-     pair = MOD(atom_pair_recv(i),natom8**2)
-
-     arow = pair / natom8 + 1
-     acol = MOD(pair,natom8) + 1
-
-     nrow = last_row(arow) - first_row(arow) + 1
-     ncol = last_col(acol) - first_col(acol) + 1       
-
-     recv_sizes(k) = recv_sizes(k) + nrow * ncol        
-     recv_pair_count(k) = recv_pair_count(k) + 1
-
-  ENDDO
-
-  recv_disps = 0     
-  recv_pair_disps = 0
-  DO i = 2, desc % group_size
-     recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
-     recv_pair_disps(i) = recv_pair_disps(i-1) + recv_pair_count(i-1)
-  ENDDO
-
-  ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                  "recv_buf_r",dp_size*SUM(recv_sizes))
-
+!$omp master
   ! do communication
   CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
        recv_buf_r, recv_sizes, recv_disps, desc % group)
+!$omp end master
 
-  recv_sizes=0
+  ! If this is a scatter, then no need to copy local blocks,
+  ! If not, we sum them directly into H (bypassing the alltoall)
+  IF (.NOT. scatter) THEN
 
-!$omp parallel default(none),&
-!$omp          shared(pmat,atom_pair_recv,recv_buf_r,desc,recv_pair_count),&
-!$omp          shared(recv_pair_disps,natom8,last_row,first_row),&
-!$omp          shared(last_col, first_col,hmat,scatter,recv_sizes),&
-!$omp          shared(recv_disps,locks,nblkrows_total),&
-!$omp          private(error,i,pair,arow,acol,nrow,ncol,p_block),&
-!$omp          private(found,h_block,j,k,nthread)
-  nthread = 1
-!$ nthread = omp_get_num_threads()
-
-  CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
-      nblks_guess=SIZE(atom_pair_recv)/nthread,sizedata_guess=SIZE(recv_buf_r)/nthread,&
-      n=nthread,error=error)
-
-  !do unpacking
+  ! We need locks to protect concurrent summation into H
 !$omp single
 !$  ALLOCATE (locks(nthread*10))
 !$omp end single
@@ -2289,10 +2289,47 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
 !$    call omp_init_lock(locks(i))
 !$  end do
 !$omp end do
+    
+  ! Distribute work over remaining threads assuming one is still in the alltoall
+!$omp do schedule(dynamic,send_pair_count(me)/nthread_left)
+    DO i = 1, send_pair_count(me)
+     pair = MOD(atom_pair_send(send_pair_disps(me)+i),natom8**2)
+
+     arow = pair / natom8 + 1
+     acol = MOD(pair, natom8) + 1
+
+     nrow = last_row(arow) - first_row(arow) + 1
+     ncol = last_col(acol) - first_col(acol) + 1
+
+     CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
+          BLOCK=h_block,found=found)
+     CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
+          BLOCK=p_block,found=found)
+
+!$  call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
+        DO k = 1, ncol
+           DO j = 1, nrow
+              h_block(j,k) = h_block(j,k) + p_block(j,k)
+           ENDDO
+        ENDDO
+!$  call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
+    ENDDO
+!$omp end do
+  END IF
+
+  IF (scatter) THEN
+    ! We will insert new blocks into P, so create mutable work matrices
+    CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
+      nblks_guess=SIZE(atom_pair_recv)/nthread,sizedata_guess=SIZE(recv_buf_r)/nthread,&
+      n=nthread,error=error)
+!$omp barrier
+  END IF
 
   !do unpacking
-!$omp do
+!$omp do schedule(guided)
   DO l = 1, desc%group_size
+    IF (l .EQ. me) CYCLE
+    recv_sizes(l) = 0
     DO i = 1, recv_pair_count(l)
      pair = MOD(atom_pair_recv(recv_pair_disps(l)+i),natom8**2)
 
@@ -2310,44 +2347,42 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
           BLOCK=h_block,found=found)
      ENDIF
 
-     IF ( ASSOCIATED ( p_block ) .AND. l .NE. desc%my_pos+1) THEN
-        !IF( scatter ) THEN
-        !   WRITE(6,*) arow,acol,l 
-        !   CALL stop_program(routineN,moduleN,__LINE__,"Matrix block already present")
-        !ENDIF
-     ELSE
-        IF(scatter) THEN
-           CALL cp_dbcsr_put_block(pmat, arow, acol,&
-                block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol))
-        ENDIF
-     ENDIF
-
+     IF(scatter .AND. .NOT. ASSOCIATED(p_block)) THEN
+        CALL cp_dbcsr_put_block(pmat, arow, acol,&
+           block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol))
+     END IF
+     IF (.not.scatter) THEN
 !$  call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
-     IF (.NOT. scatter ) THEN
         DO k = 1, ncol
            DO j = 1, nrow
               h_block(j,k) = h_block(j,k) + recv_buf_r( recv_disps(l) + recv_sizes(l)+ j + (k-1)*nrow )
            ENDDO
         ENDDO
-     ENDIF
 !$  call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
+      ENDIF
      recv_sizes(l)=recv_sizes(l)+nrow*ncol
     ENDDO
   ENDDO
 !$omp end do
 
+!$ IF (.not.scatter) THEN
 !$omp do
 !$  do i=1,nthread*10
 !$    call omp_destroy_lock(locks(i))
 !$  end do
 !$omp end do
+!$ END IF
 
-  CALL cp_dbcsr_finalize(pmat, error=error)
+  IF (scatter) THEN
+    ! Blocks were added to P
+    CALL cp_dbcsr_finalize(pmat, error=error)
+  END IF
 !$omp end parallel
 
-
+!$ IF (.not.scatter) THEN
 !$  DEALLOCATE (locks,STAT=stat)
 !$  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"locks")
+!$ END IF
 
   DEALLOCATE (send_buf_r,STAT=stat)
   IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"send_buf_r")
@@ -2373,7 +2408,6 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
 
   DEALLOCATE (first_row, last_row, first_col, last_col)
   CALL timestop(handle)
-
 END SUBROUTINE distribute_matrix
 
 ! *****************************************************************************
