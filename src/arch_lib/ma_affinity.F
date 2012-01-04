@@ -89,7 +89,6 @@ INTEGER FUNCTION ma_init_affinity(ma_env, num_threads, core, node) RESULT(istat)
   ALLOCATE(thread_mapping(ma_env%numproc,num_threads),STAT=istat)
   CALL ma_create_process(my_info,ma_env,num_threads,core,node)
   CALL ma_set_neighbors(ma_env)
-  
 END FUNCTION ma_init_affinity
 
 ! *****************************************************************************
@@ -367,7 +366,7 @@ END SUBROUTINE ma_get_mempol
   isdefault = .FALSE.
 
 #if defined (__HWLOC) && !defined (__LIBNUMA)
-   IF (sched_unit .EQ. threads) THEN
+   IF (sched_unit .EQ. threads .AND. my_info%nr_threads .GT. 1) THEN
     core = MOD(my_info%mp_info%myproc*my_info%nr_threads+id,ma_get_ncores())
     CALL ma_set_core(core)
     my_info%threads_info(id+1)%core = core
@@ -500,7 +499,7 @@ END SUBROUTINE ma_get_mempol
 ! Group the MPI processes in a Hierarchical way following the machine topology
 
   SUBROUTINE ma_group_place(id, sched_unit)
-    INTEGER                                  :: id, sched_unit
+    INTEGER                                  :: id, sched_unit,new_id
 
     INTEGER                                  :: core, distance, node
 
@@ -526,11 +525,11 @@ END SUBROUTINE ma_get_mempol
      IF (my_info%nr_neighbors .LE. 1) THEN
        node = 0
      ELSE
-       id = MOD(my_info%mp_info%myproc,my_info%nr_neighbors)
+       new_id = MOD(my_info%mp_info%myproc,my_info%nr_neighbors)
        IF ( my_info%nr_neighbors .LE. topology%nnodes) THEN 
-         node = id
+         node = new_id
        ELSE  
-         node = MOD(id/(my_info%nr_neighbors/topology%nnodes),topology%nnodes)
+         node = MOD(new_id/(my_info%nr_neighbors/topology%nnodes),topology%nnodes)
        ENDIF
      ENDIF
      CALL ma_set_proc_node(node)
@@ -542,7 +541,7 @@ END SUBROUTINE ma_get_mempol
     END IF
     my_info%threads_info(1)%core = ma_get_proc_core(1)  
     my_info%threads_info(1)%node = node
-    my_info%threads_info(1)%id_omp = id
+    my_info%threads_info(1)%id_omp = 0 ! MPI process is always the master thread
     my_info%threads_info(1)%id_real = ma_get_id()
     my_info%mp_info%myid = my_info%threads_info(1)%id_real
     my_info%core = my_info%threads_info(1)%core
@@ -565,8 +564,8 @@ END SUBROUTINE ma_get_mempol
      IF (my_info%nr_neighbors .LE. 1) THEN
        node = 0
      ELSE
-       id = MOD(my_info%mp_info%myproc,my_info%nr_neighbors)
-       node = id/(my_info%nr_neighbors/topology%nnodes)
+       new_id = MOD(my_info%mp_info%myproc,my_info%nr_neighbors)
+       node = new_id/(my_info%nr_neighbors/topology%nnodes)
      ENDIF
      CALL ma_set_proc_node(node)
     ELSE ! UMA machine
@@ -576,7 +575,7 @@ END SUBROUTINE ma_get_mempol
     END IF
     my_info%threads_info(1)%core = ma_linux_get_core()  
     my_info%threads_info(1)%node = node
-    my_info%threads_info(1)%id_omp = id
+    my_info%threads_info(1)%id_omp = 0
     my_info%threads_info(1)%id_real = ma_get_id()
     my_info%mp_info%myid = my_info%threads_info(1)%id_real
     my_info%core = my_info%threads_info(1)%core
@@ -744,6 +743,7 @@ END SUBROUTINE ma_get_mempol
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: thread_recv
     CHARACTER(len=4)                         :: first_core, second_core
     CHARACTER(len=10)                        :: all_cores
+    CHARACTER(LEN=default_string_length)     :: host_name
 
 #if defined (__HWLOC) || defined (__LIBNUMA)
   ! If not all MPI are present  
@@ -761,13 +761,16 @@ END SUBROUTINE ma_get_mempol
     CALL ma_pack_threads(my_info,thread_send)
     CALL mp_allgather(thread_send, thread_recv, my_info%mp_info%mp_group)
     CALL ma_unpack_threads(my_info,thread_recv,thread_mapping)
+    CALL mp_proc_name(host_name)
+   ELSE
+     host_name = "localhost"
    ENDIF
    
    IF(unit_num .GT. 0) THEN
    IF (my_info%nr_threads .GT. 1) THEN 
      WRITE(unit_num,"(T2,A)") "OMP | Thread placement"
      DO p=1, my_info%mp_info%numproc 
-      WRITE(unit_num, "(T2,A,I4)") "Processs ", p-1
+      WRITE(unit_num, "(T2,A,I4,A,A)") "Processs ", p-1, " running on ", TRIM(host_name)
       DO id=1, my_info%nr_threads 
            core = thread_mapping(p,id)%core
            CALL integer_to_string(core,first_core)
@@ -840,7 +843,7 @@ END SUBROUTINE ma_get_mempol
 
      core = ma_get_proc_core(1)
      node = ma_get_proc_node()  
-
+     unit_num = 6
     IF(unit_num .GT. 0) THEN
       IF (node .EQ. -1 .AND. core .EQ. -1) THEN
         WRITE(unit_num, "(T2,A)") "WARNING: Compile with HWLOC"
@@ -1069,195 +1072,195 @@ END SUBROUTINE ma_get_mempol
     CHARACTER(len=10)                        :: all_cores, mempolicy
     CHARACTER(len=4)                         :: first_core, second_core
     INTEGER                                  :: core, ipe, istat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_core, all_gpu, &
+    INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:)       :: all_core, all_gpu, &
                                                 all_memory, all_node, &
                                                 all_node_mem, all_pid
 
     IF ((.NOT. my_info%mp_info%all_proc) .AND. print_proc) THEN
       CALL ma_current_mpi_run(my_info%mp_info%myid,unit_nr)
     ELSE
-
-      ALLOCATE (all_core(my_info%mp_info%numproc),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      all_core(:) = 0
-
-      ALLOCATE (all_node(my_info%mp_info%numproc),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      all_node(:) = 0
-
+       ALLOCATE (all_core(my_info%mp_info%numproc),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       all_core(:) = 0
+ 
+       ALLOCATE (all_node(my_info%mp_info%numproc),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       all_node(:) = 0
+ 
 #if defined (__DBCSR_CUDA)
 #if defined (__HWLOC) || defined (__LIBNUMA)
+  
+       ALLOCATE (all_gpu(my_info%mp_info%numproc),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       all_gpu(:) = 0
+       CALL ma_get_gpu_affinity(all_gpu(my_info%mp_info%myproc+1))
+#endif
+#endif
  
-      ALLOCATE (all_gpu(my_info%mp_info%numproc),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      all_gpu(:) = 0
-      CALL ma_get_gpu_affinity(all_gpu(my_info%mp_info%myproc+1))
-#endif
-#endif
-
-      ALLOCATE (all_memory(my_info%mp_info%numproc),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      all_memory(:) = 0
-
-      ALLOCATE (all_node_mem(my_info%mp_info%numproc),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      all_node_mem(:) = 0   
-
-      !Where process is running
-      CALL ma_running_on(all_core(my_info%mp_info%myproc+1), all_node(my_info%mp_info%myproc+1))  
-
-  IF (print_proc) THEN
-! ***** Print where process are running!
+       ALLOCATE (all_memory(my_info%mp_info%numproc),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       all_memory(:) = 0
+ 
+       ALLOCATE (all_node_mem(my_info%mp_info%numproc),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       all_node_mem(:) = 0   
+ 
+       !Where process is running
+       CALL ma_running_on(all_core(my_info%mp_info%myproc+1), all_node(my_info%mp_info%myproc+1))  
+ 
+              
+   IF (print_proc) THEN
+ ! ***** Print where process are running!
 #if defined (__DBCSR_CUDA)
 #if defined (__HWLOC) || defined (__LIBNUMA)
-      CALL mp_sum(all_gpu,my_info%mp_info%mp_group)
+       CALL mp_sum(all_gpu,my_info%mp_info%mp_group)
 #endif
 #endif
-
-      CALL mp_sum(all_core,my_info%mp_info%mp_group)
-      CALL mp_sum(all_node,my_info%mp_info%mp_group)
-
-      ALLOCATE (all_pid(my_info%mp_info%numproc),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      all_pid(:) = 0
-      all_pid(my_info%mp_info%myproc+1) = my_info%mp_info%myid 
-      CALL mp_sum(all_pid,my_info%mp_info%mp_group)
-
-     IF ( ma_get_conf_mempol() .NE. 'N' ) THEN
-      CALL ma_get_mempol(all_node_mem(my_info%mp_info%myproc+1),all_memory(my_info%mp_info%myproc+1))
-      CALL mp_sum(all_memory,my_info%mp_info%mp_group)
-      CALL mp_sum(all_node_mem,my_info%mp_info%mp_group)
-     ENDIF      
  
-      IF (unit_nr>0) THEN
-
+       CALL mp_sum(all_core,my_info%mp_info%mp_group)
+       CALL mp_sum(all_node,my_info%mp_info%mp_group)
+ 
+       ALLOCATE (all_pid(my_info%mp_info%numproc),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       all_pid(:) = 0
+       all_pid(my_info%mp_info%myproc+1) = my_info%mp_info%myid 
+       CALL mp_sum(all_pid,my_info%mp_info%mp_group)
+ 
+      IF ( ma_get_conf_mempol() .NE. 'N' ) THEN
+       CALL ma_get_mempol(all_node_mem(my_info%mp_info%myproc+1),all_memory(my_info%mp_info%myproc+1))
+       CALL mp_sum(all_memory,my_info%mp_info%mp_group)
+       CALL mp_sum(all_node_mem,my_info%mp_info%mp_group)
+      ENDIF      
+  
+       IF (unit_nr>0) THEN
+ 
        ! Inform the user about the network affinity
-       IF (hasnet) THEN
-          WRITE (unit_nr,"(T2,A)") "NETWORK| Affinity is on"
-          WRITE (unit_nr,"()")
-       ENDIF   
-
-       IF ( ma_get_conf_mpiSched() .EQ. 'N' .OR. &
-            ma_get_conf_mpiSched() .EQ. 'n' .OR. &
-            ma_get_conf_mpiSched() .EQ. 'D' ) THEN
-          WRITE (unit_nr,"(T2,A)") "SCHED| Processes are now runing"
-       ELSE
-          WRITE (unit_nr,"(T2,A)") "SCHED| Processes mapping"
-       ENDIF 
-
-        DO ipe=1,my_info%mp_info%numproc
-          IF (ma_get_conf_mpiSched() .EQ. 'G' .OR. &
-              ma_get_conf_mpiSched() .EQ. 'g' .OR. & 
-              isdefault .AND. my_info%mp_info%numproc .NE. my_info%nr_neighbors) THEN
-            core = all_core(ipe)
-            CALL integer_to_string(core,first_core)
-            core = all_core(ipe) + (topology%ncores/my_info%nr_neighbors)-1
-            CALL integer_to_string(core,second_core)
-            all_cores = TRIM(first_core)//"-"//TRIM(second_core)
-          ELSE
-            core = all_core(ipe)
-            CALL integer_to_string(core,first_core)
-            all_cores = first_core
-          ENDIF    
+        IF (hasnet) THEN
+           WRITE (unit_nr,"(T2,A)") "NETWORK| Affinity is on"
+           WRITE (unit_nr,"()")
+        ENDIF   
+ 
+        IF ( ma_get_conf_mpiSched() .EQ. 'N' .OR. &
+             ma_get_conf_mpiSched() .EQ. 'n' .OR. &
+             ma_get_conf_mpiSched() .EQ. 'D' ) THEN
+           WRITE (unit_nr,"(T2,A)") "SCHED| Processes are now runing"
+        ELSE
+           WRITE (unit_nr,"(T2,A)") "SCHED| Processes mapping"
+        ENDIF 
+ 
+         DO ipe=1,my_info%mp_info%numproc
+           IF (ma_get_conf_mpiSched() .EQ. 'G' .OR. &
+               ma_get_conf_mpiSched() .EQ. 'g' .OR. & 
+               isdefault .AND. my_info%mp_info%numproc .NE. my_info%nr_neighbors) THEN
+             core = all_core(ipe)
+             CALL integer_to_string(core,first_core)
+             core = all_core(ipe) + (topology%ncores/my_info%nr_neighbors)-1
+             CALL integer_to_string(core,second_core)
+             all_cores = TRIM(first_core)//"-"//TRIM(second_core)
+           ELSE
+             core = all_core(ipe)
+             CALL integer_to_string(core,first_core)
+             all_cores = first_core
+           ENDIF    
 #if defined (__DBCSR_CUDA)
-          IF (all_node(ipe) .EQ. -1) THEN
-            WRITE(unit_nr,"(T2,A,I8,A,I8,5X,20X,A,A,A,I3)")&
-                          "Process ", ipe-1, " ", all_pid(ipe),&
-                          " on core ", TRIM(all_cores), &
-                          "  attched to gpu ", all_gpu(ipe)
-            ELSE
-             WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,I4,2X,A,A,A,I3)")&
-                            "Process ", ipe-1, " ", all_pid(ipe), &
-                            " on NUMA node ",all_node(ipe),&
-                            " core ",TRIM(all_cores), &
-                            "  attached to gpu ",all_gpu(ipe)
-         ENDIF
-#else
-         IF (all_node(ipe) .EQ. -1) THEN
-            WRITE(unit_nr,"(T2,A,I8,A,I8,5X,30X,A,A)")&
-              "Process ", ipe-1, " ", all_pid(ipe), " runing on core ",&
-               TRIM(all_cores)
-          ELSE
-            WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,I6,7X,A,A)")&
-              "Process ", ipe-1, " ", all_pid(ipe)," running on NUMA node ",&
-               all_node(ipe), " core ", TRIM(all_cores)
+           IF (all_node(ipe) .EQ. -1) THEN
+             WRITE(unit_nr,"(T2,A,I8,A,I8,5X,20X,A,A,A,I3)")&
+                           "Process ", ipe-1, " ", all_pid(ipe),&
+                           " on core ", TRIM(all_cores), &
+                           "  attched to gpu ", all_gpu(ipe)
+             ELSE
+              WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,I4,2X,A,A,A,I3)")&
+                             "Process ", ipe-1, " ", all_pid(ipe), &
+                             " on NUMA node ",all_node(ipe),&
+                             " core ",TRIM(all_cores), &
+                             "  attached to gpu ",all_gpu(ipe)
           ENDIF
+#else
+          IF (all_node(ipe) .EQ. -1) THEN
+             WRITE(unit_nr,"(T2,A,I8,A,I8,5X,30X,A,A)")&
+               "Process ", ipe-1, " ", all_pid(ipe), " runing on core ",&
+                TRIM(all_cores)
+           ELSE
+             WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,I6,7X,A,A)")&
+               "Process ", ipe-1, " ", all_pid(ipe)," running on NUMA node ",&
+                all_node(ipe), " core ", TRIM(all_cores)
+           ENDIF
 #endif          
-        END DO
-       
-        WRITE (unit_nr,"(T2,A)") ""
-        IF (ma_get_nnodes() .GT. 0 .AND. ma_get_conf_mempol() .NE. 'N') THEN 
-           WRITE (unit_nr,"(T2,A)") "MEMORY| Processes memory mapping"
-           mem_pol = ma_get_conf_mempol()
-
-           DO ipe=1,my_info%mp_info%numproc
-            IF (mem_pol .EQ. 'D') THEN
-              WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A)") &
-                    "Process ", ipe-1, " ", all_pid(ipe)," OS memory policy"
-            ELSE
-              CALL ma_string_mempol(all_memory(ipe), mempolicy) 
-             IF (all_memory(ipe) .EQ. -1) THEN
+         END DO
+        
+         WRITE (unit_nr,"(T2,A)") ""
+         IF (ma_get_nnodes() .GT. 0 .AND. ma_get_conf_mempol() .NE. 'N') THEN 
+            WRITE (unit_nr,"(T2,A)") "MEMORY| Processes memory mapping"
+            mem_pol = ma_get_conf_mempol()
+ 
+            DO ipe=1,my_info%mp_info%numproc
+             IF (mem_pol .EQ. 'D') THEN
                WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A)") &
-               "Process ", ipe-1, " ", all_pid(ipe)," memory policy not applied"
-             ELSE IF (all_node_mem(ipe) .EQ. -1) THEN
-                 WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,A,A)")&
-                "Process ", ipe-1, " ", all_pid(ipe)," memory policy ",&
-                 TRIM(mempolicy), " all nodes"
-              ELSE 
-                WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,A,7X,A,I8)")&
-                "Process ", ipe-1, " ", all_pid(ipe)," memory policy ",&
-                 TRIM(mempolicy), " node ", all_node_mem(ipe)
-              ENDIF
-            ENDIF  
-           END DO
-           WRITE (unit_nr,"(T2,A)") "" 
-        ENDIF
-      END IF
-
-      DEALLOCATE (all_memory,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      DEALLOCATE (all_node_mem,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      DEALLOCATE (all_pid,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-
-  ENDIF
-
-      DEALLOCATE (all_core,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
-      DEALLOCATE (all_node,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF  
+                     "Process ", ipe-1, " ", all_pid(ipe)," OS memory policy"
+             ELSE
+               CALL ma_string_mempol(all_memory(ipe), mempolicy) 
+              IF (all_memory(ipe) .EQ. -1) THEN
+                WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A)") &
+                "Process ", ipe-1, " ", all_pid(ipe)," memory policy not applied"
+              ELSE IF (all_node_mem(ipe) .EQ. -1) THEN
+                  WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,A,A)")&
+                 "Process ", ipe-1, " ", all_pid(ipe)," memory policy ",&
+                  TRIM(mempolicy), " all nodes"
+               ELSE 
+                 WRITE (unit_nr,"(T2,A,I8,A,I8,5X,A,A,7X,A,I8)")&
+                 "Process ", ipe-1, " ", all_pid(ipe)," memory policy ",&
+                  TRIM(mempolicy), " node ", all_node_mem(ipe)
+               ENDIF
+             ENDIF  
+            END DO
+            WRITE (unit_nr,"(T2,A)") "" 
+         ENDIF
+       END IF
+ 
+       DEALLOCATE (all_memory,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       DEALLOCATE (all_node_mem,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       DEALLOCATE (all_pid,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+ 
+   ENDIF
+ 
+       DEALLOCATE (all_core,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
+       DEALLOCATE (all_node,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF  
 #if defined (__DBCSR_CUDA)
 #if defined (__HWLOC) || defined (__LIBNUMA)
-      DEALLOCATE (all_gpu,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL ma_error_stop(ma_error_allocation)
-      END IF
+       DEALLOCATE (all_gpu,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL ma_error_stop(ma_error_allocation)
+       END IF
 #endif
 #endif      
-  ENDIF
+   ENDIF
    END SUBROUTINE ma_print_proc_affinity
 
 
