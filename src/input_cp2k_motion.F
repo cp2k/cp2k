@@ -2587,18 +2587,16 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CENTROID_VELOCITY",&
-            description="Assign velocities from FORCE_EVAL%SUBSYS%VELOCITY "//&
-            "to the centroid and sample velocities of the remaining modes "//&
-            "from the Maxwell-Boltzmann distribution",&
-            repeats=.FALSE., default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CENTROID_SPEED",&
             description="adds random velocity component to the centroid modes "//&
             "(useful to correct for the averaging out of the speed of various beads)",&
+            repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VELOCITY_SCALE",&
+            description="scale initial velocities to the temperature given in MOTION%PINT%TEMP",&
             repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -2826,7 +2824,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    NULLIFY(subsection)
     CALL section_create(subsection,name="RDF",&
          description="Radial distribution function generation settings",&
          n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&

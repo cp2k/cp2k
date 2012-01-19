@@ -12,12 +12,12 @@
      DT                      1.0
      TEMP                  300.0
      NRESPA                 10
-     &INIT
-       CENTROID_VELOCITY     T
-     &END INIT
      &NOSE
        NNOS                  4
      &END NOSE
+     &INIT
+       VELOCITY_SCALE        T
+     &END INIT
    &END PINT
  &END MOTION
 
@@ -58,6 +58,9 @@
          -0.0001703635        0.0001057879       -0.0001039065
          -0.0013286679        0.0009794322       -0.0005052689
          -0.0000130060        0.0003866107        0.0011277453
+          0.0000000000        0.0000000000        0.0000000000
+          0.0000000000        0.0000000000        0.0000000000
+          0.0000000000        0.0000000000        0.0000000000
      &END VELOCITY
    &END SUBSYS
  &END FORCE_EVAL

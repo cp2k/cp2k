@@ -698,7 +698,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="velocity",&
-            description="The velocities for simple systems xyz format by default",&
+            description="The velocities for simple systems or "//&
+                        "the centroid mode in PI runs, xyz format by default",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)

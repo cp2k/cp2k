@@ -58,3 +58,5 @@ h2o_pint_qs_nose.inp
 h2o_pint_qs_nose_restart.inp
 # wrong test criterion before
 he32_density.inp
+# initial centroid velocities: I/O bug fixed, rescaling added, default behavior changed
+centroid_velocity_init.inp

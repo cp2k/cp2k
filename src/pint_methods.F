@@ -14,16 +14,16 @@
 MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cp_external_control,             ONLY: external_control
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE cp_units,                        ONLY: cp_unit_from_cp2k, cp_unit_to_cp2k
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -765,9 +765,9 @@ CONTAINS
       RETURN
     END IF
 
+    CALL pint_init_x( pint_env, error )
     CALL pint_init_v( pint_env, error=error )
     CALL pint_init_t( pint_env, error=error )
-    CALL pint_init_x( pint_env, error )
     CALL pint_init_f( pint_env, error=error )
 
     RETURN
@@ -940,30 +940,29 @@ CONTAINS
   !> \brief  Initialize velocities
   !> \param  pint_env the pint env in which you should initialize the
   !>         velocity
-  !> \param  kT the temperature the particles should be initialized to
-  !>         (defaults to pint_env%kT)
   !> \param  error variable to control error logging, stopping,...
   !>         see module cp_error_handling
   !> \par    History
   !>         2010-12-16 gathered all velocity-init code here [lwalewski]
   !>         2011-04-05 added centroid velocity initialization [lwalewski]
+  !>         2011-12-19 removed optional parameter kT, target temperature is
+  !>                    now determined from the input directly [lwalewski]
   !> \author fawzi
   ! ***************************************************************************
-  SUBROUTINE pint_init_v(pint_env,kT,error)
+  SUBROUTINE pint_init_v( pint_env, error )
     TYPE(pint_env_type), POINTER             :: pint_env
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_v', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: msg, unit_str
-    INTEGER                                  :: ia, ib, ic, idim, ii, &
-                                                n_rep_val
-    LOGICAL                                  :: done_cntr, done_init, &
+    CHARACTER(len=default_string_length)     :: msg, unit_str, stmp, stmp1, stmp2
+    INTEGER                                  :: ia, ib, ic, idim, itmp, &
+                                                n_rep_val, first_mode
+    LOGICAL                                  :: done_init, done_scale, &
                                                 done_sped, explicit, failure, &
-                                                is_ok, ltmp
-    REAL(kind=dp)                            :: mykt, rv, unit_conv
+                                                is_ok, ltmp, vels_present
+    REAL(kind=dp)                            :: ek, rtmp, unit_conv, target_t, actual_t
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: vel_list
@@ -980,76 +979,113 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    mykt=pint_env%kT
-    IF (PRESENT(kT)) mykt=kT
+    ! read the velocities from the input file if they are given explicitly
+    vels_present = .FALSE.
+    NULLIFY(input_section)
+    input_section => section_vals_get_subs_vals(pint_env%input,&
+                     "FORCE_EVAL%SUBSYS%VELOCITY",&
+                     error=error)
+    CALL section_vals_get(input_section,explicit=explicit,error=error)
+    IF ( explicit ) THEN
 
-    done_cntr = .FALSE.
-    CALL section_vals_val_get(pint_env%input,&
-         "MOTION%PINT%INIT%CENTROID_VELOCITY",&
-         l_val=ltmp,error=error)
-    IF ( ltmp ) THEN
+      CALL section_vals_val_get(input_section,"PINT_UNIT",&
+                                c_val=unit_str,error=error)
+      unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
-      ! assign all the beads with the same velocities from the classical
-      ! input given in FORCE_EVAL%SUBSYS%VELOCITY
-      NULLIFY(input_section)
-      input_section => section_vals_get_subs_vals(pint_env%input,&
-                       "FORCE_EVAL%SUBSYS%VELOCITY",&
-                       error=error)
-      CALL section_vals_get(input_section,explicit=explicit,error=error)
-      IF (explicit) THEN
-        CALL section_vals_val_get(input_section,"PINT_UNIT",c_val=unit_str,error=error)
-        unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
+      ! assign all the beads with the same velocities from FORCE_EVAL%SUBSYS%VELOCITY
+      NULLIFY(r_vals)
+      CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
+           n_rep_val=n_rep_val,error=error)
+      stmp = ""
+      WRITE(stmp,*) n_rep_val
+      msg = "Invalid number of atoms in FORCE_EVAL%SUBSYS%VELOCITY ("//&
+            TRIM(ADJUSTL(stmp))//")."
+      CALL cp_assert(3*n_rep_val==pint_env%ndim,&
+                     cp_failure_level, cp_assertion_failed,&
+                     routineP//" from "//CPSourceFileRef,&
+                     msg, error, failure)
+      DO ia = 1, pint_env%ndim/3
+        CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_",&
+             i_rep_val=ia, r_vals=r_vals, error=error)
+        itmp = SIZE(r_vals)
+        stmp = ""
+        WRITE(stmp,*) itmp
+        msg = "Number of coordinates != 3 in FORCE_EVAL%SUBSYS%VELOCITY ("//&
+              TRIM(ADJUSTL(stmp))//")."
+        CALL cp_assert(itmp==3,&
+                       cp_failure_level, cp_assertion_failed,&
+                       routineP//" from "//CPSourceFileRef,&
+                       msg, error, failure)
+        DO ib = 1, pint_env%p
+          DO ic = 1, 3
+          idim = 3*(ia-1)+ic
+          pint_env%v(ib,idim) = r_vals(ic) * unit_conv
+          END DO
+        END DO
+      END DO
 
-        ! done the same way as in md_vel_utils%initialize_velocities
-        NULLIFY(vel_list)
-        CALL section_vals_list_get(input_section,"_DEFAULT_KEYWORD_",&
-             list=vel_list,error=error)
-        NULLIFY(r_vals, val)
-        DO ia=1,pint_env%ndim/3
-          is_ok=cp_sll_val_next(vel_list,val,error=error)
-          CALL val_get(val,r_vals=r_vals,error=error)
-          DO ib=1,pint_env%p
-            DO ic=1,3
-            idim = 3*(ia-1)+ic
-            pint_env%v(ib,idim)=r_vals(ic)*unit_conv
+      vels_present = .TRUE.
+    END IF
+
+    ! set the actual temperature...
+    IF (vels_present) THEN
+      ! ...from the initial velocities
+      ek = 0.0_dp
+      DO ia = 1, pint_env%ndim/3
+        rtmp = 0.0_dp
+        DO ic = 1, 3
+          idim = 3*(ia-1)+ic
+          rtmp = rtmp + pint_env%v(1,idim) * pint_env%v(1,idim)
+        END DO
+        ek = ek + 0.5_dp * pint_env%mass(idim) * rtmp
+      END DO
+      actual_t = 2.0_dp * ek / pint_env%ndim
+    ELSE
+      ! ...using the temperature value from the input
+      actual_t = pint_env%kT
+    END IF
+
+    ! set the target temperature
+    target_t = pint_env%kT
+    CALL section_vals_val_get(pint_env%input, &
+         "MOTION%PINT%INIT%VELOCITY_SCALE",&
+         l_val=done_scale,error=error)
+    IF (vels_present) THEN
+      IF (done_scale) THEN
+        ! rescale the velocities to match the target temperature
+        rtmp = sqrt( target_t / actual_t )
+        DO ia = 1, pint_env%ndim/3
+          DO ib = 1, pint_env%p
+            DO ic = 1, 3
+              idim = 3*(ia-1)+ic
+              pint_env%v(ib,idim) = rtmp * pint_env%v(ib,idim)
             END DO
           END DO
         END DO
       ELSE
-        WRITE(msg,'(A)') "Centroid velocities requested but none given."
-        CALL cp_assert(.FALSE.,&
-                       cp_failure_level,cp_assertion_failed,&
-                       TRIM(msg)//&
-                       CPSourceFileRef,&
-                       routineP,error,failure)
+        target_t = actual_t
       END IF
-
-      ! draw velocities for non-centroid modes from M-B distribution
-      CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-      DO idim = 1, pint_env%ndim
-        DO ib = 2, pint_env%p
-        rv = next_random_number(rng_stream=pint_env%randomG,&
-             variance=pint_env%kT/pint_env%mass_fict(ib,idim),&
-             error=error)
-          pint_env%uv(ib,idim) = rv
-        END DO
-      END DO
-
-      done_cntr = .TRUE.
-    ELSE
-
-      DO idim=1,SIZE(pint_env%uv,2)
-        DO ib=1,SIZE(pint_env%uv,1)
-          pint_env%uv(ib,idim) = &
-            next_random_number(rng_stream=pint_env%randomG,&
-                               variance=mykT/pint_env%mass_fict(ib,idim),&
-                               error=error)
-        END DO
-      END DO
-
     END IF
 
-    ! add random component to the centroid velocity
+    ! draw velocities from the M-B distribution...
+    IF (vels_present) THEN
+      ! ...for non-centroid modes only
+      CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+      first_mode = 2
+    ELSE
+      ! ...for all the modes
+      first_mode = 1
+    END IF
+    DO idim = 1, SIZE(pint_env%uv,2)
+      DO ib = first_mode, SIZE(pint_env%uv,1)
+        pint_env%uv(ib,idim) = &
+          next_random_number(rng_stream=pint_env%randomG,&
+                             variance=target_t/pint_env%mass_fict(ib,idim),&
+                             error=error)
+      END DO
+    END DO
+
+    ! add random component to the centroid velocity if requsted
     done_sped = .FALSE.
     CALL section_vals_val_get(pint_env%input,&
          "MOTION%PINT%INIT%CENTROID_SPEED",&
@@ -1057,17 +1093,19 @@ CONTAINS
     IF (ltmp) THEN
       CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
       DO idim=1,pint_env%ndim
-        rv = next_random_number(rng_stream=pint_env%randomG,&
+        rtmp = next_random_number(rng_stream=pint_env%randomG,&
                                 variance=pint_env%mass(idim)*pint_env%kT,&
                                 error=error)/pint_env%mass(idim)
         DO ib=1,pint_env%p
-          pint_env%v(ib,idim)=pint_env%v(ib,idim)+rv
+          pint_env%v(ib,idim)=pint_env%v(ib,idim)+rtmp
         END DO
       END DO
       CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
       done_sped = .TRUE.
     END IF
 
+    ! set the velocities to the values from the input if they are explicit
+    ! (disregard all the initialization done so far)
     done_init = .FALSE.
     NULLIFY(input_section)
     input_section => section_vals_get_subs_vals(pint_env%input,&
@@ -1086,11 +1124,11 @@ CONTAINS
                        "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
                        CPSourceFileRef,&
                        routineP,error,failure)
-        ii=0
+        itmp=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
-            ii=ii+1
-            pint_env%v(ib,idim)=r_vals(ii)
+            itmp=itmp+1
+            pint_env%v(ib,idim)=r_vals(itmp)
           END DO
         END DO
         CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
@@ -1098,19 +1136,31 @@ CONTAINS
       END IF
     END IF
 
-    WRITE(msg,'(A)') "Bead velocities initialization:"
+    unit_conv = cp_unit_from_cp2k(1.0_dp,"K",error=error)
+    WRITE(stmp1,'(F10.2)') target_t * unit_conv
+    msg = "Bead velocities initialization:"
     IF ( done_init ) THEN
-      WRITE(msg,'(A,A)') TRIM(msg), " input structure"
-    ELSE IF ( done_cntr ) THEN
-      WRITE(msg,'(A,A)') TRIM(msg), " centroid + Maxwell-Boltzmann"
+      msg = TRIM(msg)//" input structure"
+    ELSE IF ( vels_present ) THEN
+      msg = TRIM(ADJUSTL(msg))//" centroid + Maxwell-Boltzmann at "//TRIM(ADJUSTL(stmp1))//" K."
+
     ELSE
-      WRITE(msg,'(A,A)') TRIM(msg), " Maxwell-Boltzmann"
+      msg = TRIM(ADJUSTL(msg))//" Maxwell-Boltzmann at "//TRIM(ADJUSTL(stmp1))//" K."
     END IF
     CALL pint_write_line(msg, error)
 
-    IF (( .NOT. done_init ) .AND. ( done_sped )) THEN
-      WRITE(msg,'(A)') "Added random component to the initial centroid velocities."
-      CALL pint_write_line(msg, error)
+    IF (.NOT. done_init) THEN
+      IF (vels_present .AND. done_scale) THEN
+        WRITE(stmp1,'(F10.2)') actual_t * unit_conv
+        WRITE(stmp2,'(F10.2)') target_t * unit_conv
+        msg = "Scaled initial velocities from "//TRIM(ADJUSTL(stmp1))//&
+              " to "//TRIM(ADJUSTL(stmp2))//" K as requested."
+        CALL pint_write_line(msg, error)
+      END IF
+      IF ( done_sped ) THEN
+        msg = "Added random component to the initial centroid velocities."
+        CALL pint_write_line(msg, error)
+      END IF
     END IF
 
     RETURN
@@ -1154,7 +1204,7 @@ CONTAINS
           DO inos=1,SIZE(pint_env%tv,1)
              pint_env%tv(inos,ib,idim) = &
                next_random_number(rng_stream=pint_env%randomG,&
-                                  variance=mykT/pint_env%Q(ib),&
+                                  variance=mykt/pint_env%Q(ib),&
                                   error=error)
           END DO
         END DO
