@@ -445,8 +445,7 @@ CONTAINS
 
        ! Read binary restart file, if available
 
-       CALL read_binary_thermostats_nose(nhc,binary_restart_file_name,para_env,error)
-       restart = .TRUE.
+       CALL read_binary_thermostats_nose(nhc,binary_restart_file_name,restart,para_env,error)
 
     ELSE
 

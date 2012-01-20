@@ -1,0 +1,249 @@
+#CPQA DEPENDS UO2-2x2x2-binary_restart-nve-npt-1.inp
+&GLOBAL
+  PROJECT UO2-2x2x2-binary_restart-nve-npt
+ FLUSH_SHOULD_FLUSH
+ PRINT_LEVEL debug
+ RUN_TYPE md
+&END GLOBAL
+&EXT_RESTART
+ RESTART_FILE_NAME        UO2-2x2x2-binary_restart-nve-npt-1.restart
+ BINARY_RESTART_FILE_NAME UO2-2x2x2-binary_restart-nve-npt-1.restart.bin
+&END EXT_RESTART
+&MOTION
+ &MD
+  ENSEMBLE NPT_F
+  STEPS 10
+  TIMESTEP [fs] 0.5
+  TEMPERATURE [K] 300.0
+  &BAROSTAT
+   PRESSURE [bar] 1.0
+   TIMECON [fs] 100.0
+  &END BAROSTAT
+  &THERMOSTAT
+   REGION MASSIVE
+   &NOSE
+    TIMECON [fs] 100.0
+   &END NOSE
+  &END THERMOSTAT
+ &END MD
+ &PRINT
+  &CELL OFF
+   &EACH
+    MD 1
+   &END EACH
+  &END CELL
+  &RESTART
+   ADD_LAST NUMERIC
+   BACKUP_COPIES 1
+   SPLIT_RESTART_FILE
+   &EACH
+    MD 5
+   &END EACH
+  &END RESTART
+  &RESTART_HISTORY ON
+   &EACH
+    MD 5
+   &END EACH
+  &END RESTART_HISTORY
+  &STRESS
+   &EACH
+    MD 1
+   &END EACH
+  &END STRESS
+  &TRAJECTORY
+   &EACH
+    MD 1
+   &END EACH
+  &END TRAJECTORY
+  &VELOCITIES
+   &EACH
+    MD 1
+   &END EACH
+  &END VELOCITIES
+ &END PRINT
+&END MOTION
+&FORCE_EVAL
+ METHOD Fist
+ STRESS_TENSOR ANALYTICAL
+ &MM
+  &FORCEFIELD
+   &CHARGE
+    ATOM U
+    CHARGE +3.227252
+   &END CHARGE
+   &CHARGE
+    ATOM O
+    CHARGE -1.613626
+   &END CHARGE
+   &NONBONDED
+    &BUCK4RANGES
+     ATOMS O O
+     A [eV] 11272.6
+     B [angstrom^-1] 1/0.1363
+     C [eV*angstrom^6] 134.0
+     R1 [angstrom] 1.2
+     R2 [angstrom] 2.1
+     R3 [angstrom] 2.6
+     RCUT [angstrom] 5.2
+    &END BUCK4RANGES
+    &WILLIAMS
+     ATOMS O U
+     A [eV] 566.498
+     B [angstrom^-1] 1/0.42056
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 5.2
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS U U
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 5.2
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX 16 16 16
+    &RS_GRID
+     DISTRIBUTION_TYPE replicated
+    &END RS_GRID
+   &END EWALD
+  &END POISSON
+ &END MM
+ &PRINT
+  &GRID_INFORMATION OFF
+  &END GRID_INFORMATION
+  &PROGRAM_RUN_INFO
+   &EACH
+    MD 1
+   &END EACH
+  &END PROGRAM_RUN_INFO
+  &STRESS_TENSOR
+   &EACH
+    MD 1
+   &END EACH
+  &END STRESS_TENSOR
+ &END PRINT
+ &SUBSYS
+  &CELL
+   ABC 10.8949 10.8949 10.8949
+  &END CELL
+  &COORD
+   U      0.000000    0.000000    0.000000  UO2  1
+   U      0.000000    2.723735    2.723735  UO2  1
+   U      2.723735    0.000000    2.723735  UO2  1
+   U      2.723735    2.723735    0.000000  UO2  1
+   O      1.361868    1.361868    1.361868  UO2  1
+   O      1.361868    1.361868    4.085602  UO2  1
+   O      1.361868    4.085602    1.361868  UO2  1
+   O      4.085602    1.361868    1.361868  UO2  1
+   O      1.361868    4.085602    4.085602  UO2  1
+   O      4.085602    1.361868    4.085602  UO2  1
+   O      4.085602    4.085602    1.361868  UO2  1
+   O      4.085602    4.085602    4.085602  UO2  1
+   U      0.000000    0.000000    5.447470  UO2  2
+   U      0.000000    2.723735    8.171205  UO2  2
+   U      2.723735    0.000000    8.171205  UO2  2
+   U      2.723735    2.723735    5.447470  UO2  2
+   O      1.361868    1.361868    6.809337  UO2  2
+   O      1.361868    1.361868    9.533072  UO2  2
+   O      1.361868    4.085602    6.809337  UO2  2
+   O      4.085602    1.361868    6.809337  UO2  2
+   O      1.361868    4.085602    9.533072  UO2  2
+   O      4.085602    1.361868    9.533072  UO2  2
+   O      4.085602    4.085602    6.809337  UO2  2
+   O      4.085602    4.085602    9.533072  UO2  2
+   U      0.000000    5.447470    0.000000  UO2  3
+   U      0.000000    8.171205    2.723735  UO2  3
+   U      2.723735    5.447470    2.723735  UO2  3
+   U      2.723735    8.171205    0.000000  UO2  3
+   O      1.361868    6.809337    1.361868  UO2  3
+   O      1.361868    6.809337    4.085602  UO2  3
+   O      1.361868    9.533072    1.361868  UO2  3
+   O      4.085602    6.809337    1.361868  UO2  3
+   O      1.361868    9.533072    4.085602  UO2  3
+   O      4.085602    6.809337    4.085602  UO2  3
+   O      4.085602    9.533072    1.361868  UO2  3
+   O      4.085602    9.533072    4.085602  UO2  3
+   U      0.000000    5.447470    5.447470  UO2  4
+   U      0.000000    8.171205    8.171205  UO2  4
+   U      2.723735    5.447470    8.171205  UO2  4
+   U      2.723735    8.171205    5.447470  UO2  4
+   O      1.361868    6.809337    6.809337  UO2  4
+   O      1.361868    6.809337    9.533072  UO2  4
+   O      1.361868    9.533072    6.809337  UO2  4
+   O      4.085602    6.809337    6.809337  UO2  4
+   O      1.361868    9.533072    9.533072  UO2  4
+   O      4.085602    6.809337    9.533072  UO2  4
+   O      4.085602    9.533072    6.809337  UO2  4
+   O      4.085602    9.533072    9.533072  UO2  4
+   U      5.447470    0.000000    0.000000  UO2  5
+   U      5.447470    2.723735    2.723735  UO2  5
+   U      8.171205    0.000000    2.723735  UO2  5
+   U      8.171205    2.723735    0.000000  UO2  5
+   O      6.809337    1.361868    1.361868  UO2  5
+   O      6.809337    1.361868    4.085602  UO2  5
+   O      6.809337    4.085602    1.361868  UO2  5
+   O      9.533072    1.361868    1.361868  UO2  5
+   O      6.809337    4.085602    4.085602  UO2  5
+   O      9.533072    1.361868    4.085602  UO2  5
+   O      9.533072    4.085602    1.361868  UO2  5
+   O      9.533072    4.085602    4.085602  UO2  5
+   U      5.447470    0.000000    5.447470  UO2  6
+   U      5.447470    2.723735    8.171205  UO2  6
+   U      8.171205    0.000000    8.171205  UO2  6
+   U      8.171205    2.723735    5.447470  UO2  6
+   O      6.809337    1.361868    6.809337  UO2  6
+   O      6.809337    1.361868    9.533072  UO2  6
+   O      6.809337    4.085602    6.809337  UO2  6
+   O      9.533072    1.361868    6.809337  UO2  6
+   O      6.809337    4.085602    9.533072  UO2  6
+   O      9.533072    1.361868    9.533072  UO2  6
+   O      9.533072    4.085602    6.809337  UO2  6
+   O      9.533072    4.085602    9.533072  UO2  6
+   U      5.447470    5.447470    0.000000  UO2  7
+   U      5.447470    8.171205    2.723735  UO2  7
+   U      8.171205    5.447470    2.723735  UO2  7
+   U      8.171205    8.171205    0.000000  UO2  7
+   O      6.809337    6.809337    1.361868  UO2  7
+   O      6.809337    6.809337    4.085602  UO2  7
+   O      6.809337    9.533072    1.361868  UO2  7
+   O      9.533072    6.809337    1.361868  UO2  7
+   O      6.809337    9.533072    4.085602  UO2  7
+   O      9.533072    6.809337    4.085602  UO2  7
+   O      9.533072    9.533072    1.361868  UO2  7
+   O      9.533072    9.533072    4.085602  UO2  7
+   U      5.447470    5.447470    5.447470  UO2  8
+   U      5.447470    8.171205    8.171205  UO2  8
+   U      8.171205    5.447470    8.171205  UO2  8
+   U      8.171205    8.171205    5.447470  UO2  8
+   O      6.809337    6.809337    6.809337  UO2  8
+   O      6.809337    6.809337    9.533072  UO2  8
+   O      6.809337    9.533072    6.809337  UO2  8
+   O      9.533072    6.809337    6.809337  UO2  8
+   O      6.809337    9.533072    9.533072  UO2  8
+   O      9.533072    6.809337    9.533072  UO2  8
+   O      9.533072    9.533072    6.809337  UO2  8
+   O      9.533072    9.533072    9.533072  UO2  8
+  &END COORD
+  &PRINT
+   &TOPOLOGY_INFO
+    XYZ_INFO
+   &END
+  &END PRINT
+  &TOPOLOGY
+   CONNECTIVITY user
+   DISABLE_EXCLUSION_LISTS
+   PARA_RES off
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

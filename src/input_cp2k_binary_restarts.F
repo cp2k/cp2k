@@ -489,11 +489,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
-    CHARACTER(LEN=default_string_length)     :: section_name
-    INTEGER                                  :: handle, input_unit, &
-                                                iparticle, istat, iw, &
+    CHARACTER(LEN=default_string_length)     :: section_label, section_name
+    INTEGER                                  :: handle, i, input_unit, &
+                                                iparticle, istat, iw, nbuf, &
                                                 nparticle
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, have_velocities
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     TYPE(cp_logger_type), POINTER            :: logger
@@ -520,19 +520,16 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
                               extension=".subsysLog",error=error)
 
-    nparticle = SIZE(particle_set)
     IF (LEN_TRIM(prefix) == 0) THEN
        section_name = "VELOCITY"
     ELSE
        section_name = prefix//"_VELOCITY"
     END IF
 
-    ALLOCATE (rbuf(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "rbuf",dp_size*3*nparticle,&
-                                     para_env)
+    have_velocities = .FALSE.
 
-    ! Open binary restart file at last position
+    ! Open binary restart file at last position and check if there are
+    ! velocities available
     IF (para_env%ionode) THEN
        CALL open_file(file_name=binary_restart_file_name,&
                       file_status="OLD",&
@@ -541,34 +538,95 @@ CONTAINS
                       file_position="ASIS",&
                       unit_number=input_unit,&
                       debug=iw)
-       READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nparticle)
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "rbuf(1:3,1:nparticle) -> "//&
-                                      TRIM(ADJUSTL(section_name))//&
-                                      " (IOSTAT = "//cp_to_string(istat)//")",&
-                                      input_unit,para_env)
+       DO 
+          READ (UNIT=input_unit,IOSTAT=istat) section_label,nbuf
+          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                         "section_label, ndum -> "//&
+                                         TRIM(ADJUSTL(section_name))//&
+                                         " (IOSTAT = "//cp_to_string(istat)//")",&
+                                         input_unit,para_env)
+          IF ((TRIM(section_label) == "PARTICLE THERMOSTAT").OR.&
+              (TRIM(section_label) == "SHELL THERMOSTAT")) THEN
+             IF (nbuf > 0) THEN
+                ! Ignore thermostat information
+                ALLOCATE (rbuf(nbuf,1),STAT=istat)
+                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                 "rbuf",dp_size*nbuf,para_env)
+                DO i=1,4
+                   READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nbuf,1)
+                   IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                                  "rbuf(1:nbuf,1) -> "//&
+                                                  TRIM(ADJUSTL(section_label))//&
+                                                  " (IOSTAT = "//cp_to_string(istat)//")",&
+                                                  input_unit,para_env)
+                END DO
+                DEALLOCATE (rbuf,STAT=istat)
+                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+                IF (iw > 0) THEN
+                   WRITE (UNIT=iw,FMT="(T2,A)")&
+                     "INFO: Ignoring section "//TRIM(ADJUSTL(section_label))//" from binary restart file "//&
+                     TRIM(binary_restart_file_name)
+                END IF
+             END IF
+             CYCLE
+          ELSE IF (TRIM(section_label) /= TRIM(section_name)) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Section label <"//TRIM(section_label)//"> read from the "//&
+                               "binary restart file <"//TRIM(binary_restart_file_name)//&
+                               "> does not match the requested section name <"//&
+                               TRIM(section_name)//">")
+          ELSE
+             IF (nbuf == 1) have_velocities = .TRUE.
+             EXIT
+          END IF
+       END DO
     END IF
 
-    CALL mp_bcast(rbuf,para_env%source,para_env%group)
+    CALL mp_bcast(have_velocities,para_env%source,para_env%group)
 
-    DO iparticle=1,nparticle
-       particle_set(iparticle)%v(1:3) = rbuf(1:3,iparticle)
-    END DO
+    IF (have_velocities) THEN
 
-    DEALLOCATE (rbuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+       nparticle = SIZE(particle_set)
+       ALLOCATE (rbuf(3,nparticle),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "rbuf",dp_size*3*nparticle,&
+                                        para_env)
+
+       IF (para_env%ionode) THEN
+          READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nparticle)
+          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
+                                         "rbuf(1:3,1:nparticle) -> "//&
+                                         TRIM(ADJUSTL(section_name))//&
+                                         " (IOSTAT = "//cp_to_string(istat)//")",&
+                                         input_unit,para_env)
+       END IF
+
+       CALL mp_bcast(rbuf,para_env%source,para_env%group)
+
+       DO iparticle=1,nparticle
+          particle_set(iparticle)%v(1:3) = rbuf(1:3,iparticle)
+       END DO
+
+       DEALLOCATE (rbuf,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+
+    END IF
 
     IF (iw > 0) THEN
        WRITE (UNIT=iw,FMT="(T2,A)")&
         "BEGIN of "//TRIM(ADJUSTL(section_name))//&
         " section data read in binary format from file "//&
         TRIM(binary_restart_file_name)
-       DO iparticle=1,nparticle
-         WRITE (UNIT=iw,FMT="(T2,A,3F20.8,I0)")&
-           TRIM(ADJUSTL(particle_set(iparticle)%atomic_kind%name)),&
-           particle_set(iparticle)%r(1:3),&
-           particle_set(iparticle)%atom_index
-       END DO
+       IF (have_velocities) THEN
+          DO iparticle=1,nparticle
+             WRITE (UNIT=iw,FMT="(T2,A,3F20.8,I0)")&
+              TRIM(ADJUSTL(particle_set(iparticle)%atomic_kind%name)),&
+              particle_set(iparticle)%r(1:3),&
+              particle_set(iparticle)%atom_index
+          END DO
+       ELSE
+          WRITE (UNIT=iw,FMT="(T3,A)") "No velocities available"
+       END IF
        WRITE (UNIT=iw,FMT="(T2,A)")&
         "END of "//TRIM(ADJUSTL(section_name))//&
         " section data read from binary restart file "//&
@@ -593,10 +651,11 @@ CONTAINS
 !>      - Creation (28.02.2011,MK)
 ! *****************************************************************************
   SUBROUTINE read_binary_thermostats_nose(nhc,binary_restart_file_name,&
-                                          para_env,error)
+                                          restart,para_env,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
+    LOGICAL, INTENT(OUT)                     :: restart
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -625,6 +684,8 @@ CONTAINS
     ELSE
        debug = .FALSE.
     END IF
+
+    restart = .FALSE.
 
     ! Open binary restart file at last position
     IF (para_env%ionode) THEN
@@ -742,6 +803,8 @@ CONTAINS
 
        DEALLOCATE (rbuf,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+
+       restart = .TRUE.
 
     END IF
 
