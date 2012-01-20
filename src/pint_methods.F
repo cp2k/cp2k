@@ -14,8 +14,6 @@
 MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
-                                             cp_sll_val_type
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -23,7 +21,8 @@ MODULE pint_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_from_cp2k, cp_unit_to_cp2k
+  USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                             cp_unit_to_cp2k
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -44,12 +43,14 @@ MODULE pint_methods
   USE input_constants,                 ONLY: transformation_normal,&
                                              transformation_stage
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: &
-       section_vals_get, section_vals_get_subs_vals, section_vals_list_get, &
-       section_vals_release, section_vals_retain, section_vals_type, &
-       section_vals_val_get, section_vals_val_set, section_vals_val_unset
-  USE input_val_types,                 ONLY: val_get,&
-                                             val_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set,&
+                                             section_vals_val_unset
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -956,18 +957,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_v', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: msg, unit_str, stmp, stmp1, stmp2
-    INTEGER                                  :: ia, ib, ic, idim, itmp, &
-                                                n_rep_val, first_mode
+    CHARACTER(len=default_string_length)     :: msg, stmp, stmp1, stmp2, &
+                                                unit_str
+    INTEGER                                  :: first_mode, ia, ib, ic, idim, &
+                                                itmp, n_rep_val
     LOGICAL                                  :: done_init, done_scale, &
                                                 done_sped, explicit, failure, &
-                                                is_ok, ltmp, vels_present
-    REAL(kind=dp)                            :: ek, rtmp, unit_conv, target_t, actual_t
+                                                ltmp, vels_present
+    REAL(kind=dp)                            :: actual_t, ek, rtmp, target_t, &
+                                                unit_conv
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: vel_list
     TYPE(section_vals_type), POINTER         :: input_section
-    TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
@@ -1053,7 +1054,7 @@ CONTAINS
     IF (vels_present) THEN
       IF (done_scale) THEN
         ! rescale the velocities to match the target temperature
-        rtmp = sqrt( target_t / actual_t )
+        rtmp = SQRT( target_t / actual_t )
         DO ia = 1, pint_env%ndim/3
           DO ib = 1, pint_env%p
             DO ic = 1, 3

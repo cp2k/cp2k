@@ -499,9 +499,9 @@ END SUBROUTINE ma_get_mempol
 ! Group the MPI processes in a Hierarchical way following the machine topology
 
   SUBROUTINE ma_group_place(id, sched_unit)
-    INTEGER                                  :: id, sched_unit,new_id
+    INTEGER                                  :: id, sched_unit
 
-    INTEGER                                  :: core, distance, node
+    INTEGER                                  :: core, distance, new_id, node
 
   isdefault = .FALSE.
 
@@ -1072,7 +1072,8 @@ END SUBROUTINE ma_get_mempol
     CHARACTER(len=10)                        :: all_cores, mempolicy
     CHARACTER(len=4)                         :: first_core, second_core
     INTEGER                                  :: core, ipe, istat
-    INTEGER(KIND=int_4), ALLOCATABLE, DIMENSION(:)       :: all_core, all_gpu, &
+    INTEGER(KIND=int_4), ALLOCATABLE, &
+      DIMENSION(:)                           :: all_core, all_gpu, &
                                                 all_memory, all_node, &
                                                 all_node_mem, all_pid
 
