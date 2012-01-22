@@ -224,6 +224,10 @@ CONTAINS
        CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
             error=error)
 
+       ! complete_redistribute does not zero blocks that might be present in the
+       ! target but not in the source
+       CALL cp_dbcsr_set(matrix_ls,0.0_dp,error=error)
+
        ! perform the magic complete redistribute copy
        IF (ls_mstruct%single_precision) THEN
           CALL cp_dbcsr_init(matrix_tmp, error=error)
