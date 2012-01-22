@@ -1003,7 +1003,8 @@ CONTAINS
             TRIM(ADJUSTL(stmp))//")."
       CALL cp_assert(3*n_rep_val==pint_env%ndim,&
                      cp_failure_level, cp_assertion_failed,&
-                     routineP//" from "//CPSourceFileRef,&
+                     routineP//" from "//&
+CPSourceFileRef,&
                      msg, error, failure)
       DO ia = 1, pint_env%ndim/3
         CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_",&
@@ -1015,7 +1016,8 @@ CONTAINS
               TRIM(ADJUSTL(stmp))//")."
         CALL cp_assert(itmp==3,&
                        cp_failure_level, cp_assertion_failed,&
-                       routineP//" from "//CPSourceFileRef,&
+                       routineP//" from "//&
+CPSourceFileRef,&
                        msg, error, failure)
         DO ib = 1, pint_env%p
           DO ic = 1, 3
