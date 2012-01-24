@@ -145,7 +145,6 @@ CONTAINS
     INTEGER                                  :: handle, maxder, natom, nder, &
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
       ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_fit, eps_ppnl
@@ -231,10 +230,6 @@ CONTAINS
     IF (calculate_forces) THEN
        nder = 1
        
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
-
        CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
 
        do_ep=ASSOCIATED(ep_qs_env)
