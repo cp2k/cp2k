@@ -129,8 +129,7 @@ CONTAINS
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
 
-    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,&
-                       parse_white_lines=.TRUE.,error=error)
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
 
     natom = 0
     DO
