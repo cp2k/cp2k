@@ -554,6 +554,9 @@ END SUBROUTINE ma_get_mempol
 #endif
 #if defined (__LIBNUMA) && !defined (__HWLOC)
  IF (sched_unit .EQ. threads) THEN
+   ! threads inherit their parent CPU mask
+   ! just get where they are running
+   CALL ma_linux_set_procnode(my_info%node)
     my_info%threads_info(id+1)%core = ma_linux_get_core()
     my_info%threads_info(id+1)%node = ma_linux_get_mynode()
     my_info%threads_info(id+1)%id_omp = id
@@ -565,13 +568,18 @@ END SUBROUTINE ma_get_mempol
        node = 0
      ELSE
        new_id = MOD(my_info%mp_info%myproc,my_info%nr_neighbors)
-       node = new_id/(my_info%nr_neighbors/topology%nnodes)
+       IF ( my_info%nr_neighbors .LE. topology%nnodes) THEN
+        node = new_id
+       ELSE
+         node = MOD(new_id/(my_info%nr_neighbors/topology%nnodes),topology%nnodes)
+       ENDIF
      ENDIF
      CALL ma_set_proc_node(node)
     ELSE ! UMA machine
      distance = topology%ncores/my_info%nr_neighbors
      core = (MOD(my_info%mp_info%myproc,ma_get_ncores()))*distance
      node = 0
+     CALL ma_set_proc_cores(distance,core)
     END IF
     my_info%threads_info(1)%core = ma_linux_get_core()  
     my_info%threads_info(1)%node = node

@@ -656,7 +656,7 @@ END SUBROUTINE cp_ma_net_affinity
        istat = ma_init_affinity(ma_env, num_threads,core,node)
        IF (istat /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
-               "Initialization of HWLOC/LIBNUMA failed!")             
+               "Initialization of AFFINITY failed!")             
        ENDIF
       
        unit_num = cp_logger_get_default_io_unit(logger)

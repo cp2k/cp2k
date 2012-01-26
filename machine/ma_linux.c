@@ -33,7 +33,7 @@ static inline int mask_isset(unsigned long *a, unsigned long sa, int node) {
 int linux_topology_init(struct arch_topology *topo)
 {
   int count, i, j, error,k,tmpNode;
-
+  
 #ifdef  __DBCSR_CUDA
   int nDev;
   ma_get_ndevices_cu(&nDev);
@@ -51,8 +51,7 @@ int linux_topology_init(struct arch_topology *topo)
 
   //libnuma has no support for I/O devices
   topo->nnetcards = 0;
-  local->nnetcards = 0;
-
+  local_topo->nnetcards = 0;
   topo->nsockets = linux_get_nsockets();
   local_topo->nsockets = topo->nsockets;
    //Compute number of memory controlers per socket
@@ -89,6 +88,12 @@ int linux_topology_init(struct arch_topology *topo)
        ma_get_cu(i,machine_nodes[i].mygpus);
 #endif
    }
+
+   if (topo->nnodes == -1 || topo->ncores == -1 || topo->npus == -1 ||
+       topo->nsockets == -1)
+        return -1;
+   else
+        return 0;
 
 }
 
