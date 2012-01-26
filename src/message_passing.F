@@ -1446,7 +1446,7 @@ CONTAINS
     t_start = m_walltime ( )
     my_key = 0
     if(PRESENT(key)) my_key = key
-    CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
+    CALL mpi_comm_split(comm,color,my_key,sub_comm,ierr)
     IF (ierr/=mpi_success) CALL mp_stop(ierr,routineN)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=10,count=1,time=t_end-t_start)
