@@ -814,7 +814,7 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 #if defined (__ELPA)
     ! Calculate eigenvalues/eigenvectors
-    call solve_evp_real_2stage(n,n,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+    call solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 
