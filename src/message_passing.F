@@ -1427,15 +1427,16 @@ CONTAINS
 !>        the rank order is accoring to the order in the orig comm
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE mp_comm_split_direct(comm,sub_comm,color)
+  SUBROUTINE mp_comm_split_direct(comm,sub_comm,color,key)
     INTEGER, INTENT(in)                      :: comm
     INTEGER, INTENT(OUT)                     :: sub_comm
     INTEGER, INTENT(in)                      :: color
+    INTEGER, INTENT(in), OPTIONAL            :: key
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_direct', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
+    INTEGER                                  :: ierr, my_key
 
     ierr = 0
 #if defined(__mp_timeset__)
@@ -1443,6 +1444,8 @@ CONTAINS
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
+    my_key = 0
+    if(PRESENT(key)) my_key = key
     CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
     IF (ierr/=mpi_success) CALL mp_stop(ierr,routineN)
     t_end = m_walltime ( )

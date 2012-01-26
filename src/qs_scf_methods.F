@@ -30,7 +30,8 @@ MODULE qs_scf_methods
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
                                              cp_fm_syevd,&
-                                             cp_fm_syevr
+                                             cp_fm_syevr, &
+                                             cp_fm_elpa
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -169,6 +170,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, nao, &
                                                 nelectron, nmo
+    LOGICAL :: use_elpa
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -177,6 +179,12 @@ CONTAINS
 
     NULLIFY (mo_coeff)
     NULLIFY (mo_eigenvalues)
+
+#if defined (__ELPA)
+    use_elpa =.TRUE.
+#else
+    use_elpa = .FALSE.
+#endif
 
     ! Diagonalise the Kohn-Sham matrix
 
@@ -214,32 +222,27 @@ CONTAINS
 
        IF (use_jacobi) THEN
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-          IF(cholesky_method==cholesky_inverse) THEN
-            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
-          ELSE
-            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
-          END IF
-          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-          cholesky_method = cholesky_off
+       ELSEIF(use_elpa) THEN
+          CALL cp_fm_elpa(matrix_ks,work,mo_eigenvalues,error=error)
        ELSEIF(nmo==nao) THEN
           ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-          IF(cholesky_method==cholesky_inverse) THEN
-            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
-          ELSE
-            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
-          END IF
        ELSE
 #if defined (__SCALAPACK2)
           CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
 #else
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
 #endif
-          IF(cholesky_method==cholesky_inverse) THEN
-            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
-          ELSE
-            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
-          END IF
+       END IF
+
+       IF(cholesky_method==cholesky_inverse) THEN
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
+       ELSE
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+       END IF
+       IF (use_jacobi) THEN
+          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+          cholesky_method = cholesky_off
        END IF
 
     ELSE IF (use_jacobi) THEN

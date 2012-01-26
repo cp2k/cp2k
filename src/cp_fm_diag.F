@@ -31,15 +31,19 @@ MODULE cp_fm_diag
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+#if defined (__ELPA)
+  USE ELPA2
+  USE ELPA1
+#endif
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_comm_free,&
                                              mp_comm_split,&
+                                             mp_comm_split_direct,&
                                              mp_sync
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -56,7 +60,8 @@ MODULE cp_fm_diag
             cp_fm_power, &
             cp_fm_syevd, &
             cp_fm_syevr, &
-            cp_fm_syevx
+            cp_fm_syevx, &
+            cp_fm_elpa
 
 CONTAINS
 
@@ -203,11 +208,9 @@ CONTAINS
     liwork = 5*n + 3
 
     ALLOCATE(work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",lwork*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork",liwork*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     m => matrix%local_data
     CALL dsyevd('V','U', n, m(1,1), n, eig(1), work(1), lwork, iwork(1), liwork, info)
 
@@ -219,11 +222,9 @@ CONTAINS
     CALL cp_fm_to_fm(matrix,eigenvectors,error=error)
 
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 #endif
    
     nmo = SIZE(eigenvalues,1)
@@ -234,8 +235,7 @@ CONTAINS
     END IF
 
     DEALLOCATE (eig,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "eig")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_syevd
@@ -278,14 +278,12 @@ CONTAINS
 
     liwork = 7*n + 8*context%num_pe(2) + 2
     ALLOCATE(iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork",liwork*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ! work space query
 
     lwork = -1
     ALLOCATE(work(1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
@@ -299,11 +297,9 @@ CONTAINS
     lwork = NINT(work(1)+100000)
 !    lwork = NINT(work(1))
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "lwork",lwork*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
@@ -314,12 +310,10 @@ CONTAINS
     END IF
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
 #endif
 
@@ -356,7 +350,7 @@ CONTAINS
     REAL(KIND = dp) :: abstol, work_syevx_local
     INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
                 nn,np0,npcol,npe,nprow,nq0,nz,output_unit,itype, neig_local
-    LOGICAL  :: ionode, needs_evecs
+    LOGICAL  :: failure, ionode, needs_evecs
 
     INTEGER, DIMENSION(9) :: desca,descz,descb
 
@@ -376,6 +370,7 @@ CONTAINS
 #endif
     ! -------------------------------------------------------------------------
 
+    failure = .FALSE.
     ! by default all
     n = matrix%matrix_struct%nrow_global
     neig_local=n
@@ -413,8 +408,7 @@ CONTAINS
 
 
     ALLOCATE (w(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "w",n*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     eigenvalues(:) = 0.0_dp
 #if defined(__SCALAPACK)
 
@@ -452,23 +446,18 @@ CONTAINS
     liwork = 6*MAX(N,npe+1,4)
 
     ALLOCATE (gap(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "gap",npe*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     gap = 0.0_dp
     ALLOCATE (iclustr(2*npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iclustr",2*npe*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     iclustr = 0
     ALLOCATE (ifail(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ifail",n*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ifail = 0
     ALLOCATE (iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork",liwork*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",lwork*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL pdsyevx(job_type,"I","U",n,a(1,1),1,1,desca,vl,vu,1,neig_local,abstol,m,nz,w(1),orfac,&
                  z(1,1),1,1,descz,work(1),lwork,iwork(1),liwork,ifail(1),iclustr(1),gap,info)
@@ -499,20 +488,15 @@ CONTAINS
     ! Release work storage
 
     DEALLOCATE (gap,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "gap")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (iclustr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iclustr")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (ifail,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ifail")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
 #else
 
@@ -533,15 +517,12 @@ CONTAINS
     liwork = 5*n
 
     ALLOCATE (ifail(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ifail",n*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ifail = 0
     ALLOCATE (iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork",liwork*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",lwork*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     info = 0
 
     CALL dsyevx(job_type,"I","U",n,a(1,1),n,vl,vu,1,neig_local,abstol,m,w,z(1,1),n,work(1),lwork,&
@@ -564,20 +545,16 @@ CONTAINS
     ! Release work storage
 
     DEALLOCATE (ifail,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ifail")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
 #endif
     eigenvalues(1:neig_local) = w(1:neig_local)
     DEALLOCATE (w,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "w")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -777,6 +754,86 @@ CONTAINS
   END SUBROUTINE cp_fm_syevr
 
 ! *****************************************************************************
+ SUBROUTINE cp_fm_elpa(matrix,eigenvectors,eigenvalues,error)
+
+    TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_elpa', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comm_col, comm_row, group, handle, ierr, &
+                                                info, istat, i, j,&
+                                                mypcol, myprow, n,nblk, n_rows, neig
+    INTEGER, DIMENSION(9)                    :: descm, descv
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER  ::  eval
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, m1, v
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
+! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,handle)
+
+#if defined(__SCALAPACK)
+
+    failure = .FALSE.
+
+    n = matrix%matrix_struct%nrow_global
+    m => matrix%local_data
+    context => matrix%matrix_struct%context
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
+    group =  matrix%matrix_struct%para_env%group
+    descm(:) = matrix%matrix_struct%descriptor(:)
+
+
+    ! For ELPA, the MPI communicators along rows/cols are sufficient
+    ! mpi communicators are created, needed for communicating within
+    ! rows or columns of processes
+    call mp_comm_split_direct( group, comm_row, mypcol, myprow)
+    call mp_comm_split_direct(group, comm_col, myprow, mypcol)
+
+    v => eigenvectors%local_data
+    descv(:) = eigenvectors%matrix_struct%descriptor(:)
+
+    allocate (m1(size(m,1),size(m,2)),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    m1 = m
+
+    ! elpa needs the full matrix
+    CALL cp_fm_upper_to_full(matrix,eigenvectors,error=error)
+
+    n_rows = matrix%matrix_struct%local_leading_dimension
+    nblk = matrix%matrix_struct%nrow_block
+    neig = size(eigenvalues,1)
+    ! the full eigenvalues vector is needed
+    allocate(eval(n),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+#if defined (__ELPA)
+    ! Calculate eigenvalues/eigenvectors
+    call solve_evp_real_2stage(n,n,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+#endif
+    eigenvalues(1:neig) = eval(1:neig)
+
+    deallocate(eval)
+    DEALLOCATE (m1,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! mpi communicators are freed
+    CALL mp_comm_free(comm_row)
+    CALL mp_comm_free(comm_col)
+
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_elpa
+
+
+! *****************************************************************************
   SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,verbose,error)
 
    ! Raise the real symmetric n by n matrix to the power given by
@@ -798,7 +855,7 @@ CONTAINS
    INTEGER         :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
                       irow_local,istat,mypcol,myprow,ncol_block,ncol_global,npcol,&
                       nprow,nrow_block,nrow_global
-   LOGICAL :: my_verbose
+   LOGICAL :: failure, my_verbose
    REAL(KIND = dp) :: condition_number,f,p
    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: eigenvectors
@@ -811,6 +868,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    failure = .FALSE.
     my_verbose = .FALSE.
     IF(PRESENT(verbose)) my_verbose = verbose
 
@@ -826,10 +884,8 @@ CONTAINS
     ncol_global = matrix%matrix_struct%ncol_global
 
     ALLOCATE (eigenvalues(ncol_global),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "eigenvalues",ncol_global*dp_size)
-    END IF
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
     eigenvalues(:) = 0.0_dp
 
     ! Compute the eigenvectors and eigenvalues
@@ -939,7 +995,7 @@ CONTAINS
     END IF
 
     DEALLOCATE (eigenvalues,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvalues")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
