@@ -125,6 +125,7 @@ void hw_set_proc_node(int node);
 void hw_set_proc_core(int core);
 int hw_set_mempol(int mempol, int node);
 void hw_get_mempol(int *node, int *mempol);
+int hw_get_firstcore();
 
 //Thread related functions - set/get core and numa node
 int hw_my_node();

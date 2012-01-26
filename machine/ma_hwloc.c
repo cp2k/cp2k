@@ -530,10 +530,19 @@ void print_machine(hwloc_topology_t topo, hwloc_obj_t obj, int depth)
                 sprintf(out_string,"%*s%s\n", depth, "--", "Network Card");
                   strcat(console_output,out_string);}
        }
+      else if (obj->type == HWLOC_OBJ_CORE)
+       {
+          char number[33];
+          strcpy(string,"Core#");
+          sprintf(number,"%d",obj->logical_index);
+          strcat(string,number);
+          sprintf(out_string,"%*s%s\t", depth, "", string);
+          strcat(console_output,out_string);
+       }
       else {
-            sprintf(out_string,"%*s%s\t", depth, "", string);
+           sprintf(out_string,"%*s%s\t", depth, "", string);
            strcat(console_output,out_string);
-         }
+        }
      }  
     if (obj->type != HWLOC_OBJ_PU) {//it is not a PU
       if((obj->first_child && obj->first_child->type == HWLOC_OBJ_PU))
@@ -683,6 +692,28 @@ int hw_get_proc_node()
 
   return node;
 }
+
+/*
+* Get the first core of a node
+* return the core
+*/
+int hw_get_firstcore()
+{
+  int core;
+  hwloc_cpuset_t set;
+
+  if (local_topo->nnodes != 0 ){
+    set = hwloc_bitmap_alloc();
+    hwloc_get_proc_cpubind (topology,0,set,HWLOC_CPUBIND_PROCESS);
+    core = hwloc_bitmap_first(set);
+    hwloc_bitmap_free(set);
+  }
+ else
+   core = -1;
+
+  return core;
+}
+
 
 /*
 * Set the node where the current process will run

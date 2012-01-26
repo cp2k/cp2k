@@ -45,7 +45,7 @@ MODULE machine_architecture
   PUBLIC :: ma_get_nnodes, ma_get_nsockets, ma_get_ncores, ma_get_ncaches 
   PUBLIC :: ma_get_nshared_caches, ma_get_nsiblings, ma_get_nnet_cards
   
-  PUBLIC :: ma_get_proc_core
+  PUBLIC :: ma_get_proc_core,ma_my_first_core
   PUBLIC :: ma_get_mynode, ma_get_mycore
   PUBLIC :: ma_get_proc_node, ma_set_proc_node
   
@@ -55,7 +55,7 @@ MODULE machine_architecture
 #if defined (__HWLOC)
   PUBLIC :: ma_hw_set_mempol, ma_hw_get_mempol
   PUBLIC :: ma_get_thread_id, ma_set_proc_core
-  PUBLIC :: ma_set_core, ma_get_core
+  PUBLIC :: ma_set_core, ma_get_core, ma_get_first_core
   PUBLIC :: ma_set_proc_cores, ma_set_procnode
   PUBLIC :: ma_set_thread_node, ma_set_thread_allnodes
   PUBLIC :: ma_get_core_node, ma_set_thread_cores
@@ -284,6 +284,15 @@ MODULE machine_architecture
      END SUBROUTINE ma_set_proc_core
   END INTERFACE
 
+  INTERFACE
+      FUNCTION ma_get_first_core() RESULT (core) BIND(C, name="hw_get_firstcore") 
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT)               :: core
+
+     END FUNCTION ma_get_first_core
+  END INTERFACE
+
+
   INTERFACE 
       FUNCTION ma_get_proccore(flag) RESULT (core) BIND(C, name="hw_get_proc_core") 
        USE ISO_C_BINDING
@@ -510,6 +519,17 @@ CONTAINS
    ENDIF
 #endif 
   END SUBROUTINE ma_finalize_machine
+
+! *****************************************************************************
+!> \brief Get the first core where a MPI process is running
+! *****************************************************************************
+  INTEGER FUNCTION ma_my_first_core() RESULT (core)
+    core = 0
+#if defined (__HWLOC)
+  core = ma_get_first_core()
+#endif
+  END FUNCTION ma_my_first_core
+  
 
 ! *****************************************************************************
 !> \brief Get the process ID

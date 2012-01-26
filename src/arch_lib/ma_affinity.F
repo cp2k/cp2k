@@ -736,7 +736,7 @@ END SUBROUTINE ma_get_mempol
 !> \var unit_num the output console
 ! *****************************************************************************
   SUBROUTINE ma_thread_running_on (unit_num) 
-    INTEGER                                  :: unit_num
+    INTEGER                                  :: unit_num,istat
 
     INTEGER                                  :: id, p, core
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: thread_send
@@ -744,6 +744,7 @@ END SUBROUTINE ma_get_mempol
     CHARACTER(len=4)                         :: first_core, second_core
     CHARACTER(len=10)                        :: all_cores
     CHARACTER(LEN=default_string_length)     :: host_name
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
 
 #if defined (__HWLOC) || defined (__LIBNUMA)
   ! If not all MPI are present  
@@ -761,7 +762,17 @@ END SUBROUTINE ma_get_mempol
     CALL ma_pack_threads(my_info,thread_send)
     CALL mp_allgather(thread_send, thread_recv, my_info%mp_info%mp_group)
     CALL ma_unpack_threads(my_info,thread_recv,thread_mapping)
+
+    ALLOCATE (all_host(default_string_length,my_info%mp_info%numproc),STAT=istat)
+
+    IF (istat /= 0) THEN
+       CALL ma_error_stop(ma_error_allocation)
+    END IF
+
+    all_host(:,:) = 0
     CALL mp_proc_name(host_name)
+    CALL string_to_ascii(host_name,all_host(:,my_info%mp_info%myproc+1))
+    CALL mp_sum(all_host,my_info%mp_info%mp_group)
    ELSE
      host_name = "localhost"
    ENDIF
@@ -770,6 +781,9 @@ END SUBROUTINE ma_get_mempol
    IF (my_info%nr_threads .GT. 1) THEN 
      WRITE(unit_num,"(T2,A)") "OMP | Thread placement"
      DO p=1, my_info%mp_info%numproc 
+      IF (has_MPI) THEN  
+        CALL ascii_to_string(all_host(:,p),host_name)
+      END IF
       WRITE(unit_num, "(T2,A,I4,A,A)") "Processs ", p-1, " running on ", TRIM(host_name)
       DO id=1, my_info%nr_threads 
            core = thread_mapping(p,id)%core
@@ -1117,8 +1131,14 @@ END SUBROUTINE ma_get_mempol
        all_node_mem(:) = 0   
  
        !Where process is running
+       
        CALL ma_running_on(all_core(my_info%mp_info%myproc+1), all_node(my_info%mp_info%myproc+1))  
- 
+
+       IF (ma_get_conf_mpiSched() .EQ. 'G' .OR. &
+           ma_get_conf_mpiSched() .EQ. 'g' .OR. &
+           isdefault .AND. my_info%mp_info%numproc .NE. my_info%nr_neighbors) THEN      
+               all_core(my_info%mp_info%myproc+1)=ma_my_first_core() 
+       END IF
               
    IF (print_proc) THEN
  ! ***** Print where process are running!
@@ -1165,9 +1185,9 @@ END SUBROUTINE ma_get_mempol
            IF (ma_get_conf_mpiSched() .EQ. 'G' .OR. &
                ma_get_conf_mpiSched() .EQ. 'g' .OR. & 
                isdefault .AND. my_info%mp_info%numproc .NE. my_info%nr_neighbors) THEN
-             core = all_core(ipe)
+             core = all_core(ipe) 
              CALL integer_to_string(core,first_core)
-             core = all_core(ipe) + (topology%ncores/my_info%nr_neighbors)-1
+             core = core + (topology%ncores/my_info%nr_neighbors)-1
              CALL integer_to_string(core,second_core)
              all_cores = TRIM(first_core)//"-"//TRIM(second_core)
            ELSE
