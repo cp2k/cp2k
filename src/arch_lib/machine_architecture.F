@@ -287,7 +287,7 @@ MODULE machine_architecture
   INTERFACE
       FUNCTION ma_get_first_core() RESULT (core) BIND(C, name="hw_get_firstcore") 
        USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)               :: core
+    INTEGER(KIND=C_INT)                      :: core
 
      END FUNCTION ma_get_first_core
   END INTERFACE

@@ -1445,7 +1445,7 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     my_key = 0
-    if(PRESENT(key)) my_key = key
+    IF(PRESENT(key)) my_key = key
     CALL mpi_comm_split(comm,color,my_key,sub_comm,ierr)
     IF (ierr/=mpi_success) CALL mp_stop(ierr,routineN)
     t_end = m_walltime ( )

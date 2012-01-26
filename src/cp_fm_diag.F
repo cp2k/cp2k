@@ -763,12 +763,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_elpa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: comm_col, comm_row, group, handle, ierr, &
-                                                info, istat, i, j,&
-                                                mypcol, myprow, n,nblk, n_rows, neig
+    INTEGER                                  :: comm_col, comm_row, group, &
+                                                handle, istat, mypcol, &
+                                                myprow, n, n_rows, nblk, neig
     INTEGER, DIMENSION(9)                    :: descm, descv
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER  ::  eval
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, m1, v
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -792,13 +792,13 @@ CONTAINS
     ! For ELPA, the MPI communicators along rows/cols are sufficient
     ! mpi communicators are created, needed for communicating within
     ! rows or columns of processes
-    call mp_comm_split_direct( group, comm_row, mypcol, myprow)
-    call mp_comm_split_direct(group, comm_col, myprow, mypcol)
+    CALL mp_comm_split_direct( group, comm_row, mypcol, myprow)
+    CALL mp_comm_split_direct(group, comm_col, myprow, mypcol)
 
     v => eigenvectors%local_data
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
 
-    allocate (m1(size(m,1),size(m,2)),STAT=istat)
+    ALLOCATE (m1(SIZE(m,1),SIZE(m,2)),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     m1 = m
@@ -808,17 +808,17 @@ CONTAINS
 
     n_rows = matrix%matrix_struct%local_leading_dimension
     nblk = matrix%matrix_struct%nrow_block
-    neig = size(eigenvalues,1)
+    neig = SIZE(eigenvalues,1)
     ! the full eigenvalues vector is needed
-    allocate(eval(n),STAT=istat)
+    ALLOCATE(eval(n),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 #if defined (__ELPA)
     ! Calculate eigenvalues/eigenvectors
-    call solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+    CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 
-    deallocate(eval)
+    DEALLOCATE(eval)
     DEALLOCATE (m1,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
