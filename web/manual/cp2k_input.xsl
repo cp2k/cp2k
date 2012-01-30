@@ -18,14 +18,12 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <xsl:value-of select="CP2K_VERSION"/>
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/branches/cp2k-2_2-branch/cp2k/src/&#63;sortby=date&#38;" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/></a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
     <a href="generate_manual_howto.html">how to generate this manual</a>).
     Thus the manual describes exactly this version of the code.
-    The latest CVS log file entry found was
-    <xsl:value-of select="COMPILE_LASTCVS"/>.
    </p>
    <p>
     <xsl:call-template name="searchform"/>
@@ -196,6 +194,10 @@
    <td align="left">
     Back to the <a href="{$root}index.html">main page</a> of this manual
    </td>
+   <td align="center">
+    Input reference of
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/branches/cp2k-2_2-branch/cp2k/src/&#63;sortby=date&#38;" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/></a>
+   </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
    </td>
@@ -210,7 +212,7 @@
  <table class="default">
   <tr>
    <td align="left">
-    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://cp2k.berlios.de">CP2K home page</a>
+    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
    </td>
    <td align="right">
     (Last update:
@@ -224,8 +226,8 @@
  <form method="get" action="http://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://cp2k.berlios.de/manual/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://cp2k.berlios.de/manual/" checked="checked"/>
+  <input type="hidden" name="domains" value="http://manual.cp2k.org/cp2k-2_2-branch/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/cp2k-2_2-branch/" checked="checked"/>
  </form>
 </xsl:template>
 
@@ -648,7 +650,7 @@
       </ul>
       Alternatively, you may employ the platform independent Java version of SAXON
       <ul class="none">
-       <li><big class="tt">java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
+       <li><big class="tt">java -jar saxon8.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
       </ul>
       which can be downloaded from
       <a href="http://sourceforge.net/projects/saxon">http://sourceforge.net/projects/saxon</a>.<br/>

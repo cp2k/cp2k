@@ -30,7 +30,7 @@
 !>    See also http://www.fsf.org/licensing/licenses/gpl.html
 !> \par
 !>    CP2K, including its sources and pointers to the authors
-!>    can be found at  http://cp2k.berlios.de/ 
+!>    can be found at  http://www.cp2k.org/ 
 !> \note
 !>       should be kept as lean as possible.
 !>       see cp2k_run for more comments
@@ -207,7 +207,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
                           " [--html-manual] [--xml] [-r|-run]"//&
                           " [-o ouput_file] [--permissive-echo]"//&
                           " [[-i] input_file]",&
-           "Starts the CP2K program, see <http://cp2k.berlios.de/>",&
+           "Starts the CP2K program, see <http://www.cp2k.org/>",&
            "The easiest way is "//TRIM(arg_att)//" input_file",&
            "The following options can be used:",&
            "-o output_file : provides an output file name [default: screen]",&

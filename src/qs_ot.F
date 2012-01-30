@@ -453,7 +453,7 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Refinement blows up! "//&
                             "We need you to improve the code, please post your input on "//&
-                            "the forum http://cp2k.berlios.de/")
+                            "the forum http://www.cp2k.org/")
        END IF
        !
        ! can we do a quick exit next step?
