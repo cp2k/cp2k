@@ -18,7 +18,7 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <xsl:value-of select="CP2K_VERSION"/>
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/branches/cp2k-2_1-branch/cp2k/src/&#63;sortby=date&#38;" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/></a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
@@ -193,6 +193,10 @@
   <tr>
    <td align="left">
     Back to the <a href="{$root}index.html">main page</a> of this manual
+   </td>
+   <td align="center">
+    Input reference of
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/branches/cp2k-2_1-branch/cp2k/src/&#63;sortby=date&#38;" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/></a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
