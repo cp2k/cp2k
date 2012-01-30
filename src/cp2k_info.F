@@ -108,7 +108,7 @@ CONTAINS
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!-----------------------------------------------------------------------------!'
      WRITE(iunit,'(T2,A)') '!   CP2K, including its sources and pointers to the authors                   !'
-     WRITE(iunit,'(T2,A)') '!   can be found at  http://cp2k.berlios.de/                                  !'
+     WRITE(iunit,'(T2,A)') '!   can be found at  http://www.cp2k.org/                                     !'
      WRITE(iunit,'(T2,A)') '!-----------------------------------------------------------------------------!'
 
   END SUBROUTINE print_cp2k_license

@@ -222,7 +222,7 @@ CONTAINS
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "The manual for the latest version of CP2K is online available:"
           WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/manual"
+          WRITE(unit_nr,'(T15,A)') "http://manual.cp2k.org/trunk"
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "If this input was an input of a previous version"
           WRITE(unit_nr,'(T15,A)') "of CP2K, you can try to convert it with --permissive-echo."
@@ -940,7 +940,7 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') ' <label for="web_radio" style="vertical-align:middle;">Web</label>'
        WRITE(unit_nr,FMT='(A)') ' </li><li style="display:inline;padding-right:10px;">'
        WRITE(unit_nr,FMT='(A)') &
-            ' <input name="vs" id="site_radio" value="cp2k.berlios.de"   checked="checked" type="radio"'//&
+            ' <input name="vs" id="site_radio" value="www.cp2k.org"   checked="checked" type="radio"'//&
             ' style="vertical-align:middle;margin-right:5px; ">'
        WRITE(unit_nr,FMT='(A)') ' <label for="site_radio" style="vertical-align:middle;">this Site</label>'
        WRITE(unit_nr,FMT='(A)') ' </li></ul></form></div>'
@@ -996,7 +996,7 @@ CONTAINS
 
        CALL section_describe_index_html(root_section,"InputReference",unit_nr,error=error)
 
-       WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
        WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
 
        CALL close_file(unit_nr)
@@ -1009,7 +1009,7 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') "<H1>CP2K references</H1>"
        CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE.,&
                           FORMAT=print_format_html,unit=unit_nr)
-       WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
        WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
        CALL close_file(unit_nr)
 
@@ -1019,7 +1019,7 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
        WRITE(unit_nr,FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
        CALL print_all_units(unit_nr=unit_nr)
-       WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
        WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
        CALL close_file(unit_nr)
     END IF

@@ -18,14 +18,12 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <xsl:value-of select="CP2K_VERSION"/>
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/trunk/cp2k/src/&#63;sortby=date&#38;pathrev={string(/CP2K_INPUT/COMPILE_REVISION)}" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
     <a href="generate_manual_howto.html">how to generate this manual</a>).
     Thus the manual describes exactly this version of the code.
-    The corresponding SVN source code revision number is
-    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/trunk/cp2k/src/&#63;sortby=date&#38;pathrev={string(COMPILE_REVISION)}" target="_blank"><xsl:value-of select="COMPILE_REVISION"/></a>.
    </p>
    <p>
     <xsl:call-template name="searchform"/>
@@ -197,7 +195,8 @@
     Back to the <a href="{$root}index.html">main page</a> of this manual
    </td>
    <td align="center">
-    C2PK input reference of SVN source code revision <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/trunk/cp2k/src/&#63;sortby=date&#38;pathrev={string(/CP2K_INPUT/COMPILE_REVISION)}" target="_blank"><xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/></a>
+    Input reference of
+    <a href="http://cp2k.svn.sourceforge.net/viewvc/cp2k/trunk/cp2k/src/&#63;sortby=date&#38;pathrev={string(/CP2K_INPUT/COMPILE_REVISION)}" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
@@ -216,7 +215,8 @@
     Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
    </td>
    <td align="right">
-    (Last update: <xsl:value-of select="day-from-dateTime(current-dateTime())"/>.<xsl:value-of select="month-from-dateTime(current-dateTime())"/>.<xsl:value-of select="year-from-dateTime(current-dateTime())"/>)
+    (Last update:
+    <xsl:value-of select="day-from-dateTime(current-dateTime())"/>.<xsl:value-of select="month-from-dateTime(current-dateTime())"/>.<xsl:value-of select="year-from-dateTime(current-dateTime())"/>)
    </td>
   </tr>
  </table>
@@ -226,8 +226,8 @@
  <form method="get" action="http://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://people.web.psi.ch/krack/cp2k/manual/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://people.web.psi.ch/krack/cp2k/manual/" checked="checked"/>
+  <input type="hidden" name="domains" value="http://manual.cp2k.org/trunk/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/trunk/" checked="checked"/>
  </form>
 </xsl:template>
 
@@ -650,7 +650,7 @@
       </ul>
       Alternatively, you may employ the platform independent Java version of SAXON
       <ul class="none">
-       <li><big class="tt">java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
+       <li><big class="tt">java -jar saxon8.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
       </ul>
       which can be downloaded from
       <a href="http://sourceforge.net/projects/saxon">http://sourceforge.net/projects/saxon</a>.<br/>
