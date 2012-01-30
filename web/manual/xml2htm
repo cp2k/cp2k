@@ -1,11 +1,13 @@
 #!/bin/sh
-if [[ $1 == "-javascript" ]]; then
+# Provide path to saxon package
+export SAXON=/usr/share/java/saxon8.jar
+if [[ -n $1 ]]; then
 
   # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
   # saxon -o index.html cp2k_input.xml cp2k_input_javascript.xsl
 
   # Java version from http://sourceforge.net/projects/saxon
-  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input_javascript.xsl
+  java -jar $SAXON -o index.html cp2k_input.xml cp2k_input_$1.xsl
 
 else
 
@@ -13,6 +15,6 @@ else
   # saxon -o index.html cp2k_input.xml cp2k_input.xsl
 
   # Java version from http://sourceforge.net/projects/saxon
-  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl
+  java -jar $SAXON -o index.html cp2k_input.xml cp2k_input.xsl
 
 fi
