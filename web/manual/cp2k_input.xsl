@@ -24,8 +24,6 @@
     <big class="tt">--xml</big> command line option (see
     <a href="generate_manual_howto.html">how to generate this manual</a>).
     Thus the manual describes exactly this version of the code.
-    The latest CVS log file entry found was
-    <xsl:value-of select="COMPILE_LASTCVS"/>.
    </p>
    <p>
     <xsl:call-template name="searchform"/>
@@ -210,7 +208,7 @@
  <table class="default">
   <tr>
    <td align="left">
-    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://cp2k.berlios.de">CP2K home page</a>
+    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
    </td>
    <td align="right">
     (Last update:
@@ -224,8 +222,8 @@
  <form method="get" action="http://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://cp2k.berlios.de/manual/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://cp2k.berlios.de/manual/" checked="checked"/>
+  <input type="hidden" name="domains" value="http://manual.cp2k.org/cp2k-2_1-branch/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/cp2k-2_1-branch/" checked="checked"/>
  </form>
 </xsl:template>
 
@@ -648,7 +646,7 @@
       </ul>
       Alternatively, you may employ the platform independent Java version of SAXON
       <ul class="none">
-       <li><big class="tt">java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
+       <li><big class="tt">java -jar saxon8.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
       </ul>
       which can be downloaded from
       <a href="http://sourceforge.net/projects/saxon">http://sourceforge.net/projects/saxon</a>.<br/>

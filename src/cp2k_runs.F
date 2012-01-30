@@ -216,7 +216,7 @@ CONTAINS
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "The manual for the latest version of CP2K is online available:"
           WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/manual"
+          WRITE(unit_nr,'(T15,A)') "http://manual.cp2k.org/"
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "If this input was an input of a previous version"
           WRITE(unit_nr,'(T15,A)') "of CP2K, you can try to convert it with --permissive-echo."

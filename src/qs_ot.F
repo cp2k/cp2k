@@ -451,7 +451,7 @@ CONTAINS
        IF(norm.GT.1.0E10_dp) THEN
           CALL stop_program(routineN,"... refinement blows up! "//&
                & "... we need you to improve the code, please post your input on "//&
-               & "the forum http://cp2k.berlios.de/")
+               & "the forum http://www.cp2k.org/")
        ENDIF
        !
        ! can we do a quick exit next step?
