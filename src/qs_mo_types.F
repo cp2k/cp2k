@@ -110,7 +110,8 @@ MODULE qs_mo_types
     REAL(KIND=dp)                             :: kTS
     ! Fermi energy level
     REAL(KIND=dp)                             :: mu
-    LOGICAL                                   :: flexible_electron_count
+    ! Threshold value for multiplicity change
+    REAL(KIND=dp)                             :: flexible_electron_count
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -305,12 +306,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: threshold = 1.0E-6_dp
 
     INTEGER                                  :: handle, i, lumo_a, lumo_b, &
                                                 multiplicity_new, &
                                                 multiplicity_old, nelec
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: threshold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
     TYPE(mo_set_type), POINTER               :: mo_set_a, mo_set_b
 
@@ -347,7 +348,8 @@ CONTAINS
     END IF
 
 
-    IF (.NOT.(mo_set_a%flexible_electron_count.AND.mo_set_b%flexible_electron_count)) THEN
+    IF (.NOT.((mo_set_a%flexible_electron_count > 0.0_dp).AND.&
+              (mo_set_b%flexible_electron_count > 0.0_dp))) THEN
        IF (PRESENT(eval_deriv)) THEN
           CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
           CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv,error=error)
@@ -387,6 +389,7 @@ CONTAINS
     DO i=1,nelec
        ! Threshold is needed to ensure a preference for alpha occupation in the case
        ! of degeneracy
+       threshold = MAX(mo_set_a%flexible_electron_count,mo_set_b%flexible_electron_count)
        IF ((eigval_a(lumo_a) - threshold) < eigval_b(lumo_b)) THEN
           lumo_a = lumo_a + 1
         ELSE
@@ -532,8 +535,8 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
-    REAL(KIND=dp), INTENT(IN)                :: n_el_f, maxocc
-    LOGICAL, INTENT(IN)                      :: flexible_electron_count
+    REAL(KIND=dp), INTENT(IN)                :: n_el_f, maxocc, &
+                                                flexible_electron_count
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
@@ -744,8 +747,8 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: mo_coeff_b
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS, mu
-    LOGICAL, INTENT(OUT), OPTIONAL           :: flexible_electron_count
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS, mu, &
+                                                flexible_electron_count
 
     IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
     IF (PRESENT(homo)) homo = mo_set%homo
@@ -1044,8 +1047,8 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS, mu
-    LOGICAL, INTENT(IN), OPTIONAL            :: flexible_electron_count
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS, mu, &
+                                                flexible_electron_count
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &

@@ -230,8 +230,8 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control%charge,error=error)
     CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=dft_control%multiplicity,error=error)
-    CALL section_vals_val_get(dft_section,"RELAX_MULTIPLICITY",l_val=dft_control%relax_multiplicity,error=error)
-    IF (dft_control%relax_multiplicity) THEN
+    CALL section_vals_val_get(dft_section,"RELAX_MULTIPLICITY",r_val=dft_control%relax_multiplicity,error=error)
+    IF (dft_control%relax_multiplicity > 0.0_dp) THEN
        CALL cp_assert(dft_control%uks,&
                       cp_failure_level,cp_assertion_failed,routineP,&
                       "The option RELAX_MULTIPLICITY is only valid for unrestricted Kohn-Sham (UKS) calculations",&

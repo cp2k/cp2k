@@ -961,3 +961,7 @@ ghost_overlap.inp
 ghost_overlap_vdw.inp
 #  
 H2O-UKS-GPW-relax_multip.inp
+# Allow the specification of the threshold value for RELAX_MULTIP
+H2O-UKS-GPW-relax_multip.inp
+O2-UKS-GPW-relax_multip.inp
+O2-UKS-OTdiag-relax_multip.inp

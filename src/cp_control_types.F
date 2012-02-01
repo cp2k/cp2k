@@ -341,7 +341,8 @@ MODULE cp_control_types
                                           id_nr,&
                                           plus_u_method_id
      INTEGER                           :: sic_list_id
-     REAL(KIND=dp)                     :: sic_scaling_a,&
+     REAL(KIND=dp)                     :: relax_multiplicity,&
+                                          sic_scaling_a,&
                                           sic_scaling_b
      LOGICAL                           :: do_tddfpt_calculation, &
                                           do_xas_calculation, &
@@ -359,8 +360,7 @@ MODULE cp_control_types
                                           eval_external_potential,&
                                           do_admm,&
                                           smear,&
-                                          low_spin_roks,&
-                                          relax_multiplicity
+                                          low_spin_roks
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

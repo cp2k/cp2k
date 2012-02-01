@@ -366,13 +366,15 @@ CONTAINS
                         name="RELAX_MULTIPLICITY",&
                         variants=(/"RELAX_MULTIP"/),&
                         description="Do not enforce the occupation of alpha and beta MOs due to the initially "//&
-                                    "defined multiplicity, but rather follow an Aufbau principle. This option "//&
-                                    "is only valid for unrestricted (i.e. spin polarised) Kohn-Sham (UKS) calculations.",&
-                        usage="RELAX_MULTIPLICITY yes",&
+                                    "defined multiplicity, but rather follow an Aufbau principle. "//&
+                                    "A threshold value greater than zero activates this option. "//&
+                                    "Larger threshold values increase the probability for a spin flip. "//&
+                                    "This option is only valid for unrestricted (i.e. spin polarised) "//&
+                                    "Kohn-Sham (UKS) calculations.",&
+                        usage="RELAX_MULTIPLICITY 0.00001",&
                         required=.FALSE.,&
                         repeats=.FALSE.,&
-                        default_l_val=.FALSE.,&
-                        lone_keyword_l_val=.TRUE.,&
+                        default_r_val=0.0_dp,&
                         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
