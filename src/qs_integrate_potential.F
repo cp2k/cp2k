@@ -140,10 +140,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                ikind, j, lppl, n, &
-                                                natom_of_kind, ni, npme, &
-                                                stat, tp(3)
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                j, lppl, n, natom_of_kind, &
+                                                ni, npme, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -268,11 +267,6 @@ CONTAINS
        DO iatom = 1, natom_of_kind
           atom_a = atom_list(iatom)
           ra(:) = pbc(particle_set(atom_a)%r,cell)
-          DO dir =1,3
-             tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
-             tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
-             tp(dir) = tp(dir) + rs_v%desc%lb(dir)
-          END DO
           IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
               ! replicated realspace grid, split the atoms up between procs
               IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
@@ -343,8 +337,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, dir, handle, iatom, iexp_nlcc, ikind, ithread, j, n, &
-      natom, nc, nexp_nlcc, ni, npme, nthread, stat, tp(3)
+    INTEGER                                  :: atom_a, handle, iatom, &
+                                                iexp_nlcc, ikind, ithread, j, &
+                                                n, natom, nc, nexp_nlcc, ni, &
+                                                npme, nthread, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
     LOGICAL                                  :: failure, nlcc, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -479,11 +475,6 @@ CONTAINS
          DO iatom = 1, natom
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r,cell)
-            DO dir =1,3
-               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
-               tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
-               tp(dir) = tp(dir) + rs_v%desc%lb(dir)
-            END DO
             IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                 ! replicated realspace grid, split the atoms up between procs
                 IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
@@ -557,10 +548,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                ikind, j, natom, &
-                                                natom_of_kind, npme, stat, &
-                                                tp(3)
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                j, natom, natom_of_kind, &
+                                                npme, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: atenergy, failure, paw_atom, &
                                                 skip_fcore, use_virial
@@ -655,11 +645,6 @@ CONTAINS
            DO iatom = 1, natom_of_kind
               atom_a = atom_list(iatom)
               ra(:) = pbc(particle_set(atom_a)%r,cell)
-              DO dir =1,3
-                 tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
-                 tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
-                 tp(dir) = tp(dir) + rs_v%desc%lb(dir)
-              END DO
               IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
                   ! replicated realspace grid, split the atoms up between procs
                   IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
