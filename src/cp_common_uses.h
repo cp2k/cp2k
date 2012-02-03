@@ -22,7 +22,11 @@
 ! in this case substitute __FILE__ with "file" down here.
 ! obviously then the error messages will not give the filename.
 ! (otherwise make the file reference in the makefile relative vs. absolute)
+#ifdef __SHORT_FILE__
+#define CPSourceFileRef __SHORT_FILE__//' line '//cp_to_string(__LINE__)
+#else
 #define CPSourceFileRef __FILE__//' line '//cp_to_string(__LINE__)
+#endif
 
 ! if the following macro is defined the longest form of macro 
 ! expansions is used (and the error messages are more meaningful)

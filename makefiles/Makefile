@@ -387,10 +387,10 @@ makedepf90:
 # version is known then the current version is remembered.
 %.o: %.F
 ifneq ($(CPP),)
-	$(CPP) $(CPPFLAGS) $< > $*.f90
+	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< > $*.f90
 	$(FC) -c $(FCFLAGS) $*.f90
 else
-	$(FC) -c $(FCFLAGS) $<
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $<
 endif
 ifneq ($(SMART_MODULES),no)
 ifneq ($(MD5),)
