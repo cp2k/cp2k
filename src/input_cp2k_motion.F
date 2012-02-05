@@ -35,6 +35,7 @@ MODULE input_cp2k_motion
                                              section_release,&
                                              section_type
   USE input_val_types,                 ONLY: integer_t,&
+                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -1640,7 +1641,12 @@ CONTAINS
        CALL create_md_print_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
+
+       CALL create_cascade_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection, error=error)
     END IF
+
   END SUBROUTINE create_md_section
 
 ! *****************************************************************************
@@ -3724,5 +3730,87 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_thermal_region_section
+
+! *****************************************************************************
+!> \brief   Defines the parameters for the setup of a cascade simulation
+!> \param   error variable to control error logging, stopping,... 
+!>          see module cp_error_handling 
+!> \author  Matthias Krack (MK)
+!> \date    03.02.2012
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE create_cascade_section(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_cascade_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure = .FALSE.
+    NULLIFY (keyword)
+    NULLIFY (subsection)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+       CALL section_create(section,name="CASCADE",&
+                           description="Defines the parameters for the setup of a cascade simulation.",&
+                           n_keywords=1,&
+                           n_subsections=1,&
+                           repeats=.FALSE.,&
+                           required=.FALSE.,&
+                           error=error)
+
+       CALL keyword_create(keyword,&
+                           name="_SECTION_PARAMETERS_",&
+                           description="Controls the activation of the CASCADE section.",&
+                           usage="&CASCADE on",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ENERGY",&
+                           description="Total energy transferred to the system during the cascade event.",&
+                           usage="ENERGY 20.0",&
+                           default_r_val=0.0_dp,&
+                           unit_str="keV",&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(subsection,name="ATOM_LIST",&
+                           description="Defines a list of atoms for which the initial velocities are modified",&
+                           n_keywords=1,&
+                           n_subsections=0,&
+                           repeats=.FALSE.,&
+                           required=.TRUE.,&
+                           error=error)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+                           description="Defines the list of atoms for which the velocities are modified. "//&
+                                       "Each record consists of the atomic index, the velocity vector, and "//&
+                                       "a weight to define which fraction of the total energy is assigned "//&
+                                       "to the current atom.",&
+                           usage="Atomic index   v(x) v(y) v(z)   weight",&
+                           repeats=.TRUE.,&
+                           required=.FALSE.,&
+                           type_of_var=lchar_t,&
+                           error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_cascade_section
 
 END MODULE input_cp2k_motion

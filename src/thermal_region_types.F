@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! ***************************************************************************** 
-!> \brief Thermal regions type: to initialize and control the emperature of
+!> \brief Thermal regions type: to initialize and control the temperature of
 !>        different regions
 !> \author MI
 ! *****************************************************************************

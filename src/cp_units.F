@@ -72,7 +72,8 @@ MODULE cp_units
                                 cp_units_Ry=134,&
                                 cp_units_eV=135,&
                                 cp_units_kjmol=136,&
-                                cp_units_jmol=137
+                                cp_units_jmol=137,&
+                                cp_units_keV=138
   
   ! Length
   INTEGER, PARAMETER, PUBLIC :: cp_units_bohr=140,&
@@ -223,6 +224,9 @@ CONTAINS
           kind_id(i_unit)=cp_ukind_energy
        CASE("eV")
           unit_id(i_unit)=cp_units_eV
+          kind_id(i_unit)=cp_ukind_energy
+       CASE("keV")
+          unit_id(i_unit)=cp_units_keV
           kind_id(i_unit)=cp_ukind_energy
        CASE("K_e")
           unit_id(i_unit)=cp_units_k
@@ -623,7 +627,7 @@ CONTAINS
        CASE(cp_ukind_energy)
           SELECT CASE (basic_unit)
           CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
-               cp_units_kjmol, cp_units_Ry, cp_units_eV,cp_units_au,cp_units_k,&
+               cp_units_kjmol, cp_units_Ry, cp_units_eV, cp_units_keV, cp_units_au, cp_units_k,&
                cp_units_jmol, cp_units_none)
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
@@ -756,6 +760,8 @@ CONTAINS
              res=0.5_dp**my_power*value
           CASE(cp_units_eV)
              res=evolt**(-my_power)*value
+          CASE(cp_units_keV)
+             res=(0.001_dp*evolt)**(-my_power)*value
           CASE(cp_units_k)
              res=kelvin**(-my_power)*value
           CASE default
@@ -933,6 +939,8 @@ CONTAINS
              res="Ry"
           CASE(cp_units_eV)
              res="eV"
+          CASE(cp_units_keV)
+             res="keV"
           CASE(cp_units_k)
              res="K_e"
           CASE(cp_units_none)

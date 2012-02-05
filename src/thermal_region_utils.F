@@ -82,8 +82,8 @@ CONTAINS
                          (simpar%ensemble == npt_i_ensemble)
        IF(apply_thermostat) THEN
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-             "With the chosen ensemble the particles temparature is"//&
-             "controlled by thermostats. The definition of diffrent thermal"//&
+             "With the chosen ensemble the temperature is "//&
+             "controlled by thermostats. The definition of different thermal "//&
              "regions might result inconsistent with the presence of thermostats."//&
 CPSourceFileRef,&
              only_ionode=.TRUE.)          

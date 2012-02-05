@@ -808,11 +808,12 @@ CONTAINS
        END IF
        WRITE ( iw, '( 1X,79("*"),/)' )
     END IF
-    
+ 
     DEALLOCATE (is_fixed,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO", error=error)
-    CALL timestop(handle)    
+    CALL timestop(handle)
+
   END SUBROUTINE initialize_velocities
 
 ! *****************************************************************************
@@ -1602,7 +1603,233 @@ CONTAINS
              para_env=para_env,error=error)
        END IF
     END IF
+
+    ! Perform setup for a cascade run
+    CALL initialize_cascade(simpar,particle_set,molecule_kinds_new,md_section,error=error)
+
     CALL timestop(handle)
+
   END SUBROUTINE setup_velocities
+
+! *****************************************************************************
+!> \brief   Perform the initialization for a cascade run
+!> \author  Matthias Krack (MK)
+!> \date    05.02.2012
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE initialize_cascade(simpar,particle_set,molecule_kinds,md_section,&
+                                error)
+
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(section_vals_type), POINTER         :: md_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_cascade', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=2*default_string_length)   :: line
+    INTEGER                                  :: handle, iatom, ifixd, &
+                                                imolecule_kind, iparticle, &
+                                                iw, natom, nparticle, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_index, is_fixed
+    LOGICAL                                  :: failure, init_cascade, is_ok, &
+                                                no_read_error
+    REAL(KIND=dp)                            :: ecom, ekin, energy, norm, &
+                                                temp, temperature, v
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: matom, weight
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vatom
+    REAL(KIND=dp), DIMENSION(3)              :: vcom
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_val_type), POINTER           :: atom_list
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(section_vals_type), POINTER         :: atom_list_section, &
+                                                cascade_section, print_section
+    TYPE(val_type), POINTER                  :: val
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY (atom_list)
+    NULLIFY (atom_list_section)
+    NULLIFY (atomic_kind)
+    NULLIFY (cascade_section)
+    NULLIFY (fixd_list)
+    NULLIFY (molecule_kind)
+    NULLIFY (molecule_kind_set)
+    NULLIFY (logger)
+    NULLIFY (val)
+ 
+    logger => cp_error_get_logger(error)
+    print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
+    iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
+
+    cascade_section => section_vals_get_subs_vals(md_section,"CASCADE",error=error)
+    CALL section_vals_val_get(cascade_section,"_SECTION_PARAMETERS_",l_val=init_cascade,error=error)
+
+    nparticle = SIZE(particle_set)
+
+    IF (init_cascade) THEN
+
+       CALL section_vals_val_get(cascade_section,"ENERGY",r_val=energy,error=error)
+       CALL cp_assert((energy >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
+                      "Error occurred reading &CASCADE section: Negative energy found",&
+                      only_ionode=.TRUE.)
+
+       IF (iw > 0) THEN
+          WRITE (UNIT=iw,FMT="(T2,A,T61,F20.6)")&
+           "CASCADE| Energy [keV]",cp_unit_from_cp2k(energy,"keV",error=error)
+          WRITE (UNIT=iw,FMT="(T2,A)")&
+           "CASCADE|"
+       END IF
+
+       ! Read the atomic velocities given in the input file
+       atom_list_section => section_vals_get_subs_vals(cascade_section,"ATOM_LIST",error=error)
+       CALL section_vals_val_get(atom_list_section,"_DEFAULT_KEYWORD_",n_rep_val=natom,error=error)
+       CALL section_vals_list_get(atom_list_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
+       CALL cp_assert((natom > 0),cp_fatal_level,cp_assertion_failed,routineP,&
+                      "Error occurred reading &CASCADE section: No atom list found",&
+                      only_ionode=.TRUE.)
+
+       IF (iw > 0) THEN
+          WRITE (UNIT=iw,FMT="(T2,A,T11,A,3(11X,A),9X,A)")&
+           "CASCADE| ","Atom index","v(x)","v(y)","v(z)","weight"
+       END IF
+
+       ALLOCATE (atom_index(natom),STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       ALLOCATE (matom(natom),STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       ALLOCATE (vatom(3,natom),STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       ALLOCATE (weight(natom),STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+ 
+       DO iatom=1,natom
+          is_ok = cp_sll_val_next(atom_list,val,error=error)
+          CALL val_get(val,c_val=line,error=error)
+          ! Read atomic index, velocity vector, and weight
+          no_read_error = .FALSE.
+          READ (UNIT=line,FMT=*,ERR=999) atom_index(iatom),vatom(1:3,iatom),weight(iatom)
+          no_read_error = .TRUE.
+999       CALL cp_assert(no_read_error,cp_fatal_level,cp_assertion_failed,routineP,&
+                         "Error occurred reading &CASCADE section. Last line read <"//&
+                         TRIM(line)//">",only_ionode=.TRUE.)
+          CALL cp_assert((atom_index(iatom) > 0).AND.((atom_index(iatom) <= nparticle)),&
+                         cp_fatal_level,cp_assertion_failed,routineP,&
+                         "Error occurred reading &CASCADE section: Invalid atom index found",&
+                         only_ionode=.TRUE.)
+          CALL cp_assert((weight(iatom) >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
+                         "Error occurred reading &CASCADE section: Negative weight found",&
+                         only_ionode=.TRUE.)
+          IF (iw > 0) THEN
+             WRITE (UNIT=iw,FMT="(T2,A,I10,4(1X,F14.6))")&
+              "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),weight(iatom)
+          END IF
+       END DO
+
+       ! Normalise velocities and weights
+       norm = 0.0_dp
+       DO iatom=1,natom
+          iparticle = atom_index(iatom)
+          atomic_kind => particle_set(iparticle)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=matom(iatom))
+          norm = norm + matom(iatom)*weight(iatom)
+       END DO
+       weight(:) = matom(:)*weight(:)*energy/norm
+       DO iatom=1,natom
+          norm = SQRT(DOT_PRODUCT(vatom(1:3,iatom),vatom(1:3,iatom)))
+          vatom(1:3,iatom) = vatom(1:3,iatom)/norm
+       END DO
+
+       IF (iw > 0) THEN
+          WRITE (UNIT=iw,FMT="(T2,A)")&
+           "CASCADE|",&
+           "CASCADE| Normalised velocities and additional kinetic energy [keV]",&
+           "CASCADE|"
+          WRITE (UNIT=iw,FMT="(T2,A,T11,A,3(11X,A),9X,A)")&
+           "CASCADE| ","Atom index","v(x)","v(y)","v(z)","E(kin)"
+          DO iatom=1,natom
+             WRITE (UNIT=iw,FMT="(T2,A,I10,4(1X,F14.6))")&
+              "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),&
+              cp_unit_from_cp2k(weight(iatom),"keV",error=error)
+          END DO
+       END IF
+
+       ! Apply velocity modifications
+       DO iatom=1,natom
+          iparticle = atom_index(iatom)
+          particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) +&
+                                         SQRT(2.0_dp*weight(iatom)/matom(iatom))*vatom(1:3,iatom)
+       END DO
+
+       DEALLOCATE (atom_index,STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       DEALLOCATE (matom,STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       DEALLOCATE (vatom,STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       DEALLOCATE (weight,STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+
+       IF (iw > 0) THEN
+          ! Build a list of all fixed atoms (if any)
+          ALLOCATE (is_fixed(nparticle),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          is_fixed = use_perd_none
+          molecule_kind_set => molecule_kinds%els
+          DO imolecule_kind=1,molecule_kinds%n_els
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             CALL get_molecule_kind(molecule_kind=molecule_kind,fixd_list=fixd_list)
+             IF (ASSOCIATED(fixd_list)) THEN
+                DO ifixd=1,SIZE(fixd_list)
+                   IF (.NOT.fixd_list(ifixd)%restraint%active) is_fixed(fixd_list(ifixd)%fixd) = fixd_list(ifixd)%itype
+                END DO
+             END IF
+          END DO
+          ! Compute vcom, ecom and ekin for printout
+          CALL compute_vcom(particle_set,is_fixed,vcom,ecom)
+          ekin = compute_ekin(particle_set) - ecom
+          IF (simpar%nfree == 0) THEN
+             CPPostcondition((ekin == 0.0_dp),cp_failure_level,routineP,error,failure)
+             temp = 0.0_dp
+          ELSE
+             temp = 2.0_dp*ekin/REAL(simpar%nfree,KIND=dp)
+          END IF
+          temperature = cp_unit_from_cp2k(temp,"K",error=error)
+          WRITE (UNIT=iw,FMT="(T2,A)")&
+           "CASCADE|"
+          WRITE (UNIT=iw,FMT="(T2,A,T61,F18.2,A2)")&
+           "CASCADE| Temperature after cascade initialization",temperature," K"
+          WRITE (UNIT=iw,FMT="(T2,A,T30,3(1X,ES16.8),/)")&
+           "CASCADE| COM velocity: ",vcom(1:3)
+!MK          ! compute and log rcom and vang if not periodic
+!MK          CALL force_env_get(force_env,cell=cell,error=error)
+!MK          IF (SUM(cell%perd(1:3)) == 0) THEN
+!MK             CALL compute_rcom(particle_set,is_fixed,rcom)
+!MK             CALL compute_vang(particle_set,is_fixed,rcom,vang,error)
+!MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:',rcom(1:3)
+!MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:',vang(1:3)
+!MK          END IF
+          DEALLOCATE (is_fixed,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+    END IF
+
+    CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO",error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE initialize_cascade
 
 END MODULE md_vel_utils
