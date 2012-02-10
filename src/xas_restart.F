@@ -328,7 +328,7 @@ CPSourceFileRef,&
        IF(output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,A,/)")&
                "Xas orbitals  for the absorbing atom ", iatom,&
-               " are written in ", filename
+               " are written in ", TRIM(filename)
           
        END IF
 

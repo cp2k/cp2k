@@ -204,7 +204,7 @@ CONTAINS
        WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Shift gapw radius (a.u.) ",nmr_env%shift_gapw_radius
        IF(nmr_env%do_nics) THEN
           WRITE(output_unit,"(T2,A,T50,I5,A)") "NMR| NICS computed in ",nmr_env%n_nics," additional points"
-          WRITE(output_unit,"(T2,A,T60,A)") "NMR| NICS coordinates read on file ",nics_file_name
+          WRITE(output_unit,"(T2,A,T60,A)") "NMR| NICS coordinates read on file ",TRIM(nics_file_name)
        ENDIF
        WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Shift factor (ppm)",nmr_env%shift_factor
        IF(gapw) THEN

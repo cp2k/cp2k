@@ -969,7 +969,7 @@ CONTAINS
          IF(output_unit>0) THEN
             WRITE (UNIT=output_unit,FMT="(/,T2,A, A/)")&
                  "LOCALIZATION| Write restart file for the localized MOS : ",&
-                  filename
+                  TRIM(filename)
          END IF
    
          IF(rst_unit>0) THEN
