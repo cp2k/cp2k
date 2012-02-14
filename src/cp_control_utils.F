@@ -97,7 +97,7 @@ CONTAINS
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-    CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3, do_method_pnnl,&
+    CASE (do_method_dftb,do_method_scptb,do_method_mndo,do_method_am1,do_method_pm3,do_method_pnnl,&
           do_method_pm6,do_method_pdg,do_method_rm1,do_method_mndod)
        not_SE = .FALSE.
     END SELECT
@@ -377,6 +377,13 @@ CPSourceFileRef,&
        CALL section_vals_val_get(mgrid_section,"CUTOFF",explicit=explicit,r_val=cutoff,error=error)
        IF (.NOT.explicit) cutoff = 1.0_dp
     END IF
+    IF (qs_control%scptb) THEN
+       ngrid_level   = 1
+       multigrid_set = .FALSE.
+       ! Override default cutoff value unless user specified an explicit argument..
+       CALL section_vals_val_get(mgrid_section,"CUTOFF",explicit=explicit,r_val=cutoff,error=error)
+       IF (.NOT.explicit) cutoff = 45.0_dp
+    END IF
 
     ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -446,18 +453,19 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: explicit, failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
+    REAL(dp), POINTER                        :: scal(:)
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: becke_restraint_section, &
       ddapc_restraint_section, dftb_parameter, dftb_section, mull_section, &
-      s2_restraint_section, se_section
+      s2_restraint_section, scptb_section, se_section
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(mull_section,se_section,dftb_section)
+    NULLIFY(mull_section,se_section,dftb_section,scptb_section)
 
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
@@ -466,6 +474,7 @@ CPSourceFileRef,&
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
     dftb_section => section_vals_get_subs_vals(qs_section,"DFTB", error=error)
     dftb_parameter => section_vals_get_subs_vals(dftb_section,"PARAMETER", error=error)
+    scptb_section => section_vals_get_subs_vals(qs_section,"SCPTB", error=error)
 
     ! Setup all defaults values and overwrite input parameters
     ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
@@ -595,6 +604,7 @@ CPSourceFileRef,&
     qs_control%gpw            = .FALSE.
     qs_control%pao            = .FALSE.
     qs_control%dftb           = .FALSE.
+    qs_control%scptb          = .FALSE.
     qs_control%semi_empirical = .FALSE.
     qs_control%ofgpw          = .FALSE.
     SELECT CASE (qs_control%method_id)
@@ -614,6 +624,8 @@ CPSourceFileRef,&
        qs_control%dftb = .TRUE.
        CALL cite_reference(Porezag1995)
        CALL cite_reference(Seifert1996)
+    CASE (do_method_scptb)
+       qs_control%scptb = .TRUE.
     CASE (do_method_mndo)
        CALL cite_reference(Dewar1977)
        qs_control%semi_empirical = .TRUE.
@@ -847,6 +859,30 @@ CPSourceFileRef,&
        IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
     END IF
 
+    ! DFTB code
+    IF (qs_control%scptb) THEN
+       CALL section_vals_val_get(scptb_section,"DISPERSION",&
+            l_val=qs_control%scptb_control%dispersion,error=error)
+       CALL section_vals_val_get(scptb_section,"PARAMETER_FILE_NAME",&
+            c_val=qs_control%scptb_control%parameter_file,error=error)
+       CALL section_vals_val_get(scptb_section,"DISPERSION_RADIUS",&
+            r_val=qs_control%scptb_control%rcdisp,error=error)
+       CALL section_vals_val_get(scptb_section,"COORDINATION_CUTOFF",&
+            r_val=qs_control%scptb_control%epscn,error=error)
+       CALL section_vals_val_get(scptb_section,"D3_SCALING",r_vals=scal,error=error)
+            qs_control%scptb_control%sd3(1) = scal(1)
+            qs_control%scptb_control%sd3(2) = scal(2)
+            qs_control%scptb_control%sd3(3) = scal(3)
+       CALL section_vals_val_get(scptb_section,"STO_NG",&
+            i_val=qs_control%scptb_control%sto_ng,error=error)
+       CALL section_vals_val_get(scptb_section,"DISPERSION_PARAMETER_FILE",&
+            c_val=qs_control%scptb_control%dispersion_parameter_file,error=error)
+       CALL section_vals_val_get(scptb_section,"PAIR_CUTOFF",&
+            r_val=qs_control%scptb_control%epspair,error=error)
+       CALL section_vals_val_get(scptb_section,"DO_EWALD",&
+            l_val=qs_control%scptb_control%do_ewald,error=error)
+    END IF
+
     CALL timestop(handle)
   END SUBROUTINE read_qs_section
 
@@ -917,6 +953,7 @@ CPSourceFileRef,&
 
     IF (dft_control%qs_control%semi_empirical) RETURN
     IF (dft_control%qs_control%dftb) RETURN
+    IF (dft_control%qs_control%scptb) RETURN
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -1080,6 +1117,7 @@ CPSourceFileRef,&
 
     IF (qs_control%semi_empirical) RETURN
     IF (qs_control%dftb)           RETURN
+    IF (qs_control%scptb)           RETURN
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger, enum, keyword, section)

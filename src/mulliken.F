@@ -41,7 +41,7 @@ MODULE mulliken
   PUBLIC :: mulliken_charges, mulliken_restraint
 
   INTERFACE mulliken_charges
-     MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b
+     MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c
   END INTERFACE
 
 CONTAINS
@@ -314,6 +314,64 @@ END SUBROUTINE rf_deriv_check
   END SUBROUTINE compute_charges
 
 ! *****************************************************************************
+!> \brief compute the mulliken charge derivatives
+!> \param p_matrix , s_matrix, para_env
+!> \param dcharges previously allocated with the right size (natom,3)
+!> \par History
+!>      01.2012 created [JHU]
+! *****************************************************************************
+  SUBROUTINE compute_dcharges(p_matrix,s_matrix,charges,dcharges,para_env)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix, s_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dcharges
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    INTEGER                                  :: blk, iblock_col, iblock_row, &
+                                                ider, ispin, nblock, nspin
+    LOGICAL                                  :: found
+    REAL(kind=dp)                            :: mult
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ds_block, p_block, s_block
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+! here we get the numbers for charges
+
+    nspin=SIZE(p_matrix)
+    CALL cp_dbcsr_get_info(s_matrix(1)%matrix,nblkrows_total=nblock)
+
+    dcharges=0.0_dp
+    DO ispin=1,nspin
+       CALL cp_dbcsr_iterator_start(iter, s_matrix(1)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+          CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
+               row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
+
+          ! we can cycle if a block is not present
+          IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
+
+          IF (iblock_row.EQ.iblock_col) THEN
+             mult=0.5_dp ! avoid double counting of diagonal blocks
+          ELSE
+             mult=1.0_dp
+          ENDIF
+          charges(iblock_row,ispin)=charges(iblock_row,ispin) + mult*SUM(p_block*s_block)
+          charges(iblock_col,ispin)=charges(iblock_col,ispin) + mult*SUM(p_block*s_block)
+          DO ider=1,3
+             CALL cp_dbcsr_get_block_p(matrix=s_matrix(ider+1)%matrix,&
+                  row=iblock_row,col=iblock_col,BLOCK=ds_block,found=found)
+             dcharges(iblock_row,ider)=dcharges(iblock_row,ider) + mult*SUM(p_block*ds_block)
+             dcharges(iblock_col,ider)=dcharges(iblock_col,ider) + mult*SUM(p_block*ds_block)
+          END DO
+
+       ENDDO
+       CALL cp_dbcsr_iterator_stop(iter)
+    ENDDO
+    CALL mp_sum(dcharges,para_env%group)
+
+  END SUBROUTINE compute_dcharges
+
+
+! *****************************************************************************
 !> \brief print the mulliken charges to scr on ionode
 !> \param p_matrix , s_matrix, para_env
 !> \param particle_set (needed for Z)
@@ -380,5 +438,27 @@ END SUBROUTINE rf_deriv_check
     CALL timestop(handle)
 
   END SUBROUTINE mulliken_charges_b
+
+! *****************************************************************************
+  SUBROUTINE mulliken_charges_c(p_matrix,s_matrix,para_env,mcharge,dmcharge,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix, s_matrix
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge, dmcharge
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_c', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+    CALL compute_dcharges(p_matrix,s_matrix,mcharge,dmcharge,para_env)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE mulliken_charges_c
 
 END MODULE mulliken

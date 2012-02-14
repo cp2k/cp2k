@@ -382,6 +382,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
         !
       ELSEIF(dft_control%qs_control%dftb) THEN
         !
+      ELSEIF(dft_control%qs_control%scptb) THEN
+        !
       ELSE
         DO ispin=1,nspins
            CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&

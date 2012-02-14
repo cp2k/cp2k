@@ -40,6 +40,7 @@ MODULE qs_environment
                                              dftb_control_type,&
                                              gapw_control_type,&
                                              qs_control_type,&
+                                             scptb_control_type,&
                                              semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section,&
@@ -90,6 +91,7 @@ MODULE qs_environment
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE header,                          ONLY: dftb_header,&
                                              qs_header,&
+                                             scptb_header,&
                                              se_header
   USE hfx_ri_methods,                  ONLY: hfx_ri_env_create
   USE hfx_types,                       ONLY: hfx_create
@@ -97,8 +99,9 @@ MODULE qs_environment
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_mndo, &
        do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-       do_method_pm6, do_method_pnnl, do_method_rm1, do_multipole_none, &
-       general_roks, restart_guess, use_aux_fit_basis_set, xc_vdw_fun_pairpot
+       do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
+       do_multipole_none, general_roks, restart_guess, use_aux_fit_basis_set, &
+       xc_vdw_fun_none, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -166,6 +169,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE scptb_utils,                     ONLY: scptb_parameter_init
   USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
   USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
@@ -427,10 +431,12 @@ CONTAINS
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
       et_coupling_section, et_ddapc_section, ewald_section, poisson_section, &
-      print_section, qs_section, se_section, vdw_section, xc_fun_section
+      pp_section, print_section, qs_section, se_section, vdw_section, &
+      xc_fun_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
@@ -471,7 +477,7 @@ CONTAINS
     molecule_kind_set => subsys%molecule_kinds_new%els
 
     !   *** Read the input section with the DFT control parameters ***
-            CALL read_dft_control(dft_control,dft_section,error=error)
+    CALL read_dft_control(dft_control,dft_section,error=error)
 
     IF (dft_control % do_tddfpt_calculation) THEN
        CALL read_tddfpt_control(dft_control%tddfpt_control, &
@@ -489,6 +495,8 @@ CONTAINS
        CALL se_header(iw)
     CASE ( do_method_dftb )
        CALL dftb_header(iw)
+    CASE ( do_method_scptb )
+       CALL scptb_header(iw)
     END SELECT
 
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
@@ -543,6 +551,10 @@ CONTAINS
           CALL ewald_env_release(ewald_env,error=error)
           CALL ewald_pw_release(ewald_pw,error=error)
        END IF
+    ELSE IF ( dft_control%qs_control%method == "SCPTB" ) THEN
+       scptb_control => dft_control%qs_control%scptb_control
+       print_section => section_vals_get_subs_vals(subsys_section,"PRINT",error=error)
+       CALL scptb_parameter_init(atomic_kind_set,scptb_control,print_section,para_env,error)
     END IF
 
     ! DFT+U
@@ -808,18 +820,20 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)
       CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
-        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
-        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%TYPE", c_val=dispersion_env%pp_type, error=error)
+        NULLIFY(pp_section)
+        pp_section =>  section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
+        CALL section_vals_val_get(pp_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
+        CALL section_vals_val_get(pp_section, "TYPE", c_val=dispersion_env%pp_type, error=error)
         IF ( TRIM(dispersion_env%pp_type) == "DFTD2" ) THEN
           ! functional parameters for Grimme D2 type
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING" ,explicit=explicit,error=error)
+          CALL section_vals_val_get(pp_section, "EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
+          CALL section_vals_val_get(pp_section, "SCALING" ,explicit=explicit,error=error)
           IF ( .NOT. explicit ) THEN
-            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
+            CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
             CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
             CALL qs_scaling_init(dispersion_env%scaling,vdw_section,error)
           ELSE
-            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING", r_val=dispersion_env%scaling, error=error)
+            CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling, error=error)
           END IF
         ELSE
           dispersion_env%exp_pre=0._dp
@@ -827,17 +841,17 @@ CONTAINS
         END IF
         IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
           ! functional parameters for Grimme DFT-D3 type
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EPS_CN", r_val=dispersion_env%eps_cn, error=error)
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%D3_SCALING" ,explicit=explicit,error=error)
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc,error=error)
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_C9_TERM" ,l_val=dispersion_env%c9cnst,error=error)
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%LONG_RANGE_CORRECTION" ,l_val=dispersion_env%lrc,error=error)
+          CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn, error=error)
+          CALL section_vals_val_get(pp_section, "D3_SCALING" ,explicit=explicit,error=error)
+          CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc,error=error)
+          CALL section_vals_val_get(pp_section, "REFERENCE_C9_TERM" ,l_val=dispersion_env%c9cnst,error=error)
+          CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION" ,l_val=dispersion_env%lrc,error=error)
           IF ( .NOT. explicit ) THEN
-            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
+            CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
             CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
             CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section,error)
           ELSE
-            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%D3_SCALING", r_vals=scal, error=error)
+            CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal, error=error)
             dispersion_env%s6  =scal(1)
             dispersion_env%sr6 =scal(2)
             dispersion_env%s8  =scal(3)
@@ -848,8 +862,36 @@ CONTAINS
           dispersion_env%s8=0._dp
           dispersion_env%eps_cn=0._dp
         END IF
-        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%R_CUTOFF", r_val=dispersion_env%rc_disp, error=error)
-        CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,vdw_section,para_env,error)
+        CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp, error=error)
+        CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",&
+             c_val=dispersion_env%parameter_file_name,error=error)
+        CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
+      END IF
+      CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
+    ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN 
+      ALLOCATE(dispersion_env,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ! set general defaults
+      dispersion_env%doabc=.FALSE.
+      dispersion_env%c9cnst=.FALSE.
+      dispersion_env%lrc=.FALSE.
+      dispersion_env%verbose=.FALSE.
+      NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
+              dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
+      IF (scptb_control%dispersion) THEN
+         dispersion_env%type = xc_vdw_fun_pairpot
+         dispersion_env%pp_type = "DFTD3"
+         dispersion_env%eps_cn = scptb_control%epscn
+         dispersion_env%s6  = scptb_control%sd3(1)
+         dispersion_env%sr6 = scptb_control%sd3(2)
+         dispersion_env%s8  = scptb_control%sd3(3)
+         dispersion_env%rc_disp = scptb_control%rcdisp
+         dispersion_env%exp_pre = 0._dp
+         dispersion_env%scaling = 0._dp
+         dispersion_env%parameter_file_name = scptb_control%dispersion_parameter_file
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,para_env=para_env,error=error)
+      ELSE
+         dispersion_env%type = xc_vdw_fun_none
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
     END IF
@@ -1095,6 +1137,7 @@ CONTAINS
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+        dft_control%qs_control%method_id == do_method_scptb .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       CALL write_dispersion(qs_env,error)
     END IF

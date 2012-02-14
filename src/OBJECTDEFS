@@ -606,6 +606,12 @@ OBJECTS_GENERIC =\
  scp_rho_types.o\
  scp_rspw_methods.o\
  scp_rspw_types.o\
+ scptb_core_interactions.o\
+ scptb_core_matrix.o\
+ scptb_ks_matrix.o\
+ scptb_parameters.o\
+ scptb_types.o\
+ scptb_utils.o\
  se_core_core.o\
  se_core_matrix.o\
  se_fock_matrix.o\

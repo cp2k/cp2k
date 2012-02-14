@@ -31,6 +31,7 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: rc_disp
     REAL(KIND=dp)                          :: exp_pre
     LOGICAL                                :: verbose  !extended output
+    CHARACTER (LEN=default_string_length)  :: parameter_file_name
     !DFT-D3 global parameters
     INTEGER                                :: max_elem !elements parametrized
     INTEGER                                :: maxc     !max coordination number references per element

@@ -123,6 +123,7 @@ MODULE qs_core_hamiltonian
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
   PUBLIC :: build_core_hamiltonian_matrix
+  PUBLIC :: dump_info_core_hamiltonian
 
 CONTAINS
 

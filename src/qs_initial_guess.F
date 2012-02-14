@@ -202,7 +202,8 @@ CONTAINS
     density_guess=scf_control%density_guess
     do_std_diag = .FALSE.
 
-    IF ( dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb ) THEN
+    IF ( dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
+         dft_control%qs_control%scptb ) THEN
        IF (density_guess == atomic_guess) density_guess = mopac_guess
     END IF
 

@@ -71,13 +71,18 @@ MODULE qs_collocate_density
                                              int_8
   USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                              lgrid_type
-  USE mathconstants,                   ONLY: fac,&
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
                                              pi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
-                                             ncoset
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
+  USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -114,6 +119,9 @@ MODULE qs_collocate_density
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_release, &
        rs_grid_retain, rs_grid_zero, rs_pw_transfer
+  USE scptb_types,                     ONLY: get_scptb_parameter,&
+                                             scp_vector_type,&
+                                             scptb_parameter_type
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              int2pair
   USE task_list_types,                 ONLY: task_list_type
@@ -134,6 +142,7 @@ MODULE qs_collocate_density
             calculate_rho_core,&
             calculate_rho_elec,&
             calculate_drho_elec,&
+            calculate_scp_charge,&
             calculate_wavefunction,&
             collocate_pgf_product_gspace,&
             collocate_pgf_product_rspace,&
@@ -145,6 +154,141 @@ MODULE qs_collocate_density
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief computes the SCP charge distribution on the grid
+! *****************************************************************************
+  SUBROUTINE calculate_scp_charge(scp,qs_env,scpv,error)
+
+    TYPE(pw_p_type), INTENT(INOUT)           :: scp
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(scp_vector_type), POINTER           :: scpv
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_scp_charge', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, handle, i, iatom, &
+                                                ierr, ii, ikind, ithread, j, &
+                                                jj, l, lmaxscp, natom, ni, &
+                                                nj, npme, nthread
+    INTEGER(KIND=int_8)                      :: subpatch_pattern
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
+    LOGICAL                                  :: defined, failure
+    REAL(KIND=dp)                            :: alpha, eps_rho_rspace, norm, &
+                                                pp
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type)                     :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_rho
+    TYPE(scptb_parameter_type), POINTER      :: scptb_kind
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
+         atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    cell=cell,&
+                    particle_set=particle_set,&
+                    para_env=para_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+         auxbas_pw_pool=auxbas_pw_pool,error=error)
+    cube_info=pw_env%cube_info(1)
+    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_zero(rs_rho)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+    DO ikind=1,SIZE(atomic_kind_set)
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           scptb_parameter=scptb_kind)
+      CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
+
+      IF (.NOT.defined) CYCLE
+
+      ni = ncoset(lmaxscp)
+      ALLOCATE(pab(ni,1),STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+      nthread = 1
+      ithread=0
+
+      ALLOCATE(cores(natom),STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      cores = 0
+      npme = 0
+
+      DO iatom = 1, natom
+         atom_a = atom_list(iatom)
+         ra(:) = pbc(particle_set(atom_a)%r,cell)
+         IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+            ! replicated realspace grid, split the atoms up between procs
+            IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+               npme = npme + 1
+               cores (npme) = iatom
+            ENDIF
+         ELSE
+            npme = npme + 1
+            cores (npme) = iatom
+         ENDIF
+      END DO
+
+      DO nj=1,npme
+
+         iatom = cores(nj)
+         atom_a = atom_list(iatom)
+         ra(:) = pbc(particle_set(atom_a)%r,cell)
+         subpatch_pattern=0
+         pab = 0._dp
+         DO l=0,lmaxscp
+            pp = (2._dp*l+3._dp)/2._dp
+            norm = 2._dp**l/pi**1.5_dp/dfac(2*l-1)
+            DO jj=1,nco(l)
+               j = ncoset(l-1) + jj
+               DO ii=1,nso(l)
+                  i = nsoset(l-1) + ii
+                  pab(j,1) = pab(j,1) + scpv%vector(ikind)%vmat(i,iatom)*&
+                                        orbtramat(l)%s2c(ii,jj)*norm*alpha**pp
+               END DO
+            END DO
+         END DO
+         CALL collocate_pgf_product_rspace(lmaxscp,alpha,0,0,0.0_dp,0,ra,&
+            (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
+            cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+            ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+
+      END DO
+
+      DEALLOCATE ( pab, cores, STAT=ierr )
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+    END DO
+
+    CALL rs_pw_transfer(rs_rho,scp%pw,rs2pw,error=error)
+    CALL rs_grid_release(rs_rho, error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_scp_charge
 ! *****************************************************************************
 !> \brief computes the density of the non-linear core correction on the grid
 ! *****************************************************************************

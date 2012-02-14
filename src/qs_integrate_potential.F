@@ -68,10 +68,16 @@ MODULE qs_integrate_potential
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants,                   ONLY: fac
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
+  USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -100,6 +106,9 @@ MODULE qs_integrate_potential
                                              rs_grid_release,&
                                              rs_grid_retain,&
                                              rs_pw_transfer
+  USE scptb_types,                     ONLY: get_scptb_parameter,&
+                                             scp_vector_type,&
+                                             scptb_parameter_type
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              int2pair
   USE task_list_types,                 ONLY: task_list_type
@@ -124,11 +133,168 @@ MODULE qs_integrate_potential
   PUBLIC :: integrate_v_rspace,&
             integrate_v_core_rspace,&
             integrate_ppl_rspace,&
+            integrate_scp_rspace,&
             integrate_pgf_product_rspace,&
             potential_pw2rs, integrate_rho_nlcc
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief integrates the SCP charge functions on the grid potential
+! *****************************************************************************
+  SUBROUTINE integrate_scp_rspace(scp_pot,qs_env,scpv,calculate_forces,error)
+
+    TYPE(pw_p_type), INTENT(INOUT)           :: scp_pot
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(scp_vector_type), POINTER           :: scpv
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_scp_rspace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, handle, i, iatom, &
+                                                ierr, ii, ikind, j, jj, l, &
+                                                lmaxscp, natom_of_kind, ni, &
+                                                nj, npme, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
+    LOGICAL                                  :: defined, failure, use_virial
+    REAL(KIND=dp)                            :: alpha, dvol, eps_rho_rspace, &
+                                                norm, pp
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_v
+    TYPE(scptb_parameter_type), POINTER      :: scptb_kind
+    TYPE(virial_type), POINTER               :: virial
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(pw_env,auxbas_rs_desc,cores)
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
+                    auxbas_rs_grid=rs_v,error=error)
+    CALL rs_grid_retain(rs_v,error=error)
+
+    CALL rs_pw_transfer(rs_v,scp_pot%pw,pw2rs,error=error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         para_env=para_env,pw_env=pw_env,&
+         force=force,virial=virial,error=error)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    dvol = scp_pot%pw%pw_grid%dvol
+
+    DO ikind=1,SIZE(atomic_kind_set)
+
+       atomic_kind => atomic_kind_set(ikind)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            natom=natom_of_kind,atom_list=atom_list,&
+                            scptb_parameter=scptb_kind)
+       CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
+       IF (.NOT.defined) CYCLE
+
+       ni = ncoset(lmaxscp)
+       ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       pab = 0._dp
+       hab = 0._dp
+
+       ALLOCATE(cores(natom_of_kind),STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+       cores = 0
+       npme = 0
+
+       DO iatom = 1, natom_of_kind
+          atom_a = atom_list(iatom)
+          ra(:) = pbc(particle_set(atom_a)%r,cell)
+          IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
+              ! replicated realspace grid, split the atoms up between procs
+              IF (MODULO(iatom,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
+                 npme = npme + 1
+                 cores (npme) = iatom
+              ENDIF
+           ELSE
+              npme = npme + 1
+              cores (npme) = iatom
+           ENDIF
+       END DO
+       
+       DO nj=1,npme
+
+         iatom = cores(nj)
+         atom_a = atom_list(iatom)
+         ra(:) = pbc(particle_set(atom_a)%r,cell)
+         hab(:,1) = 0.0_dp
+         IF (calculate_forces) THEN
+            force_a(:) = 0.0_dp
+            force_b(:) = 0.0_dp
+            IF (use_virial) THEN
+               my_virial_a = 0.0_dp
+               my_virial_b = 0.0_dp
+            END IF
+         END IF
+
+         CALL integrate_pgf_product_rspace(lmaxscp,alpha,0,&
+              0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
+              rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
+              eps_gvg_rspace=eps_rho_rspace,&
+              calculate_forces=calculate_forces,force_a=force_a,&
+              force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
+              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+
+         DO l=0,lmaxscp
+            pp = (2._dp*l+3._dp)/2._dp
+            norm = 2._dp**l/pi**1.5_dp/dfac(2*l-1) * dvol
+            DO jj=1,nco(l)
+               j = ncoset(l-1) + jj
+               DO ii=1,nso(l)
+                  i = nsoset(l-1) + ii
+                  scpv%vector(ikind)%vmat(i,iatom) = scpv%vector(ikind)%vmat(i,iatom) + &
+                      hab(j,1)*orbtramat(l)%c2s(ii,jj)*norm*alpha**pp
+               END DO
+            END DO
+         END DO
+
+         IF (calculate_forces) THEN
+            force(ikind)%gth_ppl(:,iatom) = force(ikind)%gth_ppl(:,iatom) + force_a(:)*dvol
+            IF (use_virial) THEN
+              virial%pv_virial = virial%pv_virial + my_virial_a*dvol
+            END IF
+         END IF
+       END DO
+
+       DEALLOCATE(cores,hab,pab,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    END DO
+
+    CALL rs_grid_release(rs_v, error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE integrate_scp_rspace
 ! *****************************************************************************
 !> \brief computes the forces/virial due to the local pseudopotential
 ! *****************************************************************************

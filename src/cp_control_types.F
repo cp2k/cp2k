@@ -83,6 +83,21 @@ MODULE cp_control_types
   END TYPE dftb_control_type
 
 ! *****************************************************************************
+! \brief Control parameters for SCPTB calculations
+! *****************************************************************************
+  TYPE scptb_control_type
+     LOGICAL                              :: dispersion
+     LOGICAL                              :: do_ewald
+     INTEGER                              :: sto_ng
+     REAL(KIND = dp)                      :: rcdisp
+     REAL(KIND = dp)                      :: epscn
+     REAL(KIND = dp), DIMENSION(3)        :: sd3
+     CHARACTER(LEN=default_path_length)   :: parameter_file
+     CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
+     REAL(KIND = dp)                      :: epspair
+  END TYPE scptb_control_type
+
+! *****************************************************************************
 ! \brief Control parameters for semi empirical calculations
 ! *****************************************************************************
   TYPE semi_empirical_control_type
@@ -255,6 +270,7 @@ MODULE cp_control_types
     LOGICAL                                       :: gapw,gapw_xc,gpw,pao
     LOGICAL                                       :: ofgpw
     LOGICAL                                       :: dftb
+    LOGICAL                                       :: scptb
     LOGICAL                                       :: scp
     LOGICAL                                       :: semi_empirical
     LOGICAL                                       :: mulliken_restraint
@@ -274,6 +290,7 @@ MODULE cp_control_types
     TYPE (becke_restraint_type), POINTER          :: becke_control
     TYPE (s2_restraint_type), POINTER             :: s2_restraint_control
     TYPE (dftb_control_type),POINTER              :: dftb_control
+    TYPE (scptb_control_type),POINTER             :: scptb_control
     TYPE (semi_empirical_control_type),POINTER    :: se_control
     TYPE (gapw_control_type), POINTER             :: gapw_control
     TYPE (pw_grid_option)                         :: pw_grid_opt
@@ -380,6 +397,7 @@ MODULE cp_control_types
             ddapc_restraint_type,&
             ddapc_restraint_p_type,&
             dftb_control_type,&
+            scptb_control_type,&
             scp_control_type,&
             becke_restraint_type,&
             semi_empirical_control_type,&
@@ -867,6 +885,7 @@ CONTAINS
        NULLIFY(qs_control%s2_restraint_control)
        NULLIFY(qs_control%se_control)
        NULLIFY(qs_control%dftb_control)
+       NULLIFY(qs_control%scptb_control)
        NULLIFY(qs_control%becke_control)  
        NULLIFY(qs_control%ddapc_restraint_control)
 
@@ -876,6 +895,7 @@ CONTAINS
        CALL gapw_control_create(qs_control%gapw_control, error=error)
        CALL se_control_create(qs_control%se_control,error=error)
        CALL dftb_control_create(qs_control%dftb_control,error=error)
+       CALL scptb_control_create(qs_control%scptb_control,error=error)
     END IF
   END SUBROUTINE qs_control_create
 
@@ -896,6 +916,7 @@ CONTAINS
        CALL s2_control_release(qs_control%s2_restraint_control,error=error)
        CALL se_control_release(qs_control%se_control,error=error)
        CALL dftb_control_release(qs_control%dftb_control,error=error)
+       CALL scptb_control_release(qs_control%scptb_control,error=error)
        CALL becke_control_release(qs_control%becke_control,error=error)
        
        IF (ASSOCIATED(qs_control%e_cutoff)) THEN
@@ -1092,6 +1113,44 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
   END SUBROUTINE dftb_control_release
+
+! *****************************************************************************
+  SUBROUTINE scptb_control_create(scptb_control,error)
+    TYPE(scptb_control_type), POINTER        :: scptb_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(scptb_control),cp_failure_level,routineP,error,failure)
+    ALLOCATE(scptb_control,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE scptb_control_create
+
+! *****************************************************************************
+  SUBROUTINE scptb_control_release(scptb_control,error)
+    TYPE(scptb_control_type), POINTER        :: scptb_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(scptb_control)) THEN
+       DEALLOCATE(scptb_control,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+  END SUBROUTINE scptb_control_release
 
 ! *****************************************************************************
   SUBROUTINE se_control_create(se_control,error)

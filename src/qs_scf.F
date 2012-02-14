@@ -395,6 +395,8 @@ CONTAINS
                CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
             ELSEIF (dft_control%qs_control%dftb) THEN
                ! Do Nothing
+            ELSEIF (dft_control%qs_control%scptb) THEN
+               ! Do Nothing
             ELSEIF (dft_control%qs_control%ofgpw) THEN
                ! Do Nothing
             ELSE
@@ -1121,7 +1123,8 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
     CALL timeset(routineN,handle)
 
     IF (output_unit>0) THEN
-       IF(.NOT.(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
+       IF(.NOT.(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR.&
+                dft_control%qs_control%scptb)) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
            "Electronic density on regular grids: ",&
             accurate_sum(rho%tot_rho_r),&
@@ -1169,6 +1172,14 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
             "Repulsive potential energy:                    ",energy%repulsive,&
             "Electronic energy:                             ",energy%hartree,&
             "Dispersion energy:                             ",energy%dispersion
+       ELSEIF (dft_control%qs_control%scptb) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
+            "Repulsive pair potential energy:               ",energy%repulsive,&
+            "Zeroth order Hamiltonian energy:               ",energy%core,&
+            "Charge fluctuation (SCP) energy:               ",energy%hartree,&
+            "Charge overlap correction energy:              ",energy%core_overlap,&
+            "SCP self energy:                               ",energy%core_self,&
+            "London dispersion energy:                      ",energy%dispersion
        ELSE
          IF( dft_control%do_admm ) THEN
            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&

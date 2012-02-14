@@ -21,7 +21,7 @@ MODULE header
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: cp2k_header, cp2k_footer, vib_header
+  PUBLIC :: cp2k_header, cp2k_footer, vib_header, scptb_header
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
   PUBLIC :: qmmm_header, atom_header, atom_footer, band_header
 
@@ -169,6 +169,26 @@ CONTAINS
          '                   J. Hutter and T. Heine                 ', &
          '                                                          '
   END SUBROUTINE dftb_header
+
+! *****************************************************************************
+  SUBROUTINE scptb_header(iw)
+    INTEGER, INTENT(in)                      :: iw
+
+    IF (iw<0) RETURN
+    WRITE ( iw, '( / )' )
+    WRITE ( iw, '( 11(12x,a,/) )' ) &
+         ' #######################################################  ',&
+         ' #######################################################  ',&
+         ' #######################################################  ',&
+         ' #######################################################  ',&
+         ' #######################################################  ',&
+         ' #######################################################  ',&
+         ' #######################################################  ',&
+         '                                                          ', &
+         '                        Version 0.01                      ', &
+         '         Juerg Hutter, Yannick Misteli, Ralph Koitz       ', &
+         '                                                          '
+  END SUBROUTINE scptb_header
 
 ! *****************************************************************************
   SUBROUTINE se_header(iw)

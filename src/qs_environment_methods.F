@@ -315,6 +315,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       !??
     ELSE IF(dft_control%qs_control%dftb) THEN
       !??
+    ELSE IF(dft_control%qs_control%scptb) THEN
+      !??
     ELSE
       ! *** updates rho core ***
       CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
@@ -469,6 +471,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
       END IF
     ELSE IF (dft_control%qs_control%semi_empirical) THEN
     ELSE IF (dft_control%qs_control%dftb) THEN
+    ELSE IF (dft_control%qs_control%scptb) THEN
     ELSE
       IF (ASSOCIATED(rho_core)) THEN
          CALL pw_release(rho_core%pw,error=error)

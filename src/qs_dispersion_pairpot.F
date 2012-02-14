@@ -34,9 +34,7 @@ MODULE qs_dispersion_pairpot
                                              parser_create,&
                                              parser_release
   USE f77_blas
-  USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
-                                             vdw_pairpot_dftd3,&
-                                             xc_vdw_fun_none,&
+  USE input_constants,                 ONLY: xc_vdw_fun_none,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -94,11 +92,12 @@ MODULE qs_dispersion_pairpot
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,vdw_section,para_env,error)
+  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(section_vals_type), POINTER         :: vdw_section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: pp_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -119,24 +118,22 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
-    TYPE(section_vals_type), POINTER         :: pp_section
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CALL section_vals_val_get(vdw_section,"POTENTIAL_TYPE",i_val=vdw_type,error=error)
 
+    vdw_type = dispersion_env%type
     SELECT CASE (vdw_type)
        CASE DEFAULT
           ! do nothing
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
-          pp_section => section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
-          CALL section_vals_val_get(pp_section,"TYPE",i_val=vdw_pp_type,error=error)
-          SELECT CASE (vdw_pp_type)
+          vdw_pp_type = dispersion_env%type
+          SELECT CASE (TRIM(dispersion_env%pp_type))
              CASE DEFAULT
                ! do nothing
-             CASE (vdw_pairpot_dftd3)
+             CASE ("DFTD3")
                 !DFT-D3 Method initial setup
                 CALL cite_reference(Grimme2010)
                 max_elem = 94
@@ -157,7 +154,7 @@ CONTAINS
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 ! get filename of parameter file
-                CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",c_val=filename,error=error)
+                filename = dispersion_env%parameter_file_name
                 CALL dftd3_c6_param(dispersion_env%c6ab,dispersion_env%maxci,filename,para_env,error)
                 CALL setr0ab(dispersion_env%r0ab,dispersion_env%rcov,dispersion_env%r2r4)
                 ! the default coordination numbers
@@ -203,30 +200,30 @@ CONTAINS
           disp%defined = .FALSE.
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
-          pp_section => section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
-          CALL section_vals_val_get(pp_section,"TYPE",i_val=vdw_pp_type,error=error)
-          SELECT CASE (vdw_pp_type)
+          SELECT CASE (TRIM(dispersion_env%pp_type))
           CASE DEFAULT
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-          CASE (vdw_pairpot_dftd2)
+          CASE ("DFTD2")
              CALL cite_reference(Grimme2006)
              disp%type = dftd2_pp
              ! get filename of parameter file
-             CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",c_val=filename,error=error)
+             filename = dispersion_env%parameter_file_name
              ! check for local parameters
-             CALL section_vals_val_get(pp_section,"ATOMPARM",n_rep_val=n_rep,error=error)
              found = .FALSE.
-             DO i=1,n_rep
-                CALL section_vals_val_get(pp_section,"ATOMPARM", i_rep_val=i,&
-                     c_vals=tmpstringlist, error=error)
-                IF ( TRIM(tmpstringlist(1)) == TRIM(symbol) ) THEN
-                   ! we assume the parameters are in atomic units!
-                   READ(tmpstringlist(2),*) disp%c6
-                   READ(tmpstringlist(3),*) disp%vdw_radii
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
+             IF (PRESENT(pp_section)) THEN
+                CALL section_vals_val_get(pp_section,"ATOMPARM",n_rep_val=n_rep,error=error)
+                DO i=1,n_rep
+                   CALL section_vals_val_get(pp_section,"ATOMPARM", i_rep_val=i,&
+                        c_vals=tmpstringlist, error=error)
+                   IF ( TRIM(tmpstringlist(1)) == TRIM(symbol) ) THEN
+                      ! we assume the parameters are in atomic units!
+                      READ(tmpstringlist(2),*) disp%c6
+                      READ(tmpstringlist(3),*) disp%vdw_radii
+                      found = .TRUE.
+                      EXIT
+                   END IF
+                END DO
+             END IF
              IF ( .NOT. found ) THEN
                 ! check for internal parameters
                 CALL dftd2_param(elem,disp%c6,disp%vdw_radii,found,error)
@@ -260,7 +257,7 @@ CONTAINS
              ELSE
                 disp%defined = .FALSE.
              END IF
-          CASE (vdw_pairpot_dftd3)
+          CASE ("DFTD3")
              disp%type = dftd3_pp
              IF ( elem <= 94 ) THEN
                 disp%defined = .TRUE.
@@ -269,33 +266,35 @@ CONTAINS
              END IF
 
              ! Check for coordination numbers
-             CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
-             IF (n_rep > 0) THEN
-                ALLOCATE(dispersion_env%cnkind(n_rep),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                DO i=1,n_rep
-                   CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
-                     c_vals=tmpstringlist, error=error)
-                   READ(tmpstringlist(1),*) dispersion_env%cnkind(i)%cnum 
-                   READ(tmpstringlist(2),*) dispersion_env%cnkind(i)%kind
-                END DO
-             END IF
-             CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
-             IF (n_rep > 0) THEN
-                ALLOCATE(dispersion_env%cnlist(n_rep),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                DO i=1,n_rep
-                   CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", i_rep_val=i,&
-                     c_vals=tmpstringlist, error=error)
-                   nl = SIZE(tmpstringlist)
-                   ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
+             IF (PRESENT(pp_section)) THEN
+                CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
+                IF (n_rep > 0) THEN
+                   ALLOCATE(dispersion_env%cnkind(n_rep),STAT=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   dispersion_env%cnlist(i)%natom = nl-1
-                   READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum 
-                   DO j=1,nl-1
-                      READ(tmpstringlist(j+1),*) dispersion_env%cnlist(i)%atom(j)
+                   DO i=1,n_rep
+                      CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
+                        c_vals=tmpstringlist, error=error)
+                      READ(tmpstringlist(1),*) dispersion_env%cnkind(i)%cnum 
+                      READ(tmpstringlist(2),*) dispersion_env%cnkind(i)%kind
                    END DO
-                END DO
+                END IF
+                CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
+                IF (n_rep > 0) THEN
+                   ALLOCATE(dispersion_env%cnlist(n_rep),STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   DO i=1,n_rep
+                      CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", i_rep_val=i,&
+                        c_vals=tmpstringlist, error=error)
+                      nl = SIZE(tmpstringlist)
+                      ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      dispersion_env%cnlist(i)%natom = nl-1
+                      READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum 
+                      DO j=1,nl-1
+                         READ(tmpstringlist(j+1),*) dispersion_env%cnlist(i)%atom(j)
+                      END DO
+                   END DO
+                END IF
              END IF
 
           END SELECT

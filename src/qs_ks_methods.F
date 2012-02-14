@@ -141,6 +141,7 @@ MODULE qs_ks_methods
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
+  USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
   USE se_fock_matrix,                  ONLY: build_se_fock_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1860,13 +1861,17 @@ CONTAINS
                   ks_matrix=matrix_ks,rho=rho,energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
                   error=error)
+          ELSEIF ( dft_control%qs_control%scptb ) THEN
+             CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrix=matrix_ks,rho=rho,energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  error=error)
           ELSEIF (dft_control%qs_control%gapw_xc) THEN
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
                   print_active=print_active,rho_xc=rho_xc,error=error)
           ELSE
-
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&

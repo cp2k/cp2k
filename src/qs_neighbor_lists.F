@@ -69,6 +69,8 @@ MODULE qs_neighbor_lists
        neighbor_list_iterate, neighbor_list_iterator_create, &
        neighbor_list_iterator_p_type, neighbor_list_iterator_release, &
        neighbor_list_p_type, neighbor_list_set_p_type, neighbor_list_set_type
+  USE scptb_types,                     ONLY: get_scptb_parameter,&
+                                             scptb_parameter_type
   USE string_utilities,                ONLY: compress
   USE subcell_types,                   ONLY: allocate_subcell,&
                                              deallocate_subcell,&
@@ -340,7 +342,7 @@ CONTAINS
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, stat, zat
     LOGICAL :: all_potential_present, dftb, failure, gth_potential_present, &
-      mic, molecule_only, nddo, paw_atom, paw_atom_present
+      mic, molecule_only, nddo, paw_atom, paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
@@ -375,6 +377,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     CALL timeset(routineN,handle)
@@ -440,6 +443,7 @@ CONTAINS
 
     nddo = qs_env%dft_control%qs_control%semi_empirical
     dftb = qs_env%dft_control%qs_control%dftb
+    scptb = qs_env%dft_control%qs_control%scptb
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -666,7 +670,7 @@ CONTAINS
     END IF
 
     ! Build orbital-ERFC potential list
-    IF (all_potential_present .AND. .NOT. (nddo .OR. dftb)) THEN
+    IF (all_potential_present .AND. .NOT. (nddo .OR. dftb .OR. scptb)) THEN
        CALL pair_radius_setup(orb_present,all_present,orb_radius,all_pot_rad,pair_radius,error)
        CALL build_neighbor_lists(sac_ae,particle_set,atom2d,cell,pair_radius,&
             subcells=subcells,operator_type="ABC",name="sac_ae",error=error)
@@ -773,6 +777,33 @@ CONTAINS
                "/SAB_SCP","sab_scp","SCP DISPERSION PAIR POTENTIAL",error)
        END IF
     END IF
+    IF (scptb) THEN
+       ! Build the neighbor lists for the Coulomb terms
+       DO ikind = 1, nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+          CALL get_scptb_parameter(scptb_kind,repair=c_radius(ikind),defined=default_present(ikind))
+       END DO
+       CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
+       CALL build_neighbor_lists(sac_ae,particle_set,atom2d,cell,pair_radius,&
+            subcells=subcells,name="sac_ae",error=error)
+       CALL set_qs_env(qs_env=qs_env,sac_ae=sac_ae,error=error)
+       CALL write_neighbor_lists(sac_ae,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAC_AE","sac_ae","ERFC POTENTIAL",error)
+       ! Build the neighbor lists for the Core term
+       DO ikind = 1, nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+          CALL get_scptb_parameter(scptb_kind,rcpair=c_radius(ikind),defined=default_present(ikind))
+       END DO
+       CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
+       CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,&
+            subcells=subcells,name="sab_core",error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
+       CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_CORE","sab_core","CORE INTERACTIONS",error)
+    END IF
+
 
     ! Print particle distribution
     print_key_path = "PRINT%DISTRIBUTION"

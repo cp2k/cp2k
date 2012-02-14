@@ -42,8 +42,8 @@ MODULE atomic_kind_types
   USE input_constants,                 ONLY: &
        do_fist, do_method_am1, do_method_dftb, do_method_mndo, &
        do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, do_qs, use_aux_basis_set, &
-       use_aux_fit_basis_set, use_orb_basis_set
+       do_method_pnnl, do_method_rm1, do_method_scptb, do_qs, &
+       use_aux_basis_set, use_aux_fit_basis_set, use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -73,6 +73,10 @@ MODULE atomic_kind_types
   USE qs_harmonics_atom,               ONLY: allocate_harmonics_atom,&
                                              deallocate_harmonics_atom,&
                                              harmonics_atom_type
+  USE scptb_types,                     ONLY: deallocate_scptb_parameter,&
+                                             get_scptb_parameter,&
+                                             scptb_parameter_type,&
+                                             write_scptb_parameter
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
@@ -120,6 +124,7 @@ MODULE atomic_kind_types
      TYPE(gth_potential_type), POINTER      :: gth_potential
      TYPE(semi_empirical_type), POINTER     :: se_parameter
      TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter
+     TYPE(scptb_parameter_type), POINTER    :: scptb_parameter
      TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
      TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
      TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
@@ -222,6 +227,7 @@ CONTAINS
        NULLIFY (atomic_kind_set(ikind)%gth_potential)
        NULLIFY (atomic_kind_set(ikind)%se_parameter)
        NULLIFY (atomic_kind_set(ikind)%dftb_parameter)
+       NULLIFY (atomic_kind_set(ikind)%scptb_parameter)
        NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
        NULLIFY (atomic_kind_set(ikind)%aux_fit_basis_set)
        NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
@@ -303,6 +309,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%dftb_parameter)) THEN
              CALL deallocate_dftb_atom_param(atomic_kind_set(ikind)%dftb_parameter,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%scptb_parameter)) THEN
+             CALL deallocate_scptb_parameter(atomic_kind_set(ikind)%scptb_parameter,error)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
              CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,error)
@@ -386,7 +395,7 @@ CONTAINS
 !> \author MK (02.01.2002)
 ! *****************************************************************************
   SUBROUTINE get_atomic_kind(atomic_kind, all_potential, fist_potential,&
-       gth_potential, se_parameter, dftb_parameter, &
+       gth_potential, se_parameter, dftb_parameter, scptb_parameter,&
        aux_basis_set, aux_fit_basis_set, orb_basis_set, geminal_basis_set, &
        element_symbol, name, mass, kind_number, natom, atom_list, &
        alpha_core_charge, ccore_charge, core_charge, alpha_scp, I_scp, &
@@ -411,6 +420,8 @@ CONTAINS
       POINTER                                :: se_parameter
     TYPE(qs_dftb_atom_type), OPTIONAL, &
       POINTER                                :: dftb_parameter
+    TYPE(scptb_parameter_type), OPTIONAL, &
+      POINTER                                :: scptb_parameter
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: aux_basis_set, &
                                                 aux_fit_basis_set, &
@@ -496,6 +507,7 @@ CONTAINS
        IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
        IF (PRESENT(se_parameter))  se_parameter => atomic_kind%se_parameter
        IF (PRESENT(dftb_parameter))  dftb_parameter => atomic_kind%dftb_parameter
+       IF (PRESENT(scptb_parameter))  scptb_parameter => atomic_kind%scptb_parameter
        IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
        IF (PRESENT(aux_fit_basis_set)) aux_fit_basis_set => atomic_kind%aux_fit_basis_set
        IF (PRESENT(orb_basis_set)) THEN
@@ -1953,7 +1965,7 @@ CONTAINS
     END IF
 
     SELECT CASE(method_id)
-    CASE(do_method_dftb,do_method_rm1, do_method_am1, do_method_mndo, &
+    CASE(do_method_dftb, do_method_scptb, do_method_rm1, do_method_am1, do_method_mndo, &
          do_method_pdg, do_method_pm3, do_method_pm6, do_method_mndod,&
          do_method_pnnl )
        ! Allocate all_potential
@@ -2002,9 +2014,8 @@ CONTAINS
           CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
                zeff=atomic_kind%se_parameter%zeff,zeff_correction=zeff_correction,error=error)
           atomic_kind%se_parameter%zeff=atomic_kind%se_parameter%zeff-zeff_correction
-       CASE (do_method_dftb)
-          ! Do nothing at this stage.. The initialization of the parameters will be done
-          ! later
+       CASE (do_method_dftb,do_method_scptb)
+          ! Do nothing at this stage.. The initialization of the parameters will be done later
        CASE DEFAULT
           CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
        END SELECT
@@ -2154,7 +2165,7 @@ CONTAINS
        CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6,&
              do_method_pdg,  do_method_rm1, do_method_mndod, do_method_pnnl )
           no_fail = .TRUE.
-       CASE (do_method_dftb)
+       CASE (do_method_dftb, do_method_scptb)
           no_fail = .TRUE.
        END SELECT
     ELSE
@@ -2192,6 +2203,7 @@ CONTAINS
 
     LOGICAL                                  :: defined, failure
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
+    TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     TYPE(semi_empirical_type), POINTER       :: se_parameter
 
     IF (dft_control%qs_control%semi_empirical) THEN
@@ -2206,6 +2218,12 @@ CONTAINS
        CALL get_dftb_atom_param(dftb_parameter,defined=defined,error=error)
        CPPostcondition(defined,cp_failure_level,routineP,error,failure)
        CALL write_dftb_atom_param(dftb_parameter,subsys_section,error)
+    ELSE IF (dft_control%qs_control%scptb) THEN
+       CALL get_atomic_kind(atomic_kind,scptb_parameter=scptb_parameter)
+       CPPostcondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,error,failure)
+       CALL get_scptb_parameter(scptb_parameter,defined=defined,error=error)
+       CPPostcondition(defined,cp_failure_level,routineP,error,failure)
+       CALL write_scptb_parameter(scptb_parameter,subsys_section,error)
     END IF
 
   END SUBROUTINE check_atomic_kind
