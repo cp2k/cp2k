@@ -2798,7 +2798,6 @@ CONTAINS
     END SUBROUTINE check_range
   END FUNCTION mostly_non_transposed
 
-
 ! *****************************************************************************
 !> \brief Transform between virtual process rows/columns and actual process rows/columns and images therein.
 !> \par Shifting
@@ -2831,20 +2830,22 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (.not.PRESENT (myvprow), "IMP",&
-         PRESENT(mycoli),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must specify either (process row and row image) or (virtual process row)",&
-         __LINE__, error=error)
-    CALL dbcsr_assert (.not.PRESENT (myvpcol), "IMP",&
-         PRESENT(mycoli),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must specify either (process col and col image) or (virtual process col)",&
-         __LINE__, error=error)
+    IF (careful_mod) THEN
+       CALL dbcsr_assert (.not.PRESENT (myvprow), "IMP",&
+            PRESENT(mycoli),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Must specify either (process row and row image) or (virtual process row)",&
+            __LINE__, error=error)
+       CALL dbcsr_assert (.not.PRESENT (myvpcol), "IMP",&
+            PRESENT(mycoli),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Must specify either (process col and col image) or (virtual process col)",&
+            __LINE__, error=error)
+    ENDIF
     !
     mp = image_dist%i%main%d%mp_env
-    nprows = dbcsr_mp_nprows (mp)
-    npcols = dbcsr_mp_npcols (mp)
+    nprows = SIZE (mp%mp%pgrid, 1)
+    npcols = SIZE (mp%mp%pgrid, 2)
     nrow_images = image_dist%i%row_decimation
     ncol_images = image_dist%i%col_decimation
     row_mult = image_dist%i%row_multiplicity
@@ -2855,12 +2856,12 @@ CONTAINS
     IF (PRESENT (myprow)) THEN
        my_prow = myprow
     ELSE
-       my_prow = dbcsr_mp_myprow (mp)
+       my_prow = mp%mp%myprow
     ENDIF
     IF (PRESENT (mypcol)) THEN
        my_pcol = mypcol
     ELSE
-       my_pcol = dbcsr_mp_mypcol (mp)
+       my_pcol = mp%mp%mypcol
     ENDIF
     !
     IF (.NOT. PRESENT (myvprow)) THEN
@@ -2897,7 +2898,6 @@ CONTAINS
     IF (PRESENT (vprow)) vprow = vrow
     IF (PRESENT (vpcol)) vpcol = vcol
   END SUBROUTINE image_calculator
-
 
 ! *****************************************************************************
 !> \brief Creates a sane 1-D distribution
