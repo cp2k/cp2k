@@ -127,7 +127,7 @@ MODULE dbcsr_config
   ! by calling the dbcsr_init_conf() subroutine.
 
   ! Allocates subcommunicators for process rows and columns.
-  LOGICAL, SAVE :: use_subcommunicators = .FALSE.
+  LOGICAL, SAVE :: use_subcommunicators = .TRUE.
 
   ! Use combined data types for MPI transfers.
   LOGICAL, SAVE :: use_combined_types = .FALSE.

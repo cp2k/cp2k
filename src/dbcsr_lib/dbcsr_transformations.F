@@ -871,7 +871,7 @@ CONTAINS
                                                 col_img_dist, row_blk_size, &
                                                 row_dist, row_img_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: nocopy, predist, release_td, &
+    LOGICAL                                  :: nocopy, release_td, &
                                                 same_dst_p, tr
     REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: received_data_area, &
@@ -896,24 +896,18 @@ CONTAINS
           nsymmetries = 2
        ENDIF
     ENDIF
-    IF (PRESENT (predistribute)) THEN
-       predist = .TRUE.
-       SELECT CASE (predistribute)
-       CASE('L','l')
-          predist_type = 'L'
-          predist_type_fwd = 'l'
-       CASE('R','r')
-          predist_type = 'R'
-          predist_type_fwd = 'r'
-       CASE default
-          CALL dbcsr_assert (.FALSE.,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Incorrect pre-shift specifier.", __LINE__, error=error)
-       END SELECT
-    ELSE
-       predist = .FALSE.
-       predist_type = '0'
-    ENDIF
+    SELECT CASE (predistribute)
+    CASE('L','l')
+       predist_type = 'L'
+       predist_type_fwd = 'l'
+    CASE('R','r')
+       predist_type = 'R'
+       predist_type_fwd = 'r'
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Incorrect pre-shift specifier.", __LINE__, error=error)
+    END SELECT
     data_type = sm%data_type
     CALL dbcsr_assert (data_type .EQ. dbcsr_type_real_8&
          .or.data_type .EQ. dbcsr_type_real_4&
@@ -1010,7 +1004,7 @@ CONTAINS
 !$omp          lsmp, lsdp, t) &
 !$omp shared (nthreads, dbcsr_error, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, scale_value, error,&
-!$omp         ums, sm, ism, target_dist, predist, predistribute, predist_type, &
+!$omp         ums, sm, ism, target_dist, predistribute, predist_type, &
 !$omp         predist_type_fwd,&
 !$omp         data_memory_type, index_memory_type,&
 !$omp         old_dist, &
@@ -1279,13 +1273,15 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
     DEALLOCATE (lsmp, lsdp)
 !$omp end parallel
-    ! Exchange the data and metadata structures.
+    ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same), 
+    ! there are only very few processors that need to exchange data.
+    ! The hybrid_alltoall deals with this by doing point to point communication
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
        CALL hybrid_alltoall_s1(&
             send_data_area%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
             recv_data_area%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
-            no_hybrid = (nsymmetries .GT. 1),&
+            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     CASE (dbcsr_type_real_8)
        !CALL mp_alltoall(&
@@ -1295,28 +1291,27 @@ CONTAINS
        CALL hybrid_alltoall_d1 (&
             send_data_area%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
             recv_data_area%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
-            no_hybrid = (nsymmetries .GT. 1),&
+            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     CASE (dbcsr_type_complex_4)
        CALL hybrid_alltoall_c1(&
             send_data_area%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
             recv_data_area%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
-            no_hybrid = (nsymmetries .GT. 1),&
+            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     CASE (dbcsr_type_complex_8)
        CALL hybrid_alltoall_z1(&
             send_data_area%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
             recv_data_area%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
-            no_hybrid = (nsymmetries .GT. 1),&
+            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
             mp_env = mp_obj)
     END SELECT
-    !CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
-    !     recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
     CALL hybrid_alltoall_i1(&
          send_meta(:), SUM(metalen*total_send_count(1,:)), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1,&
-         mp_env = mp_obj,&
-         no_hybrid = nsymmetries .GT. 1)
+         most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
+         mp_env = mp_obj)
+
     ! Now create the work index and/or copy the relevant data from the
     ! receive buffer into the local indices.
     prev_blk_p = 0
