@@ -724,3 +724,16 @@ dimer2.inp
 dimer3.inp
 # Atomic energy and stress properties 
 geom.inp
+#
+dimer2.inp
+dimer3.inp
+dimer4.inp
+dimer.inp
+h2o_gks_e.inp
+h2o_gks.inp
+h2o_gks_p.inp
+ice-ewald-mol.inp
+ice-ewald-nomol.inp
+ice-ewald-r_cut.inp
+ice-scp-ewald_gks.inp
+ice-scp-ewald.inp
