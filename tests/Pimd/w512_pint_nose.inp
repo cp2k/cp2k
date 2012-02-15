@@ -25,6 +25,10 @@
       RANDOMIZE_POS          F
       CENTROID_SPEED         F
     &END INIT
+    &PRINT
+      &CENTROID_GYR          OFF
+      &END CENTROID_GYR
+    &END PRINT
   &END PINT
 &END MOTION
 &FORCE_EVAL
