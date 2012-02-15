@@ -690,6 +690,8 @@ CONTAINS
          CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,mic=mic,&
               subcells=subcells,name="sab_se",error=error)
        ELSE
+!         CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,mic=mic,&
+!              subcells=subcells,name="sab_se",error=error)
          CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,&
               subcells=subcells,name="sab_se",error=error)
        END IF

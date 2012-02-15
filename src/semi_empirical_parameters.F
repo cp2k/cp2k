@@ -49,7 +49,8 @@ MODULE semi_empirical_parameters
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt,&
-                                             kcalmol
+                                             kcalmol,&
+                                             angstrom
   USE semi_empirical_par_utils,        ONLY: calpar,&
                                              convert_param_to_cp2k,&
                                              valence_electrons
@@ -705,6 +706,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pnnl_default_parameter', &
       routineP = moduleN//':'//routineN
 
+    REAL(KIND=dp), PARAMETER :: eV  = 27.21_dp
+    REAL(KIND=dp), PARAMETER :: Ang = 0.529167_dp
+
     sep%typ    = do_method_pnnl
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
@@ -719,24 +723,24 @@ CONTAINS
     CASE (1)
        !Hydrogen
        sep%defined          = .TRUE.
-       sep%alp              =   3.323150026265647_dp
-       sep%beta(0)          =  -6.070138572957370_dp
-       sep%beta(1)          =   0.0_dp
+       sep%alp              =   3.323150026265647_dp*Ang/angstrom
+       sep%beta(0)          =  -6.070138572957370_dp*evolt/eV
+       sep%beta(1)          =   0.0_dp              *evolt/eV
        sep%sto_exponents(0) =   1.220643961907751_dp
        sep%sto_exponents(1) =   1.351277996861119_dp
-       sep%uss              =  -11.185667_dp
-       sep%upp              =   1000000.0_dp
-       sep%gss              =   14.794208_dp
-       sep%gsp              =   0.0_dp
-       sep%gpp              =   0.0_dp
-       sep%gp2              =   0.0_dp
-       sep%hsp              =   0.0_dp
+       sep%uss              =  -11.185667_dp        *evolt/eV
+       sep%upp              =   1000000.0_dp        *evolt/eV
+       sep%gss              =   14.794208_dp        *evolt/eV
+       sep%gsp              =   0.0_dp              *evolt/eV
+       sep%gpp              =   0.0_dp              *evolt/eV
+       sep%gp2              =   0.0_dp              *evolt/eV
+       sep%hsp              =   0.0_dp              *evolt/eV
        sep%ass              =   1.0e-16_dp
        sep%asp              =   3.355792629670590_dp
        sep%app              =   0.03941680815458009_dp
-       sep%de               =   20.06411392885370_dp/evolt
+       sep%de               =   20.06411392885370_dp      /eV
        sep%nr               =   1
-       sep%acoul            =   16.27368453086666_dp/evolt
+       sep%acoul            =   16.27368453086666_dp      /eV
        ! This parameterization explicitly supports 
        ! p-orbitals for H. So by default we turn them
        ! on for this element.
@@ -744,24 +748,24 @@ CONTAINS
     CASE (8)
        !Oxygen
        sep%defined          = .TRUE.
-       sep%uss              = -79.081852_dp
-       sep%upp              = -72.59032_dp
-       sep%beta(0)          = -40.62654394990248_dp
-       sep%beta(1)          = -28.39467965792422_dp
+       sep%alp              =   2.980042911001686_dp*Ang/angstrom
+       sep%beta(0)          = -40.62654394990248_dp *evolt/eV
+       sep%beta(1)          = -28.39467965792422_dp *evolt/eV
        sep%sto_exponents(0) =   3.814650982832301_dp
        sep%sto_exponents(1) =   2.446497244623426_dp
-       sep%alp              =   2.980042911001686_dp
-       sep%gss              =  15.75576_dp
-       sep%gsp              =  10.62116_dp
-       sep%gpp              =  13.654016_dp
-       sep%gp2              =  12.406095_dp
-       sep%hsp              =   0.593883_dp
+       sep%uss              = -79.081852_dp         *evolt/eV
+       sep%upp              = -72.59032_dp          *evolt/eV
+       sep%gss              =  15.75576_dp          *evolt/eV
+       sep%gsp              =  10.62116_dp          *evolt/eV
+       sep%gpp              =  13.654016_dp         *evolt/eV
+       sep%gp2              =  12.406095_dp         *evolt/eV
+       sep%hsp              =   0.593883_dp         *evolt/eV
        sep%ass              =  1.0e-16_dp
        sep%asp              =  3.583554483196465_dp
        sep%app              =  0.0008605218877175237_dp
-       sep%de               =  7.159002319741392_dp/evolt
+       sep%de               =  7.159002319741392_dp       /eV
        sep%nr               =  2
-       sep%acoul            =  16.22361790703965_dp/evolt
+       sep%acoul            =  16.22361790703965_dp       /eV
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)

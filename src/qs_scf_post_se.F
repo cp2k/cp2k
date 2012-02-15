@@ -47,6 +47,8 @@ MODULE qs_scf_post_se
   USE kinds,                           ONLY: dp
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
+  USE mulliken,                        ONLY: mulliken_charges,&
+                                             multipoles
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
@@ -92,6 +94,11 @@ MODULE qs_scf_post_se
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -194,7 +201,7 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, error)
+       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
 
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
@@ -567,7 +574,7 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, error)
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -576,22 +583,36 @@ CPSourceFileRef,&
       POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: print_level, unit_nr
-    LOGICAL                                  :: print_it
+    LOGICAL                                  :: print_it, scp_nddo
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: print_key
 
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(cp_dbcsr_type), POINTER             :: pscp
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(dft_control_type), POINTER          :: dft_control
+
     NULLIFY(particle_set)
     CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    local_particles=local_particles,&
                     particle_set=particle_set,&
+                    scp_env=scp_env,&
+                    dft_control=dft_control,&
                     error=error)
-    
+    scp_nddo = dft_control%qs_control%se_control%scp
+    IF (scp_nddo ) &
+    CALL get_scp_env(scp_env=scp_env, pscp=pscp, error=error)
     ! Compute the mulliken charges
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
@@ -606,6 +627,10 @@ CPSourceFileRef,&
        CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it,error=error)
        IF (print_it) print_level = 3
        CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
+       IF ( scp_nddo ) &
+       CALL multipoles(atomic_kind_set,particle_set,&
+         rho%rho_ao,pscp,matrix_s(1)%matrix,para_env,unit_nr,"DFT%PRINT%MULLIKEN",error=error)
+
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
     END IF
 

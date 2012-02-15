@@ -61,7 +61,7 @@ MODULE se_fock_matrix_exchange
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_exchange'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   
-  PUBLIC :: build_fock_matrix_exchange
+  PUBLIC :: build_fock_matrix_exchange, build_fock_matrix_ph
 
 CONTAINS
 
@@ -285,6 +285,160 @@ CONTAINS
     CALL timestop(handle)
     
   END SUBROUTINE build_fock_matrix_exchange
+
+  SUBROUTINE build_fock_matrix_ph(qs_env, ks_matrix, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_ph', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, &
+      irow, jatom, jkind, natom, natorb_a, nkind, nspins, &
+      stat
+    INTEGER, DIMENSION(2)                    :: size_p_block_a
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    LOGICAL                                  :: anag, check, defined, &
+                                                failure, found, switch
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(se_int_control_type)                :: se_int_control
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(semi_empirical_p_type), &
+      DIMENSION(:), POINTER                  :: se_kind_list
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+
+    INTEGER :: i,j,k
+    LOGICAL :: ifHi,ifHj
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+
+    NULLIFY(dft_control,particle_set,se_control)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+         para_env=para_env,error=error)
+
+    se_control => dft_control%qs_control%se_control
+    anag       =  se_control%analytical_gradients
+    nspins=dft_control%nspins
+
+    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+
+    IF ( .NOT. failure ) THEN
+
+       CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
+
+       nkind = SIZE(atomic_kind_set)
+
+     ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+        se_kind_list(ikind)%se_param => se_kind_a
+        CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
+        se_defined(ikind) = (defined .AND. natorb_a >= 1)
+     END DO
+
+     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom)
+        IF (.NOT.se_defined(ikind)) CYCLE
+        IF (.NOT.se_defined(jkind)) CYCLE
+        se_kind_a => se_kind_list(ikind)%se_param
+        se_kind_b => se_kind_list(jkind)%se_param
+
+        IF (iatom <= jatom) THEN
+           irow = iatom
+           icol = jatom
+           switch = .FALSE.
+        ELSE
+           irow = jatom
+           icol = iatom
+           switch = .TRUE.
+        END IF
+        ! Retrieve blocks for KS
+        CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
+             row=irow,col=icol,BLOCK=ks_block_a,found=found)
+        CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+
+                   ifHi= (atomic_kind_set(ikind)%element_symbol=='H ')
+                   ifHj= (atomic_kind_set(jkind)%element_symbol=='H ')
+
+                   if( (iatom == jatom).and. ifHi )then
+                     do k=2,4
+                       do i=1,k-1
+                         ks_block_a(i,k)= 0.0_dp
+                         ks_block_a(k,i)= 0.0_dp
+                       enddo
+                     enddo
+                   endif
+
+                   if( ifHi )then
+                     if( irow==iatom )then
+                       do k=2,4
+                         do i=1,4
+                           ks_block_a(k,i)= 0.0_dp
+                         enddo
+                       enddo
+                     else
+                       do k=2,4
+                         do i=1,4
+                           ks_block_a(i,k)= 0.0_dp
+                         enddo
+                       enddo
+                     endif
+                   endif
+
+                   if( ifHj )then
+                     if( irow==iatom )then
+                       do k=2,4
+                         do i=1,4
+                           ks_block_a(i,k)= 0.0_dp
+                         enddo
+                       enddo
+                     else
+                       do k=2,4
+                         do i=1,4
+                           ks_block_a(k,i)= 0.0_dp
+                         enddo
+                       enddo
+                     endif
+                   endif
+        
+        ! Handle more configurations
+        IF ( nspins == 2 ) THEN
+           CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
+                row=irow,col=icol,BLOCK=ks_block_b,found=found)
+           CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
+        END IF
+
+     END DO
+     CALL neighbor_list_iterator_release(nl_iterator)
+
+     DEALLOCATE(se_kind_list,se_defined,stat=stat)
+     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+    END IF
+
+    CALL timestop(handle)
+    
+  END SUBROUTINE build_fock_matrix_ph
   
 END MODULE se_fock_matrix_exchange
 

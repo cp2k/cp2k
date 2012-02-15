@@ -19,6 +19,7 @@ MODULE  scp_dispersion
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: do_se_IS_slater
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
@@ -142,7 +143,7 @@ CONTAINS
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
     CALL setup_se_int_control_type(se_int_control,do_ewald_r3=.FALSE.,&
-         do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
+         do_ewald_gks=.FALSE., integral_screening=do_se_IS_slater,&
          shortrange=.FALSE., max_multipole=se_control%max_multipole,&
          pc_coulomb_int=.FALSE.)
 
@@ -160,7 +161,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,scp_se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
        CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a,de=de_a)
        se_defined(ikind) = (defined .AND. natorb_a >= 1)

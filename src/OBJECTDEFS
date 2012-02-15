@@ -593,11 +593,14 @@ OBJECTS_GENERIC =\
  scp_density_methods.o\
  scp_diis_utils.o\
  scp_dispersion.o\
+ scp_delta_fock_matrix.o\
+ scp_density_methods.o\
  scp_energy.o\
  scp_energy_types.o\
  scp_environment.o\
  scp_environment_methods.o\
  scp_environment_types.o\
+ scp_fock_matrix_integrals.o\
  scp_force_types.o\
  scp_hartree_1center.o\
  scp_nddo_utils.o\

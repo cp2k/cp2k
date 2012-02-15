@@ -10,7 +10,6 @@
 !>      Joost VandeVondele [2006.03]         
 ! *****************************************************************************
 MODULE atomic_charges
-
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -26,7 +25,7 @@ MODULE atomic_charges
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_charges'
 
-  PUBLIC :: print_atomic_charges
+  PUBLIC :: print_atomic_charges, print_multipoles
 
 CONTAINS
 
@@ -105,5 +104,59 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE print_atomic_charges
+
+! *****************************************************************************
+  SUBROUTINE print_multipoles(particle_set, scr, title, charge, dipole, quadrupole)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER                                  :: scr
+    CHARACTER(LEN=*)                         :: title
+    REAL(KIND=dp), DIMENSION(:),    OPTIONAL  :: charge
+    REAL(KIND=dp), DIMENSION(:,:),  OPTIONAL  :: dipole
+    REAL(KIND=dp), DIMENSION(:,:,:),OPTIONAL  :: quadrupole
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_multipoles', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: handle, iatom, natom
+    REAL(KIND=dp)                            :: zeff
+
+    INTEGER                                  :: i
+
+    CALL timeset(routineN,handle)
+    
+    natom=0
+    IF (PRESENT(charge)) THEN
+      natom=SIZE(charge)
+    ENDIF
+
+    IF (scr>0) THEN
+
+       WRITE(scr,'(T2,A)') 'multipoles:'
+
+       DO iatom=1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             element_symbol=element_symbol, zeff=zeff)
+
+          WRITE(scr,'(a,i5)') ' iatom= ',iatom
+          WRITE(scr,'(a,a2)') ' element_symbol= ',element_symbol
+          WRITE(scr,'(a,f20.10)') ' zeff= ',zeff
+
+          WRITE(scr,'(a, f20.10)') 'charge =     ',charge(iatom)
+          WRITE(scr,'(a,3f20.10)') 'dipole =     ',dipole(:,iatom)
+          WRITE(scr,'(a)') 'quadrupole = '
+          do i=1,3
+            WRITE(scr,'(3f20.10)') quadrupole(i,:,iatom)
+          enddo
+
+       ENDDO
+       WRITE(scr,'(A)') ""
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE print_multipoles
 
 END MODULE atomic_charges

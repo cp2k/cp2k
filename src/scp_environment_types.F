@@ -23,6 +23,8 @@ MODULE scp_environment_types
   USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type,&
                                              qs_ks_scp_release,&
                                              qs_ks_scp_retain
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
+                                             semi_empirical_si_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_release,&
                                              aux_coeff_set_retain,&
                                              aux_coeff_set_type
@@ -51,7 +53,8 @@ MODULE scp_environment_types
     REAL ( dp )                                           :: eps_gvg_rspace, &
                                                              eps_rho_rspace
 ! FOR NDDO
-    TYPE ( cp_dbcsr_type ), POINTER                    :: pscp, ks_scp
+    TYPE ( cp_dbcsr_type ), POINTER                       :: pscp, ks_scp
+    TYPE (semi_empirical_si_type), POINTER                :: se_store_int_env
     REAL ( dp ), POINTER                                  :: ascp_diag ( : )
 ! FOR DFT
     TYPE ( aux_coeff_set_type ), POINTER                  :: aux_coeff_set
@@ -84,7 +87,7 @@ CONTAINS
   SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, force, input,&
                           rho_scp, rspw, para_env, blacs_env, ks_scp_env, & 
                           eps_gvg_rspace, eps_rho_rspace, &
-                          pscp, ks_scp, ascp_diag, error)
+                          pscp, ks_scp, ascp_diag, se_store_int_env,error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -103,6 +106,8 @@ CONTAINS
       POINTER                                :: ks_scp_env
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
+    TYPE (semi_empirical_si_type), OPTIONAL,&
+      POINTER                                :: se_store_int_env
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -128,6 +133,7 @@ CONTAINS
     IF (PRESENT( pscp )) pscp => scp_env%pscp
     IF (PRESENT( ks_scp )) ks_scp => scp_env%ks_scp
     IF (PRESENT( ascp_diag )) ascp_diag => scp_env%ascp_diag
+    IF (PRESENT( se_store_int_env )) se_store_int_env => scp_env%se_store_int_env
 
   END SUBROUTINE get_scp_env
 
@@ -153,6 +159,7 @@ CONTAINS
     NULLIFY (scp_env%pscp)
     NULLIFY (scp_env%ks_scp)
     NULLIFY (scp_env%ascp_diag)
+    NULLIFY (scp_env%se_store_int_env)
 
     scp_env%ref_count=1
     last_scp_env_id_nr=last_scp_env_id_nr+1
@@ -167,7 +174,7 @@ CONTAINS
   SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, ks_scp_env,&
                           input, rho_scp, rspw, para_env, blacs_env, &
                           eps_gvg_rspace, eps_rho_rspace, &
-                          ascp_diag, pscp, ks_scp, error)
+                          ascp_diag, pscp, ks_scp, se_store_int_env,error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -185,6 +192,8 @@ CONTAINS
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
+    TYPE (semi_empirical_si_type), OPTIONAL,&
+      POINTER                                :: se_store_int_env
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -249,6 +258,10 @@ CONTAINS
     IF (PRESENT(ascp_diag)) THEN
        scp_env%ascp_diag => ascp_diag
     ENDIF
+    IF (PRESENT(se_store_int_env)) THEN
+       CALL semi_empirical_si_release(scp_env%se_store_int_env,error=error)
+       scp_env%se_store_int_env => se_store_int_env
+    END IF
 
   END SUBROUTINE set_scp_env
 
@@ -344,6 +357,9 @@ SUBROUTINE scp_env_release(scp_env,error)
         CALL section_vals_release(scp_env%input,error=error)
         CALL cp_para_env_release(scp_env%para_env,error=error)
         CALL cp_blacs_env_release(scp_env%blacs_env, error=error)
+        IF (ASSOCIATED(scp_env%se_store_int_env)) THEN
+           CALL semi_empirical_si_release(scp_env%se_store_int_env, error)
+        END IF
         DEALLOCATE(scp_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

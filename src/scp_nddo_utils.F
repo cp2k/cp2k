@@ -13,7 +13,7 @@ MODULE scp_nddo_utils
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_get_diag,&
                                              cp_dbcsr_get_info,&
-                                             cp_dbcsr_set_diag
+                                             cp_dbcsr_set_diag, cp_dbcsr_print
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -67,9 +67,11 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     escp = 0.0_dp
 
+!    WRITE ( *, * ) 'XXXXXXXXX'
+!    CALL cp_dbcsr_print ( ks_scp, matlab_format=.TRUE., error=error )
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind, atom_list=atom_list)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,scp_se_parameter=se_kind, atom_list=atom_list)
        CALL get_se_param(se_kind, ass=ass, app=app, asp=asp, natorb=natorb)
        IF (natorb>4) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -118,6 +120,7 @@ CONTAINS
       DO ii = 1, n_el
          ksdiag ( ii ) = ksdiag ( ii ) - ascp_diag ( ii ) * ratio 
       END DO
+!      CALL cp_dbcsr_print ( ks_scp, matlab_format=.TRUE., error=error )
       CALL cp_dbcsr_set_diag ( ks_scp, ksdiag, error=error )
       DEALLOCATE (ksdiag,STAT=stat)
       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
