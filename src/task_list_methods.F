@@ -2291,7 +2291,7 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
 !$omp end do
     
   ! Distribute work over remaining threads assuming one is still in the alltoall
-!$omp do schedule(dynamic,send_pair_count(me)/nthread_left)
+!$omp do schedule(dynamic,MAX(1,send_pair_count(me)/nthread_left))
     DO i = 1, send_pair_count(me)
      pair = MOD(atom_pair_send(send_pair_disps(me)+i),natom8**2)
 
