@@ -21,15 +21,17 @@ MODULE se_fock_matrix_coulomb
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
-       cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_distribute,&
+                                             cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_replicate_all,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_sum_replicated
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -124,8 +126,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, &
-                                                switch, use_virial
+                                                failure, found, switch, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
     REAL(KIND=dp), DIMENSION(2)              :: ecab
@@ -133,8 +135,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
-      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, &
-      pb_block_b
+      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -507,8 +508,7 @@ CONTAINS
       nlocal_particles, node, nparticle_local, nspins, size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
-                                                failure, found, scp_nddo, &
-                                                use_virial
+                                                failure, found, use_virial
     LOGICAL, DIMENSION(3)                    :: task
     REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
                                                 energy_local, enuc, fac, tmp
@@ -886,8 +886,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, &
-                                                switch, use_virial
+                                                failure, found, switch, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp) :: delta, dr1, ecore2, enuc, enuclear, ptens11, ptens12, &
       ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33

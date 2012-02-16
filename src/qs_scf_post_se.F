@@ -35,6 +35,7 @@ MODULE qs_scf_post_se
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all
@@ -47,8 +48,7 @@ MODULE qs_scf_post_se
   USE kinds,                           ONLY: dp
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
-  USE mulliken,                        ONLY: mulliken_charges,&
-                                             multipoles
+  USE mulliken,                        ONLY: multipoles
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
@@ -92,13 +92,10 @@ MODULE qs_scf_post_se
                                              qs_scf_post_unocc_cubes
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -591,16 +588,15 @@ CPSourceFileRef,&
 
     INTEGER                                  :: print_level, unit_nr
     LOGICAL                                  :: print_it, scp_nddo
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: print_key
-
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cp_dbcsr_type), POINTER             :: pscp
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(particle_set)
     CALL get_qs_env(qs_env=qs_env,&

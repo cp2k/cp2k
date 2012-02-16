@@ -112,18 +112,17 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
-    REAL(KIND=dp), DIMENSION(:),    OPTIONAL  :: charge
-    REAL(KIND=dp), DIMENSION(:,:),  OPTIONAL  :: dipole
-    REAL(KIND=dp), DIMENSION(:,:,:),OPTIONAL  :: quadrupole
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: charge
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: dipole
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL                               :: quadrupole
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_multipoles', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: handle, iatom, natom
+    INTEGER                                  :: handle, i, iatom, natom
     REAL(KIND=dp)                            :: zeff
-
-    INTEGER                                  :: i
 
     CALL timeset(routineN,handle)
     
@@ -147,9 +146,9 @@ CONTAINS
           WRITE(scr,'(a, f20.10)') 'charge =     ',charge(iatom)
           WRITE(scr,'(a,3f20.10)') 'dipole =     ',dipole(:,iatom)
           WRITE(scr,'(a)') 'quadrupole = '
-          do i=1,3
+          DO i=1,3
             WRITE(scr,'(3f20.10)') quadrupole(i,:,iatom)
-          enddo
+          ENDDO
 
        ENDDO
        WRITE(scr,'(A)') ""

@@ -23,8 +23,6 @@ MODULE scp_environment_types
   USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type,&
                                              qs_ks_scp_release,&
                                              qs_ks_scp_retain
-  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
-                                             semi_empirical_si_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_release,&
                                              aux_coeff_set_retain,&
                                              aux_coeff_set_type
@@ -38,6 +36,8 @@ MODULE scp_environment_types
   USE scp_rspw_types,                  ONLY: scp_rspw_release,&
                                              scp_rspw_retain,&
                                              scp_rspw_type
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
+                                             semi_empirical_si_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -106,9 +106,9 @@ CONTAINS
       POINTER                                :: ks_scp_env
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
-    TYPE (semi_empirical_si_type), OPTIONAL,&
-      POINTER                                :: se_store_int_env
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
+    TYPE(semi_empirical_si_type), OPTIONAL, &
+      POINTER                                :: se_store_int_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_scp_env', &
@@ -192,10 +192,10 @@ CONTAINS
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
-    TYPE (semi_empirical_si_type), OPTIONAL,&
-      POINTER                                :: se_store_int_env
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
+    TYPE(semi_empirical_si_type), OPTIONAL, &
+      POINTER                                :: se_store_int_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_scp_env', &

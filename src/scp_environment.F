@@ -30,22 +30,18 @@ MODULE scp_environment
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE external_potential_types,        ONLY: init_potential
   USE f77_blas
-  USE semi_empirical_utils,            ONLY: init_se_param,&
-                                             se_param_set_default
-  USE input_constants,                 ONLY: do_method_pnnl, use_scp_basis_set
+  USE input_constants,                 ONLY: do_method_pnnl,&
+                                             use_scp_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type, &
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE periodic_table,                  ONLY: get_ptable_info
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE periodic_table,                  ONLY: get_ptable_info
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
-                                             semi_empirical_si_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_create,&
                                              aux_coeff_set_initialize,&
                                              aux_coeff_set_release,&
@@ -58,9 +54,13 @@ MODULE scp_environment
   USE scp_force_types,                 ONLY: allocate_scp_force,&
                                              init_scp_force,&
                                              scp_force_type
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
+                                             semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_type
+  USE semi_empirical_utils,            ONLY: init_se_param,&
+                                             se_param_set_default
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -98,7 +98,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(scp_energy_type), POINTER           :: energy
-    TYPE(scp_force_type), POINTER            :: force ( : )
+    TYPE(scp_force_type), POINTER            :: force( : )
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
@@ -166,13 +166,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iatom, ii, ikind, ilist, jj, natom, natorb, &
-      neighbor_list_id, nkind, nrow, nsgf_a, nsgf_b, stat, z, ngauss
+      neighbor_list_id, ngauss, nkind, nrow, nsgf_a, nsgf_b, stat, z
     INTEGER, ALLOCATABLE                     :: first_sgf_a( : ), &
                                                 first_sgf_b( : ), &
                                                 last_sgf_a( : ), &
                                                 last_sgf_b( : )
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cbs, rbs
-    LOGICAL                                  :: failure, check
+    LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: app, asp, ass, zeff_correction
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
@@ -187,9 +187,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scp_energy_type), POINTER           :: energy
-    TYPE(semi_empirical_type), POINTER       :: se_kind
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                qs_section, se_section
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
-    TYPE(section_vals_type), POINTER         :: dft_section, input, se_section, qs_section
+    TYPE(semi_empirical_type), POINTER       :: se_kind
 
     CALL timeset(routineN,handle)
 

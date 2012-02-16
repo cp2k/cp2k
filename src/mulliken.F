@@ -11,6 +11,8 @@
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges,&
                                              print_multipoles
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_get_info,&
@@ -26,18 +28,13 @@ MODULE mulliken
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
+  USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             get_se_param
-  USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
-  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -485,29 +482,24 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
-    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
-    REAL(KIND=dp), DIMENSION(:),    POINTER  :: charge
-    REAL(KIND=dp), DIMENSION(:,:),  POINTER  :: dipole
-    REAL(KIND=dp), DIMENSION(:,:,:),POINTER  :: quadrupole
+    TYPE(cp_dbcsr_type), POINTER             :: pscp, s_matrix
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipole
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: quadrupole
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    INTEGER                                  :: blk, iblock_col, iblock_row, &
-                                                ispin, nblock, nspin
-    LOGICAL                                  :: found
-    REAL(kind=dp)                            :: mult
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block, pscp_block
-    TYPE(cp_dbcsr_iterator)                  :: iter
-
-    INTEGER                                  :: iatom
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
-    INTEGER                                  :: natorb_a, &
-                                                size_1c_int,jint,indi,indj
-    LOGICAL                                  :: defined
-    TYPE(semi_empirical_type), POINTER       :: se_kind_a
+    INTEGER                                  :: blk, iatom, iblock_col, &
+                                                iblock_row, indi, indj, &
+                                                ispin, jint, natorb_a, &
+                                                nblock, nspin, size_1c_int
+    LOGICAL                                  :: defined, found
     REAL(kind=dp)                            :: fac
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pscp_block, s_block
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a
 
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
@@ -580,8 +572,7 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
-    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: pscp, s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
@@ -591,10 +582,10 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nblock, nspin
-
-    REAL(KIND=dp), DIMENSION(:),    POINTER  :: charge
-    REAL(KIND=dp), DIMENSION(:,:),  POINTER  :: dipole
-    REAL(KIND=dp), DIMENSION(:,:,:),POINTER  :: quadrupole
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipole
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: quadrupole
 
     CALL timeset(routineN,handle)
 
@@ -630,12 +621,12 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
-    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: pscp, s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dp), DIMENSION(:),    POINTER  :: mcharge
-    REAL(KIND=dp), DIMENSION(:,:),  POINTER  :: mdipole
-    REAL(KIND=dp), DIMENSION(:,:,:),POINTER  :: mquadrupole
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mdipole
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: mquadrupole
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'multipoles_b', &

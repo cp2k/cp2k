@@ -428,9 +428,7 @@ CONTAINS
     TYPE(gth_potential_type), OPTIONAL, &
       POINTER                                :: gth_potential
     TYPE(semi_empirical_type), OPTIONAL, &
-      POINTER                                :: se_parameter
-    TYPE(semi_empirical_type), OPTIONAL, &
-      POINTER                                :: scp_se_parameter
+      POINTER                                :: se_parameter, scp_se_parameter
     TYPE(qs_dftb_atom_type), OPTIONAL, &
       POINTER                                :: dftb_parameter
     TYPE(scptb_parameter_type), OPTIONAL, &
@@ -438,8 +436,7 @@ CONTAINS
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: aux_basis_set, &
                                                 aux_fit_basis_set, &
-                                                orb_basis_set, &
-                                                scp_basis_set
+                                                orb_basis_set, scp_basis_set
     TYPE(geminal_basis_set_type), OPTIONAL, &
       POINTER                                :: geminal_basis_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
@@ -895,8 +892,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
                                                 aux_fit_basis_set, &
-                                                orb_basis_set, &
-                                                scp_basis_set, &
+                                                orb_basis_set, scp_basis_set, &
                                                 soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter

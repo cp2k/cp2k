@@ -296,13 +296,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_ph', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, &
-      irow, jatom, jkind, natom, natorb_a, nkind, nspins, &
-      stat
-    INTEGER, DIMENSION(2)                    :: size_p_block_a
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, check, defined, &
-                                                failure, found, switch
+    INTEGER                                  :: handle, i, iatom, icol, &
+                                                ikind, irow, jatom, jkind, k, &
+                                                natorb_a, nkind, nspins, stat
+    LOGICAL                                  :: anag, defined, failure, &
+                                                found, ifHi, ifHj, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -314,22 +312,16 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(se_int_control_type)                :: se_int_control
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
       DIMENSION(:), POINTER                  :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
-    INTEGER :: i,j,k
-    LOGICAL :: ifHi,ifHj
-
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(dft_control,particle_set,se_control)
+    NULLIFY(dft_control, se_control)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
          para_env=para_env,error=error)
 
@@ -380,46 +372,46 @@ CONTAINS
                    ifHi= (atomic_kind_set(ikind)%element_symbol=='H ')
                    ifHj= (atomic_kind_set(jkind)%element_symbol=='H ')
 
-                   if( (iatom == jatom).and. ifHi )then
-                     do k=2,4
-                       do i=1,k-1
+                   IF( (iatom == jatom).AND. ifHi )THEN
+                     DO k=2,4
+                       DO i=1,k-1
                          ks_block_a(i,k)= 0.0_dp
                          ks_block_a(k,i)= 0.0_dp
-                       enddo
-                     enddo
-                   endif
+                       ENDDO
+                     ENDDO
+                   ENDIF
 
-                   if( ifHi )then
-                     if( irow==iatom )then
-                       do k=2,4
-                         do i=1,4
+                   IF( ifHi )THEN
+                     IF( irow==iatom )THEN
+                       DO k=2,4
+                         DO i=1,4
                            ks_block_a(k,i)= 0.0_dp
-                         enddo
-                       enddo
-                     else
-                       do k=2,4
-                         do i=1,4
+                         ENDDO
+                       ENDDO
+                     ELSE
+                       DO k=2,4
+                         DO i=1,4
                            ks_block_a(i,k)= 0.0_dp
-                         enddo
-                       enddo
-                     endif
-                   endif
+                         ENDDO
+                       ENDDO
+                     ENDIF
+                   ENDIF
 
-                   if( ifHj )then
-                     if( irow==iatom )then
-                       do k=2,4
-                         do i=1,4
+                   IF( ifHj )THEN
+                     IF( irow==iatom )THEN
+                       DO k=2,4
+                         DO i=1,4
                            ks_block_a(i,k)= 0.0_dp
-                         enddo
-                       enddo
-                     else
-                       do k=2,4
-                         do i=1,4
+                         ENDDO
+                       ENDDO
+                     ELSE
+                       DO k=2,4
+                         DO i=1,4
                            ks_block_a(k,i)= 0.0_dp
-                         enddo
-                       enddo
-                     endif
-                   endif
+                         ENDDO
+                       ENDDO
+                     ENDIF
+                   ENDIF
         
         ! Handle more configurations
         IF ( nspins == 2 ) THEN

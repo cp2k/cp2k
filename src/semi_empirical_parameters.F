@@ -48,9 +48,9 @@ MODULE semi_empirical_parameters
                                              do_method_rm1
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: evolt,&
-                                             kcalmol,&
-                                             angstrom
+  USE physcon,                         ONLY: angstrom,&
+                                             evolt,&
+                                             kcalmol
   USE semi_empirical_par_utils,        ONLY: calpar,&
                                              convert_param_to_cp2k,&
                                              valence_electrons
@@ -705,9 +705,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pnnl_default_parameter', &
       routineP = moduleN//':'//routineN
-
-    REAL(KIND=dp), PARAMETER :: eV  = 27.21_dp
-    REAL(KIND=dp), PARAMETER :: Ang = 0.529167_dp
+    REAL(KIND=dp), PARAMETER                 :: Ang = 0.529167_dp, &
+                                                eV = 27.21_dp
 
     sep%typ    = do_method_pnnl
     sep%name   = ptable(z)%name

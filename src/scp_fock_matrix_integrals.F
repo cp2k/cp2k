@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE scp_fock_matrix_integrals
   USE f77_blas
-  USE input_constants,                  ONLY: do_se_IS_slater
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: drotint,&
@@ -27,7 +26,7 @@ MODULE scp_fock_matrix_integrals
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_integrals'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_fock_matrix_integrals'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   
   PUBLIC :: scp_1el, dscp_1el, scp_1el_ew, scp2C_ew, scp2C, dscp2C
@@ -60,7 +59,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_1el', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
@@ -136,7 +135,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: delta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dfock2_1el', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dscp_1el', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
@@ -213,7 +212,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el_ew', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_1el_ew', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L, n

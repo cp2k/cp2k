@@ -21,8 +21,7 @@ MODULE se_fock_matrix
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_multiply,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_trace, cp_dbcsr_print
+                                             cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -56,8 +55,7 @@ MODULE se_fock_matrix
                                              build_fock_matrix_coulomb,&
                                              build_fock_matrix_coulomb_lr
   USE se_fock_matrix_dbg,              ONLY: dbg_energy_coulomb_lr
-  USE se_fock_matrix_exchange,         ONLY: build_fock_matrix_exchange,&
-                                             build_fock_matrix_ph
+  USE se_fock_matrix_exchange,         ONLY: build_fock_matrix_exchange
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
@@ -101,13 +99,13 @@ CONTAINS
                                                 ncol_global, nspins, &
                                                 output_unit
     LOGICAL                                  :: failure, scp_nddo
-    REAL(KIND=dp)                            :: ecoul,  qmmm_el
+    REAL(KIND=dp)                            :: ecoul, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, mo_derivs
-    TYPE(cp_dbcsr_type), POINTER             ::  mo_coeff
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -120,8 +118,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
-    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(semi_empirical_si_type), POINTER    :: scp_store_int_env
+    TYPE(semi_empirical_si_type), POINTER    :: scp_store_int_env, &
+                                                store_int_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)

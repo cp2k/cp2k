@@ -22,31 +22,25 @@ MODULE scp_delta_fock_matrix
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, cp_dbcsr_print, &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
        cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated,&
+       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated, &
        cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
   USE f77_blas
-  USE fist_neighbor_list_control,      ONLY: list_control
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE input_constants,                 ONLY: &
-       do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
-       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_multipole_charge, do_multipole_dipole, &
-       do_multipole_none, do_multipole_quadrupole, do_se_IS_slater
+       do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
+       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
+       do_se_IS_slater
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -64,14 +58,14 @@ MODULE scp_delta_fock_matrix
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type,&
                                              set_scp_env
-  USE scp_nddo_utils,                   ONLY: evaluate_scp_force
-  USE scp_fock_matrix_integrals,        ONLY: &
-       dscp2C, dscp_1el, scp2C, scp2C_ew, &
-       scp_1el, scp_1el_ew
-  USE semi_empirical_int_arrays,       ONLY: rij_threshold,&
-                                             se_orbital_pointer
-  USE semi_empirical_integrals,        ONLY: corecore_el,&
-                                             dcorecore_el
+  USE scp_fock_matrix_integrals,       ONLY: dscp2C,&
+                                             dscp_1el,&
+                                             scp2C,&
+                                             scp2C_ew,&
+                                             scp_1el,&
+                                             scp_1el_ew
+  USE scp_nddo_utils,                  ONLY: evaluate_scp_force
+  USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              se_int_control_type,&
@@ -113,39 +107,42 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_delta_fock_matrix_coulomb', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_delta_fock_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, &
       jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, &
-      nspins, stat, output_unit, ii, jj
+      nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                failure, found, scp_nddo, &
-                                                switch, use_virial
+                                                failure, found, switch, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
-    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores, ecoul_scp, ecoul1
-    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b, pscpa, pscpb
+    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores, &
+                                                ecoul_scp
+    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pb_a, pscpa, pscpb
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
-    REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b, pscp_block_tot_a, pscp_block_tot_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
-      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, &
-      pb_block_b, pscpa_block, pscpb_block, k_scpa_block, k_scpb_block, &
-      delta_ksa_block, delta_ksb_block, delta_ksa_tmp, delta_ksb_tmp, &
-      ptmp_a_block, ptmp_b_block, ktmp_a_block, ktmp_b_block
-    REAL(KIND=dp), DIMENSION(:), POINTER :: ascp_diag 
+    REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b, &
+                                                pscp_block_tot_a, &
+                                                pscp_block_tot_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ascp_diag
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: delta_ksa_block, &
+      delta_ksa_tmp, delta_ksb_block, delta_ksb_tmp, k_scpa_block, &
+      k_scpb_block, ksa_block_a, ksb_block_a, ktmp_a_block, ktmp_b_block, &
+      pa_block_a, pb_block_a, pscpa_block, pscpb_block, ptmp_a_block, &
+      ptmp_b_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
-    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp, delta_ks, delta_ks_tmp, pmat_loc, kmat_loc
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_dbcsr_type), POINTER             :: delta_ks, delta_ks_tmp, &
+                                                kmat_loc, ks_scp, pmat_loc, &
+                                                pscp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_iterator_p_type), &
@@ -156,6 +153,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -550,7 +548,7 @@ CONTAINS
        CALL cp_dbcsr_add ( ks_scp, delta_ks, 1.0_dp, 1.0_dp, error )
        ! ecoul_scp = p C (P + p + Z)
        CALL cp_dbcsr_trace ( ks_scp, pscp, trace=ecoul_scp, local_sum=.TRUE., error=error )
-       call mp_sum(ecore2,para_env%group)
+       CALL mp_sum(ecore2,para_env%group)
        energy_scp%e_scp_hartree = ecoul_scp + ecore2
        energy_scp%e_scp_hartree = 0.5_dp * energy_scp%e_scp_hartree 
        CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
