@@ -25,9 +25,9 @@ data_type=1
 # and allow some flexibility in reordering floating point expressions (-ffast-math).
 # Higher level optimisation (in particular loop nest optimization) should not be used.
 #
-target_compile=gfortran -O2 -funroll-loops -ffast-math -ftree-vectorize -march=native -fno-inline-functions
-target_shared_compile=$(target_compile) -fPIC
-
+FC ?= gfortran
+FCFLAGS ?= -O2 -funroll-loops -ffast-math -ftree-vectorize -march=native -fno-inline-functions
+target_compile= $(FC) $(FCFLAGS)
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)
 # blas is used as a fall back option for sizes not included in the library or in those cases where it is faster
@@ -58,11 +58,11 @@ dims_tiny=1 2 3 4 5 6 7 8 9 10 11 12
 # host compiler... this is used only to compile a few tools needed to build the library. The library itself is not compiled this way.
 # This compiler needs to be able to deal with some Fortran2003 constructs.
 #
-host_compile=gfortran
+host_compile=$(FC)
 
 #
 # number of processes to use in parallel for compiling / building and benchmarking the library.
 # Should *not* be more than the physical (available) number of cores of the machine
 #
-tasks=16
+tasks?=16
 

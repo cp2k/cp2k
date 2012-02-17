@@ -1,7 +1,3 @@
-# This makefile was generated from the installation scripts.
-# It allows resuming interrupted builds.
-# (C) 2012 Urban Borstnik under the terms specified in the COPYRIGHT file.
-
 # Builds the SMM library in 5 steps:
 # 1. Builds programs to test tiny MM performance.
 # 2. Runs programs to test tiny MM performance.
