@@ -1712,7 +1712,7 @@ CONTAINS
        ENDDO
        !$OMP END MASTER
     ENDIF
-    !$BARRIER
+    !$OMP BARRIER
     !$OMP MASTER
     DEALLOCATE (all_row_p)
     DEALLOCATE (all_col_i)
