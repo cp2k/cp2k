@@ -15,6 +15,8 @@ How to generate the library (on a computer that allows for both execution and co
 
 2) Run the master script ./do_all
 
+(Alternatively, edit config.mk and run the Makefile through GNU make.)
+
 3) the library is generated, check test_smm_*.out for performance, and correctness.
 
 4) Intermediate files (but not some key output and the library itself) might be removed using ./do_clean
