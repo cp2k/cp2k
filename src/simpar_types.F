@@ -73,6 +73,13 @@ MODULE simpar_types
      LOGICAL        :: temperature_per_kind
      LOGICAL        :: scale_temperature_per_kind
      LOGICAL        :: do_thermal_region
+! cjm
+     ! ADIABATIC parameters
+     REAL (KIND=dp) :: temp_slow
+     REAL (KIND=dp) :: temp_fast
+     REAL (KIND=dp) :: temp_tol_fast, temp_tol_slow
+     INTEGER :: n_resp_fast
+! cjm
   END TYPE simpar_type
 
 

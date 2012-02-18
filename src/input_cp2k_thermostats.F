@@ -41,6 +41,8 @@ MODULE input_cp2k_thermostats
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_thermostats'
 
 PUBLIC :: create_thermostat_section,&
+          create_thermo_fast_section,&
+          create_thermo_slow_section,&
           create_coord_section,&
           create_region_section,&
           create_velocity_section,&
@@ -49,6 +51,180 @@ PUBLIC :: create_thermostat_section,&
 
 !***
 CONTAINS
+! *****************************************************************************
+!> \brief Specifies parameter for thermostat for constant temperature ensembles
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
+  SUBROUTINE create_thermo_slow_section(section, coupled_thermostat, error)
+    TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN), OPTIONAL            :: coupled_thermostat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_slow_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_coupled_thermostat
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: csvr_section, gle_section, &
+                                                nose_section, region_section, &
+                                                subsection
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       my_coupled_thermostat = .FALSE.
+       IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
+       NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
+       
+       CALL section_create(section,name="THERMOSTAT_SLOW",&
+            description="Specify thermostat type and parameters controlling the thermostat.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
+            error=error)
+       NULLIFY(keyword)       
+
+       IF (.NOT.my_coupled_thermostat) THEN
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify the thermostat used for the constant temperature ensembles.",&
+               usage="thermostat NOSE",&
+               default_i_val=do_thermo_nose,&
+               enum_c_vals=s2a("NOSE"),&
+               enum_i_vals=(/do_thermo_nose/),&
+               enum_desc=s2a("Uses only the Nose-Hoover thermostat."),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="REGION",&
+               description="Determines the defined region for slow thermostat",&
+               usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
+               enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"),&
+               enum_i_vals=(/do_region_global, do_region_molecule,&
+                             do_region_massive, do_region_defined, do_region_none/),&
+                             default_i_val=do_region_global,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL create_region_section(region_section,"slow thermostat",error=error)
+          CALL section_add_subsection(section, region_section, error=error)
+          CALL section_release(region_section,error=error)
+       ELSE
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify the thermostat used for the constant temperature ensembles.",&
+               usage="thermostat NOSE",&
+               default_i_val=do_thermo_same_as_part,&
+               enum_c_vals=s2a("SAME_AS_PARTICLE","NOSE","CSVR"),&
+               enum_i_vals=(/do_thermo_same_as_part,do_thermo_nose,do_thermo_csvr/),&
+               enum_desc=s2a("Use the same kind of thermostat used for particles.",&
+                             "Uses the Nose-Hoover thermostat.",&
+                             "Uses the canonical sampling through velocity rescaling."),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
+
+       CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
+       CALL section_add_subsection(section, nose_section, error=error)
+       CALL section_release(nose_section,error=error)
+       
+       ! Print Section
+!       CALL create_print_section(subsection, error=error)
+!       CALL section_add_subsection(section, subsection, error=error)
+!       CALL section_release(subsection,error=error)
+                                             
+    END IF
+  END SUBROUTINE create_thermo_slow_section
+
+! *****************************************************************************
+!> \brief Specifies parameter for thermostat for constant temperature ensembles
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
+  SUBROUTINE create_thermo_fast_section(section, coupled_thermostat, error)
+    TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN), OPTIONAL            :: coupled_thermostat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_fast_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_coupled_thermostat
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: csvr_section, gle_section, &
+                                                nose_section, region_section, &
+                                                subsection
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       my_coupled_thermostat = .FALSE.
+       IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
+       NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
+       
+       CALL section_create(section,name="THERMOSTAT_FAST",&
+            description="Specify thermostat type and parameters controlling the thermostat.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
+            error=error)
+       NULLIFY(keyword)       
+
+       IF (.NOT.my_coupled_thermostat) THEN
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify the thermostat used for the constant temperature ensembles.",&
+               usage="thermostat NOSE",&
+               default_i_val=do_thermo_nose,&
+               enum_c_vals=s2a("NOSE"),&
+               enum_i_vals=(/do_thermo_nose/),&
+               enum_desc=s2a("Uses only the Nose-Hoover thermostat."),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="REGION",&
+               description="Determines the defined region for fast thermostat",&
+               usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
+               enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"),&
+               enum_i_vals=(/do_region_global, do_region_molecule,&
+                             do_region_massive, do_region_defined, do_region_none/),&
+                             default_i_val=do_region_global,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL create_region_section(region_section,"fast thermostat",error=error)
+          CALL section_add_subsection(section, region_section, error=error)
+          CALL section_release(region_section,error=error)
+       ELSE
+          CALL keyword_create(keyword, name="TYPE",&
+               description="Specify the thermostat used for the constant temperature ensembles.",&
+               usage="thermostat NOSE",&
+               default_i_val=do_thermo_same_as_part,&
+               enum_c_vals=s2a("SAME_AS_PARTICLE","NOSE","CSVR"),&
+               enum_i_vals=(/do_thermo_same_as_part,do_thermo_nose,do_thermo_csvr/),&
+               enum_desc=s2a("Use the same kind of thermostat used for particles.",&
+                             "Uses the Nose-Hoover thermostat.",&
+                             "Uses the canonical sampling through velocity rescaling."),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
+
+       CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
+       CALL section_add_subsection(section, nose_section, error=error)
+       CALL section_release(nose_section,error=error)
+       
+       ! Print Section
+!       CALL create_print_section(subsection, error=error)
+!       CALL section_add_subsection(section, subsection, error=error)
+!       CALL section_release(subsection,error=error)
+                                             
+    END IF
+  END SUBROUTINE create_thermo_fast_section
+
 
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles

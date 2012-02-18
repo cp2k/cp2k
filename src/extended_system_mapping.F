@@ -23,7 +23,7 @@ MODULE extended_system_mapping
        do_thermo_only_master, isokin_ensemble, langevin_ensemble, &
        npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble
+       nvt_ensemble, reftraj_ensemble, nvt_adiabatic_ensemble
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -32,7 +32,8 @@ MODULE extended_system_mapping
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_mapping,              ONLY: init_baro_map_info,&
-                                             thermostat_mapping_region
+                                             thermostat_mapping_region,&
+                                             adiabatic_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -45,7 +46,8 @@ MODULE extended_system_mapping
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_mapping'
 
   PUBLIC :: nhc_to_particle_mapping, nhc_to_barostat_mapping, &
-            nhc_to_shell_mapping
+            nhc_to_shell_mapping, nhc_to_particle_mapping_fast, &
+            nhc_to_particle_mapping_slow
 
 CONTAINS
 
@@ -219,6 +221,257 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE nhc_to_particle_mapping
+
+! *****************************************************************************
+!> \brief Main general setup for Adiabatic Nose-Hoover thermostats
+!> \author CJM -PNNL -2011
+! *****************************************************************************
+  SUBROUTINE setup_adiabatic_thermostat ( nhc, thermostat_info, deg_of_freedom,&
+       massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
+       para_env, natoms_local, simpar, sum_of_thermostats, gci, shell, error)
+
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
+                                                massive_atom_list
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set(:)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(OUT)                     :: natoms_local
+    TYPE(simpar_type), POINTER               :: simpar
+    INTEGER, INTENT(OUT)                     :: sum_of_thermostats
+    TYPE(global_constraint_type), POINTER    :: gci
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_adiabatic_thermostat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nkind, number, &
+                                                region, stat
+    LOGICAL                                  :: do_shell, failure
+    TYPE(map_info_type), POINTER             :: map_info
+
+    CALL timeset(routineN,handle)
+
+    failure  = .FALSE.
+    do_shell = .FALSE.
+    IF (PRESENT(shell)) do_shell = shell
+    map_info    => nhc%map_info
+    
+    nkind = SIZE(molecule_kind_set)
+    sum_of_thermostats = thermostat_info%sum_of_thermostats
+    map_info%dis_type  = thermostat_info%dis_type
+    number             = thermostat_info%number_of_thermostats
+    region             = nhc%region
+
+    CALL adiabatic_mapping_region(map_info, deg_of_freedom, massive_atom_list,&
+       molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
+       simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
+       sum_of_thermostats, error)
+    ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Now that we know how many there are stick this into nhc%nkt
+    ! (number of degrees of freedom times k_B T for the first thermostat
+    !  on the chain)
+    nhc%loc_num_nhc  = number
+    nhc%glob_num_nhc = sum_of_thermostats
+
+    CALL timestop(handle)
+
+  END SUBROUTINE setup_adiabatic_thermostat
+
+! *****************************************************************************
+!> \brief Creates the thermostatting maps
+!> \par History
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE nhc_to_particle_mapping_slow ( thermostat_info, simpar, local_molecules,&
+       molecule_set, molecule_kind_set, nhc, para_env, gci, error)
+
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping_slow', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, imap, j, &
+                                                natoms_local, stat, &
+                                                sum_of_thermostats
+    INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
+                                                massive_atom_list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fac
+    TYPE(map_info_type), POINTER             :: map_info
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    NULLIFY (massive_atom_list, deg_of_freedom)
+
+    SELECT CASE ( simpar % ensemble )
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
+    CASE ( nvt_adiabatic_ensemble )
+       CALL setup_adiabatic_thermostat(nhc, thermostat_info, deg_of_freedom, massive_atom_list,&
+            molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, &
+            simpar, sum_of_thermostats, gci, error=error)
+
+       ! Sum up the number of degrees of freedom on each thermostat.
+       ! first: initialize the target
+       map_info => nhc%map_info
+       map_info%s_kin = 0.0_dp
+       DO i = 1, 3
+          DO j = 1, natoms_local
+             IF ( ASSOCIATED ( map_info%p_kin(i,j)%point ) )& 
+             map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
+          END DO
+       END DO
+       
+       ! if thermostats are replicated but molecules distributed, we have to
+       ! sum s_kin over all processors
+       IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
+
+       ! We know the total number of system thermostats.
+       IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
+          fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
+          IF ( fac == 0.0_dp ) THEN 
+             CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
+          END IF
+          nhc%nvt(1,1)%nkt = simpar%temp_slow*fac
+          nhc%nvt(1,1)%degrees_of_freedom = FLOOR(fac)
+       ELSE
+          DO i = 1, nhc%loc_num_nhc
+             imap = map_info%map_index(i)
+             fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
+             nhc%nvt(1,i)%nkt = simpar%temp_slow * fac 
+             nhc % nvt ( 1, i ) % degrees_of_freedom = FLOOR(fac)
+          END DO
+       END IF
+       
+       ! Getting the number of degrees of freedom times k_B T for the rest
+       ! of the chain
+       DO i = 2, nhc % nhc_len
+          nhc % nvt ( i, : ) % nkt = simpar % temp_slow
+          nhc % nvt ( i, : ) % degrees_of_freedom = 1
+       END DO
+       DEALLOCATE (deg_of_freedom,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( massive_atom_list, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ! Let's clean the arrays
+       map_info%s_kin   = 0.0_dp 
+       map_info%v_scale = 0.0_dp 
+    END SELECT
+
+    CALL timestop(handle)
+
+  END SUBROUTINE nhc_to_particle_mapping_slow
+
+! *****************************************************************************
+!> \brief Creates the thermostatting maps
+!> \par History
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE nhc_to_particle_mapping_fast ( thermostat_info, simpar, local_molecules,&
+       molecule_set, molecule_kind_set, nhc, para_env, gci, error)
+
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_particle_mapping_fast', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, imap, j, &
+                                                natoms_local, stat, &
+                                                sum_of_thermostats
+    INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
+                                                massive_atom_list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fac
+    TYPE(map_info_type), POINTER             :: map_info
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    NULLIFY (massive_atom_list, deg_of_freedom)
+
+    SELECT CASE ( simpar % ensemble )
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
+    CASE ( nvt_adiabatic_ensemble )
+       CALL setup_adiabatic_thermostat(nhc, thermostat_info, deg_of_freedom, massive_atom_list,&
+            molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, &
+            simpar, sum_of_thermostats, gci, error=error)
+
+       ! Sum up the number of degrees of freedom on each thermostat.
+       ! first: initialize the target
+       map_info => nhc%map_info
+       map_info%s_kin = 0.0_dp
+       DO i = 1, 3
+          DO j = 1, natoms_local
+             IF ( ASSOCIATED ( map_info%p_kin(i,j)%point ) )& 
+             map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
+          END DO
+       END DO
+       
+       ! if thermostats are replicated but molecules distributed, we have to
+       ! sum s_kin over all processors
+       IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
+
+       ! We know the total number of system thermostats.
+       IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
+          fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
+          IF ( fac == 0.0_dp ) THEN 
+             CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
+          END IF
+          nhc%nvt(1,1)%nkt = simpar%temp_fast*fac
+          nhc%nvt(1,1)%degrees_of_freedom = FLOOR(fac)
+       ELSE
+          DO i = 1, nhc%loc_num_nhc
+             imap = map_info%map_index(i)
+             fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
+             nhc%nvt(1,i)%nkt = simpar%temp_fast * fac 
+             nhc % nvt ( 1, i ) % degrees_of_freedom = FLOOR(fac)
+          END DO
+       END IF
+       
+       ! Getting the number of degrees of freedom times k_B T for the rest
+       ! of the chain
+       DO i = 2, nhc % nhc_len
+          nhc % nvt ( i, : ) % nkt = simpar % temp_fast
+          nhc % nvt ( i, : ) % degrees_of_freedom = 1
+       END DO
+       DEALLOCATE (deg_of_freedom,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( massive_atom_list, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ! Let's clean the arrays
+       map_info%s_kin   = 0.0_dp 
+       map_info%v_scale = 0.0_dp 
+    END SELECT
+
+    CALL timestop(handle)
+
+  END SUBROUTINE nhc_to_particle_mapping_fast
 
 ! *****************************************************************************
 !> \brief Main general setup for Nose-Hoover thermostats

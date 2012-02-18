@@ -25,7 +25,8 @@ MODULE md_conserved_quantities
   USE input_constants,                 ONLY: &
        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
+       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble, &
+       nvt_adiabatic_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md_ener_types,                   ONLY: md_ener_type,&
@@ -163,6 +164,8 @@ CONTAINS
     CASE ( npe_f_ensemble, npe_i_ensemble )
        CALL get_econs_npe (md_env, md_ener,  para_env, error=error)
        md_ener%temp_baro = md_ener%temp_baro*kelvin
+    CASE ( nvt_adiabatic_ensemble )
+       CALL get_econs_nvt_adiabatic (md_env, md_ener,  para_env, error=error)
     END SELECT
 
     IF (init) THEN 
@@ -208,6 +211,40 @@ CONTAINS
     md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
   END SUBROUTINE get_econs_nve
+
+! *****************************************************************************
+!> \brief calculates conserved quantity for nvt ensemble
+!> \par History
+!>      none
+!> \author gloria
+! *****************************************************************************
+  SUBROUTINE get_econs_nvt_adiabatic ( md_env, md_ener,  para_env, error)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(thermostat_type), POINTER           :: thermostat_fast, &
+                                                thermostat_slow
+
+    NULLIFY(force_env, thermostat_fast, thermostat_slow )
+    CALL get_md_env (md_env, force_env=force_env, thermostat_fast=thermostat_fast,&
+         thermostat_slow=thermostat_slow, error=error )
+    CALL get_thermostat_energies ( thermostat_fast, md_ener%thermostat_fast_pot, &
+         md_ener%thermostat_fast_kin, para_env, error=error )
+    md_ener%constant = md_ener% ekin + md_ener%epot + &
+                       md_ener%thermostat_fast_kin + md_ener%thermostat_fast_pot
+    CALL get_thermostat_energies ( thermostat_slow, md_ener%thermostat_slow_pot, &
+         md_ener%thermostat_slow_kin, para_env, error=error )
+    md_ener%constant = md_ener%constant + &
+                       md_ener%thermostat_slow_kin + md_ener%thermostat_slow_pot
+
+
+  END SUBROUTINE get_econs_nvt_adiabatic
 
 ! *****************************************************************************
 !> \brief calculates conserved quantity for nvt ensemble

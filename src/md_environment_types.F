@@ -243,7 +243,8 @@ CONTAINS
   SUBROUTINE get_md_env(md_env, itimes, constant, used_time, cell, simpar, npt,&
        force_env, para_env, reftraj, t, init, first_time,fe_env, thermostats, barostat, &
        thermostat_coeff, thermostat_part, thermostat_shell, thermostat_baro,&
-       md_ener, averages, thermal_regions,ehrenfest_md, error)
+       thermostat_fast, thermostat_slow, md_ener, averages,  &
+       thermal_regions,ehrenfest_md, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -265,6 +266,8 @@ CONTAINS
     TYPE(thermostat_type), OPTIONAL, POINTER :: thermostat_coeff, &
                                                 thermostat_part, &
                                                 thermostat_shell, &
+                                                thermostat_fast, &
+                                                thermostat_slow, &
                                                 thermostat_baro
     TYPE(md_ener_type), OPTIONAL, POINTER    :: md_ener
     TYPE(average_quantities_type), &
@@ -292,7 +295,8 @@ CONTAINS
     IF (PRESENT(thermostats)) thermostats => md_env%thermostats
     IF (PRESENT(barostat)) barostat => md_env%barostat
     IF  (PRESENT(thermostat_part).OR.PRESENT(thermostat_coeff).OR.&
-         PRESENT(thermostat_baro).OR.PRESENT(thermostat_shell)) THEN
+         PRESENT(thermostat_baro).OR.PRESENT(thermostat_shell).OR.&
+         PRESENT(thermostat_fast).OR.PRESENT(thermostat_slow)) THEN
        IF (ASSOCIATED(md_env%thermostats)) THEN
           IF (PRESENT(thermostat_part)) THEN
              thermostat_part => md_env%thermostats%thermostat_part
@@ -302,6 +306,12 @@ CONTAINS
           END IF
           IF (PRESENT(thermostat_shell)) THEN
              thermostat_shell => md_env%thermostats%thermostat_shell
+          END IF
+          IF (PRESENT(thermostat_fast)) THEN
+             thermostat_fast => md_env%thermostats%thermostat_fast
+          END IF
+          IF (PRESENT(thermostat_slow)) THEN
+             thermostat_slow => md_env%thermostats%thermostat_slow
           END IF
           IF (PRESENT(thermostat_baro)) THEN
              thermostat_baro  => md_env%thermostats%thermostat_baro

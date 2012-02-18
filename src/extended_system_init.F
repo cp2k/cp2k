@@ -17,6 +17,8 @@ MODULE extended_system_init
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_mapping,         ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_particle_mapping,&
+                                             nhc_to_particle_mapping_fast,&
+                                             nhc_to_particle_mapping_slow,&
                                              nhc_to_shell_mapping
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              lnhc_parameters_type,&
@@ -57,7 +59,7 @@ MODULE extended_system_init
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
-            initialize_nhc_shell
+            initialize_nhc_shell, initialize_nhc_slow, initialize_nhc_fast
 
 CONTAINS
 
@@ -217,6 +219,126 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE initialize_nhc_baro
+
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE initialize_nhc_slow ( thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
+       gci, save_mem, binary_restart_file_name, error)
+
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(section_vals_type), POINTER         :: nose_section
+    TYPE(global_constraint_type), POINTER    :: gci
+    LOGICAL, INTENT(IN)                      :: save_mem
+    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_slow', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure, restart
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    restart = .FALSE.
+    ! fire up the thermostats, if not NVE
+
+    CALL nhc_to_particle_mapping_slow ( thermostat_info, simpar, local_molecules,&
+         molecule, molecule_kind_set, nhc, para_env, gci, error )
+
+    ! Set up the Yoshida weights
+    IF ( nhc % nyosh > 0 ) THEN
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CALL set_yoshida_coef ( nhc, simpar % dt)
+    END IF
+
+    CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
+                      para_env,error)
+
+    IF (.NOT.restart) THEN
+       ! Initializing thermostat forces and velocities for the Nose-Hoover
+       ! Chain variables
+       IF ( nhc % nhc_len /= 0 ) THEN
+          CALL init_nhc_variables(nhc,simpar%temp_slow,para_env,globenv,error=error)
+       END IF
+    END IF
+
+    CALL init_nhc_forces ( nhc, error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE initialize_nhc_slow
+
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE initialize_nhc_fast ( thermostat_info, simpar, local_molecules,&
+       molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
+       gci, save_mem, binary_restart_file_name, error)
+
+    TYPE(thermostat_info_type), POINTER      :: thermostat_info
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(section_vals_type), POINTER         :: nose_section
+    TYPE(global_constraint_type), POINTER    :: gci
+    LOGICAL, INTENT(IN)                      :: save_mem
+    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_fast', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure, restart
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    restart = .FALSE.
+    ! fire up the thermostats, if not NVE
+
+    CALL nhc_to_particle_mapping_fast ( thermostat_info, simpar, local_molecules,&
+         molecule, molecule_kind_set, nhc, para_env, gci, error )
+
+    ! Set up the Yoshida weights
+    IF ( nhc % nyosh > 0 ) THEN
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CALL set_yoshida_coef ( nhc, simpar % dt)
+    END IF
+
+    CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
+                      para_env,error)
+
+    IF (.NOT.restart) THEN
+       ! Initializing thermostat forces and velocities for the Nose-Hoover
+       ! Chain variables
+       IF ( nhc % nhc_len /= 0 ) THEN
+          CALL init_nhc_variables(nhc,simpar%temp_fast,para_env,globenv,error=error)
+       END IF
+    END IF
+
+    CALL init_nhc_forces ( nhc, error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE initialize_nhc_fast
 
 ! *****************************************************************************
 !> \author CJM

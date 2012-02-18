@@ -57,6 +57,12 @@ MODULE thermostat_types
      INTEGER :: id_nr, ref_count
      TYPE (thermostat_info_type), POINTER :: thermostat_info_part
      TYPE (thermostat_info_type), POINTER :: thermostat_info_shell
+! cjm
+     TYPE (thermostat_info_type), POINTER :: thermostat_info_fast
+     TYPE(thermostat_type), POINTER       :: thermostat_fast
+     TYPE (thermostat_info_type), POINTER :: thermostat_info_slow
+     TYPE(thermostat_type), POINTER       :: thermostat_slow
+! cjm
      TYPE(thermostat_type), POINTER       :: thermostat_part
      TYPE(thermostat_type), POINTER       :: thermostat_coef
      TYPE(thermostat_type), POINTER       :: thermostat_shell
@@ -122,9 +128,21 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!cjm
+    ALLOCATE(thermostats%thermostat_info_fast, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(thermostats%thermostat_info_slow, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!cjm
 
     NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
     NULLIFY(thermostats%thermostat_info_shell%map_loc_thermo_gen)
+!cjm
+    NULLIFY(thermostats%thermostat_info_fast%map_loc_thermo_gen)
+    NULLIFY(thermostats%thermostat_fast)
+    NULLIFY(thermostats%thermostat_info_slow%map_loc_thermo_gen)
+    NULLIFY(thermostats%thermostat_slow)
+!cjm
     NULLIFY(thermostats%thermostat_part)
     NULLIFY(thermostats%thermostat_shell)
     NULLIFY(thermostats%thermostat_coef)
@@ -184,6 +202,16 @@ CONTAINS
        IF (thermostats%ref_count<1) THEN
           CALL release_thermostat_info(thermostats%thermostat_info_part, error)
           CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
+!cjm
+          CALL release_thermostat_info(thermostats%thermostat_info_fast, error)
+          CALL release_thermostat_info(thermostats%thermostat_info_slow, error)
+          IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
+             CALL release_thermostat_type(thermostats%thermostat_fast, error)
+          END IF
+          IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
+             CALL release_thermostat_type(thermostats%thermostat_slow, error)
+          END IF
+!cjm
           IF (ASSOCIATED(thermostats%thermostat_part)) THEN
              CALL release_thermostat_type(thermostats%thermostat_part, error)
           END IF
@@ -353,6 +381,20 @@ CONTAINS
     IF (ASSOCIATED(thermostats)) THEN
        IF (PRESENT(dt_fact)) THEN
           ! Particles
+!cjm
+          IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
+             SELECT CASE(thermostats%thermostat_fast%type_of_thermostat)
+             CASE(do_thermo_nose)
+                thermostats%thermostat_fast%nhc%dt_fact  = dt_fact
+             END SELECT
+          END IF
+          IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
+             SELECT CASE(thermostats%thermostat_slow%type_of_thermostat)
+             CASE(do_thermo_nose)
+                thermostats%thermostat_slow%nhc%dt_fact  = dt_fact
+             END SELECT
+          END IF
+!cjm
           IF (ASSOCIATED(thermostats%thermostat_part)) THEN
              SELECT CASE(thermostats%thermostat_part%type_of_thermostat)
              CASE(do_thermo_nose)

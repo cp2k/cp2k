@@ -107,7 +107,8 @@ MODULE input_constants
                                               reftraj_ensemble=9,&
                                               langevin_ensemble=10,&
                                               npe_f_ensemble=11,&
-                                              npe_i_ensemble=12
+                                              npe_i_ensemble=12,&
+                                              nvt_adiabatic_ensemble=13
 
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_same_as_part=100,&
                                               do_thermo_nose=101,&

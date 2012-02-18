@@ -25,6 +25,8 @@ MODULE input_cp2k_motion
                                              create_gle_section,&
                                              create_region_section,&
                                              create_thermostat_section,&
+                                             create_thermo_fast_section,&
+                                             create_thermo_slow_section,&
                                              create_velocity_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -1462,7 +1464,8 @@ CONTAINS
             usage="ensemble nve",&
             default_i_val=nve_ensemble,&
             enum_c_vals=s2a("NVE", "NVT", "NPT_I", "NPT_F", "MSST", "MSST_DAMPED",&
-            "HYDROSTATICSHOCK", "ISOKIN", "REFTRAJ", "LANGEVIN", "NPE_F", "NPE_I" ),&
+            "HYDROSTATICSHOCK", "ISOKIN", "REFTRAJ", "LANGEVIN", "NPE_F", &
+            "NPE_I", "NVT_ADIABATIC" ),&
             enum_desc=s2a("constant energy (microcanonical)",&
             "constant temperature and volume (canonical)",&
             "constant temperature and pressure using an isotropic cell",&
@@ -1474,11 +1477,13 @@ CONTAINS
             "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
             "langevin dynamics (constant temperature)",&
             "constant pressure ensemble (no thermostat)",&
-            "constant pressure ensemble using an isotropic cell (no thermostat)"),&
+            "constant pressure ensemble using an isotropic cell (no thermostat)",&
+            "adiabatic dynamics in constant temperature and volume ensemble"),&
             citations=(/Evans1983,Minary2003,Kolafa2004/),&
             enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,npt_f_ensemble,&
             nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble,nph_ensemble,isokin_ensemble,&
-            reftraj_ensemble,langevin_ensemble, npe_f_ensemble, npe_i_ensemble/),error=error)
+            reftraj_ensemble,langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+            nvt_adiabatic_ensemble/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1625,6 +1630,11 @@ CONTAINS
        CALL create_shell_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)       
+!cjm
+       CALL create_adiabatic_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+!cjm
 
        CALL create_reftraj_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -3565,6 +3575,86 @@ CONTAINS
        CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_opt_band_section
+
+! *****************************************************************************
+!> \brief section will contain some parameters for the adiabatic dynamics
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
+  SUBROUTINE create_adiabatic_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_adiabatic_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: thermo_fast_section, thermo_slow_section
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+
+       CALL section_create(section,name="adiabatic_dynamics",&
+            description="Parameters used in adiabatic dynamics.",&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword,thermo_fast_section,thermo_slow_section)
+
+       CALL keyword_create(keyword=keyword,name="temp_fast",&
+            description="Temperature in K used to control "//&
+            "the fast degrees of freedom ",&
+            usage="temp_fast 5.0",&
+            default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error),&
+            unit_str="K", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,name="temp_slow",&
+            description="Temperature in K used to control "//&
+            "the slow degrees of freedom ",&
+            usage="temp_slow 5.0",&
+            default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error),&
+            unit_str="K", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="temp_tol_fast",&
+            description="Maximum accepted temperature deviation"//&
+            " from the expected value, for the fast motion."//&
+            "If 0, no rescaling is performed", &
+            usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="temp_tol_slow",&
+            description="Maximum accepted temperature deviation"//&
+            " from the expected value, for the slow motion."//&
+            "If 0, no rescaling is performed", &
+            usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="n_resp_fast",&
+            description="number of respa steps for fast degrees of freedom",&
+            repeats=.FALSE., default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL create_thermo_fast_section(thermo_fast_section, error=error)
+       CALL section_add_subsection(section, thermo_fast_section, error=error)
+       CALL section_release(thermo_fast_section,error=error)
+
+       CALL create_thermo_slow_section(thermo_slow_section, error=error)
+       CALL section_add_subsection(section, thermo_slow_section, error=error)
+       CALL section_release(thermo_slow_section,error=error)
+
+    END IF
+  END SUBROUTINE create_adiabatic_section
   
 ! *****************************************************************************
 !> \brief section will contain some parameters for the shells dynamics

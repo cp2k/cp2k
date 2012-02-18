@@ -30,6 +30,8 @@ MODULE md_ener_types
      REAL(KIND=dp) :: temp_coefs
      REAL(KIND=dp) :: ekin_shell, temp_shell
      REAL(KIND=dp) :: thermostat_part_kin, thermostat_part_pot
+     REAL(KIND=dp) :: thermostat_fast_kin, thermostat_fast_pot
+     REAL(KIND=dp) :: thermostat_slow_kin, thermostat_slow_pot
      REAL(KIND=dp) :: thermostat_baro_kin, thermostat_baro_pot
      REAL(KIND=dp) :: thermostat_coef_kin, thermostat_coef_pot
      REAL(KIND=dp) :: thermostat_shell_kin, thermostat_shell_pot
@@ -203,6 +205,10 @@ CONTAINS
     md_ener%delta_epot  = 0.0_dp
     md_ener%thermostat_part_kin  = 0.0_dp
     md_ener%thermostat_part_pot  = 0.0_dp
+    md_ener%thermostat_fast_kin  = 0.0_dp
+    md_ener%thermostat_fast_pot  = 0.0_dp
+    md_ener%thermostat_slow_kin  = 0.0_dp
+    md_ener%thermostat_slow_pot  = 0.0_dp
     md_ener%thermostat_coef_kin  = 0.0_dp
     md_ener%thermostat_coef_pot  = 0.0_dp
     md_ener%thermostat_baro_kin  = 0.0_dp

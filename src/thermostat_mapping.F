@@ -17,7 +17,7 @@ MODULE thermostat_mapping
        do_region_molecule, do_thermo_communication, &
        do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
-  USE kinds,                           ONLY: int_size
+  USE kinds,                           ONLY: int_size, dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
@@ -43,12 +43,476 @@ MODULE thermostat_mapping
   IMPLICIT NONE
 
   PUBLIC :: thermostat_mapping_region,&
+            adiabatic_mapping_region,&
             init_baro_map_info
 
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_mapping'
 
 CONTAINS
+! *****************************************************************************
+!> \brief Main general setup for adiabatic thermostat regions (Nose only)
+!> \author CJM - PNNL
+! *****************************************************************************
+  SUBROUTINE adiabatic_mapping_region ( map_info, deg_of_freedom, massive_atom_list,&
+       molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, simpar, &
+       number, region, gci, shell, map_loc_thermo_gen, sum_of_thermostats, error)
+
+    TYPE(map_info_type), POINTER             :: map_info
+    INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
+                                                massive_atom_list
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set(:)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(OUT)                     :: natoms_local
+    TYPE(simpar_type), POINTER               :: simpar
+    INTEGER, INTENT(INOUT)                   :: number
+    INTEGER, INTENT(IN)                      :: region
+    TYPE(global_constraint_type), POINTER    :: gci
+    LOGICAL, INTENT(IN)                      :: shell
+    INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
+    INTEGER, INTENT(INOUT)                   :: sum_of_thermostats
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nkind, nmol_local, &
+                                                nsize, number_of_thermostats, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
+    INTEGER, DIMENSION(:, :), POINTER        :: point
+    LOGICAL                                  :: check, failure
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    NULLIFY ( const_mol, tot_const, point)
+    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,error,failure)
+    
+    nkind = SIZE(molecule_kind_set)
+    CALL adiabatic_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
+         const_mol, tot_const, point, local_molecules, molecule_kind_set, molecule_set,&
+         region, simpar, shell, sum_of_thermostats, para_env, error)
+
+    ! Now we can allocate the target array s_kin and p_kin..
+    SELECT CASE(region)
+    CASE(do_region_global, do_region_molecule, do_region_massive)
+       nsize = number
+    CASE DEFAULT
+       ! STOP PROGRAM 
+    END SELECT
+    ALLOCATE (map_info%s_kin(nsize),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (map_info%v_scale(nsize),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+! nullify thermostat pointers
+    ! Allocate index array to 1
+    ALLOCATE ( map_info%index(1), STAT=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    ALLOCATE ( map_info%map_index(1), STAT=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    ALLOCATE (deg_of_freedom(1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL massive_list_generate (molecule_set, molecule_kind_set, &
+         local_molecules, para_env, massive_atom_list, region, shell,&
+         error)
+    
+    CALL adiabatic_mapping_region_low(region, map_info, nkind, point,&
+         deg_of_freedom, local_molecules, const_mol, massive_atom_list,&
+         tot_const, molecule_set, number_of_thermostats, shell, gci,&
+         map_loc_thermo_gen, error)
+    
+     number = number_of_thermostats
+     sum_of_thermostats=number
+     CALL mp_sum ( sum_of_thermostats, para_env%group )
+
+!    check = (number==number_of_thermostats)
+!    CPPrecondition(check,cp_fatal_level,routineP,error,failure)
+    DEALLOCATE (const_mol,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (tot_const,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (point, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE adiabatic_mapping_region
+
+! *****************************************************************************
+!> \brief Performs the real mapping for the thermostat region
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
+  SUBROUTINE adiabatic_mapping_region_low( region, map_info, nkind, point,&
+       deg_of_freedom, local_molecules, const_mol, massive_atom_list, tot_const,&
+       molecule_set, ntherm, shell, gci, map_loc_thermo_gen,error)
+
+    INTEGER, INTENT(IN)                      :: region
+    TYPE(map_info_type), POINTER             :: map_info
+    INTEGER                                  :: nkind
+    INTEGER, DIMENSION(:, :), POINTER        :: point
+    INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    INTEGER, DIMENSION(:), POINTER           :: const_mol, massive_atom_list, &
+                                                tot_const
+    TYPE(molecule_type), POINTER             :: molecule_set(:)
+    INTEGER, INTENT(OUT)                     :: ntherm
+    LOGICAL, INTENT(IN)                      :: shell
+    TYPE(global_constraint_type), POINTER    :: gci
+    INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'thermostat_mapping_region_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, &
+      ikind, imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, &
+      last_shell, nglob_cns, nmol_local, stat, number, glob_therm_num
+    LOGICAL                                  :: check, failure, &
+                                                global_constraints, &
+                                                have_thermostat
+    TYPE(molecule_type), POINTER             :: molecule
+    REAL ( dp ), TARGET, SAVE                :: unity
+
+    CALL timeset(routineN,handle)
+    unity          = 1.0_dp 
+    failure        = .FALSE.
+    global_constraints = ASSOCIATED(gci)
+    deg_of_freedom = 0
+    icount         = 0
+    number         = 0
+    ntherm         = 0
+    nglob_cns      = 0
+    IF (global_constraints) nglob_cns = gci%ntot-gci%nrestraint
+    IF ( region==do_region_global) THEN
+       ! Global Region
+       check = ( map_info%dis_type == do_thermo_communication )
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       DO ikind = 1, nkind
+          DO jj = point ( 1, ikind ), point ( 2, ikind )
+             IF ( map_loc_thermo_gen ( jj ) /= HUGE ( 0 ) ) THEN
+               DO ii = 1, 3
+                  map_info%p_kin(ii,jj)%point => map_info%s_kin(1)
+                  map_info%p_scale(ii,jj)%point => map_info%v_scale(1)
+               END DO
+             ELSE
+               DO ii = 1, 3
+                  NULLIFY ( map_info%p_kin(ii,jj)%point ) 
+                  map_info%p_scale(ii,jj)%point => unity
+               END DO
+             ENDIF
+          END DO
+          deg_of_freedom(1) = deg_of_freedom(1) + tot_const(ikind)
+          map_info%index(1)     = 1
+          map_info%map_index(1) = 1
+          number = 1
+       END DO
+       deg_of_freedom(1) = deg_of_freedom(1) + nglob_cns
+    ELSE IF ( region==do_region_molecule) THEN
+       ! Molecular Region
+       IF   ( map_info%dis_type == do_thermo_no_communication ) THEN
+          ! This is the standard case.. 
+          DO ikind = 1, nkind
+             nmol_local =  local_molecules % n_el (ikind)
+             DO imol_local = 1, nmol_local
+                imol = local_molecules%list(ikind)%array(imol_local)
+                number = number + 1
+                have_thermostat=.TRUE.
+! determine if the local molecule belongs to a thermostat
+                DO kk = point ( 1, number ), point ( 2, number )
+                 !  WRITE ( *, * ) 'kk', size(map_loc_thermo_gen), kk, map_loc_thermo_gen ( kk )
+                   IF ( map_loc_thermo_gen ( kk ) == HUGE ( 0 ) ) THEN
+                     have_thermostat=.FALSE.
+                     EXIT 
+                   ENDIF
+                END DO 
+! If molecule has a thermostat, then map
+                IF ( have_thermostat ) THEN
+! glob_therm_num is the global thermostat number attached to the local molecule
+! We can test to make sure all atoms in the local molecule belong to the same
+! global thermostat as a way to detect errors.
+                  glob_therm_num = map_loc_thermo_gen ( point ( 1, number ) )
+                  ntherm = ntherm + 1
+                  CALL reallocate ( map_info%index, 1, ntherm )
+                  CALL reallocate ( map_info%map_index, 1, ntherm )
+                  CALL reallocate ( deg_of_freedom, 1, ntherm )
+                  map_info%index(ntherm)     = glob_therm_num
+                  map_info%map_index(ntherm) = ntherm
+                  deg_of_freedom ( ntherm )  = const_mol ( number )
+                  DO kk = point ( 1, number ), point ( 2, number )
+                     DO jj = 1, 3
+                        map_info%p_kin(jj,kk) %point => map_info%s_kin(ntherm)
+                        map_info%p_scale(jj,kk) %point => map_info%v_scale(ntherm)
+                     END DO
+                  END DO
+! If molecule has no thermostat, then nullify pointers to that atom
+                ELSE
+                  DO kk = point ( 1, number ), point ( 2, number )
+                    DO jj = 1, 3
+                       NULLIFY ( map_info%p_kin(jj,kk) %point )
+                       map_info%p_scale(jj,kk) %point => unity
+                    END DO
+                  END DO
+                END IF
+             END DO
+          END DO
+       ELSE IF ( map_info%dis_type == do_thermo_communication ) THEN
+          ! This case is quite rare and happens only when we have one molecular
+          ! kind and one molecule..
+          CPPostcondition(nkind==1,cp_failure_level,routineP,error,failure)
+          number = number + 1
+          ntherm = ntherm + 1
+          map_info%index(ntherm)     = ntherm
+          map_info%map_index(ntherm) = ntherm
+          deg_of_freedom ( ntherm )  = deg_of_freedom ( ntherm ) + tot_const ( nkind )
+          DO kk = point ( 1, nkind ), point ( 2, nkind )
+             IF ( map_loc_thermo_gen ( kk ) /= HUGE ( 0 ) ) THEN
+               DO jj = 1, 3
+                  map_info%p_kin ( jj, kk ) % point => map_info%s_kin(ntherm)
+                  map_info%p_scale ( jj, kk ) % point => map_info%v_scale(ntherm)
+               END DO
+             ELSE
+             END IF
+               DO jj = 1, 3
+                  NULLIFY ( map_info%p_kin ( jj, kk ) % point )
+                  map_info%p_scale ( jj, kk ) % point => unity
+               END DO
+          END DO
+       ELSE
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (nglob_cns/=0) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                            "Molecular thermostats with global constraints are impossible!")
+       END IF
+    ELSE IF ( region==do_region_massive) THEN
+       ! Massive Region
+       check = ( map_info%dis_type == do_thermo_no_communication )
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       DO ikind = 1, nkind
+          nmol_local =  local_molecules % n_el ( ikind )
+          DO imol_local = 1, nmol_local
+             icount = icount + 1
+             imol = local_molecules % list ( ikind ) % array ( imol_local )
+             molecule => molecule_set ( imol )
+             CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom,&
+                  first_shell=first_shell, last_shell=last_shell)
+             IF (shell) THEN
+                first_atom = first_shell
+                last_atom  = last_shell
+             ELSE
+                IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN 
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                                     "Massive thermostats with constraints are impossible!")
+                END IF
+             END IF
+             k = 0
+
+             have_thermostat=.TRUE.
+             DO ii =  point ( 1, icount ), point ( 2, icount )
+               IF ( map_loc_thermo_gen ( ii ) /= 1 ) THEN 
+                  have_thermostat = .FALSE.
+                  EXIT
+               END IF  
+             END DO
+
+             IF ( have_thermostat ) THEN
+               DO ii =  point ( 1, icount ), point ( 2, icount )
+                  ipart = first_atom + k
+                  ielement = locate(massive_atom_list,ipart)
+                  k = k + 1
+                  DO jj = 1, 3
+                     ntherm = ntherm + 1
+                     CALL reallocate ( map_info%index, 1, ntherm )
+                     CALL reallocate ( map_info%map_index, 1, ntherm )
+                     map_info%index(ntherm)     = (ielement - 1)*3 + jj
+                     map_info%map_index(ntherm) = ntherm
+                     map_info%p_kin(jj,ii) %point   => map_info%s_kin(ntherm)
+                     map_info%p_scale(jj,ii) %point => map_info%v_scale(ntherm)
+                  END DO
+               END DO
+             ELSE
+               DO ii =  point ( 1, icount ), point ( 2, icount )
+                 DO jj = 1, 3
+                   NULLIFY ( map_info%p_kin(jj,ii) %point ) 
+                   map_info%p_scale(jj,ii) %point => unity
+                 END DO
+               END DO
+             END IF
+             IF ( first_atom + k -1 /= last_atom ) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "Inconsistent mapping of particles")
+             END IF
+          END DO
+       END DO
+    ELSE
+       CALL stop_program(routineN,moduleN,__LINE__,"Invalid region!")
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE adiabatic_mapping_region_low
+
+
+! *****************************************************************************
+!> \brief creates the mapping between the system and the thermostats
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
+  SUBROUTINE adiabatic_region_evaluate(dis_type, natoms_local, nmol_local, const_mol,&
+       tot_const, point, local_molecules, molecule_kind_set, molecule_set, region,&
+       simpar, shell, sum_of_thermostats, para_env, error)
+    INTEGER, INTENT(IN)                      :: dis_type
+    INTEGER, INTENT(OUT)                     :: natoms_local, nmol_local
+    INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
+    INTEGER, DIMENSION(:, :), POINTER        :: point
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
+    TYPE(molecule_type), POINTER             :: molecule_set(:)
+    INTEGER, INTENT(IN)                      :: region
+    TYPE(simpar_type), POINTER               :: simpar
+    LOGICAL, INTENT(IN)                      :: shell
+    INTEGER, INTENT(IN)                      :: sum_of_thermostats
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mapping_region_evaluate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atm_offset, first_atom, handle, i, iatm, icount, id_region, &
+      ikind, ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, &
+      nfixd, nkind, nmol_per_kind, nmolecule, nshell, stat
+    LOGICAL                                  :: failure
+    TYPE(colvar_constraint_type), &
+      DIMENSION(:), POINTER                  :: colv_list
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), &
+      DIMENSION(:), POINTER                  :: g3x3_list
+    TYPE(g4x6_constraint_type), &
+      DIMENSION(:), POINTER                  :: g4x6_list
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    CALL timeset(routineN,handle)
+
+    natoms_local = 0
+    nmol_local   = 0
+    nkind = SIZE ( molecule_kind_set )
+    NULLIFY(fixd_list, molecule_kind, molecule, colv_list, g3x3_list, g4x6_list)
+    ! Compute the TOTAL number of molecules and atoms on THIS PROC and
+    ! TOTAL number of molecules of IKIND on THIS PROC
+    DO ikind = 1, nkind
+       molecule_kind => molecule_kind_set ( ikind )
+       CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell )
+       IF (shell) THEN
+          IF (nshell/=0) THEN
+             natoms_local = natoms_local + nshell * local_molecules % n_el ( ikind )
+             nmol_local   = nmol_local + local_molecules % n_el ( ikind )
+          END IF
+       ELSE
+          natoms_local = natoms_local + natom * local_molecules % n_el ( ikind )
+          nmol_local   = nmol_local + local_molecules % n_el ( ikind )
+       END IF
+    END DO
+
+    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,error,failure)
+    IF ( dis_type == do_thermo_no_communication ) THEN
+       ALLOCATE ( const_mol (nmol_local), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ALLOCATE ( tot_const (nmol_local), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ALLOCATE ( point (2, nmol_local), STAT = stat )
+       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+       point (:,:)= 0
+       atm_offset = 0
+       icount = 0
+       DO ikind = 1, nkind
+          nmol_per_kind =  local_molecules % n_el ( ikind )
+          molecule_kind => molecule_kind_set ( ikind )
+          CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
+               fixd_list=fixd_list, nshell=nshell)
+          IF (shell) natom = nshell
+          DO imol_local = 1, nmol_per_kind
+             icount = icount + 1
+             point ( 1, icount )  = atm_offset + 1
+             point ( 2, icount )  = atm_offset + natom
+             IF (.NOT.shell) THEN
+                ! nc keeps track of all constraints but not fixed ones..
+                ! Let's identify fixed atoms for this molecule
+                nfixd = 0
+                imol = local_molecules%list(ikind)%array(imol_local)
+                molecule => molecule_set(imol)
+                CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom)
+                IF (ASSOCIATED(fixd_list)) THEN
+                   DO katom = first_atom, last_atom
+                      DO ilist = 1, SIZE(fixd_list)
+                         IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
+                              (.NOT. fixd_list(ilist)%restraint%active)) THEN 
+                            SELECT CASE(fixd_list(ilist)%itype)
+                            CASE(use_perd_x,use_perd_y,use_perd_z)
+                               nfixd=nfixd+1
+                            CASE(use_perd_xy,use_perd_xz,use_perd_yz)
+                               nfixd=nfixd+2
+                            CASE(use_perd_xyz)
+                               nfixd=nfixd+3
+                            END SELECT
+                         END IF
+                      END DO
+                   END DO
+                END IF
+                const_mol ( icount ) = nc + nfixd
+                tot_const ( icount ) = const_mol ( icount )
+             END IF
+             atm_offset =  point ( 2, icount )
+          END DO
+       END DO
+    ELSE IF ( dis_type == do_thermo_communication ) THEN
+       ALLOCATE ( const_mol ( nkind ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( tot_const ( nkind ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( point ( 2, nkind ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       point ( :, : ) = 0
+       atm_offset     = 0
+       ! nc keeps track of all constraints but not fixed ones..
+       DO ikind = 1, nkind
+          nmol_per_kind =  local_molecules % n_el ( ikind )
+          molecule_kind => molecule_kind_set ( ikind )
+          CALL get_molecule_kind ( molecule_kind, nconstraint=nc, natom = natom,&
+               nmolecule=nmolecule, nconstraint_fixd=nfixd,nshell=nshell)
+          IF (shell) natom = nshell
+          IF (.NOT.shell) THEN
+             const_mol ( ikind ) = nc
+             ! Let's consider the fixed atoms only for the total number of constraints
+             ! in case we are in REPLICATED/INTERACTING thermostats
+             tot_const ( ikind ) = const_mol ( ikind ) * nmolecule + nfixd
+          END IF
+          point ( 1, ikind ) = atm_offset + 1
+          point ( 2, ikind ) = atm_offset + natom * nmol_per_kind
+          atm_offset =  point (2, ikind)
+       END DO
+    ENDIF
+    IF (( .NOT. simpar % constraint ).OR.shell) THEN
+       const_mol = 0
+       tot_const = 0
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE adiabatic_region_evaluate
 
 ! *****************************************************************************
 !> \brief Main general setup thermostat regions (thermostat independent)

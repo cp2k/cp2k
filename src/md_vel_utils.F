@@ -258,10 +258,14 @@ CONTAINS
     INTEGER                                  :: i, my_ireg, my_nfree
     REAL(KIND=dp)                            :: factor, my_temp
 
-    IF(PRESENT(ireg)) THEN
+    IF(PRESENT(ireg).AND.PRESENT(nfree).AND.PRESENT(temp)) THEN
       my_ireg = ireg
       my_nfree = nfree
       my_temp = temp
+    ELSEIF(PRESENT(nfree)) THEN
+      my_ireg = 0
+      my_nfree = nfree
+      my_temp = simpar%temp_ext
     ELSE
       my_ireg = 0
       my_nfree = simpar%nfree

@@ -30,6 +30,8 @@ MODULE thermostat_methods
                                              lnhc_shells
   USE extended_system_init,            ONLY: initialize_nhc_baro,&
                                              initialize_nhc_part,&
+                                             initialize_nhc_fast,&
+                                             initialize_nhc_slow,&
                                              initialize_nhc_shell
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
@@ -41,7 +43,8 @@ MODULE thermostat_methods
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
        do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble,&
+       nvt_adiabatic_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -68,7 +71,9 @@ MODULE thermostat_methods
                                              thermostats_type
   USE thermostat_utils,                ONLY: compute_degrees_of_freedom,&
                                              get_thermostat_energies,&
-                                             setup_thermostat_info
+                                             compute_nfree,&
+                                             setup_thermostat_info,&
+                                             setup_adiabatic_thermostat_info
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -108,7 +113,8 @@ CONTAINS
     INTEGER                                  :: n_rep, region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_shell, &
       explicit_baro, explicit_barostat_section, explicit_part, &
-      explicit_shell, failure, save_mem, shell_adiabatic, shell_present
+      explicit_shell, failure, save_mem, shell_adiabatic, shell_present, &
+      apply_thermo_adiabatic, explicit_adiabatic_fast, explicit_adiabatic_slow
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -119,12 +125,17 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER :: barostat_section, print_section, &
-      region_sections, thermo_baro_section, thermo_part_section, &
-      thermo_shell_section, work_section
+      region_sections, region_section_fast, region_section_slow, &
+      adiabatic_fast_section, adiabatic_slow_section, &
+      thermo_baro_section, thermo_part_section, &
+      thermo_shell_section, adiabatic_section, &
+      work_section
 
     NULLIFY(qmmm_env)
     failure =.FALSE.
     CALL allocate_thermostats(thermostats, error)
+    adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST",error=error)
+    adiabatic_slow_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_SLOW",error=error)
     thermo_part_section  => section_vals_get_subs_vals(md_section,"THERMOSTAT",error=error)
     thermo_shell_section => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT",error=error)
     thermo_baro_section  => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT",error=error)
@@ -137,24 +148,83 @@ CONTAINS
     CALL section_vals_get(thermo_part_section,  explicit=explicit_part,  error=error)
     CALL section_vals_get(thermo_shell_section, explicit=explicit_shell, error=error)
     CALL section_vals_get(thermo_baro_section,  explicit=explicit_baro,  error=error)
+    CALL section_vals_get(adiabatic_fast_section,  explicit=explicit_adiabatic_fast,  error=error)
+    CALL section_vals_get(adiabatic_slow_section,  explicit=explicit_adiabatic_slow,  error=error)
+
+    apply_thermo_adiabatic = (simpar%ensemble==nvt_adiabatic_ensemble)
 
     apply_thermo_baro = (simpar%ensemble == npt_f_ensemble).OR.&
-                        (simpar%ensemble == npt_i_ensemble)
+                        (simpar%ensemble == npt_i_ensemble).AND.&
+                        (.NOT. apply_thermo_adiabatic )
 
-    apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
+    apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble).AND. &
+                        (.NOT. apply_thermo_adiabatic )
 
     apply_thermo_shell = (simpar%ensemble == nve_ensemble)  .OR.&
                          (simpar%ensemble == nvt_ensemble)  .OR.&
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble).OR.&
                          (simpar%ensemble == npe_i_ensemble).OR.&
-                         (simpar%ensemble == npe_f_ensemble)
+                         (simpar%ensemble == npe_f_ensemble).AND.&
+                         (.NOT. apply_thermo_adiabatic )
 
     binary_restart_file_name = ""
     CALL section_vals_val_get(force_env%root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
                               c_val=binary_restart_file_name,error=error)
 
     ! Compute Degrees of Freedom
+    IF ( simpar%ensemble==nvt_adiabatic_ensemble ) THEN
+      region = do_region_global
+      region_section_fast => section_vals_get_subs_vals(adiabatic_fast_section,"DEFINE_REGION",error=error)
+      region_section_slow => section_vals_get_subs_vals(adiabatic_slow_section,"DEFINE_REGION",error=error)
+      IF (explicit_adiabatic_fast) CALL section_vals_val_get(adiabatic_fast_section,"REGION",i_val=region,error=error)
+      IF (explicit_adiabatic_slow) CALL section_vals_val_get(adiabatic_slow_section,"REGION",i_val=region,error=error)
+      CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
+              molecules_new=molecules_new, gci=gci, particles=particles, error=error)
+      CALL compute_nfree( cell, simpar, molecule_kinds_new%els,&
+           local_molecules, molecules_new, print_section, particles, &
+           gci, error)
+      IF (explicit_adiabatic_fast.AND.explicit_adiabatic_slow) THEN
+         IF (apply_thermo_adiabatic) THEN
+            CALL create_thermostat_type(thermostats%thermostat_fast, simpar, adiabatic_fast_section,&
+                 label="FAST", error=error)
+            CALL create_thermostat_type(thermostats%thermostat_slow, simpar, adiabatic_slow_section,&
+                 label="SLOW", error=error)
+            CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_fast,  &
+                 molecule_kinds_new%els, local_molecules, molecules_new, particles, &
+                 region, simpar%ensemble, region_sections=region_section_fast,  &
+                 qmmm_env=qmmm_env, error=error)
+
+            CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_slow, &
+                 molecule_kinds_new%els, local_molecules, molecules_new, particles,&
+                 region, simpar%ensemble, region_sections=region_section_slow,  &
+                 qmmm_env=qmmm_env, error=error)
+
+
+           ! Initialize or possibly restart Nose on Particles
+            work_section => section_vals_get_subs_vals(adiabatic_fast_section,"NOSE",error=error)
+            CALL initialize_nhc_fast(thermostats%thermostat_info_fast, simpar, local_molecules,&
+                 molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+                 thermostats%thermostat_fast%nhc, nose_section=work_section, gci=gci,&
+                 save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
+                 error=error)
+            work_section => section_vals_get_subs_vals(adiabatic_slow_section,"NOSE",error=error)
+            CALL initialize_nhc_slow(thermostats%thermostat_info_slow, simpar, local_molecules,&
+                 molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+                 thermostats%thermostat_slow%nhc, nose_section=work_section, gci=gci,&
+                 save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
+                 error=error)
+         ENDIF
+      ELSE
+         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+              "Adiabatic Thermostat has been defined but the ensemble provided "//&
+              "does not support thermostat for Particles! Ignoring thermostat input."//&
+CPSourceFileRef,&
+              only_ionode=.TRUE.)          
+      END IF
+      CALL release_thermostat_info(thermostats%thermostat_info_fast, error)
+      CALL release_thermostat_info(thermostats%thermostat_info_slow, error)
+    ELSE
     region = do_region_global
     region_sections => section_vals_get_subs_vals(thermo_part_section,"DEFINE_REGION",error=error)
     IF (explicit_part) CALL section_vals_val_get(thermo_part_section,"REGION",i_val=region,error=error)
@@ -329,10 +399,13 @@ CPSourceFileRef,&
     CALL release_thermostat_info(thermostats%thermostat_info_part, error)
     CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
 
+   ENDIF  ! Adiabitic_NVT screening
     ! If no thermostats have been allocated deallocate the full structure
     IF(  (.NOT.ASSOCIATED(thermostats%thermostat_part)).AND.&
          (.NOT.ASSOCIATED(thermostats%thermostat_shell)).AND.&
-         (.NOT.ASSOCIATED(thermostats%thermostat_baro)) ) THEN
+         (.NOT.ASSOCIATED(thermostats%thermostat_baro)).AND.&
+         (.NOT.ASSOCIATED(thermostats%thermostat_fast)).AND.&
+         (.NOT.ASSOCIATED(thermostats%thermostat_slow)) ) THEN
        CALL release_thermostats(thermostats, error)
     END IF
 
