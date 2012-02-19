@@ -237,7 +237,7 @@ CONTAINS
     CALL get_thermostat_energies ( thermostat_fast, md_ener%thermostat_fast_pot, &
          md_ener%thermostat_fast_kin, para_env, error=error )
     md_ener%constant = md_ener% ekin + md_ener%epot + &
-                       md_ener%thermostat_fast_kin + md_ener%thermostat_fast_pot
+                      md_ener%thermostat_fast_kin + md_ener%thermostat_fast_pot 
     CALL get_thermostat_energies ( thermostat_slow, md_ener%thermostat_slow_pot, &
          md_ener%thermostat_slow_kin, para_env, error=error )
     md_ener%constant = md_ener%constant + &

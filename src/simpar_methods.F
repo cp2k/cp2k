@@ -23,7 +23,8 @@ MODULE simpar_methods
   USE input_constants,                 ONLY: &
        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nvt_ensemble, reftraj_ensemble
+       npt_i_ensemble, nvt_ensemble, nvt_adiabatic_ensemble, reftraj_ensemble,&
+       nvt_adiabatic_ensemble
   USE input_cp2k_motion,               ONLY: create_md_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -353,6 +354,14 @@ CPSourceFileRef,&
        CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",r_val=simpar%dsc_tol,&
                                  explicit=explicit,error=error)
        simpar%variable_dt = simpar%variable_dt.OR.explicit
+       ! ADIABATIC DYNAMICS
+       tmp_section => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS",error=error)
+       CALL section_vals_val_get(tmp_section,"TEMP_FAST",r_val=simpar%temp_fast,error=error)
+       CALL section_vals_val_get(tmp_section,"TEMP_SLOW",r_val=simpar%temp_slow,error=error)
+       CALL section_vals_val_get(tmp_section,"TEMP_TOL_FAST",r_val=simpar%temp_tol_fast,error=error)
+       CALL section_vals_val_get(tmp_section,"TEMP_TOL_SLOW",r_val=simpar%temp_tol_slow,error=error)
+       CALL section_vals_val_get(tmp_section,"N_RESP_FAST",i_val=simpar%n_resp_fast,&
+            ignore_required=.TRUE.,error=error)
     END IF
   END SUBROUTINE read_md_low
   
