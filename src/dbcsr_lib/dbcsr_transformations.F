@@ -855,10 +855,10 @@ CONTAINS
 
     CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, data_p, &
-      data_type, dst_p, error_handler, i, ithread, j, mp_group, ncol_images, &
-      nrow_images, nsymmetries, nthreads, numproc, nze, pcol, prev_blk_p, &
-      prev_dst_p, prow, row, row_img, row_size, sd_pos, sm_pos, src_p, &
-      stored_blk_p, stored_col, stored_row, symmetry_i, t, vcol, vrow
+      data_type, dst_p, error_handler, i, icol, irow, ithread, j, mp_group, &
+      ncol_images, nrow_images, nsymmetries, nthreads, numproc, nze, pcol, &
+      prev_blk_p, prev_dst_p, prow, row, row_img, row_size, sd_pos, sm_pos, &
+      src_p, stored_blk_p, stored_col, stored_row, symmetry_i, t, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
@@ -1099,19 +1099,13 @@ CONTAINS
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
     ! Fill in the meta data structures and copy the data.
-!$omp end master
-!$omp barrier
-!$omp master
     DO dst_p = 0, numproc-1
        total_send_count(1, dst_p) = SUM (send_count (1, :, :, dst_p))
        total_send_count(2, dst_p) = SUM (send_count (2, :, :, dst_p))
        total_recv_count(1, dst_p) = SUM (recv_count (1, :, :, dst_p))
        total_recv_count(2, dst_p) = SUM (recv_count (2, :, :, dst_p))
     ENDDO
-!$omp end master
-!$omp barrier
     ! Allocate data structures needed for data exchange.
-!$omp master
     CALL dbcsr_data_init (recv_data_area)
     CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :, :))))
@@ -1227,20 +1221,84 @@ CONTAINS
           sm_pos = lsmp(dst_p)
           lsmp(dst_p) = lsmp(dst_p) + metalen
           send_meta(sm_pos) = stored_row
-          IF (.NOT. same_dst_p .OR. symmetry_i .EQ. 1) THEN
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             sd_pos = lsdp(dst_p)
-             lsdp(dst_p) = lsdp(dst_p) + nze
-             CALL dbcsr_block_partial_copy(dst=send_data_area,&
-                  dst_rs=row_size, dst_cs=col_size,&
-                  dst_tr=symmetry_i .GT. 1,&
-                  dst_r_lb=1, dst_c_lb=1, dst_offset=sd_pos-1,&
-                  nrow = row_size, ncol = col_size,&
-                  src=sm%data_area,&
-                  src_rs=row_size, src_cs=col_size,&
-                  src_tr=blk_p .LT. 0,&
-                  src_r_lb=1, src_c_lb=1,&
-                  src_offset = bp-1)
+          IF (.NOT. same_dst_p ) THEN
+           nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+           sd_pos = lsdp(dst_p)
+           lsdp(dst_p) = lsdp(dst_p) + nze          
+           IF ( symmetry_i .GT. 1 ) THEN
+              ! transpose variant
+             SELECT CASE (send_data_area%d%data_type)
+              CASE (dbcsr_type_real_4)
+                CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
+                sm%data_area%d%r_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size) 
+              CASE (dbcsr_type_real_8)
+                CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
+                sm%data_area%d%r_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
+              CASE (dbcsr_type_complex_4)
+                CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
+                sm%data_area%d%c_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)                
+              CASE (dbcsr_type_complex_8)
+                CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
+                sm%data_area%d%c_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
+              CASE default
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                   routineN, "Invalid data type.",__LINE__,error)
+             END SELECT
+           ELSE   ! normal variant
+             SELECT CASE (send_data_area%d%data_type)
+              CASE (dbcsr_type_real_4)
+                IF ( blk_p .LT. 0 ) THEN
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%r_sp(sd_pos+irow + icol*row_size) &
+                   = sm%data_area%d%r_sp(bp+icol+(irow*col_size))
+                  ENDDO ; ENDDO
+                ELSE
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%r_sp(sd_pos+irow + icol*row_size) &
+                    = sm%data_area%d%r_sp(bp+irow+icol*row_size)
+                  ENDDO ; ENDDO
+                END IF
+              CASE (dbcsr_type_real_8)
+                IF ( blk_p .LT. 0 ) THEN
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%r_dp(sd_pos+irow + icol*row_size) &
+                   = sm%data_area%d%r_dp(bp+icol+(irow*col_size))
+                  ENDDO ; ENDDO
+                ELSE
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%r_dp(sd_pos+irow + icol*row_size) &
+                    = sm%data_area%d%r_dp(bp+irow+icol*row_size)
+                  ENDDO ; ENDDO
+                END IF
+              CASE (dbcsr_type_complex_4)
+                IF ( blk_p .LT. 0 ) THEN
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%c_sp(sd_pos+irow + icol*row_size) &
+                   = sm%data_area%d%c_sp(bp+icol+(irow*col_size))
+                  ENDDO ; ENDDO
+                ELSE
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%c_sp(sd_pos+irow + icol*row_size) &
+                    = sm%data_area%d%c_sp(bp+irow+icol*row_size)
+                  ENDDO ; ENDDO
+                END IF
+              CASE (dbcsr_type_complex_8)
+                IF ( blk_p .LT. 0 ) THEN
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%c_dp(sd_pos+irow + icol*row_size) &
+                   = sm%data_area%d%c_dp(bp+icol+(irow*col_size))
+                  ENDDO ; ENDDO
+                ELSE
+                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
+                   send_data_area%d%c_dp(sd_pos+irow + icol*row_size) &
+                    = sm%data_area%d%c_dp(bp+irow+icol*row_size)
+                  ENDDO ; ENDDO
+                END IF
+               CASE DEFAULT  
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                   routineN, "Invalid data type.",__LINE__,error)
+              END SELECT
+           ENDIF
              IF (PRESENT (scale_value)) THEN
                 CALL dbcsr_block_scale (send_data_area, scale=scale_value,&
                      row_size=nze, col_size=1, lb=sd_pos, error=error)
@@ -1262,7 +1320,7 @@ CONTAINS
              send_meta(sm_pos+3) = row_img
              send_meta(sm_pos+4) = col_img
              prev_blk_p = send_meta(sm_pos+2)
-          ELSE
+           ELSE
              send_meta(sm_pos+1) = -stored_col
              send_meta(sm_pos+2) = -prev_blk_p
              send_meta(sm_pos+3) = row_img
@@ -1272,6 +1330,7 @@ CONTAINS
     ENDDO ! iterator
     CALL dbcsr_iterator_stop(iter)
     DEALLOCATE (lsmp, lsdp)
+
 !$omp end parallel
     ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same), 
     ! there are only very few processors that need to exchange data.
@@ -1341,6 +1400,8 @@ CONTAINS
           prev_blk_p = blk_p
        ENDDO
     ENDDO
+
+
     ! Finalize the actual imaged matrices from the work matrices.
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
@@ -1366,6 +1427,7 @@ CONTAINS
                shifting=predist_type, error=error)
        ENDDO
     ENDDO
+
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
