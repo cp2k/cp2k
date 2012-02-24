@@ -1002,7 +1002,8 @@ CONTAINS
     IF (SIZE(array) .GT. 0) THEN
        CALL sort (size_counts, max_val_l+1, permutation)
     ENDIF
-    nmc = MIN(nmost_common, SIZE(size_counts))
+    ! Limiting nmc to max_val_l prevents out-of-bounds.
+    nmc = MIN(nmost_common, max_val_l)
     ! Determine the biggest block size and allocate the map.
     ALLOCATE (most_common_map(0:max_val_l))
     ! Create the mapping from block size to order.
