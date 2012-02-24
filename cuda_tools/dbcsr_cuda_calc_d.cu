@@ -45,9 +45,9 @@ __global__ void stack_mm_mnk_d (
 	const int r = threadIdx.x % m;
 	const int c = threadIdx.x / m;
 	int l, i;
-	double myc, tmp;
+	double myc;
 	const double * __restrict__ buff_l, * __restrict__ buff_r;
-        tmp = 0.0;
+       
 	int psp, c_loc;
 
 	int run, nrun;
@@ -109,9 +109,9 @@ __global__ void stack_mm_mnk_d (
 			lock_owner = 0;
 			while ((lock_owner != my_id))
 				lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
-		} else if (threadIdx.x==1) {
-			tmp = c_data[c_loc];
-		}
+		} 
+		
+	
 			
 
 		/* Add our results to the C block. */
@@ -257,9 +257,9 @@ __global__ void stack_mm_mnk_d_direct (
 	int l;
 	const int r = threadIdx.x % m;
 	const int c = threadIdx.x / m;
-	double myc, tmp;
+	double myc ;
 	const double *buff_l, *buff_r;
-        tmp = 0.0;
+        
 	int psp, c_loc;
 
 	int run, nrun;
@@ -294,9 +294,9 @@ __global__ void stack_mm_mnk_d_direct (
 			lock_owner = 0;
 			while ((lock_owner != my_id))
 				lock_owner = atomicCAS (&(c_locks[c_id]), 0, my_id);
-		} else if (threadIdx.x==1) {
-			tmp = c_data[c_loc];
 		}
+		
+
 			
 
 		/* Add our results to the C block. */
