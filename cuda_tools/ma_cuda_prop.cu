@@ -113,21 +113,15 @@ extern "C" int ma_get_closerDev_cu(int nodeId, int *devIds)
 
 extern "C" int ma_get_uma_closerDev_cu(int *devIds)
 {
-  struct cudaDeviceProp devProp;
-  cudaError_t errDev;
-
+  int errDev;
   int i, devCount;
-  FILE *gpuFile;
-  char tmpFile[256], fileName[256];
 
-  ma_get_ndevices_cu(&devCount);
+  errDev = ma_get_ndevices_cu(&devCount);
 
   for(i = 0; i < devCount ; i++)
        devIds[i] = i;
 
-   if (cuda_error (errDev)) return 1;
-
-  return 0;
+  return errDev;
 }
 
 
@@ -141,9 +135,10 @@ extern "C" int ma_get_core_cu(int coreId, int devId)
   FILE *gpuFile;
   char tmpFile[256], fileName[256];
 
+  devId = -1;
   ma_get_ndevices_cu(&devCount);
 
-  for (i = 0; i < devCount; ++i)
+  for (i = 0; i < devCount && devId == -1; ++i)
     {
         errDev = cudaGetDeviceProperties(&devProp, i);
         sprintf(fileName,"/sys/bus/pci/devices/%04x:%02x:%02x.0/",devProp.pciDomainID, devProp.pciBusID,devProp.pciDeviceID);

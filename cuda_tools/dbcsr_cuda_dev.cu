@@ -9,7 +9,7 @@
 
 #include "dbcsr_cuda.h"
 
-static const int verbose_print = 0;
+//static const int verbose_print = 0;
 
 
 extern "C" int dc_device_sync_cu() {

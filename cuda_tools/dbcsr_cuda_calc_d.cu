@@ -47,12 +47,12 @@ __global__ void stack_mm_mnk_d (
 	int l, i;
 	double myc, tmp;
 	const double * __restrict__ buff_l, * __restrict__ buff_r;
-
+        tmp = 0.0;
 	int psp, c_loc;
 
 	int run, nrun;
 
-	__shared__ int our_params[7];
+//	__shared__ int our_params[7];
 	double *buff;
 
 	buff = (double *) cache;
@@ -259,7 +259,7 @@ __global__ void stack_mm_mnk_d_direct (
 	const int c = threadIdx.x / m;
 	double myc, tmp;
 	const double *buff_l, *buff_r;
-
+        tmp = 0.0;
 	int psp, c_loc;
 
 	int run, nrun;
@@ -357,7 +357,7 @@ __global__ void stack_mm_mnk_vec_d (
 	const double *buff_l, *buff_r;
 
 	int psp, c_loc;
-	int run, nrun;
+//	int run, nrun;
 	const int my_mat_num = threadIdx.x / m;
 	int imat;
 
