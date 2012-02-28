@@ -17,7 +17,8 @@ MODULE thermostat_mapping
        do_region_molecule, do_thermo_communication, &
        do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
-  USE kinds,                           ONLY: int_size, dp
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
@@ -83,7 +84,7 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
     INTEGER, DIMENSION(:, :), POINTER        :: point
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -170,18 +171,17 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'thermostat_mapping_region_low', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, &
-      ikind, imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, &
-      last_shell, nglob_cns, nmol_local, stat, number, glob_therm_num
+    INTEGER :: first_atom, first_shell, glob_therm_num, handle, icount, &
+      ielement, ii, ikind, imol, imol_local, ipart, jj, k, kk, last_atom, &
+      last_shell, nglob_cns, nmol_local, number
     LOGICAL                                  :: check, failure, &
                                                 global_constraints, &
                                                 have_thermostat
+    REAL(dp), SAVE, TARGET                   :: unity
     TYPE(molecule_type), POINTER             :: molecule
-    REAL ( dp ), TARGET, SAVE                :: unity
 
     CALL timeset(routineN,handle)
     unity          = 1.0_dp 
@@ -384,21 +384,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mapping_region_evaluate', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_region_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atm_offset, first_atom, handle, i, iatm, icount, id_region, &
-      ikind, ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, &
-      nfixd, nkind, nmol_per_kind, nmolecule, nshell, stat
+    INTEGER :: atm_offset, first_atom, handle, icount, ikind, ilist, imol, &
+      imol_local, katom, last_atom, natom, nc, nfixd, nkind, nmol_per_kind, &
+      nmolecule, nshell, stat
     LOGICAL                                  :: failure
-    TYPE(colvar_constraint_type), &
-      DIMENSION(:), POINTER                  :: colv_list
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
-    TYPE(g3x3_constraint_type), &
-      DIMENSION(:), POINTER                  :: g3x3_list
-    TYPE(g4x6_constraint_type), &
-      DIMENSION(:), POINTER                  :: g4x6_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
@@ -407,7 +401,7 @@ CONTAINS
     natoms_local = 0
     nmol_local   = 0
     nkind = SIZE ( molecule_kind_set )
-    NULLIFY(fixd_list, molecule_kind, molecule, colv_list, g3x3_list, g4x6_list)
+    NULLIFY(fixd_list, molecule_kind, molecule)
     ! Compute the TOTAL number of molecules and atoms on THIS PROC and
     ! TOTAL number of molecules of IKIND on THIS PROC
     DO ikind = 1, nkind

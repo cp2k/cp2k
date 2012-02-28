@@ -25,8 +25,8 @@ MODULE md_conserved_quantities
   USE input_constants,                 ONLY: &
        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble, &
-       nvt_adiabatic_ensemble
+       npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
+       reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md_ener_types,                   ONLY: md_ener_type,&
@@ -224,7 +224,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt_adiabatic', &
       routineP = moduleN//':'//routineN
 
     TYPE(force_env_type), POINTER            :: force_env

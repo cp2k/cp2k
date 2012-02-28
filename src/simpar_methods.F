@@ -23,8 +23,7 @@ MODULE simpar_methods
   USE input_constants,                 ONLY: &
        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nvt_ensemble, nvt_adiabatic_ensemble, reftraj_ensemble,&
-       nvt_adiabatic_ensemble
+       npt_i_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_cp2k_motion,               ONLY: create_md_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type

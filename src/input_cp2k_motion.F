@@ -24,9 +24,9 @@ MODULE input_cp2k_motion
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                              create_gle_section,&
                                              create_region_section,&
-                                             create_thermostat_section,&
                                              create_thermo_fast_section,&
                                              create_thermo_slow_section,&
+                                             create_thermostat_section,&
                                              create_velocity_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -3590,7 +3590,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: thermo_fast_section, thermo_slow_section
+    TYPE(section_type), POINTER              :: thermo_fast_section, &
+                                                thermo_slow_section
 
     failure=.FALSE.
 

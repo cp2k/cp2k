@@ -29,8 +29,8 @@ MODULE thermostat_utils
        do_thermo_no_communication, do_thermo_nose, isokin_ensemble, &
        langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble, &
-       nvt_adiabatic_ensemble
+       npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
+       reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -94,15 +94,15 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'compute_simpar_nfree', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_nfree', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw, natom, nconstraint_ext, &
+    INTEGER                                  :: natom, nconstraint_ext, &
                                                 nconstraint_int, &
                                                 nrestraints_int, rot_dof, &
                                                 roto_trasl_dof
@@ -226,23 +226,20 @@ CONTAINS
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_adiabatic_thermostat_info', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'setup_adiabatic_thermostat_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dis_type, i, ikind, natom, &
-                                                nkind, imol_local, nmol_local, nmolecule, &
-                                                nshell, number, itherm, &
-                                                sum_of_thermostats, katom, first_atom, &
-                                                last_atom, imol, nmol_per_kind, atm_offset, &
-                                                imol_global, stat, natom_local, ipart
+    INTEGER :: dis_type, first_atom, i, ikind, imol, imol_global, ipart, &
+      itherm, katom, last_atom, natom, natom_local, nkind, nmol_local, &
+      nmol_per_kind, nmolecule, nshell, number, stat, sum_of_thermostats
+    INTEGER, POINTER                         :: molecule_list(:), &
+                                                thermolist(:)
     LOGICAL                                  :: check, do_shell, failure, &
                                                 nointer, on_therm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(molecule_type), POINTER             :: molecule_set( : )
-    INTEGER, POINTER                         :: map_loc_thermo_gen(:)
-    INTEGER, POINTER                         :: thermolist(:), molecule_list(:)
- 
+    TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
+
     failure = .FALSE.
     NULLIFY(molecule_kind,molecule,thermostat_info%map_loc_thermo_gen,thermolist)
     nkind = SIZE ( molecule_kind_set )
@@ -408,7 +405,7 @@ CONTAINS
        qmmm_env, error)
     TYPE(section_vals_type), POINTER         :: region_sections
     INTEGER, INTENT(INOUT), OPTIONAL         :: sum_of_thermostats
-    INTEGER, DIMENSION(:), POINTER           :: thermolist ( : )
+    INTEGER, DIMENSION(:), POINTER           :: thermolist( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -421,9 +418,9 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, jg, last_atom, &
-      mregions, n_rep, natom_local, nmol_per_kind, nregions, output_unit, stat, itherm
-    INTEGER, DIMENSION(:), POINTER           :: tmp, tmplist
+    INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, itherm, jg, &
+      last_atom, mregions, n_rep, nregions, output_unit, stat
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind

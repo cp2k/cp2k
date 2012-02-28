@@ -68,9 +68,7 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: csvr_section, gle_section, &
-                                                nose_section, region_section, &
-                                                subsection
+    TYPE(section_type), POINTER              :: nose_section, region_section
 
     failure=.FALSE.
     
@@ -78,7 +76,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
+       NULLIFY(nose_section, region_section)
        
        CALL section_create(section,name="THERMOSTAT_SLOW",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
@@ -155,9 +153,7 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: csvr_section, gle_section, &
-                                                nose_section, region_section, &
-                                                subsection
+    TYPE(section_type), POINTER              :: nose_section, region_section
 
     failure=.FALSE.
     
@@ -165,7 +161,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
+       NULLIFY(nose_section, region_section)
        
        CALL section_create(section,name="THERMOSTAT_FAST",&
             description="Specify thermostat type and parameters controlling the thermostat.",&

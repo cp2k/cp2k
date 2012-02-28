@@ -23,7 +23,7 @@ MODULE extended_system_mapping
        do_thermo_only_master, isokin_ensemble, langevin_ensemble, &
        npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble, nvt_adiabatic_ensemble
+       nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -31,9 +31,9 @@ MODULE extended_system_mapping
                                              molecule_type
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
-  USE thermostat_mapping,              ONLY: init_baro_map_info,&
-                                             thermostat_mapping_region,&
-                                             adiabatic_mapping_region
+  USE thermostat_mapping,              ONLY: adiabatic_mapping_region,&
+                                             init_baro_map_info,&
+                                             thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
   USE timings,                         ONLY: timeset,&
                                              timestop

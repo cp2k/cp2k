@@ -663,7 +663,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'nvt_adiabatic', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, ivar, nparticle, &
@@ -699,8 +699,8 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_fast, &
-                                                thermostat_slow, &
-                                                thermostat_shell
+                                                thermostat_shell, &
+                                                thermostat_slow
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 

@@ -29,10 +29,10 @@ MODULE thermostat_methods
                                              lnhc_particles,&
                                              lnhc_shells
   USE extended_system_init,            ONLY: initialize_nhc_baro,&
-                                             initialize_nhc_part,&
                                              initialize_nhc_fast,&
-                                             initialize_nhc_slow,&
-                                             initialize_nhc_shell
+                                             initialize_nhc_part,&
+                                             initialize_nhc_shell,&
+                                             initialize_nhc_slow
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
@@ -43,8 +43,8 @@ MODULE thermostat_methods
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
        do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble,&
-       nvt_adiabatic_ensemble
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
+       nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -70,10 +70,10 @@ MODULE thermostat_methods
                                              thermostat_type,&
                                              thermostats_type
   USE thermostat_utils,                ONLY: compute_degrees_of_freedom,&
-                                             get_thermostat_energies,&
                                              compute_nfree,&
-                                             setup_thermostat_info,&
-                                             setup_adiabatic_thermostat_info
+                                             get_thermostat_energies,&
+                                             setup_adiabatic_thermostat_info,&
+                                             setup_thermostat_info
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -111,10 +111,11 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: binary_restart_file_name
     INTEGER                                  :: n_rep, region, thermostat_type
-    LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_shell, &
-      explicit_baro, explicit_barostat_section, explicit_part, &
-      explicit_shell, failure, save_mem, shell_adiabatic, shell_present, &
-      apply_thermo_adiabatic, explicit_adiabatic_fast, explicit_adiabatic_slow
+    LOGICAL :: apply_general_thermo, apply_thermo_adiabatic, &
+      apply_thermo_baro, apply_thermo_shell, explicit_adiabatic_fast, &
+      explicit_adiabatic_slow, explicit_baro, explicit_barostat_section, &
+      explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
+      shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -124,11 +125,10 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(section_vals_type), POINTER :: barostat_section, print_section, &
-      region_sections, region_section_fast, region_section_slow, &
-      adiabatic_fast_section, adiabatic_slow_section, &
-      thermo_baro_section, thermo_part_section, &
-      thermo_shell_section, adiabatic_section, &
+    TYPE(section_vals_type), POINTER :: adiabatic_fast_section, &
+      adiabatic_slow_section, barostat_section, print_section, &
+      region_section_fast, region_section_slow, region_sections, &
+      thermo_baro_section, thermo_part_section, thermo_shell_section, &
       work_section
 
     NULLIFY(qmmm_env)

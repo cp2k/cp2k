@@ -264,11 +264,8 @@ CONTAINS
       POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
     TYPE(thermostat_type), OPTIONAL, POINTER :: thermostat_coeff, &
-                                                thermostat_part, &
-                                                thermostat_shell, &
-                                                thermostat_fast, &
-                                                thermostat_slow, &
-                                                thermostat_baro
+      thermostat_part, thermostat_shell, thermostat_baro, thermostat_fast, &
+      thermostat_slow
     TYPE(md_ener_type), OPTIONAL, POINTER    :: md_ener
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
