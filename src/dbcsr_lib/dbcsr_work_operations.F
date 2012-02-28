@@ -1473,6 +1473,7 @@ CONTAINS
     TYPE(i_array_p), DIMENSION(:), POINTER, &
       SAVE                                   :: all_blk_p, all_col_i, &
                                                 all_row_p
+    INTEGER                                  :: wm_datasize
 
 !   ---------------------------------------------------------------------------
 
@@ -1545,13 +1546,14 @@ CONTAINS
     !$OMP END MASTER
     !
     !$OMP BARRIER
+    wm_datasize = wm%datasize
     nblks = wm%lastblk
     !$OMP ATOMIC
     nblks_to_add = nblks_to_add + nblks
     !$OMP ATOMIC
     new_nblks = new_nblks + nblks
     !$OMP ATOMIC
-    new_nze = new_nze + wm%datasize
+    new_nze = new_nze + wm_datasize
     !$OMP BARRIER
     !
     !$OMP MASTER
