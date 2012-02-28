@@ -720,9 +720,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (detailed_timing) t_tmp=m_walltime()
-    !$OMP ATOMIC
-    t_process_stack = t_process_stack - t_tmp
+    IF (detailed_timing)  THEN
+     t_tmp=m_walltime()
+     !$OMP ATOMIC
+     t_process_stack = t_process_stack - t_tmp
+    ENDIF  
+
     state = dbcsr_ps_state_working
     IF (dbg) THEN
        CALL RANDOM_NUMBER (rnd)
@@ -913,9 +916,11 @@ CONTAINS
     !$      which_locks, nregions,&
     !$      error=error)
     !$ ENDIF
-    IF (detailed_timing) t_tmp=m_walltime()
+    IF (detailed_timing) THEN
+     t_tmp=m_walltime()
     !$OMP ATOMIC
-    t_process_stack = t_process_stack + t_tmp
+     t_process_stack = t_process_stack + t_tmp
+    ENDIF 
   END SUBROUTINE process_mm_stack
 
 
