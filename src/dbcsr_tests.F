@@ -271,27 +271,21 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_multiplies_multiproc', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: error_handle, group, &
                                                 loop_iter, mynode, numnodes, &
                                                 test
     INTEGER(kind=int_8)                      :: flop, flop_sum
-    CHARACTER(len=*), PARAMETER :: fmt_per_run_total = &
-      '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s",2(1X,E13.7))', &
-      fmt_per_run_local = &
-      '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s")'
-
     INTEGER, DIMENSION(2)                    :: myploc, npdims
     LOGICAL                                  :: i_am_alive
-    REAL(kind=real_8)                        :: cs, cs_first, cs_pos, &
-                                                cs_pos_first, flops_all, t1, &
-                                                t2
+    REAL(kind=real_8)                        :: cs, cs_pos, flops_all, t1, t2
     TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
                                                 col_dist_c, row_dist_a, &
                                                 row_dist_b, row_dist_c
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
-    TYPE(dbcsr_obj)                          :: m_a, m_b, m_c
+    TYPE(dbcsr_obj)                          :: m_a, m_b, m_c, m_c_reserve
 
 !   ---------------------------------------------------------------------------
 
@@ -305,97 +299,102 @@ CONTAINS
     p_sizes: DO test = 1, SIZE(group_sizes, 1)
        t2 = 0.0_real_8
        flop_sum = 0
-       loops: DO loop_iter = 1, n_loops
-          npdims(1:2) = group_sizes(test, 1:2)
-          numnodes = npdims(1) * npdims(2)
-          group = dbcsr_mp_group (dbcsr_distribution_mp (&
-                      dbcsr_distribution (matrix_c)))
+       npdims(1:2) = group_sizes(test, 1:2)
+       numnodes = npdims(1) * npdims(2)
+       group = dbcsr_mp_group (dbcsr_distribution_mp (&
+                   dbcsr_distribution (matrix_c)))
+       IF (numnodes .EQ. 0) THEN
+          CALL dbcsr_mp_make_env (mp_env, group, nprocs=MAXVAL(npdims),&
+               error=dbcsr_error)
+       ELSE
+          CALL dbcsr_mp_make_env (mp_env, group, pgrid_dims=npdims,&
+               error=dbcsr_error)
+       ENDIF
+       CALL dbcsr_assert (numnodes, "GE", 0, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Cartesian sides must be greater or equal to 0",__LINE__,dbcsr_error)
+       IF (.FALSE.) THEN
+          ! Let MPI decide our process grid
           IF (numnodes .EQ. 0) THEN
-             CALL dbcsr_mp_make_env (mp_env, group, nprocs=MAXVAL(npdims),&
-                  error=dbcsr_error)
-          ELSE
-             CALL dbcsr_mp_make_env (mp_env, group, pgrid_dims=npdims,&
-                  error=dbcsr_error)
+             numnodes = MAXVAL (npdims)
+             npdims(1:2) = 0
+             CALL mp_dims_create (numnodes, npdims)
           ENDIF
-          CALL dbcsr_assert (numnodes, "GE", 0, dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN,&
-               "Cartesian sides must be greater or equal to 0",__LINE__,dbcsr_error)
-          IF (.FALSE.) THEN
-             ! Let MPI decide our process grid
-             IF (numnodes .EQ. 0) THEN
-                numnodes = MAXVAL (npdims)
-                npdims(1:2) = 0
-                CALL mp_dims_create (numnodes, npdims)
-             ENDIF
-             ! Create communicator with given cartesian grid
-             CALL mp_cart_create (mp_group, 2, npdims, myploc, group)
-          ENDIF
-          i_am_alive = dbcsr_mp_active (mp_env)
-          alive: IF (i_am_alive) THEN
-             npdims(1) = dbcsr_mp_nprows (mp_env)
-             npdims(2) = dbcsr_mp_npcols (mp_env)
-             group = dbcsr_mp_group (mp_env)
-             CALL mp_environ (numnodes, mynode, group)
-             ! Row & column distributions
-             CALL dbcsr_dist_bin (row_dist_a,&
-                  dbcsr_nblkrows_total (matrix_a), npdims(1),&
-                  array_data(dbcsr_row_block_sizes(matrix_a)), error=dbcsr_error)
-             CALL dbcsr_dist_bin (col_dist_a,&
-                  dbcsr_nblkcols_total (matrix_a), npdims(2),&
-                  array_data(dbcsr_col_block_sizes(matrix_a)), error=dbcsr_error)
-             CALL dbcsr_dist_bin (row_dist_b,&
-                  dbcsr_nblkrows_total (matrix_b), npdims(1),&
-                  array_data(dbcsr_row_block_sizes(matrix_b)), error=dbcsr_error)
-             CALL dbcsr_dist_bin (col_dist_b,&
-                  dbcsr_nblkcols_total (matrix_b), npdims(2),&
-                  array_data(dbcsr_col_block_sizes(matrix_b)), error=dbcsr_error)
-             CALL dbcsr_dist_bin (row_dist_c,&
-                  dbcsr_nblkrows_total (matrix_c), npdims(1),&
-                  array_data(dbcsr_row_block_sizes(matrix_c)), error=dbcsr_error)
-             CALL dbcsr_dist_bin (col_dist_c,&
-                  dbcsr_nblkcols_total (matrix_c), npdims(2),&
-                  array_data(dbcsr_col_block_sizes(matrix_c)), error=dbcsr_error)
-             CALL dbcsr_distribution_new (dist_a,&
-                  mp_env, row_dist_a, col_dist_a)
-             CALL dbcsr_distribution_new (dist_b,&
-                  mp_env, row_dist_b, col_dist_b)
-             CALL dbcsr_distribution_new (dist_c,&
-                  mp_env, row_dist_c, col_dist_c)
-             CALL array_release (row_dist_a)
-             CALL array_release (col_dist_a)
-             CALL array_release (row_dist_b)
-             CALL array_release (col_dist_b)
-             CALL array_release (row_dist_c)
-             CALL array_release (col_dist_c)
-             ! Redistribute the matrices
-             ! A
-             CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name (matrix_a)),&
-                  dist_a, dbcsr_type_no_symmetry,&
-                  dbcsr_row_block_sizes (matrix_a),&
-                  dbcsr_col_block_sizes (matrix_a),&
-                  data_type=dbcsr_get_data_type (matrix_a),&
-                  error=dbcsr_error)
-             CALL dbcsr_distribution_release (dist_a)
-             CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error)
-             ! B
-             CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
-                  dist_b, dbcsr_type_no_symmetry,&
-                  dbcsr_row_block_sizes (matrix_b),&
-                  dbcsr_col_block_sizes (matrix_b),&
-                  data_type=dbcsr_get_data_type (matrix_b),&
-                  error=dbcsr_error)
-             CALL dbcsr_distribution_release (dist_b)
-             CALL dbcsr_redistribute (matrix_b, m_b, error=dbcsr_error)
-             ! C
-             CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name (matrix_c)),&
-                  dist_c, dbcsr_type_no_symmetry,&
-                  dbcsr_row_block_sizes (matrix_c),&
-                  dbcsr_col_block_sizes (matrix_c),&
-                  data_type=dbcsr_get_data_type (matrix_c),&
-                  error=dbcsr_error)
-             CALL dbcsr_distribution_release (dist_c)
-             CALL dbcsr_redistribute (matrix_c, m_c, error=dbcsr_error)
-             ! Perform multiply
+          ! Create communicator with given cartesian grid
+          CALL mp_cart_create (mp_group, 2, npdims, myploc, group)
+       ENDIF
+       i_am_alive = dbcsr_mp_active (mp_env)
+       alive: IF (i_am_alive) THEN
+          npdims(1) = dbcsr_mp_nprows (mp_env)
+          npdims(2) = dbcsr_mp_npcols (mp_env)
+          group = dbcsr_mp_group (mp_env)
+          CALL mp_environ (numnodes, mynode, group)
+          ! Row & column distributions
+          CALL dbcsr_dist_bin (row_dist_a,&
+               dbcsr_nblkrows_total (matrix_a), npdims(1),&
+               array_data(dbcsr_row_block_sizes(matrix_a)), error=dbcsr_error)
+          CALL dbcsr_dist_bin (col_dist_a,&
+               dbcsr_nblkcols_total (matrix_a), npdims(2),&
+               array_data(dbcsr_col_block_sizes(matrix_a)), error=dbcsr_error)
+          CALL dbcsr_dist_bin (row_dist_b,&
+               dbcsr_nblkrows_total (matrix_b), npdims(1),&
+               array_data(dbcsr_row_block_sizes(matrix_b)), error=dbcsr_error)
+          CALL dbcsr_dist_bin (col_dist_b,&
+               dbcsr_nblkcols_total (matrix_b), npdims(2),&
+               array_data(dbcsr_col_block_sizes(matrix_b)), error=dbcsr_error)
+          CALL dbcsr_dist_bin (row_dist_c,&
+               dbcsr_nblkrows_total (matrix_c), npdims(1),&
+               array_data(dbcsr_row_block_sizes(matrix_c)), error=dbcsr_error)
+          CALL dbcsr_dist_bin (col_dist_c,&
+               dbcsr_nblkcols_total (matrix_c), npdims(2),&
+               array_data(dbcsr_col_block_sizes(matrix_c)), error=dbcsr_error)
+          CALL dbcsr_distribution_new (dist_a,&
+               mp_env, row_dist_a, col_dist_a)
+          CALL dbcsr_distribution_new (dist_b,&
+               mp_env, row_dist_b, col_dist_b)
+          CALL dbcsr_distribution_new (dist_c,&
+               mp_env, row_dist_c, col_dist_c)
+          CALL array_release (row_dist_a)
+          CALL array_release (col_dist_a)
+          CALL array_release (row_dist_b)
+          CALL array_release (col_dist_b)
+          CALL array_release (row_dist_c)
+          CALL array_release (col_dist_c)
+          ! Redistribute the matrices
+          ! A
+          CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name (matrix_a)),&
+               dist_a, dbcsr_type_no_symmetry,&
+               dbcsr_row_block_sizes (matrix_a),&
+               dbcsr_col_block_sizes (matrix_a),&
+               data_type=dbcsr_get_data_type (matrix_a),&
+               error=dbcsr_error)
+          CALL dbcsr_distribution_release (dist_a)
+          CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error) 
+          ! B
+          CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
+               dist_b, dbcsr_type_no_symmetry,&
+               dbcsr_row_block_sizes (matrix_b),&
+               dbcsr_col_block_sizes (matrix_b),&
+               data_type=dbcsr_get_data_type (matrix_b),&
+               error=dbcsr_error)
+          CALL dbcsr_distribution_release (dist_b)
+          CALL dbcsr_redistribute (matrix_b, m_b, error=dbcsr_error)
+          ! C
+          CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name (matrix_c)),&
+               dist_c, dbcsr_type_no_symmetry,&
+               dbcsr_row_block_sizes (matrix_c),&
+               dbcsr_col_block_sizes (matrix_c),&
+               data_type=dbcsr_get_data_type (matrix_c),&
+               error=dbcsr_error)
+          CALL dbcsr_distribution_release (dist_c)
+          CALL dbcsr_redistribute (matrix_c, m_c, error=dbcsr_error)
+          CALL dbcsr_init(m_c_reserve)
+          CALL dbcsr_copy(m_c_reserve,m_c,error=dbcsr_error)
+          ! Perform multiply
+       loops: DO loop_iter = 1, n_loops
+             CALL dbcsr_release (m_c)
+             CALL dbcsr_init(m_c)
+             CALL dbcsr_copy(m_c,m_c_reserve,error=dbcsr_error)
              CALL mp_sync (group)
              t1 = -m_walltime()
              IF (PRESENT (limits)) THEN
@@ -444,38 +443,24 @@ CONTAINS
              CALL dmp_max (t1, group)
              CALL mp_sum (flop, group)
              t1 = MAX (t1, EPSILON (t1))
-             flops_all = REAL(flop, KIND=real_8) / t1
-             cs = dbcsr_checksum (m_c, error=dbcsr_error)
-             cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
-             IF (loop_iter .EQ. 1) THEN
-                cs_first = cs
-                cs_pos_first = cs_pos
-             ENDIF
-             ! Release
-             CALL dbcsr_mp_release (mp_env)
-             CALL dbcsr_release (m_a)
-             CALL dbcsr_release (m_b)
-             CALL dbcsr_release (m_c)
+             flops_all = REAL(flop, KIND=real_8) / t1 / numnodes / (1024*1024)
              IF (io_unit .GT. 0) THEN
-                WRITE(io_unit,fmt_per_run_total)&
-                     " Loop Multiplication",&
-                     numnodes,"processors:",&
-                     t1, flops_all, cs, cs_pos
+                WRITE(io_unit,'(A,I5,A,I5,A,F12.3,A,I9,A)')&
+                     " loop ", loop_iter, " with ", numnodes," MPI ranks: using ", t1, "s ", INT(flops_all), " Mflops/rank"
              ENDIF
-          ENDIF alive
-       ENDDO loops
-       IF (i_am_alive) THEN
-          CALL dmp_max (t2, group)
-          CALL mp_sum (flop_sum, group)
-          IF (io_unit .GT. 0) THEN
-             t2 = MAX (t2, EPSILON (t2))
-             flops_all = REAL(flop_sum, KIND=real_8) / t2
-             WRITE(io_unit,fmt_per_run_total)&
-                  "Total Multiplication",&
-                  numnodes,"processors:",&
-                  t2, flops_all, cs_first, cs_pos_first
-          ENDIF
-       ENDIF
+         ENDDO loops
+         IF (io_unit>0) THEN
+            WRITE(io_unit,*) "Last checksums",cs ,cs_pos
+         ENDIF
+         cs = dbcsr_checksum (m_c, error=dbcsr_error)
+         cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
+         ! Release
+         CALL dbcsr_mp_release (mp_env)
+         CALL dbcsr_release (m_a)
+         CALL dbcsr_release (m_b)
+         CALL dbcsr_release (m_c)
+         CALL dbcsr_release (m_c_reserve)
+       ENDIF alive
     ENDDO p_sizes
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
   END SUBROUTINE test_multiplies_multiproc
