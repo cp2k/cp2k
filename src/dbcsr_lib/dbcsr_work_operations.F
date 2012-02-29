@@ -1457,7 +1457,8 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: error_handler, my_row_count, nblks, nblks_to_add = 0, &
-      new_data_size, new_nblks = 0, new_nze = 0, nrows, nwms, row, t, which_wm
+      new_data_size, new_nblks = 0, new_nze = 0, nrows, nwms, row, t, &
+      which_wm, wm_datasize
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: all_data_offsets, &
                                                 all_data_sizes, &
                                                 new_blk_p_sorted, &
@@ -1473,7 +1474,6 @@ CONTAINS
     TYPE(i_array_p), DIMENSION(:), POINTER, &
       SAVE                                   :: all_blk_p, all_col_i, &
                                                 all_row_p
-    INTEGER                                  :: wm_datasize
 
 !   ---------------------------------------------------------------------------
 
