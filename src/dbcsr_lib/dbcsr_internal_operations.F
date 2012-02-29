@@ -1274,6 +1274,7 @@ CONTAINS
                 CALL dbcsr_cuda_cp_host_to_dev(&
                      left_buffer_calc%mats(1,v_ki+1)%m%data_area,&
                      carrier%param_sets%groups(1,1)%master%s%left_data_cuda,&
+                     async = .TRUE.,&
                      error=error)
                 !$OMP END MASTER
                 !$OMP END PARALLEL
