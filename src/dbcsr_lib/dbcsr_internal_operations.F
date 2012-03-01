@@ -1013,27 +1013,27 @@ CONTAINS
                 right_recv_subtypes(2) = mp_type_make (right_index_rp)
                 right_send_type(v_ki+1, 1) = mp_type_make (right_send_subtypes)
                 right_recv_type(v_ki+1, 1) = mp_type_make (right_recv_subtypes)
-                CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
-                CALL mp_isend (right_send_type(v_ki+1, 1), right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow)
                 CALL xtime_set(xfer_timings(idata+iright, id_recv, id_time, metronome))
                 CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow)
-             ELSE
                 CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
-                CALL dbcsr_isend_any (right_data_sp, right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow,&
-                     error=error)
+                CALL mp_isend (right_send_type(v_ki+1, 1), right_send_p,&
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow)
+             ELSE
                 CALL xtime_set(xfer_timings(idata+iright, id_recv, id_time, metronome))
                 CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow,&
                      error=error)
-                CALL xtime_set(xfer_timings(imeta+iright, id_send, id_time, metronome))
-                CALL mp_isend (right_index_sp, right_send_p,&
-                     grp, right_index_sr(v_ki+1, 1), tag=right_dst_vrow)
                 CALL xtime_set(xfer_timings(imeta+iright, id_recv, id_time, metronome))
                 CALL mp_irecv (right_index_rp, right_recv_p,&
                      grp, right_index_rr(v_ki+1, 1), tag=right_src_vrow)
+                CALL xtime_set(xfer_timings(idata+iright, id_send, id_time, metronome))
+                CALL dbcsr_isend_any (right_data_sp, right_send_p,&
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow,&
+                     error=error)
+                CALL xtime_set(xfer_timings(imeta+iright, id_send, id_time, metronome))
+                CALL mp_isend (right_index_sp, right_send_p,&
+                     grp, right_index_sr(v_ki+1, 1), tag=right_dst_vrow)
              ENDIF
              xfer_timings(idata+iright, id_send, id_bytes, metronome) = &
                 xfer_timings(idata+iright, id_send, id_bytes, metronome) + &
@@ -1203,27 +1203,27 @@ CONTAINS
                 left_recv_subtypes(2) = mp_type_make (left_index_rp)
                 left_send_type(1, v_ki+1) = mp_type_make (left_send_subtypes)
                 left_recv_type(1, v_ki+1) = mp_type_make (left_recv_subtypes)
-                CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
-                CALL mp_isend (left_send_type(1, v_ki+1), left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol)
                 CALL xtime_set(xfer_timings(idata+ileft, id_recv, id_time, metronome))
                 CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_vcol)
-             ELSE
                 CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
-                CALL dbcsr_isend_any (left_data_sp, left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol,&
-                     error=error)
+                CALL mp_isend (left_send_type(1, v_ki+1), left_send_p,&
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol)
+             ELSE
                 CALL xtime_set(xfer_timings(idata+ileft, id_recv, id_time, metronome))
                 CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_vcol,&
                      error=error)
-                CALL xtime_set(xfer_timings(imeta+ileft, id_send, id_time, metronome))
-                CALL mp_isend (left_index_sp, left_send_p,&
-                     grp, left_index_sr(1, v_ki+1), tag=left_dst_vcol)
                 CALL xtime_set(xfer_timings(imeta+ileft, id_recv, id_time, metronome))
                 CALL mp_irecv (left_index_rp, left_recv_p,&
                      grp, left_index_rr(1, v_ki+1), tag=left_src_vcol)
+                CALL xtime_set(xfer_timings(idata+ileft, id_send, id_time, metronome))
+                CALL dbcsr_isend_any (left_data_sp, left_send_p,&
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol,&
+                     error=error)
+                CALL xtime_set(xfer_timings(imeta+ileft, id_send, id_time, metronome))
+                CALL mp_isend (left_index_sp, left_send_p,&
+                     grp, left_index_sr(1, v_ki+1), tag=left_dst_vcol)
              ENDIF
              xfer_timings(idata+ileft, id_send, id_bytes, metronome) = &
                 xfer_timings(idata+ileft, id_send, id_bytes, metronome) + &
