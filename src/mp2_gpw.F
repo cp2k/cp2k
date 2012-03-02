@@ -65,8 +65,7 @@ MODULE mp2_gpw
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: default_output_unit
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_comm_split_direct,&
+  USE message_passing,                 ONLY: mp_comm_split_direct,&
                                              mp_sendrecv,&
                                              mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -74,7 +73,8 @@ MODULE mp2_gpw
   USE mp2_types,                       ONLY: mp2_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE pw_env_methods,                  ONLY: pw_env_create
+  USE pw_env_methods,                  ONLY: pw_env_create,&
+                                             pw_env_rebuild
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
@@ -89,7 +89,8 @@ MODULE mp2_gpw
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_release
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -128,10 +129,10 @@ MODULE mp2_gpw
 !> \brief with a big bang to mp2 
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,para_env,unit_nr,error)
+  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
-    REAL(KIND=dp)                            :: Emp2
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -140,18 +141,18 @@ MODULE mp2_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: blacs_grid_layout, blk, col, col_offset, col_size, color_sub, &
-      comm_sub, dimen, handle, homo, i, j, local_unit_nr, nao, natom, &
-      nelectron, nkind, nmo, row, row_offset, row_size, stat
+      comm_sub, dimen, handle, homo, i, i_multigrid, j, local_unit_nr, &
+      n_multigrid, nao, natom, nelectron, nkind, nmo, row, row_offset, &
+      row_size, stat
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: blacs_repeatable, failure, &
                                                 skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
-    REAL(KIND=dp)                            :: eps_gvg_rspace_old, &
-                                                eps_pgf_orb_old, &
-                                                eps_rho_rspace_old, subcells
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto
+    REAL(KIND=dp) :: eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
+      progression_factor, relative_cutoff_old, subcells
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, cutoff_old
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -214,6 +215,13 @@ MODULE mp2_gpw
        local_unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
     ELSE
        local_unit_nr=default_output_unit
+    ENDIF
+
+    IF (unit_nr>0) THEN
+      WRITE (UNIT=unit_nr,FMT="(T3,A,T71,F10.1)")&
+               "MP2_GPW| Density cutoff [a.u.]:", mp2_env%mp2_gpw%cutoff*0.5_dp
+      WRITE (UNIT=unit_nr,FMT="(T3,A,T71,F10.1)")&
+            "MP2_GPW| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
     ENDIF
 
     ! a logger
@@ -327,8 +335,31 @@ MODULE mp2_gpw
     ! a pw_env
     NULLIFY(pw_env_sub)
     CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
+    !CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
+    !                poisson_env=poisson_env,error=error_sub)
+    
+    ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs 
+    progression_factor=qs_env%dft_control%qs_control%progression_factor
+    n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
+    ALLOCATE(cutoff_old(n_multigrid), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    cutoff_old=0.0_dp
+    cutoff_old=qs_env%dft_control%qs_control%e_cutoff
+
+    qs_env%dft_control%qs_control%e_cutoff(1)=mp2_env%mp2_gpw%cutoff*0.5_dp
+    DO i_multigrid=2, n_multigrid
+      qs_env%dft_control%qs_control%e_cutoff(i_multigrid) = qs_env%dft_control%qs_control%e_cutoff(i_multigrid-1) &
+          / progression_factor
+    END DO
+
+    relative_cutoff_old=qs_env%dft_control%qs_control%relative_cutoff
+    qs_env%dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp  
+
+    CALL pw_env_rebuild(pw_env=pw_env_sub, qs_env=qs_env, &
+                        external_para_env=para_env_sub, error=error_sub)
     CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
                     poisson_env=poisson_env,error=error_sub)
+    ! hack hack hack XXXXXXXXXXXXXXX
 
     ! now we need a task list, hard code skip_load_balance_distributed
     NULLIFY(task_list_sub)
@@ -445,10 +476,11 @@ MODULE mp2_gpw
     CALL cp_dbcsr_filter(mo_coeff_v,mp2_env%mp2_gpw%eps_filter,error=error_sub)
 
     ! now we're kind of ready to go....
-    CALL mp2_gpw_compute(Emp2,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+    CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                           atomic_kind_set,mo_coeff,C,auto,nmo,homo,rho_r,rho_g,pot_g,&
                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                          mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,error_sub)
+                          mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                          mp2_env%mp2_memory,error_sub)
 
     ! and now free the whole lot 
     DEALLOCATE(C,STAT=stat)
@@ -498,6 +530,9 @@ MODULE mp2_gpw
     qs_env%dft_control%qs_control%eps_gvg_rspace=eps_gvg_rspace_old
     CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, error_sub)
 
+    ! restore the initial value of the cutoff
+    qs_env%dft_control%qs_control%e_cutoff=cutoff_old
+    qs_env%dft_control%qs_control%relative_cutoff=relative_cutoff_old
 
     CALL cp_blacs_env_release(blacs_env_sub, error=error_sub)
 
@@ -511,13 +546,13 @@ MODULE mp2_gpw
 
   END SUBROUTINE mp2_gpw_main
 
-  SUBROUTINE mp2_gpw_compute(Emp2,qs_env,para_env,para_env_sub,color_sub,dft_control,&
+  SUBROUTINE mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,&
                  cell,particle_set,atomic_kind_set,mo_coeff,C,auto,nmo,homo,&
                  rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                  poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
-                 error_sub)
+                 mp2_memory,error_sub)
 
-    REAL(KIND=dp)                            :: Emp2
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: color_sub
@@ -542,26 +577,32 @@ MODULE mp2_gpw
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: mp2_memory
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_compute', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, a_group_counter, b, blk, col, col_offset, col_size, &
-      comm_exchange, EX_end, EX_end_send, EX_start, EX_start_send, &
-      group_counter, handle, i, i_counter, i_group_counter, index_proc_shift, &
-      j, max_batch_size_A, max_batch_size_I, mepos_in_EX_group, &
-      my_A_batch_size, my_A_virtual_end, my_A_virtual_start, my_I_batch_size, &
-      my_I_occupied_end, my_I_occupied_start, ngroup, one, p, p_best, &
+    INTEGER :: a, a_group_counter, b, b_global, b_group_counter, blk, col, &
+      col_offset, col_size, color_counter, comm_exchange, EX_end, &
+      EX_end_send, EX_start, EX_start_send, group_counter, handle, i, &
+      i_counter, i_group_counter, index_proc_shift, j, max_b_size, &
+      max_batch_size_A, max_batch_size_I, mepos_in_EX_group, my_A_batch_size, &
+      my_A_virtual_end, my_A_virtual_start, my_B_size, my_B_virtual_end, &
+      my_B_virtual_start, my_I_batch_size, my_I_occupied_end, &
+      my_I_occupied_start, my_q_position, ngroup, one, p, p_best, &
       proc_receive, proc_send, q, q_best, row, row_offset, row_size, size_EX, &
-      size_EX_send, size_of_exchange_group, stat, virtual, wfn_calc, &
-      wfn_calc_best
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, &
+      size_EX_send, size_of_exchange_group
+    INTEGER :: stat, sub_sub_color, virtual, wfn_calc, wfn_calc_best
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, vector_B_sizes, &
                                                 vector_batch_A_size_group, &
                                                 vector_batch_I_size_group
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: exchange_group_sizes
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
+                                                exchange_group_sizes
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: pair_energy
+    REAL(KIND=dp)                            :: mem_real, pair_energy
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: BIb_jb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_Ex, BIb_send
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
@@ -574,6 +615,8 @@ MODULE mp2_gpw
     TYPE(pw_p_type)                          :: psi_a
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi_i
+
+!TYPE(pw_p_type)                          ::  psi_i  ! no store psi for occupied 
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -601,10 +644,14 @@ MODULE mp2_gpw
     virtual=nmo-homo
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
+    p_best=ngroup
+    q_best=1
     wfn_calc_best=HUGE(wfn_calc_best)
     DO p=1,ngroup
        DO q=1,ngroup
           IF (p*q.NE.ngroup) CYCLE
+          mem_real=(REAL(virtual,KIND=dp)*(REAL(homo,KIND=dp)+REAL(homo,KIND=dp)/p)*homo/p)*8.0D+00/1024.0D+00**2
+          IF(mem_real>mp2_memory) CYCLE
           wfn_calc=((homo+p-1)/p)+((virtual+q-1)/q)
           IF (wfn_calc<wfn_calc_best) THEN
              wfn_calc_best=wfn_calc
@@ -613,6 +660,13 @@ MODULE mp2_gpw
           ENDIF
        ENDDO
     ENDDO
+
+    IF (unit_nr>0) THEN
+      WRITE (UNIT=unit_nr,FMT="(T3,A,T77,i4)")&
+               "MP2_GPW| Occupied states divided in:", p_best
+      WRITE (UNIT=unit_nr,FMT="(T3,A,T77,i4)")&
+            "MP2_GPW| Virtual states divided in:", q_best
+    ENDIF
 
     max_batch_size_I=(homo+p_best-1)/p_best
     max_batch_size_A=(virtual+q_best-1)/q_best
@@ -678,6 +732,7 @@ MODULE mp2_gpw
         my_I_occupied_start=my_I_occupied_start+vector_batch_I_size_group(i)
         i_group_counter=i_group_counter+1
       END DO
+      my_q_position=j
       IF(color_sub==group_counter-1) EXIT
       my_A_virtual_start=my_A_virtual_start+vector_batch_A_size_group(j)
       a_group_counter=a_group_counter+1
@@ -692,53 +747,77 @@ MODULE mp2_gpw
     DEALLOCATE(vector_batch_I_size_group)
     DEALLOCATE(vector_batch_A_size_group)
 
-    ! now create a group that contains all the proc that have the same virtual starting point
-    ! in this way it is possible to sum the common integrals needed for the full MP2 energy
-    ! in mp_comm_split_direct the color is give by my_a_virtual_start
-    ! only proc with rank 0 in the sub_group will be responsible for communication in the exchange group
-    ! then setup all is needed for communication
-    IF (para_env_sub%mepos==0) THEN
-      CALL mp_comm_split_direct(para_env%group,comm_exchange,my_A_virtual_start)
-      NULLIFY(para_env_exchange)
-      CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
-
-      ! crate the proc map
-      ALLOCATE(proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
-      DO i=0,para_env_exchange%num_pe-1
-        proc_map(i)=i
-        proc_map(-i-1)=para_env_exchange%num_pe-i-1
-        proc_map(para_env_exchange%num_pe+i)=i
+    ! divide the b states in the sub_group in such a way to create
+    ! b_start and b_end for each proc inside the sub_group
+    max_b_size=(virtual+para_env_sub%num_pe-1)/para_env_sub%num_pe
+    ALLOCATE(vector_B_sizes(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    vector_B_sizes=max_b_size
+    IF(SUM(vector_B_sizes)/=virtual) THEN
+      one=1
+      IF(SUM(vector_B_sizes)>virtual) one=-1
+      i=-1
+      DO
+        i=i+1
+        vector_B_sizes(i)=vector_B_sizes(i)+one
+        IF(SUM(vector_B_sizes)==virtual) EXIT
+        IF(i==para_env_sub%num_pe-1) i=-1
       END DO
-
-      ! create an array containing the information for communication
-      ALLOCATE(exchange_group_sizes(0:para_env_exchange%num_pe-1,3))
-      exchange_group_sizes=0
-      exchange_group_sizes(para_env_exchange%mepos,1)=my_I_occupied_start
-      exchange_group_sizes(para_env_exchange%mepos,2)=my_I_occupied_end
-      exchange_group_sizes(para_env_exchange%mepos,3)=my_I_batch_size
-      CALL mp_sum(exchange_group_sizes,para_env_exchange%group)
-      ! broadcast the array to all processes of the sub_group
-      mepos_in_EX_group=para_env_exchange%mepos
-      size_of_exchange_group=para_env_exchange%num_pe
-      CALL mp_bcast(mepos_in_EX_group,0,para_env_sub%group)
-      CALL mp_bcast(size_of_exchange_group,0,para_env_sub%group)
-      CALL mp_bcast(exchange_group_sizes,0,para_env_sub%group)
-      CALL mp_bcast(proc_map,0,para_env_sub%group)
-
-    ELSE
-      ! nmo+para_env%mepos should be replaced with MPI_UNDEFINED (add in message_passing.F)
-      CALL mp_comm_split_direct(para_env%group,comm_exchange,nmo+para_env%mepos)
-
-      ! get the info for allocating array received from communication
-      CALL mp_bcast(mepos_in_EX_group,0,para_env_sub%group)
-      CALL mp_bcast(size_of_exchange_group,0,para_env_sub%group)
-      ALLOCATE(exchange_group_sizes(0:size_of_exchange_group-1,3)) 
-      exchange_group_sizes=0
-      CALL mp_bcast(exchange_group_sizes,0,para_env_sub%group)
-      ALLOCATE(proc_map(-size_of_exchange_group:2*size_of_exchange_group-1))
-      CALL mp_bcast(proc_map,0,para_env_sub%group)
-      
     END IF
+    ! now give to each proc its b_start and b_end
+    b_group_counter=0
+    my_B_virtual_start=1
+    DO j=0, para_env_sub%num_pe-1
+      b_group_counter=b_group_counter+1
+      IF(b_group_counter-1==para_env_sub%mepos) EXIT
+      my_B_virtual_start=my_B_virtual_start+vector_B_sizes(j)
+    END DO
+    my_B_virtual_end=my_B_virtual_start+vector_B_sizes(para_env_sub%mepos)-1
+    my_B_size=vector_B_sizes(para_env_sub%mepos)
+
+    DEALLOCATE(vector_B_sizes)
+
+    ! create an array containing a different "color" for each pair of 
+    ! A_start and B_start, communication will take place only among
+    ! those proc that have the same A_start and B_start
+    ALLOCATE(color_array(0:para_env_sub%num_pe-1,0:q_best-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    color_array=0
+    color_counter=0
+    DO j=0, q_best-1
+      DO i=0, para_env_sub%num_pe-1
+        color_counter=color_counter+1
+        color_array(i,j)=color_counter
+      END DO
+    END DO
+    sub_sub_color=color_array(para_env_sub%mepos,my_q_position)
+
+    DEALLOCATE(color_array)
+
+    ! now create a group that contains all the proc that have the same 2 virtual starting points
+    ! in this way it is possible to sum the common integrals needed for the full MP2 energy
+    ! in mp_comm_split_direct the color is give by my_a_virtual_start and my_b_virtual_start
+    CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
+    NULLIFY(para_env_exchange)
+    CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
+
+    ! crate the proc map
+    ALLOCATE(proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
+    DO i=0,para_env_exchange%num_pe-1
+      proc_map(i)=i
+      proc_map(-i-1)=para_env_exchange%num_pe-i-1
+      proc_map(para_env_exchange%num_pe+i)=i
+    END DO
+
+    ! create an array containing the information for communication
+    ALLOCATE(exchange_group_sizes(0:para_env_exchange%num_pe-1,3))
+    exchange_group_sizes=0
+    exchange_group_sizes(para_env_exchange%mepos,1)=my_I_occupied_start
+    exchange_group_sizes(para_env_exchange%mepos,2)=my_I_occupied_end
+    exchange_group_sizes(para_env_exchange%mepos,3)=my_I_batch_size
+    CALL mp_sum(exchange_group_sizes,para_env_exchange%group)
+    mepos_in_EX_group=para_env_exchange%mepos
+    size_of_exchange_group=para_env_exchange%num_pe
 
     NULLIFY(psi_a%pw)
     CALL pw_pool_create_pw(auxbas_pw_pool,psi_a%pw,&
@@ -758,16 +837,29 @@ MODULE mp2_gpw
                         pw_env_sub,external_vector=C(:,i),error=error_sub)
     END DO
 
+    !NULLIFY(psi_i%pw)
+    !CALL pw_pool_create_pw(auxbas_pw_pool,psi_i%pw,&
+    !                      use_data=REALDATA3D,&
+    !                      in_space=REALSPACE,error=error_sub)
+
     Emp2=0.0_dp
-    ALLOCATE(BIb_C(virtual,homo,my_I_batch_size))
+    Emp2_Cou=0.0_dp
+    Emp2_EX=0.0_dp
+    ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
     DO a=homo+my_A_virtual_start, homo+my_A_virtual_end
-    ! psi_a
+      ! psi_a
       BIb_C=0.0_dp
+      ALLOCATE(BIb_jb(virtual,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
       CALL calculate_wavefunction(mo_coeff,a,psi_a,rho_g, &
                       atomic_kind_set,cell,dft_control,particle_set, &
                       pw_env_sub,external_vector=C(:,a),error=error_sub)
       i_counter=0
       DO i=my_I_occupied_start, my_I_occupied_end
+        BIb_jb=0.0_dp
         i_counter=i_counter+1
         !ia_counter=ia_counter+1
         !IF(MOD(ia_counter,para_env%num_pe/para_env_sub%num_pe).NE.para_env%mepos/para_env_sub%num_pe) CYCLE
@@ -776,60 +868,61 @@ MODULE mp2_gpw
         !                atomic_kind_set,cell,dft_control,particle_set, &
         !                pw_env_sub,external_vector=C(:,i),error=error_sub)
 
-       ! potential
-       rho_r%pw%cr3d = psi_i(i)%pw%cr3d * psi_a%pw%cr3d
-       CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
-       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
-       CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
-       CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+        ! potential
+        rho_r%pw%cr3d = psi_i(i)%pw%cr3d * psi_a%pw%cr3d
+        !rho_r%pw%cr3d = psi_i%pw%cr3d * psi_a%pw%cr3d ! no store psi for occupied
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
+        CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
 
-       ! and finally (ia|munu)
-       CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
-       CALL integrate_v_rspace(rho_r, h=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
-          basis_set_id=use_orb_basis_set, &
-          sab_orb_external=sab_orb_sub, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
-       
-       ! multiply and goooooooo ...
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                               0.0_dp, matrix_ia_jnu, filter_eps=eps_filter, error=error_sub)
-       CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
-                               0.0_dp, matrix_ia_jb, filter_eps=eps_filter, error=error_sub)
+        !max_val_pot=MAXVAL(ABS(rho_r%pw%cr3d))
 
-       ! Coulomb only MP2 .....
-       CALL cp_dbcsr_iterator_start(iter, matrix_ia_jb)
-       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-               row_size=row_size, col_size=col_size, &
-               row_offset=row_offset, col_offset=col_offset)
-          DO b=1,col_size
-          DO j=1,row_size
-             ! This was for coulom only
-             ! Emp2=Emp2-data_block(j,b)**2/(Auto(a)+Auto(homo+col_offset+b-1)-Auto(i)-Auto(row_offset+j-1))
-             !
-             ! now fill the matrix
-             BIb_C(col_offset+b-1,row_offset+j-1,i_counter)=data_block(j,b)
-          ENDDO
-          ENDDO
-       ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
+        ! and finally (ia|munu)
+        CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
+        CALL integrate_v_rspace(rho_r, h=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
+           basis_set_id=use_orb_basis_set, &
+           sab_orb_external=sab_orb_sub, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
+        
+        ! multiply and goooooooo ...
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
+                                0.0_dp, matrix_ia_jnu, filter_eps=eps_filter, error=error_sub)
+        CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
+                                0.0_dp, matrix_ia_jb, filter_eps=eps_filter, error=error_sub)
+
+        ! Coulomb only MP2 .....
+        CALL cp_dbcsr_iterator_start(iter, matrix_ia_jb)
+        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+           CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+                row_size=row_size, col_size=col_size, &
+                row_offset=row_offset, col_offset=col_offset)
+           DO b=1,col_size
+           DO j=1,row_size
+              ! Compute the coulomb MP2 energy
+              Emp2_Cou=Emp2_Cou-2.0_dp*data_block(j,b)**2/(Auto(a)+Auto(homo+col_offset+b-1)-Auto(i)-Auto(row_offset+j-1))
+              ! now fill the matrix
+              BIb_jb(col_offset+b-1,row_offset+j-1)=data_block(j,b)
+           ENDDO
+           ENDDO
+        ENDDO
+        CALL cp_dbcsr_iterator_stop(iter)
+ 
+        ! now mp_sum the matrix BIb_jb in and keep only my local 
+        ! b_start, b_end
+        CALL mp_sum(BIb_jb,para_env_sub%group)
+        BIb_C(1:my_B_size,1:homo,i_counter)=BIb_jb(my_B_virtual_start:my_B_virtual_end,1:homo)
 
       END DO
-
-      ! now mp_sum the matrix BIb in such a way that all 
-      ! proc have the data for contracting the FULL mp2 energy
-      CALL mp_sum(BIb_C,para_env_sub%group)
       
+      DEALLOCATE(BIb_jb)
+
       ! calculate the contribution to MP2 energy for my local data
-      i_counter=0
       DO i=1,my_I_batch_size
-        i_counter=i_counter+1
-        IF(MOD(i_counter,para_env_sub%num_pe)/=para_env_sub%mepos) CYCLE
         DO j=my_I_occupied_start,my_I_occupied_end
-          DO b=1, virtual
-            Emp2=Emp2-BIb_C(b,j,i) * &
-                  (2.0_dp*BIb_C(b,j,i)-&
-                  BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1))&
-                  /(Auto(a)+Auto(homo+b)-Auto(i+my_I_occupied_start-1)-Auto(j))
+          DO b=1,my_B_size
+            b_global=b-1+my_B_virtual_start
+            Emp2_EX=Emp2_EX+BIb_C(b,j,i)*BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1)&
+                  /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j))
           END DO
         END DO 
       END DO
@@ -844,51 +937,41 @@ MODULE mp2_gpw
         EX_end=exchange_group_sizes(proc_receive,2)
         size_EX=exchange_group_sizes(proc_receive,3)
 
-        ALLOCATE(BIb_EX(virtual,my_I_batch_size,size_EX))
+        ALLOCATE(BIb_EX(my_B_size,my_I_batch_size,size_EX),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
         BIb_EX=0.0_dp
 
-        IF(para_env_sub%mepos==0) THEN
-          EX_start_send=exchange_group_sizes(proc_send,1)
-          EX_end_send=exchange_group_sizes(proc_send,2)
-          size_EX_send=exchange_group_sizes(proc_send,3)
+        EX_start_send=exchange_group_sizes(proc_send,1)
+        EX_end_send=exchange_group_sizes(proc_send,2)
+        size_EX_send=exchange_group_sizes(proc_send,3)
 
-          ALLOCATE(BIb_send(virtual,size_EX_send,my_I_batch_size))
-          BIb_send(1:virtual,1:size_EX_send,1:my_I_batch_size)=BIb_C(1:virtual,EX_start_send:EX_end_send,1:my_I_batch_size)
+        ALLOCATE(BIb_send(my_B_size,size_EX_send,my_I_batch_size),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+        BIb_send(1:my_B_size,1:size_EX_send,1:my_I_batch_size)=BIb_C(1:my_B_size,EX_start_send:EX_end_send,1:my_I_batch_size)
       
-          ! send and receive the exchange array and broadcast to the other members
-          ! of the sub_group
-          CALL mp_sendrecv(BIb_send,proc_send,BIb_EX,proc_receive,para_env_exchange%group)
-          CALL mp_bcast(BIb_EX,0,para_env_sub%group)
-        ELSE
-          CALL mp_bcast(BIb_EX,0,para_env_sub%group)
-        END IF
+        ! send and receive the exchange array 
+        CALL mp_sendrecv(BIb_send,proc_send,BIb_EX,proc_receive,para_env_exchange%group)
 
-        i_counter=0
         DO i=1,my_I_batch_size
-          i_counter=i_counter+1
-          IF(MOD(i_counter,para_env_sub%num_pe)/=para_env_sub%mepos) CYCLE
           DO j=1,size_EX
-            DO b=1, virtual
-              Emp2=Emp2-BIb_C(b,j+EX_start-1,i) * &
-                    (2.0_dp*BIb_C(b,j+EX_start-1,i)-&
-                    BIb_EX(b,i,j))&
-                    /(Auto(a)+Auto(homo+b)-Auto(i+my_I_occupied_start-1)-Auto(j+EX_start-1))
+            DO b=1, my_B_size
+              b_global=b-1+my_B_virtual_start
+              Emp2_EX=Emp2_EX+BIb_C(b,j+EX_start-1,i)*BIb_EX(b,i,j)&
+                    /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j+EX_start-1))
             END DO
           END DO
         END DO
-       
 
         DEALLOCATE(BIb_EX)
-        IF(para_env_sub%mepos==0) DEALLOCATE(BIb_send)
+        DEALLOCATE(BIb_send)
 
       END DO
 
     ENDDO
 
-    CALL mp_sum(Emp2,para_env%group)
-    ! let's all dump integrals
-    ! CALL cp_dbcsr_print(matrix_ia_jb, nodata=.FALSE., matlab_format=.TRUE., &
-    !     variable_name="(ia|jb)", unit_nr=1000+para_env%mepos, error=error_sub)
+    CALL mp_sum(Emp2_Cou,para_env%group)
+    CALL mp_sum(Emp2_EX,para_env%group)
+    Emp2=Emp2_Cou+Emp2_EX
 
     DEALLOCATE(BIb_C)
     DEALLOCATE(proc_map)
@@ -903,9 +986,12 @@ MODULE mp2_gpw
     CALL cp_dbcsr_release(matrix_ia_jb,error=error_sub)
 
     DO i=my_I_occupied_start, my_I_occupied_end  
-      CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i(i)%pw,error=error_sub)
+      !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i(i)%pw,error=error_sub)
+      CALL pw_release(psi_i(i)%pw,error=error_sub)
     END DO 
     DEALLOCATE(psi_i)
+    !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i%pw,error=error_sub) ! no store psi for occupied
+
     CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_a%pw,error=error_sub)
 
     CALL timestop(handle)

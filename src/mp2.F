@@ -22,6 +22,7 @@ MODULE mp2
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE hfx_types,                       ONLY: hfx_basis_type,&
+                                             hfx_release,&
                                              hfx_type
   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -142,14 +143,16 @@ MODULE mp2
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Maximum allowed memory usage per MPI processes during MP2:',&
                                                     mp2_env%mp2_memory, ' MB'
  
-    mem=m_memory()
-    mem_real=(mem+1024*1024-1)/(1024*1024)
-    CALL mp_max(mem_real,para_env%group)
-    mp2_env%mp2_memory=mp2_env%mp2_memory-mem_real
-    IF(mp2_env%mp2_memory<0.0_dp) mp2_env%mp2_memory=1.0_dp
+    IF(mp2_env%method.NE.mp2_method_gpw) THEN
+      mem=m_memory()
+      mem_real=(mem+1024*1024-1)/(1024*1024)
+      CALL mp_max(mem_real,para_env%group)
+      mp2_env%mp2_memory=mp2_env%mp2_memory-mem_real
+      IF(mp2_env%mp2_memory<0.0_dp) mp2_env%mp2_memory=1.0_dp
 
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
-                                                    mp2_env%mp2_memory, ' MB'
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
+                                                      mp2_env%mp2_memory, ' MB'
+    END IF
 
 
     nspins=qs_env%dft_control%nspins
@@ -303,7 +306,18 @@ MODULE mp2
        END IF
 
      CASE (mp2_method_gpw)
-       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,para_env,unit_nr,error)
+       ! free Hartree Fock stuff
+       CALL hfx_release(qs_env%x_data, error=error)
+       mem=m_memory()
+       mem_real=(mem+1024*1024-1)/(1024*1024)
+       CALL mp_max(mem_real,para_env%group)
+       mp2_env%mp2_memory=mp2_env%mp2_memory-mem_real
+       IF(mp2_env%mp2_memory<0.0_dp) mp2_env%mp2_memory=1.0_dp
+
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
+                                                       mp2_env%mp2_memory, ' MB'
+       ! go with mp2_gpw
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,error)
 
      CASE DEFAULT 
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

@@ -194,6 +194,21 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CUTOFF",&
+            description="The cutoff of the finest grid level in the MP2 gpw integration.",&
+            usage="CUTOFF 300",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=300.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="REL_CUTOFF",&
+            variants=(/"RELATIVE_CUTOFF"/),&
+            description="Determines the grid at which a Gaussian is mapped.",&
+            usage="REL_CUTOFF 50",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=50.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PRINT_LEVEL",&
             variants=(/"IOLEVEL"/),&
             description="How much output is written by the individual groups.",&

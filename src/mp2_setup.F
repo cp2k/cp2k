@@ -69,6 +69,10 @@ CONTAINS
                               r_val=mp2_env%mp2_gpw%eps_filter, error=error)
     CALL section_vals_val_get(mp2_section,"MP2_GPW%EPS_GRID",&
                               r_val=mp2_env%mp2_gpw%eps_grid, error=error)
+    CALL section_vals_val_get(mp2_section,"MP2_GPW%CUTOFF",&
+                              r_val=mp2_env%mp2_gpw%cutoff, error=error)
+    CALL section_vals_val_get(mp2_section,"MP2_GPW%REL_CUTOFF",&
+                              r_val=mp2_env%mp2_gpw%relative_cutoff, error=error)
     CALL section_vals_val_get(mp2_section,"MP2_GPW%PRINT_LEVEL",&
                               i_val=mp2_env%mp2_gpw%print_level, error=error)
 

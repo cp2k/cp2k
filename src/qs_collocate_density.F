@@ -2152,7 +2152,7 @@ CONTAINS
                  0,0.0_dp,0,&
                  ra,rab,rab2,scale,pab,na1-1,0,&
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                 eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
+                 eps_rho_rspace,map_consistent=.TRUE.,ga_gb_function=FUNC_AB,error=error)
 
          END DO
 

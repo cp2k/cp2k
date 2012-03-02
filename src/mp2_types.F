@@ -81,7 +81,9 @@ MODULE mp2_types
 
   TYPE mp2_gpw_type
        REAL(KIND=dp)            :: eps_grid, eps_filter
-       INTEGER                  :: print_level
+       INTEGER                  :: print_level 
+       REAL(KIND=dp)            :: cutoff
+       REAL(KIND=dp)            :: relative_cutoff
   END TYPE mp2_gpw_type
 
   TYPE mp2_type
