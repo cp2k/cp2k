@@ -64,7 +64,8 @@ MODULE mp2_gpw
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: default_output_unit
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_flush
   USE message_passing,                 ONLY: mp_comm_split_direct,&
                                              mp_sendrecv,&
                                              mp_sum
@@ -222,6 +223,7 @@ MODULE mp2_gpw
                "MP2_GPW| Density cutoff [a.u.]:", mp2_env%mp2_gpw%cutoff*0.5_dp
       WRITE (UNIT=unit_nr,FMT="(T3,A,T71,F10.1)")&
             "MP2_GPW| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
+      CALL m_flush(unit_nr)
     ENDIF
 
     ! a logger
@@ -661,15 +663,16 @@ MODULE mp2_gpw
        ENDDO
     ENDDO
 
-    IF (unit_nr>0) THEN
-      WRITE (UNIT=unit_nr,FMT="(T3,A,T77,i4)")&
-               "MP2_GPW| Occupied states divided in:", p_best
-      WRITE (UNIT=unit_nr,FMT="(T3,A,T77,i4)")&
-            "MP2_GPW| Virtual states divided in:", q_best
-    ENDIF
-
     max_batch_size_I=(homo+p_best-1)/p_best
     max_batch_size_A=(virtual+q_best-1)/q_best
+
+    IF (unit_nr>0) THEN
+      WRITE (UNIT=unit_nr,FMT="(T3,A,T77,i4)")&
+               "MP2_GPW| max. batch size for the occupied states:", max_batch_size_I
+      WRITE (UNIT=unit_nr,FMT="(T3,A,T77,i4)")&
+            "MP2_GPW| max. batch size for the virtual states:",max_batch_size_A
+    ENDIF
+
     ALLOCATE(vector_batch_I_size_group(0:p_best-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
     ALLOCATE(vector_batch_A_size_group(0:q_best-1),STAT=stat)

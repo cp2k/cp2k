@@ -154,6 +154,7 @@ MODULE mp2
                                                       mp2_env%mp2_memory, ' MB'
     END IF
 
+    IF (unit_nr>0) CALL m_flush(unit_nr)
 
     nspins=qs_env%dft_control%nspins
 
