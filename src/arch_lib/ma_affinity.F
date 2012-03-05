@@ -1098,6 +1098,7 @@ END SUBROUTINE ma_get_mempol
       DIMENSION(:)                           :: all_core, all_gpu, &
                                                 all_memory, all_node, &
                                                 all_node_mem, all_pid
+#if defined (__HWLOC) || defined (__LIBNUMA)
 
     IF ((.NOT. my_info%mp_info%all_proc) .AND. print_proc) THEN
       CALL ma_current_mpi_run(my_info%mp_info%myid,unit_nr)
@@ -1115,7 +1116,6 @@ END SUBROUTINE ma_get_mempol
        all_node(:) = 0
  
 #if defined (__DBCSR_CUDA)
-#if defined (__HWLOC) || defined (__LIBNUMA)
   
        ALLOCATE (all_gpu(my_info%mp_info%numproc),STAT=istat)
        IF (istat /= 0) THEN
@@ -1123,7 +1123,6 @@ END SUBROUTINE ma_get_mempol
        END IF
        all_gpu(:) = 0
        CALL ma_get_gpu_affinity(all_gpu(my_info%mp_info%myproc+1))
-#endif
 #endif
  
        ALLOCATE (all_memory(my_info%mp_info%numproc),STAT=istat)
@@ -1151,9 +1150,7 @@ END SUBROUTINE ma_get_mempol
    IF (print_proc) THEN
  ! ***** Print where process are running!
 #if defined (__DBCSR_CUDA)
-#if defined (__HWLOC) || defined (__LIBNUMA)
        CALL mp_sum(all_gpu,my_info%mp_info%mp_group)
-#endif
 #endif
  
        CALL mp_sum(all_core,my_info%mp_info%mp_group)
@@ -1216,6 +1213,7 @@ END SUBROUTINE ma_get_mempol
                              " core ",TRIM(all_cores), &
                              "  attached to gpu ",all_gpu(ipe)
           ENDIF
+
 #else
           IF (all_node(ipe) .EQ. -1) THEN
              WRITE(unit_nr,"(T2,A,I8,A,I8,5X,30X,A,A)")&
@@ -1282,14 +1280,14 @@ END SUBROUTINE ma_get_mempol
          CALL ma_error_stop(ma_error_allocation)
        END IF  
 #if defined (__DBCSR_CUDA)
-#if defined (__HWLOC) || defined (__LIBNUMA)
        DEALLOCATE (all_gpu,STAT=istat)
        IF (istat /= 0) THEN
          CALL ma_error_stop(ma_error_allocation)
        END IF
-#endif
 #endif      
    ENDIF
+
+#endif
    END SUBROUTINE ma_print_proc_affinity
 
 
