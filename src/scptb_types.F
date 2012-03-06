@@ -221,12 +221,12 @@ CONTAINS
     lmaxorb,lmaxscp,norb,nqm,zeta,orbene,hcore,occupation,energy,crep,pol,ag,a0,rcpair,repair,error)
 
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
-    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: key, atomname, &
+    CHARACTER(LEN=*), OPTIONAL               :: key, atomname, &
                                                 parameterization
-    LOGICAL, INTENT(OUT), OPTIONAL           :: defined
-    INTEGER, INTENT(OUT), OPTIONAL           :: z
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff
-    INTEGER, INTENT(OUT), OPTIONAL           :: natorb, lmaxorb, lmaxscp
+    LOGICAL, OPTIONAL                        :: defined
+    INTEGER, OPTIONAL                        :: z
+    REAL(KIND=dp), OPTIONAL                  :: zeff
+    INTEGER, OPTIONAL                        :: natorb, lmaxorb, lmaxscp
     INTEGER, DIMENSION(0:3), OPTIONAL        :: norb
     INTEGER, DIMENSION(10, 0:3), OPTIONAL    :: nqm
     REAL(KIND=dp), DIMENSION(10, 0:3), &
@@ -284,7 +284,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atomname, key, &
                                                 parameterization
     INTEGER                                  :: i, l, lmaxorb, lmaxscp, &
-                                                natorb, output_unit, z
+                                                natorb, output_unit
     INTEGER, DIMENSION(0:3)                  :: norb
     INTEGER, DIMENSION(10, 0:3)              :: nqm
     LOGICAL                                  :: defined
@@ -306,13 +306,17 @@ CONTAINS
 
        IF (output_unit >0) THEN
           CALL get_scptb_parameter(scptb_parameter,key=key,atomname=atomname,&
-               parameterization=parameterization,defined=defined,norb=norb,nqm=nqm,&
-               z=z,zeff=zeff,natorb=natorb,lmaxorb=lmaxorb,lmaxscp=lmaxscp,error=error)
+               parameterization=parameterization,defined=defined,error=error)
 
           WRITE (UNIT=output_unit,FMT="(/,T10,A,T67,A14)") " SCPTB  parameters: ",TRIM(atomname)
           WRITE (UNIT=output_unit,FMT="(T67,A14)") TRIM(key)
           WRITE (UNIT=output_unit,FMT="(T67,A14)") TRIM(parameterization)
           IF ( defined ) THEN
+            CALL get_scptb_parameter(scptb_parameter,&
+                 zeff=zeff,natorb=natorb,lmaxorb=lmaxorb,lmaxscp=lmaxscp,&
+                 norb=norb,nqm=nqm,zeta=zeta,orbene=orbene,hcore=hcore,&
+                 energy=energy,crep=crep,pol=pol,ag=ag,a0=a0,rcpair=rcpair,&
+                 repair=repair,error=error)
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)") "Effective core charge:",zeff
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)") "Total number of orbitals:",natorb
             WRITE (UNIT=output_unit,FMT="(T16,A,T30,A,T50,A,T71,A)") "l-QM n-QM  i","Exponent","Orbital energy","H core"
