@@ -91,6 +91,9 @@ MODULE dbcsr_pq_types
 
   PUBLIC :: max_regions
 
+  PUBLIC :: ps_host_global
+  PUBLIC :: ps_host_parameter
+
 
   !> \brief Product matrix meta information.
   !>
@@ -232,6 +235,21 @@ MODULE dbcsr_pq_types
      INTEGER :: nbuffers, nmemregs, group_size
      INTEGER :: next_buffer, next_memreg
   END TYPE dbcsr_ps_set_type
+
+  ! For host parameter stack allocation on CUDA versions
+   TYPE ps_type_global
+        TYPE(int_p_type),DIMENSION(:), POINTER   :: ps_local
+   END TYPE
+
+   TYPE(ps_type_global), DIMENSION(:), POINTER  :: ps_host_global
+
+   TYPE ps_host_type
+       TYPE(int_p_type),DIMENSION(:), POINTER   :: mem_stack
+   END TYPE ps_host_type
+
+   TYPE(ps_host_type), DIMENSION(:), POINTER  :: ps_host_parameter
+
+  
 
   !> \brief Queue of parameter stacks
   !>

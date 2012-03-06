@@ -28,10 +28,12 @@ MODULE dbcsr_pq_methods
        dbcsr_ps_set_type, dbcsr_ps_state_empty, dbcsr_ps_state_filled, &
        dbcsr_ps_state_filling, dbcsr_ps_state_queued, dbcsr_ps_state_working, &
        dbcsr_ps_target_obj, dbcsr_ps_target_type, dbcsr_ps_type, &
-       dbcsr_ps_width, max_regions, p_c_first
+       dbcsr_ps_width, max_regions, p_c_first, ps_host_global, &
+       ps_host_parameter
   USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_memory_CUDA_host_pinned
 
   !$ USE OMP_LIB
 
@@ -81,6 +83,7 @@ MODULE dbcsr_pq_methods
 
   PUBLIC :: dbcsr_ps_target_new_regions
 
+  PUBLIC :: dbcsr_ps_set_init, dbcsr_ps_set_finalize
   PUBLIC :: dbcsr_ps_set_create, dbcsr_ps_set_destroy
   PUBLIC :: dbcsr_ps_set_set_b_master
   PUBLIC :: dbcsr_ps_set_advance,&
@@ -715,6 +718,7 @@ CONTAINS
           DEALLOCATE (stack%s)
           NULLIFY (stack%s)
        ENDIF
+       
     ENDIF
   END SUBROUTINE dbcsr_ps_release
 
@@ -768,7 +772,7 @@ CONTAINS
     IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
     CALL ps_clear (stack, state, error)
     stack%mem_type = mem_type
-    CALL memory_allocate (stack%parameters, stack_size*dbcsr_ps_width,&
+      CALL memory_allocate (stack%parameters, stack_size*dbcsr_ps_width,&
          mem_type=mem_type, error=error)
     stack%own_data = .TRUE.
     stack%start_p = 1
@@ -889,7 +893,9 @@ CONTAINS
          "Destroying a non-empty stack.",&
          __LINE__, error=error)
     IF (stack%own_data) THEN
+     IF (stack%mem_type .NE. dbcsr_memory_CUDA_host_pinned) THEN
        CALL memory_deallocate (stack%parameters, stack%mem_type, error=error)
+     ENDIF  
     ENDIF
     CALL dbcsr_ps_rm_data_ab (stack, error)
     CALL dbcsr_ps_rm_data_cuda_ab (stack, error)
@@ -1228,7 +1234,79 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_psg_view_close
 
+! *****************************************************************************
+!> \brief Initializes a set of stacks 
+!> \param[in] group_size              The size of stack groups
+!> \param[in] n_stack_mem_regions     Number of memory region in the stack
+!> \param[in] stack_size              Each stack size  
+!> \param[in,out] error               error
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_set_init (group_size,n_stack_mem_regions,stack_size, error)
+    INTEGER                                  :: group_size,n_stack_mem_regions, &
+                                                stack_size  
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+    INTEGER                                  :: ithread, nthreads, mem_type, k
+#if defined (__DBCSR_CUDA)
+  
+    ithread = 0 ; nthreads = 1
+    mem_type = dbcsr_memory_CUDA_host_pinned
+    !$ ithread = OMP_GET_THREAD_NUM () 
+    !$ nthreads = OMP_GET_NUM_THREADS ()  
 
+    !$OMP MASTER
+     NULLIFY(ps_host_global)
+     NULLIFY(ps_host_parameter) 
+     ALLOCATE (ps_host_global(nthreads))
+     ALLOCATE (ps_host_parameter(nthreads))
+    !$OMP END MASTER
+    !$OMP BARRIER
+
+    ALLOCATE (ps_host_global(ithread+1)%ps_local(n_stack_mem_regions))
+    ALLOCATE (ps_host_parameter(ithread+1)%mem_stack(n_stack_mem_regions))
+
+    DO k = 1, n_stack_mem_regions
+
+          CALL memory_allocate (ps_host_global(ithread+1)%ps_local(k)%data,group_size,&
+               mem_type=mem_type, error=error)
+          CALL memory_allocate (ps_host_parameter(ithread+1)%mem_stack(k)%data,&
+               stack_size*dbcsr_ps_width, mem_type=mem_type, error=error)
+    ENDDO
+#endif
+  END SUBROUTINE dbcsr_ps_set_init
+
+! *****************************************************************************
+!> \brief Finalize a set of stacks
+!> \param[in,out] error               error
+! *****************************************************************************
+  SUBROUTINE dbcsr_ps_set_finalize (error)
+  TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+#if defined (__DBCSR_CUDA)
+  INTEGER                                  :: k, i
+  
+     IF (ASSOCIATED(ps_host_global)) THEN
+      DO k = 1, SIZE(ps_host_global)
+       DO i = 1, SIZE(ps_host_global(k)%ps_local)
+         CALL memory_deallocate(ps_host_global(k)%ps_local(i)%data,&
+             dbcsr_memory_CUDA_host_pinned, error=error)
+      ENDDO
+         DEALLOCATE(ps_host_global(k)%ps_local)
+      ENDDO
+      DEALLOCATE(ps_host_global)
+     ENDIF
+     IF (ASSOCIATED(ps_host_parameter)) THEN
+        DO k = 1, SIZE(ps_host_parameter)
+         DO i = 1, SIZE(ps_host_parameter(k)%mem_stack)
+           CALL memory_deallocate(ps_host_parameter(k)%mem_stack(i)%data,&
+                            dbcsr_memory_CUDA_host_pinned, error=error)
+        ENDDO
+         DEALLOCATE(ps_host_parameter(k)%mem_stack)
+        ENDDO
+        DEALLOCATE(ps_host_parameter)
+     ENDIF
+#endif
+
+  END SUBROUTINE dbcsr_ps_set_finalize
 
 ! *****************************************************************************
 !> \brief Creates a set of stacks
@@ -1251,12 +1329,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ps_set_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, i, j, k
+    INTEGER                                  :: error_handle, i, ithread, j, k
     TYPE(dbcsr_ps_obj)                       :: memreg_stack
 
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
+    ithread=0
+    !$ ithread = OMP_GET_THREAD_NUM ()
     ALLOCATE (stack_set%groups (nbuffers, nmemregs))
     stack_set%nbuffers = nbuffers
     stack_set%nmemregs = nmemregs
@@ -1265,12 +1345,18 @@ CONTAINS
     stack_set%group_size = group_size
     ALLOCATE (stack_set%all_states (nmemregs))
     DO k = 1, stack_set%nmemregs
+       
        ! Allocates the state array for all (non-master) stacks in this
        ! memory region.
+      IF( mem_type .EQ. dbcsr_memory_CUDA_host_pinned) THEN
+        stack_set%all_states(k)%data=>ps_host_global(ithread+1)%ps_local(k)%data
+      ELSE
        CALL memory_allocate (stack_set%all_states(k)%data,&
             group_size * nbuffers,&
             mem_type=mem_type, error=error)
+      ENDIF 
        stack_set%all_states(k)%mem_type = mem_type
+     
        DO j = 1, stack_set%nbuffers
           CALL dbcsr_ps_init (stack_set%groups(j,k)%master, error)
           ALLOCATE (stack_set%groups(j,k)%stacks(group_size))
@@ -1281,10 +1367,28 @@ CONTAINS
        ! A new master stack for this memory region is created.  All
        ! (non-master) parameter arrays will be set to point into the
        ! parameter array of this master stack.
-       CALL dbcsr_ps_init (memreg_stack, error)
+       
+      CALL dbcsr_ps_init (memreg_stack, error)
+      IF( mem_type .EQ. dbcsr_memory_CUDA_host_pinned) THEN
+       ALLOCATE (memreg_stack%s)
+       CALL ps_clear(memreg_stack%s,error=error)
+       memreg_stack%s%parameters=>ps_host_parameter(ithread+1)%mem_stack(k)%data
+       memreg_stack%s%mem_type = mem_type
+       memreg_stack%s%own_data = .TRUE.
+       memreg_stack%s%start_p = 1
+       !$omp critical
+       sid = sid+1
+       memreg_stack%s%id = -1
+       memreg_stack%s%sid = sid
+    !$omp end critical
+      memreg_stack%s%id = -1
+      memreg_stack%s%sid = -7
+      memreg_stack%s%refcount = 1
+     ELSE
        CALL dbcsr_ps_new (memreg_stack,&
             stack_size*group_size*nbuffers,&
             mem_type=mem_type, error=error)
+     ENDIF  
        CALL dbcsr_ps_add_target (memreg_stack%s, product_target, error)
        CALL dbcsr_ps_set_set_b_master (stack_set, k,&
             memreg_stack, error=error)
@@ -1316,8 +1420,10 @@ CONTAINS
           DEALLOCATE (stack_set%groups(j,k)%stacks)
           CALL dbcsr_ps_release (stack_set%groups(j,k)%master, error)
        ENDDO
+       IF ( stack_set%all_states(k)%mem_type .NE. dbcsr_memory_CUDA_host_pinned ) THEN
        CALL memory_deallocate (stack_set%all_states(k)%data,&
                                stack_set%all_states(k)%mem_type, error=error)
+       ENDIF
     ENDDO
     DEALLOCATE (stack_set%all_states)
     DEALLOCATE (stack_set%groups)

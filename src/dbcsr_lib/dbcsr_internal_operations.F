@@ -523,6 +523,7 @@ CONTAINS
                (dbcsr_slot_size)
        ENDDO
     ENDDO
+
     DO right_row_image = 1, right_row_nimages
        DO right_col_image = 1, right_col_nimages
           my_sizes(idata+iright, right_row_image, right_col_image) &
@@ -533,6 +534,7 @@ CONTAINS
                (dbcsr_slot_size)
        ENDDO
     ENDDO
+
     ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2),&
          LBOUND(my_sizes,3):UBOUND(my_sizes,3), 0:numnodes-1))
     CALL mp_allgather(my_sizes, all_sizes, mp_group)
@@ -2323,10 +2325,10 @@ CONTAINS
        !$OMP END MASTER
        !$OMP BARRIER
     ENDIF
+
     CALL dbcsr_ps_set_create (carrier%param_sets, mm_stack_size,&
-         product_target,&
-         nstacks, n_stack_buffers, n_stack_mem_regions, mem_type,&
-         error=error)
+         product_target, nstacks, n_stack_buffers, n_stack_mem_regions,&
+         mem_type,error=error)
     CALL dbcsr_ps_target_release (product_target, error)
     !
     ! Setup the block sizes mappings.  The carrier%*_sizes arrays are
@@ -2524,6 +2526,7 @@ CONTAINS
     ! Clear MM stack
     !CALL dbcsr_psg_rm_data_c (&
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
+   
     CALL dbcsr_ps_set_destroy (carrier%param_sets, error=error)
     !$OMP MASTER
     IF (mm_driver .EQ. mm_driver_cuda) THEN

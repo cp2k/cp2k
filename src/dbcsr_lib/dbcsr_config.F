@@ -173,7 +173,6 @@ MODULE dbcsr_config
   REAL(KIND=dp), SAVE :: epoch_time = 0.0_dp
   !$OMP THREADPRIVATE (epoch_time)
 
-
 CONTAINS
 
 
@@ -192,6 +191,7 @@ CONTAINS
     use_combined_types = .FALSE.
     use_MPI_memory = has_MPI
     use_CUDA_host_pinned_memory = .FALSE.
+      
     !
     mm_driver = mm_driver_smm
     mm_stack_size = 1000

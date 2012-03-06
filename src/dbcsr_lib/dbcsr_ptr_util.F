@@ -32,7 +32,7 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
-                                             dbcsr_type_real_8
+                                             dbcsr_type_real_8 
 
   !$ USE OMP_LIB
 
@@ -71,9 +71,9 @@ MODULE dbcsr_ptr_util
 
 
   INTERFACE ensure_array_size
-     MODULE PROCEDURE ensure_array_size_i,&! ensure_array_size_i_2d,&
-          ensure_array_size_s, ensure_array_size_d, ensure_array_size_c,&
-          ensure_array_size_z
+     MODULE PROCEDURE ensure_array_size_i
+     MODULE PROCEDURE ensure_array_size_s, ensure_array_size_d,&
+                      ensure_array_size_c, ensure_array_size_z
   END INTERFACE
 
   ! Ugly fortran hack
