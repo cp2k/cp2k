@@ -449,11 +449,11 @@ CONTAINS
                      " loop ", loop_iter, " with ", numnodes," MPI ranks: using ", t1, "s ", INT(flops_all), " Mflops/rank"
              ENDIF
          ENDDO loops
-         IF (io_unit>0) THEN
-            WRITE(io_unit,*) "Last checksums",cs ,cs_pos
-         ENDIF
          cs = dbcsr_checksum (m_c, error=dbcsr_error)
          cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
+         IF (io_unit>0) THEN
+            WRITE(io_unit,*) "Final checksums",cs ,cs_pos
+         ENDIF
          ! Release
          CALL dbcsr_mp_release (mp_env)
          CALL dbcsr_release (m_a)
