@@ -45,6 +45,7 @@ MODULE dbcsr_test_methods
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             dp,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_comm_null,&
                                              mp_environ
@@ -52,9 +53,9 @@ MODULE dbcsr_test_methods
        dbcsr_distribution_hold, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
        dbcsr_get_matrix_type, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_release, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total
+       dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_numnodes, &
+       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total
 !  USE dbcsr_transformations, only:dbcsr_put_block
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
@@ -362,8 +363,8 @@ CONTAINS
 
     CHARACTER                                :: my_symmetry
     INTEGER                                  :: col, error_handle, max_nze, &
-                                                my_data_type, my_proc, nze, &
-                                                p, row
+                                                my_data_type, my_proc, &
+                                                numproc, nze, p, row
     INTEGER, DIMENSION(4)                    :: iseed = (/4,3,2,1/)
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: quick, tr
@@ -402,6 +403,7 @@ CONTAINS
          error=error)
     rbs => array_data (row_blk_sizes)
     cbs => array_data (col_blk_sizes)
+    numproc = dbcsr_mp_numnodes (dbcsr_distribution_mp (new_dist))
     !
     IF (sparsity .GT. 1) THEN
        my_sparsity = sparsity / 100.0
@@ -410,12 +412,12 @@ CONTAINS
     ENDIF
     max_nze = dbcsr_max_row_size (matrix) * dbcsr_max_col_size (matrix)
     CALL dbcsr_work_create (matrix,&
-         nblks_guess=INT(REAL(dbcsr_nblkrows_total(matrix))&
-                        *REAL(dbcsr_nblkcols_total(matrix))&
-                        *(1.0-sparsity)*1.1),&
-         sizedata_guess=INT(REAL(dbcsr_nfullrows_total(matrix))&
-                           *REAL(dbcsr_nfullcols_total(matrix))&
-                           *(1.0-sparsity)*1.1),&
+         nblks_guess=INT(REAL(dbcsr_nblkrows_total(matrix),KIND=dp)&
+                        *REAL(dbcsr_nblkcols_total(matrix),KIND=dp)&
+                        *(1.0_dp-sparsity)*1.1_dp/numproc),&
+         sizedata_guess=INT(REAL(dbcsr_nfullrows_total(matrix),KIND=dp)&
+                           *REAL(dbcsr_nfullcols_total(matrix),KIND=dp)&
+                           *(1.0_dp-sparsity)*1.1_dp/numproc),&
          work_mutable = .TRUE.,error=error)
 
     CALL dbcsr_data_init (data_values)
