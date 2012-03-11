@@ -722,13 +722,13 @@ CONTAINS
        CALL swap (rs, cs)
        DO r = 1, rs
           DO c = 1, cs
-             pd_cs = pd_cs + DATA(c, r)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
+             pd_cs = pd_cs + DATA(c, r)*LOG(ABS(REAL((ro+r-1),KIND=dp)*REAL((co+c-1), KIND=dp)))
           ENDDO
        ENDDO
     ELSE
        DO c = 1, cs
           DO r = 1, rs
-             pd_cs = pd_cs + DATA(r, c)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
+             pd_cs = pd_cs + DATA(r, c)*LOG(ABS(REAL((ro+r-1),KIND=dp)*REAL((co+c-1), KIND=dp)))
           ENDDO
        ENDDO
     ENDIF
