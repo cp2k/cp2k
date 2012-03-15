@@ -51,7 +51,7 @@ MODULE qmmm_main
        print_qmmm_links, qmmm_init_gaussian_type, &
        qmmm_init_periodic_potential, qmmm_init_potential, &
        setup_origin_mm_cell, setup_qmmm_links, setup_qmmm_vars_mm, &
-       setup_qmmm_vars_qm
+       setup_qmmm_vars_qm, print_image_charge_info                       
   USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_types,                      ONLY: &
@@ -61,6 +61,7 @@ MODULE qmmm_main
   USE qs_environment_types,            ONLY: qs_environment_type,&
                                              set_qs_env
   USE qs_main,                         ONLY: quickstep_create_force_env
+  USE termination,                     ONLY: stop_program 
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -108,7 +109,8 @@ CONTAINS
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
     REAL(KIND=dp)                            :: eps_mm_rspace
-    REAL(KIND=dp), DIMENSION(3)              :: abc
+    REAL(KIND=dp), DIMENSION(3)              :: abc_qm,&  
+                                                abc_mm 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fist_scale_charge_link, &
                                                 mm_link_scale_factor
     TYPE(add_set_type), POINTER              :: added_charges
@@ -237,6 +239,8 @@ CPSourceFileRef,&
        qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
+       qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list) 
+
        ! Duplicate structure for link atoms
        IF (qmmm_link) THEN
           IF (ASSOCIATED(mm_link_atoms)) THEN
@@ -246,13 +250,25 @@ CPSourceFileRef,&
           END IF
        END IF
        IF ( iw > 0 ) THEN
-          WRITE(iw,'(A,I8)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
-          WRITE(iw,'(A,I8)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
+          WRITE(iw,'(A,I26)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
+          WRITE(iw,'(A,I26)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
+          IF(qmmm_env_qm%image_charge) THEN
+             WRITE(iw,'(A,I8)')" Number of MM atoms with image charge: ",&       
+                                               qmmm_env_qm%num_image_mm_atoms 
+          ENDIF
           WRITE(iw,'(A)')" QM cell ::"
           CALL write_cell(qm_cell_small, subsys_section, error=error)
        END IF
-       CALL get_cell(qm_cell_small, abc=abc)
-       
+       CALL get_cell(qm_cell_small, abc=abc_qm)
+       CALL get_cell(mm_cell, abc=abc_mm)                                    
+
+       IF (qmmm_env_qm%image_charge) THEN       
+          IF(ANY(abc_mm/=abc_qm))& 
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                "QM and MM box need to have the same &
+                 size when using image charges")
+       ENDIF
+
        ! Assign charges and mm_el_pot_radius from fist_topology
        CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env, error=error)
        ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)),stat=stat)
@@ -300,6 +316,9 @@ CPSourceFileRef,&
        CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
                                mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
                                qmmm_section, nocompatibility, error)
+       IF (qmmm_env_qm%image_charge) THEN
+          CALL print_image_charge_info(qmmm_env_qm, qmmm_section, error)              
+       ENDIF
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs,error=error)
        CALL create_small_subsys(subsys_qm,&
@@ -310,7 +329,7 @@ CPSourceFileRef,&
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,para_env,&
-            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,&
+            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,qmmm_env_qm=qmmm_env_qm,&  
             qmmm_periodic=qmmm_env_qm%periodic, force_env_section=force_env_section,&
             subsys_section=subsys_section,use_motion_section=use_motion_section,&
             error=error)

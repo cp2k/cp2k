@@ -45,7 +45,6 @@ MODULE qmmm_types
   PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
   PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
   PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
-
 !***
 
 ! *****************************************************************************
@@ -146,6 +145,17 @@ MODULE qmmm_types
   END TYPE add_set_type
 
 ! *****************************************************************************
+  TYPE image_charge_type              
+     LOGICAL                                    :: all_mm
+     LOGICAL                                    :: coeff_iterative
+     INTEGER, DIMENSION(:), POINTER             :: image_mm_list
+     TYPE(particle_type), DIMENSION(:), POINTER :: particles_all
+     REAL(KIND=dp),DIMENSION(:,:),POINTER       :: image_forcesMM
+     REAL(KIND=dp)                              :: V0
+     REAL(KIND=dp)                              :: eta
+  END TYPE image_charge_type 
+
+! *****************************************************************************
   TYPE qmmm_env_qm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
@@ -155,10 +165,12 @@ MODULE qmmm_types
      LOGICAL                                                 :: move_mm_charges
      LOGICAL                                                 :: add_mm_charges
      LOGICAL                                                 :: periodic
+     LOGICAL                                                 :: image_charge   
      INTEGER                                                 :: par_scheme 
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
+     INTEGER                                                 :: num_image_mm_atoms 
      REAL(KIND=dp)                                           :: eps_mm_rspace
      REAL(KIND=dp), DIMENSION(3)                             :: dOmmOqm, utrasl, transl_v
      REAL(KIND=dp), DIMENSION(2)                             :: spherical_cutoff
@@ -176,6 +188,7 @@ MODULE qmmm_types
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
      TYPE(qmmm_links_type), POINTER                          :: qmmm_links
      TYPE(add_set_type), POINTER                             :: added_charges
+     TYPE(image_charge_type), POINTER                        :: image_charge_pot  
   END TYPE qmmm_env_qm_type
 
 ! *****************************************************************************
@@ -340,7 +353,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
              qmmm_env%pgfs, qmmm_env%maxradius,&
              qmmm_env%aug_pools, qmmm_env%potentials,&
              qmmm_env%qmmm_links, qmmm_env%added_charges,&
-             qmmm_env%per_potentials)
+             qmmm_env%per_potentials,qmmm_env%image_charge_pot) 
      qmmm_env%do_translate     = .TRUE.
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%center_qm_subsys0= .TRUE.
@@ -349,12 +362,15 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      qmmm_env%add_mm_charges   = .FALSE.
      qmmm_env%move_mm_charges  = .FALSE.
      qmmm_env%periodic         = .FALSE.
+     qmmm_env%image_charge     = .FALSE.           
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
+     qmmm_env%num_image_mm_atoms=0                
      qmmm_env%gridlevel_info%auxbas_grid  = 0
      qmmm_env%gridlevel_info%coarser_grid = 0
      CALL create_add_set_type(qmmm_env%added_charges, ndim=0, error=error)
+     CALL create_image_charge_type(qmmm_env%image_charge_pot,error=error) 
   END IF
 END SUBROUTINE qmmm_env_qm_create
 
@@ -458,6 +474,9 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         IF (ASSOCIATED(qmmm_env%added_charges)) THEN
            CALL add_set_release(qmmm_env%added_charges, error=error)
         END IF
+        IF (ASSOCIATED(qmmm_env%image_charge_pot)) THEN                               
+           CALL qmmm_image_charge_dealloc(qmmm_env%image_charge_pot,error=error)
+        END IF
         DEALLOCATE(qmmm_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
@@ -539,6 +558,39 @@ SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
   DEALLOCATE(qmmm_links, stat=stat)
   CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 END SUBROUTINE qmmm_links_dealloc
+
+! ****************************************************************************
+!> \brief deallocates the image_charge_pot structure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze
+! *****************************************************************************
+SUBROUTINE qmmm_image_charge_dealloc(image_charge_pot, error)
+    TYPE(image_charge_type), POINTER         :: image_charge_pot
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_image_charge_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  ::  stat
+
+ IF (ASSOCIATED(image_charge_pot)) THEN
+      IF (ASSOCIATED(image_charge_pot%image_mm_list)) THEN
+       IF(.NOT.image_charge_pot%all_mm) THEN
+         DEALLOCATE(image_charge_pot%image_mm_list, stat=stat)
+         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       END IF
+      END IF
+      IF (ASSOCIATED(image_charge_pot%image_forcesMM)) THEN
+          DEALLOCATE(image_charge_pot%image_forcesMM, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+      END IF
+   DEALLOCATE(image_charge_pot, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+ END IF
+
+END SUBROUTINE qmmm_image_charge_dealloc
+
 
 ! *****************************************************************************
 !> \brief deallocates the qmmm_pot_type structure
@@ -743,5 +795,38 @@ SUBROUTINE create_add_set_type(added_charges, ndim, error)
   END IF
 
 END SUBROUTINE create_add_set_type
+
+! *****************************************************************************
+!> \brief creates the image_charge_type structure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze
+! *****************************************************************************
+SUBROUTINE create_image_charge_type(image_charge_pot,error)
+    TYPE(image_charge_type), POINTER         :: image_charge_pot
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_image_charge_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure = .FALSE.
+  IF (ASSOCIATED(image_charge_pot)) CALL qmmm_image_charge_dealloc(image_charge_pot, error)
+  ALLOCATE(image_charge_pot, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+
+  IF (.NOT. failure) THEN
+     NULLIFY(image_charge_pot%image_mm_list,&
+             image_charge_pot%particles_all,&
+             image_charge_pot%image_forcesMM)
+
+  END IF
+
+  image_charge_pot%all_mm=.TRUE.
+  image_charge_pot%coeff_iterative=.FALSE.
+
+END SUBROUTINE create_image_charge_type
 
 END MODULE qmmm_types

@@ -244,7 +244,7 @@ CONTAINS
               " No forces/gradients with MP2.... yet(?!) "//&
               CPSourceFileRef, only_ionode=.TRUE.)
       ENDIF
- 
+
       ! if calculate forces, time to compute the w matrix
       CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric,error=error)
       IF (calc_forces.AND..NOT.has_unit_metric) THEN

@@ -437,6 +437,7 @@ OBJECTS_GENERIC =\
  qmmm_gaussian_types.o\
  qmmm_gpw_energy.o\
  qmmm_gpw_forces.o\
+ qmmm_image_charge.o\
  qmmm_init.o\
  qmmm_links_methods.o\
  qmmm_main.o\

@@ -292,7 +292,7 @@ CONTAINS
           ! now, print out energies and charges corresponding to the obtained wfn
           ! (this actually is not 100% consistent at this point)!
           CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env%nelectron, &
-               dft_control,qs_env%qmmm,.TRUE.,.FALSE.)
+               dft_control,qs_env%qmmm,qs_env,.TRUE.,.FALSE.,error)
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
        END IF
 

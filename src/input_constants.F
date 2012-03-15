@@ -301,7 +301,9 @@ MODULE input_constants
                                               do_center_grid=1,&
                                               do_qmmm_wall_none=0,&
                                               do_qmmm_wall_reflective=1,&
-                                              do_qmmm_wall_quadratic=2
+                                              do_qmmm_wall_quadratic=2,&
+                                              do_qmmm_image_calcmatrix=0,&
+                                              do_qmmm_image_iter=1
 
   INTEGER, PARAMETER, PUBLIC               :: do_region_global=0, &
                                               do_region_molecule=1,&

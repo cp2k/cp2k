@@ -36,8 +36,11 @@ MODULE qs_ks_qmmm_types
 !>      holds the QM/MM potential and all the needed variables to
 !>      compute the QM/MM electrostatic 1-electron ks matrix
 !>      assumes that the core hamiltonian and energy are up to date.
+!>      v_metal_rspace is the potential at the metal sites within the image 
+!>      charge approach
 !> \par History
 !>      05.2004 created [tlaino]
+!>      01.2012 added v_metal_rspace [dgolze]
 !> \author Teodoro Laino
 ! *****************************************************************************
   TYPE qs_ks_qmmm_env_type
@@ -46,6 +49,7 @@ MODULE qs_ks_qmmm_types
 
      TYPE(pw_env_type), POINTER                  :: pw_env
      TYPE(pw_p_type)                             :: v_qmmm_rspace
+     TYPE(pw_p_type)                             :: v_metal_rspace
      TYPE(cube_info_type),DIMENSION(:), POINTER  :: cube_info
      TYPE(cp_dbcsr_p_type), DIMENSION(:), &
           POINTER                                :: matrix_h

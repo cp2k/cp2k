@@ -140,6 +140,8 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_ppl_grid,&
             calculate_rho_core,&
+            calculate_rho_single_gaussian,& 
+            calculate_rho_metal,& 
             calculate_rho_elec,&
             calculate_drho_elec,&
             calculate_scp_charge,&
@@ -998,6 +1000,198 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_core
+! *****************************************************************************
+!> \brief collocate a single gaussian on the grid
+!> \par History
+!>        12.2011 created 
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE calculate_rho_single_gaussian(rho_gb,qs_env,iatom_in,error)
+
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_gb
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER,INTENT(IN)                       :: iatom_in
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_single_gaussian', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, handle, ierr, &
+                                                npme,iatom
+    INTEGER(KIND=int_8)                      :: subpatch_pattern
+    REAL(KIND=dp)                            :: eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type)                     :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rhoc_r
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_rho
+
+    CALL timeset(routineN,handle)
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool)
+    ALLOCATE (pab(1,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",dp_size)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    para_env=para_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+         auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_zero(rs_rho)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    pab(1,1)=1.0_dp
+    iatom=iatom_in
+
+    npme = 0
+
+    IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+       IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+          npme = npme + 1
+       ENDIF
+    ELSE
+       npme = npme + 1
+    ENDIF
+
+   IF(npme.GT.0)THEN
+    atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
+    ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r,cell)
+    subpatch_pattern=0
+    CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
+         0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
+         cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
+         use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+   ENDIF
+
+    DEALLOCATE (pab,STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+
+    CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
+         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
+    CALL rs_grid_release(rs_rho, error=error)
+ 
+    CALL pw_transfer(rhoc_r%pw,rho_gb%pw,error=error)
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+
+    CALL timestop(handle)
+
+END SUBROUTINE calculate_rho_single_gaussian
+
+! *****************************************************************************
+!> \brief computes the image charge density on grid (including coeffcients)
+!> \par History
+!>        01.2012 created 
+!> \author Dorothea Golze
+! *****************************************************************************
+SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
+
+  TYPE(pw_p_type),INTENT(INOUT)            :: rho_metal
+  REAL(KIND=dp),DIMENSION(:),POINTER       :: coeff
+  REAL(KIND=dp),INTENT(OUT),OPTIONAL       :: total_rho_metal
+  TYPE(qs_environment_type), POINTER       :: qs_env
+  TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
+    routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: atom_a, handle, ierr, &
+                                              npme,iatom,natom,j
+  INTEGER(KIND=int_8)                      :: subpatch_pattern
+  INTEGER,DIMENSION(:),POINTER             :: cores
+  REAL(KIND=dp)                            :: eps_rho_rspace
+  REAL(KIND=dp), DIMENSION(3)              :: ra
+  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(cp_para_env_type), POINTER          :: para_env
+  TYPE(cube_info_type)                     :: cube_info
+  TYPE(dft_control_type), POINTER          :: dft_control
+  TYPE(pw_env_type), POINTER               :: pw_env
+  TYPE(pw_p_type)                          :: rhoc_r
+  TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+  TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+  TYPE(realspace_grid_type), POINTER       :: rs_rho
+
+  CALL timeset(routineN,handle)
+
+  NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
+          para_env)
+
+  ALLOCATE (pab(1,1),STAT=ierr)
+  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                    "pab",dp_size)
+
+  CALL get_qs_env(qs_env=qs_env,&
+                  cell=cell,&
+                  dft_control=dft_control,&
+                  para_env=para_env,pw_env=pw_env,error=error)
+  CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+       auxbas_pw_pool=auxbas_pw_pool,error=error)
+  CALL rs_grid_retain(rs_rho, error=error)
+  CALL rs_grid_zero(rs_rho)
+
+  eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+  pab(1,1)=1.0_dp
+
+  natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list) 
+
+  CALL reallocate ( cores, 1, natom )
+   npme = 0
+   cores = 0
+
+  DO iatom=1, natom
+   IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+      IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+         npme = npme + 1
+         cores (npme) = iatom
+      ENDIF
+   ELSE
+      npme = npme + 1
+      cores (npme) = iatom
+   ENDIF
+  ENDDO
+  
+  IF(npme.GT.0)THEN
+   DO j=1,npme
+    iatom = cores(j)
+    atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
+    ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r,cell)
+    subpatch_pattern=0
+    CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
+        0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
+        cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
+        use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+   ENDDO
+  ENDIF
+
+  DEALLOCATE (pab,cores,stat=ierr)
+  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+
+  CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
+       use_data=REALDATA3D,in_space=REALSPACE, error=error)
+
+  CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
+  CALL rs_grid_release(rs_rho, error=error)
+
+  IF(PRESENT(total_rho_metal)) &
+  total_rho_metal = pw_integrate_function(rhoc_r%pw,error=error) 
+
+  CALL pw_transfer(rhoc_r%pw,rho_metal%pw,error=error)
+  CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+
+  CALL timestop(handle)
+
+END SUBROUTINE calculate_rho_metal
 
 ! *****************************************************************************
 !> \brief computes the density corresponding to a given density matrix on the grid

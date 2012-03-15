@@ -221,6 +221,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_qmmm_image_charge_section(subsection, error=error) 
+       CALL section_add_subsection(section,subsection,error=error)    
+       CALL section_release(subsection,error=error)                   
+
        CALL create_print_qmmm_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -372,6 +376,72 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_qmmm_walls_section
+
+! ****************************************************************************
+!> \brief Input section for QM/MM image charge calculations 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Dorothea Golze
+! ****************************************************************************
+  SUBROUTINE create_qmmm_image_charge_section (section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_image_charge_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="IMAGE_CHARGE",&
+            description="Inclusion of polarization effects within the image charge &
+             approach for systems where QM molecules are physisorbed on e.g. metal &
+             surfaces described by MM. QM box size has to be equal to MM box size. ",&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="MM_ATOM_LIST",&
+            description="List of MM atoms carrying an induced Gaussian charge. &
+            IF this keyword is not given, all MM atoms will carry an image charge.",&
+            usage="MM_ATOM_LIST 1 2 3 or 1..3 ",n_var=-1,type_of_var=integer_t,&
+            repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WIDTH",&
+            description="Specifies the value of the width of the (induced) Gaussian &
+            charge distribution carried by each MM atom ",&
+            usage="WIDTH <real> ",n_var=1,type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=0.6614_dp,unit_str="angstrom^-2", error=error), &
+            unit_str="angstrom^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXT_POTENTIAL",&
+            description="External potential applied to the metal electrode ",&
+            usage="EXT_POTENTIAL <real> ",n_var=1,type_of_var=real_t,&
+            default_r_val= 0.0_dp,&
+            unit_str="volt",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DETERM_COEFF",&
+            description="Specifies how the coefficients are determined.",&
+            usage="DETERM_COEFF ITERATIVE",&
+            enum_c_vals=s2a( "CALC_MATRIX","ITERATIVE"),&
+            enum_i_vals=(/ do_qmmm_image_calcmatrix, do_qmmm_image_iter/),&
+            enum_desc=s2a("Calculates image matrix and solves linear set of equations", &
+                          "Uses an iterative scheme to calculate the coefficients"),&
+            default_i_val=do_qmmm_image_calcmatrix, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_qmmm_image_charge_section
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
@@ -982,6 +1052,13 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"image_charge_info",&              
+            description="Prints image charge coefficients and detailed energy info", &
+            print_level=high_print_level,filename="__STD_OUT__",& 
+            error=error)                                          
+       CALL section_add_subsection(section,print_key,error=error) 
+       CALL section_release(print_key,error=error)                
 
     END IF
   END SUBROUTINE create_print_qmmm_section

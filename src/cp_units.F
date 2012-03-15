@@ -55,7 +55,8 @@ MODULE cp_units
                                 cp_ukind_time=6,&
                                 cp_ukind_mass=7,&
                                 cp_ukind_undef=8,&
-                                cp_ukind_max=8
+                                cp_ukind_potential=9,&
+                                cp_ukind_max=9
 
   ! General
   INTEGER, PARAMETER, PUBLIC :: cp_units_none=100,&
@@ -98,6 +99,8 @@ MODULE cp_units
                                 cp_units_s=181,&
                                 cp_units_wn=182,&
                                 cp_units_ps=183
+  ! Potential
+  INTEGER, PARAMETER, PUBLIC :: cp_units_volt=190
 
   INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, cp_unit_basic_desc_length=15,&
        cp_unit_desc_length=cp_unit_max_kinds*cp_unit_basic_desc_length
@@ -330,10 +333,19 @@ CONTAINS
        CASE("mass")
           unit_id(i_unit)=cp_units_none
           kind_id(i_unit)=cp_ukind_mass
+       CASE("volt")
+          unit_id(i_unit)=cp_units_volt
+          kind_id(i_unit)=cp_ukind_potential
+       CASE("au_pot")
+          unit_id(i_unit)=cp_units_au
+          kind_id(i_unit)=cp_ukind_potential
+       CASE("potential")
+          unit_id(i_unit)=cp_units_none
+          kind_id(i_unit)=cp_ukind_potential
        CASE("au")
           CALL cp_assert(.FALSE.,cp_failure_level,&
                cp_assertion_failed,routineP,&
-               "au unit without specifing its kind not accepted, use (au_e, au_t, au_temp, au_l, au_m, au_p)",&
+               "au unit without specifing its kind not accepted, use (au_e, au_t, au_temp, au_l, au_m, au_p, au_pot)",&
                error,failure)
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -683,6 +695,14 @@ CONTAINS
                   routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
                   error,failure)
           END SELECT
+       CASE(cp_ukind_potential)
+          SELECT CASE (basic_unit)
+          CASE(cp_units_volt, cp_units_au, cp_units_none)
+          CASE default
+             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+                  error,failure)
+          END SELECT
        CASE(cp_ukind_none)
           CALL cp_assert(basic_unit==cp_units_none,my_error_level,&
                cp_assertion_failed, routineP,&
@@ -857,6 +877,17 @@ CONTAINS
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
+                  error,failure)
+          END SELECT
+       CASE(cp_ukind_potential)
+          SELECT CASE (basic_unit)
+          CASE(cp_units_volt)
+             res=evolt**(-my_power)*value
+          CASE(cp_units_au)
+             res=value
+          CASE default
+             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
                   error,failure)
           END SELECT
        CASE(cp_ukind_none)
@@ -1073,6 +1104,23 @@ CONTAINS
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
+                  error,failure)
+          END SELECT
+       CASE(cp_ukind_potential)
+          SELECT CASE (basic_unit)
+          CASE(cp_units_volt)
+             res="volt"
+          CASE(cp_units_au)
+             res="au_pot"
+          CASE(cp_units_none)
+             res="potential"
+             CALL cp_assert(my_accept_undefined,my_error_level,&
+                  cp_assertion_failed,routineP,&
+                  "unit not yet fully specified, unit of kind "//&
+                  TRIM(res),error,failure)
+          CASE default
+             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
                   error,failure)
           END SELECT
        CASE(cp_ukind_none)
@@ -1413,6 +1461,9 @@ CONTAINS
              CASE (cp_ukind_mass)
                 CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_amu/),&
                      power=(/1/), error=error)
+             CASE (cp_ukind_potential)
+                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_volt/),&
+                     power=(/1/), error=error)
              CASE default
                 CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,routineP,&
                      "unhandled unit type "//TRIM(cp_to_string(i)),error,failure)
@@ -1535,6 +1586,11 @@ CONTAINS
          "for Masses. The [mass] entry acts like a dummy flag (assumes the unit of "//&
          "measurement of mass is in internal units), useful for dimensional analysis.",&
          units_set=s2a("kg","amu","m_e","mass"),unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Potential",description="Possible units of measurement "//&
+         "for potentials. The [potential] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of potential is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("volt","au_pot","potential"),unit_nr=unit_nr)
 
   END SUBROUTINE print_all_units
 

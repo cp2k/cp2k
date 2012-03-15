@@ -21,7 +21,8 @@ MODULE qmmm_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE cp_units,                        ONLY: cp_unit_to_cp2k,&
+                                             cp_unit_from_cp2k 
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
@@ -38,7 +39,9 @@ MODULE qmmm_init
                                              do_qmmm_link_gho,&
                                              do_qmmm_link_imomm,&
                                              do_qmmm_link_pseudo,&
-                                             do_qmmm_swave
+                                             do_qmmm_swave,&
+                                             do_qmmm_image_calcmatrix,& 
+                                             do_qmmm_image_iter         
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -58,6 +61,7 @@ MODULE qmmm_init
                                              qmmm_env_qm_type,&
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: qs_environment_type
+  USE termination,                     ONLY: stop_program       
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -69,6 +73,7 @@ MODULE qmmm_init
   PUBLIC :: assign_mm_charges_and_radius,&
             print_qmmm_charges,&
             print_qmmm_links,&
+            print_image_charge_info,&  
             qmmm_init_gaussian_type,&
             qmmm_init_potential,&
             qmmm_init_periodic_potential,&
@@ -505,7 +510,8 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: atmname, mm_atom_kind
     INTEGER                                  :: i, icount, ikind, ikindr, &
                                                 n_rep_val, nkind, &
-                                                size_mm_system, stat
+                                                size_mm_system, stat,&
+                                                my_type                   
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: explicit, failure, is_mm, &
                                                 is_qm
@@ -514,11 +520,14 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
-    TYPE(section_vals_type), POINTER         :: cell_section, mm_kinds
+    TYPE(section_vals_type), POINTER         :: cell_section, mm_kinds,&
+                                                image_charge_section         
 
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
+    NULLIFY(image_charge_section)  
     qmmm_link = .FALSE.
     failure   = .FALSE.
+
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
        !
@@ -613,6 +622,12 @@ CPSourceFileRef,&
              END DO Set_Radius_Pot_1
           END DO
        END IF
+
+       !Image charge section 
+
+       image_charge_section => section_vals_get_subs_vals(qmmm_section,"IMAGE_CHARGE",error=error)
+       CALL section_vals_get(image_charge_section,explicit=qmmm_env%image_charge,error=error)
+      
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
@@ -645,6 +660,38 @@ CPSourceFileRef,&
        DEALLOCATE(mm_link_atoms, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    
+    ! Build image charge atom list + set up variables
+    !
+    IF (qmmm_env%image_charge) THEN
+       CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
+                                 explicit=explicit,error=error)
+       IF(explicit) qmmm_env%image_charge_pot%all_mm=.FALSE.
+
+       IF(qmmm_env%image_charge_pot%all_mm) THEN
+         qmmm_env%image_charge_pot%image_mm_list => mm_atom_index 
+       ELSE
+         CALL setup_image_atom_list(image_charge_section,qmmm_env,&
+                                    qm_atom_index,subsys_mm,error)
+       END IF 
+         
+       qmmm_env%image_charge_pot%particles_all => subsys_mm%particles%els
+       
+       CALL section_vals_val_get(image_charge_section,"EXT_POTENTIAL",&
+                                 r_val=qmmm_env%image_charge_pot%V0,error=error)
+       CALL section_vals_val_get(image_charge_section,"WIDTH",&
+                                 r_val=qmmm_env%image_charge_pot%eta,error=error)
+       CALL section_vals_val_get(image_charge_section,"DETERM_COEFF",&
+                                 i_val=my_type,error=error)
+       SELECT CASE(my_type)
+       CASE(do_qmmm_image_calcmatrix)
+         qmmm_env%image_charge_pot%coeff_iterative=.FALSE.
+       CASE(do_qmmm_image_iter)
+         qmmm_env%image_charge_pot%coeff_iterative=.TRUE.
+       END SELECT
+
+    END IF 
+
   END SUBROUTINE setup_qmmm_vars_qm
 
 ! *****************************************************************************
@@ -1289,5 +1336,136 @@ CPSourceFileRef,&
         qmmm_env%transl_v = vec
      END IF
    END SUBROUTINE setup_origin_mm_cell
+
+! *****************************************************************************
+!> \brief this routine sets up list of MM atoms carrying an image charge
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2012 created
+!> \author Dorothea Golze
+! *****************************************************************************
+   SUBROUTINE setup_image_atom_list(image_charge_section, qmmm_env,&
+                                    qm_atom_index, subsys_mm, error)
+
+    TYPE(section_vals_type), POINTER         :: image_charge_section
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index 
+    TYPE(cp_subsys_type), POINTER            :: subsys_mm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_image_atom_list', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, imageind_in_range
+    INTEGER                                  :: num_image_mm_atom,&
+                                                i, j, n_var, atom_a,&
+                                                atom_b, max_index,stat
+    INTEGER,DIMENSION(:),POINTER             :: mm_indexes
+
+    
+    NULLIFY(mm_indexes)
+    failure=.FALSE.
+    imageind_in_range=.FALSE.
+    num_image_mm_atom=0
+    max_index=0
+
+    CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
+                              n_rep_val=n_var,error=error)
+    DO i = 1, n_var
+       CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
+                                 i_rep_val=i,i_vals=mm_indexes,error=error)
+       num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
+    END DO
+
+    ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    qmmm_env%image_charge_pot%image_mm_list=0.
+    num_image_mm_atom=1
+
+    DO i = 1, n_var
+       CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
+                                 i_rep_val=i,i_vals=mm_indexes,error=error)
+       qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom:num_image_mm_atom &
+                                             + SIZE(mm_indexes)-1) = mm_indexes(:)
+       num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
+    END DO
+
+   ! checking, if in range, if list contains QM atoms or any atoms doubled 
+   num_image_mm_atom=num_image_mm_atom-1
+
+   max_index=SIZE(subsys_mm%particles%els)
+
+   CPPrecondition(SIZE(qmmm_env%image_charge_pot%image_mm_list) /= 0,cp_failure_level,routineP,error,failure)
+   imageind_in_range=(MAXVAL(qmmm_env%image_charge_pot%image_mm_list)<= max_index)&
+                     .AND.(MINVAL(qmmm_env%image_charge_pot%image_mm_list) > 0)
+   CPPostcondition(imageind_in_range,cp_failure_level,routineP,error,failure)
+
+   DO i=1,num_image_mm_atom
+      atom_a=qmmm_env%image_charge_pot%image_mm_list(i)
+      IF(ANY(qm_atom_index==atom_a)) THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+             "Image atom list must only contain MM atoms")
+      ENDIF
+      DO j=i+1,num_image_mm_atom
+         atom_b=qmmm_env%image_charge_pot%image_mm_list(j)
+         IF(atom_a==atom_b) &
+         CALL stop_program(routineN,moduleN,__LINE__,&
+             "There are atoms doubled in image list.")
+      ENDDO
+   ENDDO
+
+
+   END SUBROUTINE setup_image_atom_list
+
+! *****************************************************************************
+!> \brief Print info on image charges 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2012 created 
+!> \author Dorothea Golze
+! *****************************************************************************
+ SUBROUTINE print_image_charge_info(qmmm_env, qmmm_section, error)
+
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_charge_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iw
+    REAL(KIND=dp)                            :: eta, eta_conv 
+    REAL(KIND=dp)                            :: V0, V0_conv 
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+    eta=qmmm_env%image_charge_pot%eta
+    eta_conv = cp_unit_from_cp2k(eta,"angstrom",power=-2,error=error)
+    V0=qmmm_env%image_charge_pot%V0
+    V0_conv = cp_unit_from_cp2k(V0,"volt",error=error)
+
+    IF (iw>0) THEN
+       WRITE(iw,FMT="(T25,A)")"IMAGE CHARGE PARAMETERS"
+       WRITE(iw,FMT="(T25,A)") REPEAT("-",23)
+       WRITE(iw,FMT="(/)")
+       WRITE(iw,FMT="(T2,A)")"INDEX OF MM ATOMS CARRYING AN IMAGE CHARGE:"
+       WRITE(iw,FMT="(/)")
+
+       WRITE(iw,"(7X,10I6)") qmmm_env%image_charge_pot%image_mm_list
+       WRITE(iw,FMT="(/)")
+       WRITE(iw,"(T2,A52,T69,F12.8)") "WIDTH OF GAUSSIAN CHARGE DISTRIBUTION &
+                                       [angstrom^-2]:", eta_conv  
+       WRITE(iw,"(T2,A26,T69,F12.8)") "EXTERNAL POTENTIAL [volt]:", V0_conv 
+       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
+
+  END SUBROUTINE print_image_charge_info
 
 END MODULE qmmm_init

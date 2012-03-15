@@ -97,6 +97,7 @@ MODULE qs_environment_types
                                              pw_env_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type 
   USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
@@ -210,6 +211,13 @@ MODULE qs_environment_types
 !> \param id_nr identification number, guarateed to be unique
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param cell the simulation cell (box)
+!> \param image_matrix matrix needed for the image charge approach within QM/MM  
+!> \param image_coeff coefficients of the image charges within QM/MM             
+!> \param ipiv auxiliary matrix needed for solving linear system of equations
+!>        within the QM/MM image charge approach                                 
+!> \param calc_image_preconditioner LOGICAL which indicates if the preconditioner
+!>        matrix is calculated when determining the coefficients of the image 
+!>        charges iteratively by CG
 !> \param dft_control object that contains the values of various parameters
 !>        relevant to a dft calculation
 !> \param mos the molecular orbitals, in LSD array with the different spins
@@ -308,10 +316,14 @@ MODULE qs_environment_types
     LOGICAL :: has_unit_metric
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
+    LOGICAL :: calc_image_preconditioner                   
     INTEGER :: nelectron_total
     INTEGER :: nelectron_spin(2)
     REAL(KIND=dp)                                         :: sim_time
     REAL(KIND=dp) :: start_time, target_time
+    REAL(KIND=dp),DIMENSION(:,:),POINTER                  :: image_matrix
+    REAL(KIND=dp),DIMENSION(:),POINTER                    :: image_coeff
+    INTEGER,DIMENSION(:),POINTER                          :: ipiv
     INTEGER                                               :: sim_step
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
@@ -357,6 +369,7 @@ MODULE qs_environment_types
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
+    TYPE(qmmm_env_qm_type),POINTER                        :: qmmm_env_qm
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
@@ -431,7 +444,7 @@ CONTAINS
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,& 
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
-       vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
+       vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr, local_particles,&
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
@@ -757,6 +770,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (qs_env%blacs_env)
+    NULLIFY (qs_env%image_matrix)
+    NULLIFY (qs_env%ipiv)
+    NULLIFY (qs_env%image_coeff)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%cell_ref)
@@ -872,6 +888,7 @@ CONTAINS
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%has_unit_metric=.FALSE.
     qs_env%use_harris=.FALSE.
+    qs_env%calc_image_preconditioner=.TRUE.
     qs_env%target_time = globenv%cp2k_target_time
     qs_env%start_time = globenv%cp2k_start_time
 
@@ -1638,6 +1655,15 @@ CONTAINS
              CALL pw_release(qs_env%rho_core%pw,error=error)
              DEALLOCATE(qs_env%rho_core)
           ENDIF
+          IF (ASSOCIATED(qs_env%image_matrix)) THEN
+             DEALLOCATE(qs_env%image_matrix)                 
+          ENDIF                                              
+          IF (ASSOCIATED(qs_env%ipiv)) THEN
+             DEALLOCATE(qs_env%ipiv)                         
+          ENDIF                                              
+          IF (ASSOCIATED(qs_env%image_coeff)) THEN
+             DEALLOCATE(qs_env%image_coeff)                         
+          ENDIF                                              
           IF (ASSOCIATED(qs_env%vppl)) THEN
              CALL pw_release(qs_env%vppl%pw,error=error)
              DEALLOCATE(qs_env%vppl)

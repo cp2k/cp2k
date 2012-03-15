@@ -129,6 +129,7 @@ MODULE qs_environment
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type 
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
@@ -204,13 +205,15 @@ CONTAINS
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init(qs_env,root_section,subsys,cell,cell_ref,qmmm,&
-       qmmm_periodic,force_env_section,subsys_section,use_motion_section,error)
+       qmmm_periodic,qmmm_env_qm,force_env_section,subsys_section,& 
+       use_motion_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
+    TYPE(qmmm_env_qm_type),OPTIONAL,POINTER  :: qmmm_env_qm        
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
@@ -244,7 +247,7 @@ CONTAINS
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
-         cell_section, harris_section, kind_section)
+         cell_section, harris_section, kind_section,qs_env%qmmm_env_qm)
     para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
@@ -255,6 +258,9 @@ CONTAINS
     IF (PRESENT(qmmm)) my_qmmm=qmmm
     my_qmmm_periodic = .FALSE.
     IF (PRESENT(qmmm_periodic)) my_qmmm_periodic=qmmm_periodic
+    IF(PRESENT(qmmm_env_qm)) THEN               
+     qs_env%qmmm_env_qm => qmmm_env_qm          
+    END IF                                      
 
     harris_flag = .FALSE.
     CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag, error=error)

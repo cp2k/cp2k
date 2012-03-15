@@ -365,6 +365,7 @@ CONTAINS
                force(ikind)%ehrenfest(:,:) +& 
                force(ikind)%efield(:,:)+&
                force(ikind)%eev(:,:)
+
           ! **** SCP
           IF ( dft_control%scp ) THEN
              CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
@@ -380,6 +381,7 @@ CONTAINS
           END IF
           ! **** SCP
        END DO
+      
 
        DO iatom=1,natom
           ikind = kind_of(iatom)

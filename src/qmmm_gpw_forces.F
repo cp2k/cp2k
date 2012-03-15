@@ -105,7 +105,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
-                                                iw, stat
+                                                iw, stat,&
+                                                image_IndMM,iatom    
     LOGICAL                                  :: failure, gapw, need_f, &
                                                 periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
@@ -309,6 +310,18 @@ CONTAINS
        ! Transfer Forces
        DO Imm = 1, qmmm_env%num_mm_atoms
           IndMM = qmmm_env%mm_atom_index(Imm)
+
+          !add image forces to Forces
+          IF(qmmm_env%image_charge) THEN  
+             DO iatom=1,qmmm_env%num_image_mm_atoms
+               image_IndMM=qmmm_env%image_charge_pot%image_mm_list(iatom)
+               IF(image_IndMM.eq.IndMM) THEN
+               Forces(:,Imm)=Forces(:,Imm)&
+                             +qmmm_env%image_charge_pot%image_forcesMM(:,iatom)
+               ENDIF
+             ENDDO
+          ENDIF
+
           ! Hack: In Forces there the gradients indeed...
           ! Minux sign to take care of this misunderstanding...
           mm_particles(IndMM)%f(:) = - Forces(:,Imm) + mm_particles(IndMM)%f(:)

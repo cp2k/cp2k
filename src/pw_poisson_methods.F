@@ -310,7 +310,8 @@ CONTAINS
              
              DO ig=1,ng
                 rhog%cc(ig) = rhog%cc(ig) *  poisson_env%green_fft%influence_fn%cc(ig)
-             ENDDO             
+             ENDDO
+
              IF ( PRESENT ( vhartree ) ) THEN
                 CALL pw_transfer ( rhog, vhartree , error=error)
                 IF ( PRESENT ( ehartree ) ) THEN

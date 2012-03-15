@@ -71,6 +71,9 @@ MODULE qs_ks_methods
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hfx_admm_utils,                  ONLY: admm_density_matrix,&
                                              hfx_ks_matrix
+  USE qmmm_image_charge,               ONLY: calculate_image_pot,&
+                                             add_image_pot_to_hartree_pot,&
+                                             integrate_potential_devga_rspace
   USE input_constants,                 ONLY: &
        do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
        sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
@@ -101,7 +104,8 @@ MODULE qs_ks_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_release
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -373,7 +377,7 @@ CONTAINS
       POINTER                                :: mo_array, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
-      v_sic_rspace, v_spin_ddapc_rest_r
+      v_sic_rspace, v_spin_ddapc_rest_r 
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -542,6 +546,7 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
                              v_hartree_gspace%pw,error=error)
        END IF
+
        IF ( scp_dft ) THEN
           ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
           ! potential due to the ions + electrons.  
@@ -564,8 +569,7 @@ CONTAINS
                   error=error)
           END IF
        END IF
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)  
 
        IF(dft_control%apply_efield_field)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,v_efield_rspace%pw,&
@@ -603,12 +607,32 @@ CONTAINS
                                       v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
                                       qmmm_energy=energy%qmmm_el,&
                                       error=error)
+             IF (qs_env%qmmm_env_qm%image_charge) THEN
+               CALL calculate_image_pot(v_hartree_rspace=ks_env%v_hartree_rspace,&
+                                       rho_hartree_gspace=rho_tot_gspace,&
+                                       energy=energy,&
+                                       qmmm_env=qs_env%qmmm_env_qm,&
+                                       qs_env=qs_env,error=error) 
+               IF (.NOT.just_energy) THEN
+                  CALL add_image_pot_to_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                                                 v_metal=qs_env%ks_qmmm_env%v_metal_rspace,&
+                                                 qs_env=qs_env,error=error)
+                  IF(calculate_forces) THEN
+                    CALL  integrate_potential_devga_rspace(&
+                                  potential=ks_env%v_hartree_rspace,coeff=qs_env%image_coeff,&
+                                  forces=qs_env%qmmm_env_qm%image_charge_pot%image_forcesMM,&
+                                  qmmm_env=qs_env%qmmm_env_qm,qs_env=qs_env,error=error)
+                  ENDIF
+               ENDIF
+                  CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw,error=error)
+             END IF 
           IF (.NOT.just_energy) THEN
              CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                   v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,scale=1.0_dp,&
                   error=error)
           END IF
        END IF
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)   
 
        ! SCP: Add the polarization potential
        IF ( scp_dft ) THEN
@@ -914,7 +938,8 @@ CONTAINS
             energy%becke + energy%dft_plus_u + energy%kTS + &
             energy%efield +energy%efield_core+&
             energy%ee + energy%ee_core+&
-            energy%exc_aux_fit
+            energy%exc_aux_fit+&
+            energy%image_charge
 !       WRITE(*,*)'ENERGIES:',energy%total, energy%core_overlap , energy%core_self , &
 !            energy%core , energy%hartree,energy%exc_aux_fit, energy%exc, energy%exc1
        IF (scp_dft) THEN
@@ -2242,6 +2267,10 @@ CONTAINS
       IF  (qs_env%qmmm) THEN
          WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
            "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+         IF(qs_env%qmmm_env_qm%image_charge) THEN
+             WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+                    "QM/MM image charge energy:                ",energy%image_charge
+         ENDIF
       END IF
       IF (dft_control%qs_control%mulliken_restraint) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T41,2F20.10)")&

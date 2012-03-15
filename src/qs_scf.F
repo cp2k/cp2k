@@ -123,6 +123,8 @@ MODULE qs_scf
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
+  USE qmmm_image_charge,               ONLY: calculate_image_matrix,&
+                                             print_image_coefficients
   USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                              block_davidson_deallocate,&
                                              block_davidson_env_create
@@ -507,7 +509,7 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     input=input, dft_control=dft_control, scf_control=scf_control, &
                     error=error)
-
+     
     ! Defining SCP logicals
     scp_dft = dft_control%scp
     scp_nddo = dft_control%qs_control%se_control%scp 
@@ -836,7 +838,7 @@ CONTAINS
              ! (this actually is not 100% consistent at this point)!
              IF ( scp_dft ) CALL qs_scf_scp_print_summary ( output_unit, scp_env, qs_env%qmmm, error )
              CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env%nelectron, &
-                  dft_control,qs_env%qmmm,gapw,gapw_xc)
+                  dft_control,qs_env%qmmm,qs_env,gapw,gapw_xc,error)
 
              IF (harris_flag) THEN
                 energy%total = harris_env%harris_energy%Eharris
@@ -1103,8 +1105,8 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
-                                nelectron_total,dft_control,qmmm,gapw,gapw_xc)
+SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,nelectron_total,&
+                               dft_control,qmmm,qs_env,gapw,gapw_xc,error)
 
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1113,6 +1115,8 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
     INTEGER, INTENT(IN)                      :: nelectron_total
     TYPE(dft_control_type), POINTER          :: dft_control
     LOGICAL, INTENT(IN)                      :: qmmm, gapw, gapw_xc
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_summary', &
       routineP = moduleN//':'//routineN
@@ -1229,6 +1233,10 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
        IF  (qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+          IF(qs_env%qmmm_env_qm%image_charge) THEN
+             WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+                    "QM/MM image charge energy:                ",energy%image_charge
+          ENDIF
        END IF
        IF (dft_control%qs_control%mulliken_restraint) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
@@ -1245,6 +1253,11 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Total energy:                                  ",energy%total
        END IF
+       IF (qmmm) THEN
+          IF(qs_env%qmmm_env_qm%image_charge) THEN
+            CALL print_image_coefficients(qs_env%image_coeff,qs_env,error)
+          ENDIF
+       ENDIF
        CALL m_flush(output_unit)
     END IF
 
@@ -1698,7 +1711,7 @@ CPSourceFileRef)
          scf_control=scf_control,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
-         mos=mos,matrix_ks=matrix_ks, rho=rho, &
+         mos=mos,matrix_ks=matrix_ks, rho=rho,&   
          matrix_h=matrix_h,matrix_s=matrix_s,&
          error=error)
 
@@ -1840,6 +1853,16 @@ CPSourceFileRef)
         END IF
       END IF
     END IF
+
+   !image charge method, calculate image_matrix
+   IF(qs_env%qmmm) THEN 
+     IF(qs_env%qmmm_env_qm%image_charge) THEN
+       IF(.NOT.qs_env%qmmm_env_qm%image_charge_pot%coeff_iterative) &
+          CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
+               ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qs_env%qmmm_env_qm,&
+               error=error)
+     ENDIF
+   ENDIF
 
     CALL timestop(handle)
 
