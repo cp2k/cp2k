@@ -478,6 +478,7 @@ CONTAINS
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
     INTEGER                                  :: c_size, istat, maxs, tmp_i
+    LOGICAL                                  :: stream_is_synced
 
 !   ---------------------------------------------------------------------------
 !
@@ -528,7 +529,7 @@ CONTAINS
     !
     ! Cuda on-device resizing
     cuda_process_target: IF (driver .EQ. mm_driver_cuda) THEN
-       CALL dbcsr_cuda_stream_sync (target_desc%t%owner+1, error=error)
+       stream_is_synced = .FALSE.
        IF (dbg) WRITE(*,*)"Getting allocated size..."
        !$ IF (dbg) WRITE(*,*)"thread, target", omp_get_thread_num(),&
        !$      target_desc%t%owner
@@ -536,6 +537,11 @@ CONTAINS
        IF (dbg) WRITE(*,*)"done", c_size, "vs", zero_last
        ! Resize & zero product data if too big.
        IF (zero_last .GT. c_size) THEN
+          !
+          ! All kernels in the stream must be finished before
+          ! reallocation is performed.
+          CALL dbcsr_cuda_stream_sync (target_desc%t%owner+1, error=error)
+          stream_is_synced = .TRUE.
           IF (dbg .OR. info) WRITE(*,*)routineN//" reallocating c_dev",&
                c_size, zero_last
           IF (detailed_timing) THEN
@@ -569,6 +575,13 @@ CONTAINS
        IF (dbg) WRITE(*,*)routineN//" lock size..."
        IF (dbg) WRITE(*,*)routineN, dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
        IF (nblks .GT. dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)) THEN
+          !
+          ! All kernels in the stream must be finished before
+          ! reallocation is performed.
+          IF (.NOT. stream_is_synced) THEN
+             CALL dbcsr_cuda_stream_sync (target_desc%t%owner+1, error=error)
+          ENDIF
+          stream_is_synced = .TRUE.
           IF (dbg) WRITE(*,*)routineN//" reallocing locks"
           maxs = dbcsr_cuda_dev_mem_get_alloc(c_locks_dev)
           IF (dbg) WRITE(*,*)routineN//" lock size", maxs
