@@ -20,6 +20,17 @@ extern "C" int dc_device_sync_cu() {
 	return 0;
 }
 
+extern "C" int dc_stream_sync_cu(int stream_id) {
+	cudaError_t cErr;
+	cudaStream_t stream;
+	
+	stream = (cudaStream_t) dc_get_stream (stream_id);
+	cErr = cudaStreamSynchronize (stream);
+	if (cuda_error_check (cErr)) return 1;
+	return 0;
+}
+
+
 extern "C" int dc_set_device_cu(int device_id) {
 	cudaError_t cErr;
 

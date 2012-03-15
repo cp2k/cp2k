@@ -60,7 +60,8 @@ MODULE dbcsr_cuda_device
 
   PUBLIC :: dbcsr_cuda_init, dbcsr_cuda_device_sync,&
             dbcsr_cuda_get_n_devices
-  PUBLIC :: dbcsr_cuda_create_streams, dbcsr_cuda_destroy_streams
+  PUBLIC :: dbcsr_cuda_create_streams, dbcsr_cuda_destroy_streams,&
+            dbcsr_cuda_stream_sync
 
 #if defined (__DBCSR_CUDA)
   INTERFACE
@@ -91,6 +92,16 @@ MODULE dbcsr_cuda_device
 
      END FUNCTION cuda_device_sync_cu
   END INTERFACE
+
+  INTERFACE
+     FUNCTION cuda_stream_sync_cu(stream_id) RESULT (istat) BIND(C, name="dc_stream_sync_cu")
+       USE ISO_C_BINDING
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: stream_id
+    INTEGER(KIND=C_INT)                      :: istat
+
+     END FUNCTION cuda_stream_sync_cu
+  END INTERFACE
+
 
   INTERFACE
      FUNCTION dc_create_streams(n_streams) RESULT (istat) &
@@ -204,6 +215,36 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_cuda_device_sync
+
+  SUBROUTINE dbcsr_cuda_stream_sync(stream, error)
+    INTEGER, INTENT(IN)                      :: stream
+    TYPE(dbcsr_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_device_sync', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, istat
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+#if defined (__DBCSR_CUDA)
+    istat = cuda_stream_sync_cu(INT(stream, KIND=C_INT))
+#else
+    istat = -1
+#endif
+    IF (istat /= 0) THEN
+       IF (PRESENT(error)) THEN
+          CALL dbcsr_assert (istat, "EQ", 0,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Could not synchronize stream",&
+               __LINE__, error=error)
+       ENDIF
+    ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_cuda_stream_sync
+
 
   SUBROUTINE dbcsr_cuda_create_streams(n, error)
     INTEGER, INTENT(IN)                      :: n

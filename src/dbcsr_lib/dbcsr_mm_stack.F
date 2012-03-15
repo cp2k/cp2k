@@ -18,7 +18,8 @@ MODULE dbcsr_mm_stack
        detailed_timing, driver_is_async, kernel_timing, mm_async, mm_driver, &
        mm_driver_blas, mm_driver_cuda, mm_driver_matmul, mm_driver_plasma, &
        mm_driver_smm, mm_workshare
-  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_device_sync
+  USE dbcsr_cuda_device,               ONLY: dbcsr_cuda_device_sync,&
+                                             dbcsr_cuda_stream_sync
   USE dbcsr_cuda_memory,               ONLY: dbcsr_cuda_dev_mem_alloc,&
                                              dbcsr_cuda_dev_mem_dealloc,&
                                              dbcsr_cuda_dev_mem_realloc,&
@@ -527,6 +528,7 @@ CONTAINS
     !
     ! Cuda on-device resizing
     cuda_process_target: IF (driver .EQ. mm_driver_cuda) THEN
+       CALL dbcsr_cuda_stream_sync (target_desc%t%owner+1, error=error)
        IF (dbg) WRITE(*,*)"Getting allocated size..."
        !$ IF (dbg) WRITE(*,*)"thread, target", omp_get_thread_num(),&
        !$      target_desc%t%owner
