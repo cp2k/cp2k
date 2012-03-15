@@ -52,6 +52,9 @@ extern "C" int dc_dev_mem_realloc (void **dev_mem, size_t n, size_t old_n, int *
 		if (cuda_error_check (cudaGetLastError())) return 1;
 	}
 
+	cErr = cudaMemcpy (new_dev_mem, *dev_mem, old_n, cudaMemcpyDeviceToDevice);
+	if (cuda_error_check (cErr)) return 1;
+
 	cErr = cudaFree((void *) *dev_mem);
 	if (cuda_error_check (cErr)) return 1;
 	if (cuda_error_check (cudaGetLastError())) return 1;
