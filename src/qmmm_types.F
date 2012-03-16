@@ -44,7 +44,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type
   PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
   PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
-  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
+  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type, image_charge_type
 !***
 
 ! *****************************************************************************
