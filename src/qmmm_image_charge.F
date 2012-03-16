@@ -214,7 +214,7 @@ CONTAINS
 
   CALL timeset(routineN,handle)
 
-  NULLIFY(pot_const,coeff,vmetal_const,logger,input) 
+  NULLIFY(pot_const,vmetal_const,logger,input) 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
   
