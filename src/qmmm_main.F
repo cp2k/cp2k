@@ -238,7 +238,9 @@ CPSourceFileRef,&
        qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
-       qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list) 
+       IF(qmmm_env_qm%image_charge) THEN
+         qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list) 
+       END IF
 
        ! Duplicate structure for link atoms
        IF (qmmm_link) THEN
