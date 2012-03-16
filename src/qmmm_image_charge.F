@@ -302,7 +302,7 @@ CONTAINS
                   extension=".qmmmLog",error=error)
   IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A,T74,I7)")&
                  "Number of iteration steps for determination &
-                  of image coefficients:",iter_steps
+                  &of image coefficients:",iter_steps
   CALL cp_print_key_finished_output(output_unit,logger,input,&
                   "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
   
@@ -865,18 +865,18 @@ SUBROUTINE print_gradients_image_atoms(forces,qs_env,error)
                "QMMM%PRINT%DERIVATIVES",extension=".Log",error=error)
   IF(output_unit>0) THEN
      WRITE (unit=output_unit,fmt="(/1X,A)")"Image gradients [a.u.] &
-                       on MM image charge atoms after QMMM calculation: "
+                                 &on MM image charge atoms after QMMM calculation: "
      WRITE (unit=output_unit,fmt="(T4,A4,T27,A1,T50,A1,T74,A1)")&
                                   "Atom", "X", "Y", "Z"
          DO iatom=1, natom
             atom_a=qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
             WRITE (unit=output_unit,fmt="(T2,I6,T22,ES12.5,T45,ES12.5,&
-                                   T69,ES12.5)") atom_a,forces(:,iatom) 
+                                         &T69,ES12.5)") atom_a,forces(:,iatom) 
          END DO
  
-     WRITE(unit=output_unit,fmt="(T2,A)") REPEAT("-",79)
+     WRITE (unit=output_unit,fmt="(T2,A)") REPEAT("-",79)
      WRITE (unit=output_unit,fmt="(T2,A,T22,ES12.5,T45,ES12.5,&
-                                   T69,ES12.5)") "sum gradients:",sum_gradients 
+                                  &T69,ES12.5)") "sum gradients:",sum_gradients 
      WRITE (unit=output_unit,fmt="(/)")
   ENDIF
  
@@ -920,7 +920,7 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
  IF(output_unit>0) THEN
    WRITE (unit=output_unit,fmt="(/)")
    WRITE (unit=output_unit,fmt="(T2,A)")"Image charge coefficients [a.u.] &
-                                          after QMMM calculation: "
+                                         &after QMMM calculation: "
    WRITE (unit=output_unit,fmt="(T4,A4,T68,A)") "Atom", "Coefficient"
    WRITE(unit=output_unit,fmt="(T4,A,T68,A)") REPEAT("-",4), REPEAT("-",11)
 

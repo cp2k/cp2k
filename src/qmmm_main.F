@@ -266,7 +266,7 @@ CPSourceFileRef,&
           IF(ANY(abc_mm/=abc_qm))& 
            CALL stop_program(routineN,moduleN,__LINE__,&
                 "QM and MM box need to have the same &
-                 size when using image charges")
+                &size when using image charges")
        ENDIF
 
        ! Assign charges and mm_el_pot_radius from fist_topology

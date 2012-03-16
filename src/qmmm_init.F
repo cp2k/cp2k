@@ -1459,7 +1459,7 @@ CPSourceFileRef,&
        WRITE(iw,"(7X,10I6)") qmmm_env%image_charge_pot%image_mm_list
        WRITE(iw,FMT="(/)")
        WRITE(iw,"(T2,A52,T69,F12.8)") "WIDTH OF GAUSSIAN CHARGE DISTRIBUTION &
-                                       [angstrom^-2]:", eta_conv  
+                                       &[angstrom^-2]:", eta_conv
        WRITE(iw,"(T2,A26,T69,F12.8)") "EXTERNAL POTENTIAL [volt]:", V0_conv 
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF
