@@ -440,6 +440,7 @@ CONTAINS
                           "Uses an iterative scheme to calculate the coefficients"),&
             default_i_val=do_qmmm_image_calcmatrix, error=error)
        CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
 
     END IF
   END SUBROUTINE create_qmmm_image_charge_section
