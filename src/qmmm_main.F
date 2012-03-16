@@ -47,11 +47,11 @@ MODULE qmmm_main
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE qmmm_init,                       ONLY: &
-       assign_mm_charges_and_radius, move_or_add_atoms, print_qmmm_charges, &
-       print_qmmm_links, qmmm_init_gaussian_type, &
-       qmmm_init_periodic_potential, qmmm_init_potential, &
-       setup_origin_mm_cell, setup_qmmm_links, setup_qmmm_vars_mm, &
-       setup_qmmm_vars_qm, print_image_charge_info                       
+       assign_mm_charges_and_radius, move_or_add_atoms, &
+       print_image_charge_info, print_qmmm_charges, print_qmmm_links, &
+       qmmm_init_gaussian_type, qmmm_init_periodic_potential, &
+       qmmm_init_potential, setup_origin_mm_cell, setup_qmmm_links, &
+       setup_qmmm_vars_mm, setup_qmmm_vars_qm
   USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_types,                      ONLY: &
@@ -61,7 +61,7 @@ MODULE qmmm_main
   USE qs_environment_types,            ONLY: qs_environment_type,&
                                              set_qs_env
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE termination,                     ONLY: stop_program 
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -109,8 +109,7 @@ CONTAINS
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
     REAL(KIND=dp)                            :: eps_mm_rspace
-    REAL(KIND=dp), DIMENSION(3)              :: abc_qm,&  
-                                                abc_mm 
+    REAL(KIND=dp), DIMENSION(3)              :: abc_mm, abc_qm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fist_scale_charge_link, &
                                                 mm_link_scale_factor
     TYPE(add_set_type), POINTER              :: added_charges
@@ -265,8 +264,7 @@ CPSourceFileRef,&
        IF (qmmm_env_qm%image_charge) THEN       
           IF(ANY(abc_mm/=abc_qm))& 
            CALL stop_program(routineN,moduleN,__LINE__,&
-                "QM and MM box need to have the same &
-                &size when using image charges")
+                             "QM and MM box need to have the same size when using image charges")
        ENDIF
 
        ! Assign charges and mm_el_pot_radius from fist_topology

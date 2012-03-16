@@ -71,9 +71,6 @@ MODULE qs_ks_methods
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hfx_admm_utils,                  ONLY: admm_density_matrix,&
                                              hfx_ks_matrix
-  USE qmmm_image_charge,               ONLY: calculate_image_pot,&
-                                             add_image_pot_to_hartree_pot,&
-                                             integrate_potential_devga_rspace
   USE input_constants,                 ONLY: &
        do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
        sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
@@ -104,8 +101,11 @@ MODULE qs_ks_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
-                                             pw_type,&
-                                             pw_release
+                                             pw_release,&
+                                             pw_type
+  USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
+                                             calculate_image_pot,&
+                                             integrate_potential_devga_rspace
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -377,7 +377,7 @@ CONTAINS
       POINTER                                :: mo_array, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
-      v_sic_rspace, v_spin_ddapc_rest_r 
+      v_sic_rspace, v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &

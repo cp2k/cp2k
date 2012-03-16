@@ -63,8 +63,10 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
-    TYPE(qmmm_env_qm_type),OPTIONAL,POINTER  :: qmmm_env_qm
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_qm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env_qm
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section

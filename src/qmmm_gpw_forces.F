@@ -104,9 +104,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, Imm, IndMM, ispin, &
-                                                iw, stat,&
-                                                image_IndMM,iatom    
+    INTEGER                                  :: handle, iatom, image_IndMM, &
+                                                Imm, IndMM, ispin, iw, stat
     LOGICAL                                  :: failure, gapw, need_f, &
                                                 periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges

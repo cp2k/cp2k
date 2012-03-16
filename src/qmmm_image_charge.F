@@ -17,49 +17,47 @@ MODULE  qmmm_image_charge
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
-                                             int_8,&
-                                             dp_size
-  USE mathconstants,                   ONLY: fac,pi
+                                             int_8
+  USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_methods,                      ONLY: pw_integral_ab,&
+                                             pw_scale,&
+                                             pw_transfer,&
+                                             pw_zero
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type,&
+                                             pw_release
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qs_collocate_density,            ONLY: calculate_rho_metal,&
+                                             calculate_rho_single_gaussian
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_desc_type,&
                                              realspace_grid_type,&
                                              rs_grid_release,&
                                              rs_grid_retain,&
                                              rs_pw_transfer
-  USE pw_poisson_methods,              ONLY: pw_poisson_solve 
-  USE pw_poisson_types,                ONLY: pw_poisson_type  
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_methods,                      ONLY: pw_transfer,&    
-                                             pw_zero,&
-                                             pw_integral_ab,&
-                                             pw_scale
-  USE pw_pool_types,                   ONLY: pw_pool_type,&
-                                             pw_pool_create_pw
-  USE pw_types,                        ONLY: COMPLEXDATA1D, &  
-                                             RECIPROCALSPACE,& 
-                                             REALDATA3D,&
-                                             REALSPACE,&       
-                                             pw_p_type,&
-                                             pw_release
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
-  USE qs_collocate_density,            ONLY: calculate_rho_single_gaussian,&
-                                             calculate_rho_metal
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE f77_blas
-  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_type 
-                           
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
 
@@ -82,18 +80,18 @@ CONTAINS
  SUBROUTINE calculate_image_pot(v_hartree_rspace,rho_hartree_gspace,energy,&
                                 qmmm_env,qs_env,error)
 
-  TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
-  TYPE(pw_p_type),INTENT(IN)               :: rho_hartree_gspace
-  TYPE(qs_energy_type),POINTER             :: energy
-  TYPE(qmmm_env_qm_type),POINTER           :: qmmm_env
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace, &
+                                                rho_hartree_gspace
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_pot', &
-    routineP = moduleN//':'//routineN
-  
-  INTEGER                                  :: handle 
-  LOGICAL                                  :: failure
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_pot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
  
@@ -135,19 +133,20 @@ CONTAINS
                                             qs_env,error)
     
 
-  TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
-  REAL(KIND=dp),DIMENSION(:),POINTER       :: coeff 
-  TYPE(qmmm_env_qm_type),POINTER           :: qmmm_env
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_image_coeff_gaussalgorithm', &
-    routineP = moduleN//':'//routineN
-   
-  REAL(KIND=dp)                           :: eta,V0
-  REAL(KIND=dp),DIMENSION(:),POINTER      :: pot_const 
-  INTEGER                                 :: natom,stat,info,handle
-  LOGICAL                                 :: failure
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'calc_image_coeff_gaussalgorithm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, info, natom, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: eta, V0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pot_const
 
   CALL timeset(routineN,handle)
 
@@ -193,30 +192,26 @@ CONTAINS
                                       qs_env,error)
     
 
-  TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
-  REAL(KIND=dp),DIMENSION(:),POINTER       :: coeff 
-  TYPE(qmmm_env_qm_type),POINTER           :: qmmm_env
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(cp_error_type), INTENT(INOUT)       :: error
-  
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_image_coeff_iterative', &
-    routineP = moduleN//':'//routineN
-  
-  REAL(KIND=dp)                           :: eta,V0
-  REAL(KIND=dp)                           :: alpha,rsnew,rsold
-  REAL(KIND=dp),DIMENSION(:),POINTER      :: pot_const 
-  REAL(KIND=dp),DIMENSION(:),POINTER      :: vmetal_const 
-  REAL(KIND=dp),DIMENSION(:),POINTER      :: Ad 
-  REAL(KIND=dp),DIMENSION(:),POINTER      :: r,d,z
-  TYPE(pw_p_type)                         :: v_metal_rspace_guess
-  TYPE(pw_p_type)                         :: auxpot_Ad_rspace
+    TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-  INTEGER                                 :: iter_steps,natom,stat,info,&
-                                             output_unit,handle
-  LOGICAL                                 :: failure
-  TYPE(cp_logger_type), POINTER           :: logger
-  TYPE(section_vals_type), POINTER        :: input
-  
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_image_coeff_iterative', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iter_steps, natom, &
+                                                output_unit, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, eta, rsnew, rsold, V0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Ad, d, pot_const, r, &
+                                                vmetal_const, z
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_p_type)                          :: auxpot_Ad_rspace, &
+                                                v_metal_rspace_guess
+    TYPE(section_vals_type), POINTER         :: input
+
   CALL timeset(routineN,handle)
 
   NULLIFY(pot_const,coeff,vmetal_const,logger,input) 
@@ -287,7 +282,7 @@ CONTAINS
     z=MATMUL(qs_env%image_matrix,r)
     rsnew=DOT_PRODUCT(r,z)
     iter_steps=iter_steps+1
-    IF(sqrt(rsnew)<1.0E-08) EXIT
+    IF(SQRT(rsnew)<1.0E-08) EXIT
     d=z+rsnew/rsold*d
     rsold=rsnew
     CALL pw_release(auxpot_Ad_rspace%pw,error=error)
@@ -301,8 +296,7 @@ CONTAINS
                  "QMMM%PRINT%PROGRAM_RUN_INFO",&
                   extension=".qmmmLog",error=error)
   IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A,T74,I7)")&
-                 "Number of iteration steps for determination &
-                  &of image coefficients:",iter_steps
+    "Number of iteration steps for determination of image coefficients:",iter_steps
   CALL cp_print_key_finished_output(output_unit,logger,input,&
                   "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
   
@@ -336,30 +330,31 @@ SUBROUTINE integrate_potential_ga_rspace(potential,qmmm_env,qs_env,int_res,&
                                          atom_num,error)
 
 
-  TYPE(pw_p_type), INTENT(IN)                         :: potential
-  TYPE(qmmm_env_qm_type),POINTER                      :: qmmm_env
-  TYPE(qs_environment_type), POINTER                  :: qs_env
-  REAL(KIND=dp),DIMENSION(:),POINTER                  :: int_res
-  INTEGER,INTENT(IN),OPTIONAL                         :: atom_num
-  TYPE(cp_error_type), INTENT(inout)                  :: error
+    TYPE(pw_p_type), INTENT(IN)              :: potential
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
+    INTEGER, INTENT(IN), OPTIONAL            :: atom_num
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_ga_rspace', &
-    routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'integrate_potential_ga_rspace', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: atom_a,npme,natom,stat,handle,&
-                                              iatom,j,k
-  INTEGER,DIMENSION(:),POINTER             :: cores
-  REAL(KIND=dp)                            :: eps_rho_rspace
-  REAL(KIND=dp),DIMENSION(3)               :: ra
-  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
-  LOGICAL                                  :: failure
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
-  TYPE(pw_env_type), POINTER               :: pw_env
-  TYPE(cp_para_env_type), POINTER          :: para_env
-  TYPE(dft_control_type), POINTER          :: dft_control
-  TYPE(realspace_grid_type), POINTER       :: rs_v
- 
+    INTEGER                                  :: atom_a, handle, iatom, j, k, &
+                                                natom, npme, stat
+    INTEGER, DIMENSION(:), POINTER           :: cores
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_v
+
   CALL timeset(routineN,handle)
 
   NULLIFY(cores,hab,cell,auxbas_rs_desc,pw_env,para_env,&
@@ -439,30 +434,31 @@ END SUBROUTINE integrate_potential_ga_rspace
 SUBROUTINE integrate_potential_devga_rspace(potential,coeff,forces,qmmm_env,&
                                            qs_env,error)
 
-  TYPE(pw_p_type), INTENT(IN)                         :: potential
-  REAL(KIND=dp),DIMENSION(:),POINTER                  :: coeff
-  REAL(KIND=dp), DIMENSION(:,:), POINTER              :: forces
-  TYPE(qmmm_env_qm_type),POINTER                      :: qmmm_env
-  TYPE(qs_environment_type), POINTER                  :: qs_env
-  TYPE(cp_error_type), INTENT(inout)                  :: error
+    TYPE(pw_p_type), INTENT(IN)              :: potential
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_devga_rspace', &
-    routineP = moduleN//':'//routineN
-  INTEGER                                  :: atom_a,npme,j,natom,stat,&
-                                              iatom,handle
-  INTEGER,DIMENSION(:),POINTER             :: cores
-  REAL(KIND=dp)                            :: eps_rho_rspace
-  REAL(KIND=dp),DIMENSION(3)               :: ra
-  REAL(KIND=dp),DIMENSION(3)               :: force_a,force_b
-  REAL(KIND=dp), DIMENSION(:,:), POINTER   :: hab,pab
-  LOGICAL                                  :: failure,use_virial
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
-  TYPE(pw_env_type), POINTER               :: pw_env
-  TYPE(cp_para_env_type), POINTER          :: para_env
-  TYPE(dft_control_type), POINTER          :: dft_control
-  TYPE(realspace_grid_type), POINTER       :: rs_v
-  TYPE(virial_type), POINTER               :: virial
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'integrate_potential_devga_rspace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, handle, iatom, j, &
+                                                natom, npme, stat
+    INTEGER, DIMENSION(:), POINTER           :: cores
+    LOGICAL                                  :: failure, use_virial
+    REAL(KIND=dp)                            :: eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_v
+    TYPE(virial_type), POINTER               :: virial
 
   CALL timeset(routineN,handle) 
  
@@ -567,28 +563,26 @@ END SUBROUTINE integrate_potential_devga_rspace
 !*****************************************************************************
 SUBROUTINE calculate_image_matrix(image_matrix,ipiv,qs_env,qmmm_env,error)
 
-  REAL(KIND=dp),DIMENSION(:,:),POINTER     :: image_matrix 
-  INTEGER,DIMENSION(:),POINTER,OPTIONAL    :: ipiv
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(qmmm_env_qm_type),POINTER           :: qmmm_env
-  TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: ipiv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix', &
-    routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: stat,iatom,natom,&
-                                              handle, output_unit
-  TYPE(cp_logger_type), POINTER            :: logger
-  TYPE(section_vals_type), POINTER         :: input
-  LOGICAL                                  :: failure 
-  TYPE(pw_env_type), POINTER               :: pw_env         
-  TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool 
-  TYPE(pw_poisson_type), POINTER           :: poisson_env    
-  TYPE(cp_para_env_type),POINTER           :: para_env
-  TYPE(pw_p_type)                          :: rho_gb
-  TYPE(pw_p_type)                          :: vb_gspace,vb_rspace 
-  REAL(KIND=dp),DIMENSION(:),POINTER       :: int_res 
-  INTEGER                                  :: j,k
+    INTEGER                                  :: handle, iatom, j, k, natom, &
+                                                output_unit, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_gb, vb_gspace, vb_rspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: input
 
   CALL timeset(routineN,handle)
 
@@ -637,13 +631,13 @@ SUBROUTINE calculate_image_matrix(image_matrix,ipiv,qs_env,qmmm_env,error)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                       poisson_env=poisson_env, error=error)
-      CALL pw_pool_create_pw(auxbas_pw_pool,   &
+      CALL pw_pool_create_pw(auxbas_pw_pool,&
                              rho_gb%pw,&
                              use_data=COMPLEXDATA1D,&
                              in_space=RECIPROCALSPACE,&
                              error=error)
       CALL pw_pool_create_pw(auxbas_pw_pool,&
-                             vb_gspace%pw, &
+                             vb_gspace%pw,&
                              use_data=COMPLEXDATA1D,&
                              in_space=RECIPROCALSPACE,&
                              error=error)
@@ -711,26 +705,25 @@ END SUBROUTINE calculate_image_matrix
 SUBROUTINE calculate_potential_metal(v_metal_rspace,coeff,rho_hartree_gspace,energy,&
                                      qs_env,error)
 
-  TYPE(pw_p_type),INTENT(INOUT)            :: v_metal_rspace 
-  REAL(KIND=dp),DIMENSION(:),POINTER       :: coeff
-  TYPE(pw_p_type),INTENT(IN),OPTIONAL      :: rho_hartree_gspace
-  TYPE(qs_energy_type),POINTER,OPTIONAL    :: energy
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_metal_rspace
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
+    TYPE(pw_p_type), INTENT(IN), OPTIONAL    :: rho_hartree_gspace
+    TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'calculate_potential_metal', &
-    routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_potential_metal', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, ierr
-  REAL(KIND=dp)                            :: total_rho_metal,&
-                                              en_vmetal_rhohartree,&
-                                              en_external
-  LOGICAL                                  :: failure 
-  TYPE(pw_env_type), POINTER               :: pw_env
-  TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-  TYPE(pw_poisson_type), POINTER           :: poisson_env    
-  TYPE(pw_p_type)                          :: rho_metal
-  TYPE(pw_p_type)                          :: v_metal_gspace
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: en_external, &
+                                                en_vmetal_rhohartree, &
+                                                total_rho_metal
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_metal, v_metal_gspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   CALL timeset(routineN,handle)
 
@@ -793,18 +786,18 @@ END SUBROUTINE calculate_potential_metal
 !> \brief Add potential of metal (image charge pot) to Hartree Potential
 ! ****************************************************************************
 SUBROUTINE add_image_pot_to_hartree_pot(v_hartree,v_metal,qs_env,error)
-  TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
-  TYPE(pw_p_type), INTENT(IN)              :: v_metal
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
+    TYPE(pw_p_type), INTENT(IN)              :: v_metal
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
-    routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_image_pot_to_hartree_pot', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, output_unit
-  LOGICAL                                  :: failure
-  TYPE(cp_logger_type), POINTER            :: logger
-  TYPE(section_vals_type), POINTER         :: input
+    INTEGER                                  :: handle, output_unit
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: input
 
   CALL timeset(routineN,handle)
 
@@ -836,19 +829,19 @@ END SUBROUTINE add_image_pot_to_hartree_pot
 SUBROUTINE print_gradients_image_atoms(forces,qs_env,error)
  
  
-  REAL(KIND=dp), DIMENSION(:,:), POINTER              :: forces
-  TYPE(qs_environment_type), POINTER                  :: qs_env
-  TYPE(cp_error_type), INTENT(inout)                  :: error
- 
-  CHARACTER(LEN=*), PARAMETER :: routineN = 'print_gradients_image_atoms', &
-    routineP = moduleN//':'//routineN
- 
-  INTEGER                                  :: natom, iatom, output_unit,&
-                                              atom_a
-  REAL(KIND=dp),DIMENSION(3)               :: sum_gradients  
-  TYPE(cp_logger_type), POINTER            :: logger
-  TYPE(section_vals_type), POINTER         :: input
- 
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_gradients_image_atoms', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, iatom, natom, &
+                                                output_unit
+    REAL(KIND=dp), DIMENSION(3)              :: sum_gradients
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: input
+
   NULLIFY(input, logger)
   logger => cp_error_get_logger(error)
  
@@ -864,19 +857,19 @@ SUBROUTINE print_gradients_image_atoms(forces,qs_env,error)
   output_unit = cp_print_key_unit_nr(logger,input,&
                "QMMM%PRINT%DERIVATIVES",extension=".Log",error=error)
   IF(output_unit>0) THEN
-     WRITE (unit=output_unit,fmt="(/1X,A)")"Image gradients [a.u.] &
-                                 &on MM image charge atoms after QMMM calculation: "
+     WRITE (unit=output_unit,fmt="(/1X,A)")&
+      "Image gradients [a.u.] on MM image charge atoms after QMMM calculation: "
      WRITE (unit=output_unit,fmt="(T4,A4,T27,A1,T50,A1,T74,A1)")&
                                   "Atom", "X", "Y", "Z"
          DO iatom=1, natom
             atom_a=qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
-            WRITE (unit=output_unit,fmt="(T2,I6,T22,ES12.5,T45,ES12.5,&
-                                         &T69,ES12.5)") atom_a,forces(:,iatom) 
+            WRITE (unit=output_unit,fmt="(T2,I6,T22,ES12.5,T45,ES12.5,T69,ES12.5)")&
+             atom_a,forces(:,iatom)
          END DO
  
      WRITE (unit=output_unit,fmt="(T2,A)") REPEAT("-",79)
-     WRITE (unit=output_unit,fmt="(T2,A,T22,ES12.5,T45,ES12.5,&
-                                  &T69,ES12.5)") "sum gradients:",sum_gradients 
+     WRITE (unit=output_unit,fmt="(T2,A,T22,ES12.5,T45,ES12.5,T69,ES12.5)")&
+      "sum gradients:",sum_gradients
      WRITE (unit=output_unit,fmt="(/)")
   ENDIF
  
@@ -890,18 +883,18 @@ END SUBROUTINE print_gradients_image_atoms
 ! ****************************************************************************
 SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
 
- REAL(KIND=dp),DIMENSION(:),POINTER                  :: image_coeff
- TYPE(qs_environment_type), POINTER                  :: qs_env
- TYPE(cp_error_type), INTENT(inout)                  :: error
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: image_coeff
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
- CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_coefficients', &
-   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_coefficients', &
+      routineP = moduleN//':'//routineN
 
- INTEGER                                  :: natom, iatom, output_unit,&
-                                             atom_a
- REAL(KIND=dp)                            :: sum_coeff  
- TYPE(cp_logger_type), POINTER            :: logger
- TYPE(section_vals_type), POINTER         :: input
+    INTEGER                                  :: atom_a, iatom, natom, &
+                                                output_unit
+    REAL(KIND=dp)                            :: sum_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: input
 
  NULLIFY(input, logger)
  logger => cp_error_get_logger(error)
@@ -919,8 +912,8 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
              "QMMM%PRINT%IMAGE_CHARGE_INFO",extension=".Log",error=error)
  IF(output_unit>0) THEN
    WRITE (unit=output_unit,fmt="(/)")
-   WRITE (unit=output_unit,fmt="(T2,A)")"Image charge coefficients [a.u.] &
-                                         &after QMMM calculation: "
+   WRITE (unit=output_unit,fmt="(T2,A)")&
+    "Image charge coefficients [a.u.] after QMMM calculation: "
    WRITE (unit=output_unit,fmt="(T4,A4,T68,A)") "Atom", "Coefficient"
    WRITE(unit=output_unit,fmt="(T4,A,T68,A)") REPEAT("-",4), REPEAT("-",11)
 
@@ -946,18 +939,17 @@ END SUBROUTINE print_image_coefficients
 SUBROUTINE print_image_energy_terms(en_vmetal_rhohartree,en_external,&
                                     total_rho_metal,qs_env,error)
 
- REAL(KIND=dp), INTENT(IN)                           :: en_vmetal_rhohartree
- REAL(KIND=dp), INTENT(IN)                           :: en_external
- REAL(KIND=dp), INTENT(IN)                           :: total_rho_metal
- TYPE(qs_environment_type), POINTER                  :: qs_env
- TYPE(cp_error_type), INTENT(inout)                  :: error
+    REAL(KIND=dp), INTENT(IN)                :: en_vmetal_rhohartree, &
+                                                en_external, total_rho_metal
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
- CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_energy_terms', &
-   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_energy_terms', &
+      routineP = moduleN//':'//routineN
 
- INTEGER                                  :: output_unit
- TYPE(cp_logger_type), POINTER            :: logger
- TYPE(section_vals_type), POINTER         :: input
+    INTEGER                                  :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: input
 
  NULLIFY(input, logger)
  logger => cp_error_get_logger(error)

@@ -129,7 +129,7 @@ MODULE qs_environment
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type 
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
@@ -213,7 +213,8 @@ CONTAINS
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
-    TYPE(qmmm_env_qm_type),OPTIONAL,POINTER  :: qmmm_env_qm        
+    TYPE(qmmm_env_qm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env_qm
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section

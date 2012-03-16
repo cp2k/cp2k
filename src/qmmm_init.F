@@ -21,8 +21,8 @@ MODULE qmmm_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_to_cp2k,&
-                                             cp_unit_from_cp2k 
+  USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                             cp_unit_to_cp2k
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
@@ -32,16 +32,10 @@ MODULE qmmm_init
                                              read_gp_section,&
                                              read_lj_section,&
                                              read_wl_section
-  USE input_constants,                 ONLY: RADIUS_QMMM_DEFAULT,&
-                                             do_center_grid,&
-                                             do_center_none,&
-                                             do_qmmm_gauss,&
-                                             do_qmmm_link_gho,&
-                                             do_qmmm_link_imomm,&
-                                             do_qmmm_link_pseudo,&
-                                             do_qmmm_swave,&
-                                             do_qmmm_image_calcmatrix,& 
-                                             do_qmmm_image_iter         
+  USE input_constants,                 ONLY: &
+       RADIUS_QMMM_DEFAULT, do_center_grid, do_center_none, do_qmmm_gauss, &
+       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
+       do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -61,7 +55,7 @@ MODULE qmmm_init
                                              qmmm_env_qm_type,&
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE termination,                     ONLY: stop_program       
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -509,9 +503,8 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: atmname, mm_atom_kind
     INTEGER                                  :: i, icount, ikind, ikindr, &
-                                                n_rep_val, nkind, &
-                                                size_mm_system, stat,&
-                                                my_type                   
+                                                my_type, n_rep_val, nkind, &
+                                                size_mm_system, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: explicit, failure, is_mm, &
                                                 is_qm
@@ -520,8 +513,8 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
-    TYPE(section_vals_type), POINTER         :: cell_section, mm_kinds,&
-                                                image_charge_section         
+    TYPE(section_vals_type), POINTER         :: cell_section, &
+                                                image_charge_section, mm_kinds
 
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
     NULLIFY(image_charge_section)  
@@ -1350,20 +1343,19 @@ CPSourceFileRef,&
 
     TYPE(section_vals_type), POINTER         :: image_charge_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index 
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     TYPE(cp_subsys_type), POINTER            :: subsys_mm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_image_atom_list', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: atom_a, atom_b, i, j, &
+                                                max_index, n_var, &
+                                                num_image_mm_atom, stat
+    INTEGER, DIMENSION(:), POINTER           :: mm_indexes
     LOGICAL                                  :: failure, imageind_in_range
-    INTEGER                                  :: num_image_mm_atom,&
-                                                i, j, n_var, atom_a,&
-                                                atom_b, max_index,stat
-    INTEGER,DIMENSION(:),POINTER             :: mm_indexes
 
-    
     NULLIFY(mm_indexes)
     failure=.FALSE.
     imageind_in_range=.FALSE.
@@ -1437,8 +1429,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
-    REAL(KIND=dp)                            :: eta, eta_conv 
-    REAL(KIND=dp)                            :: V0, V0_conv 
+    REAL(KIND=dp)                            :: eta, eta_conv, V0, V0_conv
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
@@ -1458,8 +1449,8 @@ CPSourceFileRef,&
 
        WRITE(iw,"(7X,10I6)") qmmm_env%image_charge_pot%image_mm_list
        WRITE(iw,FMT="(/)")
-       WRITE(iw,"(T2,A52,T69,F12.8)") "WIDTH OF GAUSSIAN CHARGE DISTRIBUTION &
-                                       &[angstrom^-2]:", eta_conv
+       WRITE(iw,"(T2,A52,T69,F12.8)")&
+        "WIDTH OF GAUSSIAN CHARGE DISTRIBUTION [angstrom^-2]:", eta_conv
        WRITE(iw,"(T2,A26,T69,F12.8)") "EXTERNAL POTENTIAL [volt]:", V0_conv 
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF

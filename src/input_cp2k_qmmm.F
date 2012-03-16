@@ -387,7 +387,8 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_image_charge_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_qmmm_image_charge_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -399,23 +400,23 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="IMAGE_CHARGE",&
-            description="Inclusion of polarization effects within the image charge &
-            &approach for systems where QM molecules are physisorbed on e.g. metal &
-            &surfaces described by MM. QM box size has to be equal to MM box size. ",&
+            description="Inclusion of polarization effects within the image charge "//&
+                        "approach for systems where QM molecules are physisorbed on e.g. metal "//&
+                        "surfaces described by MM. QM box size has to be equal to MM box size.",&
             n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="MM_ATOM_LIST",&
-            description="List of MM atoms carrying an induced Gaussian charge. &
-            &IF this keyword is not given, all MM atoms will carry an image charge.",&
+            description="List of MM atoms carrying an induced Gaussian charge. "//&
+                        "If this keyword is not given, all MM atoms will carry an image charge.",&
             usage="MM_ATOM_LIST 1 2 3 or 1..3 ",n_var=-1,type_of_var=integer_t,&
             repeats=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WIDTH",&
-            description="Specifies the value of the width of the (induced) Gaussian &
-            &charge distribution carried by each MM atom ",&
+            description="Specifies the value of the width of the (induced) Gaussian "//&
+                        "charge distribution carried by each MM atom.",&
             usage="WIDTH <real> ",n_var=1,type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=0.6614_dp,unit_str="angstrom^-2", error=error), &
             unit_str="angstrom^-2",error=error)

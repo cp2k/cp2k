@@ -221,7 +221,7 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_device_sync', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cuda_stream_sync', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, istat

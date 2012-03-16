@@ -1114,8 +1114,9 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,nelectron_tota
     TYPE(qs_energy_type), POINTER            :: energy
     INTEGER, INTENT(IN)                      :: nelectron_total
     TYPE(dft_control_type), POINTER          :: dft_control
-    LOGICAL, INTENT(IN)                      :: qmmm, gapw, gapw_xc
+    LOGICAL, INTENT(IN)                      :: qmmm
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: gapw, gapw_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_summary', &

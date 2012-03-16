@@ -97,7 +97,7 @@ MODULE qs_environment_types
                                              pw_env_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type 
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type

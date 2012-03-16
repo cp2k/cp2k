@@ -572,7 +572,7 @@ SUBROUTINE qmmm_image_charge_dealloc(image_charge_pot, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_image_charge_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  ::  stat
+    INTEGER                                  :: stat
 
  IF (ASSOCIATED(image_charge_pot)) THEN
       IF (ASSOCIATED(image_charge_pot%image_mm_list)) THEN

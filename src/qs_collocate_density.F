@@ -1010,21 +1010,21 @@ CONTAINS
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_gb
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER,INTENT(IN)                       :: iatom_in
+    INTEGER, INTENT(IN)                      :: iatom_in
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_single_gaussian', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'calculate_rho_single_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, ierr, &
-                                                npme,iatom
+    INTEGER                                  :: atom_a, handle, iatom, ierr, &
+                                                npme
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rhoc_r
@@ -1096,31 +1096,30 @@ END SUBROUTINE calculate_rho_single_gaussian
 ! *****************************************************************************
 SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
 
-  TYPE(pw_p_type),INTENT(INOUT)            :: rho_metal
-  REAL(KIND=dp),DIMENSION(:),POINTER       :: coeff
-  REAL(KIND=dp),INTENT(OUT),OPTIONAL       :: total_rho_metal
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho_metal
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: total_rho_metal
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
-    routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: atom_a, handle, ierr, &
-                                              npme,iatom,natom,j
-  INTEGER(KIND=int_8)                      :: subpatch_pattern
-  INTEGER,DIMENSION(:),POINTER             :: cores
-  REAL(KIND=dp)                            :: eps_rho_rspace
-  REAL(KIND=dp), DIMENSION(3)              :: ra
-  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(cp_para_env_type), POINTER          :: para_env
-  TYPE(cube_info_type)                     :: cube_info
-  TYPE(dft_control_type), POINTER          :: dft_control
-  TYPE(pw_env_type), POINTER               :: pw_env
-  TYPE(pw_p_type)                          :: rhoc_r
-  TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-  TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
-  TYPE(realspace_grid_type), POINTER       :: rs_rho
+    INTEGER                                  :: atom_a, handle, iatom, ierr, &
+                                                j, natom, npme
+    INTEGER(KIND=int_8)                      :: subpatch_pattern
+    INTEGER, DIMENSION(:), POINTER           :: cores
+    REAL(KIND=dp)                            :: eps_rho_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rhoc_r
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_type), POINTER       :: rs_rho
 
   CALL timeset(routineN,handle)
 
