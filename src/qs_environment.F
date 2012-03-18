@@ -81,6 +81,8 @@ MODULE qs_environment
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
+  USE ga_environment_types,            ONLY: init_ga_env, &
+                                             ga_environment_type
   USE gamma,                           ONLY: init_md_ftable
   USE harris_energy_types,             ONLY: harris_energy_create,&
                                              harris_energy_type
@@ -171,6 +173,7 @@ MODULE qs_environment
                                              scf_c_write_parameters,&
                                              scf_control_type
   USE scptb_utils,                     ONLY: scptb_parameter_init
+  USE se_ga_tools,                     ONLY: se_ga_pair_list_init
   USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
   USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
@@ -245,10 +248,11 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
       kind_section, mp2_section
+    TYPE(ga_environment_type), POINTER :: ga_env
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
-         cell_section, harris_section, kind_section,qs_env%qmmm_env_qm)
+         cell_section, harris_section, kind_section, ga_env)
     para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
@@ -372,6 +376,11 @@ CONTAINS
                            "PROPERTIES%ET_COUPLING",error=error)
     CALL section_vals_get(et_coupling_section,explicit=do_et,error=error)
     IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
+
+! GA option
+    CALL init_ga_env ( ga_env, error )
+    CALL set_qs_env ( qs_env, ga_env=ga_env, error=error )
+    CALL se_ga_pair_list_init ( qs_env, error )
     
   END SUBROUTINE qs_init
 

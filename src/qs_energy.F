@@ -71,6 +71,7 @@ MODULE qs_energy
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE rt_propagator_init,              ONLY: init_emd_propagators
+  USE se_ga_tools,                     ONLY: se_ga_initialize
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
                                              scp_qs_dispersion
@@ -183,6 +184,8 @@ CONTAINS
        IF ( dft_control%qs_control%se_control%scp ) THEN
           CALL scp_nddo_dispersion (qs_env,calc_forces,error)
        END IF
+! GA option
+       CALL se_ga_initialize ( qs_env, error )
     ELSEIF ( dft_control%qs_control%dftb ) THEN
        CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
                               calculate_forces=.FALSE.,error=error)

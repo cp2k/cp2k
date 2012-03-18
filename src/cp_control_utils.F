@@ -724,6 +724,9 @@ CPSourceFileRef,&
                error=error,failure=failure)          
           qs_control%se_control%integral_screening = do_se_IS_slater
        END IF
+       ! Global Arrays variable
+       CALL section_vals_val_get(se_section,"GA%NCELLS",&
+            i_val=qs_control%se_control%ga_ncells,error=error)
        ! Long-Range correction
        CALL section_vals_val_get(se_section,"LR_CORRECTION%CUTOFF",&
             r_val=qs_control%se_control%cutoff_lrc,error=error)

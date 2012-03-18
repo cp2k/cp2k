@@ -146,7 +146,7 @@ MODULE qs_ks_methods
                                              scp_environment_type
   USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
-  USE se_fock_matrix,                  ONLY: build_se_fock_matrix
+  USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -1877,7 +1877,7 @@ CONTAINS
           ! the ks matrix will be rebuilt so this is fine now
           ks_env%potential_changed=.FALSE.
           IF ( dft_control%qs_control%semi_empirical ) THEN
-             CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
+             CALL build_se_fock_matrix_control(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks,rho=rho,energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
                   error=error)

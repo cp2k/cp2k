@@ -108,6 +108,7 @@ MODULE cp_control_types
      LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type
      INTEGER               :: max_multipole
+     INTEGER               :: ga_ncells
      REAL(KIND = dp)       :: delta
      ! Parameters controlling the evaluation of the integrals
      REAL(KIND = dp)       :: cutoff_lrc, taper_lrc, range_lrc

@@ -231,6 +231,7 @@ OBJECTS_GENERIC =\
  fparser.o\
  free_energy_methods.o\
  free_energy_types.o\
+ ga_environment_types.o\
  gamma.o\
  gauss_colloc.o\
  gaussian_gridlevels.o\
@@ -618,11 +619,15 @@ OBJECTS_GENERIC =\
  scptb_utils.o\
  se_core_core.o\
  se_core_matrix.o\
- se_fock_matrix.o\
- se_fock_matrix_coulomb.o\
+ se_fock_matrix_ga.o\
+ se_fock_matrix_mpi.o\
+ se_fock_matrix_control.o\
+ se_fock_matrix_coulomb_ga.o\
+ se_fock_matrix_coulomb_mpi.o\
  se_fock_matrix_dbg.o\
  se_fock_matrix_exchange.o\
  se_fock_matrix_integrals.o\
+ se_ga_tools.o\
  semi_empirical_expns3_methods.o\
  semi_empirical_expns3_types.o\
  semi_empirical_int3_utils.o\

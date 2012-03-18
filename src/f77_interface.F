@@ -113,6 +113,9 @@ MODULE f77_interface
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
+#ifdef _USE_GA
+#include "mafdecls.fh"
+#endif
 
 ! *****************************************************************************
   TYPE f_env_p_type
@@ -183,6 +186,9 @@ CONTAINS
                                                 unit_nr
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
+#ifdef _USE_GA
+    INTEGER                                  :: heap, stack
+#endif
 
     IF (.NOT. module_initialized) THEN
 
@@ -198,6 +204,13 @@ CONTAINS
        IF (init_mpi) THEN
           ! get the default system wide communicator
           CALL mp_world_init(mpi_comm_default)
+#ifdef _USE_GA
+          CALL ga_initialize ( )
+          heap = 1000000
+          stack = 1000000
+          if (.not.ma_init(MT_DBL, stack, heap)) &
+            call ga_error("ma_init failed in init_cp2k",-1)
+#endif
        ELSE
           mpi_comm_default=MPI_COMM_WORLD
        END IF
@@ -292,6 +305,9 @@ CONTAINS
        CALL rm_mp_perf_env()
        CALL string_table_deallocate(0)
        IF (finalize_mpi) THEN
+#ifdef _USE_GA
+          CALL ga_terminate()
+#endif
           CALL mp_world_finalize()
        END IF
     END IF

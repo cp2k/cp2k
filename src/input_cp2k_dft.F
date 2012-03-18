@@ -2956,6 +2956,10 @@ CONTAINS
        CALL create_se_print_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+
+       CALL create_se_ga_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_se_control_section
@@ -3219,6 +3223,44 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_se_print_section
+
+! *****************************************************************************
+!> \brief creates the input section for use with the GA part of the code
+!> \param section the section to create
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+! *****************************************************************************
+  SUBROUTINE create_se_ga_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_se_memory_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"GA",&
+            description="Sets up memory parameters for the storage of the integrals",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="NCELLS",&
+            description="Defines the number of linked cells for the neighbor list. "//&
+                        "Default value is number of processors",&
+            usage="NCELLS 10",&
+            default_i_val=0,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_se_ga_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the se-memory part integral storage

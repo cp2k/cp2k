@@ -69,6 +69,9 @@ MODULE qs_environment_types
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_type
+  USE ga_environment_types,            ONLY: ga_environment_type,  &
+                                             ga_env_retain, &
+                                             ga_env_release
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
@@ -325,6 +328,7 @@ MODULE qs_environment_types
     REAL(KIND=dp),DIMENSION(:),POINTER                    :: image_coeff
     INTEGER,DIMENSION(:),POINTER                          :: ipiv
     INTEGER                                               :: sim_step
+    TYPE(ga_environment_type), POINTER                    :: ga_env
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -452,10 +456,12 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
-       hfx_ri_env,dispersion_env, vee,mp2_env,WannierCentres,atprop,error)
+       hfx_ri_env,dispersion_env, vee,mp2_env,WannierCentres,ga_env,atprop,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(ga_environment_type),            &
+                     OPTIONAL, POINTER       :: ga_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -611,6 +617,7 @@ CONTAINS
     IF (PRESENT(nelectron_spin))  nelectron_spin=qs_env%nelectron_spin
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
+    IF (PRESENT(ga_env)) ga_env => qs_env%ga_env
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
@@ -773,6 +780,7 @@ CONTAINS
     NULLIFY (qs_env%image_matrix)
     NULLIFY (qs_env%ipiv)
     NULLIFY (qs_env%image_coeff)
+    NULLIFY (qs_env%ga_env)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%cell_ref)
@@ -922,9 +930,11 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
-       hfx_ri_env,dispersion_env,mp2_env,WannierCentres,atprop,error)
+       hfx_ri_env,dispersion_env,mp2_env,WannierCentres,ga_env,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ga_environment_type), &
+                     OPTIONAL, POINTER       :: ga_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -1048,6 +1058,11 @@ CONTAINS
     failure=.FALSE.
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(ga_env)) THEN
+       CALL ga_env_retain(ga_env, error)
+       CALL ga_env_release(qs_env%ga_env,error)
+       qs_env%ga_env => ga_env
+    END IF 
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(qs_env%cell,error=error)
@@ -1394,6 +1409,7 @@ CONTAINS
        CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
        qs_env%ref_count=qs_env%ref_count-1
        IF (qs_env%ref_count<1) THEN
+          CALL ga_env_release(qs_env%ga_env,error=error)
           CALL cell_release(qs_env%cell,error=error)
           CALL cell_release(qs_env%super_cell,error=error)
           CALL cell_release(qs_env%cell_ref,error=error)
