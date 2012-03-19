@@ -71,7 +71,6 @@ MODULE qs_energy
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE rt_propagator_init,              ONLY: init_emd_propagators
-  USE se_ga_tools,                     ONLY: se_ga_initialize
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
                                              scp_qs_dispersion
@@ -79,6 +78,7 @@ MODULE qs_energy
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
+  USE se_ga_tools,                     ONLY: se_ga_initialize
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas

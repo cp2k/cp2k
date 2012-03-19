@@ -69,9 +69,9 @@ MODULE qs_environment_types
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_type
-  USE ga_environment_types,            ONLY: ga_environment_type,  &
-                                             ga_env_retain, &
-                                             ga_env_release
+  USE ga_environment_types,            ONLY: ga_env_release,&
+                                             ga_env_retain,&
+                                             ga_environment_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
@@ -460,8 +460,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
-    TYPE(ga_environment_type),            &
-                     OPTIONAL, POINTER       :: ga_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -595,6 +593,8 @@ CONTAINS
     TYPE(mp2_type), OPTIONAL, POINTER        :: mp2_env
     TYPE(wannier_centres_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
+    TYPE(ga_environment_type), OPTIONAL, &
+      POINTER                                :: ga_env
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -933,8 +933,6 @@ CONTAINS
        hfx_ri_env,dispersion_env,mp2_env,WannierCentres,ga_env,atprop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(ga_environment_type), &
-                     OPTIONAL, POINTER       :: ga_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -1047,6 +1045,8 @@ CONTAINS
     TYPE(mp2_type), OPTIONAL, POINTER        :: mp2_env
     TYPE(wannier_centres_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
+    TYPE(ga_environment_type), OPTIONAL, &
+      POINTER                                :: ga_env
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

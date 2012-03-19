@@ -13,24 +13,25 @@
 MODULE se_ga_tools
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type, pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-      cp_dbcsr_iterator_start, cp_dbcsr_iterator_next_block, &
-      cp_dbcsr_iterator_stop, cp_dbcsr_print, cp_dbcsr_iterator_blocks_left
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type, &
-                                             cp_dbcsr_iterator
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE ga_environment_types,            ONLY: ga_environment_type, get_ga_env
+  USE ga_environment_types,            ONLY: ga_environment_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
-  USE qs_environment_types,            ONLY: qs_environment_type, &
-                                             get_qs_env
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -204,13 +205,13 @@ CONTAINS
 !  This  finds the neighboring cells
 !
    xcell = xbox / REAL ( pdx, dp )
-   kxmax = int(ga_env % rcoul/xcell)+1
+   kxmax = INT(ga_env % rcoul/xcell)+1
 !
    ycell = ybox / REAL ( pdy, dp )
-   kymax = int(ga_env % rcoul/ycell)+1
+   kymax = INT(ga_env % rcoul/ycell)+1
 !
    zcell = zbox / REAL ( pdz, dp )
-   kzmax = int(ga_env % rcoul/zcell)+1
+   kzmax = INT(ga_env % rcoul/zcell)+1
 !
    WRITE ( *, * ) 'ks ', kxmax, kymax, kzmax
 !
@@ -222,39 +223,39 @@ CONTAINS
   niz(kc) = 0
 !
   kxmin = 0
-  do kx = kxmin, kxmax
+  DO kx = kxmin, kxmax
     kymin = -kymax
-    if (kx==0) kymin = 0
-    do ky = kymin, kymax
+    IF (kx==0) kymin = 0
+    DO ky = kymin, kymax
       kzmin = -kzmax
-      if (kx==0.AND.ky==0) kzmin = 1
-      do kz = kzmin, kzmax
+      IF (kx==0.AND.ky==0) kzmin = 1
+      DO kz = kzmin, kzmax
 !        write(6,'(a,6i3)') 'klims: ',kxmin,kxmax,kymin,kymax,kzmin,kzmax
-        if (kx/=0) then
+        IF (kx/=0) THEN
           cx = xcell*REAL(iabs(kx)-1, dp)
-        else
+        ELSE
           cx = 0.0_dp
-        endif
-        if (ky/=0) then
+        ENDIF
+        IF (ky/=0) THEN
           cy = ycell*REAL(iabs(ky)-1, dp)
-        else
+        ELSE
           cy = 0.0_dp
-        endif
-        if (kz/=0) then
+        ENDIF
+        IF (kz/=0) THEN
           cz = zcell*REAL(iabs(kz)-1, dp)
-        else
+        ELSE
           cz = 0.0_dp
-        endif
+        ENDIF
         rc = cx**2+cy**2+cz**2
-        if (rc<rcut2) then
+        IF (rc<rcut2) THEN
           kc = kc + 1
           nix(kc) = kx
           niy(kc) = ky
           niz(kc) = kz
-        endif
-      end do
-    end do
-  end do
+        ENDIF
+      END DO
+    END DO
+  END DO
   kcmax = kc
   WRITE ( *, * ) 'kcmax ', kcmax
 ! We now have unique neighbors of each cell
@@ -289,77 +290,77 @@ CONTAINS
 !
 !  Set up distributed pair list
 !
-  ibeg = int(REAL(nbins,dp)*REAL(me,dp)/REAL(nproc,dp)) + 1
-  if (me.lt.nproc-1) then
-    iend = int(REAL(nbins,dp)*REAL(me+1,dp)/REAL(nproc,dp))
-  else
+  ibeg = INT(REAL(nbins,dp)*REAL(me,dp)/REAL(nproc,dp)) + 1
+  IF (me.lt.nproc-1) THEN
+    iend = INT(REAL(nbins,dp)*REAL(me+1,dp)/REAL(nproc,dp))
+  ELSE
     iend = nbins
-  endif
+  ENDIF
 !
 !  Add all pairs to the distributed pair list
 !
   icnt = 0
-  do i = ibeg, iend
+  DO i = ibeg, iend
     itmp = i - 1
-    ix = mod(itmp,pdx)
+    ix = MOD(itmp,pdx)
     itmp = (itmp-ix)/pdy
-    iy = mod(itmp,pdy)
+    iy = MOD(itmp,pdy)
     iz = (itmp-iy)/pdy
     ix = ix + 1
     iy = iy + 1
     iz = iz + 1
-    do nc = 1, kcmax
-      wrap = .false.
+    DO nc = 1, kcmax
+      wrap = .FALSE.
       jx = ix + nix(nc)
-      if (jx>pdx) then
-        jx = mod(jx,pdx)
-        wrap = .true.
-      endif
-      if (jx<1) then
+      IF (jx>pdx) THEN
+        jx = MOD(jx,pdx)
+        wrap = .TRUE.
+      ENDIF
+      IF (jx<1) THEN
         jx = pdx+jx
-        wrap = .true.
-      endif
+        wrap = .TRUE.
+      ENDIF
       jy = iy + niy(nc)
-      if (jy>pdy) then
-        jy = mod(jy,pdy)
-        wrap = .true.
-      endif
-      if (jy<1) then
+      IF (jy>pdy) THEN
+        jy = MOD(jy,pdy)
+        wrap = .TRUE.
+      ENDIF
+      IF (jy<1) THEN
         jy = pdy+jy
-        wrap = .true.
-      endif
+        wrap = .TRUE.
+      ENDIF
       jz = iz + niz(nc)
-      if (jz>pdz) then
-        jz = mod(jz,pdz)
-        wrap = .true.
-      endif
-      if (jz<1) then
+      IF (jz>pdz) THEN
+        jz = MOD(jz,pdz)
+        wrap = .TRUE.
+      ENDIF
+      IF (jz<1) THEN
         jz = pdz+jz
-        wrap = .true.
-      endif
+        wrap = .TRUE.
+      ENDIF
       j = (jz-1)*pdx*pdy + (jy-1)*pdx + jx
-      if (wrap) then
-        if (iabs(ix-jx).ne.0) then
+      IF (wrap) THEN
+        IF (iabs(ix-jx).ne.0) THEN
           cx = xcell*(iabs(ix-jx)-1)
-        else
+        ELSE
           cx = 0.0_dp
-        endif
-        if (iabs(iy-jy)/=0) then
+        ENDIF
+        IF (iabs(iy-jy)/=0) THEN
           cy = ycell*(iabs(iy-jy)-1)
-        else
+        ELSE
           cy = 0.0_dp
-        endif
-        if (iabs(iz-jz)/=0) then
+        ENDIF
+        IF (iabs(iz-jz)/=0) THEN
           cz = zcell*(iabs(iz-jz)-1)
-        else
+        ELSE
           cz = 0.0_dp
-        endif
+        ENDIF
         rc = cx**2 + cy**2 + cz**2
-        if (rc<rcut2) cycle
-      endif
+        IF (rc<rcut2) CYCLE
+      ENDIF
       icnt = icnt + 1
-    end do
-  end do
+    END DO
+  END DO
 !
 !  Calculated all pair interactions on this processor
 !
@@ -374,7 +375,7 @@ CONTAINS
   ndim = 1
   dims(1) = 1
   g_cnt = ga_create_handle()
-  call ga_set_data(g_cnt, ndim, dims, MT_INT) 
+  CALL ga_set_data(g_cnt, ndim, dims, MT_INT) 
   status = ga_allocate(g_cnt)
 !
   ndim = 2
@@ -388,78 +389,78 @@ CONTAINS
   CALL ga_set_chunk(ga_env % g_pair_list, chunk)
   status = ga_allocate(ga_env % g_pair_list)
 !
-  call ga_zero(g_cnt)
+  CALL ga_zero(g_cnt)
   lo(1) = 1
   hi(1) = 2
   ld = 2
-  do i = ibeg, iend
+  DO i = ibeg, iend
     itmp = i - 1
-    ix = mod(itmp,pdx)
+    ix = MOD(itmp,pdx)
     itmp = (itmp-ix)/pdy
-    iy = mod(itmp,pdy)
+    iy = MOD(itmp,pdy)
     iz = (itmp-iy)/pdy
     ix = ix + 1
     iy = iy + 1
     iz = iz + 1
     pair(1) = i
-    do nc = 1, kcmax
-      wrap = .false.
+    DO nc = 1, kcmax
+      wrap = .FALSE.
       jx = ix + nix(nc)
-      if (jx>pdx) then
-        jx = mod(jx,pdx)
-        wrap = .true.
-      endif
-      if (jx<1) then
+      IF (jx>pdx) THEN
+        jx = MOD(jx,pdx)
+        wrap = .TRUE.
+      ENDIF
+      IF (jx<1) THEN
         jx = pdx+jx
-        wrap = .true.
-      endif
+        wrap = .TRUE.
+      ENDIF
       jy = iy + niy(nc)
-      if (jy>pdy) then
-        jy = mod(jy,pdy)
-        wrap = .true.
-      endif
-      if (jy<1) then
+      IF (jy>pdy) THEN
+        jy = MOD(jy,pdy)
+        wrap = .TRUE.
+      ENDIF
+      IF (jy<1) THEN
         jy = pdy+jy
-        wrap = .true.
-      endif
+        wrap = .TRUE.
+      ENDIF
       jz = iz + niz(nc)
-      if (jz>pdz) then
-        jz = mod(jz,pdz)
-        wrap = .true.
-      endif
-      if (jz<1) then
+      IF (jz>pdz) THEN
+        jz = MOD(jz,pdz)
+        wrap = .TRUE.
+      ENDIF
+      IF (jz<1) THEN
         jz = pdz+jz
-        wrap = .true.
-      endif
+        wrap = .TRUE.
+      ENDIF
       j = (jz-1)*pdx*pdy + (jy-1)*pdx + jx
-      if (wrap) then
-        if (iabs(ix-jx)/=0) then
+      IF (wrap) THEN
+        IF (iabs(ix-jx)/=0) THEN
           cx = xcell*(iabs(ix-jx)-1)
-        else
+        ELSE
           cx = 0.0_dp
-        endif
-        if (iabs(iy-jy)/=0) then
+        ENDIF
+        IF (iabs(iy-jy)/=0) THEN
           cy = ycell*(iabs(iy-jy)-1)
-        else
+        ELSE
           cy = 0.0_dp
-        endif
-        if (iabs(iz-jz)/=0) then
+        ENDIF
+        IF (iabs(iz-jz)/=0) THEN
           cz = zcell*(iabs(iz-jz)-1)
-        else
+        ELSE
           cz = 0.0_dp
-        endif
+        ENDIF
         rc = cx**2 + cy**2 + cz**2
-        if (rc<rcut2) cycle
-      endif
+        IF (rc<rcut2) CYCLE
+      ENDIF
       idx = nga_read_inc(g_cnt, one, one)
 !     
       lo(2) = idx+1
       hi(2) = idx+1
       pair(2) = j
       CALL nga_put(ga_env % g_pair_list,lo,hi,pair,ld)
-    end do
-  end do
-  call ga_sync
+    END DO
+  END DO
+  CALL ga_sync
 !
 !  Evaluate interactions between all pairs
 !
@@ -894,13 +895,13 @@ CONTAINS
      TYPE ( ga_environment_type ), POINTER :: ga_env
      INTEGER, INTENT ( IN ) :: ibin, jbin
      INTEGER, INTENT ( OUT ) :: isize, jsize, ioff, joff
-	REAL ( dp ), POINTER :: dens_i_info ( :, : ), dens_j_info ( :, : )
+        REAL ( dp ), POINTER :: dens_i_info ( :, : ), dens_j_info ( :, : )
 REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
-	TYPE(cp_error_type), INTENT(inout) :: error
+        TYPE(cp_error_type), INTENT(inout) :: error
 #ifdef _USE_GA
-	CHARACTER(len=*), PARAMETER :: routineN = 'se_ga_allocate_local_2', &
-	routineP = moduleN//':'//routineN
-	LOGICAL ::  failure
+        CHARACTER(len=*), PARAMETER :: routineN = 'se_ga_allocate_local_2', &
+        routineP = moduleN//':'//routineN
+        LOGICAL ::  failure
      INTEGER, PARAMETER  :: one=1
      INTEGER :: ilo ( 2 ), jlo ( 2 ), ihi ( 2 ), jhi ( 2 ), stat
      CALL nga_get(ga_env%g_offset,ibin,ibin,ioff,one)
@@ -983,47 +984,48 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
 
 ! *****************************************************************************
     SUBROUTINE grid_factor(p,xdim,ydim,zdim,idx,idy,idz)
-      IMPLICIT NONE
-      INTEGER, INTENT ( IN ) :: p
-      REAL ( dp ), INTENT ( IN ) :: xdim,ydim,zdim
-      INTEGER, INTENT ( OUT ) :: idx,idy,idz
+    INTEGER, INTENT(IN)                      :: p
+    REAL(dp), INTENT(IN)                     :: xdim, ydim, zdim
+    INTEGER, INTENT(OUT)                     :: idx, idy, idz
 
-      INTEGER, PARAMETER :: MAX_FACTOR=10000
-      INTEGER :: i,j
-      INTEGER :: ip,ifac,pmax,prime(MAX_FACTOR)
-      INTEGER :: fac(MAX_FACTOR)
-      INTEGER :: ix,iy,iz
+    INTEGER, PARAMETER                       :: MAX_FACTOR = 10000
+
+    INTEGER                                  :: fac(MAX_FACTOR), i, ifac, ip, &
+                                                ix, iy, iz, j, pmax, &
+                                                prime(MAX_FACTOR)
+
 !
+
        i = 1
 !
 !    factor p completely
 !    first, find all prime numbers, besides 1, less than or equal to 
 !    the square root of p
 !
-      ip = int(sqrt(dble(p)))+1
+      ip = INT(SQRT(DBLE(p)))+1
       pmax = 0
-      do i = 2, ip
-        do j = 1, pmax
-          if (mod(i,prime(j))==0) go to 100
-        end do
+      DO i = 2, ip
+        DO j = 1, pmax
+          IF (MOD(i,prime(j))==0) go to 100
+        END DO
         pmax = pmax + 1
-        if (pmax>MAX_FACTOR) write(6,*) 'Overflow in grid_factor'
+        IF (pmax>MAX_FACTOR) WRITE(6,*) 'Overflow in grid_factor'
         prime(pmax) = i
-        100   continue
-      end do
+        100   CONTINUE
+      END DO
 !
 !    find all prime factors of p
 !
       ip = p
       ifac = 0
-      do i = 1, pmax
-        200   if (mod(ip,prime(i))==0) then
+      DO i = 1, pmax
+        200   IF (MOD(ip,prime(i))==0) THEN
           ifac = ifac + 1
           fac(ifac) = prime(i)
           ip = ip/prime(i)
           go to 200
-        endif
-      end do
+        ENDIF
+      END DO
 !
 !    determine three factors of p of approximately the
 !    same size
@@ -1031,25 +1033,27 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       idx = 1
       idy = 1
       idz = 1
-      do i = ifac, 1, -1
+      DO i = ifac, 1, -1
         ix = xdim / idx
         iy = ydim / idy
         iz = zdim / idz
-        if (ix>=iy.and.ix>=iz.and.ix>1) then
+        IF (ix>=iy.and.ix>=iz.and.ix>1) THEN
           idx = fac(i)*idx
-        elseif (iy>=ix.and.iy>=iz.and.iy>1) then
+        ELSEIF (iy>=ix.and.iy>=iz.and.iy>1) THEN
           idy = fac(i)*idy
-        elseif (iz>=ix.and.iz>=iy.and.iz>1) then
+        ELSEIF (iz>=ix.and.iz>=iy.and.iz>1) THEN
           idz = fac(i)*idz
-        else
-          write(6,*) 'Too many processors in grid factoring routine'
-        endif
-      end do
+        ELSE
+          WRITE(6,*) 'Too many processors in grid factoring routine'
+        ENDIF
+      END DO
     END SUBROUTINE grid_factor
 ! *****************************************************************************
     SUBROUTINE pbc_wrap ( r, x, y, z )
-      REAL ( kind = dp ), DIMENSION ( 3 ), INTENT ( INOUT ) :: r
-      REAL ( kind = dp ), INTENT ( IN ) :: x, y, z 
+    REAL(kind=dp), DIMENSION(3), &
+      INTENT(INOUT)                          :: r
+    REAL(kind=dp), INTENT(IN)                :: x, y, z
+
       DO WHILE ( r ( 1 ) > x )
         r ( 1 ) = r ( 1 ) - x
       END DO 

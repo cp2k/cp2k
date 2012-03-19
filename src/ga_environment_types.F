@@ -12,8 +12,6 @@
 ! *****************************************************************************
 MODULE ga_environment_types
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

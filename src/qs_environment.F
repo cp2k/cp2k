@@ -81,8 +81,8 @@ MODULE qs_environment
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
-  USE ga_environment_types,            ONLY: init_ga_env, &
-                                             ga_environment_type
+  USE ga_environment_types,            ONLY: ga_environment_type,&
+                                             init_ga_env
   USE gamma,                           ONLY: init_md_ftable
   USE harris_energy_types,             ONLY: harris_energy_create,&
                                              harris_energy_type
@@ -236,6 +236,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: my_subsys
+    TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -248,7 +249,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
       kind_section, mp2_section
-    TYPE(ga_environment_type), POINTER :: ga_env
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&

@@ -51,7 +51,7 @@ MODULE se_fock_matrix_mpi
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE se_fock_matrix_coulomb_mpi,          ONLY: build_fock_matrix_coul_lr_r3,&
+  USE se_fock_matrix_coulomb_mpi,      ONLY: build_fock_matrix_coul_lr_r3,&
                                              build_fock_matrix_coulomb,&
                                              build_fock_matrix_coulomb_lr
   USE se_fock_matrix_dbg,              ONLY: dbg_energy_coulomb_lr

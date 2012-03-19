@@ -18,12 +18,12 @@ MODULE se_fock_matrix_coulomb_ga
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type, pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_print
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -36,13 +36,13 @@ MODULE se_fock_matrix_coulomb_ga
   USE f77_blas
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
-  USE ga_environment_types,            ONLY: get_ga_env,  &
-                                             ga_environment_type
+  USE ga_environment_types,            ONLY: ga_environment_type,&
+                                             get_ga_env
   USE input_constants,                 ONLY: &
        do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_multipole_charge, do_multipole_dipole, &
-       do_multipole_none, do_multipole_quadrupole, do_se_IS_slater
+       do_multipole_none, do_multipole_quadrupole
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -56,12 +56,14 @@ MODULE se_fock_matrix_coulomb_ga
        dfock2C, dfock2C_r3, dfock2_1el, dfock2_1el_r3, fock2C, fock2C_ew, &
        fock2C_r3, fock2_1el, fock2_1el_ew, fock2_1el_r3, &
        se_coulomb_ij_interaction
-  USE se_ga_tools,                     ONLY: se_ga_ks_accumulate, se_ga_get_nbin, &
-                                             se_deallocate_local_ga,  &
-                                             se_allocate_local_ga, &
-                                             se_ga_allocate_local_info,  &
-                                             se_ga_deallocate_local_info, &
-                                             se_ga_diag_add, se_ga_put_pmatrix
+  USE se_ga_tools,                     ONLY: se_allocate_local_ga,&
+                                             se_deallocate_local_ga,&
+                                             se_ga_allocate_local_info,&
+                                             se_ga_deallocate_local_info,&
+                                             se_ga_diag_add,&
+                                             se_ga_get_nbin,&
+                                             se_ga_ks_accumulate,&
+                                             se_ga_put_pmatrix
   USE semi_empirical_int_arrays,       ONLY: rij_threshold,&
                                              se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: corecore_el,&
@@ -88,7 +90,7 @@ MODULE se_fock_matrix_coulomb_ga
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb_ga'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   
   PUBLIC :: build_fock_matrix_coulomb, build_fock_matrix_coulomb_lr,&
@@ -114,23 +116,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, &
-      jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, &
-      nspins, stat, se_dims ( 3 ) 
+    INTEGER :: atom_a, atom_b, handle, hi( 2 ), iatom, ibin, iblock, ikind, &
+      ioff, ipairs, isize, itype, jatom, jbin, jblock, jkind, joff, jsize, k, &
+      l, ld, lo( 2 ), natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nbin, &
+      nbin_max, nbin_min, nbins, nkind, npairs, nspins, pairs( 2 ), &
+      se_dims( 3 ), stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, scp_nddo, &
-                                                switch, use_virial
+    LOGICAL                                  :: anag, atener, defined, &
+                                                failure, scp_nddo, switch, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
+    REAL(dp), POINTER                        :: dens_i_info( :, : ), &
+                                                dens_j_info( :, : ), &
+                                                ks_i( :, :, : ), &
+                                                ks_j( :, :, : )
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
     REAL(KIND=dp), DIMENSION(2)              :: ecab
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
-      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, &
-      pb_block_b
+      ksb_block_a, ksb_block_b, ksbuff_a, ksbuff_b, pa_block_a, pb_block_a, &
+      pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -139,6 +147,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -151,17 +160,10 @@ CONTAINS
       DIMENSION(:), POINTER                  :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE ( ga_environment_type ), POINTER       :: ga_env
-    INTEGER :: ii, jj, l, k, ibin, jbin, nbin, nbins, npairs, hi ( 2 ), lo ( 2 ), ld
-    INTEGER :: isize, jsize, ioff, joff, iblock, jblock, pairs ( 2 )
-    REAL ( kind=dp ), DIMENSION ( :, : ), POINTER :: pbuff_a, ksbuff_a, pbuff_b, ksbuff_b
-    REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : ), dens_i_info ( :, : ), dens_j_info ( :, : )
 
 !dbg
-    INTEGER :: ipairs 
-    INTEGER :: nbin_min, nbin_max
 !dbg
+
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
@@ -567,14 +569,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb_lr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, &
-      indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
-      nspins, size_1c_int, stat, se_dims ( 3 )
+    INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ibin, &
+      iblock, ikind, ilist, indi, indj, ioff, isize, ispin, itype, iw, jint, &
+      k, l, natoms, natorb_a, nbin, nbins, nkind, nlocal_particles, node, &
+      nparticle_local, nspins, se_dims( 3 ), size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
-                                                failure, found, scp_nddo, &
-                                                use_virial
+                                                failure, scp_nddo, use_virial
     LOGICAL, DIMENSION(3)                    :: task
+    REAL(dp), POINTER                        :: dens_i_info( :, : ), &
+                                                ks_i( :, :, : )
     REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
                                                 energy_local, enuc, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -582,7 +586,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_a
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_glob, pv_local, qcart
     REAL(KIND=dp), DIMENSION(5)              :: qsph
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, pa_block_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, ksbuff_a, &
+                                                pa_block_a, pbuff_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -594,6 +599,7 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
+    TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -605,12 +611,6 @@ CONTAINS
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
-    TYPE ( ga_environment_type ), POINTER    :: ga_env
-    REAL ( kind=dp ), DIMENSION ( :, : ), POINTER :: pbuff_a, ksbuff_a 
-    REAL ( dp ), POINTER :: ks_i ( :, :, : ), dens_i_info ( :, : )
-    INTEGER :: isize, ibin, iblock, nbins, nbin, l, k, ilist, ioff, nlocal_particles
-    INTEGER :: node, nparticle_local
-
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -982,15 +982,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, itype, jatom, &
-      jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins, &
-      size1, size2, stat, se_dims ( 3 )
+    INTEGER :: atom_a, atom_b, handle, iatom, ibin, iblock, ikind, ioff, &
+      isize, itype, jatom, jbin, jblock, jkind, joff, jsize, k, l, natom, &
+      natorb_a, natorb_a2, natorb_b, natorb_b2, nbin, nbins, nkind, nspins, &
+      se_dims( 3 ), size1, size2, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, scp_nddo, &
-                                                switch, use_virial
+    LOGICAL                                  :: anag, atener, defined, &
+                                                failure, scp_nddo, switch, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
+    REAL(dp), POINTER                        :: dens_i_info( :, : ), &
+                                                dens_j_info( :, : ), &
+                                                ks_i( :, :, : ), &
+                                                ks_j( :, :, : )
     REAL(KIND=dp) :: delta, dr1, ecore2, enuc, enuclear, ptens11, ptens12, &
       ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33
     REAL(KIND=dp), DIMENSION(2)              :: ecab
@@ -999,14 +1004,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: efield1, efield2, ksa_block_a, &
-      ksa_block_b, ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, &
-      pb_block_a, pb_block_b 
+      ksa_block_b, ksb_block_a, ksb_block_b, ksbuff_a, ksbuff_b, pa_block_a, &
+      pb_block_a, pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -1018,11 +1024,6 @@ CONTAINS
     TYPE(semi_empirical_p_type), &
       DIMENSION(:), POINTER                  :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(ga_environment_type), POINTER       :: ga_env
-    REAL ( kind=dp ), DIMENSION ( :, : ), POINTER :: pbuff_a, ksbuff_a, pbuff_b, ksbuff_b
-    REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : ), dens_i_info ( :, : ), dens_j_info ( :, : )
-    INTEGER :: ii, jj, l, k, ibin, jbin, nbin, nbins
-    INTEGER :: isize, jsize, ioff, joff, iblock, jblock
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -1399,14 +1400,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lr_r3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, ikind, inode, &
-      ispin, itype, jatom, jkind, natoms, natorb_a, natorb_a2, natorb_b, &
-      natorb_b2, nkind, nlocal_particles, nspins, stat
+    INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, ibin, iblock, &
+      ikind, ioff, isize, itype, jatom, jbin, jblock, jkind, joff, jsize, k, &
+      l, natoms, natorb_a, natorb_a2, natorb_b, natorb_b2, nbin, nbins, &
+      nkind, nlocal_particles, nspins, se_dims(3), stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, switch
+    LOGICAL                                  :: anag, atener, defined, &
+                                                failure, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
+    REAL(dp), POINTER                        :: dens_i_info( :, : ), &
+                                                dens_j_info( :, : ), &
+                                                ks_i( :, :, : ), &
+                                                ks_j( :, :, : )
     REAL(KIND=dp)                            :: dr1, ecore2, r2inv, r3inv, &
                                                 rinv
     REAL(KIND=dp), DIMENSION(2)              :: ecab
@@ -1414,7 +1420,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: dr3inv, force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
-      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
+      ksb_block_a, ksb_block_b, ksbuff_a, ksbuff_b, pa_block_a, pb_block_a, &
+      pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1426,6 +1433,7 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
+    TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1437,11 +1445,6 @@ CONTAINS
     TYPE(semi_empirical_p_type), &
       DIMENSION(:), POINTER                  :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE ( ga_environment_type ), POINTER       :: ga_env
-    INTEGER :: ii, jj, l, k, ibin, jbin, nbin, nbins
-    INTEGER :: isize, jsize, ioff, joff, iblock, jblock, se_dims(3)
-    REAL ( kind=dp ), DIMENSION ( :, : ), POINTER :: pbuff_a, ksbuff_a, pbuff_b, ksbuff_b
-    REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : ), dens_i_info ( :, : ), dens_j_info ( :, : )
 
       failure=.FALSE.
     CALL timeset(routineN,handle)

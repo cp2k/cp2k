@@ -51,10 +51,11 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'se_fock_matrix_control', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+
     CALL timeset(routineN,handle)
     CALL build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                                calculate_forces,just_energy,error)

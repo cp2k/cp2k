@@ -208,8 +208,8 @@ CONTAINS
           CALL ga_initialize ( )
           heap = 1000000
           stack = 1000000
-          if (.not.ma_init(MT_DBL, stack, heap)) &
-            call ga_error("ma_init failed in init_cp2k",-1)
+          IF (.not.ma_init(MT_DBL, stack, heap)) &
+            CALL ga_error("ma_init failed in init_cp2k",-1)
 #endif
        ELSE
           mpi_comm_default=MPI_COMM_WORLD
