@@ -407,7 +407,8 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bx, by, bz, handle, ia, ib, itmp
+    INTEGER                                  :: bx, by, bz, handle, ia, ib, &
+                                                itmp
     LOGICAL                                  :: failure, ltmp
     REAL(kind=dp)                            :: c, delrinv
     REAL(kind=dp), DIMENSION(3)              :: r, r0
