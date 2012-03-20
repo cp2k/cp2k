@@ -1565,9 +1565,9 @@ CPSourceFileRef,&
               DO idim=1,pint_env%ndim
                  DO ib=1,pint_env%p
                     DO inos=1,pint_env%nnos-1
-                       pint_env%tv_new(inos,:,:)=&
-                            (pint_env%tv_t(inos,:,:)+dti2*pint_env%tf(inos,:,:))/&
-                            (1._dp+dti2*pint_env%tv(inos+1,:,:))
+                       pint_env%tv_new(inos,ib,idim)=&
+                            (pint_env%tv_t(inos,ib,idim)+dti2*pint_env%tf(inos,ib,idim))/&
+                            (1._dp+dti2*pint_env%tv(inos+1,ib,idim))
                        pint_env%tf(inos+1,ib,idim)=&
                             (pint_env%tv_new(inos,ib,idim)**2-&
                             pint_env%kT/pint_env%Q(ib))

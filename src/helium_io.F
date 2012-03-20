@@ -959,7 +959,7 @@ MODULE helium_io
         unit_nr=cp_print_key_unit_nr(logger,print_key, &
           middle_name="helium-rho-"//TRIM(ADJUSTL(stmp)), &
           extension=".cube", &
-          file_position="REWIND", do_backup=.TRUE., error=error)
+          file_position="REWIND", do_backup=.FALSE., error=error)
 
         WRITE(unit_nr,'(A)') "Helium density " // TRIM(ADJUSTL(stmp))
         WRITE(unit_nr,'(A)') "CP2K"

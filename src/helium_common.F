@@ -407,12 +407,12 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bx, by, bz, ia, ib, itmp
+    INTEGER                                  :: bx, by, bz, handle, ia, ib, itmp
     LOGICAL                                  :: failure, ltmp
     REAL(kind=dp)                            :: c, delrinv
     REAL(kind=dp), DIMENSION(3)              :: r, r0
 
-!    CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -446,7 +446,7 @@ MODULE helium_common
       END DO
     END DO
 
-!    CALL timestop(handle)
+    CALL timestop(handle)
 
     RETURN
   END SUBROUTINE helium_calc_rho
