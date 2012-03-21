@@ -396,6 +396,10 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! Pre-init card for nicer time acconting.
 
+    IF (has_cuda) THEN
+       IF(mm_driver .NE. mm_driver_cuda) CALL dbcsr_ps_set_finalize(error=error)
+    ENDIF 
+
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        CALL dbcsr_cuda_dev_mem_setup (a_tmp, dbcsr_type_real_8)
        CALL dbcsr_cuda_dev_mem_alloc(a_tmp, 1, error=error)
