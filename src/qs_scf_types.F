@@ -113,7 +113,7 @@ TYPE qs_scf_env_type
    LOGICAL :: do_diag_sub, print_iter_line, skip_mixing, skip_diis
    TYPE(mixing_storage_type), POINTER :: mixing_store
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
+   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
    TYPE(krylov_space_type), POINTER :: krylov_space
    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
@@ -176,7 +176,7 @@ CONTAINS
        NULLIFY(scf_env%outer_scf%variables, &
             scf_env%outer_scf%gradient,scf_env%outer_scf%energy,scf_env%outer_scf%count)
 
-       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
+       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho, scf_env%ortho_m1,&
             scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
             scf_env%scf_diis_buffer)
        NULLIFY (scf_env%s_half, scf_env%p_delta,  scf_env%s_minus_one)
@@ -285,6 +285,7 @@ CONTAINS
         CALL cp_fm_vect_dealloc(scf_env%scf_work1,error=error)
         CALL cp_fm_release(scf_env%scf_work2,error=error)
         CALL cp_fm_release(scf_env%ortho,error=error)
+        CALL cp_fm_release(scf_env%ortho_m1,error=error)
         CALL cp_fm_release(scf_env%s_half,error=error)
         CALL cp_fm_release(scf_env%s_minus_one,error=error)
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN

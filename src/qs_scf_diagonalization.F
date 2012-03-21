@@ -134,11 +134,16 @@ CONTAINS
       POINTER                                :: xas_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ispin, nspin
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_diis
+    TYPE(cp_fm_type), POINTER                :: ortho
 
     nspin = SIZE(matrix_ks)
+    NULLIFY(ortho)
 
     DO ispin=1,nspin
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
@@ -201,9 +206,14 @@ CONTAINS
     END IF
 
     DO ispin=1,nspin
+      IF(scf_env%cholesky_method==cholesky_inverse) THEN
+        ortho => scf_env%ortho_m1
+      ELSE
+        ortho => scf_env%ortho
+      END IF
       CALL eigensolver(matrix_ks=scf_env%scf_work1(ispin)%matrix,&
                        mo_set=mos(ispin)%mo_set,&
-                       ortho=scf_env%ortho,&
+                       ortho=ortho,&
                        work=scf_env%scf_work2,&
                        do_level_shift=do_level_shift,&
                        level_shift=scf_control%level_shift,&
@@ -235,15 +245,6 @@ CONTAINS
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
     END DO
-
-
-!dbg
-!     write(*,*) 'mo_coeff '
-!     Do ispin=1,5
-!       write(*,*) ispin, mos(1)%mo_set%mo_coeff%local_data(ispin,1:5)
-!     end do
-!dbg
-
 
   END SUBROUTINE do_general_diag
 
@@ -780,7 +781,11 @@ END SUBROUTINE diag_subspace_allocate
 
     CALL timeset(routineN,handle)
 
-    ortho => scf_env%ortho
+    IF(scf_env%cholesky_method==cholesky_inverse) THEN
+      ortho => scf_env%ortho_m1
+    ELSE
+      ortho => scf_env%ortho
+    END IF
     work  => scf_env%scf_work2
 
     ksa => scf_env%scf_work1(1)%matrix

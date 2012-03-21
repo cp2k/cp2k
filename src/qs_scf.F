@@ -74,6 +74,7 @@ MODULE qs_scf
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -1669,7 +1670,7 @@ CPSourceFileRef)
                                                 iw, nao, ndep, &
                                                 nelectron_spin, nmo, &
                                                 output_unit
-    LOGICAL :: cho_inverse, dft_plus_u_atom, failure, gth_potential_present, &
+    LOGICAL :: dft_plus_u_atom, failure, gth_potential_present, &
       init_u_ramping_each_scf, my_transition_potential, s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1768,11 +1769,11 @@ CPSourceFileRef)
         scf_env%method /= special_diag_method_nr .AND.&
         scf_env%method /= block_davidson_diag_method_nr) THEN
        CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,scf_env%ortho,error=error)
-       cho_inverse = .FALSE.
        IF (scf_env%cholesky_method>cholesky_off) THEN
            CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
            IF(scf_env%cholesky_method==cholesky_inverse) THEN
-             CALL cp_fm_triangular_invert(scf_env%ortho,error=error)
+             CALL cp_fm_to_fm(scf_env%ortho,scf_env%ortho_m1,error=error)
+             CALL cp_fm_triangular_invert(scf_env%ortho_m1,error=error)
            END IF
        ELSE
            CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,&
@@ -2100,11 +2101,17 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
          IF ((.NOT.ASSOCIATED(scf_env%ortho)).AND.&
             (scf_env%method /= ot_diag_method_nr).AND.&
             (scf_env%method /= special_diag_method_nr)) THEN
-          CALL cp_fm_create(scf_env%ortho,&
+           CALL cp_fm_create(scf_env%ortho,&
                matrix_struct=ao_ao_fmstruct,&
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                "ORTHO_MATRIX",&
                error=error)
+           IF(scf_env%cholesky_method==cholesky_inverse) THEN
+              CALL cp_fm_create(scf_env%ortho_m1, matrix_struct=ao_ao_fmstruct,&
+                    name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                    "ORTHO_MATRIX-1",&
+                     error=error)
+           END IF
          END IF
          IF ((.NOT.ASSOCIATED(scf_env%scf_work2))) THEN
            CALL cp_fm_create(scf_env%scf_work2,&
@@ -2394,6 +2401,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
        ENDIF
        IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2,error)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho,error=error)
+       IF (ASSOCIATED(scf_env%ortho_m1)) CALL cp_fm_release(scf_env%ortho_m1,error=error)
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
           CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
