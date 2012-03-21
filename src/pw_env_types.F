@@ -54,7 +54,7 @@ MODULE pw_env_types
 !> \param gridlevel_info gaussian gridlevel info
 !> \param cube_info info on cube and max sphere size for multigrids
 !> \param aux_bas which multigrid is the auxiliar basis
-!> 
+!>
 !>      readonly attributes
 !> \param auxbas_pw_pool a pool that allocates grids in the auxiliary basis
 !> \param auxbas_rs_desc real space grid in the auxiliary basis, be careful

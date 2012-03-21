@@ -35,7 +35,7 @@ MODULE free_energy_types
 
 ! *****************************************************************************
   TYPE ui_var_type
-     REAL(KIND=dp), DIMENSION(:), POINTER           :: ss 
+     REAL(KIND=dp), DIMENSION(:), POINTER           :: ss
      INTEGER                                        :: icolvar
   END TYPE ui_var_type
 
@@ -148,7 +148,7 @@ CONTAINS
           ALLOCATE(fe_env%covmx(3,0), stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           fe_env%type = id_method
-          CALL section_vals_val_get(fe_section,"ALCHEMICAL_CHANGE%EPS_CONV",r_val=fe_env%eps_conv,error=error)          
+          CALL section_vals_val_get(fe_section,"ALCHEMICAL_CHANGE%EPS_CONV",r_val=fe_env%eps_conv,error=error)
        CASE DEFAULT
           ! Do Nothing
        END SELECT

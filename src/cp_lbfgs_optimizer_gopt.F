@@ -7,31 +7,31 @@
 !> \brief routines that optimize a functional using the limited memory bfgs
 !>      quasi-newton method.
 !>      The process set up so that a master runs the real optimizer and the
-!>      others help then to calculate the objective function. 
-!>      The arguments for the objective function are physicaly present in 
+!>      others help then to calculate the objective function.
+!>      The arguments for the objective function are physicaly present in
 !>      every processor (nedeed in the actual implementation of pao).
 !>      In the future tha arguments themselves could be distributed.
 !> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/                                        
-!>      ____ _                  ___                              _ _       _       _       
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>                                                        |___/
+!>      ____ _                  ___                              _ _       _       _
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/ 
-!>     _____ _     _       _____ _ _      _ 
+!>                                                                                   |___/
+!>     _____ _     _       _____ _ _      _
 !>    |_   _| |__ (_)___  |  ___(_) | ___| |
 !>      | | | '_ \| / __| | |_  | | |/ _ \ |
 !>      | | | | | | \__ \ |  _| | | |  __/_|
 !>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!> 
+!>
 !>      This is a template
-!> 
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify the .template and .instantition instead
 !> \par History
@@ -84,7 +84,7 @@ MODULE cp_lbfgs_optimizer_gopt
        cp_opt_gopt_step, cp_opt_gopt_stop,&
        cp_opt_gopt_retain
 
-  ! initalize the object 
+  ! initalize the object
   INTERFACE cp_create
      MODULE PROCEDURE cp_opt_gopt_create
   END INTERFACE
@@ -116,10 +116,10 @@ MODULE cp_lbfgs_optimizer_gopt
 ! *****************************************************************************
 !> \brief info for the optimizer (see the description of this module)
 !> \param task the actual task of the optimizer (in the master it is up to
-!>        date, in case of error also the slaves one get updated. 
+!>        date, in case of error also the slaves one get updated.
 !> \param csave internal character string used by the lbfgs optimizer,
-!>        meaningful only in the master  
-!> \param lsave logical array used by the lbfgs optimizer, updated only 
+!>        meaningful only in the master
+!> \param lsave logical array used by the lbfgs optimizer, updated only
 !>        in the master
 !>        On exit with task = 'NEW_X', the following information is
 !>        available:
@@ -128,14 +128,14 @@ MODULE cp_lbfgs_optimizer_gopt
 !>           lsave(3) = .true.  each variable has upper and lower bounds.
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param id_nr identification number (unique)
-!> \param m the dimension of the subspace used to approximate the second 
+!> \param m the dimension of the subspace used to approximate the second
 !>        derivative
 !> \param print_every every how many iterations output should be written.
 !>        if 0 only at end, if print_every<0 never
 !> \param master the pid of the master processor
 !> \param max_f_per_iter the maximum number of function evaluations per
 !>        iteration
-!> \param status 0: just initialized, 1: f g calculation, 
+!> \param status 0: just initialized, 1: f g calculation,
 !>        2: begin new iteration, 3: ended iteration,
 !>        4: normal (converged) exit, 5: abnormal (error) exit,
 !>        6: daellocated
@@ -158,12 +158,12 @@ MODULE cp_lbfgs_optimizer_gopt
 !> \param isave (39) = the number of active constraints at the current
 !>           iteration;
 !> \param f the actual best value of the object function
-!> \param wanted_relative_f_delta the wanted relative error on f 
+!> \param wanted_relative_f_delta the wanted relative error on f
 !>        (to be multiplied by epsilon), 0.0 -> no check
 !> \param wanted_projected_gradient the wanted error on the projected
 !>        gradient (hessian times the gradient), 0.0 -> no check
 !> \param last_f the value of f in the last iteration
-!> \param projected_gradient the value of the sup norm of the projected 
+!> \param projected_gradient the value of the sup norm of the projected
 !>        gradient
 !> \param x the actual evaluation point (best one if converged or stopped)
 !> \param lower_bound the lower bounds
@@ -180,7 +180,7 @@ MODULE cp_lbfgs_optimizer_gopt
 ! *****************************************************************************
   TYPE cp_lbfgs_opt_gopt_type
      CHARACTER (len=60) :: task
-     CHARACTER (len=60) :: csave  
+     CHARACTER (len=60) :: csave
      LOGICAL :: lsave (4)
      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
      INTEGER :: ref_count, id_nr
@@ -197,10 +197,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initializes the optimizer
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
-!>      redirects the lbfgs output the the default unit 
+!>      redirects the lbfgs output the the default unit
 !> \par History
 !>      02.2002 created [fawzi]
 !>      09.2003 refactored (retain/release,para_env) [fawzi]
@@ -312,8 +312,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given optimizer (see doc/ReferenceCounting.html)
 !> \param optimizer the optimizer to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -328,7 +328,7 @@ SUBROUTINE cp_opt_gopt_retain(optimizer,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
@@ -339,8 +339,8 @@ END SUBROUTINE cp_opt_gopt_retain
 ! *****************************************************************************
 !> \brief releases the optimizer (see doc/ReferenceCounting.html)
 !> \param optimizer the object that should be released
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      02.2002 created [fawzi]
 !>      09.2003 dealloc_ref->release [fawzi]
@@ -413,8 +413,8 @@ END SUBROUTINE cp_opt_gopt_release
 
 ! *****************************************************************************
 !> \brief takes different valuse from the optimizer
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -482,7 +482,7 @@ END SUBROUTINE cp_opt_gopt_release
             actual_projected_gradient=optimizer%projected_gradient
        IF (optimizer%master==optimizer%para_env%mepos) THEN
           IF (optimizer%isave(30)>1 .AND. (optimizer%task(1:5)=="NEW_X".OR.&
-               optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN 
+               optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN
              ! nr iterations >1 .and. dsave contains the wanted data
              IF (PRESENT(last_f)) last_f = optimizer%dsave(2)
              IF (PRESENT(actual_projected_gradient))&
@@ -506,8 +506,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief does one optimization step
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      use directly mainlb in place of setulb ??
 !> \par History
@@ -636,7 +636,7 @@ CPSourceFileRef,&
           ! Dump info
           IF (optimizer%status == 3) THEN
              its = 0
-             IF (is_master) THEN 
+             IF (is_master) THEN
                 ! Iteration level is taken into account in the optimizer external loop
                 its = optimizer%isave(30)
              END IF
@@ -665,8 +665,8 @@ CPSourceFileRef,&
              !op=2 begin new iter
              CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
           CASE (3)
-             !op=3 ended iter             
-             wildcard = "LBFGS"             
+             !op=3 ended iter
+             wildcard = "LBFGS"
              dataunit = cp_print_key_unit_nr(logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (is_master) its = optimizer%isave(30)
@@ -676,7 +676,7 @@ CPSourceFileRef,&
              CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
                   its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
                   used_time=0.0_dp, error=error) ! needs proper timing...
-             
+
              ! Check convergence
              IF (is_master) CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit,conv,gopt_param,error=error)
@@ -717,17 +717,17 @@ CPSourceFileRef,&
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"step on a deallocated opt structure "//&
 CPSourceFileRef,&
-                  error,failure)           
+                  error,failure)
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unknown status "//cp_to_string(optimizer%status)//&
-                  " in "//& 
+                  " in "//&
 CPSourceFileRef,&
                   error,failure)
              optimizer%status=5
              EXIT
           END SELECT
-          IF (optimizer%status == 1 .AND. justEntred) THEN 
+          IF (optimizer%status == 1 .AND. justEntred) THEN
              optimizer%eold = optimizer%f
              optimizer%emin = optimizer%eold
           END IF
@@ -757,8 +757,8 @@ CPSourceFileRef,&
 !> \param f the actual value of the objective function (f)
 !> \param last_f the last value of f
 !> \param projected_gradient the infinity norm of the projected gradient
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      private routine
 !> \par History
@@ -804,8 +804,8 @@ CPSourceFileRef,&
 !> \brief goes to the next optimal point (after an optimizer iteration)
 !>      returns true if converged
 !> \param optimizer the optimizer that goes to the next point
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      if you deactivate convergence control it returns never false
 !> \par History
@@ -851,8 +851,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief stops the optimization
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      necessary???
 !> \par History
@@ -891,7 +891,7 @@ CPSourceFileRef,&
     ! call timestop(handle)
   END SUBROUTINE cp_opt_gopt_stop
 
-  ! template def put here so that line numbers in template and derived 
+  ! template def put here so that line numbers in template and derived
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:

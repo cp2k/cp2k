@@ -57,18 +57,18 @@ CONTAINS
             extension=".mol",file_status='REPLACE',error=error)
 
     IF(iw.GT.0)THEN
-       CPPostcondition(MOD(SIZE(eigen_vec,1),3)==0,cp_failure_level,routineP,error,failure)    
+       CPPostcondition(MOD(SIZE(eigen_vec,1),3)==0,cp_failure_level,routineP,error,failure)
        CPPostcondition(SIZE(particles)==SIZE(eigen_vec,1)/3,cp_failure_level,routineP,error,failure)
-       CPPostcondition(SIZE(freq,1)==SIZE(eigen_vec,2),cp_failure_level,routineP,error,failure)       
-       WRITE(iw,'(T2,A)')"[Molden Format]"   
+       CPPostcondition(SIZE(freq,1)==SIZE(eigen_vec,2),cp_failure_level,routineP,error,failure)
+       WRITE(iw,'(T2,A)')"[Molden Format]"
        WRITE(iw,'(T2,A)')"[FREQ]"
        DO i=1,SIZE(freq,1)
           IF((.NOT.dump_only_positive).OR.(freq(i)>=0._dp))WRITE(iw,'(T5,F12.6)') freq(i)
        END DO
-       WRITE(iw,'(T2,A)')"[FR-COORD]"       
+       WRITE(iw,'(T2,A)')"[FR-COORD]"
        DO i=1,SIZE(particles)
           CALL get_atomic_kind(atomic_kind=particles(i)%atomic_kind,&
-               element_symbol=element_symbol) 
+               element_symbol=element_symbol)
                WRITE(iw,'(T2,A2,3X,3(F12.6,3X))')&
                     element_symbol, particles((i))%r(:)
        END DO

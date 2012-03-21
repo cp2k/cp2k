@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculate the Perdew-Wang correlation potential and 
+!> \brief Calculate the Perdew-Wang correlation potential and
 !>      energy density and ist derivatives with respect to
 !>      the spin-up and spin-down densities up to 3rd order.
 !> \par History
@@ -80,7 +80,7 @@ CONTAINS
     CASE (pw_dmc)
        p_string='DMC'
     CASE (pw_vmc)
-       p_string='VMC' 
+       p_string='VMC'
     END SELECT
 
     IF ( PRESENT ( reference ) ) THEN
@@ -127,7 +127,7 @@ CONTAINS
 !> \param cutoff the cutoff density
 ! *****************************************************************************
   SUBROUTINE perdew_wang_init(method, cutoff)
-    
+
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
@@ -139,13 +139,13 @@ CONTAINS
     CALL set_util(cutoff)
 
     eps_rho = cutoff
-    
+
     initialized = .FALSE.
 
     ! values for -ac are the same for all methods
     A(-1)  = 0.016887_dp
     a1(-1) = 0.11125_dp
-    b1(-1) = 10.357_dp 
+    b1(-1) = 10.357_dp
     b2(-1) = 3.6231_dp
     b3(-1) = 0.88026_dp
     b4(-1) = 0.49671_dp
@@ -170,17 +170,17 @@ CONTAINS
        b2(0) = 3.5876_dp   ;  b2(1) = 6.1977_dp
        b3(0) = -0.46647_dp ;  b3(1) = -0.56043_dp
        b4(0) = 0.13354_dp  ;  b4(1) = 0.11313_dp
-       
-    CASE (pw_vmc) 
+
+    CASE (pw_vmc)
        A(0)  = 0.031091_dp ; A(1)  = 0.015545_dp
        a1(0) = -0.002257_dp; a1(1) = -0.009797_dp
        b1(0) = 7.5957_dp   ; b1(1) = 14.1189_dp
        b2(0) = 3.5876_dp   ; b2(1) = 6.1977_dp
        b3(0) = -0.52669_dp ; b3(1) = -0.91381_dp
        b4(0) = 0.03755_dp  ; b4(1) = 0.01538_dp
-       
+
     END SELECT
-          
+
     DO k=-1, 1, 1
        c0(k) = A(k)
        c1(k) = -2.0_dp*c0(k)*LOG(2.0_dp*A(k)*b1(k))
@@ -194,7 +194,7 @@ CONTAINS
     initialized = .TRUE.
 
   END SUBROUTINE perdew_wang_init
-  
+
 ! *****************************************************************************
 !> \brief Calculate the correlation energy and its derivatives
 !>      wrt to rho (the electron density) up to 3rd order. This
@@ -207,7 +207,7 @@ CONTAINS
 !>      that order will be calculated.
 ! *****************************************************************************
   SUBROUTINE perdew_wang_lda_eval( method, rho_set, deriv_set, order, scale, error )
-    
+
     INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -240,7 +240,7 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        CALL perdew_wang_init(method, rho_cutoff)
-       
+
        ! meaningful default for the arrays we don't need: let us make compiler
        ! and debugger happy...
        IF (cp_debug) THEN
@@ -293,7 +293,7 @@ CONTAINS
     END IF
 
     CALL timestop(timer_handle)
-    
+
   END SUBROUTINE perdew_wang_lda_eval
 
 ! *****************************************************************************
@@ -313,7 +313,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
 !$omp parallel do private (k, ed)
     DO k=1, npoints
-       
+
        IF ( rho(k) > eps_rho ) THEN
 !! order_ is positive as it must be in this case:
 !! ec(:,2) needs ed(:,1) for example
@@ -334,12 +334,12 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
          END IF
 
       END IF
-    
+
     END DO
 !$omp end parallel do
-    
+
   END SUBROUTINE perdew_wang_lda_calc
-  
+
 ! *****************************************************************************
 !> \brief Calculate the correlation energy and its derivatives
 !>      wrt to rho (the electron density) up to 3rd order. This
@@ -385,7 +385,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        CALL perdew_wang_init(method, rho_cutoff)
-       
+
        ! meaningful default for the arrays we don't need: let us make compiler
        ! and debugger happy...
        IF (cp_debug) THEN
@@ -443,7 +443,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
                message="derivatives bigger than 3 not implemented", &
                error=error, error_level=cp_failure_level)
        END IF
-       
+
        CALL perdew_wang_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order,scale)
 
@@ -503,9 +503,9 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
          END IF
 
        END IF
-       
+
     END DO
-    
+
   END SUBROUTINE perdew_wang_lsd_calc
 
 ! *****************************************************************************
@@ -530,13 +530,13 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
     A_ = A(z); a1_ = a1(z)
     b1_ = b1(z); b2_ = b2(z); b3_ = b3(z); b4_ = b4(z)
-    
+
     sr = SQRT(r)
     rsr = r*sr
     rr = r*r
 
     IF (r < 1.0_dp) THEN
-       
+
        ! order 0 must always be calculated
        g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
        IF (order >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
@@ -594,7 +594,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
                + 0.375_dp*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
                + 1.5_dp*t55*t40*t48*t20/A_ &
                + 0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
-          
+
        END IF
 
     ELSE
@@ -622,7 +622,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     REAL(KIND=dp), DIMENSION(0:3)            :: e0, r
 
     order_ = order
-    
+
     IF (order_ >= 0) THEN
        calc(0:order_) = .TRUE.
     ELSE
@@ -653,7 +653,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     IF (calc(3)) THEN
        ed(m) = e0(3)*r(1)**3 + e0(2)*3.0_dp*r(1)*r(2) + e0(1)*r(3)
     END IF
-    
+
   END SUBROUTINE  pw_lda_ed_loc
 
 ! *****************************************************************************
@@ -672,13 +672,13 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     REAL(KIND=dp), DIMENSION(0:3, 0:3)       :: z
 
     order_ = order
-    
+
     IF (order_ > 0) THEN
        calc(0:order_) = .TRUE.
     ELSE
        order_ = -1 * order_
        calc(order_) = .TRUE.
-    END IF   
+    END IF
 
     rho = a + b
 
@@ -688,7 +688,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     CALL calc_g(r(0), 0, e0(0:order_), order_)
     CALL calc_g(r(0), 1, e1(0:order_), order_)
     CALL calc_z(a, b, z(0:order_,0:order_), order_)
-    
+
 !! calculate first partial derivatives
     IF (order_ >= 1) THEN
        r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
@@ -702,7 +702,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
             + (e1(0)-e0(0))*f(1)*z(0,0)**4 &
             + (e1(0)-e0(0))*f(0)*4.0_dp*z(0,0)**3
     END IF
-    
+
 !! calculate second partial derivatives
     IF (order_ >= 2) THEN
        r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
@@ -723,23 +723,23 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
             + (e1(0)-e0(0))*f(1)*8.0_dp*z(0,0)**3 &
             + (e1(0)-e0(0))*f(0)*12.0_dp*z(0,0)**2
     END IF
-    
+
 !! calculate third derivatives
     IF (order_ >= 3) THEN
-       
+
        r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
-       
+
        trrr = e0(3) &
             + fpp*ac(3)*f(0) &
             - fpp*ac(3)*f(0)*z(0,0)**4 &
             + (e1(3)-e0(3))*f(0)*z(0,0)**4
-       
+
        trrz = fpp*ac(2)*f(1) &
             - fpp*ac(2)*f(1)*z(0,0)**4 &
             - fpp*ac(2)*f(0)*4.0_dp*z(0,0)**3 &
             + (e1(2)-e0(2))*f(1)*z(0,0)**4 &
             + (e1(2)-e0(2))*f(0)*4.0_dp*z(0,0)**3
-       
+
        trzz = fpp*ac(1)*f(2) &
             - fpp*ac(1)*f(2)*z(0,0)**4 &
             - fpp*ac(1)*f(1)*8.0_dp*z(0,0)**3 &
@@ -747,7 +747,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
             + (e1(1)-e0(1))*f(2)*z(0,0)**4 &
             + (e1(1)-e0(1))*f(1)*8.0_dp*z(0,0)**3 &
             + (e1(1)-e0(1))*f(0)*12.0_dp*z(0,0)**2
-       
+
        tzzz = fpp*ac(0)*f(3) &
             - fpp*ac(0)*f(3)*z(0,0)**4 &
             - fpp*ac(0)*f(2)*12.0_dp*z(0,0)**3 &
@@ -810,7 +810,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
             + 3.0_dp*trz*r(1)*z(0,2) &
             + 3.0_dp*tzz*z(0,1)*z(0,2) + tz*z(0,3)
     END IF
-       
+
   END SUBROUTINE pw_lsd_ed_loc
 
 END MODULE xc_perdew_wang

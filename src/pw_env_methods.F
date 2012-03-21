@@ -357,7 +357,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      CASE DEFAULT
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
-     ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume 
+     ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume
      ! it could be on and splines might be used (not quite sure if this is due to their use of splines or something else)
      linres_section => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="PROPERTIES%LINRES",&
@@ -374,7 +374,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      IF (efg_present) THEN
         smooth_required=smooth_required.OR..TRUE.
      ENDIF
-     
+
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
@@ -386,16 +386,16 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
         distribution_layout=dft_control % qs_control % pw_grid_opt % distribution_layout
 
-        ! qmmm does not support a ray distribution 
+        ! qmmm does not support a ray distribution
         ! FIXME ... check if a plane distributed lower grid is sufficient
         IF (qs_env%qmmm) THEN
-          distribution_layout = (/para_env%num_pe,1/)            
+          distribution_layout = (/para_env%num_pe,1/)
         ENDIF
 
         ! If splines are required
-        ! FIXME.... should only be true for the highest grid 
+        ! FIXME.... should only be true for the highest grid
         IF (smooth_required) THEN
-          distribution_layout = (/para_env%num_pe,1/)            
+          distribution_layout = (/para_env%num_pe,1/)
         ENDIF
 
         IF (igrid_level == 1) THEN
@@ -509,7 +509,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
-         
+
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
              radius(igrid_level))
@@ -523,7 +523,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
         NULLIFY(rs_descs(igrid_level)%rs_desc)
         CALL rs_grid_create_descriptor(rs_descs(igrid_level)%rs_desc,pw_grid,input_settings, error=error)
 
-        IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout=rs_descs(igrid_level)%rs_desc%group_dim 
+        IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout=rs_descs(igrid_level)%rs_desc%group_dim
 
         NULLIFY(rs_grids(igrid_level)%rs_grid)
         CALL rs_grid_create(rs_grids(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
@@ -635,7 +635,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        IF(dft_control%qs_control%gapw) THEN
           IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
        END IF
-     
+
        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
        ! the orb_basis_set and the aux_fit_basis_set.
        ! Seemingly others (e.g. gapw soft basis set) are not needed?
@@ -662,7 +662,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
 
              !
              ! now for the basis sets
-             ! 
+             !
              CALL get_atomic_kind(atomic_kind=atomic_kind, orb_basis_set=orb_basis_set_main, &
                                   aux_fit_basis_set=aux_fit_basis_set)
              SELECT CASE(ibasis_set_type)
@@ -744,8 +744,8 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
        CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
                                 pw_env%gridlevel_info, radius, &
-                                dft_control%qs_control%eps_gvg_rspace, & 
-                                dft_control%qs_control%eps_rho_rspace, error ) 
+                                dft_control%qs_control%eps_gvg_rspace, &
+                                dft_control%qs_control%eps_rho_rspace, error )
     END IF
 
   CALL timestop(handle)

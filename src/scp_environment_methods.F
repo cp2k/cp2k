@@ -69,7 +69,7 @@ CONTAINS
   NULLIFY( rspw )
   NULLIFY( ks_scp_env )
 
-  CALL get_qs_env ( qs_env = qs_env, blacs_env=blacs_env, & 
+  CALL get_qs_env ( qs_env = qs_env, blacs_env=blacs_env, &
                                        para_env=para_env, &
                                          pw_env = pw_env, &
                          error=error)
@@ -81,7 +81,7 @@ CONTAINS
                                             para_env = para_env, &
                                             blacs_env = blacs_env,&
                                             error=error )
-  
+
 ! borrow the plane-wave environment from QS
   CALL scp_rspw_create ( rspw, error )
   CALL scp_qs_rspw_rebuild ( rspw, qs_env, error )
@@ -98,7 +98,7 @@ CONTAINS
   CALL qs_ks_scp_create ( ks_scp_env, qs_env, error )
   CALL set_scp_env ( scp_env, ks_scp_env = ks_scp_env, error = error )
   CALL qs_ks_scp_release ( ks_scp_env, error = error )
-  
+
   END SUBROUTINE scp_qs_env_setup
 
 END MODULE scp_environment_methods

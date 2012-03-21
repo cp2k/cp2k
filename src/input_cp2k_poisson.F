@@ -49,8 +49,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the Poisson section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_poisson_section(section,error)
@@ -75,7 +75,7 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="POISSON_SOLVER",&
-            variants=(/"POISSON", "PSOLVER"/),& 
+            variants=(/"POISSON", "PSOLVER"/),&
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
             enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE","WAVELET"),&
@@ -83,7 +83,7 @@ CONTAINS
             citations=(/Blochl1995,Martyna1999,Genovese2006,Genovese2007/),&
             default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PERIODIC",&
             description="Specify the directions on wich apply PBC. Important notice, "//&
@@ -97,7 +97,7 @@ CONTAINS
                            use_perd_xyz, use_perd_none /),&
             default_i_val=use_perd_xyz, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL create_mt_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -121,8 +121,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Section to set-up parameters for decoupling using the Bloechl scheme
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_multipole_section(section,error)
@@ -137,7 +137,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
@@ -167,25 +167,25 @@ CONTAINS
             usage="ANALYTICAL_GTERM <LOGICAL>",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NGRIDS",&
             description="Specifies the number of grid points used for the Interpolation of the G-space term",&
             usage="NGRIDS <integer> <iteger> <integer> ",n_var=3,default_i_vals=(/50,50,50/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL create_gspace_interp_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
-       
+       CALL section_release(subsection,error=error)
+
        CALL cp_print_key_section_create(subsection,"check_spline",&
             description="Controls the checking of the G-space term Spline Interpolation.",&
             print_level=medium_print_level,filename="GSpace-SplInterp",&
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL cp_print_key_section_create(subsection,"program_run_info",&
             description="Controls the printing of basic information during the run", &
@@ -201,8 +201,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the Martyna-Tuckerman section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_mt_section(section,error)
@@ -250,9 +250,9 @@ CONTAINS
   END SUBROUTINE create_mt_section
 
 ! *****************************************************************************
-!> \param section will contain the ewald section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the ewald section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE create_ewald_section(section,error)
@@ -267,7 +267,7 @@ SUBROUTINE create_ewald_section(section,error)
     TYPE(section_type), POINTER              :: print_key, subsection
 
   failure=.FALSE.
-  
+
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
     CALL section_create(section,name="ewald",&
@@ -360,13 +360,13 @@ SUBROUTINE create_ewald_section(section,error)
     CALL create_rsgrid_section(subsection,error)
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
-     
+
     NULLIFY(subsection)
     CALL section_create(subsection,name="MULTIPOLES",&
          description="Enables the use of multipoles in the treatment of the electrostatics.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
          citations=(/Aguado2003,Laino2008/), error=error)
-    
+
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="Controls the activation of the Multipoles",&
          usage="&MULTIPOLES T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
@@ -387,7 +387,7 @@ SUBROUTINE create_ewald_section(section,error)
          do_multipole_quadrupole/), type_of_var=enum_t, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL keyword_create(keyword, name="POL_SCF", &
          description="Specify the method to obtain self consistent induced "// &
                      "multipole moments.", &
@@ -411,14 +411,14 @@ SUBROUTINE create_ewald_section(section,error)
             n_var=1, default_i_val=0,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL keyword_create(keyword, name="EPS_POL",&
          description="Specify the rmsd threshold for the derivatives "//&
          "of the energy towards the Cartesian dipoles components",&
          usage="EPS_POL {real}",required=.FALSE., type_of_var=real_t,&
             n_var=1, default_r_val=0.5e-07_dp,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
-    CALL keyword_release(keyword,error=error) 
+    CALL keyword_release(keyword,error=error)
 
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
@@ -442,9 +442,9 @@ SUBROUTINE create_ewald_section(section,error)
 END SUBROUTINE create_ewald_section
 
 ! *****************************************************************************
-!> \brief creates the interpolation section for the periodic QM/MM 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief creates the interpolation section for the periodic QM/MM
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
@@ -459,7 +459,7 @@ END SUBROUTINE create_ewald_section
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
@@ -530,8 +530,8 @@ END SUBROUTINE create_ewald_section
 ! *****************************************************************************
 !> \brief Creates the wavelet section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      this approach is based on the development of T. Deutsch and S. Goedecker
 !> \author fschiff

@@ -71,7 +71,7 @@ MODULE bfgs_optimizer
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Main driver for BFGS geometry optimizations 
+!> \brief Main driver for BFGS geometry optimizations
 ! *****************************************************************************
   SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv, geo_section, gopt_env, x0,&
        error)
@@ -138,7 +138,7 @@ CONTAINS
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
-    
+
     ! Initialize hessian (hes = unitary matrix )
     CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
                              globenv%blacs_repeatable,error=error)
@@ -236,7 +236,7 @@ CONTAINS
 
        CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
        CALL set_hes_eig(ndf,eigval,work)
-       dx = eigval 
+       dx = eigval
        CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
        CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,error)
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
@@ -344,7 +344,7 @@ CONTAINS
     bisec = .FALSE.
 
     dg=0._dp
-    
+
     CALL cp_fm_get_info(eigvec_mat,row_indices=row_indices,col_indices=col_indices, &
          local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
 
@@ -510,7 +510,7 @@ CONTAINS
           work(j)=work(j)+local_hes(i,k)*dx(l)
        END DO
     END DO
-    
+
     CALL mp_sum(work,para_env%group)
 
     gdx = DDOT(ndf,dg,1,dx,1)
@@ -605,7 +605,7 @@ CONTAINS
     DO indf=1,ndf
        eigval(indf) = one/eigval(indf)
     END DO
-    
+
     CALL cp_fm_column_scale(hess_tmp,eigval)
     CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct,error=error)
     CALL cp_fm_create(tmp, matrix_struct ,name="tmp",error=error)
@@ -627,7 +627,7 @@ CONTAINS
           l=col_indices(k)
           dr(j)=dr(j)-local_data(i,k)*g(l)
        END DO
-    END DO    
+    END DO
 
     CALL mp_sum(dr,para_env%group)
 
@@ -814,7 +814,7 @@ CONTAINS
     CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART", error=error)
 
     CALL timestop(handle)
-  
+
   END SUBROUTINE write_bfgs_hessian
 
 END MODULE bfgs_optimizer

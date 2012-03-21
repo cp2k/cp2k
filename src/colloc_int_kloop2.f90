@@ -52,7 +52,7 @@
 
 #if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
     k_vals=0.0_dp
-#endif  
+#endif
     IF (kJump/=1 .AND. (ikstart+kmax-kstart>=ndim(2)+l_shift(2) .OR.&
         ikstart2+kmin-kstart2<=l_ub(2)-ndim(2))) THEN
         ! will wrap

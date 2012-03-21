@@ -108,9 +108,9 @@ CONTAINS
 !> \brief Impose sparsity on a dense matrix based on a dbcsr
 !> \param[in] sparse          sparse matrix
 !> \param[inout] dense        dense matrix
-!> \param[inout] error        dbcsr error 
+!> \param[inout] error        dbcsr error
 !>
-!> Take into account the symmetry of the sparse matrix. 
+!> Take into account the symmetry of the sparse matrix.
 !> The dense matrix need to be valid.
 !> The operation is done localy.
 ! *****************************************************************************
@@ -225,9 +225,9 @@ CONTAINS
 !> \brief Convert a sparse matrix to a dense matrix
 !> \param[in] sparse          sparse matrix
 !> \param[inout] dense        dense matrix
-!> \param[inout] error        dbcsr error 
+!> \param[inout] error        dbcsr error
 !>
-!> Take into account the symmetry of the sparse matrix. 
+!> Take into account the symmetry of the sparse matrix.
 !> The dense matrix need to be valid.
 !> The operation is done localy.
 ! *****************************************************************************
@@ -549,7 +549,7 @@ CONTAINS
     DEALLOCATE(mixer, sizes, STAT=istat)
     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
          routineN, "deallocation error",__LINE__,error)
-        
+
   END SUBROUTINE dbcsr_make_random_block_sizes
 
 

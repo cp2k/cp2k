@@ -19,6 +19,6 @@ END SUBROUTINE timeset_mp
 SUBROUTINE timestop_mp(handle)
   USE timings,                         ONLY:  timestop
   INTEGER                                  :: handle
-  
+
   CALL timestop(handle)
 END SUBROUTINE timestop_mp

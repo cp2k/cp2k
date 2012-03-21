@@ -198,8 +198,8 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
              error=error)
 
         ! Compute integrals in diatomic frame
-        CALL terep_num(sepi,sepj,r,rep,se_taper=se_taper,se_int_control=se_int_control,error=error)  
-       
+        CALL terep_num(sepi,sepj,r,rep,se_taper=se_taper,se_int_control=se_int_control,error=error)
+
         IF (i==1) THEN
            CALL rot_2el_2c_first(sepi, sepj, r0, se_int_control, se_taper, invert, ii, kk, rep, logv, matrix,&
                 v_p, lgrad=.FALSE., error=error)
@@ -337,7 +337,7 @@ FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
   LOGICAL                                  :: passed
 
   passed = .TRUE.
-  
+
   IF      ((ABS(num)<minval).AND.(ABS(ana)>minval)) THEN
      WRITE(*,*)"WARNING ---> ",num, ana, thrs
   ELSE IF ((ABS(num)>minval).AND.(ABS(ana)<minval)) THEN
@@ -481,7 +481,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
   TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
   TYPE(se_taper_type), POINTER             :: se_taper
   TYPE(cp_error_type), INTENT(inout)       :: error
-  
+
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
        routineN = 'check_dcorecore_ana', routineP = moduleN//':'//routineN
 
@@ -604,14 +604,14 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
   TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
-       routineN = 'rotint_ana', routineP = moduleN//':'//routineN  
+       routineN = 'rotint_ana', routineP = moduleN//':'//routineN
 
   REAL(dp), DIMENSION(2025)                :: w2
   REAL(dp), DIMENSION(3, 2025)             :: dw2
   LOGICAL                                  :: check_value
   INTEGER                                  :: j, i
   REAL(KIND=dp)                            :: delta
-     
+
   delta = 1.0E-6_dp
   WRITE(*,*)"DEBUG::"//routineP
   IF (PRESENT(w)) THEN

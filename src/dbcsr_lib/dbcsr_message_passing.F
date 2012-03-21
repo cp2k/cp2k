@@ -49,7 +49,7 @@ MODULE dbcsr_message_passing
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_message_passing'
 
   REAL(KIND=dp) :: t_start, t_end
-  
+
   ! parameters that might be needed
 
   ! init and error
@@ -100,7 +100,7 @@ MODULE dbcsr_message_passing
      MODULE PROCEDURE mp_waitall_1, mp_waitall_2
   END INTERFACE
 
-  
+
 
   !
   ! interfaces to deal easily with scalars / vectors / matrice / ...
@@ -128,7 +128,7 @@ MODULE dbcsr_message_passing
                       mp_shift_cm, mp_shift_c,&
                       mp_shift_zm, mp_shift_z
   END INTERFACE
-  
+
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3,&
                       mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3,&
@@ -419,7 +419,7 @@ CONTAINS
 !> \brief initializes the system default communicator
 !> \param mp_comm [output] : handle of the default communicator
 !> \note
-!>      should only be called once 
+!>      should only be called once
 !> \par History
 !>      2.2004 created [Joost VandeVondele ]
 ! *****************************************************************************
@@ -680,7 +680,7 @@ CONTAINS
 
   END SUBROUTINE mp_cart_create
 
-!..mp_cart_coords 
+!..mp_cart_coords
 ! *****************************************************************************
   SUBROUTINE mp_cart_coords ( comm, rank, coords)
 
@@ -1016,7 +1016,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief waits for completion of any of the given requests
 !> \par History
-!>      09.2008 created 
+!>      09.2008 created
 !> \author Iain Bethune (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE mp_waitany(requests, completed)
@@ -1048,7 +1048,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief tests for completion of the given requests
 !> \par History
-!>      08.2011 created 
+!>      08.2011 created
 !> \author Iain Bethune
 ! *****************************************************************************
   SUBROUTINE mp_testany(requests, completed, flag)
@@ -1154,14 +1154,14 @@ CONTAINS
           CALL mp_abort(routineP//" n_subgroups too small")
        ENDIF
        IF (nnodes/n_subgroups > 0) THEN ! we have a least one cpu per group
-          ngroups = n_subgroups 
+          ngroups = n_subgroups
        ELSE ! well, only one group then
           ngroups = 1
        ENDIF
        my_subgroup_min_size = nnodes / ngroups
     ENDIF
     DO i=0,nnodes-1
-       group_distribution(i)=i / my_subgroup_min_size 
+       group_distribution(i)=i / my_subgroup_min_size
        ! if part of the rest, join the last group
        IF ( group_distribution(i) >= ngroups ) group_distribution(i)=ngroups-1
     ENDDO
@@ -1177,7 +1177,7 @@ CONTAINS
                 ENDDO
              ENDDO
           ELSE
-             ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad         
+             ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad
           ENDIF
        ENDIF
     ENDIF
@@ -1187,7 +1187,7 @@ CONTAINS
 
     t_end = m_walltime ( )
 #else
-    CALL mp_comm_dup(comm,sub_comm) 
+    CALL mp_comm_dup(comm,sub_comm)
     group_distribution(0)=0
     ngroups=1
 #endif

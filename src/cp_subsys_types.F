@@ -112,8 +112,8 @@ CONTAINS
 !> \brief creates a subsys
 !> \param subsys the subsys to allocate and initialize
 !> \param para_env the parallel environment of this subsys
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -130,7 +130,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     ALLOCATE(subsys, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -151,8 +151,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains a subsys (see doc/ReferenceCounting.html)
 !> \param subsys the subsys to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -167,7 +167,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
@@ -178,8 +178,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases a subsys (see doc/ReferenceCounting.html)
 !> \param subsys the subsys to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -195,7 +195,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     IF (ASSOCIATED(subsys)) THEN
        CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
        subsys%ref_count=subsys%ref_count-1
@@ -212,7 +212,7 @@ CONTAINS
           ! Multipoles
           IF(ASSOCIATED(subsys%multipoles)) THEN
              CALL release_multipole_type(subsys%multipoles, error)
-          END IF          
+          END IF
           ! Colvar info
           IF(ASSOCIATED(subsys%colvar_p)) THEN
              DO i=1,SIZE(subsys%colvar_p)
@@ -277,8 +277,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief sets various propreties of the subsys
 !> \param subsys the subsys you want to modify
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !>      For the description of the other arguments see cp_subsys_type
 !>      attributes.
 !> \par History
@@ -319,7 +319,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -387,12 +387,12 @@ CONTAINS
        ENDIF
     END IF
   END SUBROUTINE cp_subsys_set
-  
+
 ! *****************************************************************************
 !> \brief returns information about various attributes of the given subsys
 !> \param subsys the subsys you want info about
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !>      For the description of the other arguments see cp_subsys_type
 !>      attributes.
 !> \par History
@@ -443,7 +443,7 @@ CONTAINS
     n_atom = 0
     n_core = 0
     n_shell = 0
-    
+
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
 

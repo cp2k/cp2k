@@ -43,8 +43,8 @@ MODULE string_utilities
 
   INTERFACE s2a
      MODULE PROCEDURE s2a_1,s2a_2,s2a_3, s2a_4,  s2a_5,  s2a_6,  s2a_7,  s2a_8,  s2a_9, &
-          s2a_10,s2a_11,s2a_12, s2a_13, s2a_14, s2a_15, s2a_16, s2a_17, s2a_18, s2a_19, & 
-          s2a_20,s2a_21,s2a_22, s2a_23, s2a_24, s2a_25, s2a_26, s2a_27, s2a_28, s2a_29, & 
+          s2a_10,s2a_11,s2a_12, s2a_13, s2a_14, s2a_15, s2a_16, s2a_17, s2a_18, s2a_19, &
+          s2a_20,s2a_21,s2a_22, s2a_23, s2a_24, s2a_25, s2a_26, s2a_27, s2a_28, s2a_29, &
           s2a_30,s2a_31,s2a_32, s2a_33, s2a_34, s2a_35, s2a_36, s2a_37, s2a_38, s2a_39 ! should be clear how to add more
   END INTERFACE
 
@@ -69,7 +69,7 @@ CONTAINS
 
     match=0
     IF (LEN_TRIM(typo_string).LE.4) THEN
-       kind=question 
+       kind=question
     ELSE
        kind=star
     ENDIF
@@ -83,7 +83,7 @@ CONTAINS
        ENDDO
     ENDDO
     IF (LEN_TRIM(string).LE.4) THEN
-       kind=question 
+       kind=question
     ELSE
        kind=star
     ENDIF
@@ -100,10 +100,10 @@ CONTAINS
   END FUNCTION typo_match
 
 ! *****************************************************************************
-!> \brief converts a bunch of strings of different length to an array of 
+!> \brief converts a bunch of strings of different length to an array of
 !>        strings of the same length
 !> \note
-!>     can be used instead of the illegal (/"12","1234"/) generating 
+!>     can be used instead of the illegal (/"12","1234"/) generating
 !>     s2a("12","1234").EQ.(/"12  ","1234"/)
 !> \par History
 !>      11.2004 created [Joost VandeVondele ]
@@ -580,7 +580,7 @@ CONTAINS
   END FUNCTION s2a_39
 ! *****************************************************************************
 !> \brief Convert a sequence of integer numbers (ASCII code) to a string.
-!>         Blanks are inserted for invalid ASCII code numbers.  
+!>         Blanks are inserted for invalid ASCII code numbers.
 !> \author  MK
 !> \date    19.10.2000
 !> \version 1.0
@@ -606,7 +606,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Eliminate multiple space characters in a string.
-!>          If full is .TRUE., then all spaces are eliminated.  
+!>          If full is .TRUE., then all spaces are eliminated.
 !> \author  MK
 !> \date    23.06.1998
 !> \version 1.0
@@ -652,7 +652,7 @@ CONTAINS
 !> \brief   Converts an integer number to a string.
 !>          The WRITE statement will return an error message, if the number of
 !>          digits of the integer number is larger the than the length of the
-!>          supplied string.  
+!>          supplied string.
 !> \author  MK
 !> \date    05.01.2004
 !> \version 1.0
@@ -711,7 +711,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Substitute special XML tokens like "<" or ">" in inp_string.
 !>           Optionally convert also all lowercase characters to uppercase, if
-!>           ltu is true.  
+!>           ltu is true.
 !> \author  MK
 !> \date    10.03.2005
 !> \version 1.0

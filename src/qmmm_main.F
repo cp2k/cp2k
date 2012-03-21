@@ -191,7 +191,7 @@ CONTAINS
 
        ! Parallel scheme for the long range
        CALL section_vals_val_get(qmmm_section,"PARALLEL_SCHEME",&
-            i_val=qmmm_env_qm%par_scheme,error=error)     
+            i_val=qmmm_env_qm%par_scheme,error=error)
 
        ! Periodic boundary condition calculation
        CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
@@ -239,7 +239,7 @@ CPSourceFileRef,&
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
        IF(qmmm_env_qm%image_charge) THEN
-         qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list) 
+         qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list)
        END IF
 
        ! Duplicate structure for link atoms
@@ -254,17 +254,17 @@ CPSourceFileRef,&
           WRITE(iw,'(A,I26)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
           WRITE(iw,'(A,I26)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           IF(qmmm_env_qm%image_charge) THEN
-             WRITE(iw,'(A,I8)')" Number of MM atoms with image charge: ",&       
-                                               qmmm_env_qm%num_image_mm_atoms 
+             WRITE(iw,'(A,I8)')" Number of MM atoms with image charge: ",&
+                                               qmmm_env_qm%num_image_mm_atoms
           ENDIF
           WRITE(iw,'(A)')" QM cell ::"
           CALL write_cell(qm_cell_small, subsys_section, error=error)
        END IF
        CALL get_cell(qm_cell_small, abc=abc_qm)
-       CALL get_cell(mm_cell, abc=abc_mm)                                    
+       CALL get_cell(mm_cell, abc=abc_mm)
 
-       IF (qmmm_env_qm%image_charge) THEN       
-          IF(ANY(abc_mm/=abc_qm))& 
+       IF (qmmm_env_qm%image_charge) THEN
+          IF(ANY(abc_mm/=abc_qm))&
            CALL stop_program(routineN,moduleN,__LINE__,&
                              "QM and MM box need to have the same size when using image charges")
        ENDIF
@@ -317,7 +317,7 @@ CPSourceFileRef,&
                                mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
                                qmmm_section, nocompatibility, error)
        IF (qmmm_env_qm%image_charge) THEN
-          CALL print_image_charge_info(qmmm_env_qm, qmmm_section, error)              
+          CALL print_image_charge_info(qmmm_env_qm, qmmm_section, error)
        ENDIF
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs,error=error)
@@ -329,7 +329,7 @@ CPSourceFileRef,&
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,para_env,&
-            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,qmmm_env_qm=qmmm_env_qm,&  
+            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,qmmm_env_qm=qmmm_env_qm,&
             qmmm_periodic=qmmm_env_qm%periodic, force_env_section=force_env_section,&
             subsys_section=subsys_section,use_motion_section=use_motion_section,&
             error=error)

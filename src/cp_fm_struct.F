@@ -33,7 +33,7 @@ MODULE cp_fm_struct
 
 ! the default blacs block sizes
 ! consider using #ifdefs to give them the optimal values
-! these can be changed using scf_control 
+! these can be changed using scf_control
 ! *** these are used by default
   INTEGER :: optimal_blacs_col_block_size=32
   INTEGER :: optimal_blacs_row_block_size=32
@@ -70,7 +70,7 @@ MODULE cp_fm_struct
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param local_leading_dimension leading dimension of the data that is
 !>        stored on this processor
-!> 
+!>
 !>      readonly attributes:
 !> \param nrow_local number of local rows really used on the actual processor
 !> \param ncol_local number of local cols really used on the actual processor
@@ -94,7 +94,7 @@ MODULE cp_fm_struct
   TYPE cp_fm_struct_p_type
      TYPE(cp_fm_struct_type), POINTER :: struct
   END TYPE cp_fm_struct_p_type
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -111,8 +111,8 @@ CONTAINS
 !> \param descriptor the scalapack descriptor of the matrix (if not given
 !>        a new one is allocated
 !> \param template_fmstruct a matrix structure where to take the default values
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -132,7 +132,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
   LOGICAL, OPTIONAL, INTENT(in)                :: force_block
   TYPE(cp_error_type), INTENT(inout) :: error
- 
+
   INTEGER ::  dumblock
 
   INTEGER :: iunit
@@ -183,7 +183,7 @@ CPSourceFileRef,&
   my_force_block=.FALSE.
   IF (PRESENT(force_block)) my_force_block=force_block
   IF (.NOT.failure) THEN
-     
+
      IF (PRESENT(context)) THEN
         fmstruct%context => context
         fmstruct%para_env => context%para_env
@@ -191,7 +191,7 @@ CPSourceFileRef,&
      IF (PRESENT(para_env)) fmstruct%para_env => para_env
      CALL cp_blacs_env_retain(fmstruct%context,error=error)
      CALL cp_para_env_retain(fmstruct%para_env,error=error)
-     
+
      IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
      IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
 
@@ -204,7 +204,7 @@ CPSourceFileRef,&
                 REAL(fmstruct%context%num_pe(1),KIND=dp))
        fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
      END IF
-     IF (PRESENT(ncol_block)) THEN 
+     IF (PRESENT(ncol_block)) THEN
        fmstruct%ncol_block=ncol_block
      END IF
      IF(.NOT. my_force_block) THEN
@@ -315,8 +315,8 @@ END SUBROUTINE cp_fm_struct_create
 ! *****************************************************************************
 !> \brief retains a full matrix structure
 !> \param fmstruct the structure to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -331,7 +331,7 @@ SUBROUTINE cp_fm_struct_retain(fmstruct,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -342,8 +342,8 @@ END SUBROUTINE cp_fm_struct_retain
 ! *****************************************************************************
 !> \brief releases a full matrix structure
 !> \param fmstruct the structure to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -359,7 +359,7 @@ SUBROUTINE cp_fm_struct_release(fmstruct,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(fmstruct)) THEN
      CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
      fmstruct%ref_count=fmstruct%ref_count-1
@@ -394,8 +394,8 @@ END SUBROUTINE cp_fm_struct_release
 !>      otherwise.
 !> \param fmstruct 1: one of the full matrix structures to compare
 !> \param fmstruct 2: the second of the full matrix structures to compare
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -438,8 +438,8 @@ END FUNCTION cp_fm_struct_equivalent
 !>      (i.e. in the same parallel environment) false otherwise.
 !> \param fmstruct 1: one of the full matrix structures to compare
 !> \param fmstruct 2: the second of the full matrix structures to compare
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -473,8 +473,8 @@ END FUNCTION cp_fm_struct_compatible
 !> \brief writes a description of the matrix structure to the given unit
 !> \param fmstruct the structure to print
 !> \param unit_nr the number of the unit where to write the description
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -493,7 +493,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
     LOGICAL                                  :: failure, l_desc
 
   failure=.FALSE.; l_desc=.FALSE.
-  
+
   IF (PRESENT(long_description)) l_desc=long_description
   IF (ASSOCIATED(fmstruct)) THEN
      WRITE (unit=unit_nr,&
@@ -692,15 +692,15 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
 END SUBROUTINE cp_fm_struct_get
 
 ! *****************************************************************************
-!> \brief creates a struct with twice the number of blocks on each core. 
-!>        If matrix A has to be multiplied with B anc C, a 
+!> \brief creates a struct with twice the number of blocks on each core.
+!>        If matrix A has to be multiplied with B anc C, a
 !>        significant speedup of pdgemm can be acchieved by joining the matrices
 !>        in a new one with this structure (see arnoldi in rt_matrix_exp)
 !> \param fmstruct the struct to create
 !> \param struct struct of either A or B
 !> \param col, row  in which direction the matrix should be enlarged
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2009 created [fschiff]
 !> \author Florian Schiffmann
@@ -729,7 +729,7 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
 
     IF(col)THEN
        IF(ncol_global==0)THEN
-          newdim_col=0 
+          newdim_col=0
        ELSE
           nblocks=CEILING(ncol_global/REAL(ncol_block,dp))
           nfilled=MOD(nblocks,nprocs_col)
@@ -759,6 +759,6 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
          error=error)
 
   END SUBROUTINE cp_fm_struct_double
-    
+
 
 END MODULE cp_fm_struct

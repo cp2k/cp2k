@@ -47,16 +47,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the first derivative of an integral block.
-!>          This takes the derivative  with respect to 
+!>          This takes the derivative  with respect to
 !>          the atomic position Ra, i.e. the center of the primitive on the left.
 !>          To get the derivative of the left primitive with respect to r (orbital
 !>           coordinate), take the opposite sign.
-!>          To get the derivative with respect to the center of the primitive on 
+!>          To get the derivative with respect to the center of the primitive on
 !>          the right Rb, take the opposite sign.
-!>          To get the derivative of the right primitive with respect to r, 
+!>          To get the derivative of the right primitive with respect to r,
 !>          do not change the sign.
 !>          [da/dRi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b]
-!>          
+!>
 !> \author  Matthias Krack
 !> \date    05.10.2000
 !> \version 1.0
@@ -187,10 +187,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the first derivative of an integral block.
-!>          This takes the derivative  with respect to 
+!>          This takes the derivative  with respect to
 !>          the atomic position Rb, i.e. the center of the primitive on the right.
-!>          To get the derivative of the left primitive with respect to r 
-!>          (orbital coordinate), take the opposite sign.          
+!>          To get the derivative of the left primitive with respect to r
+!>          (orbital coordinate), take the opposite sign.
 !>          [a|O|db/dRi] = 2*zetb*[a|O|b+1i] - Ni(b)[a|O|b-1i]
 !> \author  Matthias Krack
 !> \date    05.10.2000
@@ -291,9 +291,9 @@ CONTAINS
                                az = la -ax -ay
                                coa = na + coset(ax,ay,az)
                                coda = nda + coset(ax,ay,az)
-                               adbdx(coa,cob) = fb*ab(coda,cobpx) - fx*ab(coda,cobmx) 
-                               adbdy(coa,cob) = fb*ab(coda,cobpy) - fy*ab(coda,cobmy) 
-                               adbdz(coa,cob) = fb*ab(coda,cobpz) - fz*ab(coda,cobmz) 
+                               adbdx(coa,cob) = fb*ab(coda,cobpx) - fx*ab(coda,cobmx)
+                               adbdy(coa,cob) = fb*ab(coda,cobpy) - fy*ab(coda,cobmy)
+                               adbdz(coa,cob) = fb*ab(coda,cobpz) - fz*ab(coda,cobmz)
                             END DO
                          END DO
                       END DO

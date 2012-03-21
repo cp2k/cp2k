@@ -4,11 +4,11 @@ MODULE fparser
   ! Fortran 90 function parser v1.1
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   !
-  ! This public domain function parser module is intended for applications 
-  ! where a set of mathematical expressions is specified at runtime and is 
+  ! This public domain function parser module is intended for applications
+  ! where a set of mathematical expressions is specified at runtime and is
   ! then evaluated for a large number of variable values. This is done by
   ! compiling the set of function strings into byte code, which is interpreted
-  ! very efficiently for the various variable values. 
+  ! very efficiently for the various variable values.
   !
   ! The source code is available from:
   ! http://www.its.uni-karlsruhe.de/~schmehl/opensource/fparser-v1.1.tar.gz
@@ -41,11 +41,11 @@ MODULE fparser
   INTEGER, PARAMETER, PRIVATE :: is = SELECTED_INT_KIND(1) !Data type of bytecode
   INTEGER(is),                              PARAMETER :: cImmed   = 1,          &
                                                          cNeg     = 2,          &
-                                                         cAdd     = 3,          & 
-                                                         cSub     = 4,          & 
-                                                         cMul     = 5,          & 
-                                                         cDiv     = 6,          & 
-                                                         cPow     = 7,          & 
+                                                         cAdd     = 3,          &
+                                                         cSub     = 4,          &
+                                                         cMul     = 5,          &
+                                                         cDiv     = 6,          &
+                                                         cPow     = 7,          &
                                                          cAbs     = 8,          &
                                                          cExp     = 9,          &
                                                          cLog10   = 10,         &
@@ -98,7 +98,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE finalizef()
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    ! Finalize function parser 
+    ! Finalize function parser
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     CHARACTER(len=*), PARAMETER :: routineN = 'finalizef', &
       routineP = moduleN//':'//routineN
@@ -109,7 +109,7 @@ CONTAINS
 
     DO i = 1, SIZE(Comp)
        IF (ASSOCIATED(Comp(i)%ByteCode)) THEN
-          DEALLOCATE ( Comp(i)%ByteCode, stat = istat) 
+          DEALLOCATE ( Comp(i)%ByteCode, stat = istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%ByteCode")
        END IF
        IF (ASSOCIATED(Comp(i)%Immed)) THEN
@@ -337,7 +337,7 @@ CONTAINS
           CALL ParseErrMsg (j, FuncStr, 'Missing operator')
        END IF
        !-- -------- --------- --------- --------- --------- --------- --------- -------
-       ! Now, we have an operand and an operator: the next loop will check for another 
+       ! Now, we have an operand and an operator: the next loop will check for another
        ! operand (must appear)
        !-- -------- --------- --------- --------- --------- --------- --------- -------
        j = j+1
@@ -430,7 +430,7 @@ CONTAINS
 
     n = 0
     DO j=cAbs,cAtan                                          ! Check all math functions
-       k = MIN(LEN_TRIM(Funcs(j)), LEN(str))   
+       k = MIN(LEN_TRIM(Funcs(j)), LEN(str))
        CALL LowCase (str(1:k), fun)
        IF (fun == Funcs(j)) THEN                             ! Compare lower case letters
           n = j                                              ! Found a matching function
@@ -464,12 +464,12 @@ CONTAINS
     IF (lstr > 0) THEN
        DO ib=1,lstr                                          ! Search for first character in str
           IF (str(ib:ib) /= ' ') EXIT                        ! When lstr>0 at least 1 char in str
-       END DO                        
+       END DO
        DO in=ib,lstr                                         ! Search for name terminators
           IF (SCAN(str(in:in),'+-*/^) ') > 0) EXIT
        END DO
        DO j=1,SIZE(Var)
-          IF (str(ib:in-1) == Var(j)) THEN                     
+          IF (str(ib:in-1) == Var(j)) THEN
              n = j                                           ! Variable name found
              EXIT
           END IF
@@ -493,7 +493,7 @@ CONTAINS
     lstr = LEN_TRIM(str)
     ipos = (/ (k,k=1,lstr) /)
     k = 1
-    DO WHILE (str(k:lstr) /= ' ')                             
+    DO WHILE (str(k:lstr) /= ' ')
        IF (str(k:k) == ' ') THEN
           str(k:lstr)  = str(k+1:lstr)//' '                  ! Move 1 character to left
           ipos(k:lstr) = (/ ipos(k+1:lstr), 0 /)             ! Move 1 element to left
@@ -551,7 +551,7 @@ CONTAINS
     Comp(i)%StackSize    = 0
     Comp(i)%StackPtr     = 0
     CALL CompileSubstr (i,F,1,LEN_TRIM(F),Var)               ! Compile string to determine size
-    ALLOCATE ( Comp(i)%ByteCode(Comp(i)%ByteCodeSize), & 
+    ALLOCATE ( Comp(i)%ByteCode(Comp(i)%ByteCodeSize), &
                Comp(i)%Immed(Comp(i)%ImmedSize),       &
                Comp(i)%Stack(Comp(i)%StackSize),       &
                STAT = istat                            )
@@ -575,7 +575,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: i
     INTEGER(is), INTENT(in)                  :: b
 
-! Function identifier  
+! Function identifier
 ! Value of byte to be added
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
@@ -594,7 +594,7 @@ CONTAINS
       INTENT(in)                             :: Var
     INTEGER(is)                              :: n
 
-! Function identifier  
+! Function identifier
 ! Function substring
 ! Array with variable names
 ! Byte value of math item
@@ -658,7 +658,7 @@ CONTAINS
     INTEGER                                  :: b2, io, j, k
     INTEGER(is)                              :: n
 
-! Function identifier  
+! Function identifier
 ! Function substring
 ! Begin and end position substring
 ! Array with variable names
@@ -674,7 +674,7 @@ CONTAINS
 !      WRITE(*,*)'2. F(b:e) = "(...)"'
        CALL CompileSubstr (i, F, b+1, e-1, Var)
        RETURN
-    ELSEIF (SCAN(F(b:b),calpha) > 0) THEN        
+    ELSEIF (SCAN(F(b:b),calpha) > 0) THEN
        n = MathFunctionIndex (F(b:e))
        IF (n > 0) THEN
           b2 = b+INDEX(F(b:e),'(')-1
@@ -707,7 +707,7 @@ CONTAINS
     END IF
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check for operator in substring: check only base level (k=0), exclude expr. in ()
-    !----- -------- --------- --------- --------- --------- --------- --------- -------    
+    !----- -------- --------- --------- --------- --------- --------- --------- -------
     DO io=cAdd,cPow                                          ! Increasing priority +-*/^
        k = 0
        DO j=e,b,-1
@@ -721,7 +721,7 @@ CONTAINS
 !               WRITE(*,*)'6. F(b:e) = "-...Op..." with Op > -'
                 CALL CompileSubstr (i, F, b+1, e, Var)
                 CALL AddCompiledByte (i, cNeg)
-                RETURN                 
+                RETURN
              ELSE                                                        ! Case 7: F(b:e) = '...BinOp...'
 !               WRITE(*,*)'7. Binary operator',F(j:j)
                 CALL CompileSubstr (i, F, b, j-1, Var)
@@ -775,7 +775,7 @@ CONTAINS
                SCAN(F(j-1:j-1),'eEdD')       > 0) THEN
           Dflag=.FALSE.; Pflag=.FALSE.
           k = j-1
-          DO WHILE (k > 1)                                   !   step to the left in mantissa 
+          DO WHILE (k > 1)                                   !   step to the left in mantissa
              k = k-1
              IF     (SCAN(F(k:k),'0123456789') > 0) THEN
                 Dflag=.TRUE.
@@ -833,17 +833,17 @@ CONTAINS
           ib = ib+1
           IF (InMan .OR. Eflag .OR. InExp) EXIT
        CASE ('+','-')                                        ! Permitted only
-          IF     (Bflag) THEN           
+          IF     (Bflag) THEN
              InMan=.TRUE.; Bflag=.FALSE.                     ! - at beginning of mantissa
-          ELSEIF (Eflag) THEN               
+          ELSEIF (Eflag) THEN
              InExp=.TRUE.; Eflag=.FALSE.                     ! - at beginning of exponent
           ELSE
              EXIT                                            ! - otherwise STOP
           ENDIF
        CASE ('0':'9')                                        ! Mark
-          IF     (Bflag) THEN           
+          IF     (Bflag) THEN
              InMan=.TRUE.; Bflag=.FALSE.                     ! - beginning of mantissa
-          ELSEIF (Eflag) THEN               
+          ELSEIF (Eflag) THEN
              InExp=.TRUE.; Eflag=.FALSE.                     ! - beginning of exponent
           ENDIF
           IF (InMan) DInMan=.TRUE.                           ! Mantissa contains digit
@@ -879,7 +879,7 @@ CONTAINS
     IF (PRESENT(inext))  inext  = in
     IF (PRESENT(error))  error  = err
   END FUNCTION RealNum
-  !  
+  !
 ! *****************************************************************************
   SUBROUTINE LowCase (str1, str2)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
@@ -903,7 +903,7 @@ CONTAINS
   END SUBROUTINE LowCase
 
 ! *****************************************************************************
-!> \brief Evaluates derivatives 
+!> \brief Evaluates derivatives
 !> \author Main algorithm from Numerical Recipes
 !>      Ridders, C.J.F. 1982 - Advances in Engineering Software, Vol.4, no. 2, pp. 75-76
 ! *****************************************************************************
@@ -941,7 +941,7 @@ CONTAINS
           vals(ipar) = xval + hh
           funcp = evalf(id_fun, vals)
           vals(ipar) = xval - hh
-          funcm = evalf(id_fun, vals)          
+          funcm = evalf(id_fun, vals)
           a(1,i)=(funcp-funcm)/(2.0_rn*hh)
           fac=con2
           DO j=2,i

@@ -321,17 +321,17 @@ CPSourceFileRef,&
              CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,scp=scp, scp_env=scp_env,&
                   dft_section=dft_section, error=error)
-          
+
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN
                    CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                    mo_coeff=mo_coeff)
                    CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
                 END IF
-            
+
                 ! make all nmo vectors present orthonormal
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo, homo=homo)
-          
+
                 IF(has_unit_metric) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
@@ -356,7 +356,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
                                               p_rmpv(ispin)%matrix,error=error)
              ENDDO
-          
+
              ! Write to extrapolation pipeline
              CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, error=error)
           END DO
@@ -481,10 +481,10 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                    CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                    mo_coeff=mo_coeff,&
                                    nmo=nmo, nao=nao, homo=homo)
-   
+
                    CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
                    CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-   
+
                    CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                    ! multiply times PS
                    IF (has_unit_metric) THEN
@@ -494,7 +494,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                       CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
                    END IF
                    CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
-   
+
                    CALL cp_fm_release(sv,error=error)
                    ! and ortho the result
                    IF (has_unit_metric) THEN
@@ -566,7 +566,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,&
                              last_sgf=last_sgf,error=error)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
-       
+
        ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -801,7 +801,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        DEALLOCATE (pmat,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
+
        DEALLOCATE (kind_of,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -860,16 +860,16 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END DO
 
     ELSE IF (density_guess == densities_guess) THEN
-       
+
        ! Collocation of the density into the PW-grid
        CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
 
        ! do some assertions here on these matrices having the same structure,
        ! as is currently required
        ! end sparsity check
-       
+
        qs_env%scf_env%iter_count = 1
-       
+
        CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
 
        CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, calculate_forces=.TRUE.,&
@@ -905,7 +905,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END DO
 
     ELSE IF (density_guess == no_guess) THEN
-      
+
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "An invalid keyword for the initial density guess was specified")
@@ -1011,7 +1011,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     DEALLOCATE (pmat,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
+
     DEALLOCATE (kind_of,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -1093,11 +1093,11 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     trps1    = 0.0_dp
     trps2    = 0.0_dp
     pdiag(:) = 0.0_dp
-    
+
     IF (nelectron_spin /= 0) THEN
        DO ikind=1,SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(ikind)
-    
+
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                natom=natom,&
                                atom_list=atom_list,&
@@ -1123,7 +1123,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           ELSE
              CYCLE
           END IF
-    
+
           ! MOPAC TYEP GUESS
           IF (dft_control%qs_control%dftb) THEN
              DO iatom=1,natom
@@ -1250,7 +1250,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
             END DO ! iset
           END IF
        END DO ! ikind
-    
+
        IF (trps2 == 0.0_dp) THEN
           DO isgf=1,nao
              IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
@@ -1267,13 +1267,13 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     DEALLOCATE (econf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
+
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
+
     DEALLOCATE (pdiag,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
+
     DEALLOCATE (sdiag,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

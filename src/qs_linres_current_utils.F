@@ -434,7 +434,7 @@ CONTAINS
        !
        DO idir = 1,3
           !
-          ! here we run over the max number of states, then we need 
+          ! here we run over the max number of states, then we need
           ! to be careful with overflow while doing uks calculations.
           DO icenter = 1,max_nbr_center
              !
@@ -1173,7 +1173,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ELSE
        DO ispin = 1,nspins
-          DO icenter = 1,current_env%nbr_center(ispin)       
+          DO icenter = 1,current_env%nbr_center(ispin)
              current_env%statetrueindex(:,icenter,ispin) = icenter
           ENDDO
        ENDDO
@@ -1197,7 +1197,7 @@ CONTAINS
           WRITE(output_unit,"(T2,A,T60,3I5)") "CURRENT| Nbr boxes in each direction",nbox(1:3)
        ENDIF
        !
-       DO ispin = 1,nspins       
+       DO ispin = 1,nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo)
           WRITE(output_unit,'(T2,A,I6,A,I6,A,I2)') 'CURRENT| Compute', &
                &  nstate_list(ispin),' selected response functions out of',&
@@ -1306,7 +1306,7 @@ CONTAINS
        current_env%jrho1_set(idir)%rho%ref_count = 1
        NULLIFY( current_env%jrho1_set(idir)%rho%rho_r)
        NULLIFY( current_env%jrho1_set(idir)%rho%rho_g)
-          
+
        ALLOCATE(current_env%jrho1_set(idir)%rho%rho_r(nspins),stat=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(current_env%jrho1_set(idir)%rho%rho_g(nspins),stat=istat)
@@ -1351,7 +1351,7 @@ CONTAINS
 
     DEALLOCATE(first_sgf,last_sgf,state_list,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
+
     current_env%simple_done(1:6) = .FALSE.
 
     ALLOCATE(current_env%full_done(3*nspins,max_nbr_center),STAT=istat)
@@ -1470,7 +1470,7 @@ CONTAINS
           END DO
           DEALLOCATE(current_env%center_list,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          
+
           IF(ASSOCIATED(current_env%list_cubes)) THEN
              DEALLOCATE(current_env%list_cubes,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1500,7 +1500,7 @@ CONTAINS
           IF(ASSOCIATED(current_env%jrho1_atom_set)) THEN
              CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set,error=error)
           END IF
-          
+
           !fullnmr_done
           IF(ASSOCIATED(current_env%full_done)) THEN
              DEALLOCATE(current_env%full_done,STAT=istat)
@@ -1542,7 +1542,7 @@ CONTAINS
              DEALLOCATE(current_env%rs_buf,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ENDIF
-          
+
        END IF  ! ref count
     END IF ! failure
 

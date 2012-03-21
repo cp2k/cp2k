@@ -46,7 +46,7 @@ MODULE xas_control
     INTEGER                             :: max_iter_added
     INTEGER                             :: ngauss
     INTEGER                             :: stride
-    INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
+    INTEGER, DIMENSION(:), POINTER      :: exc_atoms
 !    LOGICAL                             :: emission
     LOGICAL                             :: cubes, do_centers
     LOGICAL                             :: xas_restart
@@ -133,7 +133,7 @@ CONTAINS
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
           n_rep_val=n_rep, error=error)
-      
+
       IF(n_rep > 0) THEN
         nex_at = 0
         DO ir = 1,n_rep
@@ -174,7 +174,7 @@ CONTAINS
 
 !    CALL section_vals_val_get(xas_section,"EMISSION",&
 !         l_val=xas_control%emission,error=error)
-         
+
   END SUBROUTINE read_xas_control
 
 ! *****************************************************************************
@@ -205,27 +205,27 @@ CONTAINS
         CASE(xas_tp_hh)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
-                   "      Transition potential with half hole" 
+                   "      Transition potential with half hole"
         CASE(xas_tp_xhh)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
-                   "      Transition potential with excited half hole" 
+                   "      Transition potential with excited half hole"
         CASE(xas_tp_fh)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
-                   "      Transition potential with full hole" 
+                   "      Transition potential with full hole"
         CASE(xas_tp_xfh)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
-                   "      Transition potential with excited full hole" 
+                   "      Transition potential with excited full hole"
         CASE(xes_tp_val)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
-                   " Only XES with full core and hole in lumo" 
+                   " Only XES with full core and hole in lumo"
         CASE(xas_dscf)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
-                   "         DSCF for the first excited state" 
+                   "         DSCF for the first excited state"
         CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))),&
@@ -268,11 +268,11 @@ CONTAINS
     xas_control%xas_method = xas_tp_hh
     xas_control%nexc_atoms = 1
     xas_control%nexc_search = -1
-    xas_control%state_type = xas_1s_type    
+    xas_control%state_type = xas_1s_type
     xas_control%max_scf = 150
     xas_control%eps_scf = 0.5e-6_dp
-    xas_control%xas_restart = .FALSE. 
-!    xas_control%emission = .FALSE. 
+    xas_control%xas_restart = .FALSE.
+!    xas_control%emission = .FALSE.
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
     NULLIFY(xas_control%exc_atoms)

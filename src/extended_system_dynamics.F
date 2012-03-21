@@ -6,12 +6,12 @@
 ! *****************************************************************************
 !> \par History
 !>      CJM 20-Feb-2001: Now npt_ifo is allocated to zero when not used
-!>      CJM 11-apr-2001: adding routines to thermostat ao_type 
+!>      CJM 11-apr-2001: adding routines to thermostat ao_type
 !>      CJM 02-Aug-2003: renamed
 !> \author CJM
 ! *****************************************************************************
 MODULE extended_system_dynamics
- 
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -78,7 +78,7 @@ CONTAINS
 
     ! Now scale the particle velocities
     CALL vel_rescale_baro(map_info, npt, error)
-    
+
     CALL timestop(handle)
   END SUBROUTINE lnhc_barostat
 
@@ -116,19 +116,19 @@ CONTAINS
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
     map_info => nhc%map_info
-    
+
     ! Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, vel, error)
-    
+
     ! Calculate forces on the Nose-Hoover Thermostat and apply chains
     CALL do_nhc(nhc, map_info, error)
-   
+
     ! Now scale the particle velocities
     CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
          local_molecules, my_shell_adiabatic, shell_particle_set,core_particle_set,&
          vel, shell_vel, core_vel, error)
-       
+
     CALL timestop(handle)
   END SUBROUTINE lnhc_particles
 
@@ -164,10 +164,10 @@ CONTAINS
     ! Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
     group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
-    
+
     ! Calculate forces on the Nose-Hoover Thermostat and apply chains
     CALL do_nhc(nhc, map_info, error)
-   
+
     ! Now scale the particle velocities
     CALL vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
          shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
@@ -197,7 +197,7 @@ CONTAINS
        IF (nhc%nvt(1,n)%nkt==0.0_dp) CYCLE
        nhc%nvt(1,n)%f = (map_info%s_kin(imap)-nhc%nvt(1,n)%nkt)/nhc%nvt(1,n)%mass
     END DO
-    
+
     ! Perform multiple time stepping using Yoshida
     CALL multiple_step_yoshida(nhc,error)
 
@@ -236,8 +236,8 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
             shell_active=is_shell,shell=shell)
        IF(is_shell) THEN
-          fac_masss = shell%mass_shell/mass 
-          fac_massc = shell%mass_core/mass 
+          fac_masss = shell%mass_shell/mass
+          fac_massc = shell%mass_core/mass
           nparticle_local = local_particles%n_el(iparticle_kind)
           DO iparticle_local=1,nparticle_local
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)

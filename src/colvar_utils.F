@@ -88,7 +88,7 @@ CONTAINS
        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
        CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,  gci=gci,&
             molecule_kinds_new=molecule_kinds, error=error)
-       
+
        molecule_set      => molecules % els
        ! Intramolecular Colvar
        IF (my_unique) THEN
@@ -102,7 +102,7 @@ CONTAINS
           MOL:  DO imol = 1, SIZE(molecule_set)
              molecule => molecule_set ( imol )
              molecule_kind => molecule % molecule_kind
-             
+
              CALL get_molecule_kind ( molecule_kind,&
                                       ncolv = ncolv )
              ntot = ntot + ncolv%ntot
@@ -120,7 +120,7 @@ CONTAINS
   END FUNCTION number_of_colvar
 
 ! *****************************************************************************
-!> \brief Set the value of target for constraints/restraints 
+!> \brief Set the value of target for constraints/restraints
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
   SUBROUTINE set_colvars_target(targets, force_env, error)
@@ -149,7 +149,7 @@ CONTAINS
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
        CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds,&
             error=error)
-       
+
        nkind  =  molecule_kinds % n_els
        ! Set Target for Intramolecular Colvars
        MOL:  DO ikind = 1, nkind
@@ -244,7 +244,7 @@ CONTAINS
             gci=gci,&
             molecule_kinds_new=molecule_kinds,&
             error=error)
-       
+
        nkind             =  molecule_kinds % n_els
        particle_set      => particles%els
        molecule_set      => molecules % els
@@ -256,7 +256,7 @@ CONTAINS
                 i = local_molecules % list ( ikind ) % array ( imol )
                 molecule => molecule_set ( i )
                 molecule_kind => molecule % molecule_kind
-                
+
                 CALL get_molecule_kind ( molecule_kind,&
                                          ncolv = ncolv )
                 offset = get_colvar_offset(i, molecule_set)
@@ -345,7 +345,7 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle)
-    
+
   END SUBROUTINE eval_colvar
 
 ! *****************************************************************************
@@ -405,7 +405,7 @@ CONTAINS
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    NULLIFY(fixd_list)    
+    NULLIFY(fixd_list)
 
     failure = .FALSE.
     molecule_kind => molecule % molecule_kind
@@ -557,7 +557,7 @@ CONTAINS
        DEALLOCATE(Amatrix, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(wrk, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
        ! Compute the transformation matrices and the invese mass diagonal Matrix
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, error=error)
@@ -574,7 +574,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(MassI, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Bmatrix, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE get_clv_force

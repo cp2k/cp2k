@@ -98,8 +98,8 @@ CONTAINS
 
     output_unit=cp_print_key_unit_nr(logger,rtp_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".scfLog",error=error)
-    
-    
+
+
 
 
     IF(output_unit>0) THEN
@@ -132,20 +132,20 @@ CONTAINS
            "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
        END IF
     END IF
-    IF(rtp%converged)THEN   
+    IF(rtp%converged)THEN
        CALL rt_calculate_orthonormality(output_unit,orthonormality,&
         mos_new,matrix_s(1)%matrix,error)
        IF(output_unit>0)&
             WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-            "Max deviation from orthonormalization:",orthonormality  
+            "Max deviation from orthonormalization:",orthonormality
     END IF
     IF(output_unit>0)&
        CALL m_flush(output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
-    
+
     IF(.NOT.rtp%converged)THEN
-      
+
 
     ELSE
        CALL make_moment(qs_env,error)
@@ -153,7 +153,7 @@ CONTAINS
        dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
        CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,&
                                      qs_env%dft_control%scp,qs_env%scp_env,atomic_kind_set,error)
-       
+
     END IF
 
   END SUBROUTINE rt_prop_output
@@ -219,7 +219,7 @@ CONTAINS
 
       CALL cp_fm_release(svec_re,error=error)
       CALL cp_fm_release(svec_im,error=error)
-      
+
       CALL cp_fm_get_info(overlap_re,nrow_local=nrow_local,ncol_local=ncol_local, &
            row_indices=row_indices,col_indices=col_indices,error=error)
       DO i=1,nrow_local
@@ -237,17 +237,17 @@ CONTAINS
    IF(unit_nr>0)THEN
 
    END IF
-    
-   
+
+
    CALL timestop(handle)
-   
+
  END SUBROUTINE rt_calculate_orthonormality
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
- 
+
  SUBROUTINE rt_convergence(qs_env,delta_mos,delta_eps,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -311,7 +311,7 @@ CONTAINS
          work%local_data(:,icol)=delta_mos(re_part)%matrix%local_data(:,icol)
          work%local_data(:,icol+lcol)=delta_mos(im_part)%matrix%local_data(:,icol)
       END DO
-      
+
 
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, work, work1, ncol=newdim, error=error)
 
@@ -326,14 +326,14 @@ CONTAINS
            double_col,&
            double_row,&
            error)
-      
+
       CALL cp_fm_create(work,matrix_struct=newstruct1,error=error)
       CALL cp_fm_create(work2,matrix_struct=newstruct1,error=error)
-      
+
 
       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re_part)%matrix,&
            work1,0.0_dp,work,error=error)
-      
+
       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im_part)%matrix,&
            work1,0.0_dp,work2,error=error)
 
@@ -345,7 +345,7 @@ CONTAINS
             max_alpha=MAX(max_alpha,ABS(alpha))
          ENDDO
       ENDDO
-      
+
       CALL cp_fm_release(work,error)
       CALL cp_fm_release(work1,error)
       CALL cp_fm_release(work2,error)
@@ -358,11 +358,11 @@ CONTAINS
    delta_eps=SQRT(max_alpha)
 
    CALL timestop(handle)
-   
+
  END SUBROUTINE rt_convergence
 
 ! *****************************************************************************
-!> \brief interface to qs_moments. Does only work for nonperiodic dipole 
+!> \brief interface to qs_moments. Does only work for nonperiodic dipole
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 

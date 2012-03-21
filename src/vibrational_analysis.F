@@ -160,17 +160,17 @@ CONTAINS
              natoms=SIZE(Mlist)
              ncoord=natoms*3
              ALLOCATE(Clist(ncoord), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(mass(natoms), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(pos0(ncoord), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(Hessian(ncoord,ncoord),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              IF(calc_intens)THEN
                 description='[DIPOLE]'
                 ALLOCATE(tmp_dip(ncoord,3,2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 tmp_dip=0._dp
              END IF
              Clist = 0
@@ -186,7 +186,7 @@ CONTAINS
                 pos0((i-1)*3+2) = particles(imap)%r(2)
                 pos0((i-1)*3+3) = particles(imap)%r(3)
              END DO
-             ! 
+             !
              ! Determine the principal axes of inertia.
              ! Generation of coordinates in the rotating and translating frame
              !
@@ -398,7 +398,7 @@ CONTAINS
                    ! Reduced Masess
                    rmass(i) = norm/massunit
                    ! Renormalize displacements and convert in Angstrom
-                   D(:,i)   = SQRT(norm)*D(:,i)             
+                   D(:,i)   = SQRT(norm)*D(:,i)
                    ! Force constants
                    konst(i) = SIGN(1.0_dp,H_eigval2(i))*2.0_dp*pi**2*(ABS(H_eigval2(i))/massunit)**2*rmass(i)
 
@@ -446,7 +446,7 @@ CONTAINS
              DEALLOCATE(pos0, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(D,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)                    
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(Hessian,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              IF(calc_intens)THEN
@@ -538,7 +538,7 @@ CONTAINS
              END IF
           END DO
           CALL sort(ifixd_list,  nfixed_atoms_total, work)
-          
+
           ndim = 0
           j    = 1
           Loop_count: DO i = 1, SIZE(particle_set)
@@ -685,11 +685,11 @@ CONTAINS
        CPPostcondition(dof+ifound==3*natoms,cp_failure_level,routineP,error,failure)
        IF (my_full) THEN
           ALLOCATE(Dout(3*natoms,3*natoms),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Dout = D
        ELSE
           ALLOCATE(Dout(3*natoms,nvib),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Dout = D(:,dof+1:)
        END IF
        DEALLOCATE(work,stat=stat)

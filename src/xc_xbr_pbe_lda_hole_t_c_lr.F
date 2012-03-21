@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief This functional is a combination of three different exchange hole 
+!> \brief This functional is a combination of three different exchange hole
 !>        models. The ingredients are:
 !>
 !>          1. Becke Roussel exchange hole
@@ -14,7 +14,7 @@
 !>        The full functionals is given as follows
 !>
 !>        Fx    = eps_lr_lda/eps_lr_br
-!>        Fcorr = alpha/( exp( (Fx-mu)/N ) + 1)  
+!>        Fcorr = alpha/( exp( (Fx-mu)/N ) + 1)
 !>        rhox  = Fcorr * eps_lr_pbe + (1-Fcorr)*eps_lr_br
 !>        eps   = int_{R}^{\infty} rhox*s*ds
 !>
@@ -104,8 +104,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author mguidon (01.2009)
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lda_info(reference,shortform, needs, max_deriv,&
@@ -148,8 +148,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author mguidon (01.2009)
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lsd_info(reference,shortform, needs, max_deriv,&
@@ -194,8 +194,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param params parameters for functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author mguidon (01.2009)
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lda_eval(rho_set,deriv_set,grad_deriv,params,error)
@@ -235,7 +235,7 @@ CONTAINS
            tau=tau,laplace_rho=laplace_rho,local_bounds=bo,&
            rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-  
+
       ! meaningful default for the arrays we don't need: let us make compiler
       ! and debugger happy...
       IF (cp_debug) THEN
@@ -244,7 +244,7 @@ CONTAINS
       ELSE
         dummy=> rho
       END IF
-      
+
       e_0 => dummy
       e_rho => dummy
       e_ndrho => dummy
@@ -297,7 +297,7 @@ CONTAINS
           e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
           epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
- 
+
       !$omp end parallel
 
       IF (cp_debug) THEN
@@ -313,7 +313,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Low level routine that calls the three involved holes and puts them
 !>        together
-!> \param rho_set, norm_drho, laplace_rho, tau values on the grid 
+!> \param rho_set, norm_drho, laplace_rho, tau values on the grid
 !> \param e_0, e_rho, e_ndrho, e_tau, e_laplace_rho derivatives on the grid
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
@@ -321,14 +321,14 @@ CONTAINS
 !> \params npoints number of gridpoints
 !> \params epsilon_rho, epsilon_norm_drho cutoffs
 !> \param sx, R, gamma, parameters for  functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author mguidon (01.2009)
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lda_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
                                      epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
-    
+
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: e_laplace_rho, e_tau, &
@@ -414,7 +414,7 @@ CONTAINS
         ! ** Attention we need to scale rho, ndrho first
         my_rho = my_rho * 2.0_dp
         my_ndrho = my_ndrho * 2.0_dp
-       
+
         ! ** Do some precalculation in order to catch the correct branch afterwards
         sscale = 1.0_dp
         t1 = pi ** 2
@@ -448,10 +448,10 @@ CONTAINS
         e_rho_lda = 0.0_dp
         CALL xlda_hole_t_c_lr_lda_calc_0(grad_deriv, my_rho, e_0_lda, e_rho_lda,&
                                          sx, R, error)
-        
+
 
         Fx = e_0_br/e_0_lda
-        
+
         Fermi = alpha/(EXP( (Fx-mu)/N ) + 1.0_dp)
 
         dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda-e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx-mu)/N)
@@ -459,20 +459,20 @@ CONTAINS
         dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx-mu)/N)
         dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx-mu)/N)
 
-        
+
         e_0(ip) = e_0(ip) + ( Fermi * e_0_pbe + (1.0_dp-Fermi) * e_0_br ) * sx
-   
+
         IF( grad_deriv >=1 .OR. grad_deriv == -1) THEN
 
           e_rho(ip) = e_rho(ip) + ( Fermi * e_rho_pbe + dFermi_drho * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_rho_br - dFermi_drho*e_0_br ) * sx
-  
+
           e_ndrho(ip) = e_ndrho(ip) + ( Fermi * e_ndrho_pbe + dFermi_dndrho * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_ndrho_br - dFermi_dndrho*e_0_br ) * sx
-  
+
           e_tau(ip) = e_tau(ip) + ( dFermi_dtau * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_tau_br - dFermi_dtau*e_0_br ) * sx
-  
+
           e_laplace_rho(ip) = e_laplace_rho(ip) + ( dFermi_dlaplace_rho * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_laplace_rho_br - dFermi_dlaplace_rho*e_0_br ) * sx
         END IF
@@ -494,8 +494,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param params parameters for functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author mguidon (01.2009)
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lsd_eval(rho_set,deriv_set,grad_deriv,params,error)
@@ -535,7 +535,7 @@ CONTAINS
            laplace_rhob=laplace_rhob,local_bounds=bo,&
            rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-  
+
       ! meaningful default for the arrays we don't need: let us make compiler
       ! and debugger happy...
       IF (cp_debug) THEN
@@ -544,7 +544,7 @@ CONTAINS
       ELSE
         dummy=> rhoa
       END IF
-      
+
       e_0 => dummy
       e_rhoa => dummy
       e_rhob => dummy
@@ -639,7 +639,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Low level routine that calls the three involved holes and puts them
 !>        together
-!> \param rho_set, norm_drho, laplace_rho, tau values on the grid 
+!> \param rho_set, norm_drho, laplace_rho, tau values on the grid
 !> \param e_0, e_rho, e_ndrho, e_tau, e_laplace_rho derivatives on the grid
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
@@ -647,14 +647,14 @@ CONTAINS
 !> \params npoints number of gridpoints
 !> \params epsilon_rho, epsilon_norm_drho cutoffs
 !> \param sx, R, gamma, parameters for  functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author mguidon (01.2009)
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lsd_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
                                      epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
-    
+
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: e_laplace_rho, e_tau, &
@@ -730,7 +730,7 @@ CONTAINS
         ! ** Attention we need to scale rho, ndrho first
         my_rho = my_rho * 2.0_dp
         my_ndrho = my_ndrho * 2.0_dp
-       
+
         ! ** Do some precalculation in order to catch the correct branch afterwards
         sscale = 1.0_dp
         t1 = pi ** 2
@@ -770,7 +770,7 @@ CONTAINS
         e_0_lda = 0.5_dp * e_0_lda
 
         Fx = e_0_br/e_0_lda
-        
+
         Fermi = alpha/(EXP( (Fx-mu)/N ) + 1.0_dp)
 
         dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda-e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx-mu)/N)
@@ -778,20 +778,20 @@ CONTAINS
         dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx-mu)/N)
         dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx-mu)/N)
 
-        
+
         e_0(ip) = e_0(ip) + ( Fermi * e_0_pbe + (1.0_dp-Fermi) * e_0_br ) * sx
-   
+
         IF( grad_deriv >=1 .OR. grad_deriv == -1) THEN
 
           e_rho(ip) = e_rho(ip) + ( Fermi * e_rho_pbe + dFermi_drho * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_rho_br - dFermi_drho*e_0_br ) * sx
-  
+
           e_ndrho(ip) = e_ndrho(ip) + ( Fermi * e_ndrho_pbe + dFermi_dndrho * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_ndrho_br - dFermi_dndrho*e_0_br ) * sx
-  
+
           e_tau(ip) = e_tau(ip) + ( dFermi_dtau * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_tau_br - dFermi_dtau*e_0_br ) * sx
-  
+
           e_laplace_rho(ip) = e_laplace_rho(ip) + ( dFermi_dlaplace_rho * e_0_pbe + &
                                     (1.0_dp - Fermi) * e_laplace_rho_br - dFermi_dlaplace_rho*e_0_br ) * sx
        END IF

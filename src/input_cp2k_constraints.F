@@ -44,8 +44,8 @@ CONTAINS
 !> \brief Create the constraint section. This section is useful to impose
 !>      constraints
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_constraint_section(section,error)
@@ -108,7 +108,7 @@ CONTAINS
        CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_vsite_section(subsection, error=error)
        CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -150,11 +150,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Create the restart section for colvar restraints
-!>      This section will be only used for restraint restarts. 
+!>      This section will be only used for restraint restarts.
 !>      Constraints are handled automatically
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE create_clv_rest_section(section, error)
@@ -183,18 +183,18 @@ CONTAINS
             usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
     END IF
 
   END SUBROUTINE create_clv_rest_section
 
 ! *****************************************************************************
 !> \brief Create the restart section for fixed atoms restraints
-!>      This section will be only used for restraint restarts. 
+!>      This section will be only used for restraint restarts.
 !>      Constraints are handled automatically
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE create_f_a_rest_section(section, error)
@@ -231,8 +231,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the restraint info section in the constraint section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE restraint_info_section(section, error)
@@ -262,10 +262,10 @@ CONTAINS
             usage="K {real}",&
             type_of_var=real_t, default_r_val=0.0_dp, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE restraint_info_section
@@ -273,8 +273,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the constraint section for collective constraints
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele [01.2006]
 ! *****************************************************************************
   SUBROUTINE create_collective_section(section,error)
@@ -325,7 +325,7 @@ CONTAINS
             usage="INTERMOLECULAR <LOGICAL>",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TARGET",&
             description="Specifies the target value of the constrained collective"//&
@@ -372,8 +372,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the constraint section that fixes atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_fixed_atom_section(section,error)
@@ -481,8 +481,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the constraint section specialized on g3x3 constraints
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_g3x3_section(section,error)
@@ -541,7 +541,7 @@ CONTAINS
             usage="DISTANCES {real} {real} {real}", type_of_var=real_t,&
             unit_str="internal_cp2k",n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)              
+       CALL keyword_release(keyword,error=error)
 
        ! Logical
        CALL keyword_create(keyword, name="EXCLUDE_QM",&
@@ -564,8 +564,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the constraint section specialized on H BONDS constraints
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_hbonds_section(section,error)
@@ -634,7 +634,7 @@ CONTAINS
             usage="TARGETS {real} {real} {real}", type_of_var=real_t, n_var=-1,&
             unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)              
+       CALL keyword_release(keyword,error=error)
 
     END IF
 
@@ -643,8 +643,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the constraint section specialized on g4x6 constraints
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_g4x6_section(section,error)
@@ -703,7 +703,7 @@ CONTAINS
             usage="DISTANCES {real} {real} {real} {real} {real} {real}",&
             type_of_var=real_t, n_var=6,unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)              
+       CALL keyword_release(keyword,error=error)
 
        ! Logical
        CALL keyword_create(keyword, name="EXCLUDE_QM",&
@@ -726,8 +726,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the constraint section specialized on vsite constraints
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author marcel baer
 ! *****************************************************************************
   SUBROUTINE create_vsite_section(section,error)
@@ -788,7 +788,7 @@ CONTAINS
             usage="PARAMETERS {real} {real}",&
             type_of_var=real_t, n_var=2,unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)              
+       CALL keyword_release(keyword,error=error)
 
        ! Logical
        CALL keyword_create(keyword, name="EXCLUDE_QM",&

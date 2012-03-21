@@ -85,7 +85,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
                               extension=".subsysLog",error=error)
 
-    ! Check if there is a &COORD section 
+    ! Check if there is a &COORD section
     coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
     CALL section_vals_get(coord_section,explicit=explicit,error=error)
     IF (explicit) THEN
@@ -188,7 +188,7 @@ CONTAINS
     END DO
 
     CALL parser_release(parser,error=error)
-    
+
     topology%natoms = natom
     CALL reallocate(atom_info%id_molname,1,natom)
     CALL reallocate(atom_info%id_resname,1,natom)

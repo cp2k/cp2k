@@ -39,8 +39,8 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param maximum implemented derivative of the xc functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost
 ! *****************************************************************************
   SUBROUTINE optx_lda_info(reference,shortform, needs, max_deriv, error)
@@ -109,11 +109,11 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param optx_params input parameter (scaling)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
-!> \author Joost 
+!> \author Joost
 ! *****************************************************************************
   SUBROUTINE optx_lda_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -136,9 +136,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(bo,e_0, e_ndrho, e_rho, norm_drho, rho)
- 
+
     CALL section_vals_val_get(optx_params,"scale_x",r_val=sx,error=error)
- 
+
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
@@ -236,7 +236,7 @@ CONTAINS
        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
             allocate_deriv=.TRUE.,error=error)
        CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
-       
+
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
             allocate_deriv=.TRUE.,error=error)
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
@@ -267,8 +267,8 @@ CONTAINS
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele
@@ -284,7 +284,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
-      a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp 
+      a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp
 
     INTEGER                                  :: ii
     REAL(KIND=dp)                            :: denom, ex, gamxsxs, myndrho, &
@@ -308,7 +308,7 @@ CONTAINS
           ex      = rho43*(a1cx+a2*(gamxsxs*denom)**2)
           ! 2.0 for both spins
           e_0(ii)    = e_0(ii)     - ( 2.0_dp * ex ) * sx
-          tmp = rho43 * 2.0_dp * a2 * gamxsxs * denom**2 * ( 1.0_dp - gamxsxs * denom) 
+          tmp = rho43 * 2.0_dp * a2 * gamxsxs * denom**2 * ( 1.0_dp - gamxsxs * denom)
           ! derive e_0 wrt to rho (full) and ndrho (also full)
           e_rho(ii)  = e_rho(ii)   - ( ( o43 * ex + tmp * gamxsxs * (-2.0_dp * o43 ) ) / myrho ) * sx
           e_ndrho(ii)= e_ndrho(ii) - ( ( tmp * gam * 2.0_dp * myndrho / rho43**2 ) ) * sx
@@ -345,7 +345,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
-      a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp 
+      a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp
 
     INTEGER                                  :: ii
     REAL(KIND=dp)                            :: denom, ex, gamxsxs, myndrho, &
@@ -370,7 +370,7 @@ CONTAINS
           ! for a single spin
           e_0(ii)    = e_0(ii)     - ex * sx
           tmp = rho43 * 2.0_dp * a2 * gamxsxs * denom**2 * ( 1.0_dp - gamxsxs * denom)
-          ! derive e_0 wrt to rho and ndrho 
+          ! derive e_0 wrt to rho and ndrho
           e_rho(ii)  = e_rho(ii)   - ( ( o43 * ex + tmp * gamxsxs * (-2.0_dp * o43 ) ) / myrho ) * sx
           e_ndrho(ii)= e_ndrho(ii) - ( ( tmp * gam * 2.0_dp * myndrho / rho43**2 ) ) * sx
        END IF

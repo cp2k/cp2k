@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Calculate the local exchange functional
 !> \note
-!>      Order of derivatives is: LDA 0; 1; 2; 3; 
+!>      Order of derivatives is: LDA 0; 1; 2; 3;
 !>                               LSD 0; a  b; aa bb; aaa bbb;
 !> \par History
 !>      JGH (26.02.2003) : OpenMP enabled
@@ -152,7 +152,7 @@ ELSE
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
-    
+
     CALL section_vals_val_get(xa_params,"scale_x",r_val=sx,error=error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -170,9 +170,9 @@ ELSE
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-          
+
           CALL xalpha_lda_0 ( npoints, rho, r13, e_0, sx )
-          
+
        END IF
        IF ( order>=1.OR.order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
@@ -249,7 +249,7 @@ ELSE
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
        CALL xalpha_init(epsilon_rho,xa_parameter)
 
-       DO ispin=1,2          
+       DO ispin=1,2
           IF ( order>=0 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,"",&
                   allocate_deriv=.TRUE., error=error)
@@ -270,7 +270,7 @@ ELSE
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
                   rho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-             
+
              CALL xalpha_lsd_2( npoints, rho(ispin)%array, rho_1_3(ispin)%array,&
                   e_rho_rho, sx )
           END IF
@@ -318,7 +318,7 @@ ELSE
 
 ! *****************************************************************************
   SUBROUTINE xalpha_lda_1(n, rho, r13, pot, sx)
-    
+
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
     REAL(KIND=dp), DIMENSION(*), &
@@ -394,10 +394,10 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-! number of points in array 
+! number of points in array
 
     f = sx * flsd
-    
+
 !$omp parallel do private(ip)
     DO ip = 1, n
 
@@ -421,7 +421,7 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-! number of points in array 
+! number of points in array
 
     f = f43 * flsd * sx
 
@@ -448,7 +448,7 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-! number of points in array 
+! number of points in array
 
     f = f13 * f43 * flsd * sx
 
@@ -475,7 +475,7 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-! number of points in array 
+! number of points in array
 
     f = -f23 * f13 * f43 * flsd * sx
 

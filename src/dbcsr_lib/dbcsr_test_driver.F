@@ -47,7 +47,7 @@ PROGRAM dbcsr_test_driver
   TYPE(dbcsr_error_type)                   :: error
   CHARACTER(len=default_string_length)     :: operation, args(100)
 
-  
+
   CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply'
 
 

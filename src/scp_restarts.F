@@ -7,7 +7,7 @@
 !> \brief Routine handling the collection of the restart information for the SCP
 !> \author C. J. Mundy
 !> \History -) Reorganization of the SCP RESTART [tlaino] - Teodoro Laino
-!>             Zurich Uiversity 03.2008 
+!>             Zurich Uiversity 03.2008
 ! *****************************************************************************
 MODULE scp_restarts
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -32,11 +32,11 @@ MODULE scp_restarts
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_restarts'
-  
+
   PUBLIC :: write_scp_coeff_set, read_aux_coeff_set
 
 CONTAINS
-      
+
 ! *****************************************************************************
   SUBROUTINE write_scp_coeff_set (ires, scp_env, atomic_kind_set, particle_set,  error)
 
@@ -73,7 +73,7 @@ CONTAINS
     CALL get_scp_env(scp_env=scp_env,aux_coeff_set=aux_coeff_set,&
          para_env=para_env,error=error)
 
-    IF (ASSOCIATED(aux_coeff_set)) THEN          
+    IF (ASSOCIATED(aux_coeff_set)) THEN
        natom_tot=SIZE(particle_set)
        nsgf_max=0
        n_el=0
@@ -90,13 +90,13 @@ CONTAINS
        END DO
 
        ALLOCATE (pbuffer(n_el,nsgf_max),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (cindex(natom_tot),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (mindex(n_el),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (pindex(natom_tot,nsgf_max),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
        pindex=0.0_dp
        cindex=0
@@ -118,27 +118,27 @@ CONTAINS
        iel = 0
        DO iatom = 1, natom_tot
           IF ( cindex ( iatom ) == 0 ) THEN
-             CYCLE 
+             CYCLE
           ELSE
              iel = iel + 1
              mindex(iel) = cindex ( iatom )
              pbuffer(iel,:) = pindex ( iatom, : )
           END IF
        END DO
-       
+
        IF (ires>0) WRITE(ires)n_el, nsgf_max, natom_tot
        IF (ires>0) WRITE(ires)mindex
        DO irep = 1, SIZE(mindex)
           IF (ires>0) WRITE(ires) pbuffer(irep,:)
        END DO
        DEALLOCATE (mindex,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (pindex,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (cindex,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (pbuffer,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)
@@ -177,7 +177,7 @@ CONTAINS
     CALL mp_bcast(nel_tot_read,para_env%source,para_env%group)
     CALL mp_bcast(nsgf_max_read, para_env%source,para_env%group)
     CALL mp_bcast(natom_tot_read, para_env%source,para_env%group)
-    
+
     CPPrecondition(nel_tot_read==nel_tot,cp_failure_level,routineP,error,failure)
     CPPrecondition(nsgf_max_read==ncoef_atom_max,cp_failure_level,routineP,error,failure)
 
@@ -193,7 +193,7 @@ CONTAINS
        READ(rst_unit)mindex
        DO irep = 1, nel_tot
           READ(rst_unit) pbuffer(irep,:)
-       END DO       
+       END DO
     END IF
     CALL mp_bcast(mindex,para_env%source,para_env%group)
     CALL mp_bcast(pbuffer,para_env%source,para_env%group)
@@ -202,7 +202,7 @@ CONTAINS
        iatom = mindex(iel)
        pindex(iatom,:) = pbuffer(iel,:)
     END DO
-    
+
     nkind=SIZE(aux_coeff_set%coeffs_of_kind)
     DO ikind=1, nkind
        coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
@@ -214,11 +214,11 @@ CONTAINS
     END DO
 
     DEALLOCATE (mindex,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (pindex,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (pbuffer,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE read_aux_coeff_set
 

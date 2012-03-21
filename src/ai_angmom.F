@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of the angular momentum integrals over 
+!> \brief Calculation of the angular momentum integrals over
 !>      Cartesian Gaussian-type functions.
 !> \par Literature
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
@@ -114,7 +114,7 @@ CONTAINS
         f0 = (pi*zetp)**1.5_dp
         f1 = zetb(jpgf)*zetp
         f2 = 0.5_dp*zetp
-        ! 
+        !
         bc1(1) =  0._dp
         bc1(2) = -f1*rbc(3)
         bc1(3) =  f1*rbc(2)
@@ -288,7 +288,7 @@ CONTAINS
                                                  rab(3)*s(coset(ax,ay,az),1)
                   as(coset(ax,ay,az),2,1) = as(coset(ax+1,ay,az),1,1) - &
                                                  rab(1)*as(coset(ax,ay,az),1,1)
-                  as(coset(ax,ay,az),3,1) = as(coset(ax,ay+1,az),1,1) - & 
+                  as(coset(ax,ay,az),3,1) = as(coset(ax,ay+1,az),1,1) - &
                                                  rab(2)*as(coset(ax,ay,az),1,1) &
                                 - s(coset(ax,ay,az+1),1) - rac(3)*s(coset(ax,ay,az),1)
                   as(coset(ax,ay,az),4,1) = as(coset(ax,ay,az+1),1,1) - &
@@ -337,7 +337,7 @@ CONTAINS
                                             ac1(3)*s(coset(ax,ay,az),1)
                 ELSE
                   s(coset(ax,ay,az),2) = rbp(1)*s(coset(ax,ay,az),1) +&
-                                         fx*s(coset(ax-1,ay,az),1) 
+                                         fx*s(coset(ax-1,ay,az),1)
                   as(coset(ax,ay,az),2,1) = rbp(1)*as(coset(ax,ay,az),1,1) +&
                                          fx*as(coset(ax-1,ay,az),1,1) +&
                                          ac1(1)*s(coset(ax,ay,az),1)

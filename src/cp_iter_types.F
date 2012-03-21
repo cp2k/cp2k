@@ -194,7 +194,7 @@ CONTAINS
 !> \brief Copies iterations info of an iteration info into another iteration info
 !> \param iteration_info_in the iteration_info to be copied
 !> \param iteration_info_out the iteration_info results of the copy
-!> \author Teodoro Laino [tlaino] 
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE cp_iteration_info_copy_iter(iteration_info_in, iteration_info_out)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info_in, &

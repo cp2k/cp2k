@@ -87,8 +87,8 @@ CONTAINS
 !> \brief allocates and initializes a type that represent a blacs context
 !> \param blacs_env the type to initialize
 !> \param para_env the para_env for which a blacs env should be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -158,7 +158,7 @@ CPSourceFileRef,&
               nprow=ipe
               npcol=jpe
               gcd_max=gcd(ipe,jpe)
-           ENDIF 
+           ENDIF
         ENDDO
      CASE (BLACS_GRID_ROW)
         nprow = 1
@@ -182,7 +182,7 @@ CPSourceFileRef,&
           blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
 #endif
 
-     ! generate the mappings blacs2mpi and mpi2blacs 
+     ! generate the mappings blacs2mpi and mpi2blacs
      ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
           stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -204,8 +204,8 @@ END SUBROUTINE cp_blacs_env_create
 ! *****************************************************************************
 !> \brief retains the given blacs env
 !> \param blacs_env the blacs env to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -230,8 +230,8 @@ END SUBROUTINE cp_blacs_env_retain
 ! *****************************************************************************
 !> \brief releases the given blacs_env
 !> \param blacs_env the blacs env to relase
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -247,7 +247,7 @@ SUBROUTINE cp_blacs_env_release(blacs_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(blacs_env)) THEN
      CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      blacs_env%ref_count=blacs_env%ref_count-1
@@ -270,8 +270,8 @@ END SUBROUTINE cp_blacs_env_release
 !> \param blacs_env the blacs environment to write
 !> \param unit_nr the unit number where to write the description of the
 !>        blacs environment
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -288,7 +288,7 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(blacs_env)) THEN
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) blacs_env%group, blacs_env%ref_count
@@ -315,7 +315,7 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
      END IF
      WRITE (unit=unit_nr,fmt="('  my_pid=',i10,', n_pid=',i10,' }')",&
           iostat=iostat) blacs_env%my_pid, blacs_env%n_pid
-     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)        
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
   ELSE
      WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_blacs_env>:*null* '

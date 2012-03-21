@@ -7,7 +7,7 @@
 !> \brief Calculates the exchange energy based on the Becke-Roussel exchange
 !>        hole. Takes advantage of an analytical representation of the hole
 !>        in order to avoid solving a non-linear equation by means of Newton-
-!>        Raphson algorithm 
+!>        Raphson algorithm
 !> \note
 !> \par History
 !>      12.2008 created [mguidon]
@@ -82,8 +82,8 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv controls the number of derivatives
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon
@@ -132,8 +132,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon
@@ -183,8 +183,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param br_params parameters for the becke roussel functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon
@@ -225,7 +225,7 @@ CONTAINS
            tau=tau,laplace_rho=laplace_rho,local_bounds=bo,&
            rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-  
+
       ! meaningful default for the arrays we don't need: let us make compiler
       ! and debugger happy...
       IF (cp_debug) THEN
@@ -234,7 +234,7 @@ CONTAINS
       ELSE
         dummy=> rho
       END IF
-      
+
       e_0 => dummy
       e_rho => dummy
       e_ndrho => dummy
@@ -281,7 +281,7 @@ CONTAINS
           e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
           epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
- 
+
       !$omp end parallel
 
       IF (cp_debug) THEN
@@ -310,16 +310,16 @@ CONTAINS
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
 !> \param gamma paramter from original publication, usually set to 1
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE xbecke_roussel_lda_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
                                      epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
-    
+
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: e_laplace_rho, e_tau, &
@@ -416,8 +416,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param br_params parameters for the becke roussel functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon
@@ -458,7 +458,7 @@ CONTAINS
            laplace_rhob=laplace_rhob,local_bounds=bo,&
            rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-  
+
       ! meaningful default for the arrays we don't need: let us make compiler
       ! and debugger happy...
       IF (cp_debug) THEN
@@ -467,7 +467,7 @@ CONTAINS
       ELSE
         dummy=> rhoa
       END IF
-      
+
       e_0 => dummy
       e_rhoa => dummy
       e_rhob => dummy
@@ -568,16 +568,16 @@ CONTAINS
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
 !> \param gamma paramter from original publication, usually set to 1
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE xbecke_roussel_lsd_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
                                      epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
-    
+
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: e_laplace_rho, e_tau, &
@@ -652,7 +652,7 @@ CONTAINS
 !> \brief full range evaluation for y <= 0
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_lte_0(rho, ndrho, tau, laplace_rho, e_0, &
                               e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -681,7 +681,7 @@ CONTAINS
       t64, t66, t67, t70, t71, t72, t75, t78, t81, t84, t87, t88, t89, t9, &
       t91, t92, t93, t94, t95, t96, t97, yval
 
-    IF( grad_deriv >= 0 ) THEN 
+    IF( grad_deriv >= 0 ) THEN
       t1 = pi ** (0.1e1_dp / 0.3e1_dp)
       t2 = t1 ** 2
       t3 = rho ** (0.1e1_dp / 0.3e1_dp)
@@ -891,7 +891,7 @@ CONTAINS
 !> \brief Full range evaluation for y > 0
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_gt_0(rho, ndrho, tau, laplace_rho, e_0, &
                              e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -1144,7 +1144,7 @@ CONTAINS
 !> \brief Truncated long range part for y <= 0
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_lte_0_cutoff(rho, ndrho, tau, laplace_rho, e_0, &
                                      e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -1218,7 +1218,7 @@ CONTAINS
 !> \brief Truncated long range part for y <= 0 and R > b
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_lte_0_cutoff_R_gt_b(rho, ndrho, tau, laplace_rho, e_0, &
                                              e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -1554,7 +1554,7 @@ CONTAINS
 !> \brief Truncated long range part for y <= 0 and R <= b
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_lte_0_cutoff_R_lte_b(rho, ndrho, tau, laplace_rho, e_0, &
                                              e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -1887,7 +1887,7 @@ CONTAINS
 !> \brief Truncated long range part for y > 0
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_gt_0_cutoff(rho, ndrho, tau, laplace_rho, e_0, &
                                     e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -1968,7 +1968,7 @@ CONTAINS
 !> \brief Truncated long range part for y > 0 and R > b
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_gt_0_cutoff_R_gt_b(rho, ndrho, tau, laplace_rho, e_0, &
                                             e_rho, e_ndrho, e_tau, e_laplace_rho,&
@@ -2318,7 +2318,7 @@ CONTAINS
 !> \brief Truncated long range part for y > 0 and R <= b
 !> \par History
 !>        12.2008 created [mguidon]
-!> \author mguidon 
+!> \author mguidon
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_gt_0_cutoff_R_lte_b(rho, ndrho, tau, laplace_rho, e_0, &
                                             e_rho, e_ndrho, e_tau, e_laplace_rho,&

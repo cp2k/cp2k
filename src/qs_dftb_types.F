@@ -32,7 +32,7 @@ MODULE qs_dftb_types
     REAL(KIND=dp)                          :: zeff       !effective core charge
     INTEGER                                :: natorb     !number of orbitals
     INTEGER                                :: lmax       !max angular momentum
-    REAL(KIND=dp), DIMENSION(0:3)          :: skself     !orbital energy       
+    REAL(KIND=dp), DIMENSION(0:3)          :: skself     !orbital energy
     REAL(KIND=dp), DIMENSION(0:3)          :: occupation !free atom occupation
     REAL(KIND=dp), DIMENSION(0:3)          :: eta        !orbital hardness
     REAL(KIND=dp)                          :: energy     !free atom energy
@@ -51,9 +51,9 @@ MODULE qs_dftb_types
     REAL(KIND=dp)                          :: urep_cut   ! cutoff for repulsive pot.
     REAL(KIND=dp), DIMENSION(10)           :: urep       ! coefficients for repulsive
                                                          ! potential in polynomial form
-    INTEGER                                :: spdim      ! number of points for 
+    INTEGER                                :: spdim      ! number of points for
                                                          ! spline representation
-    REAL(KIND=dp)                          :: s_cut      ! left-hand cutoff 
+    REAL(KIND=dp)                          :: s_cut      ! left-hand cutoff
     REAL(KIND=dp), DIMENSION(3)            :: srep       ! coefficients for extrapolation
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: spxr       ! spline points
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: scoeff     ! spline coefficients

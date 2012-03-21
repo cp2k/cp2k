@@ -198,7 +198,7 @@ CONTAINS
     ENDIF
     ! add_nondiag_energy requires do_ener
     IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
-       CPPrecondition(qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,error,failure)   
+       CPPrecondition(qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,error,failure)
     ENDIF
 
     ! get a rotational force
@@ -229,7 +229,7 @@ CONTAINS
             ENDDO
           ENDIF
 
-          ! chc only needs to be stored in u independent form if we require add_nondiag_energy, 
+          ! chc only needs to be stored in u independent form if we require add_nondiag_energy,
           ! which will use it in non-selfconsistent form for e.g. the linesearch
           ! transform C^T H C -> U C^T H C U ^ T
           IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
@@ -259,7 +259,7 @@ CONTAINS
           CALL cp_dbcsr_get_diag(qs_ot_env(ispin)%matrix_buf2,expectation_values(ispin)%array,error=error)
           expectation_values(ispin)%array=expectation_values(ispin)%array-qs_ot_env(ispin)%ener_x
           CALL cp_dbcsr_set_diag(qs_ot_env(ispin)%matrix_buf2,expectation_values(ispin)%array,error=error)
- 
+
           ! get nondiag energy trace (D^T D)
           CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_buf2,qs_ot_env(ispin)%matrix_buf2,trace,error=error)
           ener_nondiag=ener_nondiag+0.5_dp*qs_ot_env(1)%settings%nondiag_energy_strength*trace
@@ -292,7 +292,7 @@ CONTAINS
 
        ! as a preconditioner, one might want to scale only with a constant, not with f(i)
        ! for the convergence criterium, maybe take it back out
-       IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN 
+       IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
           scaling_factor(ispin)%array=2.0_dp
        ENDIF
        CALL cp_dbcsr_scale_by_vector(matrix_dedc_scaled(ispin)%matrix,alpha=scaling_factor(ispin)%array,side='right',error=error)
@@ -493,7 +493,7 @@ CONTAINS
        ENDIF
 
        IF (qs_ot_env(ispin)%settings%do_ener) THEN
-          is_equal=SIZE(qs_ot_env ( ispin ) % ener_x)==SIZE(mo_array(ispin)%mo_set%eigenvalues)   
+          is_equal=SIZE(qs_ot_env ( ispin ) % ener_x)==SIZE(mo_array(ispin)%mo_set%eigenvalues)
           CPPostcondition(is_equal,cp_failure_level,routineP,error,failure)
           qs_ot_env ( ispin ) % ener_x = mo_array(ispin)%mo_set%eigenvalues
        ENDIF
@@ -517,7 +517,7 @@ CONTAINS
           DO ikind = 1, nkind
              local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
              IF ( ASSOCIATED ( local_coeffs ) ) THEN
-                CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  & 
+                CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  &
                      n_els = n_els, ncoef_atom = ncoef_atom, &
                      error = error  )
                 DO i = 1, n_els

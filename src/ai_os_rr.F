@@ -144,7 +144,7 @@ CONTAINS
              DO m=0,mmax-la
                 rr(m,coa,1)=rap(3)*rr(m,coa1z,1)-rcp(3)*rr(m+1,coa1z,1)
              ENDDO
-             IF(az.GT.1) THEN                                                        
+             IF(az.GT.1) THEN
                 DO m=0,mmax-la
                    rr(m,coa,1)=rr(m,coa,1)+g*REAL(az-1,dp)*(rr(m,coa2z,1)-rr(m+1,coa2z,1))
                 ENDDO

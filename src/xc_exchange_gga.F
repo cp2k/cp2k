@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Calculate several different exchange energy functionals
-!>      with a GGA form 
+!>      with a GGA form
 !> \par History
 !>      JGH (26.02.2003) : OpenMP enabled
 !>      fawzi (04.2004)  : adapted to the new xc interface
@@ -51,7 +51,7 @@ MODULE xc_exchange_gga
   REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_exchange_gga'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_exchange_gga'
 
 CONTAINS
 
@@ -65,8 +65,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xgga_info(functional,lsd,reference,shortform, needs, max_deriv, error)
@@ -157,8 +157,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param iparset the parameter set that should be used (93,120,147,407)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xgga_eval(functional,lsd,rho_set,deriv_set,order,error)
@@ -583,7 +583,7 @@ CONTAINS
          fs(ip,1) = 1.0_dp + p*x*x*ys
          fs(ip,2) = ( 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
          fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5.0_dp &
-                    - 2.0_dp*q*sbs) + 2.0_dp*( x*x*(q*q*sas & 
+                    - 2.0_dp*q*sbs) + 2.0_dp*( x*x*(q*q*sas &
                     + 3.0_dp*q - sbs) - sbs))
       CASE (3)
          asp = as + x / sbs
@@ -591,7 +591,7 @@ CONTAINS
          fs(ip,1) = 1.0_dp + p*x*x*ys
          fs(ip,2) = ( 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
          fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5.0_dp &
-                    - 2.0_dp*q*sbs) + 2.0_dp*( x*x*(q*q*sas & 
+                    - 2.0_dp*q*sbs) + 2.0_dp*( x*x*(q*q*sas &
                     + 3.0_dp*q - sbs) - sbs))
       t1 = q*x
       t2 = x**2
@@ -804,7 +804,7 @@ CONTAINS
 
       DO ip=1,SIZE(s)
         x = s(ip)
-        t2 = b**2 
+        t2 = b**2
         t3 = x**2
         t6 = SQRT(o+t2*t3)
         t7 = b*x+t6
@@ -833,7 +833,7 @@ CONTAINS
 
       DO ip=1,SIZE(s)
         x = s(ip)
-        t1 = b**2     
+        t1 = b**2
         t2 = x**2
         t5 = SQRT(o+t1*t2)
         t7 = o/t5*t1
@@ -881,7 +881,7 @@ CONTAINS
 
       DO ip=1,SIZE(s)
         x = s(ip)
-          t1 = b**2 
+          t1 = b**2
           t2 = x**2
           t5 = SQRT(0.1e1_dp+t1*t2)
           t6 = t5**2

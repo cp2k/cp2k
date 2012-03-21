@@ -44,7 +44,7 @@
     TYPE(dbcsr_cuda_mem_type_i8), INTENT(INOUT) :: dev_mem
     TYPE(dbcsr_error_type), INTENT(INOUT), OPTIONAL      :: error
     INTEGER, INTENT(OUT), OPTIONAL                       :: stat
-    
+
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dev_mem_dealloc_l', &
       routineP = moduleN//':'//routineN

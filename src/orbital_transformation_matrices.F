@@ -67,7 +67,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Allocate and initialize the orbital transformation matrices for
 !>         the transformation and for the backtransformation of orbitals
-!>         from the Cartesian representation to the spherical representation. 
+!>         from the Cartesian representation to the spherical representation.
 !> \author  MK
 !> \date    20.05.2004
 !> \version 1.0
@@ -290,8 +290,8 @@ CONTAINS
   END SUBROUTINE deallocate_spherical_harmonics
 
 ! *****************************************************************************
-!> \brief  Initialize or update the orbital transformation matrices. 
-!> \author MK 
+!> \brief  Initialize or update the orbital transformation matrices.
+!> \author MK
 !> \date     09.07.1999
 !> \par Variables
 !>      - maxl   : Maximum angular momentum quantum number
@@ -331,21 +331,21 @@ CONTAINS
        IF (output_unit>0) THEN
 
           DO l=0,maxl
-             
+
              nc = nco(l)
              ns = nso(l)
-             
+
              headline = "SPHERICAL HARMONICS"
              CALL write_matrix(orbtramat(l)%slm,l,output_unit,headline)
-             
+
              headline = "CARTESIAN ORBITAL TO SPHERICAL ORBITAL "//&
                   "TRANSFORMATION MATRIX"
              CALL write_matrix(orbtramat(l)%c2s,l,output_unit,headline)
-             
+
              headline = "SPHERICAL ORBITAL TO CARTESIAN ORBITAL "//&
                   "TRANSFORMATION MATRIX"
              CALL write_matrix(orbtramat(l)%s2c,l,output_unit,headline)
-             
+
           END DO
 
           WRITE (UNIT=output_unit,FMT="(A)") ""

@@ -87,7 +87,7 @@ CONTAINS
             "PRINT%PROGRAM_RUN_INFO", error=error)
        IF(PRESENT(do_update)) do_update=my_do_update
     END IF
-    
+
     CALL timestop(handle)
 
   END SUBROUTINE geoopt_cg
@@ -176,7 +176,7 @@ CONTAINS
           ! Check for an external exit command
           CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
           IF(should_stop) EXIT
-          
+
           ! Some IO and Convergence check
           t_now=m_walltime()
           t_diff=t_now-t_old

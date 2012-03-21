@@ -6,12 +6,12 @@
 ! *****************************************************************************
 !> \brief Manages a pool of grids (to be used for example as tmp objects),
 !>      but can also be used to instantiate grids that are never given back.
-!> 
+!>
 !>      Multigrid pools are just an array of pw_pools
 !> \note
 !>      The pool could also work without pointers (doing = each time),
 !>      but I find it *very* ugly.
-!> 
+!>
 !>      The pool could be integrated into pw_grid_type, I don't know if
 !>      it would be a good or bad idea (but would add a circular dependence
 !>      between pw and pw_grid types).

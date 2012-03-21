@@ -135,7 +135,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(qs_env,rtp_control)
-    
+
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
@@ -147,11 +147,11 @@ CONTAINS
             consistent_energies=.TRUE.,error=error)
        qs_env%run_rtp=.TRUE.
        ALLOCATE(qs_env%rtp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
 
     CASE(use_restart_wfn,use_rt_restart)
-       CALL update_core_and_matrices(qs_env,error)       
+       CALL update_core_and_matrices(qs_env,error)
        DO ispin=1,SIZE(qs_env%mos)
           CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
@@ -162,7 +162,7 @@ CONTAINS
                   error=error)
           END IF
        END DO
-       
+
        IF(qs_env%dft_control%do_admm) THEN
           CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
                error=error)
@@ -182,9 +182,9 @@ CONTAINS
        END IF
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
-       
+
        CALL get_restart_wfn(qs_env,error)
        qs_env%run_rtp=.TRUE.
     END SELECT
@@ -196,10 +196,10 @@ CONTAINS
 
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
     md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
-    CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt,error=error)      
+    CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt,error=error)
     CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=qs_env%rtp%i_start,error=error)
     CALL section_vals_val_get(md_section,"STEPS",i_val=rtp%nsteps,error=error)
-    
+
 
     IF(rtp_control%fixed_ions)THEN
        CALL init_propagation_run(qs_env,error)
@@ -234,14 +234,14 @@ CONTAINS
          mos=mos,&
          rtp=rtp,&
          error=error)
-    rtp_control=>qs_env%dft_control%rtp_control 
+    rtp_control=>qs_env%dft_control%rtp_control
     CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
-    
+
     IF(rtp_control%initial_wfn==use_scf_wfn)THEN
       IF (rtp_control%apply_delta_pulse) THEN
          IF (rtp_control%periodic) THEN
            CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
-         ELSE 
+         ELSE
            CALL apply_delta_pulse(qs_env,mos_old,mos_new,error)
          ENDIF
       ELSE
@@ -323,7 +323,7 @@ CONTAINS
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,mat_ks,error=error)
        CALL cp_fm_cholesky_reduce(mat_ks,S_chol,error=error)
        CALL cp_fm_syevd(mat_ks,mat_tmp,eigenvalues,error)
-       CALL cp_fm_cholesky_restore(mat_tmp,nrow_global,S_chol,eigenvectors,"SOLVE",error=error) 
+       CALL cp_fm_cholesky_restore(mat_tmp,nrow_global,S_chol,eigenvectors,"SOLVE",error=error)
 
        ! virtuals
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
@@ -344,8 +344,8 @@ CONTAINS
 
        ! the momentum operator (in a given direction)
        CALL cp_fm_set_all( mos_new(2*ispin-1)%matrix,0.0_dp,error=error)
-       
-       ! the prefactor (strength of the electric field)   
+
+       ! the prefactor (strength of the electric field)
        kvec(:) = cell%h_inv(1,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(1)+&
                  cell%h_inv(2,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(2)+&
                  cell%h_inv(3,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(3)
@@ -379,7 +379,7 @@ CONTAINS
        ! now obtain the initial condition in mos_old
        CALL cp_fm_to_fm(eigenvectors,mos_old(2*ispin-1)%matrix,nmo,1,1)
        CALL cp_fm_gemm("N","N",nao,nmo,nvirt,1.0_dp,virtuals,momentum,0.0_dp,mos_old(2*ispin)%matrix,error=error)
- 
+
        CALL cp_fm_release(virtuals, error=error)
        CALL cp_fm_release(momentum, error=error)
 
@@ -516,7 +516,7 @@ CONTAINS
     CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
     CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
 
-    ! apply inv(S)*operator to C 
+    ! apply inv(S)*operator to C
     DO i=1,SIZE(mos)
        CALL get_mo_set(mos(i)%mo_set, nao=nao,nmo=nmo)
        CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i-1)%matrix, ncol=nmo, error=error)
@@ -638,13 +638,13 @@ CONTAINS
 
      qs_env%dft_control%rtp_control%initial_step=.FALSE.
      rtp%energy_old=energy%total
-     
-    
+
+
   END SUBROUTINE init_ehrenfest_md
 
 ! *****************************************************************************
 !> \brief performes the real RTP run, gets information from MD section
-!>        uses MD as iteration level 
+!>        uses MD as iteration level
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -674,12 +674,12 @@ CONTAINS
     failure=.FALSE.
     should_stop=.FALSE.
     CALL timeset(routineN,handle)
-    logger   => cp_error_get_logger(error) 
+    logger   => cp_error_get_logger(error)
     max_steps=qs_env%rtp%nsteps
     max_iter=qs_env%dft_control%rtp_control%max_iter
     eps_ener=qs_env%dft_control%rtp_control%eps_ener
-   
- 
+
+
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,energy=energy,error=error)
     aspc_order=qs_env%dft_control%rtp_control%aspc_order
 
@@ -689,7 +689,7 @@ CONTAINS
                  mos_old=mos_old,&
                  mos_new=mos_new,&
                  error=error)
-                 
+
     rtp%energy_old=energy%total
     time_iter_start=m_walltime()
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
@@ -716,7 +716,7 @@ CONTAINS
 
           IF(rtp%converged)EXIT
           CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error=error)
-          
+
        END DO
 
        IF(rtp%converged)THEN
@@ -767,10 +767,10 @@ CONTAINS
     root_section => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     rt_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
-    CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart,error=error) 
+    CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart,error=error)
     ! coming from RTP
     IF (.NOT. PRESENT(md_env)) THEN
-     CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step,error=error) 
+     CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step,error=error)
     ENDIF
 
     CALL write_restart(md_env=md_env,root_section=root_section,error=error)

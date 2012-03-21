@@ -7,7 +7,7 @@
 !> \brief module that contains the algorithms to perform an itrative
 !>         diagonalization by the block-Davidson approach
 !>         P. Blaha, et al J. Comp. Physics, 229, (2010), 453-460
-!>         \Iterative diagonalization in augmented plane wave based 
+!>         \Iterative diagonalization in augmented plane wave based
 !>              methods in electronic structure calculations\
 !> \par History
 !>      05.2011 created [MI]
@@ -97,7 +97,7 @@ CONTAINS
          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%SPARSE_MOS",&
              l_val=bdav_env(ispin)%use_sparse_mos,error=error)
 
-        END DO 
+        END DO
       END IF
     END IF
 
@@ -171,7 +171,7 @@ CONTAINS
 !        CALL cp_fm_release(bdav_env(ispin)%W_block_mat,error=error)
 !        CALL cp_fm_release(bdav_env(ispin)%H_block_vec,error=error)
 
-      END DO 
+      END DO
 
     END IF
 
@@ -205,7 +205,7 @@ CONTAINS
 !        CALL cp_fm_release(bdav_env(ispin)%W_block_mat,error=error)
 !        CALL cp_fm_release(bdav_env(ispin)%H_block_vec,error=error)
 
-      END DO 
+      END DO
       DEALLOCATE(bdav_env,STAT=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 

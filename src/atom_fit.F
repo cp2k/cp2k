@@ -97,7 +97,7 @@ CONTAINS
 
     ostate%state = 0
     IF ( iunit > 0 ) THEN
-      WRITE(iunit,'(/," POWELL| Start optimization procedure")') 
+      WRITE(iunit,'(/," POWELL| Start optimization procedure")')
     END IF
     n10 = ostate%maxfun/10
 
@@ -736,7 +736,7 @@ CONTAINS
       CALL put_pseudo_param(x,ppot%gth_pot,error)
       CALL pseudo_fit(atom_info,ppot,ostate%f,pval,error)
 
-      WRITE(iunit,'(/," POWELL| Final errors of target values")') 
+      WRITE(iunit,'(/," POWELL| Final errors of target values")')
       DO i=1,SIZE(atom_info,1)
         DO j=1,SIZE(atom_info,2)
           atom => atom_info(i,j)%atom
@@ -1173,7 +1173,7 @@ CONTAINS
     END IF
     nval = ival
 
-  END SUBROUTINE get_pseudo_param 
+  END SUBROUTINE get_pseudo_param
 
   SUBROUTINE put_pseudo_param (pvec,gthpot,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: pvec

@@ -432,7 +432,7 @@ CONTAINS
     qeff_mol = 0.0_dp
     qeff_sum = 0.0_dp
     mass_sum = 0.0_dp
-    
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Sum of [qeff,mass] for each molecule_kind
@@ -1359,7 +1359,7 @@ CONTAINS
           nblank = COUNT(my_par_tmp=="")
           CALL reallocate(my_par, 1, isize+SIZE(my_par_tmp)-nblank)
           ind = 0
-          DO j = 1, SIZE(my_par_tmp) 
+          DO j = 1, SIZE(my_par_tmp)
              IF (my_par_tmp(j)=="") CYCLE
              ind = ind + 1
              my_par(isize+ind)=my_par_tmp(j)

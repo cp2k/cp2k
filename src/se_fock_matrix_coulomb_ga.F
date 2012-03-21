@@ -5,14 +5,14 @@
 
 ! *****************************************************************************
 !> \brief Module that collects all Coulomb parts of the fock matrix construction
-!>        
+!>
 !> \author Teodoro Laino (05.2009) [tlaino] - split and module reorganization
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : d-orbitals
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Speed-up
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Periodic SE
 !>      Teodoro Laino (05.2009) [tlaino] - Stress Tensor
-!>      
+!>
 ! *****************************************************************************
 MODULE se_fock_matrix_coulomb_ga
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -92,12 +92,12 @@ MODULE se_fock_matrix_coulomb_ga
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb_ga'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
-  
+
   PUBLIC :: build_fock_matrix_coulomb, build_fock_matrix_coulomb_lr,&
             build_fock_matrix_coul_lr_r3
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
 !> \author JGH
@@ -171,14 +171,14 @@ CONTAINS
        NULLIFY(dft_control,cell,force,particle_set,&
                se_control,se_taper,ga_env,pbuff_a, &
                pbuff_b, ksbuff_a, ksbuff_b, ks_i, ks_j, dens_i_info, dens_j_info )
-       
+
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, atomic_kind_set=atomic_kind_set, &
             particle_set=particle_set, virial=virial, ga_env=ga_env,  error=error)
-       
+
 ! GA option:  Get the GA info
        CALL get_ga_env ( ga_env, se_dims=se_dims, error=error )
-      
+
        ! Parameters
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
@@ -202,7 +202,7 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
-       
+
        nkind = SIZE(atomic_kind_set)
        IF(calculate_forces) THEN
           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -214,7 +214,7 @@ CONTAINS
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
-! Allocate local GA 
+! Allocate local GA
        CALL se_ga_put_pmatrix ( matrix_p ( 1 ) % matrix, ga_env, error )
        CALL se_allocate_local_ga ( pbuff_a, se_dims ( 2 ) , error )
        CALL se_allocate_local_ga ( pbuff_b, se_dims ( 2 ) , error )
@@ -237,7 +237,7 @@ CONTAINS
 
        nbins = ga_env % ncells
        npairs = ga_env % npairs
-       nbin_min = INT ( REAL ( npairs, dp ) * ( REAL ( para_env % mepos, dp ) / REAL ( para_env % num_pe, dp ) ) ) + 1 
+       nbin_min = INT ( REAL ( npairs, dp ) * ( REAL ( para_env % mepos, dp ) / REAL ( para_env % num_pe, dp ) ) ) + 1
        nbin_max = INT ( REAL ( npairs, dp ) * ( REAL ( para_env % mepos + 1, dp ) / REAL ( para_env % num_pe, dp ) ) )
        IF ( nbin_max > npairs ) nbin_max = npairs
 !       CALL se_ga_get_nbin ( ga_env % g_cnt, nbin, .TRUE. )
@@ -256,7 +256,7 @@ CONTAINS
 !         CALL se_ga_get_nbin ( ga_env % g_cnt, nbin )
          CALL se_ga_allocate_local_info ( ga_env, dens_i_info, dens_j_info, &
                                           ks_i, ks_j, ibin, jbin, isize, jsize,  &
-                                          ioff, joff, error ) 
+                                          ioff, joff, error )
          IF ( ( isize == 0 ) .OR. ( jsize == 0 ) ) CYCLE
 !          WRITE ( *, * ) para_env%mepos,":ibin", ibin, ioff, isize
 !          WRITE ( *, * ) para_env%mepos,":jbin", jbin, joff, jsize
@@ -284,14 +284,14 @@ CONTAINS
              natorb_b = se_natorb(jkind)
              natorb_a2 = natorb_a**2
              natorb_b2 = natorb_b**2
- 
+
 ! GA option returns pa_block_a
-             DO l=1,natorb_a 
-               DO k=1,natorb_a 
+             DO l=1,natorb_a
+               DO k=1,natorb_a
                  pbuff_a ( k, l ) =  dens_i_info ( 5 + ( l - 1 ) * natorb_a + k, iblock )
                END DO
              END DO
-             pa_block_a => pbuff_a                     
+             pa_block_a => pbuff_a
              ksa_block_a => ksbuff_a
              ksbuff_a = 0.0_dp
 
@@ -301,7 +301,7 @@ CONTAINS
               !END DO
 
              p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a ( 1:natorb_a,1:natorb_a)
-             pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
+             pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/))
 
              dr1 = DOT_PRODUCT(rij,rij)
              IF ( dr1 > ga_env % rcoul **2 ) CYCLE
@@ -315,12 +315,12 @@ CONTAINS
                END IF
                ipairs = ipairs + 1
 ! GA option returns pb_block_a
-               DO l=1,natorb_b 
-                 DO k=1,natorb_b 
+               DO l=1,natorb_b
+                 DO k=1,natorb_b
                    pbuff_b ( k, l ) =  dens_j_info ( 5 + ( l - 1 ) * natorb_b + k, jblock )
                  END DO
                END DO
-               pb_block_a => pbuff_b                     
+               pb_block_a => pbuff_b
                ksb_block_a => ksbuff_b
                ksbuff_b = 0.0_dp
                  !WRITE ( *,  * ) para_env%mepos,':pb_block_a', jatom, jsize
@@ -329,7 +329,7 @@ CONTAINS
                  !END DO
 
                p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a ( 1:natorb_b,1:natorb_b)
-               pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
+               pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/))
 
                SELECT CASE (dft_control%qs_control%method_id)
                CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
@@ -389,26 +389,26 @@ CONTAINS
                  END IF
 
 ! GA option: accumulates ksa_block_a and ksb_block_a
-                 DO l=1,natorb_a 
-                   DO k=1,natorb_a 
+                 DO l=1,natorb_a
+                   DO k=1,natorb_a
                      ks_i ( k, l, iblock ) =  ks_i ( k, l, iblock ) + ksbuff_a( k, l )
                    END DO
                  END DO
 
                    !WRITE( *, * ) para_env%mepos,":KS_I ", iblock, iatom
-                   !DO k=1,natorb_a 
-                   !   WRITE ( *, * ) (  SNGL ( ks_i ( k, l, iblock ) ), l = 1, natorb_a ) 
+                   !DO k=1,natorb_a
+                   !   WRITE ( *, * ) (  SNGL ( ks_i ( k, l, iblock ) ), l = 1, natorb_a )
                    !END DO
 
-                 DO l=1,natorb_b 
-                   DO k=1,natorb_b 
+                 DO l=1,natorb_b
+                   DO k=1,natorb_b
                      ks_j ( k, l, jblock ) =  ks_j ( k, l, jblock ) + ksbuff_b( k, l )
                    END DO
                  END DO
 
                    !WRITE( *, * ) para_env%mepos,":KS_j ", jblock, jatom
-                   !DO k=1,natorb_b 
-                   !   WRITE ( *, * ) (  SNGL ( ks_j ( k, l, jblock ) ), l = 1, natorb_b ) 
+                   !DO k=1,natorb_b
+                   !   WRITE ( *, * ) (  SNGL ( ks_j ( k, l, jblock ) ), l = 1, natorb_b )
                    !END DO
 
                  IF(calculate_forces) THEN
@@ -436,10 +436,10 @@ CONTAINS
             ! Sum up force components
                    force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
                    force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
- 
+
                    force(ikind)%all_potential(2,atom_a) = force(ikind)%all_potential(2,atom_a) - force_ab(2)
                    force(jkind)%all_potential(2,atom_b) = force(jkind)%all_potential(2,atom_b) + force_ab(2)
- 
+
                    force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
                    force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
 
@@ -447,18 +447,18 @@ CONTAINS
                    force_ab = 0._dp
                    IF      ( nspins == 1 ) THEN
                       CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.25_dp,&
-                                   anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, & 
+                                   anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, &
                                    delta=delta, error=error)
                    ELSE IF ( nspins == 2 ) THEN
                       CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
                                    anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, &
                                    delta=delta, error=error)
-               
+
                       CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
                                    anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, &
                                    delta=delta, error=error)
                    END IF
-                   IF ( switch ) THEN 
+                   IF ( switch ) THEN
                       force_ab(1) = -force_ab(1)
                       force_ab(2) = -force_ab(2)
                       force_ab(3) = -force_ab(3)
@@ -469,10 +469,10 @@ CONTAINS
             ! Sum up force components
                    force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
                    force(jkind)%rho_elec(1,atom_b) = force(jkind)%rho_elec(1,atom_b) + force_ab(1)
- 
+
                    force(ikind)%rho_elec(2,atom_a) = force(ikind)%rho_elec(2,atom_a) - force_ab(2)
                    force(jkind)%rho_elec(2,atom_b) = force(jkind)%rho_elec(2,atom_b) + force_ab(2)
- 
+
                    force(ikind)%rho_elec(3,atom_a) = force(ikind)%rho_elec(3,atom_a) - force_ab(3)
                    force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
                 END IF
@@ -502,7 +502,7 @@ CONTAINS
                 END IF
              ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
-                   CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,& 
+                   CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,&
                         factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                         store_int_env=store_int_env, error=error)
                 ELSE IF ( nspins == 2 ) THEN
@@ -533,17 +533,17 @@ CONTAINS
     CALL se_deallocate_local_ga ( ksbuff_a, error=error )
     CALL se_deallocate_local_ga ( ksbuff_b, error=error )
 
-    IF (calculate_forces) THEN 
+    IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-       
+
   ! Two-centers one-electron terms
-    CALL mp_sum(ecore2,para_env%group)       
+    CALL mp_sum(ecore2,para_env%group)
     energy%hartree = ecore2 - energy%core
 
   END IF
-  CALL finalize_se_taper(se_taper,error=error)    
+  CALL finalize_se_taper(se_taper,error=error)
   CALL mp_sum ( ipairs, para_env%group )
   IF ( para_env % ionode ) WRITE ( *, * ) 'IPAIRS =', ipairs
 
@@ -557,7 +557,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, matrix_p, energy,&
        calculate_forces, store_int_env, error)
-   
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
@@ -628,7 +628,7 @@ CONTAINS
             error=error)
 ! GA option: get GA info
        CALL get_ga_env ( ga_env, se_dims=se_dims, error=error )
-       
+
        natoms           = SIZE(particle_set)
        nlocal_particles = SUM(local_particles%n_el(:))
 
@@ -649,14 +649,14 @@ CONTAINS
        anag       =  se_control%analytical_gradients
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
        atener      = qs_env%atprop%energy
-       
+
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
        nkind=SIZE(atomic_kind_set)
 
-! Allocate local GA 
+! Allocate local GA
 !       CALL se_ga_put_pmatrix ( matrix_p ( 1 ) % matrix, ga_env, error )
        CALL se_allocate_local_ga ( pbuff_a, se_dims ( 2 ) , error )
        CALL se_allocate_local_ga ( ksbuff_a, se_dims ( 2 ) , error )
@@ -694,7 +694,7 @@ CONTAINS
        CASE DEFAULT
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-       
+
        enuc = 0.0_dp
        energy%core_overlap      = 0.0_dp
        se_nddo_mpole%charge     = 0.0_dp
@@ -710,7 +710,7 @@ CONTAINS
            ibin = MOD(nbin,nbins)
            ibin = ibin + 1
            CALL se_ga_get_nbin ( ga_env % g_cnt, nbin )
-           CALL se_ga_allocate_local_info ( ga_env,dens_i_info=dens_i_info,ibin=ibin, isize=isize, error=error ) 
+           CALL se_ga_allocate_local_info ( ga_env,dens_i_info=dens_i_info,ibin=ibin, isize=isize, error=error )
            IF ( isize == 0 ) CYCLE
            DO iblock = 1, isize
              ikind = INT ( dens_i_info ( 1, iblock )  )
@@ -721,13 +721,13 @@ CONTAINS
 
 
              IF (.NOT.defined .OR. natorb_a < 1) CYCLE
-             DO l=1,natorb_a 
-               DO k=1,natorb_a 
+             DO l=1,natorb_a
+               DO k=1,natorb_a
                  pbuff_a ( k, l ) =  dens_i_info ( 5 + ( l - 1 ) * natorb_a + k, iblock )
                END DO
              END DO
-             pa_block_a => pbuff_a                     
-             
+             pa_block_a => pbuff_a
+
              ! Nuclei
              IF (task(1).AND.ispin==1) se_nddo_mpole%charge(iatom)   = se_kind_a%zeff
              ! Electrons
@@ -753,7 +753,7 @@ CONTAINS
                    se_nddo_mpole%dipole(:,iatom)        = se_nddo_mpole%dipole(:,iatom) +&
                                                           fac*pa_block_a(indi,indj)*mpole%d(:)
                 END IF
-                
+
                 ! Quadrupole
                 IF (mpole%task(3).AND.task(3)) THEN
                    qsph = fac*mpole%qs * pa_block_a(indi,indj)
@@ -785,12 +785,12 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
        IF(calculate_forces) THEN
           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-             
+
           ! Allocate atom index for kind
           ALLOCATE (atom_of_kind(natoms),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
-             
+
           ! Allocate and zeroing arrays
           ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -830,7 +830,7 @@ CONTAINS
                   iw=iw, do_debug=.TRUE.,error=error)
        END IF
        CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
-       
+
 !       ! Apply correction only when the Integral Scheme is different from Slater
 !       IF ((se_control%integral_screening/=do_se_IS_slater).AND.(.NOT.debug_this_module)) THEN
 !          CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
@@ -860,7 +860,7 @@ CONTAINS
          ibin = MOD(nbin,nbins)
          ibin = ibin + 1
          CALL se_ga_get_nbin ( ga_env % g_cnt, nbin )
-         CALL se_ga_allocate_local_info (ga_env,dens_i_info,ks_i,ibin,isize,ioff,error) 
+         CALL se_ga_allocate_local_info (ga_env,dens_i_info,ks_i,ibin,isize,ioff,error)
          IF ( isize == 0 ) CYCLE
          DO iblock = 1, isize
            ikind = INT ( dens_i_info ( 1, iblock )  )
@@ -868,9 +868,9 @@ CONTAINS
            atomic_kind => atomic_kind_set(ikind)
            CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
            CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
-             
+
            IF (.NOT.defined .OR. natorb_a < 1) CYCLE
-             
+
            ksa_block_a => ksbuff_a
            ksbuff_a = 0.0_dp
 
@@ -888,24 +888,24 @@ CONTAINS
                IF (mpole%task(1).AND.task(1)) THEN
                   tmp   = tmp + mpole%c*se_nddo_mpole%efield0(iatom)
                END IF
-                   
+
                ! Dipole
                IF (mpole%task(2).AND.task(2)) THEN
                   tmp   = tmp - DOT_PRODUCT(mpole%d,se_nddo_mpole%efield1(:,iatom))
                END IF
-                   
+
                ! Quadrupole
                IF (mpole%task(3).AND.task(3)) THEN
                   tmp   = tmp - (1.0_dp/3.0_dp) * SUM(mpole%qc * RESHAPE(se_nddo_mpole%efield2(:,iatom),(/3,3/)))
                END IF
-                   
+
                ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
                ksa_block_a(indj, indi) = ksa_block_a(indi, indj)
              END DO
-! GA option: accumulates ksa_block_a 
-  
-             DO l=1,natorb_a 
-               DO k=1,natorb_a 
+! GA option: accumulates ksa_block_a
+
+             DO l=1,natorb_a
+               DO k=1,natorb_a
                  ks_i ( k, l, iblock ) =  ks_i ( k, l, iblock ) + ksbuff_a( k, l )
                END DO
              END DO
@@ -919,10 +919,10 @@ CONTAINS
              IF(calculate_forces) THEN
                 atom_a   = atom_of_kind(iatom)
 ! GA forces_r contains both global and local (e.g. g-space) contributions
-                force_a  = forces_r(1:3,iatom) 
+                force_a  = forces_r(1:3,iatom)
                 ! Derivatives of the periodic Coulomb Terms
                 force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_a(:)
-             END IF                
+             END IF
            END DO ! spins
          END DO ! iblock
          CALL se_ga_ks_accumulate ( ga_env, ks_i, ioff, isize )
@@ -942,7 +942,7 @@ CONTAINS
        CALL se_deallocate_local_ga ( pbuff_a, error=error )
        CALL se_deallocate_local_ga ( ksbuff_a, error=error )
 
-       IF (calculate_forces) THEN 
+       IF (calculate_forces) THEN
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(forces_g,stat=stat)
@@ -1030,12 +1030,12 @@ CONTAINS
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper, &
             efield0, efield1, efield2,ga_env)
-       
+
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, atomic_kind_set=atomic_kind_set, &
             particle_set=particle_set, ga_env=ga_env, error=error)
 
-       CALL get_ga_env ( ga_env, se_dims = se_dims, error = error ) 
+       CALL get_ga_env ( ga_env, se_dims = se_dims, error = error )
 
        ! Parameters
        CALL initialize_se_taper(se_taper,lr_corr=.TRUE.,error=error)
@@ -1078,20 +1078,20 @@ CONTAINS
        ALLOCATE (efield2(size1,size2), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        efield2 = 0.0_dp
-       
+
        ! Initialize if virial is requested
-       IF (use_virial) THEN 
+       IF (use_virial) THEN
           ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
           ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
           ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
        END IF
-       
+
        ! Start of the loop for the correction of the pair interactions
        ecore2   = 0.0_dp
        enuclear = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
 
-! Allocate local GA 
+! Allocate local GA
 !       CALL se_ga_put_pmatrix ( matrix_p ( 1 ) % matrix, ga_env, error )
        CALL se_allocate_local_ga ( pbuff_a, se_dims ( 2 ) , error )
        CALL se_allocate_local_ga ( pbuff_b, se_dims ( 2 ) , error )
@@ -1115,13 +1115,13 @@ CONTAINS
        CALL ga_zero ( ga_env%g_ks )
        DO WHILE (nbin.lt.nbins**2)
           ibin = MOD(nbin,nbins)
-          jbin = (nbin-ibin)/nbins 
+          jbin = (nbin-ibin)/nbins
           IF (jbin > ibin) CYCLE
           ibin = ibin + 1
           jbin = jbin + 1
           CALL se_ga_allocate_local_info ( ga_env, dens_i_info, dens_j_info, &
                                            ks_i, ks_j, ibin, jbin, isize, jsize,  &
-                                           ioff, joff, error ) 
+                                           ioff, joff, error )
 
 ! loop through atoms in i and j blocks and evaluate pair contributions to KS matrix
           DO jblock = 1, jsize
@@ -1144,17 +1144,17 @@ CONTAINS
               natorb_b2 = natorb_b**2
 
 ! GA option returns pa_block_a
-              DO l=1,natorb_a 
-                DO k=1,natorb_a 
+              DO l=1,natorb_a
+                DO k=1,natorb_a
                   pbuff_a ( k, l ) =  dens_i_info ( 5 + ( l - 1 ) * natorb_a + k, iblock )
                 END DO
               END DO
-              pa_block_a => pbuff_a                     
+              pa_block_a => pbuff_a
               ksa_block_a => ksbuff_a
               ksbuff_a = 0.0_dp
 
               p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a ( 1:natorb_a, 1:natorb_a )
-              pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
+              pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/))
 
               dr1 = DOT_PRODUCT(rij,rij)
               IF ( dr1 > rij_threshold ) THEN
@@ -1173,19 +1173,19 @@ CONTAINS
                       rab2=dr1, rab=rij, ptens11=ptens11, ptens12=ptens12, ptens13=ptens13,&
                       ptens21=ptens21, ptens22=ptens22, ptens23=ptens23, ptens31=ptens31,&
                       ptens32=ptens32, ptens33=ptens33, error=error)
-             
+
 ! GA option returns pb_block_a
-                 DO l=1,natorb_b 
-                   DO k=1,natorb_b 
+                 DO l=1,natorb_b
+                   DO k=1,natorb_b
                      pbuff_b ( k, l ) =  dens_i_info ( 5 + ( l - 1 ) * natorb_b + k, jblock )
                    END DO
                  END DO
-                 pb_block_a => pbuff_b                     
+                 pb_block_a => pbuff_b
                  ksb_block_a => ksbuff_b
                  ksbuff_b = 0.0_dp
 
                  p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a ( 1:natorb_b, 1:natorb_b)
-                 pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
+                 pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/))
             ! Handle more than one configuration
 
                  SELECT CASE (dft_control%qs_control%method_id)
@@ -1234,14 +1234,14 @@ CONTAINS
                     END IF
 
 ! GA option: accumulates ksa_block_a and ksb_block_a
-                    DO l=1,natorb_a 
-                      DO k=1,natorb_a 
+                    DO l=1,natorb_a
+                      DO k=1,natorb_a
                         ks_i ( k, l, iblock ) =  ks_i ( k, l, iblock ) + ksbuff_a( k, l )
                      END DO
                     END DO
- 
-                    DO l=1,natorb_b 
-                      DO k=1,natorb_b 
+
+                    DO l=1,natorb_b
+                      DO k=1,natorb_b
                         ks_j ( k, l, jblock ) =  ks_j ( k, l, jblock ) + ksbuff_b( k, l )
                      END DO
                     END DO
@@ -1281,7 +1281,7 @@ CONTAINS
 
                        force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
                        force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
-    
+
                    ! Derivatives of the Coulomb Terms
                    force_ab = 0._dp
                        IF      ( nspins == 1 ) THEN
@@ -1292,12 +1292,12 @@ CONTAINS
                           CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
                                anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                error=error)
-                      
+
                           CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
                                anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                error=error)
                        END IF
-                       IF ( switch ) THEN 
+                       IF ( switch ) THEN
                           force_ab(1) = -force_ab(1)
                           force_ab(2) = -force_ab(2)
                           force_ab(3) = -force_ab(3)
@@ -1323,7 +1323,7 @@ CONTAINS
            END DO ! loop over iblock
          END DO   ! loop over jblock
          CALL se_ga_ks_accumulate ( ga_env, ks_i, ks_j, ioff, joff, isize, jsize )
-         CALL se_ga_deallocate_local_info ( dens_i_info, dens_j_info,  & 
+         CALL se_ga_deallocate_local_info ( dens_i_info, dens_j_info,  &
                                             ks_i, ks_j, error )
          CALL se_ga_get_nbin ( ga_env % g_cnt, nbin )
        END DO
@@ -1344,7 +1344,7 @@ CONTAINS
           pv_glob(3,3) = pv_glob(3,3) +  ptens33
        END IF
 
-       IF (calculate_forces) THEN 
+       IF (calculate_forces) THEN
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
@@ -1363,7 +1363,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (efield2, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        ! Corrections for two-centers one-electron terms + nuclear terms
        CALL mp_sum(enuclear,para_env%group)
        CALL mp_sum(ecore2,para_env%group)
@@ -1378,12 +1378,12 @@ CONTAINS
        CALL se_deallocate_local_ga ( ksbuff_a, error=error )
        CALL se_deallocate_local_ga ( ksbuff_b, error=error )
     END IF
-    CALL finalize_se_taper(se_taper,error=error)    
+    CALL finalize_se_taper(se_taper,error=error)
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coul_lrc
 
 ! *****************************************************************************
-!> \brief Construction of the residual part (1/R^3) of the Coulomb long-range 
+!> \brief Construction of the residual part (1/R^3) of the Coulomb long-range
 !>        term of the Fock matrix
 !>        The 1/R^3 correction works in real-space strictly on the zero-cell,
 !>        in order to avoid more parameters to be provided in the input..
@@ -1465,7 +1465,7 @@ CONTAINS
 
 ! GA option:  Get the GA info
        CALL get_ga_env ( ga_env, se_dims=se_dims, error=error )
-       
+
        nlocal_particles = SUM(local_particles%n_el(:))
        natoms           = SIZE(particle_set)
        CALL ewald_env_get (ewald_env, ewald_type=ewald_type, error=error)
@@ -1483,12 +1483,12 @@ CONTAINS
        se_control => dft_control%qs_control%se_control
        anag       =  se_control%analytical_gradients
        atener     =  qs_env%atprop%energy
-       
+
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-       
-       
+
+
        nkind = SIZE(atomic_kind_set)
 
        ! Possibly compute forces
@@ -1498,7 +1498,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
-! Allocate local GA 
+! Allocate local GA
        CALL se_ga_put_pmatrix ( matrix_p ( 1 ) % matrix, ga_env, error )
        CALL se_allocate_local_ga ( pbuff_a, se_dims ( 2 ) , error )
        CALL se_allocate_local_ga ( pbuff_b, se_dims ( 2 ) , error )
@@ -1528,13 +1528,13 @@ CONTAINS
        CALL ga_zero ( ga_env%g_ks )
        DO WHILE (nbin.lt.nbins**2)
           ibin = MOD(nbin,nbins)
-          jbin = (nbin-ibin)/nbins 
+          jbin = (nbin-ibin)/nbins
           IF (jbin > ibin) CYCLE
           ibin = ibin + 1
           jbin = jbin + 1
           CALL se_ga_allocate_local_info ( ga_env, dens_i_info, dens_j_info, &
                                            ks_i, ks_j, ibin, jbin, isize, jsize,  &
-                                           ioff, joff, error ) 
+                                           ioff, joff, error )
 ! loop through atoms in i and j blocks and evaluate pair
 ! contributions to KS matrix
           DO jblock = 1, jsize
@@ -1557,18 +1557,18 @@ CONTAINS
               natorb_a2 = natorb_a**2
               natorb_b2 = natorb_b**2
 ! GA option returns pa_block_a
-              DO l=1,natorb_a 
-                DO k=1,natorb_a 
+              DO l=1,natorb_a
+                DO k=1,natorb_a
                   pbuff_a ( k, l ) =  dens_i_info ( 5 + ( l - 1 ) * natorb_a + k, iblock )
                 END DO
               END DO
-              pa_block_a => pbuff_a                     
+              pa_block_a => pbuff_a
               ksa_block_a => ksbuff_a
               ksbuff_a = 0.0_dp
 
               p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
-              pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
- 
+              pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/))
+
               dr1 = DOT_PRODUCT(rij,rij)
               IF ( dr1 > rij_threshold ) THEN
              ! Determine the order of the atoms, and in case switch them..
@@ -1578,16 +1578,16 @@ CONTAINS
                    switch = .TRUE.
                 END IF
 ! GA option returns pb_block_a
-                DO l=1,natorb_b 
-                  DO k=1,natorb_b 
+                DO l=1,natorb_b
+                  DO k=1,natorb_b
                     pbuff_b ( k, l ) =  dens_i_info ( 5 + ( l - 1 ) * natorb_b + k, jblock )
                   END DO
                 END DO
-                pb_block_a => pbuff_b                     
+                pb_block_a => pbuff_b
                 ksb_block_a => ksbuff_b
                 ksbuff_b = 0.0_dp
                 p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
-                pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
+                pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/))
              ! Handle more than one configuration
 
                 SELECT CASE (dft_control%qs_control%method_id)
@@ -1636,14 +1636,14 @@ CONTAINS
                            error=error)
                    END IF
 ! GA option: accumulates ksa_block_a and ksb_block_a
-                   DO l=1,natorb_a 
-                     DO k=1,natorb_a 
+                   DO l=1,natorb_a
+                     DO k=1,natorb_a
                        ks_i ( k, l, iblock ) =  ks_i ( k, l, iblock ) + ksbuff_a( k, l )
                     END DO
                    END DO
 
-                   DO l=1,natorb_b 
-                     DO k=1,natorb_b 
+                   DO l=1,natorb_b
+                     DO k=1,natorb_b
                        ks_j ( k, l, jblock ) =  ks_j ( k, l, jblock ) + ksbuff_b( k, l )
                     END DO
                    END DO
@@ -1688,7 +1688,7 @@ CONTAINS
                       ELSE IF ( nspins == 2 ) THEN
                          CALL dfock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
                               w=se_kind_a%expns3_int(jkind)%expns3%w, drp=dr3inv, force=force_ab, error=error)
-                      
+
                          CALL dfock2C_r3(se_kind_a, se_kind_b, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
                               w=se_kind_a%expns3_int(jkind)%expns3%w, drp=dr3inv, force=force_ab, error=error)
                       END IF
@@ -1710,7 +1710,7 @@ CONTAINS
             END DO ! loop over iblock
           END DO ! loop over jblock
           CALL se_ga_ks_accumulate ( ga_env, ks_i, ks_j, ioff, joff, isize, jsize )
-          CALL se_ga_deallocate_local_info ( dens_i_info, dens_j_info,  & 
+          CALL se_ga_deallocate_local_info ( dens_i_info, dens_j_info,  &
                                              ks_i, ks_j, error )
           CALL se_ga_get_nbin ( ga_env % g_cnt, nbin )
        END DO
@@ -1726,18 +1726,18 @@ CONTAINS
        CALL se_deallocate_local_ga ( ksbuff_a, error=error )
        CALL se_deallocate_local_ga ( ksbuff_b, error=error )
 
-       IF (calculate_forces) THEN 
+       IF (calculate_forces) THEN
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
+
        ! Two-centers one-electron terms
-       CALL mp_sum(ecore2,para_env%group)       
+       CALL mp_sum(ecore2,para_env%group)
        energy%hartree = energy%hartree + ecore2
     END IF
 
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coul_lr_r3
-  
+
 END MODULE se_fock_matrix_coulomb_ga
 

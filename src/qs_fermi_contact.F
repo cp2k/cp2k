@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Distribution of the Fermi contact integral matrix. 
+!> \brief Distribution of the Fermi contact integral matrix.
 !> \par History
 !> \author VW (27.02.2009)
 ! *****************************************************************************
@@ -61,7 +61,7 @@ MODULE qs_fermi_contact
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   Calculation of the Fermi contact matrix over Cartesian 
+!> \brief   Calculation of the Fermi contact matrix over Cartesian
 !>          Gaussian functions.
 !> \author  VW
 !> \date    27.02.2009

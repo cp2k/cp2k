@@ -43,7 +43,7 @@ MODULE scptb_core_interactions
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_core_interactions'
-  
+
   PUBLIC :: scptb_core_interaction
 
 CONTAINS
@@ -148,7 +148,7 @@ CONTAINS
 
                 atom_a = atom_of_kind(iatom)
                 atom_b = atom_of_kind(jatom)
-                
+
                 ! Sum up force components
                 force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
                 force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
@@ -170,15 +170,15 @@ CONTAINS
           enuclear = enuclear + enucij
        END DO
        CALL neighbor_list_iterator_release(nl_iterator)
-    
+
        DEALLOCATE (scptb_kind_param,scptb_defined,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-       IF (calculate_forces) THEN 
+
+       IF (calculate_forces) THEN
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
+
        CALL mp_sum(enuclear,para_env%group)
        energy%repulsive  = enuclear
     END IF
@@ -211,7 +211,7 @@ CONTAINS
 
     x = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
     expa = EXP(-(a*x+b*x*x))
-    
+
     enuc = (c+d*x)*expa
 
     IF(PRESENT(denuc)) THEN
@@ -219,7 +219,7 @@ CONTAINS
        denuc = de * rij/x
     END IF
 
-  END SUBROUTINE corecore 
-  
+  END SUBROUTINE corecore
+
 END MODULE scptb_core_interactions
 

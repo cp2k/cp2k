@@ -124,7 +124,7 @@ CONTAINS
           WRITE(UNIT=baro,FMT="(I10, F20.3,4F20.10)") itimes,time*femtoseconds,&
                baro_kin, temp, baro_pot, cell%deth*angstrom*angstrom*angstrom
           CALL m_flush(baro)
-       END IF        
+       END IF
        CALL cp_print_key_finished_output(baro,logger,barostat%section,"PRINT%ENERGY", error=error)
     END IF
 

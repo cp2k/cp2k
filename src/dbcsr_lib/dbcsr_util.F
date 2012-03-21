@@ -560,7 +560,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets debugging for an individual subroutine depending on the
 !>        value of the bcsr_debug module variable, default initialization in
-!>        the declared subroutine, or 
+!>        the declared subroutine, or
 !> \param[in,out] dbg         debug flag
 !> \param[in] on    (optional) turn debugging on or off in this subroutine
 !> \param[in,out] info        print informational messages (less than debug)
@@ -733,7 +733,7 @@ CONTAINS
        ENDDO
     ENDIF
   END FUNCTION pd_blk_cs
-    
+
 
 ! *****************************************************************************
 !> \brief Verify the correctness of a BCSR matrix.

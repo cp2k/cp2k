@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief interface to use cp2k as library (these are f77 wrappers to the 
+!> \brief interface to use cp2k as library (these are f77 wrappers to the
 !>      f77_interface functions, for a description see in that module)
 !> \note
 !>      I tried to use just integer, real(db), and CHARACTER(len=*) to
@@ -98,7 +98,7 @@ SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr)
   REAL(KIND=dp), DIMENSION(1:N) :: RESULT
   INTEGER :: env_id, ierr
   CHARACTER(LEN=default_string_length) :: description_low
-  
+
   description_low=description
   CALL get_result_r1(env_id,description_low, N, RESULT, ierr)
 
@@ -219,7 +219,7 @@ RECURSIVE SUBROUTINE cp_rep_init(rep_env_id,ierr)
   USE replica_methods, ONLY: rpin => rep_env_init_low
   IMPLICIT NONE
   INTEGER :: rep_env_id,ierr
-  
+
   CALL rpin(rep_env_id,ierr)
 END SUBROUTINE cp_rep_init
 
@@ -228,7 +228,7 @@ RECURSIVE SUBROUTINE cp_rep_destroy(rep_env_id,ierr)
   USE replica_methods, ONLY: rpin => rep_env_destroy_low
   IMPLICIT NONE
   INTEGER :: rep_env_id,ierr
-  
+
   CALL rpin(rep_env_id,ierr)
 END SUBROUTINE cp_rep_destroy
 
@@ -237,7 +237,7 @@ RECURSIVE SUBROUTINE cp_rep_calc_e_f(rep_env_id,calc_f,ierr)
   USE replica_methods, ONLY: rpef => rep_env_calc_e_f_low
   IMPLICIT NONE
   INTEGER :: rep_env_id,calc_f,ierr
-  
+
   CALL rpef(rep_env_id,calc_f,ierr)
 END SUBROUTINE cp_rep_calc_e_f
 
@@ -246,7 +246,7 @@ RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
   USE ep_methods, ONLY: epin => ep_env_init_low
   IMPLICIT NONE
   INTEGER :: ep_env_id, ierr
-  
+
   CALL epin(ep_env_id, ierr)
 END SUBROUTINE cp_ep_init
 
@@ -255,7 +255,7 @@ RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
   USE ep_methods, ONLY: epef => ep_env_calc_e_f_low
   IMPLICIT NONE
   INTEGER :: ep_env_id, calc_f, ierr
-  
+
   CALL epef(ep_env_id, calc_f, ierr)
 END SUBROUTINE cp_ep_calc_e_f
 

@@ -82,7 +82,7 @@ CONTAINS
 !> \param mc_par the mc parameters for the force env
 !> \param force_env the force environment to write the coords from
 !> \param nnstep how many steps the simulation has run
-!> 
+!>
 !>    Only use in serial.
 !> \author MJM
 ! *****************************************************************************
@@ -176,7 +176,7 @@ CONTAINS
 !> \param iw the unit to write an error message to, in case current
 !>            simulation parameters don't match what's in the restart file
 !> \param rng_stream the stream we pull random numbers from
-!> 
+!>
 !>      Used in parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -367,7 +367,7 @@ CONTAINS
 !> \param force_env the force environment to create
 !> \param globenv the global environment parameters
 !> \param error the CP error structure
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -442,7 +442,7 @@ CONTAINS
 !>            and coordinates from
 !> \param globenv the global environment parameters
 !> \param error the CP error structure
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************

@@ -85,7 +85,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, force, input,&
-                          rho_scp, rspw, para_env, blacs_env, ks_scp_env, & 
+                          rho_scp, rspw, para_env, blacs_env, ks_scp_env, &
                           eps_gvg_rspace, eps_rho_rspace, &
                           pscp, ks_scp, ascp_diag, se_store_int_env,error)
 
@@ -168,7 +168,7 @@ CONTAINS
   END SUBROUTINE init_scp_env
 
 ! *****************************************************************************
-!> \brief  set the SCP environment. 
+!> \brief  set the SCP environment.
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, ks_scp_env,&
@@ -203,7 +203,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE. 
+    failure = .FALSE.
     CPPrecondition(scp_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(aux_coeff_set)) THEN

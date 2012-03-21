@@ -166,7 +166,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     IF (.NOT. failure) THEN
        IF (ASSOCIATED(thermostats)) THEN
           CPPrecondition(thermostats%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -236,7 +236,7 @@ CONTAINS
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label, error)  
+  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(section_vals_type), POINTER         :: section

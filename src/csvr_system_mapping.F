@@ -93,7 +93,7 @@ CONTAINS
           END IF
        END DO
     END SELECT
-    
+
   END SUBROUTINE csvr_to_barostat_mapping
 
 ! *****************************************************************************
@@ -147,7 +147,7 @@ CONTAINS
              map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
           END DO
        END DO
-       
+
        ! If thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
@@ -155,7 +155,7 @@ CONTAINS
        ! We know the total number of system thermostats.
        IF ( (sum_of_thermostats == 1).AND.(map_info%dis_type /= do_thermo_no_communication)) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
-          IF ( fac == 0.0_dp ) THEN 
+          IF ( fac == 0.0_dp ) THEN
              CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
           END IF
           csvr%nvt(1)%nkt = simpar%temp_ext*fac
@@ -164,7 +164,7 @@ CONTAINS
           DO i = 1, csvr%loc_num_csvr
              imap = map_info%map_index(i)
              fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
-             csvr%nvt(i)%nkt = simpar%temp_ext * fac 
+             csvr%nvt(i)%nkt = simpar%temp_ext * fac
              csvr%nvt(i)%degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
@@ -211,7 +211,7 @@ CONTAINS
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => csvr%map_info
-    
+
     nkind = SIZE(molecule_kind_set)
     sum_of_thermostats = thermostat_info%sum_of_thermostats
     map_info%dis_type  = thermostat_info%dis_type

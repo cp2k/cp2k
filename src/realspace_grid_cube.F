@@ -57,7 +57,7 @@ CONTAINS
     my_zero_tails = .FALSE.
     IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
-    IF (PRESENT(stride)) THEN 
+    IF (PRESENT(stride)) THEN
        CALL cp_assert(SIZE(stride)==1.OR.SIZE(stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
             "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
 CPSourceFileRef,&
@@ -159,7 +159,7 @@ CPSourceFileRef,&
           ENDIF
        ELSE
           IF(my_rank==source) THEN
-             buf(:)=pw%cr3d(I1,I2,:) 
+             buf(:)=pw%cr3d(I1,I2,:)
              CALL mp_send(buf,dest,tag,gid)
           ENDIF
           IF(my_rank==dest) THEN
@@ -176,7 +176,7 @@ CPSourceFileRef,&
          WRITE(unit_nr,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride(3))
        ENDIF
 
-       ! this double loop generates so many messages that it can overload 
+       ! this double loop generates so many messages that it can overload
        ! the message passing system, e.g. on XT3
        ! we therefore put a barrier here that limits the amount of message
        ! that flies around at any given time.

@@ -166,10 +166,10 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_syevx
 
 ! *****************************************************************************
-!> \brief  computes selected eigenvalues and, optionally, eigenvectors of 
-!>        a real symmetric matrix A distributed in 2D blockcyclic format by 
-!>       calling the recommended sequence of ScaLAPACK routines. 
-!>          
+!> \brief  computes selected eigenvalues and, optionally, eigenvectors of
+!>        a real symmetric matrix A distributed in 2D blockcyclic format by
+!>       calling the recommended sequence of ScaLAPACK routines.
+!>
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          subsets of eigenvalues/vectors can be selected by
 !>          specifying a range of values or a range of indices for the desired eigenvalues.

@@ -1,5 +1,5 @@
   SUBROUTINE collocate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), lp
     REAL(wp), INTENT(IN) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
     INTEGER, INTENT(IN)                      :: cmax
@@ -76,18 +76,18 @@
                 s03=s03+coef_x(3,lxp)*pol_x(lxp,ig)
                 s04=s04+coef_x(4,lxp)*pol_x(lxp,ig)
              ENDDO
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
 
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_default
   SUBROUTINE collocate_core_0(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -141,17 +141,17 @@
                 s03=s03+coef_x(3,lxp)*pol_x(lxp,ig)
                 s04=s04+coef_x(4,lxp)*pol_x(lxp,ig)
              ENDDO
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_0
   SUBROUTINE collocate_core_1(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -208,17 +208,17 @@
              s(:)=0.0_wp
                 s(:)=s(:)+coef_x(:,0)*pol_x(0,ig)
                 s(:)=s(:)+coef_x(:,1)*pol_x(1,ig)
-             grid(i,j,k) = grid(i,j,k)     + s(1) 
-             grid(i,j2,k) = grid(i,j2,k)   + s(3) 
-             grid(i,j,k2) = grid(i,j,k2)   + s(2) 
-             grid(i,j2,k2) = grid(i,j2,k2) + s(4) 
+             grid(i,j,k) = grid(i,j,k)     + s(1)
+             grid(i,j2,k) = grid(i,j2,k)   + s(3)
+             grid(i,j,k2) = grid(i,j,k2)   + s(2)
+             grid(i,j2,k2) = grid(i,j2,k2) + s(4)
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_1
   SUBROUTINE collocate_core_2(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -284,17 +284,17 @@
                 s03=s03+coef_x(3,lxp)*pol_x(lxp,ig)
                 s04=s04+coef_x(4,lxp)*pol_x(lxp,ig)
              ENDDO
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_2
   SUBROUTINE collocate_core_3(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -375,17 +375,17 @@
                 s03=s03+coef_x(3,lxp)*pol_x(lxp,ig)
                 s04=s04+coef_x(4,lxp)*pol_x(lxp,ig)
              ENDDO
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_3
   SUBROUTINE collocate_core_4(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -542,17 +542,17 @@
                 s02=s02+coef_x(2,4)*pol_x(4,ig)
                 s03=s03+coef_x(3,4)*pol_x(4,ig)
                 s04=s04+coef_x(4,4)*pol_x(4,ig)
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_4
   SUBROUTINE collocate_core_5(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -772,17 +772,17 @@
                 s02=s02+coef_x(2,5)*pol_x(5,ig)
                 s03=s03+coef_x(3,5)*pol_x(5,ig)
                 s04=s04+coef_x(4,5)*pol_x(5,ig)
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_5
   SUBROUTINE collocate_core_6(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -1028,17 +1028,17 @@
                 s02=s02+coef_x(2,6)*pol_x(6,ig)
                 s03=s03+coef_x(3,6)*pol_x(6,ig)
                 s04=s04+coef_x(4,6)*pol_x(6,ig)
-             grid(i,j,k) = grid(i,j,k)     + s01 
-             grid(i,j2,k) = grid(i,j2,k)   + s03 
-             grid(i,j,k2) = grid(i,j,k2)   + s02 
-             grid(i,j2,k2) = grid(i,j2,k2) + s04 
+             grid(i,j,k) = grid(i,j,k)     + s01
+             grid(i,j2,k) = grid(i,j2,k)   + s03
+             grid(i,j,k2) = grid(i,j,k2)   + s02
+             grid(i,j2,k2) = grid(i,j2,k2) + s04
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_6
   SUBROUTINE collocate_core_7(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -1469,17 +1469,17 @@
                 s(:)=s(:)+coef_x(:,5)*pol_x(5,ig)
                 s(:)=s(:)+coef_x(:,6)*pol_x(6,ig)
                 s(:)=s(:)+coef_x(:,7)*pol_x(7,ig)
-             grid(i,j,k) = grid(i,j,k)     + s(1) 
-             grid(i,j2,k) = grid(i,j2,k)   + s(3) 
-             grid(i,j,k2) = grid(i,j,k2)   + s(2) 
-             grid(i,j2,k2) = grid(i,j2,k2) + s(4) 
+             grid(i,j,k) = grid(i,j,k)     + s(1)
+             grid(i,j2,k) = grid(i,j2,k)   + s(3)
+             grid(i,j,k2) = grid(i,j,k2)   + s(2)
+             grid(i,j2,k2) = grid(i,j2,k2) + s(4)
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_7
   SUBROUTINE collocate_core_8(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -2037,17 +2037,17 @@
                 s(:)=s(:)+coef_x(:,6)*pol_x(6,ig)
                 s(:)=s(:)+coef_x(:,7)*pol_x(7,ig)
                 s(:)=s(:)+coef_x(:,8)*pol_x(8,ig)
-             grid(i,j,k) = grid(i,j,k)     + s(1) 
-             grid(i,j2,k) = grid(i,j2,k)   + s(3) 
-             grid(i,j,k2) = grid(i,j,k2)   + s(2) 
-             grid(i,j2,k2) = grid(i,j2,k2) + s(4) 
+             grid(i,j,k) = grid(i,j,k)     + s(1)
+             grid(i,j2,k) = grid(i,j2,k)   + s(3)
+             grid(i,j,k2) = grid(i,j,k2)   + s(2)
+             grid(i,j2,k2) = grid(i,j2,k2) + s(4)
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_8
   SUBROUTINE collocate_core_9(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -2756,12 +2756,12 @@
                 s(:)=s(:)+coef_x(:,7)*pol_x(7,ig)
                 s(:)=s(:)+coef_x(:,8)*pol_x(8,ig)
                 s(:)=s(:)+coef_x(:,9)*pol_x(9,ig)
-             grid(i,j,k) = grid(i,j,k)     + s(1) 
-             grid(i,j2,k) = grid(i,j2,k)   + s(3) 
-             grid(i,j,k2) = grid(i,j,k2)   + s(2) 
-             grid(i,j2,k2) = grid(i,j2,k2) + s(4) 
+             grid(i,j,k) = grid(i,j,k)     + s(1)
+             grid(i,j2,k) = grid(i,j2,k)   + s(3)
+             grid(i,j,k2) = grid(i,j,k2)   + s(2)
+             grid(i,j2,k2) = grid(i,j2,k2) + s(4)
           END DO
        END DO
     END DO
-  
+
   END SUBROUTINE collocate_core_9

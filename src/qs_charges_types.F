@@ -23,7 +23,7 @@ MODULE qs_charges_types
   PUBLIC :: qs_charges_type
   PUBLIC :: qs_charges_create, qs_charges_retain, qs_charges_release
 !***
-  
+
 ! *****************************************************************************
 !> \brief Container for information about total charges on the grids
 !> \param total_rho_core_rspace total charge on the rho_core grid
@@ -51,8 +51,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a charges object
 !> \param qs_charges the charges object to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -72,7 +72,7 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   ALLOCATE(qs_charges, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -99,8 +99,8 @@ END SUBROUTINE qs_charges_create
 ! *****************************************************************************
 !> \brief retains the given qs_charges (see cp2k/doc/ReferenceCounting.html)
 !> \param qs_charges the object to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -115,7 +115,7 @@ SUBROUTINE qs_charges_retain(qs_charges, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(qs_charges%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -126,8 +126,8 @@ END SUBROUTINE qs_charges_retain
 ! *****************************************************************************
 !> \brief releases the charges object (see cp2k/doc/ReferenceCounting.html)
 !> \param qs_charges the object to be released
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -143,7 +143,7 @@ SUBROUTINE qs_charges_release(qs_charges, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(qs_charges)) THEN
      CPPrecondition(qs_charges%ref_count>0,cp_failure_level,routineP,error,failure)
      qs_charges%ref_count=qs_charges%ref_count-1

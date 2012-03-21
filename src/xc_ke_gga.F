@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Calculate the several different kinetic energy functionals
-!>      with a GGA form 
+!>      with a GGA form
 !> \par History
 !>      JGH (26.02.2003) : OpenMP enabled
 !>      fawzi (04.2004)  : adapted to the new xc interface
@@ -823,7 +823,7 @@ CONTAINS
          t49 = t22**2
          t50 = t8**2
          fs(ip,3) = 2.0_dp*p/t11-4.0_dp*p*x*t17*t26+2.0_dp*t30/t16/&
-               t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
+               t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*&
               (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
 
       CASE (3)
@@ -861,10 +861,10 @@ CONTAINS
          t49 = t22**2
          t50 = t8**2
          fs(ip,3) = 2.0_dp*p/t11-4.0_dp*p*x*t17*t26+2.0_dp*t30/t16/&
-               t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
+               t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*&
               (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
 
-         t1 = q*x 
+         t1 = q*x
          t3 = b**2
          t4 = x**2
          t7 = SQRT(1+t3*t4)
@@ -1186,7 +1186,7 @@ CONTAINS
       !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
-        t2 = bb**2 
+        t2 = bb**2
         t3 = x**2
         t6 = SQRT(o+t2*t3)
         t7 = bb*x+t6
@@ -1211,7 +1211,7 @@ CONTAINS
       !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
-        t1 = bb**2     
+        t1 = bb**2
         t2 = x**2
         t5 = SQRT(o+t1*t2)
         t7 = o/t5*t1
@@ -1255,7 +1255,7 @@ CONTAINS
       !$omp do
       DO ip=1,SIZE(s)
         x = s(ip)
-          t1 = bb**2 
+          t1 = bb**2
           t2 = x**2
           t5 = SQRT(0.1e1_dp+t1*t2)
           t6 = t5**2

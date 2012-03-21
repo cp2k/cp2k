@@ -66,12 +66,12 @@ MODULE ps_wavelet_types
      INTEGER,DIMENSION(3)                              :: PS_grid
   END TYPE ps_wavelet_type
 
-CONTAINS  
+CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the ps_wavelet_type which is needed for the link to
 !>      the Poisson Solver of Luigi Genovese
-!> \param wavlet wavelet to create  
+!> \param wavlet wavelet to create
 !> \param pw_grid the grid that is used to create the wavelet kernel
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -110,7 +110,7 @@ CONTAINS
 
     hx = pw_grid % dr ( 1 )
     hy = pw_grid % dr ( 2 )
-    hz = pw_grid % dr ( 3 ) 
+    hz = pw_grid % dr ( 3 )
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
 
@@ -130,12 +130,12 @@ CONTAINS
           IF(hx.NE.hy)THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Poisson solver for non cubic cells not yet implemented",&
-                  error=error,failure=failure)             
+                  error=error,failure=failure)
           END IF
           IF(hz.NE.hy)THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Poisson solver for non cubic cells not yet implemented",&
-                  error=error,failure=failure)             
+                  error=error,failure=failure)
           END IF
        CASE (use_perd_xz)
           wavelet%geocode="S"
@@ -156,7 +156,7 @@ CONTAINS
        wavelet%datacode=datacode
 
        CALL RS_z_slice_distribution(wavelet,pw_grid, error)
-          
+
     END IF
     CALL timestop(handle)
   END SUBROUTINE ps_wavelet_create
@@ -186,7 +186,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE RS_z_slice_distribution(wavelet,pw_grid, error)
-    
+
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -235,7 +235,7 @@ CONTAINS
 
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
                        pw_grid % para % rs_group ,error)
-    
+
     CALL timestop(handle)
   END SUBROUTINE RS_z_slice_distribution
 
@@ -267,7 +267,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-  
+
        nproc=PRODUCT(pw_grid % para % rs_dims)
        iproc=pw_grid % para % rs_mpo
        md2=wavelet%PS_grid(3)
@@ -347,7 +347,7 @@ CONTAINS
                       scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
                    END IF
                 ELSE
-                   scount(dest+1)=0  
+                   scount(dest+1)=0
                 END IF
              ELSE
                 scount(dest+1)=0
@@ -364,10 +364,10 @@ CONTAINS
                 ELSE
                    rcount(dest+1)=0
                 END IF
-             ELSE           
+             ELSE
                 rcount(dest+1)=0
              END IF
-  
+
           END DO
        END DO
        sdispl(1)=0
@@ -383,11 +383,11 @@ CONTAINS
 
        DO i = 0,pw_grid % para % rs_dims(1)-1
           DO j= 0, pw_grid % para % rs_dims(2)-1
-             cart_pos=(/i,j/)            
+             cart_pos=(/i,j/)
              CALL mp_cart_rank ( pw_grid % para % rs_group, &
                                  cart_pos, &
                                  dest )
-                                 
+
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
              IF(iproc*local_z_dim.LE.m2)THEN
@@ -399,7 +399,7 @@ CONTAINS
                 ii=1
                 DO k=1,loz
                    DO l = loy(1),loy(2)
-                      DO m = lox(1),lox(2)                      
+                      DO m = lox(1),lox(2)
                          wavelet%rho_z_sliced(m,l,k)=rbuf(ii+rdispl(dest+1))
                          ii=ii+1
                       END DO
@@ -418,7 +418,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE z_slices_to_cp2k_distribution(density , wavelet, pw_grid, error)
-    
+
     TYPE(pw_type), POINTER                   :: density
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -450,7 +450,7 @@ CONTAINS
 
        lb(:)=pw_grid % bounds_local ( 1, : )
        ub(:)=pw_grid % bounds_local ( 2, : )
-       
+
        local_z_dim=MAX((md2/nproc),1)
 
        ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
@@ -479,7 +479,7 @@ CONTAINS
                                  cart_pos, &
                                  dest )
              IF((ub(1).GE.lb(1)).AND.(ub(2).GE.lb(2)))THEN
-                IF(dest*local_z_dim.LE.m2)THEN                
+                IF(dest*local_z_dim.LE.m2)THEN
                    IF((dest+1)*local_z_dim.LE.m2)THEN
                       rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
                    ELSE
@@ -493,7 +493,7 @@ CONTAINS
              END IF
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ) , pw_grid % para % rs_dims ( 2 ), j )
-             IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN             
+             IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN
                 scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*loz)
                 DO k=lox(1)-min_x(1)+1,lox(2)-min_x(1)+1
                    DO l=loy(1)-min_y(1)+1,loy(2)-min_y(1)+1
@@ -503,9 +503,9 @@ CONTAINS
                       END DO
                    END DO
                 END DO
-             ELSE           
+             ELSE
                 scount(dest+1)=0
-             END IF 
+             END IF
           END DO
        END DO
        sdispl(1)=0
@@ -548,7 +548,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE z_slices_to_cp2k_distribution
-    
+
 ! *****************************************************************************
     SUBROUTINE ps_wavelet_solve(wavelet,pw_grid,eh,error)
 
@@ -576,7 +576,7 @@ CONTAINS
     hx = pw_grid % dr ( 1 )
     hy = pw_grid % dr ( 2 )
     hz = pw_grid % dr ( 3 )
-    
+
     CALL PSolver(geocode,datacode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
          wavelet%rho_z_sliced,wavelet%karray,pw_grid,error)
     CALL timestop(handle)

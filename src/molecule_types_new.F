@@ -93,8 +93,8 @@ MODULE molecule_types_new
      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list
      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list
      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list
-     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list     
-     TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list     
+     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list
+     TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list
      TYPE(local_colvar_constraint_type), DIMENSION ( : ) , POINTER :: lcolv
      TYPE(local_g3x3_constraint_type),   DIMENSION ( : ) , POINTER :: lg3x3
      TYPE(local_g4x6_constraint_type),   DIMENSION ( : ) , POINTER :: lg4x6
@@ -127,7 +127,7 @@ MODULE molecule_types_new
             deallocate_molecule_set,&
             get_molecule,&
             set_molecule,&
-            set_molecule_set,& 
+            set_molecule_set,&
             molecule_of_atom
 
 CONTAINS

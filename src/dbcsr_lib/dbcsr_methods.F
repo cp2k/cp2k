@@ -154,7 +154,7 @@ MODULE dbcsr_methods
   INTERFACE dbcsr_valid_index
      MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
   END INTERFACE
-  
+
   INTERFACE dbcsr_is_initialized
      MODULE PROCEDURE dbcsr_is_initialized_type, dbcsr_is_initialized_obj
   END INTERFACE
@@ -595,7 +595,7 @@ CONTAINS
   END FUNCTION dbcsr_mp_exists
 
 ! *****************************************************************************
-!> \brief Checks whether this process is part of the message passing environment 
+!> \brief Checks whether this process is part of the message passing environment
 ! *****************************************************************************
   FUNCTION dbcsr_mp_active (mp_env) RESULT (active)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -1324,7 +1324,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS () ; 
+    !$ nthreads = OMP_GET_NUM_THREADS () ;
 
     !$  CALL dbcsr_assert (dist%d%num_threads, "EQ", nthreads,&
     !$     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1375,10 +1375,10 @@ CONTAINS
           CALL sort (sorted_row_sizes, nrows, reorder)
 
           row = 1
-          DO WHILE ( row .LE. nrows)    
+          DO WHILE ( row .LE. nrows)
              cur_block = sorted_row_sizes(nrows-row+1)
              assigned = .FALSE.
-             group_size = 0        
+             group_size = 0
 
              last_row = nrows-row+1
              DO i = last_row, 1, -1
@@ -1442,7 +1442,7 @@ CONTAINS
     dist%d%has_thread_dist = .FALSE.
 !$OMP END MASTER
   END SUBROUTINE dbcsr_distribution_no_threads
-    
+
 
 ! Pertaining to the dbcsr matrix.
 
@@ -1706,7 +1706,7 @@ CONTAINS
 !>
 !> This routine is optimized for speed and no checks are performed.
 !> \param[in] matrix          DBCSR matrix
-!> \param[in] row             row number  
+!> \param[in] row             row number
 !> \retval row_size           blocked row size
 ! *****************************************************************************
   PURE FUNCTION dbcsr_blk_row_size_type (matrix, row) RESULT (row_size)
@@ -1737,7 +1737,7 @@ CONTAINS
 !>
 !> This routine is optimized for speed and no checks are performed.
 !> \param[in] matrix          DBCSR matrix
-!> \param[in] column          column number  
+!> \param[in] column          column number
 !> \retval column_size        blocked row size
 ! *****************************************************************************
   PURE FUNCTION dbcsr_blk_column_size_type (matrix, column) RESULT (column_size)
@@ -1911,7 +1911,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is real
 !> \param[in]  matrix              query this matrix
-!> \param[out] is_real             
+!> \param[out] is_real
 ! *****************************************************************************
   PURE FUNCTION dbcsr_is_real_obj (matrix) RESULT (is_real)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1928,7 +1928,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is complex
 !> \param[in]  matrix              query this matrix
-!> \param[out] is_complex             
+!> \param[out] is_complex
 ! *****************************************************************************
   PURE FUNCTION dbcsr_is_complex_obj (matrix) RESULT (is_complex)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix

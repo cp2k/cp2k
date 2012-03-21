@@ -45,8 +45,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -82,8 +82,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -122,8 +122,8 @@ END SUBROUTINE lyp_lsd_info
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param lyp_params input parameters (scaling)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -175,7 +175,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
      ELSE
         dummy=> rho
      END IF
-     
+
      e_0 => dummy
      e_rho => dummy
      e_ndrho => dummy
@@ -268,8 +268,8 @@ END SUBROUTINE lyp_lda_eval
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param sc scaling-parameter for correlation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -331,7 +331,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            t39 = t38 ** 2
            t40 = 0.1e1_dp / t39
            t41 = t37 * t40
-           
+
            e_0(ii) = e_0(ii)&
                 + ( t4 * t41 / 0.72e2_dp ) * sc
            t44 = 0.1e1_dp / t1 / t5
@@ -368,7 +368,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            e_rho(ii) = e_rho(ii) &
                  - ( 0.5e1_dp / 0.216e3_dp * t45 * t41 - t4 * t99 / 0.72e2_dp&
                 & + t103 * t106 / 0.108e3_dp) * sc
-            
+
            t112 = my_rho_1_3 * my_ndrho
            t123 = 0.6e1_dp * t14 * t1 * my_ndrho + 0.20e2_dp * t14 * t112 &
                 &* d + 0.14e2_dp * t14 * t112 * c + 0.14e2_dp * t14 *&
@@ -376,7 +376,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            t124 = t123 * t40
 
            e_ndrho(ii) = e_ndrho(ii)&
-                + ( t4 * t124 / 0.72e2_dp ) * sc 
+                + ( t4 * t124 / 0.72e2_dp ) * sc
         END IF
      END DO
      !$end do
@@ -749,9 +749,9 @@ END SUBROUTINE lyp_lda_calc
 
 ! *****************************************************************************
 !> \brief evaluates the becke 88 exchange functional for lsd
-!> \param lyp_params input parameter (scaling) 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param lyp_params input parameter (scaling)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -922,8 +922,8 @@ END SUBROUTINE lyp_lsd_eval
 !> \param e_ *_spin: derivative of the functional wrt. to the variables
 !>        named where the * is. Everything wrt. to the spin of the arguments.
 !> \param sc scaling parameter for correlation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2004 created [fawzi]
 !> \author fawzi

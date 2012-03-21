@@ -184,11 +184,11 @@ CONTAINS
           DEALLOCATE (map_info%map_index, STAT=stat)
           CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        END IF
-       
+
        DEALLOCATE (map_info, STAT=stat)
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     END IF
-    
+
   END SUBROUTINE release_map_info_type
 
 ! *****************************************************************************

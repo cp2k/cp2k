@@ -223,7 +223,7 @@ CONTAINS
     END IF
     all_pid(:) = 0
     all_pid(para_env%mepos+1) = r_pid
-    
+
     CALL mp_sum(all_pid,para_env%group)
     ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
     IF (istat /= 0) THEN
@@ -234,7 +234,7 @@ CONTAINS
     CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
     CALL mp_sum(all_host,para_env%group)
     IF (output_unit>0) THEN
-  
+
        WRITE (UNIT=output_unit,FMT="(T2,A)") ""
        DO ipe=1,para_env%num_pe
           CALL ascii_to_string(all_host(:,ipe),string)
@@ -277,11 +277,11 @@ CONTAINS
             30*para_env%num_pe*int_size)
     END IF
     all_host(:,:) = 0
-            
+
      IF (m_procrun(r_pid) .EQ. 1) THEN
        CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
        CALL mp_sum(all_host,para_env%group)
-     ENDIF  
+     ENDIF
 
     IF (output_unit>0) THEN
       ALLOCATE (all_pid(para_env%num_pe),STAT=istat)
@@ -299,10 +299,10 @@ CONTAINS
           DO jpe=1,para_env%num_pe
              CALL ascii_to_string(all_host(:,jpe),string_sec)
              IF  (string .EQ. string_sec) THEN
-                nr_occu = nr_occu +1 
+                nr_occu = nr_occu +1
                 all_pid(jpe) = -1
-             ENDIF 
-          END DO 
+             ENDIF
+          END DO
           WRITE (UNIT=output_unit,FMT="(T2,A,T63,I8,A)")&
                TRIM(r_user_name)//"@"//TRIM(string)//&
                " is running ",nr_occu, " processes"
@@ -313,7 +313,7 @@ CONTAINS
        IF (istat /= 0) THEN
          CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
        END IF
-      
+
     END IF
 
     DEALLOCATE (all_host,STAT=istat)
@@ -545,7 +545,7 @@ CONTAINS
     IF(trace) THEN
        IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) THEN
            unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-       ELSE  
+       ELSE
            unit_nr=-1
        ENDIF
        CALL trace_debug("start",trace_master,trace_max,unit_nr,para_env)
@@ -661,18 +661,18 @@ CONTAINS
     SReclaimable=SReclaimable/1024
     MemLikelyFree=MemLikelyFree/1024
 
-   ! Initialize the MA configurations 
+   ! Initialize the MA configurations
     IF (has_ma) THEN
       CALL cp_ma_config(root_section,error)
       CALL cp_ma_mempol(error)
     ENDIF
 
     !   *** Print a list of all started processes ***
-    IF (do_echo_all_hosts) THEN 
+    IF (do_echo_all_hosts) THEN
      CALL echo_all_hosts(para_env,output_unit)
 
      ! *** Print the number of processes per host ***
-     CALL echo_all_process_host(para_env,output_unit)    
+     CALL echo_all_process_host(para_env,output_unit)
     ENDIF
 
     num_threads=1
@@ -703,7 +703,7 @@ CONTAINS
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_get(subsys_section, explicit=explicit, error=error)
           coord_file_name = "__STD_INPUT__"
-          IF (explicit) THEN 
+          IF (explicit) THEN
              CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
                   n_rep_val=n_rep_val, error=error)
              IF (n_rep_val==1) THEN
@@ -747,7 +747,7 @@ CONTAINS
             ADJUSTR(TRIM(enum_i2c(enum2,globenv%run_type_id,error=error)))
 
        CALL section_release(section,error=error)
-       
+
        CALL section_vals_val_get(global_section,"ALLTOALL_SGL",l_val=ata,error=error)
        WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&
             start_section_label//"| All-to-all communication in single precision",ata
@@ -781,23 +781,23 @@ CONTAINS
             start_section_label//"| This output is from process",para_env%mepos
 
        WRITE (UNIT=output_unit,FMT="()")
-       WRITE (UNIT=output_unit,FMT="(T2,A)") "MEMORY| system memory details [Kb]" 
+       WRITE (UNIT=output_unit,FMT="(T2,A)") "MEMORY| system memory details [Kb]"
        WRITE (UNIT=output_unit,FMT="(T2,A23,4A14)") "MEMORY|                ","rank 0", "min", "max", "average"
-       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemTotal       ",memtotal,memtotal_min,memtotal_max,memtotal_avr 
-       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemFree        ",memFree,memfree_min,memfree_max,memfree_avr 
-       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Buffers        ",Buffers,Buffers_min,Buffers_max,Buffers_avr 
-       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Cached         ",Cached,Cached_min,Cached_max,Cached_avr 
-       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Slab           ",Slab,Slab_min,Slab_max,Slab_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemTotal       ",memtotal,memtotal_min,memtotal_max,memtotal_avr
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemFree        ",memFree,memfree_min,memfree_max,memfree_avr
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Buffers        ",Buffers,Buffers_min,Buffers_max,Buffers_avr
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Cached         ",Cached,Cached_min,Cached_max,Cached_avr
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Slab           ",Slab,Slab_min,Slab_max,Slab_avr
        WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| SReclaimable   ",SReclaimable,SReclaimable_min,SReclaimable_max,&
-                                                             SReclaimable_avr 
+                                                             SReclaimable_avr
        WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemLikelyFree  ",MemLikelyFree,MemLikelyFree_min,MemLikelyFree_max,&
-                                                             MemLikelyFree_avr 
+                                                             MemLikelyFree_avr
        WRITE (UNIT=output_unit,FMT='()')
 
        ! Show machine topology
        CALL cp_ma_print_machine(unit_nr=output_unit, error=error)
 
-    END IF   
+    END IF
 
     IF (has_ma) THEN
       CALL cp_ma_mpi_sched()

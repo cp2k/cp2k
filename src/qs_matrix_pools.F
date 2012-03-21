@@ -56,7 +56,7 @@ MODULE qs_matrix_pools
 !>        are a subset of the mos
 !> \param mosub_mosub_fm_pools pools with (mosub x mosub) full matrixes, where mosub
 !>        are a subset of the mos
-!> 
+!>
 !> \param maxao_maxao_fm_pools pool of matrixes big enough to accomodate any
 !>        aoxao matrix (useful for temp matrixes)
 !> \param maxao_maxmo_fm_pools pool of matrixes big enough to accomodate any
@@ -437,7 +437,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      END IF  ! prepare_subset
 
   END IF
- 
+
 
   IF (.NOT.failure) THEN
      CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=min_nmo)

@@ -268,7 +268,7 @@ CONTAINS
        WRITE(io_unit,*) 'limits',limits
        WRITE(io_unit,*) 'retain_sparsity',retain_sparsity
        WRITE(io_unit,*) 'bs_m',bs_m
-       WRITE(io_unit,*) 'bs_n',bs_n 
+       WRITE(io_unit,*) 'bs_n',bs_n
        WRITE(io_unit,*) 'bs_k',bs_k
     ENDIF
     !
@@ -404,7 +404,7 @@ CONTAINS
 
              CALL array_release (sizes_m)
              CALL array_release (sizes_n)
-             CALL array_release (sizes_k)             
+             CALL array_release (sizes_k)
 
              !
              ! if C has a symmetry, we build it accordingly, i.e. C=A*A and C=A*(-A)
@@ -664,7 +664,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Performs a check of matrix multiplies 
+!> \brief Performs a check of matrix multiplies
 !> \param[in] dense_c_dbcsr             dense result of the dbcsr_multiply
 !> \param[in] dense_a, dense_b, dense_c input dense matrices
 !> \param[in] transa, transb            transposition status
@@ -672,7 +672,7 @@ CONTAINS
 !> \param[in] limits                    limits for the gemm
 !> \param[in] io_unit                   io unit for printing
 !> \param[out] success                  if passed the check success=T
-!> \param[inout] error                  dbcsr error 
+!> \param[inout] error                  dbcsr error
 !>
 ! *****************************************************************************
   SUBROUTINE dbcsr_check_multiply(matrix_c, dense_c_dbcsr, dense_a, dense_b, dense_c,&

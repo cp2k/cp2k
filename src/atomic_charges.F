@@ -7,7 +7,7 @@
 !> \brief simple routine to print charges for all atomic charge methods
 !>      (currently mulliken, lowdin and ddapc)
 !> \par History
-!>      Joost VandeVondele [2006.03]         
+!>      Joost VandeVondele [2006.03]
 ! *****************************************************************************
 MODULE atomic_charges
   USE atomic_kind_types,               ONLY: get_atomic_kind
@@ -31,7 +31,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief generates a unified output format for atomic charges
-!> \param electronic_charges (natom,nspin), the number of electrons of (so positive) per spin 
+!> \param electronic_charges (natom,nspin), the number of electrons of (so positive) per spin
 !>                            if (nspin==1) it is the sum of alpha and beta electrons
 !> \param atomic_charges truely the atomic charge (taking Z into account, atoms negative, no spin)
 !> \note
@@ -56,7 +56,7 @@ CONTAINS
     REAL(KIND=dp)                            :: total_charge, zeff
 
     CALL timeset(routineN,handle)
-    
+
     IF (PRESENT(electronic_charges)) THEN
       nspin=SIZE(electronic_charges,2)
       natom=SIZE(electronic_charges,1)
@@ -125,7 +125,7 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff
 
     CALL timeset(routineN,handle)
-    
+
     natom=0
     IF (PRESENT(charge)) THEN
       natom=SIZE(charge)

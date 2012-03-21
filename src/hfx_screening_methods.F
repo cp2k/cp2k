@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Several screening methods used in HFX calcualtions 
+!> \brief Several screening methods used in HFX calcualtions
 !> \par History
 !>      04.2008 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
-MODULE hfx_screening_methods 
+MODULE hfx_screening_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -38,7 +38,7 @@ MODULE hfx_screening_methods
 
   IMPLICIT NONE
   PRIVATE
-   
+
   PUBLIC update_pmax_mat, &
          calc_screening_functions,&
          calc_pair_dist_radii
@@ -46,7 +46,7 @@ MODULE hfx_screening_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_screening_methods'
 
 !***
-  
+
   CONTAINS
 
 ! *****************************************************************************
@@ -108,7 +108,7 @@ MODULE hfx_screening_methods
 
 
 ! *****************************************************************************
-!> \brief updates the maximum of the density matrix in compressed form for screening purposes 
+!> \brief updates the maximum of the density matrix in compressed form for screening purposes
 !> \param pmax_set buffer to store matrix
 !> \note
 !>      - updates for each pair of shells the maximum absolute value of p
@@ -281,7 +281,7 @@ MODULE hfx_screening_methods
   SUBROUTINE calc_screening_functions(qs_env, basis_parameter, lib, potential_parameter, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
                                       max_set, max_pgf, n_threads, i_thread,&
-                                      p_work, error) 
+                                      p_work, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -347,7 +347,7 @@ MODULE hfx_screening_methods
               DO jpgf=1,max_pgf
                 coeffs_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(:) = 0.0_dp
               END DO
-            END DO   
+            END DO
           END DO
         END DO
       END DO
@@ -403,7 +403,7 @@ MODULE hfx_screening_methods
             DO ipgf = 1,npgfa(iset)
               DO jpgf = 1,npgfb(jset)
                 radius=rpgfa(ipgf,iset)+rpgfb(jpgf,jset)
-                DO i=i_thread,100,n_threads 
+                DO i=i_thread,100,n_threads
                   rb(1) = 0.0_dp + REAL(i,dp) * 0.01_dp * radius
                   max_val = 0.0_dp
                   R1 = MAX(0.0_dp, radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(1)*rb(1)**2 + &
@@ -431,7 +431,7 @@ MODULE hfx_screening_methods
 !$OMP BARRIER
 !$OMP MASTER
                 CALL optimize_it(DATA,x,powell_min_log)
-                coeffs_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
+                coeffs_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -441,8 +441,8 @@ MODULE hfx_screening_methods
         END DO
       END DO
     END DO
- 
-!$OMP MASTER 
+
+!$OMP MASTER
     ALLOCATE(coeffs_set(max_set,max_set,nkind,nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -530,12 +530,12 @@ MODULE hfx_screening_methods
 !$OMP BARRIER
 !$OMP MASTER
             CALL optimize_it(DATA,x,powell_min_log)
-            coeffs_set(jset,iset,jkind,ikind)%x = x 
+            coeffs_set(jset,iset,jkind,ikind)%x = x
 !$OMP END MASTER
 !$OMP BARRIER
           END DO
         END DO
-       
+
       END DO
     END DO
 
@@ -617,7 +617,7 @@ MODULE hfx_screening_methods
 !$OMP BARRIER
 !$OMP MASTER
         CALL optimize_it(DATA,x,powell_min_log)
-        coeffs_kind(jkind,ikind)%x = x 
+        coeffs_kind(jkind,ikind)%x = x
 !$OMP END MASTER
 !$OMP BARRIER
       END DO
@@ -640,7 +640,7 @@ MODULE hfx_screening_methods
 !> \param max_pgf Maximum Number of basis set pgfs in the system
 !> \note
 !>      This routine calculates the pair-distribution radius of a product
-!>      Gaussian and uses the powell optimiztion routines in order to fit 
+!>      Gaussian and uses the powell optimiztion routines in order to fit
 !>      the results in the following form:
 !>
 !>                 (ab| = (ab(Rab) = c2*Rab^2 + c0
@@ -695,7 +695,7 @@ MODULE hfx_screening_methods
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     error=error)
- 
+
     nkind = SIZE(atomic_kind_set,1)
     ra = 0.0_dp
     rb = 0.0_dp
@@ -710,7 +710,7 @@ MODULE hfx_screening_methods
               DO jpgf=1,max_pgf
                 radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(:) = 0.0_dp
               END DO
-            END DO   
+            END DO
           END DO
         END DO
       END DO
@@ -735,8 +735,8 @@ MODULE hfx_screening_methods
       sphi_a => basis_parameter(ikind)%sphi
       nsgfa => basis_parameter(ikind)%nsgf
       rpgfa => basis_parameter(ikind)%pgf_radius
-    
-      
+
+
       DO jkind = 1,nkind
         NULLIFY(atom_kind,orb_basis)
         atom_kind => atomic_kind_set(jkind)
@@ -776,7 +776,7 @@ MODULE hfx_screening_methods
                       rab2 = rb(1)**2
                       prefactor = EXP(-zeta(ipgf,iset)*ff*rab2)
                       rap(:) =ff*rab(:)
-                      rp(:) = ra(:) + rap(:) 
+                      rp(:) = ra(:) + rap(:)
                       rb(:) = ra(:) + rab(:)
                       cutoff = 1.0_dp
                       R1=exp_radius_very_extended(la,la,lb,lb,ra=ra,rb=rb,rp=rp,&
@@ -788,11 +788,11 @@ MODULE hfx_screening_methods
                   DATA(2,i) = R_max
                 END DO
                 ! the radius can not be negative, we take that into account in the code as well by using a MAX
-                ! the functional form we use for fitting does not seem particularly accurate 
+                ! the functional form we use for fitting does not seem particularly accurate
 !$OMP BARRIER
 !$OMP MASTER
                 CALL optimize_it(DATA,x,0.0_dp)
-                radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
+                radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x
 !$OMP END MASTER
 !$OMP BARRIER
               END DO !jpgf
@@ -801,7 +801,7 @@ MODULE hfx_screening_methods
         END DO
       END DO
     END DO
-!$OMP MASTER 
+!$OMP MASTER
     CALL timestop(handle)
 !$OMP END MASTER
 END SUBROUTINE calc_pair_dist_radii
@@ -831,7 +831,7 @@ END SUBROUTINE calc_pair_dist_radii
      x(2) = 0.0_dp
 
      ! we go in two steps, first we do the symmetric weight to get a good, unique initial guess
-     ! we restart afterwards for the assym. 
+     ! we restart afterwards for the assym.
      ! the assym function appears to have several local minima, depending on the data to fit
      ! the loop over k can make the switch gradual, but there is not much need, seemingly
      DO k=0,4,5
@@ -871,7 +871,7 @@ END SUBROUTINE calc_pair_dist_radii
         ! dealloc mem
         opt_state%state = 8
         CALL powell_optimize (opt_state%nvar, x, opt_state)
- 
+
      ENDDO
 
   END SUBROUTINE optimize_it

@@ -117,7 +117,7 @@
         CPPrecondition(l_ub(i)<ldim2(i),cp_failure_level,routineP,error,failure)
     END DO
     IF (failure) GOTO 21
-    
+
     DO i=0,2
         period(permut(i))=periodic(i)
     END DO
@@ -153,7 +153,7 @@
             resPosReal(i)=resPosReal(i)+h(i,j)*(wrPos(permut(j))-normD(permut(j))*REAL(shiftPos(permut(j)),dp))
         END DO
     END DO
-        
+
     !maxr2=0.0_dp
     !DO j=0,2
     !    DO i=0,2
@@ -161,7 +161,7 @@
     !    END DO
     !END DO
     maxr2=max_r2 !MAX(max_r2,maxr2)
-        
+
     ! build up quadratic form (ellipsoid)
     m=0.0_dp
     DO j=0,2
@@ -171,19 +171,19 @@
             END DO
         END DO
     END DO
-    
+
     l=0.0_dp
     DO j=0,2
         DO i=0,2
             l(j)=l(j)-2.0*resPos(i)*m(i,j)
         END DO
     END DO
-    
+
     r_0=0.0_dp
     DO i=0,2
         r_0=r_0-0.5*resPos(i)*l(i)
     END DO
-    
+
     ! calc i boundaries
     cci2 = (m(2,2) * m(0,0) * m(1,1) - m(2,2) * m(0,1) ** 2 - m(1,1) * m(0,2) ** 2 &
         + 2.0_dp * m(0,2) * m(0,1) * m(1,2) - m(0,0) * m(1,2) ** 2) / (m(2,2) * m(1,1) - m(1,2) ** 2)
@@ -198,7 +198,7 @@
     imin=CEILING((-cci1-sqDi)/(2.0_dp*cci2))
     imax=FLOOR((-cci1+sqDi)/(2.0_dp*cci2))
     !! box early return
-    
+
     IF (period(0)==1) THEN
         has_overlap=imax-imin+1>ndim(0).OR.(l_bounds(1,0)==0.and.l_bounds(2,0)==ndim(0)-1)
         IF (.not.has_overlap) THEN
@@ -214,7 +214,7 @@
     ELSE
         IF (imax+shiftPos(0)<l_bounds(1,0).or.imin+shiftPos(0)>l_bounds(2,0)) GOTO 21
     END IF
-    
+
     ! j box bounds
     has_overlap=l_bounds(1,1)==0.and.l_bounds(2,1)==ndim(1)-1
     IF (.not.has_overlap) THEN
@@ -247,7 +247,7 @@
             IF (jmax+shiftPos(1)<l_bounds(1,1).or.jmin+shiftPos(1)>l_bounds(2,1)) GOTO 21
         END IF
     END IF
-    
+
     ! k box bounds
     has_overlap=l_bounds(1,2)==0.and.l_bounds(2,2)==ndim(2)-1
     IF (.not.has_overlap) THEN
@@ -263,7 +263,7 @@
         sqDk=SQRT(delta_k)
         kmin=CEILING((-cck1-sqDk)/(2.0_dp*cck2))
         kmax=FLOOR((-cck1+sqDk)/(2.0_dp*cck2))
-    
+
         IF (period(2)==1) THEN
             IF (kmax-kmin+1<ndim(2)) THEN
                 kmin1=MODULO(kmin+shiftPos(2),ndim(2))
@@ -280,7 +280,7 @@
             IF (kmax+shiftPos(2)<l_bounds(1,2).or.kmin+shiftPos(2)>l_bounds(2,2)) GOTO 21
         END IF
     END IF
-    
+
     ! k bounds (cache a la cube_info, or inversely integrate in the collocate loop?)
     ccj2   = (m(2,2) * m(1,1) - m(1,2) ** 2) / m(2,2)
     ccj1_i1=(2 * m(2,2) * m(0,1) - 2 * m(0,2) * m(1,2)) / m(2,2)
@@ -298,7 +298,7 @@
     cck0_j2 = m(1,1)
     cck0_j = l(1)
     cck0_0 = r_0 - maxr2
-    
+
     ! find maximum number of j
     max_j=0
     DO i0=0,1
@@ -314,12 +314,12 @@
     END DO
     max_j=max_j+1 ! just to be sure...
     IF (period(1)==0) max_j=MIN(max_j,l_bounds(2,1)-l_bounds(1,1)+1)
-    
+
     IF (period(0)==0) THEN
         imin=MAX(l_bounds(1,0)-shiftPos(0),imin)
         imax=MIN(l_bounds(2,0)-shiftPos(0),imax)
     END IF
-    
+
     ! k bounds (cache a la cube_info?)
     has_overlap=.FALSE.
     ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)),stat=stat)
@@ -362,7 +362,7 @@
                 DO j=jstart,jend
                     cck1=cck1_0_p+cck1_j*j
                     cck0=cck0_0_p+(cck0_j_p+cck0_j2*j)*j
-        
+
                     delta_k=cck1*cck1-4*cck2*cck0
                     IF (delta_k<0) THEN
                         k_bounds(0,j-jmin,i-imin)=0 ! CEILING((-cck1)/(2.0_dp*cck2))
@@ -371,14 +371,14 @@
                         sqDk=SQRT(delta_k)
                         kmin=CEILING((-cck1-sqDk)/(2.0_dp*cck2))
                         kmax=FLOOR((-cck1+sqDk)/(2.0_dp*cck2))
-                        
+
                         ! ! reduce kmax,kmin
                         ! ! this should be done later if k_bounds are shared by threads with different slices
                         ! ikShift=FLOOR(REAL(shiftPos(2)+kmax-l_bounds(1,2))/REAL(ndim(2)))*ndim(2)-shiftPos(2)
                         ! kmax=MIN(kmax,ikShift+l_bounds(2,2))
                         ! ikShift2=CEILING(REAL(shiftPos(2)-l_bounds(2,2)+kmin)/REAL(ndim(2)))*ndim(2)-shiftPos(2)
                         ! kmin=MAX(kmin,ikShift2+l_bounds(1,2))
-                        
+
                         k_bounds(0,j-jmin,i-imin)=kmin
                         k_bounds(1,j-jmin,i-imin)=kmax
                         IF (kmax>=kmin) has_overlap=.TRUE.
@@ -397,9 +397,9 @@
         k_bounds(0,:,:)=MAX(l_bounds(1,2)-shiftPos(2),k_bounds(0,:,:))
         k_bounds(1,:,:)=MIN(l_bounds(2,2)-shiftPos(2),k_bounds(1,:,:))
     END IF
-    
+
     IF (.not.has_overlap) GOTO 21
-    
+
     ! poly x,y,z -> i,j,k
     grad=grad_size3(SIZE(poly)/npoly)
     size_jk=poly_size2(grad)*npoly
@@ -428,7 +428,7 @@ poly_alloc=.TRUE.
     CALL poly_affine_t3(poly,scaled_h,-resPosReal+p_shift,poly_ijk,&
         npoly=npoly,error=error)
 #endif
-    
+
     ij_coeff0=EXP(-2.0_dp*alphai*m(0,1))
     ik_coeff0=EXP(-2.0_dp*alphai*m(0,2))
     ii_coeff0=EXP(-alphai*m(0,0))
@@ -445,13 +445,13 @@ poly_alloc=.TRUE.
     jcoeff0=EXP(-alphai*l(1))
     kcoeff0=EXP(-alphai*l(2))
     res_0=EXP(-alphai*r_0)*g_scale
-    
+
     i_coeffn_i=icoeff0
     j_coeffn_i=jcoeff0
     k_coeffn_i=kcoeff0
     ii_coeffn =i_coeffn_i*ii_coeff0
     res_i=res_0
-    
+
     iJump=ndim(0)-l_bounds(2,0)+l_bounds(1,0)-1
     istart=MAX(0,imin)
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
@@ -481,7 +481,7 @@ poly_alloc=.TRUE.
         ii_coeff2_jump = 1.0_dp
         ii_coeffn_jump = 1.0_dp
     END IF
-    
+
     iend=MIN(iiShift+l_bounds(2,0),imax)
     ii=iistart IF_FLAT(*iidim,)
     IF (i>0) THEN
@@ -511,14 +511,14 @@ poly_alloc=.TRUE.
         res_i=res_i*ii_coeffn**(iJump)*ii_coeffn_jump
         ii_coeffn=ii_coeffn*ii_coeff2_jump
     END DO
-    
+
     ! neg i side
     i_coeffn_i=1.0_dp/icoeff0
     j_coeffn_i=jcoeff0
     k_coeffn_i=kcoeff0
     res_i=res_0
     ii_coeffn=i_coeffn_i*ii_coeff0
-    
+
     iend2=MAX(iiShift2+l_bounds(1,0),imin)
     ii=iistart2 IF_FLAT(* iidim,)
     IF (istart2<-1) THEN
@@ -557,7 +557,7 @@ poly_alloc=.TRUE.
     IF (k_bounds_alloc) THEN
         DEALLOCATE(k_bounds,stat=stat)
         CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-    END IF        
+    END IF
     IF (poly_alloc) THEN
 #ifdef FMG_INTEGRATE
         DEALLOCATE(poly_ijk,poly_jk,poly_k,stat=stat)
@@ -583,9 +583,9 @@ poly_alloc=.TRUE.
 #endif
     END IF
     CONTAINS
-    
+
 !!!!!!!!!!!!!
-    !!!!!!! j loop 
+    !!!!!!! j loop
 SUBROUTINE j_loop
     ! calculate j bounds
     ccj1 = ccj1_i1 * i +ccj1_i0
@@ -597,7 +597,7 @@ SUBROUTINE j_loop
     sqDj=SQRT(delta_j)
     jmin=CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))
     jmax=FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2))
-    
+
 #ifdef FMG_INTEGRATE_FULL
     poly_jk=0.0_dp
 #else
@@ -606,11 +606,11 @@ SUBROUTINE j_loop
             npoly=npoly,grad=grad,xi=IF_CHECK(xi,xi(1)))
 #endif
 
-    IF (period(1)==0) THEN 
+    IF (period(1)==0) THEN
         jmin=MAX(l_bounds(1,1)-shiftPos(1),jmin)
         jmax=MIN(l_bounds(2,1)-shiftPos(1),jmax)
     END IF
-    
+
     ! pos j side
     j_coeffn_j=j_coeffn_i
     k_coeffn_j=k_coeffn_i
@@ -662,7 +662,7 @@ SUBROUTINE j_loop
     k_coeffn_j=k_coeffn_i
     jj_coeffn=j_coeffn_j*jj_coeff0
     res_j=res_i
-    
+
     jstart=MIN(-1,jmax)
     ijShift=shiftPos(1)+jstart-l_bounds(1,1)
     IF (ijShift<0) ijShift=ijShift-ndim(1)+1
@@ -681,7 +681,7 @@ SUBROUTINE j_loop
             k_coeffn_j=k_coeffn_j*jk_coeff1
             res_j=res_j*jj_coeffn
             jj_coeffn=jj_coeffn*jj_coeff2
-        
+
             kmin=k_bounds(0,j-jmin,i-imin)
             kmax=k_bounds(1,j-jmin,i-imin)
             ! perform k loop

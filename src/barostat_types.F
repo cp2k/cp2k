@@ -116,15 +116,15 @@ CONTAINS
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
           "The screening of the components of the virial is available only with the NPT_F ensemble!"//&
 CPSourceFileRef,&
-          only_ionode=.TRUE.)     
+          only_ionode=.TRUE.)
     ELSE
        CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
           "A barostat has been defined with an MD ensemble which does not support barostat! "//&
           "It's definition will be ignored!"//&
 CPSourceFileRef,&
-          only_ionode=.TRUE.)     
+          only_ionode=.TRUE.)
     END IF
-    
+
   END SUBROUTINE create_barostat_type
 
 ! *****************************************************************************
@@ -143,7 +143,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     IF (.NOT. failure) THEN
        IF (ASSOCIATED(barostat)) THEN
           CPPrecondition(barostat%ref_count>0,cp_failure_level,routineP,error,failure)

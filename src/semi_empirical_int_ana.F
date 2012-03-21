@@ -66,18 +66,18 @@ CONTAINS
 !> \brief Computes analytical gradients for semiempirical integrals
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j 
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>                  rijv   = Coordinate vector i -> j
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!> 
+!>
 !>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
 !>                       e1b = Electron on atom ni attracting nucleus of nj.
 !>                       e2a = Electron on atom nj attracting nucleus of ni.
 !>                       enuc= nuclear-nuclear repulsion term.
-!> 
+!>
 !>                      de1b = derivative of e1b term
 !>                      de2a = derivative of e2a term
-!>                      denuc= derivative of nuclear-nuclear repulsion term. 
+!>                      denuc= derivative of nuclear-nuclear repulsion term.
 !> \note
 !>      Analytical version of the MOPAC rotnuc routine
 !> \par History
@@ -126,7 +126,7 @@ CONTAINS
     IF (rij > rij_threshold) THEN
        ! Compute Integrals in diatomic frame opportunely inverted
        rij  = SQRT(rij)
-       ! Create the rotation matrix 
+       ! Create the rotation matrix
        CALL rotmat_create(ij_matrix, error)
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert,&
             error=error)
@@ -142,7 +142,7 @@ CONTAINS
              drij(1)=xtmp
           END IF
        END IF
-       
+
        CALL dcore_nucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control,lgrad=lgrad,error=error)
 
@@ -191,12 +191,12 @@ CONTAINS
                 END IF
              END DO
           END DO
-          IF (n==1) THEN 
+          IF (n==1) THEN
              DO i = 1, sepi%atm_int_size
                 e1b(i) = -tmp(i)
              END DO
           END IF
-          IF (n==2) THEN 
+          IF (n==2) THEN
              DO i = 1, sepj%atm_int_size
                 e2a(i) = -tmp(i)
              END DO
@@ -305,14 +305,14 @@ CONTAINS
                 END IF
              END DO
           END DO
-          IF (n==1) THEN 
+          IF (n==1) THEN
              DO i = 1, sepi%atm_int_size
                 de1b(1,i) = -tmp_d(1,i)
                 de1b(2,i) = -tmp_d(2,i)
                 de1b(3,i) = -tmp_d(3,i)
              END DO
           END IF
-          IF (n==2) THEN 
+          IF (n==2) THEN
              DO i = 1, sepj%atm_int_size
                 de2a(1,i) = -tmp_d(1,i)
                 de2a(2,i) = -tmp_d(2,i)
@@ -335,20 +335,20 @@ CONTAINS
 !> \brief Computes analytical gradients for semiempirical core-core interaction.
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j 
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>                  rijv   = Coordinate vector i -> j
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!> 
+!>
 !>    on output          enuc= nuclear-nuclear repulsion term.
-!> 
-!>                      denuc= derivative of nuclear-nuclear repulsion term. 
+!>
+!>                      denuc= derivative of nuclear-nuclear repulsion term.
 !> \note
 !>      Analytical version of the MOPAC rotnuc routine
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
-!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the 
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the
 !>                 core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
@@ -542,7 +542,7 @@ CONTAINS
              END DO
           ENDIF
           IF(itype == do_method_pdg) THEN
-             ! PDDG function 
+             ! PDDG function
              zaf=sepi%zeff/nt
              zbf=sepj%zeff/nt
              pai=sepi%pre(1)
@@ -602,7 +602,7 @@ CONTAINS
              IF (l_enuc)  scale=scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
           ELSE
              ! General Case
-             ! Factor of 2 found by experiment 
+             ! Factor of 2 found by experiment
              IF (l_denuc)  dscale = dscale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))&
                   -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija
              IF (l_enuc)   scale=scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
@@ -644,25 +644,25 @@ CONTAINS
   END SUBROUTINE corecore_ana
 
 ! *****************************************************************************
-!> \brief Computes analytical gradients for semiempirical core-core electrostatic 
+!> \brief Computes analytical gradients for semiempirical core-core electrostatic
 !>        interaction only.
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j 
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>                  rijv   = Coordinate vector i -> j
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!> 
+!>
 !>    on output          enuc= nuclear-nuclear electrostatic repulsion term.
-!> 
-!>                      denuc= derivative of nuclear-nuclear electrostatic 
-!>                             repulsion term. 
+!>
+!>                      denuc= derivative of nuclear-nuclear electrostatic
+!>                             repulsion term.
 !> \note
 !>      Analytical version of the MOPAC rotnuc routine
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
-!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the 
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the
 !>                 core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
@@ -710,7 +710,7 @@ CONTAINS
        zz = sepi%zeff*sepj%zeff
        ! Core Core electrostatic contribution
        IF (l_enuc)   enuc = zz* ssss_sr
-       IF (l_denuc) THEN 
+       IF (l_denuc) THEN
           drij(1) = rijv(1)/rij
           drij(2) = rijv(2)/rij
           drij(3) = rijv(3)/rij
@@ -756,7 +756,7 @@ CONTAINS
        DO i = 1, sepi%natorb
        DO j = 1, i
           ndim = ndim + 1
-          
+
           ! Get the integral in the original frame (along z)
           DO ind = 1, 2
              imap = map_x_to_z(ind,i)
@@ -803,7 +803,7 @@ CONTAINS
                    IF (jmap==0) CYCLE
                    jfac = fac_x_to_z(jnd,j)
                    gind = indexb(imap,jmap)
-                   
+
              ! Get the integral in the original frame (along z)
              DO knd = 1, 2
                 kmap = map_x_to_z(knd,k)
@@ -814,15 +814,15 @@ CONTAINS
                    IF (lmap==0) CYCLE
                    lfac = fac_x_to_z(lnd,l)
                    gknd = indexb(kmap,lmap)
-                   
+
                    tind = (gind-1)*tdim+gknd
                    tmp2el(ndim) = tmp2el(ndim) + ifac*jfac*lfac*kfac*int2el(tind)
                 END DO
              END DO
-                       
+
                 END DO
              END DO
-                   
+
           END DO
           END DO
        END DO
@@ -832,7 +832,7 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE invert_integral
-  
+
 ! *****************************************************************************
 !> \brief Exploits inversion symmetry to avoid divergence
 !> \par History
@@ -895,7 +895,7 @@ CONTAINS
 !> \note
 !>      Analytical version - Analytical evaluation of gradients
 !>      Teodoro Laino - Zurich University 04.2007
-!>      
+!>
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -979,7 +979,7 @@ CONTAINS
 !> \note
 !>      Analytical version - Analytical evaluation of gradients
 !>      Teodoro Laino - Zurich University 04.2007
-!>      
+!>
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -1026,13 +1026,13 @@ CONTAINS
     ! Value of the integrals for sp shell
     CALL  nucint_sp_num(sepi, sepj, rij, core=core, itype=itype,&
          se_int_control=se_int_control, se_int_screen=se_int_screen, error=error)
-    
+
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  nucint_d_num(sepi, sepj, rij, core, itype,&
             se_int_control=se_int_control, se_int_screen=se_int_screen, error=error)
     END IF
-    
+
     IF (lgrad) THEN
        ! Integrals derivatives for sp shell
        CALL dnucint_sp_ana(sepi, sepj, rij, dcore=dcore, itype=itype,&
@@ -1166,14 +1166,14 @@ CONTAINS
   END SUBROUTINE dnucint_sp_ana
 
 ! *****************************************************************************
-!> \brief Calculates the analytical derivative of the nuclear attraction 
+!> \brief Calculates the analytical derivative of the nuclear attraction
 !>        integrals involving d orbitals
 !> \param on input rij   = interatomic distance
 !>                sepi   = paramters of atom i
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
@@ -1253,8 +1253,8 @@ CONTAINS
 !> \brief calculates the derivative of the two-particle interactions
 !> \param on input  sepi   = Atomic parameters of first atom
 !>               sepj   = Atomic parameters of second atom
-!>               rijv   = Coordinate vector i -> j 
-!> 
+!>               rijv   = Coordinate vector i -> j
+!>
 !>     on output w      = Array of two-electron repulsion integrals.
 !> \note
 !>      Analytical version - Analytical evaluation of gradients
@@ -1300,7 +1300,7 @@ CONTAINS
     l_w   = PRESENT(w)
     lgrad = PRESENT(dw)
     IF (.NOT.(l_w.OR.lgrad)) RETURN
-    
+
     rij = DOT_PRODUCT(rijv, rijv)
     IF (rij > rij_threshold) THEN
        ! The repulsion integrals over molecular frame (w) are stored in the
@@ -1309,9 +1309,9 @@ CONTAINS
        ! rapidly.  (anti-normal computer storage)
        rij = SQRT(rij)
 
-       ! Create the rotation matrix 
+       ! Create the rotation matrix
        CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)          
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)
 
        ! Compute integrals in diatomic frame as well their derivatives (if requested)
        CALL dterep_ana(sepi,sepj,rij,rep,rep_d,se_taper,se_int_control,lgrad=lgrad,error=error)
@@ -1341,7 +1341,7 @@ CONTAINS
              limij = sepi%atm_int_size
              limkl = sepj%atm_int_size
              istep = limkl * limij
-             DO i1 = 1, istep 
+             DO i1 = 1, istep
                 ww(i1) = 0.0_dp
              END DO
              ! Second step in rotation of integrals
@@ -1440,12 +1440,12 @@ CONTAINS
              limij = sepi%atm_int_size
              limkl = sepj%atm_int_size
              istep = limkl * limij
-             DO i1 = 1, istep 
+             DO i1 = 1, istep
                 ww_d(1,i1) = 0.0_dp
                 ww_d(2,i1) = 0.0_dp
                 ww_d(3,i1) = 0.0_dp
              END DO
-             
+
              ! Second step in rotation of integrals
              DO i1 = 1, ii
                 DO j1 = 1, i1
@@ -1584,8 +1584,8 @@ CONTAINS
   END SUBROUTINE rotint_ana
 
 ! *****************************************************************************
-!> \brief Calculates the derivative and the value of two-electron repulsion 
-!>      integrals and the nuclear attraction integrals w.r.t. |r| 
+!> \brief Calculates the derivative and the value of two-electron repulsion
+!>      integrals and the nuclear attraction integrals w.r.t. |r|
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
@@ -1638,7 +1638,7 @@ CONTAINS
     ! Integral Values for sp shells only
     CALL  terep_sp_num(sepi, sepj, rij, rep, se_int_control=se_int_control, &
          se_int_screen=se_int_screen, ft=ft1, error=error)
-    
+
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  terep_d_num (sepi, sepj, rij, rep, se_int_control=se_int_control,&
@@ -1655,7 +1655,7 @@ CONTAINS
           CALL dterep_d_ana (sepi, sepj, rij, rep_d, rep, se_int_control,&
                se_int_screen, ft, dft, error=error)
        END IF
-       
+
        ! Tapering Integral values
        lasti = sepi%natorb
        lastj = sepj%natorb
@@ -1685,12 +1685,12 @@ CONTAINS
   END SUBROUTINE dterep_ana
 
 ! *****************************************************************************
-!> \brief Calculates the derivative and the value of two-electron repulsion 
+!> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r| - sp shells only
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output ri      = array of two-electron repulsion integrals

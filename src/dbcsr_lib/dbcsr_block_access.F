@@ -395,13 +395,13 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief 
-!>          We allow : 
+!> \brief
+!>          We allow :
 !>                  matrix(dp) [+]= [scale(dp)] * block(dp)
 !>                  matrix(dp) [+]= [scale(dp)] * block(sp)
 !>                  matrix(sp) [+]= [scale(dp)] * block(sp)
-!> \param[in]  
-!> \param[out] 
+!> \param[in]
+!> \param[out]
 !>
 ! *****************************************************************************
   SUBROUTINE dbcsr_put_block_area(matrix, row, col, block, transposed,&
@@ -680,7 +680,7 @@ CONTAINS
 !> \param[in] row, col         Row and column of block to point to
 !> \param[in] rsize, csize     Row and column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
-!> \param[in] base_offset      The block pointer              
+!> \param[in] base_offset      The block pointer
 !> \param[in] buffer_tr        Whether buffer should be transposed
 !> \param[in] contiguous_pointers  (optional) Whether pointers should be made
 !>                                 contiguous

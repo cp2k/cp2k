@@ -477,7 +477,7 @@ CONTAINS
                lcolv ( iconst ) % colvar_old, imass=imass, error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-          
+
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                lambda=del_lam,&
@@ -569,7 +569,7 @@ CONTAINS
              r_val=colv_list(iconst)%expected_value,&
              i_rep_section=colv_list(iconst)%inp_seq_num, error=error)
     END DO
-     
+
   END SUBROUTINE shake_update_colv_low
 
 ! *****************************************************************************
@@ -620,20 +620,20 @@ CONTAINS
                lcolv ( iconst ) % colvar_old, imass=imass,error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-          
+
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=del_lam,&
                imass=imass,error=error)
        END DO
     END IF
-    
+
     DO iconst = 1, SIZE(colv_list)
        IF (colv_list(iconst)%restraint%active) CYCLE
        lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
-    
+
   END SUBROUTINE rattle_colv_low
 
 ! *****************************************************************************
@@ -695,7 +695,7 @@ CONTAINS
                imass=imass, error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-          
+
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                lambda=del_lam,&

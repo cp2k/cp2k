@@ -349,7 +349,7 @@ CONTAINS
          error=error)
     nbuffers = SIZE (buffers%b%buffers)
   END FUNCTION dbcsr_buffers_get_num
-    
+
 
 ! *****************************************************************************
 !> \brief Returns which buffer belongs to the calling thread

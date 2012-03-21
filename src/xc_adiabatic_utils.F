@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief 
+!> \brief
 !>
 !>
 !> \par History
@@ -49,7 +49,7 @@ MODULE xc_adiabatic_utils
 CONTAINS
 
 ! *****************************************************************************
-!> \brief 
+!> \brief
 !>
 ! *****************************************************************************
   SUBROUTINE  rescale_xc_potential(qs_env,ks_matrix,rho,energy,v_rspace_new,v_tau_rspace,&
@@ -101,7 +101,7 @@ CONTAINS
     gapw_xc=dft_control%qs_control%gapw_xc
 
     CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_TYPE",&
-         i_val=adiabatic_functional,error=error) 
+         i_val=adiabatic_functional,error=error)
     CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_MODEL",&
          i_val=adiabatic_model,error=error)
     CALL section_vals_val_get(adiabatic_rescaling_section, "LAMBDA",&
@@ -119,7 +119,7 @@ CONTAINS
           CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
                scale_dEx2, total_energy_xc, error)
-        
+
           !! Scale and add Fock matrix to KS matrix
           IF(do_hfx) THEN
              CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
@@ -145,16 +145,16 @@ CONTAINS
           !! Calcualte vxc and rescale it
           IF (gapw .OR. gapw_xc) THEN
              CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA,&
-                  error=error) 
+                  error=error)
           END IF
           !! Hack for the total energy expression
-          energy%ex = 0.0_dp 
+          energy%ex = 0.0_dp
           energy%exc1 = 0.0_dp
-          energy%exc = total_energy_xc 
-          
+          energy%exc = total_energy_xc
+
        END SELECT
     END SELECT
-    CALL timestop(handle) 
+    CALL timestop(handle)
 
   END SUBROUTINE rescale_xc_potential
 

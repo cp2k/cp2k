@@ -321,7 +321,7 @@ CPSourceFileRef,&
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
- 
+
     ! first setup a parallel rng
     IF (FIRST) THEN
        seed(:,:)=RESHAPE((/1.0_dp,2.0_dp,3.0_dp,4.0_dp,5.0_dp,6.0_dp/),(/3,2/))
@@ -329,7 +329,7 @@ CPSourceFileRef,&
     ENDIF
     ! guarantee same seed over all tasks
     CALL mp_bcast(seed,0,matrix%matrix_struct%para_env%group)
- 
+
     NULLIFY(rng)
     CALL create_rng_stream(rng,"cp_fm_init_random_stream",distribution_type=UNIFORM, &
                            extended_precision=.TRUE.,seed=seed,error=error)
@@ -431,7 +431,7 @@ CPSourceFileRef,&
 
     ! arguments
     TYPE(cp_fm_type), POINTER                  :: matrix
-    REAL(KIND = dp), DIMENSION(:), INTENT(OUT) :: diag    
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT) :: diag
     TYPE(cp_error_type), INTENT(inout)         :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_diag', &
@@ -449,7 +449,7 @@ CPSourceFileRef,&
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
     REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp
 #endif
-    
+
     failure = .FALSE.
 
     CALL cp_fm_get_info(matrix,nrow_global=nrow_global,error=error)
@@ -650,7 +650,7 @@ CPSourceFileRef,&
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
 
-    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure) 
+    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
 
 #if defined(__SCALAPACK)
 
@@ -731,7 +731,7 @@ CPSourceFileRef,&
        CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
 
-    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure) 
+    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure)
 
     IF (.not.failure) THEN
        IF (PRESENT(alpha)) al=alpha
@@ -877,7 +877,7 @@ CPSourceFileRef,&
        CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
 
-    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure) 
+    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure)
 
     IF (.not.failure) THEN
        IF (PRESENT(start_row)) i0=start_row
@@ -1674,7 +1674,7 @@ CPSourceFileRef,&
                irow_local,icol_local,iprow,ipcol)
       IF (ipcol==mypcol) THEN
          DO j=1,i_block
-            vecbuf((j-1)*nrow_global+1:nrow_global*j)=newdat(:,icol_local+j-1) 
+            vecbuf((j-1)*nrow_global+1:nrow_global*j)=newdat(:,icol_local+j-1)
          END DO
       END IF
 

@@ -146,7 +146,7 @@ CONTAINS
 
         DEALLOCATE(coord,zeff,weight,atype,element,STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-        
+
         CALL release_molsym(mol_sym,error)
 
       ELSE

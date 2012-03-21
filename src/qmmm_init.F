@@ -67,7 +67,7 @@ MODULE qmmm_init
   PUBLIC :: assign_mm_charges_and_radius,&
             print_qmmm_charges,&
             print_qmmm_links,&
-            print_image_charge_info,&  
+            print_image_charge_info,&
             qmmm_init_gaussian_type,&
             qmmm_init_potential,&
             qmmm_init_periodic_potential,&
@@ -517,7 +517,7 @@ CONTAINS
                                                 image_charge_section, mm_kinds
 
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
-    NULLIFY(image_charge_section)  
+    NULLIFY(image_charge_section)
     qmmm_link = .FALSE.
     failure   = .FALSE.
 
@@ -534,7 +534,7 @@ CONTAINS
        CALL section_vals_val_get(qmmm_section,"SPHERICAL_CUTOFF",r_vals=tmp_sph_cut,error=error)
        CPPostcondition(SIZE(tmp_sph_cut)==2,cp_failure_level,routineP,error,failure)
        qmmm_env%spherical_cutoff = tmp_sph_cut
-       IF (qmmm_env%spherical_cutoff(1)<=0.0_dp) THEN 
+       IF (qmmm_env%spherical_cutoff(1)<=0.0_dp) THEN
           qmmm_env%spherical_cutoff(2) = 0.0_dp
        ELSE
           IF (qmmm_env%spherical_cutoff(2)<=0.0_dp) qmmm_env%spherical_cutoff(2)=EPSILON(0.0_dp)
@@ -616,11 +616,11 @@ CPSourceFileRef,&
           END DO
        END IF
 
-       !Image charge section 
+       !Image charge section
 
        image_charge_section => section_vals_get_subs_vals(qmmm_section,"IMAGE_CHARGE",error=error)
        CALL section_vals_get(image_charge_section,explicit=qmmm_env%image_charge,error=error)
-      
+
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
@@ -653,7 +653,7 @@ CPSourceFileRef,&
        DEALLOCATE(mm_link_atoms, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
     ! Build image charge atom list + set up variables
     !
     IF (qmmm_env%image_charge) THEN
@@ -662,14 +662,14 @@ CPSourceFileRef,&
        IF(explicit) qmmm_env%image_charge_pot%all_mm=.FALSE.
 
        IF(qmmm_env%image_charge_pot%all_mm) THEN
-         qmmm_env%image_charge_pot%image_mm_list => mm_atom_index 
+         qmmm_env%image_charge_pot%image_mm_list => mm_atom_index
        ELSE
          CALL setup_image_atom_list(image_charge_section,qmmm_env,&
                                     qm_atom_index,subsys_mm,error)
-       END IF 
-         
+       END IF
+
        qmmm_env%image_charge_pot%particles_all => subsys_mm%particles%els
-       
+
        CALL section_vals_val_get(image_charge_section,"EXT_POTENTIAL",&
                                  r_val=qmmm_env%image_charge_pot%V0,error=error)
        CALL section_vals_val_get(image_charge_section,"WIDTH",&
@@ -683,7 +683,7 @@ CPSourceFileRef,&
          qmmm_env%image_charge_pot%coeff_iterative=.TRUE.
        END SELECT
 
-    END IF 
+    END IF
 
   END SUBROUTINE setup_qmmm_vars_qm
 
@@ -1384,7 +1384,7 @@ CPSourceFileRef,&
        num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
     END DO
 
-   ! checking, if in range, if list contains QM atoms or any atoms doubled 
+   ! checking, if in range, if list contains QM atoms or any atoms doubled
    num_image_mm_atom=num_image_mm_atom-1
 
    max_index=SIZE(subsys_mm%particles%els)
@@ -1412,11 +1412,11 @@ CPSourceFileRef,&
    END SUBROUTINE setup_image_atom_list
 
 ! *****************************************************************************
-!> \brief Print info on image charges 
+!> \brief Print info on image charges
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      03.2012 created 
+!>      03.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
  SUBROUTINE print_image_charge_info(qmmm_env, qmmm_section, error)
@@ -1451,7 +1451,7 @@ CPSourceFileRef,&
        WRITE(iw,FMT="(/)")
        WRITE(iw,"(T2,A52,T69,F12.8)")&
         "WIDTH OF GAUSSIAN CHARGE DISTRIBUTION [angstrom^-2]:", eta_conv
-       WRITE(iw,"(T2,A26,T69,F12.8)") "EXTERNAL POTENTIAL [volt]:", V0_conv 
+       WRITE(iw,"(T2,A26,T69,F12.8)") "EXTERNAL POTENTIAL [volt]:", V0_conv
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of the Fermi contact integrals over Cartesian 
+!> \brief Calculation of the Fermi contact integrals over Cartesian
 !>        Gaussian-type functions.
 !> \par Literature
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
@@ -44,7 +44,7 @@ MODULE ai_fermi_contact
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   Purpose: Calculation of the two-center Fermi contact integrals 
+!> \brief   Purpose: Calculation of the two-center Fermi contact integrals
 !>          4/3*pi*[a|delta(r-c)|b] over Cartesian Gaussian-type functions.
 !> \author  VW
 !> \date    27.02.2009

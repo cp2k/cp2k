@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief   Machine Hardware support for cp2k
-!           Pack and unpack for machine representation 
+!           Pack and unpack for machine representation
 !> \author  Christiane Pousa Ribeiro
 !> \date    2011-08-08
 !> \version 1.0
@@ -16,17 +16,17 @@
 MODULE machine_architecture_utils
 #if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#endif  
+#endif
   USE dummy_c_bindings
 
  USE machine_architecture_types
  USE ma_kinds
 
  IMPLICIT NONE
-  
+
  PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_utils' 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_utils'
 
  PUBLIC :: ma_pack_threads, ma_unpack_threads
  PUBLIC :: ma_create_process, ma_set_threads
@@ -56,7 +56,7 @@ MODULE machine_architecture_utils
  proc_info%mp_info%myid = mp_env%myid
  proc_info%mp_info%all_proc = mp_env%all_proc
  ALLOCATE (proc_info%threads_info(nr_threads))
-  
+
  END SUBROUTINE ma_create_process
 
 ! *****************************************************************************
@@ -81,7 +81,7 @@ MODULE machine_architecture_utils
 !> \brief   Pack components of a machine architecture into a single vector
 !  thread is a vector that must be allocated first
 ! *****************************************************************************
- SUBROUTINE ma_pack_threads(proc_info, thread_send) 
+ SUBROUTINE ma_pack_threads(proc_info, thread_send)
     TYPE(ma_process), INTENT(IN)             :: proc_info
     INTEGER, DIMENSION(:, :), INTENT(OUT), &
       OPTIONAL                               :: thread_send
@@ -96,12 +96,12 @@ MODULE machine_architecture_utils
   thread_send(2,it) =  proc_info%threads_info(it)%node
   thread_send(3,it) =  proc_info%threads_info(it)%id_omp
   thread_send(4,it) =  proc_info%threads_info(it)%id_real
- END DO 
+ END DO
 
  END SUBROUTINE ma_pack_threads
 
 ! *****************************************************************************
-!> \brief   Unpack components of a machine architecture into the thread 
+!> \brief   Unpack components of a machine architecture into the thread
 !>          structre
 ! *****************************************************************************
  SUBROUTINE ma_unpack_threads(proc_info, thread_recv, thread_map)

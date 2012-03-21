@@ -736,7 +736,7 @@ CONTAINS
        vbins(el) = bins(el) * decimation + images(el)-1
     END FORALL
   END SUBROUTINE make_vdistribution
-      
+
 
 ! *****************************************************************************
 !> \brief Makes new distribution with multiplicity
@@ -1206,7 +1206,7 @@ CONTAINS
 
        estimated_blocks = max_blocks_per_bin * nbins
        ALLOCATE (blk_dist (estimated_blocks), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, & 
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, &
             dbcsr_caller_error, routineN,&
             "blk_dist",__LINE__,error)
        ALLOCATE (blk_sizes (estimated_blocks), stat=stat)

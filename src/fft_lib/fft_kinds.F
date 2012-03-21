@@ -10,7 +10,7 @@
 #if defined ( __FFTMKL )
 #include "mkl_dfti.f90"
 #endif
- 
+
 MODULE fft_kinds
 
 #if defined ( __FFTMKL )

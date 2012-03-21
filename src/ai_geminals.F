@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of Coulomb integrals over Correlated Cartesian Gaussian 
+!> \brief Calculation of Coulomb integrals over Correlated Cartesian Gaussian
 !>        Geminals (electron repulsion integrals, ERIs).
 !> \par Literature
 !>      S.L. Saito and Y. Suzuki, J. Chem. Phys. 114 1115 (2001)
@@ -880,7 +880,7 @@ MODULE ai_geminals
                               jjm(ix) = jjm(ix) + 1
                               irap=coset(jjm(1),jjm(2),jjm(3))
                               isap=coset(jjm(4),jjm(5),jjm(6))
-          
+
                               IF ( n==1 ) THEN
                                 iab(1,ira,isa,irb,isb) = iab(1,irap,isap,irbm,isbm) + &
                                                          abx * iab(1,ira,isa,irbm,isbm)

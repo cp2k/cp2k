@@ -50,8 +50,8 @@ MODULE simpar_types
      LOGICAL        :: constraint
      LOGICAL        :: annealing
      LOGICAL        :: annealing_cell
-     LOGICAL        :: dump_lm 
-     LOGICAL        :: angvel_zero 
+     LOGICAL        :: dump_lm
+     LOGICAL        :: angvel_zero
      LOGICAL        :: variable_dt
      INTEGER        :: nfree, nfree_rot_transl
      INTEGER        :: info_constraint
@@ -132,5 +132,5 @@ CONTAINS
     DEALLOCATE(simpar, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE release_simpar_type
-  
+
 END MODULE simpar_types

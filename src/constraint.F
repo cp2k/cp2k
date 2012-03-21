@@ -128,7 +128,7 @@ CONTAINS
           nmol_per_kind = local_molecules % n_el ( ikind )
           DO imol = 1, nmol_per_kind
              i = local_molecules % list ( ikind ) % array ( imol )
-             molecule => molecule_set ( i ) 
+             molecule => molecule_set ( i )
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                                       ng3x3 = n3x3con, ng4x6=n4x6con,&
@@ -154,7 +154,7 @@ CONTAINS
              END DO Shake_Intra_Loop
              max_sigma = MAX(max_sigma, int_max_sigma)
              CALL shake_int_info(log_unit,i,ishake_int,max_sigma,error)
-             ! Virtual Site 
+             ! Virtual Site
              IF ( nvsitecon /= 0 ) &
                 CALL shake_vsite_int( molecule, pos, error)
           END DO
@@ -174,7 +174,7 @@ CONTAINS
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL shake_colv_ext(gci, particle_set, pos, vel, dt, ishake_ext,&
                cell, imass, max_sigma, error)
-          ! Virtual Site 
+          ! Virtual Site
           IF ( gci%nvsite /= 0 ) &
                CALL shake_vsite_ext( gci, pos, error)
           CALL restore_temporary_set( particle_set, local_particles, pos=pos, vel=vel )
@@ -183,7 +183,7 @@ CONTAINS
     END DO Shake_Inter_Loop
     CALL dump_lagrange_mult(dump_lm, lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"S",error)
-  
+
     CALL timestop(handle)
   END SUBROUTINE shake_control
 
@@ -240,7 +240,7 @@ CONTAINS
           nmol_per_kind = local_molecules % n_el ( ikind )
           DO imol = 1, nmol_per_kind
              i = local_molecules % list ( ikind ) % array ( imol )
-             molecule => molecule_set ( i ) 
+             molecule => molecule_set ( i )
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv, ng3x3 = n3x3con,&
                                       ng4x6 = n4x6con ,nconstraint=nconstraint )
@@ -249,7 +249,7 @@ CONTAINS
              int_max_sigma = -1.0E+10_dp
              Rattle_Intra_Loop: DO WHILE ( ABS ( int_max_sigma ) >=  rattle_tol )
                 int_max_sigma = 0.0_dp
-                irattle_int = irattle_int + 1 
+                irattle_int = irattle_int + 1
                 ! 3x3
                 IF ( n3x3con /= 0 ) &
                      CALL rattle_3x3_int( molecule, particle_set, vel, dt, error)
@@ -277,7 +277,7 @@ CONTAINS
           ! Collective Variables
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL rattle_colv_ext( gci, particle_set, vel, dt, &
-               irattle_ext, cell, imass, max_sigma, error )  
+               irattle_ext, cell, imass, max_sigma, error )
           CALL restore_temporary_set ( particle_set, local_particles, vel = vel )
        END IF
        CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
@@ -358,7 +358,7 @@ CONTAINS
           nmol_per_kind = local_molecules % n_el ( ikind )
           DO imol = 1, nmol_per_kind
              i = local_molecules % list ( ikind ) % array ( imol )
-             molecule => molecule_set ( i ) 
+             molecule => molecule_set ( i )
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                                       ng3x3 = n3x3con, ng4x6=n4x6con,&
@@ -407,7 +407,7 @@ CONTAINS
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake,&
                v_shake, dt, ishake_ext, cell, imass, max_sigma, error )
-          ! Virtual Site 
+          ! Virtual Site
           IF ( gci%nvsite /= 0 ) &
                CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!", &
@@ -496,7 +496,7 @@ CONTAINS
           nmol_per_kind = local_molecules % n_el ( ikind )
           DO imol = 1, nmol_per_kind
              i = local_molecules % list ( ikind ) % array ( imol )
-             molecule => molecule_set ( i ) 
+             molecule => molecule_set ( i )
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                                       ng3x3 = n3x3con, ng4x6 = n4x6con,&
@@ -530,7 +530,7 @@ CONTAINS
           ! 3x3
           IF ( gci%ng3x3 /= 0 )&
                CALL rattle_roll_3x3_ext( gci, particle_set, vel, r_rattle, dt,&
-               veps, error ) 
+               veps, error )
           ! 4x6
           IF ( gci%ng4x6 /= 0 ) &
                CALL rattle_roll_4x6_ext( gci, particle_set, vel, r_rattle, dt,&
@@ -538,7 +538,7 @@ CONTAINS
           ! Collective Variables
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL rattle_roll_colv_ext( gci, particle_set, vel, r_rattle, dt,&
-               irattle_ext, veps, cell, imass, max_sigma, error  )     
+               irattle_ext, veps, cell, imass, max_sigma, error  )
           CALL restore_temporary_set ( particle_set, local_particles, vel = vel )
        END IF
        CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
@@ -603,7 +603,7 @@ CONTAINS
              DO imol = 1, molecule_kind%nmolecule
                 i = molecule_kind%molecule_list(imol)
                 IF (ANY(local_molecules % list ( ikind ) % array == i)) THEN
-                   molecule => molecule_set ( i ) 
+                   molecule => molecule_set ( i )
                    ! Collective Variables
                    DO j = 1, ncolv%ntot
                       lagr(my_index+1) = molecule%lci%lcolv(j)%lambda
@@ -681,7 +681,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (log_unit>0) THEN 
+    IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,2(A,I6),A,F15.9)')&
             "Molecule Nr.:",i," Nr. Iterations:",ishake_int," Max. Err.:",max_sigma
@@ -710,7 +710,7 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (log_unit>0) THEN 
+    IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,A,I6,A,F15.9)')&
             "External Shake      Nr. Iterations:",ishake_ext,&
@@ -818,7 +818,7 @@ CPSourceFileRef)
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
           i = local_molecules % list ( ikind ) % array ( imol )
-          molecule => molecule_set ( i ) 
+          molecule => molecule_set ( i )
           molecule_kind => molecule % molecule_kind
           CALL get_molecule_kind ( molecule_kind, ncolv=ncolv )
 

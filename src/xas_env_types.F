@@ -398,7 +398,7 @@ CONTAINS
               DEALLOCATE(xas_env%smear%list,stat=istat)
               CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
            ENDIF
-           DEALLOCATE(xas_env%smear,stat=istat)          
+           DEALLOCATE(xas_env%smear,stat=istat)
            CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
 

@@ -42,7 +42,7 @@ MODULE fft_tools
                                              timestop
 #include "cp_common_uses.h"
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_tools'
 
@@ -127,26 +127,26 @@ MODULE fft_tools
 
   INTEGER, SAVE                           :: init_fft_pool = 0
   ! the clock for fft pool. Allows to identify the least recently used scratch
-  INTEGER, SAVE                           :: tick_fft_pool = 0 
+  INTEGER, SAVE                           :: tick_fft_pool = 0
   ! limit the number of scratch pools to fft_pool_scratch_limit.
   INTEGER, SAVE                           :: fft_pool_scratch_limit=15
   TYPE(fft_scratch_pool_type),POINTER,SAVE:: fft_scratch_first
   ! END of types for the pool of scratch data needed in FFT routines
-  
+
   PRIVATE
   PUBLIC :: init_fft, fft3d, finalize_fft
   PUBLIC :: fft_radix_operations
   PUBLIC :: FWFFT, BWFFT
   PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT, FFT_RADIX_ALLOWED
   PUBLIC :: FFT_RADIX_DISALLOWED, FFT_RADIX_NEXT_ODD
-  
+
   INTEGER, PARAMETER :: FWFFT = +1, BWFFT = -1
   INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
   INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
   INTEGER, PARAMETER :: FFT_RADIX_NEXT_ODD = 497
 
   REAL(KIND=dp), PARAMETER :: ratio_sparse_alltoall = 0.5_dp
- 
+
   ! these saved variables are FFT globals
   INTEGER, SAVE :: fft_type = 0
   LOGICAL, SAVE :: alltoall_sgl = .FALSE.
@@ -199,7 +199,7 @@ CONTAINS
     IF (fft_library ( "FFTW3" ) == fft_type) THEN
        INQUIRE(FILE=wisdom_file,exist=exist)
        IF (exist) THEN
-          iunit=get_unit_number()           
+          iunit=get_unit_number()
           OPEN(UNIT=iunit,FILE=wisdom_file,STATUS="OLD",FORM="FORMATTED",POSITION="REWIND",&
                ACTION="READ",IOSTAT=istat)
           IF (istat==0) THEN
@@ -241,7 +241,7 @@ CONTAINS
     IF (fft_library ( "FFTW3" ) == fft_type) THEN
        ! only the ionode updates the wisdom
        IF (para_env%ionode) THEN
-          iunit=get_unit_number()           
+          iunit=get_unit_number()
           OPEN(UNIT=iunit,FILE="fftw_wisdom.dat",STATUS="UNKNOWN",FORM="FORMATTED",ACTION="WRITE")
           CALL fftw_export_wisdom_to_file(iunit)
           CLOSE(iunit)
@@ -339,7 +339,7 @@ CONTAINS
                          "Disallowed radix operation.")
     END IF
 
-    DEALLOCATE(DATA) 
+    DEALLOCATE(DATA)
 
   END SUBROUTINE fft_radix_operations
 
@@ -427,7 +427,7 @@ CONTAINS
        IF ( fsign == FWFFT ) THEN
           CALL fft_3d( fft_scratch%fft_plan(3), norm, ziptr, zoptr, stat )
        ELSE
-          CALL fft_3d( fft_scratch%fft_plan(4), norm, ziptr, zoptr, stat ) 
+          CALL fft_3d( fft_scratch%fft_plan(4), norm, ziptr, zoptr, stat )
        ENDIF
        zout(:,:,:) = zoptr(:,:,:)
     END IF
@@ -436,13 +436,13 @@ CONTAINS
     IF ( fft_in_place ) THEN
        zoptr => zdum
        IF ( fsign == FWFFT ) THEN
-          CALL fft_3d( fft_scratch%fft_plan(1), norm, zin, zoptr, stat ) 
+          CALL fft_3d( fft_scratch%fft_plan(1), norm, zin, zoptr, stat )
        ELSE
-          CALL fft_3d( fft_scratch%fft_plan(2), norm, zin, zoptr, stat ) 
+          CALL fft_3d( fft_scratch%fft_plan(2), norm, zin, zoptr, stat )
        ENDIF
     ELSE
        IF ( fsign == FWFFT ) THEN
-          CALL fft_3d( fft_scratch%fft_plan(3), norm, zin, zout, stat ) 
+          CALL fft_3d( fft_scratch%fft_plan(3), norm, zin, zout, stat )
        ELSE
           CALL fft_3d( fft_scratch%fft_plan(4), norm, zin, zout, stat )
        ENDIF
@@ -524,7 +524,7 @@ CONTAINS
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num  
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -597,8 +597,8 @@ CONTAINS
     fft_scratch_size%mx2 = mx2
     fft_scratch_size%my1 = my1
     fft_scratch_size%mz2 = mz2
-    fft_scratch_size%lg  = lg 
-    fft_scratch_size%mg  = mg 
+    fft_scratch_size%lg  = lg
+    fft_scratch_size%mg  = mg
     fft_scratch_size%nbx = n1
     fft_scratch_size%nbz = n2
     mcz1 = MAXVAL ( bo(2,3,:,1) - bo(1,3,:,1) + 1 )
@@ -807,7 +807,7 @@ CONTAINS
           qbuf => fft_scratch%p1buf
 
           ! FFT along z
-#if defined(__FFTSGL) 
+#if defined(__FFTSGL)
           CALL fft_1dm ( fft_scratch%fft_plan(6), pbuf, qbuf, 1.0_lp , stat)
           CALL copy_cz(n(3)*mx1*my1,qbuf,cin)
 #else
@@ -923,7 +923,7 @@ CONTAINS
           END IF
 
        ELSE IF ( sign == BWFFT ) THEN
-          ! gin -> cin      
+          ! gin -> cin
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( gin ) )
@@ -1043,7 +1043,7 @@ CONTAINS
 ! There is one communicator (2-dimensional) for all distributions
 ! np = n1 * n2, where np is the total number of processors
 ! If n2 = 1, we have the second case and only one transpose step is needed
-! 
+!
 ! Assignment of dimensions to axis for different steps
 ! First case: 1) n1=x; n2=y
 !             2) n1=x; n2=z
@@ -1549,7 +1549,7 @@ CONTAINS
        ix = p2p ( ip )
        nx = bo ( 2, 1, ix ) - bo ( 1, 1, ix ) + 1
        scount ( ip ) = nr * nx
-       sdispl ( ip ) = nr * ( bo ( 1, 1, ix ) - 1 ) 
+       sdispl ( ip ) = nr * ( bo ( 1, 1, ix ) - 1 )
     END DO
 !$omp end parallel do
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
@@ -1559,7 +1559,7 @@ CONTAINS
     DO ip = 0, np - 1
        nr = nray ( ip )
        rcount ( ip ) = nr * nx
-       rdispl ( ip ) = nm * nx * ip 
+       rdispl ( ip ) = nm * nx * ip
     END DO
 !$omp end parallel do
     IF ( alltoall_sgl ) THEN
@@ -1571,7 +1571,7 @@ CONTAINS
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none) __COLLAPSE2 &
 !$omp             private(ixx,ir,iy,iz,ix) &
-!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb) 
+!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
     DO ip = 0, np - 1
        DO ix = 1, nx
           ixx = nray(ip) * ( ix - 1 )
@@ -1762,7 +1762,7 @@ CONTAINS
     nx = SIZE ( sb ,2 )
 
 ! If the send and recv counts are not already cached, then
-! calculate and store them 
+! calculate and store them
     IF ( fft_scratch%in == 0 ) THEN
 
       scount = 0
@@ -2039,12 +2039,12 @@ CONTAINS
              IF ( alltoall_sgl ) THEN
                 DO jx = 0, nx - 1
                    ixx = jj + jx * scount ( ipl )/nx
-                   xzbuf_sgl ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz ) 
+                   xzbuf_sgl ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz )
                 END DO
              ELSE
                 DO jx = 0, nx - 1
                    ixx = jj + jx * scount ( ipl )/nx
-                   xzbuf ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz ) 
+                   xzbuf ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz )
                 END DO
              END IF
           END IF
@@ -2168,7 +2168,7 @@ CONTAINS
 
 !$omp parallel do default(none) __COLLAPSE2 &
 !$omp             private(ip,ipl,nz,iz,is,ir) &
-!$omp             shared(nx,ny,np,pgrid,boin,sout,rbuf) 
+!$omp             shared(nx,ny,np,pgrid,boin,sout,rbuf)
     DO ixy = 1, nx * ny
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 2 )
@@ -2345,7 +2345,7 @@ CONTAINS
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
     IF (my_id < num_threads) THEN
-      lb = (SIZE(rbuf,2)*my_id)/num_threads 
+      lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
     END IF
@@ -2355,7 +2355,7 @@ CONTAINS
 
 !$omp parallel do default(none) __COLLAPSE2 &
 !$omp             private(ip,ipl,ny,iy,is,ir) &
-!$omp             shared(nx,nz,np,pgrid,boin,rbuf,sout) 
+!$omp             shared(nx,nz,np,pgrid,boin,rbuf,sout)
     DO ixz = 1, nx * nz
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 1 )
@@ -2426,7 +2426,7 @@ CONTAINS
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
     IF (my_id < num_threads) THEN
-      lb = (SIZE(rbuf,2)*my_id)/num_threads 
+      lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
     END IF
@@ -2536,7 +2536,7 @@ CONTAINS
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
     IF (my_id < num_threads) THEN
-      lb = (SIZE(rbuf,2)*my_id)/num_threads 
+      lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
     END IF
@@ -2547,7 +2547,7 @@ CONTAINS
 
 !$omp parallel do default(none) __COLLAPSE2 &
 !$omp             private(ip,ny,iy,is,ir) &
-!$omp             shared(nx,nz,np,boin,sout,rbuf) 
+!$omp             shared(nx,nz,np,boin,sout,rbuf)
     DO ixz = 1, nx * nz
        DO ip = 0, np - 1
           ny = boin ( 2, 2, ip ) - boin ( 1, 2, ip ) + 1
@@ -2671,42 +2671,42 @@ CONTAINS
     CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (fft_scratch_first%fft_scratch,STAT=ierr)
     CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(fft_scratch_first%fft_scratch_next) 
+    NULLIFY(fft_scratch_first%fft_scratch_next)
     fft_scratch_first%fft_scratch%fft_scratch_id=0
     fft_scratch_first%fft_scratch%in_use=.TRUE.
     fft_scratch_first%fft_scratch%group=0
-    NULLIFY(fft_scratch_first%fft_scratch%ziptr) 
-    NULLIFY(fft_scratch_first%fft_scratch%zoptr) 
-    NULLIFY(fft_scratch_first%fft_scratch%p1buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%p2buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%p3buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%p4buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%p5buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%p6buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%p7buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%r1buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%r2buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%tbuf) 
-    NULLIFY(fft_scratch_first%fft_scratch%a1buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%a2buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%a3buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%a4buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%a5buf) 
-    NULLIFY(fft_scratch_first%fft_scratch%a6buf) 
+    NULLIFY(fft_scratch_first%fft_scratch%ziptr)
+    NULLIFY(fft_scratch_first%fft_scratch%zoptr)
+    NULLIFY(fft_scratch_first%fft_scratch%p1buf)
+    NULLIFY(fft_scratch_first%fft_scratch%p2buf)
+    NULLIFY(fft_scratch_first%fft_scratch%p3buf)
+    NULLIFY(fft_scratch_first%fft_scratch%p4buf)
+    NULLIFY(fft_scratch_first%fft_scratch%p5buf)
+    NULLIFY(fft_scratch_first%fft_scratch%p6buf)
+    NULLIFY(fft_scratch_first%fft_scratch%p7buf)
+    NULLIFY(fft_scratch_first%fft_scratch%r1buf)
+    NULLIFY(fft_scratch_first%fft_scratch%r2buf)
+    NULLIFY(fft_scratch_first%fft_scratch%tbuf)
+    NULLIFY(fft_scratch_first%fft_scratch%a1buf)
+    NULLIFY(fft_scratch_first%fft_scratch%a2buf)
+    NULLIFY(fft_scratch_first%fft_scratch%a3buf)
+    NULLIFY(fft_scratch_first%fft_scratch%a4buf)
+    NULLIFY(fft_scratch_first%fft_scratch%a5buf)
+    NULLIFY(fft_scratch_first%fft_scratch%a6buf)
     NULLIFY(fft_scratch_first%fft_scratch%scount,fft_scratch_first%fft_scratch%rcount,&
          fft_scratch_first%fft_scratch%sdispl,fft_scratch_first%fft_scratch%rdispl)
     NULLIFY(fft_scratch_first%fft_scratch%rr,&
          fft_scratch_first%fft_scratch%ss, fft_scratch_first%fft_scratch%tt)
     NULLIFY(fft_scratch_first%fft_scratch%xzbuf,fft_scratch_first%fft_scratch%yzbuf,&
          fft_scratch_first%fft_scratch%xzbuf_sgl,fft_scratch_first%fft_scratch%yzbuf_sgl)
-    NULLIFY(fft_scratch_first%fft_scratch%pgrid) 
-    NULLIFY(fft_scratch_first%fft_scratch%pgcube) 
+    NULLIFY(fft_scratch_first%fft_scratch%pgrid)
+    NULLIFY(fft_scratch_first%fft_scratch%pgcube)
     NULLIFY(fft_scratch_first%fft_scratch%xcor, fft_scratch_first%fft_scratch%zcor)
-    NULLIFY(fft_scratch_first%fft_scratch%pzcoord) 
+    NULLIFY(fft_scratch_first%fft_scratch%pzcoord)
     NULLIFY(fft_scratch_first%fft_scratch%xzcount, fft_scratch_first%fft_scratch%yzcount,&
          fft_scratch_first%fft_scratch%xzdispl, fft_scratch_first%fft_scratch%yzdispl)
     NULLIFY(fft_scratch_first%fft_scratch%rbuf1,fft_scratch_first%fft_scratch%rbuf2,&
-         fft_scratch_first%fft_scratch%rbuf3,fft_scratch_first%fft_scratch%rbuf4) 
+         fft_scratch_first%fft_scratch%rbuf3,fft_scratch_first%fft_scratch%rbuf4)
     NULLIFY(fft_scratch_first%fft_scratch%rbuf5,fft_scratch_first%fft_scratch%rbuf6)
     fft_scratch_first%fft_scratch%in = 0
     fft_scratch_first%fft_scratch%rsratio = 1._dp
@@ -2922,7 +2922,7 @@ CONTAINS
     IF (init_fft_pool == 0) NULLIFY(fft_scratch_first)
 
     fft_scratch => fft_scratch_first
-    DO 
+    DO
        IF (ASSOCIATED(fft_scratch)) THEN
           fft_scratch_current => fft_scratch
           fft_scratch => fft_scratch_current%fft_scratch_next
@@ -2973,7 +2973,7 @@ CONTAINS
              ENDIF
           ENDIF
           fft_scratch_current=>fft_scratch_current%fft_scratch_next
-       ELSE 
+       ELSE
           EXIT
        ENDIF
     ENDDO
@@ -2987,7 +2987,7 @@ CONTAINS
              IF (ASSOCIATED(fft_scratch_current)) THEN
                 ! should we delete the next in the list?
                 IF (ASSOCIATED(fft_scratch_current%fft_scratch_next,fft_scratch_old)) THEN
-                   ! fix the linked list 
+                   ! fix the linked list
                    fft_scratch_current%fft_scratch_next=>fft_scratch_old%fft_scratch_next
 
                    ! deallocate the element
@@ -3077,7 +3077,7 @@ CONTAINS
                 CYCLE
              ENDIF
           END IF
-          ! Success 
+          ! Success
           fft_scratch => fft_scratch_current%fft_scratch
           fft_scratch_current%fft_scratch%in_use = .TRUE.
           EXIT
@@ -3089,34 +3089,34 @@ CONTAINS
           ALLOCATE (fft_scratch_new%fft_scratch,STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           fft_scratch_new%fft_scratch%group = 0
-          NULLIFY(fft_scratch_new%fft_scratch%ziptr) 
-          NULLIFY(fft_scratch_new%fft_scratch%zoptr) 
-          NULLIFY(fft_scratch_new%fft_scratch%p1buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%p2buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%p3buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%p4buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%p5buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%p6buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%p7buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%r1buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%r2buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%tbuf) 
-          NULLIFY(fft_scratch_new%fft_scratch%a1buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%a2buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%a3buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%a4buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%a5buf) 
-          NULLIFY(fft_scratch_new%fft_scratch%a6buf) 
+          NULLIFY(fft_scratch_new%fft_scratch%ziptr)
+          NULLIFY(fft_scratch_new%fft_scratch%zoptr)
+          NULLIFY(fft_scratch_new%fft_scratch%p1buf)
+          NULLIFY(fft_scratch_new%fft_scratch%p2buf)
+          NULLIFY(fft_scratch_new%fft_scratch%p3buf)
+          NULLIFY(fft_scratch_new%fft_scratch%p4buf)
+          NULLIFY(fft_scratch_new%fft_scratch%p5buf)
+          NULLIFY(fft_scratch_new%fft_scratch%p6buf)
+          NULLIFY(fft_scratch_new%fft_scratch%p7buf)
+          NULLIFY(fft_scratch_new%fft_scratch%r1buf)
+          NULLIFY(fft_scratch_new%fft_scratch%r2buf)
+          NULLIFY(fft_scratch_new%fft_scratch%tbuf)
+          NULLIFY(fft_scratch_new%fft_scratch%a1buf)
+          NULLIFY(fft_scratch_new%fft_scratch%a2buf)
+          NULLIFY(fft_scratch_new%fft_scratch%a3buf)
+          NULLIFY(fft_scratch_new%fft_scratch%a4buf)
+          NULLIFY(fft_scratch_new%fft_scratch%a5buf)
+          NULLIFY(fft_scratch_new%fft_scratch%a6buf)
           NULLIFY(fft_scratch_new%fft_scratch%scount,fft_scratch_new%fft_scratch%rcount,&
                fft_scratch_new%fft_scratch%sdispl,fft_scratch_new%fft_scratch%rdispl)
           NULLIFY(fft_scratch_new%fft_scratch%rr,&
                fft_scratch_new%fft_scratch%ss, fft_scratch_new%fft_scratch%tt)
           NULLIFY(fft_scratch_new%fft_scratch%xzbuf, fft_scratch_new%fft_scratch%yzbuf,&
                fft_scratch_new%fft_scratch%xzbuf_sgl, fft_scratch_new%fft_scratch%yzbuf_sgl)
-          NULLIFY(fft_scratch_new%fft_scratch%pgcube) 
-          NULLIFY(fft_scratch_new%fft_scratch%pgrid) 
+          NULLIFY(fft_scratch_new%fft_scratch%pgcube)
+          NULLIFY(fft_scratch_new%fft_scratch%pgrid)
           NULLIFY(fft_scratch_new%fft_scratch%xcor, fft_scratch_new%fft_scratch%zcor)
-          NULLIFY(fft_scratch_new%fft_scratch%pzcoord) 
+          NULLIFY(fft_scratch_new%fft_scratch%pzcoord)
           NULLIFY(fft_scratch_new%fft_scratch%xzcount, fft_scratch_new%fft_scratch%yzcount)
           NULLIFY(fft_scratch_new%fft_scratch%xzdispl, fft_scratch_new%fft_scratch%yzdispl)
           NULLIFY(fft_scratch_new%fft_scratch%rbuf1, fft_scratch_new%fft_scratch%rbuf2,&
@@ -3165,7 +3165,7 @@ CONTAINS
              CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
              CALL mp_cart_rank ( fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip )
              fft_scratch_new%fft_scratch%dim = dim
-             fft_scratch_new%fft_scratch%pos = pos 
+             fft_scratch_new%fft_scratch%pos = pos
              mcz1   = fft_sizes%mcz1
              mcx2   = fft_sizes%mcx2
              mcz2   = fft_sizes%mcz2
@@ -3187,7 +3187,7 @@ CONTAINS
              !initialise pgcube
              DO i = 0, DIM(1) - 1
                 coord = (/i, pos(2)/)
-                CALL mp_cart_rank ( fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube (i, 1) ) 
+                CALL mp_cart_rank ( fft_sizes%rs_group, coord, fft_scratch_new%fft_scratch%pgcube (i, 1) )
              END DO
              DO i = 0, DIM(2) - 1
                 coord = (/pos(1), i/)
@@ -3262,13 +3262,13 @@ CONTAINS
 
 
           CASE (200)    ! fft3d_ps: plane distribution
-             nx    = fft_sizes%nx  
-             ny    = fft_sizes%ny 
+             nx    = fft_sizes%nx
+             ny    = fft_sizes%ny
              nz    = fft_sizes%nz
-             mx2   = fft_sizes%mx2 
+             mx2   = fft_sizes%mx2
              lmax  = fft_sizes%lmax
              mmax  = fft_sizes%mmax
-             lg    = fft_sizes%lg 
+             lg    = fft_sizes%lg
              mg    = fft_sizes%mg
              np    = fft_sizes%numtask
              nmray = fft_sizes%nmray
@@ -3306,14 +3306,14 @@ CONTAINS
 
           CASE (300)    ! fft3d_ps: block distribution
              mx1   = fft_sizes%mx1
-             mx2   = fft_sizes%mx2 
+             mx2   = fft_sizes%mx2
              my1   = fft_sizes%my1
-             mz2   = fft_sizes%mz2 
+             mz2   = fft_sizes%mz2
              mcx2  = fft_sizes%mcx2
-             lg    = fft_sizes%lg 
+             lg    = fft_sizes%lg
              mg    = fft_sizes%mg
-             nmax  = fft_sizes%nmax  
-             nmray = fft_sizes%nmray 
+             nmax  = fft_sizes%nmax
+             nmray = fft_sizes%nmray
              nyzray= fft_sizes%nyzray
              m1    = fft_sizes%r_dim(1)
              m2    = fft_sizes%r_dim(2)
@@ -3411,7 +3411,7 @@ CONTAINS
                   fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p1buf, fft_plan_style, aligned )
 
 
-          CASE (400)    ! serial FFT_SGL 
+          CASE (400)    ! serial FFT_SGL
              np = 0
              ALLOCATE ( fft_scratch_new%fft_scratch%ziptr(n(1),n(2),n(3)),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -3431,7 +3431,7 @@ CONTAINS
 
           END SELECT
 
-          NULLIFY(fft_scratch_new%fft_scratch_next) 
+          NULLIFY(fft_scratch_new%fft_scratch_next)
           fft_scratch_new%fft_scratch%fft_scratch_id = &
                fft_scratch_last%fft_scratch%fft_scratch_id + 1
           fft_scratch_new%fft_scratch%in_use=.TRUE.
@@ -3533,7 +3533,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief  test data structures for equality. It is assumed that if they are 
+!> \brief  test data structures for equality. It is assumed that if they are
 !>         different for one mpi task they are different for all (??)
 ! *****************************************************************************
   SUBROUTINE is_equal(fft_size_1,fft_size_2,equal)

@@ -8,7 +8,7 @@
 !> \author
 ! *****************************************************************************
 MODULE gle_system_dynamics
- 
+
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type
@@ -95,7 +95,7 @@ CONTAINS
     my_shell_adiabatic = .FALSE.
     failure = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
-    NULLIFY( rng_stream) 
+    NULLIFY( rng_stream)
     present_vel = PRESENT(vel)
     ndim = gle%ndim
     ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
@@ -106,7 +106,7 @@ CONTAINS
     ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       
+
     map_info => gle%map_info
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, vel, error)
@@ -147,7 +147,7 @@ CONTAINS
        imap = gle%map_info%map_index(ideg)
        IF (gle%nvt(ideg)%nkt==0.0_dp) CYCLE
 
-       map_info%v_scale(imap) =  h_tmp(1,imap)/s_tmp(1,imap) 
+       map_info%v_scale(imap) =  h_tmp(1,imap)/s_tmp(1,imap)
        DO iadd = 2,ndim
           gle%nvt(ideg)%s(iadd) = h_tmp(iadd,ideg)
        END DO
@@ -167,13 +167,13 @@ CONTAINS
 
     DEALLOCATE(e_tmp,s_tmp,h_tmp,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
+
     CALL timestop(handle)
   END SUBROUTINE gle_particles
 
 
 ! *****************************************************************************
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE initialize_gle_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, particle_set, para_env,  gle, gle_section,&
@@ -212,9 +212,9 @@ CONTAINS
     ! here we should have read a_mat and c_mat; whe can therefore compute S and T
     ! deterministic part of the propagator
     CALL gle_matrix_exp((-simpar%dt*0.5_dp)*gle%a_mat, gle%ndim,15,15,gle%gle_t)
-    ! stochastic part 
+    ! stochastic part
     Mtmp=gle%c_mat-MATMUL(gle%gle_t,MATMUL(gle%c_mat,TRANSPOSE(gle%gle_t)))
-    CALL gle_cholesky_stab(Mtmp, gle%gle_s, gle%ndim)  
+    CALL gle_cholesky_stab(Mtmp, gle%gle_s, gle%ndim)
 
   END SUBROUTINE initialize_gle_part
 
@@ -236,14 +236,14 @@ CONTAINS
     DO i=1,j
        tc(i+1)=tc(i)/REAL(i,KIND=dp)
     ENDDO
-    
+
     !scale
     SM=M*(1._dp/2._dp**k)
     EM=0._dp
     DO i=1,n
        EM(i,i)=tc(j+1)
     ENDDO
-    
+
     !taylor exp of scaled matrix
     DO p=j,1,-1
        EM=MATMUL(SM,EM)
@@ -251,7 +251,7 @@ CONTAINS
           EM(i,i)=EM(i,i)+tc(p)
        ENDDO
     ENDDO
-    
+
     !square
     DO p=1,k
        EM=MATMUL(EM,EM)
@@ -297,7 +297,7 @@ CONTAINS
   END SUBROUTINE gle_cholesky_stab
 
 ! *****************************************************************************
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE gle_to_particle_mapping (thermostat_info, simpar, local_molecules,&
          molecule_set, molecule_kind_set, gle, para_env, gci, error )
@@ -364,7 +364,7 @@ CONTAINS
              map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
           END DO
        END DO
-       
+
        ! If thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
@@ -372,7 +372,7 @@ CONTAINS
        ! We know the total number of system thermostats.
        IF ( (sum_of_thermostats == 1).AND.(map_info%dis_type /= do_thermo_no_communication)) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
-          IF ( fac == 0.0_dp ) THEN 
+          IF ( fac == 0.0_dp ) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
                                "Zero degrees of freedom. Nothing to thermalize!",para_env)
           END IF
@@ -382,7 +382,7 @@ CONTAINS
           DO i = 1, gle%loc_num_gle
              imap = map_info%map_index(i)
              fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
-             gle%nvt(i)%nkt = simpar%temp_ext * fac 
+             gle%nvt(i)%nkt = simpar%temp_ext * fac
              gle%nvt(i)%degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
@@ -466,7 +466,7 @@ CONTAINS
       ! Possibly restart the random number generators for the different thermostats
        work_section => section_vals_get_subs_vals(section_vals=gle_section,&
            subsection_name="RNG_INIT", error=error)
-    
+
        CALL section_vals_get(work_section,explicit=explicit,error=error)
        IF (explicit) THEN
          CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
@@ -508,7 +508,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL gle_cholesky_stab(gle%c_mat, cc, gle%ndim)  
+    CALL gle_cholesky_stab(gle%c_mat, cc, gle%ndim)
     DO i = 1, gle%loc_num_gle
       rng_stream => gle%nvt(i)%gaussian_rng_stream
       DO j = 1, gle%ndim

@@ -195,7 +195,7 @@ CONTAINS
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
 ! *****************************************************************************
-  SUBROUTINE dbcsr_block_transpose_aa (dst, src, & 
+  SUBROUTINE dbcsr_block_transpose_aa (dst, src, &
        row_size, col_size, lb, source_lb, scale, lb2, source_lb2, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
@@ -371,7 +371,7 @@ CONTAINS
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
 ! *****************************************************************************
-  SUBROUTINE dbcsr_block_scale (dst, scale,& 
+  SUBROUTINE dbcsr_block_scale (dst, scale,&
        row_size, col_size, lb, lb2, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: scale
@@ -458,7 +458,7 @@ CONTAINS
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
 ! *****************************************************************************
-  SUBROUTINE dbcsr_block_real_neg (dst,& 
+  SUBROUTINE dbcsr_block_real_neg (dst,&
        row_size, col_size, lb, lb2, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     INTEGER, INTENT(IN)                      :: row_size, col_size
@@ -553,7 +553,7 @@ CONTAINS
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
 ! *****************************************************************************
-  SUBROUTINE dbcsr_block_conjg (dst,& 
+  SUBROUTINE dbcsr_block_conjg (dst,&
        row_size, col_size, lb, lb2, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     INTEGER, INTENT(IN)                      :: row_size, col_size

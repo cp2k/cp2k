@@ -70,8 +70,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the ks_env (see doc/ReferenceCounting.html)
 !> \param ks_env the ks_env to be released
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -106,8 +106,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given ks_environment
 !> \param ks_env the KohnSham environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -122,7 +122,7 @@ SUBROUTINE qs_ks_retain(ks_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)

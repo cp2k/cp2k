@@ -226,7 +226,7 @@ CONTAINS
 
        scf_env%mixing_store%alpha =  xas_env%mixing_store%alpha
        scf_env%mixing_store%iter_method = xas_env%mixing_store%iter_method
-       
+
        SELECT CASE (xas_control%scf_method)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -302,7 +302,7 @@ CONTAINS
 
        IF (exit_loop) THEN
           CALL timestop(handle2)
-          EXIT scf_loop     
+          EXIT scf_loop
        END IF
 
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -659,7 +659,7 @@ CONTAINS
        CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
        CALL set_mo_occupation(mo_set=mos(1)%mo_set,smear=xas_env%smear,&
                              error=error)
-      
+
 
        NULLIFY(scf_env)
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)

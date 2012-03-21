@@ -59,8 +59,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the motion section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_motion_section(section,error)
@@ -93,11 +93,11 @@ CONTAINS
 
        CALL create_cell_opt_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_shellcore_opt_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_md_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -197,7 +197,7 @@ CONTAINS
 
        CALL create_structure_data_section(print_key, error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)           
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"forces",&
             description="controls the output of the forces",&
@@ -301,8 +301,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the Monte Carlo section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_mc_section(section,error)
@@ -345,14 +345,14 @@ CONTAINS
             usage="NMOVES {integer}",&
             default_i_val=4,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NSWAPMOVES",&
             description="How many insertions to try per swap move.",&
             usage="NSWAPMOVES {integer}",&
             default_i_val=16,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LBIAS",&
             description="Dictates if we presample moves with a different potential.",&
@@ -387,21 +387,21 @@ CONTAINS
             usage="IUPVOLUME {integer}",&
             default_i_val=10000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="IUPTRANS",&
             description="Every iuptrans steps update maximum translation.",&
             usage="IUPTRANS {integer}",&
             default_i_val=10000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NVIRIAL",&
             description="Use this many random orientations to compute the second virial coefficient (ENSEMBLE=VIRIAL)",&
             usage="NVIRIAL {integer}",&
             default_i_val=1000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENSEMBLE",&
             description="Specify the type of simulation",&
@@ -410,7 +410,7 @@ CONTAINS
             enum_i_vals=(/do_mc_traditional,do_mc_gemc_nvt,do_mc_gemc_npt,do_mc_virial/),&
             default_i_val=do_mc_traditional,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
             description="Name of the restart file for MC information.",&
@@ -685,8 +685,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the geometry optimization section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   RECURSIVE SUBROUTINE create_geoopt_section(section,label,description,just_optimizers,error)
@@ -745,7 +745,7 @@ CONTAINS
             usage="MAX_ITER {integer}",&
             default_i_val=200,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DR",&
             description="Convergence criterium for the maximum geometry change "//&
@@ -775,7 +775,7 @@ CONTAINS
             usage="RMS_FORCE {real}",unit_str="hartree/bohr",&
             default_r_val=0.00030_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,name="step_start_val",&
             description="The starting step value for the "//TRIM(label)//" module.",&
@@ -801,7 +801,7 @@ CONTAINS
           CALL section_add_subsection(section,subsection,error=error)
           CALL section_release(subsection,error=error)
 
-          ! Create the PRINT subsection 
+          ! Create the PRINT subsection
           NULLIFY(subsection)
           CALL section_create(subsection,name="PRINT",&
                description="Controls the printing properties during a geometry optimization run",&
@@ -813,7 +813,7 @@ CONTAINS
                print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
                error=error)
           CALL section_add_subsection(subsection,print_key,error=error)
-          CALL section_release(print_key,error=error)        
+          CALL section_release(print_key,error=error)
           CALL section_add_subsection(section,subsection,error=error)
           CALL section_release(subsection,error=error)
        END IF
@@ -824,8 +824,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the section for the shell-core optimization
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Caino
 ! *****************************************************************************
   SUBROUTINE create_shellcore_opt_section(section, error)
@@ -845,9 +845,9 @@ CONTAINS
          just_optimizers=.TRUE.,error=error)
 
     NULLIFY(print_key, subsection)
-   
 
-    ! Create the PRINT subsection 
+
+    ! Create the PRINT subsection
     NULLIFY(subsection)
     CALL section_create(subsection,name="PRINT",&
          description="Controls the printing properties during a shell-core optimization procedure",&
@@ -861,15 +861,15 @@ CONTAINS
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
     CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)    
+    CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_shellcore_opt_section
 
 ! *****************************************************************************
 !> \brief creates the section for the cell optimization
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE create_cell_opt_section(section, error)
@@ -886,7 +886,7 @@ CONTAINS
          description="This section sets the environment for the optimization of the simulation cell."//&
          " Two possible schemes are available: (1) Zero temperature optimization; "//&
          " (2) Finite temperature optimization. ",just_optimizers=.TRUE.,error=error)
-    
+
     NULLIFY(keyword,print_key,subsection)
     CALL keyword_create(keyword, name="TYPE",&
          description="Specify which kind of method to use for the optimization of the simulation cell",&
@@ -901,7 +901,7 @@ CONTAINS
          default_i_val=default_cell_geo_opt_id,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-   
+
     CALL keyword_create(keyword, name="EXTERNAL_PRESSURE",&
          description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "//&
          "applied during the cell optimization.",&
@@ -918,7 +918,7 @@ CONTAINS
                      " For example, a cubic cell might become orthorhombic, but not triclinic.",&
          usage="KEEP_ANGLES TRUE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)       
+    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="PRESSURE_TOLERANCE",&
          description="Specifies the Pressure tolerance (compared to the external pressure) to achieve "//&
@@ -928,7 +928,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    ! Create the PRINT subsection 
+    ! Create the PRINT subsection
     NULLIFY(subsection)
     CALL section_create(subsection,name="PRINT",&
          description="Controls the printing properties during a geometry optimization run",&
@@ -948,15 +948,15 @@ CONTAINS
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
     CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)    
+    CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_cell_opt_section
 
 ! *****************************************************************************
 !> \brief creates the section for tuning transition states search
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   SUBROUTINE create_ts_section(section, error)
@@ -974,7 +974,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (.NOT.failure) THEN
-       ! Create the Transition State subsection 
+       ! Create the Transition State subsection
        NULLIFY(section,keyword,subsection, subsection2)
        CALL section_create(section,name="TRANSITION_STATE",&
             description="Specifies parameters to perform a transition state search",&
@@ -990,7 +990,7 @@ CONTAINS
             enum_i_vals=(/default_dimer_method_id/),&
             default_i_val=default_dimer_method_id,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)   
+       CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="DIMER",&
             description="Specifies parameters for Dimer Method",&
@@ -1077,8 +1077,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the BFGS section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   SUBROUTINE create_bfgs_section(section, error)
@@ -1094,7 +1094,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (.NOT.failure) THEN
-       ! create the BFGS subsection 
+       ! create the BFGS subsection
        NULLIFY(section,keyword,print_key)
        CALL section_create(section,name="BFGS",&
             description="Provides parameters to tune the BFGS optimization",&
@@ -1113,7 +1113,7 @@ CONTAINS
             usage="RESTART_FILE_NAME {filename}",&
             default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the printing of Hessian Restart file", &
@@ -1128,8 +1128,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the CG section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   SUBROUTINE create_cg_section(section, error)
@@ -1221,7 +1221,7 @@ CONTAINS
        CALL section_create(subsubsection,name="GOLD",&
             description="Provides parameters to tune the line search for the gold search.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)       
+            error=error)
 
        CALL keyword_create(keyword, name="INITIAL_STEP",&
             description="Initial step size used, e.g. for bracketing or minimizers. "//&
@@ -1263,8 +1263,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the LBFGS section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   SUBROUTINE create_lbfgs_section(section, error)
@@ -1328,8 +1328,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the flexible_partitioning section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele [04.2006]
 ! *****************************************************************************
   SUBROUTINE create_fp_section(section,error)
@@ -1433,9 +1433,9 @@ CONTAINS
   END SUBROUTINE create_fp_section
 
 ! *****************************************************************************
-!> \param section will contain the md section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the md section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_md_section(section,error)
@@ -1540,18 +1540,18 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="temp_kind",&
-            description="Compute the temperature per each kind separately",&         
-            usage="temp_kind LOGICAL",&         
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(section,keyword,error=error)         
-       CALL keyword_release(keyword,error=error)   
+            description="Compute the temperature per each kind separately",&
+            usage="temp_kind LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="scale_temp_kind",&         
-            description="When necessary rescale the temperature per each kind separately",&         
-            usage="scale_temp_kind LOGICAL",&         
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(section,keyword,error=error)         
-       CALL keyword_release(keyword,error=error)   
+       CALL keyword_create(keyword, name="scale_temp_kind",&
+            description="When necessary rescale the temperature per each kind separately",&
+            usage="scale_temp_kind LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="comvel_tol",&
             description="The maximum accepted velocity of the center of mass. "//&
@@ -1575,7 +1575,7 @@ CONTAINS
             "when the system is periodic or when initial velocities are defined. Technically, "//&
             "the part of the random initial velocities that projects on the external "//&
             "rotational degrees of freedom is subtracted.",&
-            usage="angvel_zero LOGICAL",&         
+            usage="angvel_zero LOGICAL",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1629,11 +1629,11 @@ CONTAINS
 
        CALL create_shell_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 !cjm
        CALL create_adiabatic_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 !cjm
 
        CALL create_reftraj_section(subsection, error=error)
@@ -1660,9 +1660,9 @@ CONTAINS
   END SUBROUTINE create_md_section
 
 ! *****************************************************************************
-!> \brief Defines AVERAGES section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief Defines AVERAGES section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_avgs_section(section, error)
@@ -1678,7 +1678,7 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="Averages",&
             description="Controls the calculation of the averages during an MD run.",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
@@ -1721,9 +1721,9 @@ CONTAINS
   END SUBROUTINE create_avgs_section
 
 ! *****************************************************************************
-!> \brief Defines the AVERAGES RESTART section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief Defines the AVERAGES RESTART section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_avgs_restart_section(section, error)
@@ -1738,7 +1738,7 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="RESTART_AVERAGES",&
             description="Stores information for restarting averages.",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
@@ -1910,9 +1910,9 @@ CONTAINS
   END SUBROUTINE create_avgs_restart_section
 
 ! *****************************************************************************
-!> \brief Defines LANGEVIN section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief Defines LANGEVIN section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_langevin_section(section, error)
@@ -1928,7 +1928,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="Langevin",&
             description="Controls the set of parameters to run a Langevin MD",&
             citations=(/Ricci2003/),&
@@ -1963,8 +1963,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Defines print section for MD
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_md_print_section(section, error)
@@ -1981,22 +1981,22 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="Controls the printing properties during an MD run",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(print_key, keyword)
 
-       CALL keyword_create(keyword, name="FORCE_LAST",&         
+       CALL keyword_create(keyword, name="FORCE_LAST",&
             description="Print the output and restart file if walltime is reached or "//&
            "if an external EXIT command is given. It still requires the keyword LAST "//&
            "to be present for the specific print key (in case the last step should not "//&
-           "match with the print_key iteration number).",&         
-            usage="FORCE_LAST LOGICAL",&         
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(section,keyword,error=error)         
-       CALL keyword_release(keyword,error=error)   
+           "match with the print_key iteration number).",&
+            usage="FORCE_LAST LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL cp_print_key_section_create(print_key,"ENERGY",&
             description="Controls the output the ener file",&
@@ -2053,7 +2053,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)        
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic and summary information during the"//&
@@ -2061,15 +2061,15 @@ CONTAINS
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)        
+       CALL section_release(print_key,error=error)
     END IF
   END SUBROUTINE create_md_print_section
 
 ! *****************************************************************************
 !> \brief Defines parameters for RESPA integration scheme
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_respa_section(section, error)
@@ -2085,7 +2085,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="RESPA",&
             description="Multiple timestep integration based on RESPA (implemented for NVE only)."//&
@@ -2102,16 +2102,16 @@ CONTAINS
             description="The number of reference MD steps between two RESPA corrections.",&
             usage="FREQUENCY <INTEGER>", default_i_val=5,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_respa_section
 
 ! *****************************************************************************
 !> \brief Defines parameters for REFTRAJ analysis
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_reftraj_section(section, error)
@@ -2126,25 +2126,25 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="REFTRAJ",&
             description="Loads an external trajectory file and performs analysis on the"//&
             " loaded snapshots.",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
-         
+
        NULLIFY(keyword, print_key, subsection)
-   
+
        CALL keyword_create(keyword, name="TRAJ_FILE_NAME",&
             description="Specify the filename where the trajectory is stored.",repeats=.FALSE.,&
             usage="TRAJ_FILE_NAME <CHARACTER>", default_lc_val="reftraj.xyz", &
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-   
+
        CALL keyword_create(keyword, name="CELL_FILE_NAME",&
             description="Specify the filename where the cell is stored "//&
             "(for trajectories generated within variable cell ensembles).",repeats=.FALSE.,&
@@ -2152,20 +2152,20 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-   
+
        CALL keyword_create(keyword, name="VARIABLE_VOLUME",&
             description="Enables the possibility to read a CELL file with information on the CELL size during the MD.",&
             repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="FIRST_SNAPSHOT",&
             description="Index of the snapshot stored in the trajectory file "//&
             "from which to start a REFTRAJ run",&
             repeats=.FALSE., usage="FIRST_SNAPSHOT <INTEGER>", default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="LAST_SNAPSHOT",&
             description="Index of the last snapshot stored in the trajectory file that is read along a REFTRAJ run",&
             repeats=.FALSE., usage="LAST_SNAPSHOT", default_i_val=0, error=error)
@@ -2177,38 +2177,38 @@ CONTAINS
             repeats=.FALSE., usage="STRIDE", default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="eval_energy_forces",&
             description="Evaluate energy and forces for each retrieved snapshot during a REFTRAJ run",&
             repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-   
+
        CALL create_msd_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-   
+
        CALL section_create(subsection,name="print",&
        description="The section that controls the output of a reftraj run",&
        n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
        error=error)
-   
+
        NULLIFY(print_key)
          CALL cp_print_key_section_create(print_key,"msd_kind",&
               description="Controls the output of msd per kind", &
               print_level=low_print_level, common_iter_levels=1,&
               filename="",error=error)
          CALL section_add_subsection(subsection,print_key,error=error)
-         CALL section_release(print_key,error=error) 
-       
+         CALL section_release(print_key,error=error)
+
          CALL cp_print_key_section_create(print_key,"msd_molecule",&
               description="Controls the output of msd per molecule kind", &
               print_level=low_print_level, common_iter_levels=1,&
               filename="",error=error)
          CALL section_add_subsection(subsection,print_key,error=error)
-         CALL section_release(print_key,error=error) 
-       
+         CALL section_release(print_key,error=error)
+
          CALL cp_print_key_section_create(print_key,"displaced_atom",&
               description="Controls the output of index and dislacement of "//&
               "atoms that moved away from the initial position of more than a"//&
@@ -2216,7 +2216,7 @@ CONTAINS
               print_level=low_print_level, common_iter_levels=1,&
               filename="",error=error)
          CALL section_add_subsection(subsection,print_key,error=error)
-         CALL section_release(print_key,error=error) 
+         CALL section_release(print_key,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
@@ -2226,9 +2226,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Defines parameters for MSD calculation along a REFTRAJ analysis
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE create_msd_section(section, error)
@@ -2243,16 +2243,16 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-  
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="MSD",&
             description="Loads an external trajectory file and performs analysis on the"//&
             " loaded snapshots.",&
             n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
-         
+
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -2277,7 +2277,7 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword,name="MSD_PER_MOLKIND",&
             description="Set up the calculation of the MSD for each molecule kind."//&
             "The position of the center of mass of the molecule is considered.",&
@@ -2304,22 +2304,22 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-    
+
        CALL keyword_create(keyword, name="displacement_tol",&
               description="Lower limit to define displaced atoms",&
               usage="DISPLACEMENT_TOL real",&
               default_r_val=0._dp, n_var=1, unit_str='bohr', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)  
-       
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_msd_section
 
 ! *****************************************************************************
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_msst_section(section, error)
@@ -2335,7 +2335,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="msst",&
             description="Parameters for Multi-Scale Shock Technique (MSST) "//&
@@ -2350,35 +2350,35 @@ CONTAINS
             usage="PRESSURE real",&
             default_r_val=0._dp, n_var=1, unit_str='bar', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)            
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENERGY",&
             description="Initial energy",&
             usage="ENERGY real",&
             default_r_val=0._dp, n_var=1, unit_str='hartree',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)         
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VOLUME",&
             description="Initial volume",&
             usage="VOLUME real",&
             default_r_val=0._dp, n_var=1, unit_str='angstrom^3',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)             
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CMASS",&
             description="Effective cell mass",&
             usage="CMASS real",&
             default_r_val=0._dp, n_var=1,unit_str='au_m',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)             
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VSHOCK",variants=(/"V_SHOCK"/),&
             description="Velocity shock",&
             usage="VSHOCK real",&
             default_r_val=0._dp, n_var=1,unit_str='m/s',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)             
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="GAMMA",&
             description="Damping coefficient for cell volume",&
@@ -2386,7 +2386,7 @@ CONTAINS
             unit_str='fs^-1', &
             default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)             
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_msst_section
@@ -2394,8 +2394,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the section for a path integral run
 !> \param section will contain the pint section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_pint_section(section,error)
@@ -3071,8 +3071,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the FORMAT keyword
 !> \param section will contain the pint section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 10.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE add_format_keyword(keyword, section, description, error)
@@ -3108,8 +3108,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the section for a BAND run
 !> \param section will contain the pint section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 09.2006 [tlaino]
 ! *****************************************************************************
   SUBROUTINE create_band_section(section,error)
@@ -3124,7 +3124,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.  
+    failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="band",&
@@ -3265,7 +3265,7 @@ CONTAINS
             "switching on the CI algorithm",&
             default_i_val=5, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -3278,12 +3278,12 @@ CONTAINS
             description="Specify the oder of the spline used in the String Method.",&
             default_i_val=1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="SMOOTHING",&
             description="Smoothing parameter for the reparametrization of the frames.",&
             default_r_val=0.2_dp, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -3294,7 +3294,7 @@ CONTAINS
             repeats=.TRUE., required=.TRUE., error=error)
        CALL create_opt_band_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)     
+       CALL section_release(subsection,error=error)
 
        ! replica section: to specify coordinates and velocities (possibly) of the
        ! different replica used in the BAND
@@ -3326,7 +3326,7 @@ CONTAINS
        CALL section_release(subsubsection,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        ! Print key section
        CALL cp_print_key_section_create(print_key,"program_run_info",&
@@ -3356,29 +3356,29 @@ CONTAINS
             print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"ENERGY",&
             description="Controls the printing of the ENER file in a BAND run", &
             print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"BANNER",&
             description="Controls the printing of the BAND banner", &
             print_level=low_print_level, common_iter_levels=1,&
             filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
     END IF
   END SUBROUTINE create_band_section
 
 ! *****************************************************************************
 !> \brief creates the optimization section for a BAND run
 !> \param section will contain the pint section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 02.2007 [tlaino]
 ! *****************************************************************************
   SUBROUTINE create_opt_band_section(section,error)
@@ -3392,7 +3392,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, subsubsection
 
-    failure=.FALSE.  
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(keyword, subsection, subsubsection)
@@ -3458,7 +3458,7 @@ CONTAINS
             description="Specify the target temperature",&
             type_of_var=real_t,unit_str="K",error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="Specify the tolerance on the temperature for rescaling",&
@@ -3555,7 +3555,7 @@ CONTAINS
             usage="NP_LS <INTEGER>",&
             default_i_val=2,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NO_LS",&
             description="Does not perform LS during SD. Useful in combination with a proper STEPSIZE"//&
@@ -3578,8 +3578,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief section will contain some parameters for the adiabatic dynamics
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE create_adiabatic_section(section, error)
     TYPE(section_type), POINTER              :: section
@@ -3596,7 +3596,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="adiabatic_dynamics",&
             description="Parameters used in adiabatic dynamics.",&
@@ -3656,11 +3656,11 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_adiabatic_section
-  
+
 ! *****************************************************************************
 !> \brief section will contain some parameters for the shells dynamics
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE create_shell_section(section, error)
     TYPE(section_type), POINTER              :: section
@@ -3676,7 +3676,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="shell",&
             description="Parameters of shell model in adiabatic dynamics.",&
@@ -3702,7 +3702,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="nose_particle",&   
+       CALL keyword_create(keyword, name="nose_particle",&
             description="If nvt or npt, the core and shell velocities are controlled "//&
             "by the same thermostat used for the particle. This might favour heat exchange "//&
             "and additional rescaling of the internal core-shell velocity is needed (TEMP_TOL)",&
@@ -3749,7 +3749,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="thermal_region",&
             description="Define regions where different initialization and control "//&
@@ -3781,7 +3781,7 @@ CONTAINS
        CALL section_add_keyword(region_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       
+
        CALL keyword_create(keyword=keyword,name="temperature",&
             description="The temperature in K used to "//&
             " initialize the velocities of the atoms in this region ",&
@@ -3824,8 +3824,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Defines the parameters for the setup of a cascade simulation
-!> \param   error variable to control error logging, stopping,... 
-!>          see module cp_error_handling 
+!> \param   error variable to control error logging, stopping,...
+!>          see module cp_error_handling
 !> \author  Matthias Krack (MK)
 !> \date    03.02.2012
 !> \version 1.0

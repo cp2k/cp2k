@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \par History
-!>      03.2007 
+!>      03.2007
 !> \author CJM
 ! *****************************************************************************
 MODULE qs_ks_scp_types
@@ -31,7 +31,7 @@ MODULE qs_ks_scp_types
 !>      compute the SCP electrostatic 1-electron ks matrix
 !>      assumes that the core hamiltonian and energy are up to date.
 !> \par History
-!>      03.2007 created 
+!>      03.2007 created
 !> \author CJM
 ! *****************************************************************************
   TYPE qs_ks_scp_env_type
@@ -46,7 +46,7 @@ MODULE qs_ks_scp_types
 !> \brief type to build arrays of pointers
 !> \param ks_scp_env the ks_scp_env pointer
 !> \par History
-!>      04.2007 
+!>      04.2007
 !> \author CJM
 ! *****************************************************************************
   TYPE qs_ks_scp_env_p_type
@@ -57,10 +57,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the ks_scp_env (see doc/ReferenceCounting.html)
 !> \param ks_scp_env the ks_scp_env to be released
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
-!>      04.2007 created 
+!>      04.2007 created
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE qs_ks_scp_release(ks_scp_env, error)
@@ -94,10 +94,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given ks_scp_environment
 !> \param ks_scp_env the KohnSham SCP environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
-!>      03.2007 created 
+!>      03.2007 created
 !> \author CJM
 ! *****************************************************************************
 SUBROUTINE qs_ks_scp_retain(ks_scp_env, error)
@@ -110,7 +110,7 @@ SUBROUTINE qs_ks_scp_retain(ks_scp_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(ks_scp_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(ks_scp_env%ref_count>0,cp_failure_level,routineP,error,failure)

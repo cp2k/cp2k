@@ -150,7 +150,7 @@ CONTAINS
              ' NEB| Centre of mass velocity in direction z:',vcom(3)
           WRITE (iw,'(T2,"NEB|",75("*"))')
        END IF
-    ELSE 
+    ELSE
        vels(:,i_rep) = 0.0_dp
     END IF
 
@@ -201,7 +201,7 @@ CONTAINS
                    WRITE(output_unit,'(T2,"NEB| Replica Nr.",I5,'//&
                         '"  - Velocity rescaled from: ",F12.6," to: ",F12.6,".")')&
                         i, tmp_r1, tmp_r2
-                        
+
                 END IF
                 scale = SQRT(ext_temp/temploc)
                 vels%wrk(:,i) = scale * vels%wrk(:,i)

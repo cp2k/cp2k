@@ -6,26 +6,26 @@
 ! *****************************************************************************
 !> \brief represent a simple array based list of the given type
 !> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/                                        
-!>      ____ _                  ___                              _ _       _       _       
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>                                                        |___/
+!>      ____ _                  ___                              _ _       _       _
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/ 
-!>     _____ _     _       _____ _ _      _ 
+!>                                                                                   |___/
+!>     _____ _     _       _____ _ _      _
 !>    |_   _| |__ (_)___  |  ___(_) | ___| |
 !>      | | | '_ \| / __| | |_  | | |/ _ \ |
 !>      | | | | | | \__ \ |  _| | | |  __/_|
 !>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!> 
+!>
 !>      This is a template
-!> 
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify the .template and .instantition instead
 !> \par History
@@ -48,7 +48,7 @@ MODULE mol_kind_new_list_types
   PUBLIC :: mol_kind_new_list_type, mol_kind_new_list_p_type
   PUBLIC :: mol_kind_new_list_create, mol_kind_new_list_retain,&
        mol_kind_new_list_release
-       
+
 !***
 
 ! *****************************************************************************
@@ -92,8 +92,8 @@ CONTAINS
 !>        will deallocate it (defaults to true)
 !> \param n_els number of elements in the list (at least one els_ptr or
 !>        n_els should be given)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -148,8 +148,8 @@ END SUBROUTINE mol_kind_new_list_create
 ! *****************************************************************************
 !> \brief retains a list (see doc/ReferenceCounting.html)
 !> \param list the list to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -164,7 +164,7 @@ SUBROUTINE mol_kind_new_list_retain(list, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(list),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -175,8 +175,8 @@ END SUBROUTINE mol_kind_new_list_retain
 ! *****************************************************************************
 !> \brief releases a  list (see doc/ReferenceCounting.html)
 !> \param list the list to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -192,7 +192,7 @@ SUBROUTINE mol_kind_new_list_release(list, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(list)) THEN
      CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
      list%ref_count=list%ref_count-1
@@ -210,7 +210,7 @@ SUBROUTINE mol_kind_new_list_release(list, error)
   NULLIFY(list)
 END SUBROUTINE mol_kind_new_list_release
 
-! template def put here so that line numbers in template and derived 
+! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:

@@ -13,14 +13,14 @@
 !>                  pw_grid (the grid; pw_grid%grid_span has to be set)
 !>                  cutoff (optional, if not given pw_grid%bounds has to be set)
 !>                  pe_group (optional, if not given we have a local grid)
-!> 
+!>
 !>                  if no cutoff or a negative cutoff is given, all g-vectors
 !>                  in the box are included (no spherical cutoff)
-!> 
+!>
 !>                  for a distributed setup the array in para rs_dims has to
 !>                  be initialized
 !>           output: pw_grid
-!> 
+!>
 !>      pw_grid_change : updates g-vectors after a change of the box
 !> \par History
 !>      JGH (20-12-2000) : Adapted for parallel use
@@ -808,7 +808,7 @@ CONTAINS
        CASE DEFAULT
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-       
+
        !..create group for real space distribution
        CALL mp_cart_create ( pw_grid % para % group, 2, &
             pw_grid % para % rs_dims, &

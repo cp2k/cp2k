@@ -970,7 +970,7 @@ CONTAINS
     IF (PRESENT(virial_components)) THEN
        SELECT CASE(virial_components)
        CASE(do_clv_xyz)
-          ! Do nothing.. 
+          ! Do nothing..
        CASE(do_clv_x)
           npt(1,2)%v=0.0_dp
           npt(1,3)%v=0.0_dp
@@ -1118,8 +1118,8 @@ CONTAINS
              CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell)
              dms = 0.5_dp*dt/shell%mass_shell
              dmc = 0.5_dp*dt/shell%mass_core
-             fac_masss = shell%mass_shell/mass 
-             fac_massc = shell%mass_core/mass 
+             fac_masss = shell%mass_shell/mass
+             fac_massc = shell%mass_core/mass
              nparticle_local = local_particles%n_el(iparticle_kind)
              IF(PRESENT(u)) THEN
                 DO iparticle_local=1,nparticle_local
@@ -1138,7 +1138,7 @@ CONTAINS
                         fac_massc*tmp%core_vel (:,shell_index)
                    tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
                         fac_massc*tmp%core_pos (:,shell_index)
-               
+
                    tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel(1,iparticle)),&
                         ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                    tmp%max_vel_sc = MAX(tmp%max_vel_sc,&
@@ -1177,7 +1177,7 @@ CONTAINS
                    tmp%core_pos (:,shell_index) = &
                         core_particle_set(shell_index)%r(:) * tmp%scale_r(:) * tmp%scale_r(:) +&
                         tmp%scale_r(:) * tmp%poly_r(:) *dt * tmp%core_vel ( :, shell_index )
-                   
+
                    tmp%vel (:,iparticle) = fac_masss*tmp%shell_vel (:,shell_index)+&
                         fac_massc*tmp%core_vel (:,shell_index)
                    tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
@@ -1212,7 +1212,7 @@ CONTAINS
                    ! Transform positions and velocities and forces
                    CALL transform_first(particle_set,tmp%pos,tmp%vel,&
                         iparticle,u,dm,dt,tmp%poly_v,tmp%poly_r,tmp%scale_v,tmp%scale_r)
-                   
+
                    tmp%max_vel = MAX(tmp%max_vel,&
                         ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                    tmp%max_dr = MAX(tmp%max_dr,ABS(particle_set(iparticle)%r(1)-tmp%pos (1,iparticle)),&
@@ -1244,7 +1244,7 @@ CONTAINS
                    tmp%pos (3,iparticle) = &
                         particle_set(iparticle)%r(3) * tmp%scale_r(3) * tmp%scale_r(3)+&
                         tmp%scale_r(3) * tmp%poly_r(3) * dt * tmp%vel ( 3, iparticle )
-                   
+
                    tmp%max_vel = MAX(tmp%max_vel,&
                         ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                    tmp%max_dr = MAX(tmp%max_dr,&
@@ -1306,14 +1306,14 @@ CONTAINS
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
             shell_active=is_shell)
-       IF (mass/=0.0_dp) THEN 
+       IF (mass/=0.0_dp) THEN
           dm = 0.5_dp*dt/mass
           IF(is_shell .AND. shell_adiabatic) THEN
              CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell)
              dms = 0.5_dp*dt/shell%mass_shell
              dmc = 0.5_dp*dt/shell%mass_core
-             fac_masss = shell%mass_shell/mass 
-             fac_massc = shell%mass_core/mass 
+             fac_masss = shell%mass_shell/mass
+             fac_massc = shell%mass_core/mass
              nparticle_local = local_particles%n_el(iparticle_kind)
              IF(PRESENT(u)) THEN
                 DO iparticle_local=1,nparticle_local
@@ -1428,7 +1428,7 @@ CONTAINS
     ur(1) = ur(1)*scale_r(1)*scale_r(1) + uv(1)*scale_r(1)*poly_r(1)*dt
     ur(2) = ur(2)*scale_r(2)*scale_r(2) + uv(2)*scale_r(2)*poly_r(2)*dt
     ur(3) = ur(3)*scale_r(3)*scale_r(3) + uv(3)*scale_r(3)*poly_r(3)*dt
-    !    
+    !
     CALL MATVEC_3x3 (pos ( :, index ), u, ur )
     CALL MATVEC_3x3 (vel ( :, index ), u, uv )
 
@@ -1529,7 +1529,7 @@ CONTAINS
     dt_fact_f = MIN(dt_fact, dt_fact_sc,1.0_dp)
     IF(dt_fact_f < 1.0_dp) THEN
        IF(dt_fact_f < 0.1_dp) dt_fact_f = 0.1_dp
-       ! repeat the first vv half-step with the rescaled time step 
+       ! repeat the first vv half-step with the rescaled time step
        dt = dt*dt_fact_f
        simpar%dt_fact = dt_fact_f
        CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
@@ -1555,7 +1555,7 @@ CONTAINS
 
     IF(dt_fact_v < 1.0_dp) THEN
        IF(dt_fact_v < 0.1_dp) dt_fact_v = 0.1_dp
-       ! repeat the first vv half-step with the rescaled time step 
+       ! repeat the first vv half-step with the rescaled time step
        dt = dt*dt_fact_v
        simpar%dt_fact = dt_fact_f*dt_fact_v
        CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
@@ -1636,7 +1636,7 @@ CONTAINS
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
            core_particle_set, shell_particle_set, nparticle_kind,&
            shell_adiabatic, dt, error=error )
-      
+
     CASE (npt_f_ensemble,npe_f_ensemble)
        trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v
        arg_r(:) = arg_r(:) * simpar%dt_fact*simpar%dt_fact
@@ -1650,7 +1650,7 @@ CONTAINS
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
            core_particle_set, shell_particle_set, nparticle_kind,&
            shell_adiabatic, dt, u, error=error)
-            
+
     CASE (nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble)
         arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
         tmp%poly_r(1) = 1._dp + e2*arg_r(1) + e4*arg_r(1)*arg_r(1) + e6*arg_r(1)**3 + e8*arg_r(1)**4
@@ -1667,7 +1667,7 @@ CONTAINS
         CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
             shell_adiabatic, dt, error=error)
-            
+
     END SELECT
 
   END SUBROUTINE rescaled_vv_first

@@ -145,7 +145,7 @@ CONTAINS
 
           WRITE(title,"(A)") "G tensor "
           WRITE(unit_nr,"(T2,A)") title
-   
+
           WRITE(unit_nr,"(T2,A)") "gmatrix_zke"
           WRITE(unit_nr,"(3(A,f15.10))")" XX=",epr_env%g_zke,&
                " XY=",0.0_dp," XZ=",0.0_dp
@@ -153,7 +153,7 @@ CONTAINS
                " YY=",epr_env%g_zke," YZ=",0.0_dp
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",0.0_dp,&
                " ZY=",0.0_dp," ZZ=",epr_env%g_zke
-   
+
           WRITE(unit_nr,"(T2,A)") "gmatrix_so"
           WRITE(unit_nr,"(3(A,f15.10))")" XX=",epr_env%g_so(1,1),&
                " XY=",epr_env%g_so(1,2)," XZ=",epr_env%g_so(1,3)
@@ -161,7 +161,7 @@ CONTAINS
                " YY=",epr_env%g_so(2,2)," YZ=",epr_env%g_so(2,3)
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",epr_env%g_so(3,1),&
                " ZY=",epr_env%g_so(3,2)," ZZ=",epr_env%g_so(3,3)
-   
+
           WRITE(unit_nr,"(T2,A)") "gmatrix_soo"
           WRITE(unit_nr,"(3(A,f15.10))")" XX=",epr_env%g_soo(1,1),&
                " XY=",epr_env%g_soo(1,2)," XZ=",epr_env%g_soo(1,3)
@@ -169,7 +169,7 @@ CONTAINS
                " YY=",epr_env%g_soo(2,2)," YZ=",epr_env%g_soo(2,3)
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",epr_env%g_soo(3,1),&
                " ZY=",epr_env%g_soo(3,2)," ZZ=",epr_env%g_soo(3,3)
-   
+
           WRITE(unit_nr,"(T2,A)") "gmatrix_total"
           WRITE(unit_nr,"(3(A,f15.10))")" XX=",epr_env%g_total(1,1)+epr_env%g_free_factor,&
                " XY=",epr_env%g_total(1,2)," XZ=",epr_env%g_total(1,3)
@@ -177,14 +177,14 @@ CONTAINS
                " YY=",epr_env%g_total(2,2)+epr_env%g_free_factor," YZ=",epr_env%g_total(2,3)
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",epr_env%g_total(3,1),&
                " ZY=",epr_env%g_total(3,2)," ZZ=",epr_env%g_total(3,3)+epr_env%g_free_factor
-   
+
           DO idir1 = 1,3
              DO idir2 = 1,3
                 g_sym(idir1,idir2) = (epr_env%g_total(idir1,idir2) + &
                                       epr_env%g_total(idir2,idir1))/2.0_dp
              END DO
           END DO
-   
+
           WRITE(unit_nr,"(T2,A)") "gtensor_total"
           WRITE(unit_nr,"(3(A,f15.10))")" XX=",g_sym(1,1)+epr_env%g_free_factor,&
                " XY=",g_sym(1,2)," XZ=",g_sym(1,3)
@@ -192,10 +192,10 @@ CONTAINS
                " YY=",g_sym(2,2)+epr_env%g_free_factor," YZ=",g_sym(2,3)
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",g_sym(3,1),&
                " ZY=",g_sym(3,2)," ZZ=",g_sym(3,3)+epr_env%g_free_factor
-   
+
           CALL diamat_all(g_sym,eigenv_g,error=error)
           eigenv_g(:) = eigenv_g(:)*1.0e6_dp
-   
+
           WRITE(unit_nr,"(T2,A)") "delta_g principal values in ppm"
           WRITE(unit_nr,"(f15.3,3(A,f15.10))") eigenv_g(1)," X=",g_sym(1,1),&
                " Y=",g_sym(2,1)," Z=",g_sym(3,1)
@@ -430,10 +430,10 @@ CONTAINS
           IF (.NOT.paw_atom) CYCLE
 
           ! Distribute the atoms of this kind
-    
+
           bo = get_limit( natom, para_env%num_pe, para_env%mepos )
 
-          DO iat = 1,natom !bo(1),bo(2)! this partitioning blocks the interpolation 
+          DO iat = 1,natom !bo(1),bo(2)! this partitioning blocks the interpolation
              !                         ! routines (i.e. waiting for mp_sum)
              iatom = atom_list(iat)
              NULLIFY (jrho1_atom, nablavks_atom)
@@ -443,7 +443,7 @@ CONTAINS
                 CALL set_vecp(idir1,idir2,idir3)
                 DO ispin = 1,nspins
                    DO ir = 1,grid_atom%nr
-                      
+
                       IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
 
                       DO ia = 1,grid_atom%ng_sphere
@@ -455,7 +455,7 @@ CONTAINS
                          vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra,&
                                         vks_pw_spline(idir3,ispin)%pw,error)
 
-                         IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
+                         IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty:
                          !                                    !here take care of the partition
 
                          ! + sum_A j_loc_h_A x nabla_vks_s_A
@@ -484,7 +484,7 @@ CONTAINS
                                jrho1_atom%jrho_vec_rad_h(idir3,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_h(idir2,ispin)%r_coef(ir,ia) &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
- 
+
                          ! - sum_A j_loc_h_A x nabla_vks_loc_s_A
                          temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
                                (-1.0_dp)**(1 + ispin) * ( &
@@ -517,7 +517,7 @@ CONTAINS
              END DO !idir1
           END DO !iat
        END DO !ikind
-   
+
        CALL mp_sum(temp_so_gapw,para_env%group)
        temp_so_gapw(:,:) = -1.0_dp * epr_env%g_so_factor_gapw * temp_so_gapw(:,:)
 
@@ -712,7 +712,7 @@ CONTAINS
           IF (.NOT.paw_atom) CYCLE
 
           ! Distribute the atoms of this kind
-    
+
           bo = get_limit( natom, para_env%num_pe, para_env%mepos )
 
           DO iat = 1,natom !bo(1),bo(2)! this partitioning blocks the interpolation
@@ -725,33 +725,33 @@ CONTAINS
              DO idir1 = 1,3
                 DO ispin = 1,nspins
                    DO ir = 1,grid_atom%nr
-   
+
                       IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
-   
+
                       DO ia = 1,grid_atom%ng_sphere
-   
+
                          ra = particle_set(iatom)%r
                          ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
                          bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra,&
                                          bind_pw_spline(idir1,iB)%pw,error)
-   
-                         IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
+
+                         IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty:
                          !                                    !here take care of the partition
 
                          rho_spin = 0.0_dp
-   
+
                          DO iso = 1,harmonics%max_iso_not0
                             rho_spin = rho_spin + &
                                   (rho_rad_h(ispin)%r_coef(ir,iso) - &
                                   rho_rad_s(ispin)%r_coef(ir,iso))* &
                                   harmonics%slm(ia,iso)
                          END DO
-   
+
                          temp_soo_gapw(iB,idir1) = temp_soo_gapw(iB,idir1) + &
                                (-1.0_dp)**(1 + ispin) * ( &
-                               bind_ra_idir1 * rho_spin & 
+                               bind_ra_idir1 * rho_spin &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
-   
+
                       END DO !ia
                    END DO !ir
                 END DO ! ispin

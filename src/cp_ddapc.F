@@ -148,7 +148,7 @@ CONTAINS
        DO i=1,ddapc_size
           NULLIFY(ddapc_restraint_control)
           ddapc_restraint_control=> qs_env%dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
-          
+
           CALL cp_ddapc_apply_RS(qs_env, energy%hartree, energy%ddapc_restraint(i), v_hartree_gspace,&
                v_spin_ddapc_rest_g, i,ddapc_restraint_control,calculate_forces, error)
        END DO
@@ -166,7 +166,7 @@ CONTAINS
           IF(et_coupling_calc)THEN
              IF(qs_env%et_coupling%keep_matrix)THEN
                 IF(qs_env%et_coupling%first_run)THEN
-                   NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
+                   NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)
                    ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
                    CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix, error=error)
                    CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1)%matrix, &
@@ -180,7 +180,7 @@ CONTAINS
                    qs_env%et_coupling%e1=qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
                    qs_env%et_coupling%keep_matrix=.FALSE.
                 ELSE
-                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix) 
+                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)
                    ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
                    CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix, error=error)
                    CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1)%matrix, &
@@ -204,11 +204,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Routine to couple/decouple periodic images with the Bloechl scheme
-!> 
+!>
 !>      The coupling/decoupling is obtaines evaluating terms E2 and E3 in
-!>      J. Chem. Phys. Vol. 103 pp. 7422-7428.. The E2 terms is just a 
-!>      Ewald summation, and for performance reason I'm writing a specific 
-!>      driver instead of using and setting-up the environment of the already 
+!>      J. Chem. Phys. Vol. 103 pp. 7422-7428.. The E2 terms is just a
+!>      Ewald summation, and for performance reason I'm writing a specific
+!>      driver instead of using and setting-up the environment of the already
 !>      available routines
 !> \par History
 !>      08.2005 created [tlaino]
@@ -243,7 +243,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure        = .FALSE.
-    need_f         = .FALSE. 
+    need_f         = .FALSE.
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
     logger         => cp_error_get_logger(error)
     apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic
@@ -269,7 +269,7 @@ CONTAINS
                        error=error)
        CPPostcondition(ASSOCIATED(qs_env%cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON", error=error)
-       
+
        density_fit_section =>section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
 
        IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
@@ -334,7 +334,7 @@ CONTAINS
        END IF
        ! Clean the allocated arrays
        DEALLOCATE(charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(radii, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (ASSOCIATED(dq)) THEN
@@ -348,7 +348,7 @@ CONTAINS
   END SUBROUTINE cp_ddapc_apply_CD
 
 ! *****************************************************************************
-!> \brief Routine to apply RESTRAINT/CONSTRAINTS to the density 
+!> \brief Routine to apply RESTRAINT/CONSTRAINTS to the density
 !>      with the Bloechl scheme
 !> \par History
 !>      08.2005 created [tlaino]
@@ -386,7 +386,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure        = .FALSE.
-    need_f         = .FALSE. 
+    need_f         = .FALSE.
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     apply_restrain = qs_env%dft_control%qs_control%ddapc_restraint
     logger         => cp_error_get_logger(error)
@@ -450,7 +450,7 @@ CONTAINS
        END IF
        ! Clean the allocated arrays
        DEALLOCATE(charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(radii, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (ASSOCIATED(dq)) THEN
@@ -499,7 +499,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure         = .FALSE.
-    need_f          = .FALSE. 
+    need_f          = .FALSE.
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     logger          => cp_error_get_logger(error)
     apply_solvation = qs_env%cp_ddapc_ewald%do_solvation
@@ -562,7 +562,7 @@ CONTAINS
        END IF
        ! Clean the allocated arrays
        DEALLOCATE(charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(radii, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (ASSOCIATED(dq)) THEN

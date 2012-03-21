@@ -29,7 +29,7 @@ MODULE semi_empirical_expns3_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_methods'
 
   PUBLIC :: semi_empirical_expns3_setup
-  
+
 CONTAINS
 ! *****************************************************************************
 !> \brief Setup the quantity necessary to handle the slowly convergent
@@ -70,7 +70,7 @@ CONTAINS
              CALL semi_empirical_expns3_create(sepi%expns3_int(j)%expns3,error=error)
           END DO
        END DO
-       
+
        itype = get_se_type(method_id)
        DO i = 1, nkinds
           atomic_kind_i => atomic_kind_set(i)
@@ -85,9 +85,9 @@ CONTAINS
   END SUBROUTINE semi_empirical_expns3_setup
 
 ! *****************************************************************************
-!> \brief For any given semi-empirical pair i,j evaluates the coefficient of 
+!> \brief For any given semi-empirical pair i,j evaluates the coefficient of
 !>        the integral residual part ( 1/r^3 term )
-!>        The integral expression, unfortunately, does not allow any kind of 
+!>        The integral expression, unfortunately, does not allow any kind of
 !>        separability. It is, therefore, mandatory to compute this coefficient
 !>        as a pair term, instead of as an atomic quantity.
 !>
@@ -108,14 +108,14 @@ CONTAINS
                                                 zi, zj
 
     failure = .FALSE.
-    ! Set the distance to 0 (the coefficient is anyway independent of the atomic 
+    ! Set the distance to 0 (the coefficient is anyway independent of the atomic
     ! position)
     r   = 0.0_dp
     ! Nuclei-Nuclei     contribution
     ij  = indexa(1, 1)
     zi  = -sepi%zeff
     zj  = -sepj%zeff
-    core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, r, itype, coeff_int_3, error) * zi * zj 
+    core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, r, itype, coeff_int_3, error) * zi * zj
 
     ! Electron(i)-Nuclei(j)   contribution
     kl = indexa(1, 1)

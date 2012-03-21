@@ -245,7 +245,7 @@ CONTAINS
           CALL current_env_cleanup(current_env,qs_env,error=error)
        ENDIF
        !
-       ! We do the indirect spin-spin coupling calculation 
+       ! We do the indirect spin-spin coupling calculation
        prop_section => section_vals_get_subs_vals(lr_section,"SPINSPIN",error=error)
        CALL section_vals_get(prop_section,explicit=issc_present,error=error)
 

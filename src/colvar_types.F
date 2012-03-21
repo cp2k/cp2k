@@ -34,7 +34,7 @@ MODULE colvar_types
 
   IMPLICIT NONE
 
-  PRIVATE 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_types'
 
@@ -97,7 +97,7 @@ MODULE colvar_types
                                 u_colvar_id                   = 19,&
                                 Wc_colvar_id                  = 20,&
                                 hbp_colvar_id                 = 21
-                                
+
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -161,7 +161,7 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE plane_distance_colvar_type
      INTEGER, DIMENSION(3) :: plane
-     INTEGER               :: point     
+     INTEGER               :: point
   END TYPE plane_distance_colvar_type
 
 ! *****************************************************************************
@@ -305,7 +305,7 @@ MODULE colvar_types
      REAL(kind=dp), DIMENSION (:,:), POINTER     :: dsdr             ! Derivative of colvar (3,:)
      INTEGER, DIMENSION (:), POINTER             :: i_atom           ! Mapping of dsdr
      INTEGER                                     :: n_atom_s
-     ! Available COLVAR types                    
+     ! Available COLVAR types
      TYPE(dist_colvar_type),POINTER              :: dist_param
      TYPE(coord_colvar_type),POINTER             :: coord_param
      TYPE(population_colvar_type),POINTER        :: population_param
@@ -364,8 +364,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initializes a colvar_param type
 !> \param colvar the colvat to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
   SUBROUTINE colvar_create(colvar,colvar_id,error)
@@ -483,17 +483,17 @@ CONTAINS
        CASE(no_colvar_id)
           ! Do nothing
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)          
+          CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
        END SELECT
     END IF
 
   END SUBROUTINE colvar_create
-  
+
 ! *****************************************************************************
 !> \brief Check and setup about the use of geometrical points instead of atoms
 !> \param colvar the colvat to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino, [teo] 03.2007
 ! *****************************************************************************
   SUBROUTINE  colvar_check_points(colvar, section, error)
@@ -572,8 +572,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalize the setup of the collective variable
 !> \param colvar the colvat to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino, [teo] 09.03.2006
 ! *****************************************************************************
   SUBROUTINE colvar_setup(colvar,error)
@@ -1015,7 +1015,7 @@ CPSourceFileRef)
              END DO
           END DO
        END SELECT
-       
+
        IF (ASSOCIATED(colvar%dsdr)) THEN
           DEALLOCATE(colvar%dsdr, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -1048,7 +1048,7 @@ CPSourceFileRef)
        DEALLOCATE(list, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
 
-    END IF    
+    END IF
   END SUBROUTINE colvar_setup
 
 ! *****************************************************************************
@@ -1072,8 +1072,8 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief releases the memory that might have been allocated by the colvar
 !> \param colvar the colvar to deallocate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
   RECURSIVE SUBROUTINE colvar_release(colvar,error)
@@ -1173,7 +1173,7 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(angle_colvar_id)
        DEALLOCATE(colvar%angle_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)     
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (torsion_colvar_id)
        DEALLOCATE(colvar%torsion_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -1224,7 +1224,7 @@ CPSourceFileRef)
              CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar,error)
          END DO
          DEALLOCATE(colvar%reaction_path_param%colvar_p, stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)       
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
          DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        END IF
@@ -1276,8 +1276,8 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief Clone a colvar type
 !> \param colvar the colvar to deallocate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
   RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
@@ -1292,7 +1292,7 @@ CPSourceFileRef)
                                                 stat
     LOGICAL                                  :: failure
 
-    my_offset = 0   
+    my_offset = 0
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(colvar_in),cp_warning_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar_out),cp_warning_level,routineP,error,failure)
@@ -1306,14 +1306,14 @@ CPSourceFileRef)
        colvar_out%dist_param%j_at = colvar_in%dist_param%j_at + my_offset
        colvar_out%dist_param%axis_id = colvar_in%dist_param%axis_id
     CASE(coord_colvar_id)
-       colvar_out%coord_param%n_atoms_to   = colvar_in%coord_param%n_atoms_to  
-       colvar_out%coord_param%n_atoms_to_b   = colvar_in%coord_param%n_atoms_to_b  
+       colvar_out%coord_param%n_atoms_to   = colvar_in%coord_param%n_atoms_to
+       colvar_out%coord_param%n_atoms_to_b   = colvar_in%coord_param%n_atoms_to_b
        colvar_out%coord_param%n_atoms_from = colvar_in%coord_param%n_atoms_from
-       colvar_out%coord_param%nncrd        = colvar_in%coord_param%nncrd       
-       colvar_out%coord_param%ndcrd        = colvar_in%coord_param%ndcrd       
+       colvar_out%coord_param%nncrd        = colvar_in%coord_param%nncrd
+       colvar_out%coord_param%ndcrd        = colvar_in%coord_param%ndcrd
        colvar_out%coord_param%r_0          = colvar_in%coord_param%r_0
-       colvar_out%coord_param%nncrd_b        = colvar_in%coord_param%nncrd_b       
-       colvar_out%coord_param%ndcrd_b        = colvar_in%coord_param%ndcrd_b       
+       colvar_out%coord_param%nncrd_b        = colvar_in%coord_param%nncrd_b
+       colvar_out%coord_param%ndcrd_b        = colvar_in%coord_param%ndcrd_b
        colvar_out%coord_param%r_0_b          = colvar_in%coord_param%r_0_b
        colvar_out%coord_param%use_kinds_from  = colvar_in%coord_param%use_kinds_from
        colvar_out%coord_param%use_kinds_to    = colvar_in%coord_param%use_kinds_to
@@ -1363,10 +1363,10 @@ CPSourceFileRef)
 
 
      CASE(population_colvar_id)
-       colvar_out%population_param%n_atoms_to   = colvar_in%population_param%n_atoms_to  
+       colvar_out%population_param%n_atoms_to   = colvar_in%population_param%n_atoms_to
        colvar_out%population_param%n_atoms_from = colvar_in%population_param%n_atoms_from
-       colvar_out%population_param%nncrd        = colvar_in%population_param%nncrd       
-       colvar_out%population_param%ndcrd        = colvar_in%population_param%ndcrd       
+       colvar_out%population_param%nncrd        = colvar_in%population_param%nncrd
+       colvar_out%population_param%ndcrd        = colvar_in%population_param%ndcrd
        colvar_out%population_param%r_0          = colvar_in%population_param%r_0
        colvar_out%population_param%use_kinds_from  = colvar_in%population_param%use_kinds_from
        colvar_out%population_param%use_kinds_to    = colvar_in%population_param%use_kinds_to
@@ -1400,7 +1400,7 @@ CPSourceFileRef)
        END IF
 
      CASE(gyration_colvar_id)
-       colvar_out%gyration_param%n_atoms   = colvar_in%gyration_param%n_atoms  
+       colvar_out%gyration_param%n_atoms   = colvar_in%gyration_param%n_atoms
        colvar_out%gyration_param%use_kinds    = colvar_in%gyration_param%use_kinds
        NULLIFY(colvar_out%gyration_param%c_kinds, colvar_out%gyration_param%i_at)
        IF(colvar_in%gyration_param%use_kinds) THEN
@@ -1448,7 +1448,7 @@ CPSourceFileRef)
        colvar_out%dfunct_param%coeff         = colvar_in%dfunct_param%coeff
        colvar_out%dfunct_param%use_pbc       = colvar_in%dfunct_param%use_pbc
     CASE(qparm_colvar_id)
-       colvar_out%qparm_param%n_atoms_to   = colvar_in%qparm_param%n_atoms_to  
+       colvar_out%qparm_param%n_atoms_to   = colvar_in%qparm_param%n_atoms_to
        colvar_out%qparm_param%n_atoms_from = colvar_in%qparm_param%n_atoms_from
        colvar_out%qparm_param%rcut         = colvar_in%qparm_param%rcut
        colvar_out%qparm_param%l            = colvar_in%qparm_param%l
@@ -1474,7 +1474,7 @@ CPSourceFileRef)
      CASE(u_colvar_id)
        colvar_out%u_param%natom = colvar_in%u_param%natom
      CASE(hydronium_colvar_id)
-       colvar_out%hydronium_param%n_hydrogens = colvar_in%hydronium_param%n_hydrogens  
+       colvar_out%hydronium_param%n_hydrogens = colvar_in%hydronium_param%n_hydrogens
        colvar_out%hydronium_param%n_oxygens   = colvar_in%hydronium_param%n_oxygens
        colvar_out%hydronium_param%nh          = colvar_in%hydronium_param%nh
        colvar_out%hydronium_param%pnh         = colvar_in%hydronium_param%pnh
@@ -1483,8 +1483,8 @@ CPSourceFileRef)
        colvar_out%hydronium_param%qno         = colvar_in%hydronium_param%qno
        colvar_out%hydronium_param%p           = colvar_in%hydronium_param%p
        colvar_out%hydronium_param%q           = colvar_in%hydronium_param%q
-       colvar_out%hydronium_param%r_OO        = colvar_in%hydronium_param%r_OO         
-       colvar_out%hydronium_param%r_OH        = colvar_in%hydronium_param%r_OH         
+       colvar_out%hydronium_param%r_OO        = colvar_in%hydronium_param%r_OO
+       colvar_out%hydronium_param%r_OH        = colvar_in%hydronium_param%r_OH
        ndim = SIZE(colvar_in%hydronium_param%i_oxygens)
        ALLOCATE(colvar_out%hydronium_param%i_oxygens(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -1512,7 +1512,7 @@ CPSourceFileRef)
        ELSE
          ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
          ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
+         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
          DO i=1,ndim
             NULLIFY(colvar_out%reaction_path_param%colvar_p(i)%colvar)
             CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar,&
@@ -1525,15 +1525,15 @@ CPSourceFileRef)
          ndim2=SIZE(colvar_in%reaction_path_param%f_vals,2)
          ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2),stat=stat)
          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-         colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals 
+         colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals
        END IF
        colvar_out%reaction_path_param%step_size        = colvar_in%reaction_path_param%step_size
        colvar_out%reaction_path_param%n_components     = colvar_in%reaction_path_param%n_components
-       colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda  
+       colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda
     CASE(combine_colvar_id)
        ndim=SIZE(colvar_in%combine_cvs_param%colvar_p)
        ALLOCATE(colvar_out%combine_cvs_param%colvar_p(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        DO i=1,ndim
           NULLIFY(colvar_out%combine_cvs_param%colvar_p(i)%colvar)
           CALL colvar_clone(colvar_out%combine_cvs_param%colvar_p(i)%colvar,&
@@ -1559,7 +1559,7 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%combine_cvs_param%variables    = colvar_in%combine_cvs_param%variables
      CASE(rmsd_colvar_id)
-       colvar_out%rmsd_param%n_atoms   = colvar_in%rmsd_param%n_atoms  
+       colvar_out%rmsd_param%n_atoms   = colvar_in%rmsd_param%n_atoms
        colvar_out%rmsd_param%align_frames  = colvar_in%rmsd_param%align_frames
        colvar_out%rmsd_param%nr_frames   = colvar_in%rmsd_param%nr_frames
        colvar_out%rmsd_param%subset   = colvar_in%rmsd_param%subset
@@ -1596,14 +1596,14 @@ CPSourceFileRef)
        colvar_out%HBP%rcut   = colvar_in%HBP%rcut
        colvar_out%HBP%shift   = colvar_in%HBP%shift
     END SELECT
-    CALL colvar_setup(colvar_out, error) 
+    CALL colvar_setup(colvar_out, error)
   END SUBROUTINE colvar_clone
 
 ! *****************************************************************************
 !> \brief Clone points type of a colvar type
 !> \param colvar the colvar to deallocate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 03.2007
 ! *****************************************************************************
   SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset, error)
@@ -1647,14 +1647,14 @@ CPSourceFileRef)
     ELSE
        NULLIFY(colvar_out%points)
     END IF
-    
+
   END SUBROUTINE colvar_clone_points
 
 ! *****************************************************************************
 !> \brief Change the dimension of a colvar_p_type
 !> \param colvar the colvar to deallocate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
   SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)
@@ -1781,7 +1781,7 @@ CPSourceFileRef)
        END DO
        DO j = 1,SIZE(points(i)%atoms)
           fac = points(i)%weights(j)
-          dsdr(:,ind+j) = dsdr(:,ind+j) + f * fac 
+          dsdr(:,ind+j) = dsdr(:,ind+j) + f * fac
        END DO
     CASE(do_clv_fix_point )
        ! Do nothing if it's a fixed point in space
@@ -1794,7 +1794,7 @@ CPSourceFileRef)
 !>      defined using KINDS
 !> \author Teodoro Laino - 07.2007
 !> \par History
-!>      1.2009 Fabio Sterpone : Added a part for population 
+!>      1.2009 Fabio Sterpone : Added a part for population
 ! *****************************************************************************
   SUBROUTINE post_process_colvar(colvar, particles, error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -1951,7 +1951,7 @@ CPSourceFileRef)
          ! weights are masses
          DO i=1,SIZE(colvar%rmsd_param%i_rmsd)
            ii = colvar%rmsd_param%i_rmsd(i)
-           colvar%rmsd_param%weights(ii) = particles(ii)%atomic_kind%mass 
+           colvar%rmsd_param%weights(ii) = particles(ii)%atomic_kind%mass
          END DO
       END IF
 
@@ -1962,7 +1962,7 @@ CPSourceFileRef)
                      rotate=.TRUE., error=error)
         END DO
       END IF
-       
+
     END IF
 
     IF (colvar%type_id == distance_from_path_colvar_id .OR. colvar%type_id == reaction_path_colvar_id) THEN
@@ -1978,7 +1978,7 @@ CPSourceFileRef)
     END IF
 
   END SUBROUTINE post_process_colvar
-      
+
 ! *****************************************************************************
 !> \brief subtract b from the ss value of a colvar: general function for handling
 !>        periodic/non-periodic colvar

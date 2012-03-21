@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-MODULE dkh_main 
+MODULE dkh_main
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -42,56 +42,56 @@ MODULE dkh_main
 CONTAINS
 
 ! *****************************************************************************
-!> \brief 2th order DKH calculations                                 
-!>                                                                     
+!> \brief 2th order DKH calculations
+!>
 !> \author
-!>     Jens Thar, Barbara Kirchner: Uni Bonn (09/2006)                 
-!>     Markus Reiher: ETH Zurich (09/2006)                             
-!>                                                                     
-!> \par Literature                                              
-!>  M. Reiher, A. Wolf, J. Chem. Phys. 121 (2004) 10944-10956          
+!>     Jens Thar, Barbara Kirchner: Uni Bonn (09/2006)
+!>     Markus Reiher: ETH Zurich (09/2006)
+!>
+!> \par Literature
+!>  M. Reiher, A. Wolf, J. Chem. Phys. 121 (2004) 10944-10956
 !>  A. Wolf, M. Reiher, B. A. Hess, J. Chem. Phys. 117 (2002) 9215-9226
-!>                                                                     
+!>
 !>\par Note
-!>      based on subroutines for DKH1 to DKH5 by                       
-!>       A. Wolf, M. Reiher, B. A. Hess                                
-!>                                                                      
-!>  INPUT:                                                              
-!>    qs_env (:)        The quickstep environment                       
-!>    n                 Number of primitive gaussians                   
-!>    matrix_s    (:,:) overlap matrix                                  
-!>    matrix_pVp  (:,:) pVp matrix                                      
-!>                                                                      
-!>  IN_OUT:                                                             
-!>    matrix_v    (:,:) input: nonrelativistic potential energy matrix  
-!>                      output: (ev1+ev2)                               
-!>    matrix_t    (:,:) input: kinetic energy matrix                    
-!>                      output: kinetic part of hamiltonian              
-!>                      in position space                               
-!>                                                                      
-!>  INTERNAL                                                            
-!>    sinv (:,:) inverted, orthogonalized overlap matrix                
-!>    ev0t (:)   DKH-even0 matrix in T-basis                            
-!>    e    (:)   e=SQRT(p^2c^2+c^4)                                     
-!>    eig  (:,:) eigenvectors of sinv' h sinv                           
-!>    tt   (:)   eigenvalues of sinv' h sinv                            
+!>      based on subroutines for DKH1 to DKH5 by
+!>       A. Wolf, M. Reiher, B. A. Hess
+!>
+!>  INPUT:
+!>    qs_env (:)        The quickstep environment
+!>    n                 Number of primitive gaussians
+!>    matrix_s    (:,:) overlap matrix
+!>    matrix_pVp  (:,:) pVp matrix
+!>
+!>  IN_OUT:
+!>    matrix_v    (:,:) input: nonrelativistic potential energy matrix
+!>                      output: (ev1+ev2)
+!>    matrix_t    (:,:) input: kinetic energy matrix
+!>                      output: kinetic part of hamiltonian
+!>                      in position space
+!>
+!>  INTERNAL
+!>    sinv (:,:) inverted, orthogonalized overlap matrix
+!>    ev0t (:)   DKH-even0 matrix in T-basis
+!>    e    (:)   e=SQRT(p^2c^2+c^4)
+!>    eig  (:,:) eigenvectors of sinv' h sinv
+!>    tt   (:)   eigenvalues of sinv' h sinv
 !>    revt (:,:) reverse transformation matrix T-basis -> position space
-!>    aa   (:)   kinematical factors f. DKH SQRT((c^2+e(i))/(2.0*e(i))) 
-!>    rr   (:)   kinematical factors f. DKH c/(c^2+e(i))                
-!>    vt   (:,:) non relativistic potential matrix in T-basis           
-!>    pvpt (:,:) pvp integral matrix in T-basis                          
-!>    ev1t (:,:) DKH-even1 matrix in T-basis                            
-!>    evt2 (:,:) DKH-even2 matrix in T-basis                            
-!>    ev1  (:,:) DKH-even1 matrix in position space                     
-!>    ev2  (:,:) DKH-even2 matrix in position space                     
-!>    ove (:,:) scratch                                                 
-!>    aux (:,:) scratch                                                 
-!>    velit  velocity of light 137 a.u.                                 
-!>    prea   prefactor, 1/137^2                                         
-!>    con2   prefactor, 2/137^2                                         
-!>    con    prefactor, 137^2                                           
+!>    aa   (:)   kinematical factors f. DKH SQRT((c^2+e(i))/(2.0*e(i)))
+!>    rr   (:)   kinematical factors f. DKH c/(c^2+e(i))
+!>    vt   (:,:) non relativistic potential matrix in T-basis
+!>    pvpt (:,:) pvp integral matrix in T-basis
+!>    ev1t (:,:) DKH-even1 matrix in T-basis
+!>    evt2 (:,:) DKH-even2 matrix in T-basis
+!>    ev1  (:,:) DKH-even1 matrix in position space
+!>    ev2  (:,:) DKH-even2 matrix in position space
+!>    ove (:,:) scratch
+!>    aux (:,:) scratch
+!>    velit  velocity of light 137 a.u.
+!>    prea   prefactor, 1/137^2
+!>    con2   prefactor, 2/137^2
+!>    con    prefactor, 137^2
 ! *****************************************************************************
-  SUBROUTINE DKH_full_transformation (qs_env,matrix_s,matrix_v,matrix_t,matrix_pVp,n,dkh_order,error) 
+  SUBROUTINE DKH_full_transformation (qs_env,matrix_s,matrix_v,matrix_t,matrix_pVp,n,dkh_order,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: matrix_s, matrix_v, matrix_t, &
                                                 matrix_pVp
@@ -115,7 +115,7 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     !     velit = 137.0359895_dp   ! 1/a_fine  physcon
-    velit = 1._dp/a_fine 
+    velit = 1._dp/a_fine
 
     !-----------------------------------------------------------------------
     !     Construct the matrix structure
@@ -173,14 +173,14 @@ CONTAINS
     !     Calculate matrix representation from nonrelativistic T matrix
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv,error=error)  
+    CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv,error=error)
     CALL cp_fm_syevd(matrix_t,matrix_eig,tt,error)
 
     !-----------------------------------------------------------------------
-    !     Calculate kinetic part of Hamiltonian in T-basis 
+    !     Calculate kinetic part of Hamiltonian in T-basis
     !-----------------------------------------------------------------------
 
-    CALL kintegral (n,ev0t,tt,e,velit)       
+    CALL kintegral (n,ev0t,tt,e,velit)
 
     !-----------------------------------------------------------------------
     !     Calculate reverse transformation matrix revt
@@ -190,11 +190,11 @@ CONTAINS
     CALL cp_fm_triangular_multiply(matrix_sinv,matrix_rev,transpose_tr=.TRUE.,error=error)
 
     !-----------------------------------------------------------------------
-    !     Calculate kinetic part of the Hamiltonian  
+    !     Calculate kinetic part of the Hamiltonian
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_to_fm(matrix_rev,matrix_aux,error)  
-    CALL cp_fm_column_scale(matrix_aux,ev0t) 
+    CALL cp_fm_to_fm(matrix_rev,matrix_aux,error)
+    CALL cp_fm_column_scale(matrix_aux,ev0t)
     CALL cp_fm_gemm("N","T",n,n,n,1.0_dp,matrix_rev,matrix_aux,0.0_dp,matrix_t,error)
 
     !-----------------------------------------------------------------------
@@ -203,24 +203,24 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     DO i=1,n
-       aa(i)=SQRT((velit*velit+e(i)) / (2.0_dp*e(i)))            
-       rr(i)=SQRT(velit*velit)/(velit*velit+e(i))                        
+       aa(i)=SQRT((velit*velit+e(i)) / (2.0_dp*e(i)))
+       rr(i)=SQRT(velit*velit)/(velit*velit+e(i))
     END DO
 
-    !----------------------------------------------------------------------- 
+    !-----------------------------------------------------------------------
     !     Transform v integrals to T-basis (v -> v(t))
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_v,matrix_sinv,error=error)  
+    CALL cp_fm_cholesky_reduce(matrix_v,matrix_sinv,error=error)
     CALL cp_fm_upper_to_full(matrix_v,matrix_aux,error)
-    CALL cp_fm_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_v,0.0_dp,matrix_aux,error) 
+    CALL cp_fm_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_v,0.0_dp,matrix_aux,error)
     CALL cp_fm_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_v,error)
 
     !-----------------------------------------------------------------------
     !     Transform pVp integrals to T-basis (pVp -> pVp(t))
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_pVp,matrix_sinv,error=error)  
+    CALL cp_fm_cholesky_reduce(matrix_pVp,matrix_sinv,error=error)
     CALL cp_fm_upper_to_full(matrix_pVp,matrix_aux,error)
     CALL cp_fm_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_pVp,0.0_dp,matrix_aux,error)
     CALL cp_fm_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_pVp,error)
@@ -241,7 +241,7 @@ CONTAINS
     !     Calculate even3 in T-basis, only if requested
     !-----------------------------------------------------------------------
 
-    IF (dkh_order.ge.3) THEN       
+    IF (dkh_order.ge.3) THEN
        CALL peven1p(n,matrix_pe1p,matrix_v,matrix_pvp,matrix_aux,matrix_aux2,aa,rr,tt,error)
        CALL even3b(n,matrix_ev3,matrix_ev1,matrix_pe1p,matrix_v,matrix_pvp,aa,rr,tt,e,matrix_aux,error)
 
@@ -293,7 +293,7 @@ CONTAINS
     !-----------------------------------------------------------------------
     !
     CALL cp_fm_scale_and_add(1.0_dp,matrix_ev1,1.0_dp,matrix_ev2,error)
-    CALL cp_fm_upper_to_full(matrix_ev1,matrix_aux,error)    
+    CALL cp_fm_upper_to_full(matrix_ev1,matrix_aux,error)
     CALL cp_fm_to_fm(matrix_ev1,matrix_v,error)
     IF(dkh_order.ge.3) THEN
        CALL cp_fm_scale_and_add(1.0_dp,matrix_v,1.0_dp,matrix_ev3,error)
@@ -357,9 +357,9 @@ CONTAINS
           tv4=-tv3*tt(i)*prea*1.25_dp
           ev0t(i)=tv1+tv2+tv3+tv4
        ELSE
-          ev0t(i)=con*(SQRT(1.0_dp+con2*tt(i))-1.0_dp)   
+          ev0t(i)=con*(SQRT(1.0_dp+con2*tt(i))-1.0_dp)
        END IF
-       e(i)=ev0t(i)+con           
+       e(i)=ev0t(i)+con
     END DO
 
     RETURN
@@ -389,7 +389,7 @@ CONTAINS
     CALL cp_fm_transpose(matrix_aux,matrix_ev1,error)
     CALL cp_fm_column_scale(matrix_ev1,aa)
 
-    CALL cp_fm_to_fm(matrix_pVp,matrix_aux,error) 
+    CALL cp_fm_to_fm(matrix_pVp,matrix_aux,error)
     CALL cp_fm_column_scale(matrix_aux,aa)
     CALL cp_fm_column_scale(matrix_aux,rr)
     CALL cp_fm_transpose(matrix_aux,matrix_aux2,error)
@@ -466,7 +466,7 @@ CONTAINS
     CALL cp_fm_upper_to_full(matrix_aux,matrix_aux2,error)
     CALL cp_fm_schur_product(matrix_pvp,matrix_aux,matrix_aux2,error)
 
-    CALL cp_fm_scale_and_add(4.0_dp,matrix_pe1p,1.0_dp,matrix_aux2,error)  
+    CALL cp_fm_scale_and_add(4.0_dp,matrix_pe1p,1.0_dp,matrix_aux2,error)
 
     CALL cp_fm_release(vec_a,error=error)
     CALL cp_fm_struct_release(vec_full,error=error)
@@ -528,7 +528,7 @@ CONTAINS
 
 !     result  intermediate result of even2-calculation
 !-----------------------------------------------------------------------
-!     1.   General Structures and Patterns for DKH2                      
+!     1.   General Structures and Patterns for DKH2
 !-----------------------------------------------------------------------
 
     CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context, error = error)
@@ -590,13 +590,13 @@ CONTAINS
     CALL cp_fm_gemm("N","N",n,n,n,1.0_dp,matrix_ava,matrix_apVVpa,1.0_dp,matrix_ev2,error)
 
     !-----------------------------------------------------------------------
-    !     2.   1/2 [W1,O1] = 1/2 W1O1 -  1/2 O1W1  
+    !     2.   1/2 [W1,O1] = 1/2 W1O1 -  1/2 O1W1
     !-----------------------------------------------------------------------
 
     CALL cp_fm_scale_and_add(-0.5_dp,matrix_ev2,0.5_dp,matrix_aux2,error)
 
     !-----------------------------------------------------------------------
-    !     3.   Finish up the stuff!!  
+    !     3.   Finish up the stuff!!
     !-----------------------------------------------------------------------
 
     CALL cp_fm_release(matrix_aux2,   error=error)
@@ -605,7 +605,7 @@ CONTAINS
     CALL cp_fm_release(matrix_apVpa,  error=error)
     CALL cp_fm_release(matrix_apVVpa, error=error)
 
-    CALL cp_fm_struct_release(matrix_full, error=error)     
+    CALL cp_fm_struct_release(matrix_full, error=error)
 
 !    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
 !    WRITE (*,*) "JT:  Now available in cp2k"
@@ -955,7 +955,7 @@ CONTAINS
     !  2c)  sum_1 = - 1/2 W1E1W2 (+ sum_1)   ( [17]-[24] )
 
     CALL dgemm("N","N",n,n,n,0.5_dp,scr_1,n,scrh_1,n,0.0_dp,sum_1,n)
-    !      CALL mat_muld(sum_1,scr_1,scrh_2,n,-0.5_dp,1.0_dp,tt,rr) 
+    !      CALL mat_muld(sum_1,scr_1,scrh_2,n,-0.5_dp,1.0_dp,tt,rr)
     CALL dgemm("N","N",n,n,n,-0.5_dp,scr_2,n,scrh_1,n,1.0_dp,sum_1,n)
     !      CALL mat_muld(sum_1,scr_2,scrh_2,n, 0.5_dp,1.0_dp,tt,rr)
     !      CALL mat_muld(sum_1,scr_1,scrh_3,n,-0.5_dp,1.0_dp,tt,rr)
@@ -1000,7 +1000,7 @@ CONTAINS
     DEALLOCATE(scr_1,scr_2,scr_3,scr_4,scrh_1,scrh_2,scrh_3,scrh_4)
 
 !    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
-!    WRITE (*,*) "JT:   Now available in cp2k" 
+!    WRITE (*,*) "JT:   Now available in cp2k"
 
     RETURN
   END SUBROUTINE even4a
@@ -1011,7 +1011,7 @@ CONTAINS
   !     Alexander Wolf                                                   -
   !     modifed: Jens Thar: Mem manager deleted                          -
   !     This file contains the                                           -
-  !      following subroutines:                                          -     
+  !      following subroutines:                                          -
   !                                 1. mat_1_over_h                      -
   !                                 2. mat_axa                           -
   !                                 3. mat_arxra                         -
@@ -1069,7 +1069,7 @@ CONTAINS
     !C                                                                      *
     !C   p    in  REAL(:,:):   matrix p                                     *
     !C   a    in  REAL(:)  :   A-factors (diagonal)                         *
-    !CJT n    in  INTEGER  :   dimension of matrix p                        *  
+    !CJT n    in  INTEGER  :   dimension of matrix p                        *
     !C                                                                      *
     !C***********************************************************************
 
@@ -1272,7 +1272,7 @@ CONTAINS
   !C-----------------------------------------------------------------------
 
 
-  SUBROUTINE DKH_atom_transformation (s,v,h,pVp,n,dkh_order) 
+  SUBROUTINE DKH_atom_transformation (s,v,h,pVp,n,dkh_order)
 
     !-----------------------------------------------------------------------
     !                                                                      *
@@ -1297,7 +1297,7 @@ CONTAINS
     !    aa   (:)   kinematical factors f. DKH SQRT((c^2+e(i))/(2.0*e(i))) *
     !    rr   (:)   kinematical factors f. DKH c/(c^2+e(i))                *
     !    vt   (:,:) non relativistic potential matrix in T-basis           *
-    !    pvpt (:,:) pvp integral matrix in T-basis                         * 
+    !    pvpt (:,:) pvp integral matrix in T-basis                         *
     !    ev1t (:,:) DKH-even1 matrix in T-basis                            *
     !    evt2 (:,:) DKH-even2 matrix in T-basis                            *
     !    ev1  (:,:) DKH-even1 matrix in position space                     *
@@ -1325,7 +1325,7 @@ CONTAINS
                                                 ove, pev1tp, pVpt, revt, &
                                                 sinv, vt
 
-    IF (dkh_order.lt.0) RETURN     
+    IF (dkh_order.lt.0) RETURN
 
     !CAW  pp: p^2-values (in momentum-space), stored as matrix!!
     !-----------------------------------------------------------------------
@@ -1343,7 +1343,7 @@ CONTAINS
     ALLOCATE(sinv(n,n))
     ALLOCATE(revt(n,n))
     ALLOCATE(aux(n,n))
-    ALLOCATE(ove(n,n)) 
+    ALLOCATE(ove(n,n))
     ALLOCATE(ev0t(n))
     ALLOCATE(e(n))
     ALLOCATE(aa(n))
@@ -1355,7 +1355,7 @@ CONTAINS
     ALLOCATE(ev4t(n,n))
     ALLOCATE(vt(n,n))
     ALLOCATE(pVpt(n,n))
-    ALLOCATE(pev1tp(n,n)) 
+    ALLOCATE(pev1tp(n,n))
     ALLOCATE(ev1(n,n))
     ALLOCATE(ev2(n,n))
     ALLOCATE(ev3(n,n))
@@ -1365,7 +1365,7 @@ CONTAINS
     !     Schmidt-orthogonalize overlap matrix
     !-----------------------------------------------------------------------
 
-    CALL sog (n,s,sinv)      
+    CALL sog (n,s,sinv)
 
     !-----------------------------------------------------------------------
     !     Calculate matrix representation from nonrelativistic T matrix
@@ -1374,7 +1374,7 @@ CONTAINS
     CALL dkh_diag ( h,n,eig,tt,sinv,aux,0 )
 
     !-----------------------------------------------------------------------
-    !     Calculate kinetic part of Hamiltonian in T-basis 
+    !     Calculate kinetic part of Hamiltonian in T-basis
     !-----------------------------------------------------------------------
 
     CALL kintegral_a (n,ev0t,tt,e,velit)
@@ -1384,10 +1384,10 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     CALL dgemm("N","N",n,n,n,1.0_dp,sinv,n,eig,n,0.0_dp,aux,n)
-    CALL dgemm("N","N",n,n,n,1.0_dp,s,n,aux,n,0.0_dp,revt,n)      
+    CALL dgemm("N","N",n,n,n,1.0_dp,s,n,aux,n,0.0_dp,revt,n)
 
     !-----------------------------------------------------------------------
-    !     Calculate kinetic part of the Hamiltonian  
+    !     Calculate kinetic part of the Hamiltonian
     !-----------------------------------------------------------------------
 
     h = 0.0_dp
@@ -1405,11 +1405,11 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     DO i=1,n
-       aa(i)=SQRT((velit*velit+e(i)) / (2.0_dp*e(i)))            
-       rr(i)=SQRT(velit*velit)/(velit*velit+e(i))                        
+       aa(i)=SQRT((velit*velit+e(i)) / (2.0_dp*e(i)))
+       rr(i)=SQRT(velit*velit)/(velit*velit+e(i))
     END DO
 
-    !----------------------------------------------------------------------- 
+    !-----------------------------------------------------------------------
     !     Transform v integrals to T-basis (v -> vt)
     !-----------------------------------------------------------------------
 
@@ -1427,7 +1427,7 @@ CONTAINS
     !     Calculate even1 in T-basis
     !-----------------------------------------------------------------------
 
-    IF (dkh_order.ge.1) THEN       
+    IF (dkh_order.ge.1) THEN
        CALL even1_a(n,ev1t,vt,pvpt,aa,rr)
 
        !----------------------------------------------------------------------
@@ -1435,14 +1435,14 @@ CONTAINS
        !----------------------------------------------------------------------
 
        CALL dgemm("N","N",n,n,n,1.0_dp,revt,n,ev1t,n,0.0_dp,aux,n)
-       CALL dgemm("N","T",n,n,n,1.0_dp,aux,n,revt,n,0.0_dp,ev1,n)  
+       CALL dgemm("N","T",n,n,n,1.0_dp,aux,n,revt,n,0.0_dp,ev1,n)
     END IF
 
     !-----------------------------------------------------------------------
     !     Calculate even2 in T-basis
     !-----------------------------------------------------------------------
 
-    IF (dkh_order.ge.2) THEN       
+    IF (dkh_order.ge.2) THEN
        CALL even2c_a (n,ev2t,vt,pvpt,aa,rr,tt,e)
 
        !-----------------------------------------------------------------------
@@ -1458,7 +1458,7 @@ CONTAINS
     !     Calculate even3 in T-basis, only if requested
     !-----------------------------------------------------------------------
 
-    IF (dkh_order.ge.3) THEN       
+    IF (dkh_order.ge.3) THEN
        CALL peven1p_a(n,pev1tp,vt,pvpt,aa,rr,tt)
        CALL even3b_a(n,ev3t,ev1t,pev1tp,vt,pvpt,aa,rr,tt,e)
 
@@ -1485,7 +1485,7 @@ CONTAINS
        END IF
     END IF
 
-    IF (dkh_order.ge.4) THEN       
+    IF (dkh_order.ge.4) THEN
        STOP "DKH 4"
     END IF
     !-----------------------------------------------------------------------
@@ -1507,7 +1507,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------
 
-    DEALLOCATE(eig,sinv,revt,ove,aux,vt,pVpt,ev1,ev2,ev3,ev4,ev1t,ev2t,ev3t,ev4t,pev1tp) 
+    DEALLOCATE(eig,sinv,revt,ove,aux,vt,pVpt,ev1,ev2,ev3,ev4,ev1t,ev2t,ev3t,ev4t,pev1tp)
     DEALLOCATE(ev0t,e,aa,rr,tt)
 
     RETURN
@@ -1556,9 +1556,9 @@ CONTAINS
           tv4=-tv3*tt(i)*prea*1.25_dp
           ev0t(i)=tv1+tv2+tv3+tv4
        ELSE
-          ev0t(i)=con*(SQRT(1.0_dp+con2*tt(i))-1.0_dp)   
+          ev0t(i)=con*(SQRT(1.0_dp+con2*tt(i))-1.0_dp)
        END IF
-       e(i)=ev0t(i)+con           
+       e(i)=ev0t(i)+con
     END DO
 
     RETURN
@@ -1673,11 +1673,11 @@ CONTAINS
     !     tt      in   Nonrel. kinetic Energy (DIAGONAL)                   *
     !     e       in   Rel. Energy = SQRT(p^2*c^2 + c^4)  (DIAGONAL)       *
     !     result  intermediate result of even2-calculation                 *
-    !     v       symmetric (n x n)-matrix containing (A V A)              * 
+    !     v       symmetric (n x n)-matrix containing (A V A)              *
     !     pvp     symmetric (n x n)-matrix containing (A P V P A)          *
     !     vh      symmetric (n x n)-matrix containing (A V~ A)             *
-    !     pvph    symmetric (n x n)-matrix containing (A P V~ P A)         * 
-    !     w1o1    W1*O1 (2-component form)                                 * 
+    !     pvph    symmetric (n x n)-matrix containing (A P V~ P A)         *
+    !     w1o1    W1*O1 (2-component form)                                 *
     !     o1w1    O1*W1 (2-component form)                                 *
     !                                                                      *
     !***********************************************************************
@@ -1694,7 +1694,7 @@ CONTAINS
       DIMENSION(:, :)                        :: o1w1, pvp, pvph, v, vh, w1o1
 
 !-----------------------------------------------------------------------
-!     1.   General Structures and Patterns for DKH2                      
+!     1.   General Structures and Patterns for DKH2
 !-----------------------------------------------------------------------
 
     ALLOCATE(v(n,n))
@@ -1748,13 +1748,13 @@ CONTAINS
     !  Calculate in symmetric pakets
 
     !-----------------------------------------------------------------------
-    !     2.   1/2 [W1,O1] = 1/2 W1O1 -  1/2 O1W1  
+    !     2.   1/2 [W1,O1] = 1/2 W1O1 -  1/2 O1W1
     !-----------------------------------------------------------------------
 
     CALL mat_add (ev2,0.5_dp,w1o1,-0.5_dp,o1w1,n)
 
     !-----------------------------------------------------------------------
-    !     3.   Finish up the stuff!!  
+    !     3.   Finish up the stuff!!
     !-----------------------------------------------------------------------
 
     DEALLOCATE(v,vh,pvp,pvph,w1o1,o1w1)
@@ -1794,14 +1794,14 @@ CONTAINS
     !     rr      in   R-Factors (DIAGONAL)                                *
     !     tt      in   Nonrel. kinetic Energy (DIAGONAL)                   *
     !     e       in   Rel. Energy = SQRT(p^2*c^2 + c^4)  (DIAGONAL)       *
-    !     result  intermediate result of even2-calculation                 * 
+    !     result  intermediate result of even2-calculation                 *
     !     vh      symmetric (n x n)-matrix containing (A V~ A)             *
     !     pvph    symmetric (n x n)-matrix containing (A P V~ P A)         *
-    !     e1      E1                                                       * 
+    !     e1      E1                                                       *
     !     pe1p    pE1p                                                     *
     !     w1w1    (W1)^2                                                   *
     !     w1e1w1  W1*E1*W1                                                 *
-    !     scr_i   temporary (n x n)-scratch-matrices (i=1,2)               * 
+    !     scr_i   temporary (n x n)-scratch-matrices (i=1,2)               *
     !                                                                      *
     !***********************************************************************
 
@@ -2091,7 +2091,7 @@ CONTAINS
     !  2c)  sum_1 = - 1/2 W1E1W2 (+ sum_1)   ( [17]-[24] )
 
     CALL dgemm("N","N",n,n,n,0.5_dp,scr_1,n,scrh_1,n,0.0_dp,sum_1,n)
-    CALL mat_muld_a(sum_1,scr_1,scrh_2,n,-0.5_dp,1.0_dp,tt,rr) 
+    CALL mat_muld_a(sum_1,scr_1,scrh_2,n,-0.5_dp,1.0_dp,tt,rr)
     CALL dgemm("N","N",n,n,n,-0.5_dp,scr_2,n,scrh_1,n,1.0_dp,sum_1,n)
     CALL mat_muld_a(sum_1,scr_2,scrh_2,n, 0.5_dp,1.0_dp,tt,rr)
     CALL mat_muld_a(sum_1,scr_1,scrh_3,n,-0.5_dp,1.0_dp,tt,rr)
@@ -2136,7 +2136,7 @@ CONTAINS
     DEALLOCATE(scr_1,scr_2,scr_3,scr_4,scrh_1,scrh_2,scrh_3,scrh_4)
 
 !    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
-!    WRITE (*,*) "JT:   Now available in cp2k" 
+!    WRITE (*,*) "JT:   Now available in cp2k"
 
     RETURN
   END SUBROUTINE even4a_a
@@ -2147,7 +2147,7 @@ CONTAINS
   !     Alexander Wolf                                                   -
   !     modifed: Jens Thar: Mem manager deleted                          -
   !     This file contains the                                           -
-  !      following subroutines:                                          -     
+  !      following subroutines:                                          -
   !                                 1. mat_1_over_h                      -
   !                                 2. mat_axa                           -
   !                                 3. mat_arxra                         -
@@ -2197,7 +2197,7 @@ CONTAINS
     !C                                                                      *
     !C   p    in  REAL(:,:):   matrix p                                     *
     !C   a    in  REAL(:)  :   A-factors (diagonal)                         *
-    !CJT n    in  INTEGER  :   dimension of matrix p                        *  
+    !CJT n    in  INTEGER  :   dimension of matrix p                        *
     !C                                                                      *
     !C***********************************************************************
 
@@ -2244,7 +2244,7 @@ CONTAINS
 
     DO i=1,n
        DO j=1,n
-          p(i,j)=p(i,j)*a(i)*a(j)*r(i)*r(j)   
+          p(i,j)=p(i,j)*a(i)*a(j)*r(i)*r(j)
        ENDDO
     ENDDO
 
@@ -2330,7 +2330,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: qtemp
 
-    ALLOCATE(qtemp(n,n)) 
+    ALLOCATE(qtemp(n,n))
 
     DO i=1,n
        DO j=1,n
@@ -2341,7 +2341,7 @@ CONTAINS
     CALL dgemm("N","N",n,n,n,alpha,qtemp,n,r,n,beta,p,n)
 
     RETURN
-    DEALLOCATE(qtemp) 
+    DEALLOCATE(qtemp)
   END SUBROUTINE mat_muld_a
   !C-----------------------------------------------------------------------
 
@@ -2551,35 +2551,35 @@ CONTAINS
        END DO
     END DO
 
-    IF (ext_norm.gt.0.0_dp) THEN 
+    IF (ext_norm.gt.0.0_dp) THEN
        ext_norm=SQRT(2.0_dp*ext_norm)
-       thr_min=ext_norm*tol/u1    
+       thr_min=ext_norm*tol/u1
        ind=0
        thr=ext_norm
 
        DO
-          thr=thr/u1              
+          thr=thr/u1
           DO
-             l=1                       
-             DO                   
+             l=1
+             DO
                 m=l+1
-                DO                
-                   IF ((ABS(sogt(m,l))-thr).ge.0.0_dp) THEN     
+                DO
+                   IF ((ABS(sogt(m,l))-thr).ge.0.0_dp) THEN
                       ind=1
-                      x=0.5_dp*(eigw(l)-eigw(m))                       
-                      y=-sogt(m,l)/SQRT(sogt(m,l)*sogt(m,l)+x*x)   
-                      IF (x.lt.0.0_dp) y=-y                      
+                      x=0.5_dp*(eigw(l)-eigw(m))
+                      y=-sogt(m,l)/SQRT(sogt(m,l)*sogt(m,l)+x*x)
+                      IF (x.lt.0.0_dp) y=-y
 
-                      IF (y.gt.1.0_dp) y=1.0_dp                
-                      IF (y.lt.-1.0_dp) y=-1.0_dp                      
-                      xy=1.0_dp-y*y                                    
-                      sint=y/SQRT(2.0_dp*(1.0_dp+SQRT(xy))) 
+                      IF (y.gt.1.0_dp) y=1.0_dp
+                      IF (y.lt.-1.0_dp) y=-1.0_dp
+                      xy=1.0_dp-y*y
+                      sint=y/SQRT(2.0_dp*(1.0_dp+SQRT(xy)))
                       sint2=sint*sint
                       cost2=1.0_dp-sint2
                       cost=SQRT(cost2)
                       sincs=sint*cost
 
-                      DO i=1,n                               
+                      DO i=1,n
                          IF((i-m).ne.0) THEN
                             IF ((i-m).lt.0) THEN
                                im=m
@@ -2596,18 +2596,18 @@ CONTAINS
                                   il=i
                                   ll=l
                                END IF
-                               x=sogt(il,ll)*cost-sogt(im,mm)*sint         
-                               sogt(im,mm)=sogt(il,ll)*sint+sogt(im,mm)*cost 
-                               sogt(il,ll)=x  
+                               x=sogt(il,ll)*cost-sogt(im,mm)*sint
+                               sogt(im,mm)=sogt(il,ll)*sint+sogt(im,mm)*cost
+                               sogt(il,ll)=x
                             END IF
                          END IF
 
-                         x=eigv(i,l)*cost-eigv(i,m)*sint                  
+                         x=eigv(i,l)*cost-eigv(i,m)*sint
                          eigv(i,m)=eigv(i,l)*sint+eigv(i,m)*cost
                          eigv(i,l)=x
                       END DO
 
-                      x=2.0_dp*sogt(m,l)*sincs                          
+                      x=2.0_dp*sogt(m,l)*sincs
                       y=eigw(l)*cost2+eigw(m)*sint2-x
                       x=eigw(l)*sint2+eigw(m)*cost2+x
                       sogt(m,l)=(eigw(l)-eigw(m))*sincs+sogt(m,l)*(cost2-sint2)
@@ -2670,7 +2670,7 @@ CONTAINS
 !     sinv-1*matrix_s_pgf*sinv = "orthogonal matrix"
 !     n              dimension of matrices
 !     matrix_s_pgf   original overlap matrix
-!     matrix_sinv_pgf new overlap matrix 
+!     matrix_sinv_pgf new overlap matrix
 !     g              scratch
 !     a              scratch
 !
@@ -2678,38 +2678,38 @@ CONTAINS
     ALLOCATE(a(n))
     ALLOCATE(g(n,n))
 
-    DO jn=1,n                                                         
+    DO jn=1,n
        diag_s = matrix_s_pgf(jn,jn)
        g(jn,jn)=1.0_dp
 
-       IF(jn.ne.1) THEN                                               
-          DO j=1,jn-1                                                 
+       IF(jn.ne.1) THEN
+          DO j=1,jn-1
              scalar=0.0_dp
-             DO i=1,j                                                 
-                scalar=scalar+matrix_s_pgf(i,jn)*g(i,j)               
+             DO i=1,j
+                scalar=scalar+matrix_s_pgf(i,jn)*g(i,j)
              END DO
-             diag_s=diag_s-scalar*scalar                            
+             diag_s=diag_s-scalar*scalar
              a(j) = scalar
           END DO
 
-          DO j=1,jn-1                                             
+          DO j=1,jn-1
              row_sum=0.0_dp
-             DO k=j,jn-1                                          
+             DO k=j,jn-1
                 row_sum=row_sum+a(k)*g(j,k)
              END DO
-             g(j,jn)=-row_sum                                    
+             g(j,jn)=-row_sum
           END DO
        END IF
 
-       diag_s=1.0_dp/SQRT(diag_s)                          
+       diag_s=1.0_dp/SQRT(diag_s)
        DO i=1,jn
-          g(i,jn)=g(i,jn)*diag_s                            
+          g(i,jn)=g(i,jn)*diag_s
        END DO
     END DO
 
     DO j=1,n
        DO i=1,j
-          matrix_sinv_pgf(j,i)=0.0_dp 
+          matrix_sinv_pgf(j,i)=0.0_dp
           matrix_sinv_pgf(i,j)=g(i,j)
        END DO
     END DO

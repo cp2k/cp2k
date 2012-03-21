@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Methods for Thermostats 
+!> \brief Methods for Thermostats
 !> \author teo [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
 MODULE thermostat_methods
@@ -220,7 +220,7 @@ CONTAINS
               "Adiabatic Thermostat has been defined but the ensemble provided "//&
               "does not support thermostat for Particles! Ignoring thermostat input."//&
 CPSourceFileRef,&
-              only_ionode=.TRUE.)          
+              only_ionode=.TRUE.)
       END IF
       CALL release_thermostat_info(thermostats%thermostat_info_fast, error)
       CALL release_thermostat_info(thermostats%thermostat_info_slow, error)
@@ -271,7 +271,7 @@ CPSourceFileRef,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
                "does not support thermostat for Particles! Ignoring thermostat input."//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)          
+               only_ionode=.TRUE.)
        END IF
     ELSE IF (apply_general_thermo) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -279,7 +279,7 @@ CPSourceFileRef,&
             "particles has been defined. You may want to change your input and add a "//&
             "THERMOSTAT section in the MD section."//&
 CPSourceFileRef,&
-            only_ionode=.TRUE.) 
+            only_ionode=.TRUE.)
     END IF
 
     ! Core-Shell Model
@@ -288,7 +288,7 @@ CPSourceFileRef,&
     IF (shell_present) THEN
        IF (explicit_shell) THEN
           ! The thermostat is activated only if explicitely required
-          ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe) 
+          ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe)
           IF (apply_thermo_shell) THEN
              CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section,&
                   label="SHELL", error=error)
@@ -314,7 +314,7 @@ CPSourceFileRef,&
                    CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
                         molecules_new%els, molecule_kinds_new%els, para_env, &
                         thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
-                        error=error)               
+                        error=error)
                 END IF
                 CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
                                      simpar, para_env, error)
@@ -324,7 +324,7 @@ CPSourceFileRef,&
                      "Continuing calculation ignoring the thermostat info! No Thermostat "//&
                      "applied to Shells!"//&
 CPSourceFileRef,&
-                     only_ionode=.TRUE.) 
+                     only_ionode=.TRUE.)
                 CALL release_thermostat_type(thermostats%thermostat_shell, error)
                 CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
              END IF
@@ -333,7 +333,7 @@ CPSourceFileRef,&
              "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
              " shell model has not been implemented! Ignoring thermostat input."//&
 CPSourceFileRef,&
-             only_ionode=.TRUE.)          
+             only_ionode=.TRUE.)
           END IF
        END IF
     ELSE IF (explicit_shell) THEN
@@ -341,25 +341,25 @@ CPSourceFileRef,&
             "Thermostat for Shells has been defined but the system provided "//&
             "does not contain any Shells! Ignoring thermostat input."//&
 CPSourceFileRef,&
-            only_ionode=.TRUE.) 
-    END IF 
+            only_ionode=.TRUE.)
+    END IF
 
     ! Barostat Temperature (not necessarily to be controlled by a thermostat)
     IF (explicit_barostat_section) THEN
-       simpar%temp_baro_ext = simpar%temp_ext 
+       simpar%temp_baro_ext = simpar%temp_ext
        CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",n_rep_val=n_rep,error=error)
        IF (n_rep/=0) THEN
           CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
           CPPostcondition(simpar%temp_baro_ext>=0.0_dp,cp_failure_level,routineP,error,failure)
        END IF
 
-       ! Setup Barostat Thermostat 
+       ! Setup Barostat Thermostat
        IF (apply_thermo_baro) THEN
           ! Check if we use the same thermostat as particles
           CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
           work_section => thermo_baro_section
           IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
-         
+
           CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
                label="BAROSTAT", error=error)
           ! Initialize thermostat
@@ -528,7 +528,7 @@ CPSourceFileRef,&
           ! Apply Nose-Hoover Thermostat
           CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
           CALL lnhc_barostat ( thermostat%nhc, npt, group, error )
-       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
           CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
           CALL csvr_barostat ( thermostat%csvr, npt, group, error )
@@ -573,7 +573,7 @@ CPSourceFileRef,&
           CALL lnhc_particles(thermostat%nhc,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
                core_particle_set, vel, shell_vel, core_vel, error)
-       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
           CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
           CALL csvr_particles(thermostat%csvr,molecule_kind_set,molecule_set,&
@@ -623,7 +623,7 @@ CPSourceFileRef,&
           CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
           CALL lnhc_shells(thermostat%nhc, atomic_kind_set, particle_set, local_particles, &
                group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel, error)
-       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
           CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
           CALL csvr_shells(thermostat%csvr, atomic_kind_set, particle_set, local_particles, &

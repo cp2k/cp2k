@@ -8,9 +8,9 @@
 !>    cjm, Feb-20-2001 : added all the extended variables to
 !>    system_type
 !>    gt 23-09-2002 : major changes. Pointer part is allocated/deallocated
-!>                    and initialized here. Atomic coordinates can now be 
+!>                    and initialized here. Atomic coordinates can now be
 !>                    read also from &COORD section in the input file.
-!>                    If &COORD is not found, .dat file is read.  
+!>                    If &COORD is not found, .dat file is read.
 !>                    If & coord is found and .NOT. 'INIT', parsing of the .dat
 !>                    is performed to get the proper coords/vel/eta variables
 !>     CJM 31-7-03  : Major rewrite.  No more atype
@@ -238,7 +238,7 @@ CPSourceFileRef,&
              atom_info%id_resname(iatom) = atom_info%id_molname(iatom)
           END IF
           atom_info%id_element(iatom) = atom_info%id_atmname(iatom)
-          atom_info%atm_mass(iatom)   = 0.0_dp 
+          atom_info%atm_mass(iatom)   = 0.0_dp
           atom_info%atm_charge(iatom) = -HUGE(0.0_dp)
        END DO
     END IF
@@ -472,7 +472,7 @@ CPSourceFileRef,&
                WRITE(output_unit,*) "WARNING : shell and core for atom ", at_index(ishell), " seem to be too distant. "
              END IF
            END IF
- 
+
          ELSE
            CALL cp_assert(.FALSE.,cp_failure_level,&
                  cp_assertion_failed,routineP,&

@@ -62,8 +62,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE cs1_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -97,8 +97,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE cs1_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -512,7 +512,7 @@ CONTAINS
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rho, eps_rho, r13, grho, e_rho_rho_rho) &
     !$omp             shared(e_rho_rho_ndrho, e_rho_ndrho_ndrho) &
-    !$omp             shared(e_ndrho_ndrho_ndrho, dpv, cp, c2p, c3p, c4p) & 
+    !$omp             shared(e_ndrho_ndrho_ndrho, dpv, cp, c2p, c3p, c4p) &
     !$omp             private(ip,r,r3,g,odp,ocp,od,oc,d3f1,d3rF2,d2rgF2) &
     !$omp             private(dr2gF2,d3gF2,d3F3,d3rF4,d2rgF4,dr2gF4,d3gF4) &
     !$omp             private(t1, t2, t3, t4, t6, t7, t8, t9, t10, t11, t13) &
@@ -725,7 +725,7 @@ CONTAINS
       END IF
 
       e_rhoa(ip) = e_rhoa(ip) + dF1a + drF2a
-      e_ndrhoa(ip) = e_ndrhoa(ip) + dgF2a 
+      e_ndrhoa(ip) = e_ndrhoa(ip) + dgF2a
       e_rhob(ip) = e_rhob(ip) + dF1b + drF2b
       e_ndrhob(ip) = e_ndrhob(ip) + dgF2b
 

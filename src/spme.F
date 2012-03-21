@@ -138,7 +138,7 @@ CONTAINS
     grid_spme => pw_pool % pw_grid
 
     npart = SIZE ( particle_set )
-    
+
     CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols,error=error)
 
     n = o_spline
@@ -191,7 +191,7 @@ CONTAINS
           IF (p1_shell == 0) EXIT
           CALL get_patch(shell_particle_set, box, green, npts, p1_shell, rhos,&
                is_core=.FALSE., is_shell=.TRUE., unit_charge=.FALSE.)
- 
+
           ! add boxes to real space grid (big box)
           CALL dg_sum_patch ( rden, rhos, shell_center(:,p1_shell) )
        END DO
@@ -236,7 +236,7 @@ CONTAINS
                              error=error)
     CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
                             h_stress ,error=error)
-    ! Atomic Energy 
+    ! Atomic Energy
     IF (atprop%energy .OR. atprop%stress) THEN
        CALL rs_grid_create (rpot, rs_desc, error=error)
        phi_g%cc = phi_g%cc * green%p3m_charge%cr
@@ -313,7 +313,7 @@ CONTAINS
        ! calculate function on small boxes
        CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, is_core=.FALSE.,&
             is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
-       
+
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
        fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols

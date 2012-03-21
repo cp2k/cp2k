@@ -7,7 +7,7 @@
 !> \brief Used to run the bulk of the MC simulation, doing things like
 !>      choosing move types and writing data to files
 !> \author Matthew J. McGrath  (09.26.2003)
-!> 
+!>
 !>    REVISIONS
 !>      09.10.05  MJM combined the two subroutines in this module into one
 ! *****************************************************************************
@@ -108,7 +108,7 @@ CONTAINS
 !> \param nboxes the number of simulation boxes
 !> \param error the error type
 !> \param rng_stream the stream we pull random numbers from
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -272,11 +272,11 @@ CONTAINS
     ! this is a check we can't do in the input checking
     IF(pmvol_box(nboxes) .LT. 1.0E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMVOL_BOX needs to be 1.0')       
+            'The last value of PMVOL_BOX needs to be 1.0')
     ENDIF
     IF(pmhmc_box(nboxes) .LT. 1.0E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMHMC_BOX needs to be 1.0')       
+            'The last value of PMHMC_BOX needs to be 1.0')
     ENDIF
 
     ! allocate the particle positions array for broadcasting
@@ -321,7 +321,7 @@ CONTAINS
        initial_energy(ibox)=old_energy(ibox)
 
 ! don't care about overlaps if we're only doing HMC
-       
+
        IF(.NOT. lhmc)THEN
           ! check for overlaps
           start_mol=1
@@ -502,7 +502,7 @@ CONTAINS
           CASE("GEMC_NPT")
              ! we need to select a box based on the probability given in the input file
              IF (ionode) rand=next_random_number(rng_stream,error=error)
-             CALL mp_bcast(rand,source,group)               
+             CALL mp_bcast(rand,source,group)
 
              DO ibox=1,nboxes
                 IF(rand .LE. pmvol_box(ibox)) THEN
@@ -615,15 +615,15 @@ CONTAINS
 
 ! pick a box at random
           IF (ionode) rand=next_random_number(rng_stream,error=error)
-          CALL mp_bcast(rand,source,group)               
-          
+          CALL mp_bcast(rand,source,group)
+
           DO ibox=1,nboxes
              IF(rand .LE. pmhmc_box(ibox)) THEN
                 box_number=ibox
                 EXIT
              ENDIF
           ENDDO
-          
+
           CALL mc_hmc_move( mc_par(box_number)%mc_par,&
                force_env(box_number)%force_env,globenv,&
                moves(1,box_number)%moves,&
@@ -822,7 +822,7 @@ CONTAINS
                      stop_program(routineN,moduleN,__LINE__,&
                      'Did not choose a molecule type to translate...PMTRANS_MOL should not be all 0.0')
 
-                ! now pick a molecule of that type                  
+                ! now pick a molecule of that type
                 IF(ionode) &
                      CALL find_mc_test_molecule(mc_molecule_info,&
                      start_atom,box_number,idum,rng_stream,&
@@ -1014,12 +1014,12 @@ CONTAINS
                 ! this is kind of ugly, with allocated and deallocating every time
                    ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)),STAT=stat)
                    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                   
+
                    DO iunit=1,nunits_tot(ibox)
                       r_temp(1:3,iunit)=&
                            particles_old(ibox)%list%els(iunit)%r(1:3)
                    ENDDO
-                   
+
                    CALL mc_coordinate_fold(r_temp(:,:),&
                         SUM(nchains(:,ibox)),mol_type(start_mol:end_mol),&
                         mass,nunits,abc(1:3,ibox))
@@ -1037,13 +1037,13 @@ CONTAINS
                            subsys=biassys,error=error)
                       CALL cp_subsys_get(biassys,&
                            particles=particles_bias, error=error)
-                      
+
                       DO iunit=1,nunits_tot(ibox)
                          particles_bias%els(iunit)%r(1:3)=&
                               r_temp(1:3,iunit)
                       ENDDO
                    ENDIF
-                   
+
                    DEALLOCATE (r_temp,STAT=stat)
                    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
                 ENDIF
@@ -1198,7 +1198,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the second virial coefficient of a molecule by using the integral form
-!>      of the second virial coefficient found in McQuarrie "Statistical Thermodynamics", 
+!>      of the second virial coefficient found in McQuarrie "Statistical Thermodynamics",
 !>      B2(T) = -2Pi Int 0toInf [ Exp[-beta*u(r)] -1] r^2 dr     Eq. 15-25
 !>      I use trapazoidal integration with various step sizes
 !>      (the integral is broken up into three parts, currently, but that's easily
@@ -1210,7 +1210,7 @@ CONTAINS
 !> \param globenv the global environment for the simulation
 !> \param error the error type
 !> \param rng_stream the stream we pull random numbers from
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************

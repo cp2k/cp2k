@@ -1199,7 +1199,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
   ELSE
     use_virial = .FALSE.
-  ENDIF 
+  ENDIF
 
   IF (.NOT.failure) THEN
      bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -1715,7 +1715,7 @@ CPSourceFileRef,&
               NULLIFY(tmp_r)
            END IF
         END IF
-        
+
         ! ** Add laplace part to vxc_rho
         IF( has_laplace ) THEN
           nd_laplace = RESHAPE((/2,0,0,0,2,0,0,0,2/),(/3,3/))

@@ -934,14 +934,14 @@ CONTAINS
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="SCALED",&
              description='Specify if the coordinateds in input are scaled.',&
              usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
              lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="ATOM_KIND  X  Y  Z  <MOLNAME>. MOLNAME is optional. "//&
             "If not provided the molecule name is internally created. All other "//&
@@ -986,14 +986,14 @@ CONTAINS
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="SCALED",&
              description='Specify if the coordinateds in input are scaled.',&
              usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
              lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The shell coordinates in xyz format.",repeats=.TRUE.,&
             usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
@@ -1037,14 +1037,14 @@ CONTAINS
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="SCALED",&
              description='Specify if the coordinateds in input are scaled.',&
              usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
              lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The core coordinates in xyz format.",repeats=.TRUE.,&
             usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)

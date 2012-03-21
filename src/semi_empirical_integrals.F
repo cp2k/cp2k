@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Set of wrappers for semi-empirical analytical/numerical Integrals 
+!> \brief Set of wrappers for semi-empirical analytical/numerical Integrals
 !>        routines
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
@@ -54,7 +54,7 @@ MODULE semi_empirical_integrals
 CONTAINS
 
 ! *****************************************************************************
-!> \brief  wrapper for numerical/analytical 2 center 2 electrons integrals 
+!> \brief  wrapper for numerical/analytical 2 center 2 electrons integrals
 !>         routines with possibility of incore storage/compression
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
@@ -164,7 +164,7 @@ CONTAINS
                                                     store_int_env%integral_containers(nbits), &
                                                     eps_storage, 1.0_dp, &
                                                     store_int_env%memory_parameter%actual_memory_usage, &
-                                                    .FALSE.)         
+                                                    .FALSE.)
                    buffer_left  = buffer_left  - buffer_size
                    buffer_start = buffer_start + buffer_size
                 END DO
@@ -259,14 +259,14 @@ CONTAINS
                      se_int_control=se_int_control, se_taper=se_taper, error=error)
              ELSE
                 CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                     se_int_control=se_int_control, se_taper=se_taper, error=error)    
+                     se_int_control=se_int_control, se_taper=se_taper, error=error)
              END IF
           END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
              IF (PRESENT(e1b)) w(        1:nints_1) = e1b(1:nints_1)
              IF (PRESENT(e2a)) w(nints_1+1:nints  ) = e2a(1:nints_2)
-             
+
              IF (store_int_env%compress) THEN
                 ! Store integrals in the containers
                 IF (store_int_env%nbuffer>SIZE(store_int_env%max_val_buffer)) THEN
@@ -274,7 +274,7 @@ CONTAINS
                    CALL reallocate(store_int_env%max_val_buffer, 1, new_size)
                 END IF
                 store_int_env%max_val_buffer(store_int_env%nbuffer) = MAXVAL(ABS(w(1:nints)))
-                
+
                 nbits        = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage) + 1
                 buffer_left  = nints
                 buffer_start = 1
@@ -299,7 +299,7 @@ CONTAINS
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                 END IF
                 store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)=w(1:nints)
-                store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints 
+                store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
              END IF
           END IF
        ELSE
@@ -325,7 +325,7 @@ CONTAINS
                                                     store_int_env%integral_containers(nbits), &
                                                     eps_storage, 1.0_dp, &
                                                     store_int_env%memory_parameter%actual_memory_usage, &
-                                                    .FALSE.)         
+                                                    .FALSE.)
                    buffer_left  = buffer_left  - buffer_size
                    buffer_start = buffer_start + buffer_size
                 END DO
@@ -347,7 +347,7 @@ CONTAINS
                         se_int_control=se_int_control, se_taper=se_taper, error=error)
                 ELSE
                    CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                        se_int_control=se_int_control, se_taper=se_taper, error=error)    
+                        se_int_control=se_int_control, se_taper=se_taper, error=error)
                 END IF
              END IF
           END IF
@@ -362,7 +362,7 @@ CONTAINS
                   se_int_control=se_int_control, se_taper=se_taper, error=error)
           ELSE
              CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  se_int_control=se_int_control, se_taper=se_taper, error=error)    
+                  se_int_control=se_int_control, se_taper=se_taper, error=error)
           END IF
        END IF
     END IF
@@ -563,7 +563,7 @@ CONTAINS
        CALL dcorecore_el_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
             se_int_control=se_int_control,se_taper=se_taper, error=error)
     END IF
-    
+
   END SUBROUTINE dcorecore_el
 
 END MODULE semi_empirical_integrals

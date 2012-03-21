@@ -15,7 +15,7 @@
 ! *****************************************************************************
 SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
@@ -116,7 +116,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
   INTEGER :: fftw_plan_type
   SELECT CASE(plan_style)
   CASE(1)
-         fftw_plan_type = FFTW_ESTIMATE 
+         fftw_plan_type = FFTW_ESTIMATE
   CASE(2)
          fftw_plan_type = FFTW_MEASURE
   CASE(3)
@@ -243,7 +243,7 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
-  INTEGER :: fftw_plan_type 
+  INTEGER :: fftw_plan_type
   SELECT CASE(plan_style)
   CASE(1)
          fftw_plan_type = FFTW_ESTIMATE
@@ -419,7 +419,7 @@ scal_offset = 1
 !$ ELSEIF ( plan%fsign == -1 .AND. plan%trans ) THEN
 !$  out_offset = 1 + plan%num_rows*my_id
 !$ ENDIF
-!$ scal_offset = 1 + plan%n*plan%num_rows*my_id 
+!$ scal_offset = 1 + plan%n*plan%num_rows*my_id
 !$ IF ( plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1 ) THEN
 !$   num_rows = plan%alt_num_rows
 !$   fftw_plan = plan%alt_fftw_plan
@@ -468,34 +468,34 @@ END SUBROUTINE fftw31dm
 
 !     Copyright (c) 2003, 2006 Matteo Frigo
 !     Copyright (c) 2003, 2006 Massachusetts Institute of Technology
-!     
+!
 !     This program is free software; you can redistribute it and/or modify
 !     it under the terms of the GNU General Public License as published by
 !     the Free Software Foundation; either version 2 of the License, or
 !     (at your option) any later version.
-!     
+!
 !     This program is distributed in the hope that it will be useful,
 !     but WITHOUT ANY WARRANTY; without even the implied warranty of
 !     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !     GNU General Public License for more details.
-!     
+!
 !     You should have received a copy of the GNU General Public License
 !     along with this program; if not, write to the Free Software
 !     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!     
+!
 !     This is an example implementation of Fortran wisdom export/import
 !     to/from a Fortran unit (file), exploiting the generic
 !     dfftw_export_wisdom/dfftw_import_wisdom functions.
-!     
+!
 !     We cannot compile this file into the FFTW library itself, lest all
 !     FFTW-calling programs be required to link to the Fortran I/O
 !     libraries.
 !
 !     adapted to become more standard Fortran 90 [2007-10] Joost VandeVondele
 !     and added some namespacing
-!     
+!
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 ! *****************************************************************************
@@ -504,7 +504,7 @@ END SUBROUTINE fftw31dm
          CHARACTER c
          INTEGER iunit
          WRITE(iunit,'(a)',ADVANCE="NO") c
-      END      
+      END
 
 ! *****************************************************************************
       SUBROUTINE fftw_export_wisdom_to_file(iunit)
@@ -551,7 +551,7 @@ END SUBROUTINE fftw31dm
          ibuf = 257
  123     FORMAT(a256)
       END
-      
+
 ! *****************************************************************************
       SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
          IMPLICIT NONE

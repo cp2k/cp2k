@@ -76,7 +76,7 @@ FUNCTION calc_max_r2(poly,poly_shift,alpha,epsilon,error,scale) RESULT(res)
     CALL poly_affine_t3(poly,identity_m,poly_shift,poly_ijk,error=error)
     res=calcRadius2(poly_ijk,alpha,eps)
     DEALLOCATE(poly_ijk,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)    
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
 END FUNCTION
 
 ! *****************************************************************************
@@ -127,7 +127,7 @@ FUNCTION calcRadius2(poly,alpha,epsilon) RESULT(res)
         END IF
         !! infinity-norm
         !coeffAtt=maxval(abs(poly(from_i:to_i-1)))
-        !! 2-norm (euclidean) 
+        !! 2-norm (euclidean)
         !coeffAtt=sqrt(sum(poly(from_i:to_i-1)**2))
         rAtt=sphRad2(coeffAtt,igrad,alpha,epsilon) ! bounds value
         !rAtt=sphRad2(4*pi*coeffAtt,igrad+2,alpha,epsilon) ! bounds surface integral
@@ -164,7 +164,7 @@ FUNCTION sphRad2(coeff,l,alpha,epsilon) RESULT(res)
     xx=MAX(0.0_dp,-LOG(epsilon/coeff)/alpha)
     x=MAX(1.0_dp,xx)
     t=0.5_dp*REAL(l,dp)/alpha
-    
+
     ! rational functions that approximate the solution of r=x+t*log(r)
     r1=MAX(x,(5.8679922317012645_dp - 13.433907351015852_dp*t + t**2 + 2.7189706320638596_dp*x)&
         /(2.1224230654286007_dp + 1.5855089862522989_dp*t + 0.05338142797029377_dp*t**2 &
@@ -241,14 +241,14 @@ FUNCTION calcBox(h,h_inv,posi,max_r2,&
     ELSE
         maxr2=max_r2
     END IF
-    
+
     scaled_h=0.0_dp
     DO j=0,2
         DO i=0,2
             scaled_h(i,2-j)=scaled_h(i,2-j)+h(i,j)*normD(j)
         END DO
     END DO
-    
+
     ! build up quadratic form (ellipsoid)
     m=0.0_dp
     DO j=0,2
@@ -258,19 +258,19 @@ FUNCTION calcBox(h,h_inv,posi,max_r2,&
             END DO
         END DO
     END DO
-    
+
     l=0.0_dp
     DO j=0,2
         DO i=0,2
             l(j)=l(j)-2.0*resPos(2-i)*m(i,j)
         END DO
     END DO
-    
+
     r_0=0.0_dp
     DO i=0,2
         r_0=r_0-0.5*resPos(2-i)*l(i)
     END DO
-    
+
     ! i box bounds
     cci2 = (m(2,2) * m(0,0) * m(1,1) - m(2,2) * m(0,1) ** 2 - m(1,1) * m(0,2) ** 2 &
         + 2.0_dp * m(0,2) * m(0,1) * m(1,2) - m(0,0) * m(1,2) ** 2) / (m(2,2) * m(1,1) - m(1,2) ** 2)
@@ -350,7 +350,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief collocate a periodically repeated gaussian on a non orthormbic grid
 !>
-!> this routine has been tested and works well with cells with 
+!> this routine has been tested and works well with cells with
 !> det(h)/sqrt(tr(dot(h^T,h)))>0.2 (2 angles bigger than 24 deg or one angle
 !> bigger than 11 deg).
 !> Because of its numerics it might fail badly (infinity or NaN) with
@@ -360,7 +360,7 @@ END FUNCTION
 !> Still the actual numeric has been carefully tuned, and in normal cases
 !> and most anormal it should work.
 !> With det(h)/sqrt(tr(dot(h^T,h)))>0.2 I could not find any failure.
-!> 
+!>
 !> \param h cell matrix
 !> \param h_inv inverse of the cell matrix
 !> \param grid the grid
@@ -634,9 +634,9 @@ SUBROUTINE collocGauss_safe(h,h_inv,grid,poly,alphai,posi,max_r2,&
             resPosReal(i)=resPosReal(i)+h(i,j)*(wrPos(j)-normD(j)*REAL(shiftPos(j),dp))
         END DO
     END DO
-    
+
     IF (ALL(poly==0.0_dp)) RETURN ! remove if derivs
-        
+
     maxr2=0.0_dp
     DO j=0,2
         DO i=0,2
@@ -648,7 +648,7 @@ SUBROUTINE collocGauss_safe(h,h_inv,grid,poly,alphai,posi,max_r2,&
     maxr2=MAX(max_r2,maxr2)
     maxr2_2=maxr2+maxr2_2+2.0_dp*SQRT(maxr2_2*maxr2)
     maxr2_0=maxr2+maxr2_0-2.0_dp*SQRT(maxr2_0*maxr2)
-    
+
     DO j=0,2
         DO i=0,2
             scaled_h(i,j)=h(i,j)*normD(j)

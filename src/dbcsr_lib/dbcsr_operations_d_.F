@@ -7,7 +7,7 @@
 !> \brief traces a DBCSR matrix
 !> \param[in] matrix_a       DBCSR matrix
 !> \param[out] trace         the trace of the matrix
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_a_d(matrix_a, trace, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -81,7 +81,7 @@
 !> \param[out] trace             the trace of the product of the matrices
 !> \param[in] trans_a            (optional) is matrix_a transposed or not?
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_ab_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
@@ -139,7 +139,7 @@
     CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
     CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
     CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
-    
+
     my_trans_a = 'T'
     IF(PRESENT(trans_a)) my_trans_a = trans_a
     my_trans_b = 'N'

@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------! 
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -27,7 +27,7 @@ MODULE cp_para_types
 ! *****************************************************************************
 !> \brief stores all the informations relevant to an mpi environement
 !> \param mepos rank of the actual processor
-!> \param group id of the actual mpi communicator (I know that it is confusing, 
+!> \param group id of the actual mpi communicator (I know that it is confusing,
 !>        but this is not the mpi group)
 !> \param num_pe number of processors in the communicator
 !> \param source rank of a special processor (for example the one for i-o,
@@ -90,8 +90,8 @@ MODULE cp_para_types
 !> \param num_pe number of processors in the group in each dimension
 !> \param ref_count the reference count, when it is zero this object gets
 !>        deallocated
-!> \param my_pid process id of the actual processor 
-!> \param n_pid number of process ids 
+!> \param my_pid process id of the actual processor
+!> \param n_pid number of process ids
 !> \param the para env associated (and compatible) with this blacs_env
 !> \param blacs 2mpi: maps mepos(1)-mepos(2) of blacs to its mpi rank
 !> \param mpi 2blacs(i,rank): maps the mpi rank to the mepos(i)

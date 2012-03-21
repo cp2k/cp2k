@@ -94,9 +94,9 @@ CONTAINS
   END SUBROUTINE create_oce_set
 
 ! *****************************************************************************
-!> \brief  Deallocate the matrix set of oce coefficients 
-!> \author  
-!> \date    
+!> \brief  Deallocate the matrix set of oce coefficients
+!> \author
+!> \date
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_oce_set(oce_set,error)

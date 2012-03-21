@@ -17,17 +17,17 @@
 !>      eisol          eV        the calculated electronic energies for each element.
 !>      fn1            A*eV      AM1/PM3 specific parameters
 !>      fn2            A**(-2)   for the core-core repulsion
-!>      fn3            A         interaction.                       
-!>      pre            eV        PDDG function                      
-!>      d              A         PDDG function                      
+!>      fn3            A         interaction.
+!>      pre            eV        PDDG function
+!>      d              A         PDDG function
 !>      bfn1-3         special core-core interactions
-!> 
+!>
 !>      gdd, gpd, gsd, eV        parameters for the Coulomb and exchange one-centre,
 !>      gp2, gpp, gsp, eV        two-electron integrals.
 !>      gss, hsp       eV
 !>      uss, upp, udd  eV        electron kinetic energy integrals.
 !>      sto_exponents  a.u.      the Slater exponents of the basis functions.
-!> 
+!>
 !>      all dimensions will be converted to a.u. at the end of the routines
 !> \par History
 !>      BK   (12.10.2004)
@@ -139,28 +139,28 @@ CONTAINS
        sep%alp              =   1.2083987_dp
        sep%beta(0)          =  -0.1904126_dp
        sep%beta(1)          =  -0.1904126_dp
-       sep%sto_exponents(0) =   0.4296141_dp 
+       sep%sto_exponents(0) =   0.4296141_dp
        sep%sto_exponents(1) =   0.7554884_dp
-       sep%uss              =  -4.8578570_dp 
+       sep%uss              =  -4.8578570_dp
        sep%upp              =  -2.0266084_dp
-       sep%gss              =   7.5947069_dp 
-       sep%gsp              =   6.7259856_dp 
+       sep%gss              =   7.5947069_dp
+       sep%gsp              =   6.7259856_dp
        sep%gpp              =   8.6596829_dp
        sep%gp2              =   3.8714751_dp
        sep%hsp              =   5.0003381_dp
     CASE (4)
        !Beryllium
        sep%defined          = .TRUE.
-       sep%uss              = -16.6023780_dp 
-       sep%upp              = -10.7037710_dp 
+       sep%uss              = -16.6023780_dp
+       sep%upp              = -10.7037710_dp
        sep%beta(0)          =  -4.0170960_dp
        sep%beta(1)          =  -4.0170960_dp
-       sep%sto_exponents(0) =   1.0042100_dp 
+       sep%sto_exponents(0) =   1.0042100_dp
        sep%sto_exponents(1) =   1.0042100_dp
        sep%alp              =   1.6694340_dp
-       sep%gss              =   9.0000000_dp 
-       sep%gsp              =   7.4300000_dp 
-       sep%gpp              =   6.9700000_dp 
+       sep%gss              =   9.0000000_dp
+       sep%gsp              =   7.4300000_dp
+       sep%gpp              =   6.9700000_dp
        sep%gp2              =   6.2200000_dp
        sep%hsp              =   1.2800000_dp
     CASE (5)
@@ -691,7 +691,7 @@ CONTAINS
     CALL valence_electrons(sep, extended_basis_set=(itype==do_method_mndod),error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep,error)
-    
+
   END SUBROUTINE mndo_default_parameter
 
 
@@ -740,7 +740,7 @@ CONTAINS
        sep%de               =   20.06411392885370_dp      /eV
        sep%nr               =   1
        sep%acoul            =   16.27368453086666_dp      /eV
-       ! This parameterization explicitly supports 
+       ! This parameterization explicitly supports
        ! p-orbitals for H. So by default we turn them
        ! on for this element.
        sep%p_orbitals_on_h  = .TRUE.
@@ -770,7 +770,7 @@ CONTAINS
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep,error)
-    
+
   END SUBROUTINE pnnl_default_parameter
 
 ! *****************************************************************************
@@ -1018,7 +1018,7 @@ CONTAINS
        sep%gp2              =   6.17124983_dp
        sep%hsp              =   0.83594100_dp
     END SELECT
-    
+
   END SUBROUTINE mndod_default_parameter
 
 ! *****************************************************************************
@@ -1616,10 +1616,10 @@ CONTAINS
          sep%beta(0) =   -6.13514969_dp
          sep%beta(1) =   -5.94442127_dp
          sep%sto_exponents(0)   =    2.12240118_dp
-         sep%sto_exponents(1)   =    1.74327954_dp 
+         sep%sto_exponents(1)   =    1.74327954_dp
          sep%sto_exponents(2)   =    1.00000000_dp
          sep%uss   =  -41.81533184_dp
-         sep%upp   =  -34.38342529_dp 
+         sep%upp   =  -34.38342529_dp
          sep%gss   =   11.08059265_dp
          sep%gsp   =    5.68339201_dp
          sep%gpp   =    7.60417563_dp
@@ -1785,7 +1785,7 @@ CONTAINS
        sep%fn1(1) =  1.6315720_dp; sep%fn2(1) = 2.6729620_dp; sep%fn3(1) = 1.7916860_dp
        sep%fn1(2) = -2.1109590_dp; sep%fn2(2) = 1.9685940_dp; sep%fn3(2) = 1.7558710_dp
     CASE (5)
-       !Boron 
+       !Boron
        sep%defined = .TRUE.
        sep%uss     =  -28.3539160_dp
        sep%upp     =  -23.9738780_dp
@@ -2016,7 +2016,7 @@ CONTAINS
        sep%fn1(1) = 6.0409170_dp; sep%fn2(1) = 10.0465540_dp; sep%fn3(1) = 1.6005120_dp
        sep%fn1(2) = 0.7242240_dp; sep%fn2(2) =  3.0082750_dp; sep%fn3(2) = 2.4643520_dp
     CASE (20)
-       !Calcium   
+       !Calcium
        sep%defined = .TRUE.
        sep%uss     = -11.6466770_dp
        sep%upp     = -11.7003040_dp
@@ -2310,7 +2310,7 @@ CONTAINS
        sep%gpp   =    7.7775920_dp
        sep%gp2   =    7.7551210_dp
        sep%hsp   =    3.7724620_dp
-       sep%fn1(1) =  0.0333910_dp; sep%fn2(1) = 5.9563790_dp; sep%fn3(1) = 2.2775750_dp 
+       sep%fn1(1) =  0.0333910_dp; sep%fn2(1) = 5.9563790_dp; sep%fn3(1) = 2.2775750_dp
        sep%fn1(2) = -1.9218670_dp; sep%fn2(2) = 4.9732190_dp; sep%fn3(2) = 0.5242430_dp
     CASE (53)
        !Iodine
@@ -2874,7 +2874,7 @@ CONTAINS
        sep%hsp         =    1.240572_dp
        sep%a           =   -0.025275_dp
        sep%b           =    0.500017_dp
-       sep%c           =    2.329051_dp 
+       sep%c           =    2.329051_dp
     CASE(21)
        ! Scandium
        sep%defined = .TRUE.
@@ -3899,7 +3899,7 @@ CONTAINS
        sep%am               =    0.5_dp/0.919616_dp
        sep%ad               =    0.5_dp/0.919616_dp
        sep%aq               =    0.5_dp/0.919616_dp
-       sep%fn1(1)           =    1.122244_dp 
+       sep%fn1(1)           =    1.122244_dp
        sep%fn2(1)           =    4.707790_dp
        sep%fn3(1)           =    1.547099_dp
        sep%fn1(2)           =   -1.069737_dp
@@ -6125,6 +6125,6 @@ CONTAINS
     init = 1
 
   END SUBROUTINE init_pm6_pair_params
- 
+
 END MODULE semi_empirical_parameters
 

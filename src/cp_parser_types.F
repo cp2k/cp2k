@@ -274,7 +274,7 @@ CONTAINS
   END SUBROUTINE parser_create
 
 ! *****************************************************************************
-!> \brief   Resets the parser: rewinding the unit and re-initializing all 
+!> \brief   Resets the parser: rewinding the unit and re-initializing all
 !>          parser structures
 !> \author  Teodoro Laino [tlaino]
 !> \date    12.2008
@@ -292,7 +292,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ! Rewind units
-       IF (parser%input_unit>0) REWIND(parser%input_unit) 
+       IF (parser%input_unit>0) REWIND(parser%input_unit)
        ! Restore initial settings
        parser%input_line_number = 0
        parser%icol=0

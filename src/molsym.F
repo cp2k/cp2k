@@ -40,9 +40,9 @@ MODULE molsym
   PUBLIC :: release_molsym, molecular_symmetry, print_symmetry
 
 !***
-  
+
 ! *****************************************************************************
-!> \brief Container for information about molecular symmetry         
+!> \brief Container for information about molecular symmetry
 !> \param ain               : Atomic identification numbers (symmetry code).
 !> \param aw                : Atomic weights for the symmetry analysis.
 !> \param eps_geo           : Accuracy requested for analysis
@@ -88,7 +88,7 @@ MODULE molsym
 !> \param sigmav: .TRUE., if there is a sigma_v mirror plane.
 !> \param tgroup: .TRUE., if a point group of tetrahedral symmetry was found (T,Th,Td).
 !> \par History
-!>      05.2008 created 
+!>      05.2008 created
 !> \author jgh
 ! *****************************************************************************
   TYPE molsym_type
@@ -196,7 +196,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Add a new C_n axis to the list sec, but first check, if the
 !         Cn axis is already in the list.
-!> \par History 
+!> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
@@ -235,7 +235,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Add a new Sn axis to the list ses, but first check, if the
 !>         Sn axis is already in the list.
-!> \par History 
+!> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
@@ -300,7 +300,7 @@ CONTAINS
       IF (ABS(ABS(scapro) - 1.0_dp) < sym%eps_geo) RETURN
     END DO
 
-    ! Add the normal vector of the new mirror plane to the list sig 
+    ! Add the normal vector of the new mirror plane to the list sig
     CPPrecondition(sym%nsig < maxsig,cp_failure_level,routineP,error,failure)
     sym%nsig = sym%nsig + 1
     sym%sig(:,sym%nsig) = d(:)
@@ -566,7 +566,7 @@ CONTAINS
 
     END DO loop
 
-    ! Generate list vector group_of 
+    ! Generate list vector group_of
     DO i=1,sym%ngroup
       DO iequatom=sym%llequatom(i),sym%ulequatom(i)
         sym%group_of(sym%symequ_list(iequatom)) = i
@@ -607,8 +607,8 @@ CONTAINS
       DO iatom=1,natoms
         ! Rotate the actual atom by 2*pi/n about a
         b(:) = MATMUL(sym%rotmat(:,:),coord(:,iatom))
-        ! Check if the coordinates of the rotated atom 
-        ! are in the coordinate set of the molecule 
+        ! Check if the coordinates of the rotated atom
+        ! are in the coordinate set of the molecule
         IF (equatom(iatom,b(:),sym,coord) == 0) RETURN
       END DO
       ! The axis defined by vector a is a Cn axis, thus return with caxis = .TRUE.
@@ -637,7 +637,7 @@ CONTAINS
                                                 phiii
     REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
 
-! Angle between two adjacent atoms of the dodecahedron => <(C3,C3) 
+! Angle between two adjacent atoms of the dodecahedron => <(C3,C3)
 
     phidd = ATAN(0.4_dp*SQRT(5.0_dp))
     ! Angle between two adjacent atoms of the icosahedron and the dodecahedron => <(C5,C3)
@@ -679,7 +679,7 @@ CONTAINS
 
     END IF
 
-    ! Return after unsuccessful search for a pair of C3 axes 
+    ! Return after unsuccessful search for a pair of C3 axes
     IF (sym%nsec(3) < 2) THEN
       failed = .TRUE.
       RETURN
@@ -1353,7 +1353,7 @@ CONTAINS
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
-    ! Check the length of vector a 
+    ! Check the length of vector a
     IF (length_of_a > sym%eps_geo) THEN
       natoms = SIZE(coord,2)
       DO iatom=1,natoms
@@ -1462,7 +1462,7 @@ CONTAINS
         WRITE (iw,"(T24,2I5,2X,A3,3X,3F13.6)")&
           secount,isig,string,(sym%sig(i,isig),i=1,3)
       END DO
-  
+
       DO icn=2,sym%ncn
         IF (icn < 10) THEN
           WRITE (string,"(A1,I1)") "C",icn
@@ -1599,7 +1599,7 @@ CONTAINS
         ! Check if the coordinates of the rotated atom are in the coordinate set of the molecule
         IF (equatom(iatom,b(:),sym,coord) == 0) RETURN
       END DO
-      ! The axis defined by a is a Sn axis, thus return with saxis = .TRUE. 
+      ! The axis defined by a is a Sn axis, thus return with saxis = .TRUE.
       saxis = .TRUE.
     END IF
 

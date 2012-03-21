@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Rountines to calculate HFX energy and potential 
+!> \brief Rountines to calculate HFX energy and potential
 !> \par History
 !>      11.2006 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
-MODULE hfx_energy_potential 
+MODULE hfx_energy_potential
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -86,19 +86,19 @@ MODULE hfx_energy_potential
 
   IMPLICIT NONE
   PRIVATE
-   
+
   PUBLIC  integrate_four_center, coulomb4
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
 
 !***
-  
+
   CONTAINS
 
 ! *****************************************************************************
 !> \brief computes four center integrals for a full basis set and updates the
 !>      Kohn-Sham-Matrix and energy. Uses all 8 eri symmetries
-!> \param qs_env  
+!> \param qs_env
 !> \param ks_matrix
 !> \param energy
 !> \param rho density matrix
@@ -112,13 +112,13 @@ MODULE hfx_energy_potential
 !>        see module cp_error_handling
 !> \par History
 !>      06.2007 created [Manuel Guidon]
-!>      08.2007 optimized load balance [Manuel Guidon] 
+!>      08.2007 optimized load balance [Manuel Guidon]
 !>      09.2007 new parallelization [Manuel Guidon]
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
-                                   geometry_did_change,irep,distribute_fock_matrix,& 
+  SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,&
+                                   geometry_did_change,irep,distribute_fock_matrix,&
                                    ispin, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -248,9 +248,9 @@ MODULE hfx_energy_potential
                             ALLOCATABLE      :: pgf_list_ij, pgf_list_kl
     TYPE(hfx_pgf_product_list), DIMENSION(:), &
                         ALLOCATABLE          :: pgf_product_list
-    REAL(dp), DIMENSION(:,:,:,:), POINTER & 
+    REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext
-    REAL(dp), DIMENSION(:,:,:), POINTER & 
+    REAL(dp), DIMENSION(:,:,:), POINTER &
                                              :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
     LOGICAL                                  :: do_dynamic_load_balancing, bins_left, do_it
     TYPE(hfx_distribution), POINTER          :: distribution_energy
@@ -323,7 +323,7 @@ MODULE hfx_energy_potential
     DO ikind=1,nkind
       l_max = MAX(l_max,MAXVAL(qs_env%x_data(1,1)%basis_parameter(ikind)%lmax))
     ENDDO
-    l_max = 4*l_max 
+    l_max = 4*l_max
     CALL init_md_ftable(l_max)
 
     IF(qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
@@ -345,7 +345,7 @@ MODULE hfx_energy_potential
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
 
-    shm_neris_total = 0 
+    shm_neris_total = 0
     shm_nprim_ints = 0
     shm_neris_onthefly = 0
     shm_storage_counter_integrals = 0
@@ -407,7 +407,7 @@ MODULE hfx_energy_potential
     ln_10 = LOG(10.0_dp)
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
-    
+
     actual_x_data => qs_env%x_data(irep, i_thread + 1)
 !$OMP MASTER
     shm_master_x_data => qs_env%x_data(irep,1)
@@ -444,7 +444,7 @@ MODULE hfx_energy_potential
 
     treat_lsd_in_core = general_parameter%treat_lsd_in_core
 
-    ncpu = para_env%num_pe 
+    ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
 
     !! initalize some counters
@@ -469,7 +469,7 @@ MODULE hfx_energy_potential
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     error=error)
- 
+
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom),STAT=stat)
@@ -496,7 +496,7 @@ MODULE hfx_energy_potential
     ALLOCATE(primitive_integrals(nsgf_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     primitive_integrals = 0.0_dp
-   
+
     ALLOCATE(pbd_buf(nsgf_max**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(pbc_buf(nsgf_max**2),STAT=stat)
@@ -563,7 +563,7 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(nimages(max_pgf**2),STAT=stat) 
+    ALLOCATE(nimages(max_pgf**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO i=1,max_pgf**2
@@ -599,7 +599,7 @@ MODULE hfx_energy_potential
           END IF
         END DO
       END DO outer
-        
+
       IF ( .NOT. ks_fully_occ) THEN
         WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
              "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
@@ -622,13 +622,13 @@ MODULE hfx_energy_potential
 
     ! ** Reset storage counter given by MAX_MEMORY by subtracting all buffers
     ! ** Fock and density Matrices (shared)
-    subtr_size_mb = 2_int_8*shm_block_offset(ncpu+1) 
+    subtr_size_mb = 2_int_8*shm_block_offset(ncpu+1)
     ! ** if non restricted ==> alpha/beta spin
-    IF (.NOT. treat_lsd_in_core ) THEN 
+    IF (.NOT. treat_lsd_in_core ) THEN
       IF( nspins == 2) subtr_size_mb = subtr_size_mb * 2_int_8
     END IF
     ! ** Initial P only MAX(alpha,beta) (shared)
-    IF(do_p_screening .OR. screening_parameter%do_p_screening_forces) THEN 
+    IF(do_p_screening .OR. screening_parameter%do_p_screening_forces) THEN
       subtr_size_mb = subtr_size_mb + memory_parameter%size_p_screen
     END IF
     ! ** In core forces require their own initial P
@@ -668,7 +668,7 @@ MODULE hfx_energy_potential
     subtr_size_mb = subtr_size_mb * 8_int_8/1024_int_8/1024_int_8
 
     ! ** Subtracting all these buffers from from MAX_MEMORY yields the amount
-    ! ** of RAM that is left for the compressed integrals. When using threads 
+    ! ** of RAM that is left for the compressed integrals. When using threads
     ! ** all the available memory is shared among all n_threads. i.e. the faster
     ! ** ones can steal from the slower ones
 
@@ -687,7 +687,7 @@ MODULE hfx_energy_potential
 
 
     IF(geometry_did_change) THEN
-     memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter) 
+     memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter)
     END IF
 
     IF( geometry_did_change) THEN
@@ -695,39 +695,39 @@ MODULE hfx_energy_potential
     ELSE
       IF( .NOT. memory_parameter%treat_forces_in_core ) memory_parameter%recalc_forces = .TRUE.
     END IF
-   
+
     !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
     IF( eps_schwarz <= 0.0_dp) THEN
       log10_eps_schwarz = log_zero
     ELSE
-      log10_eps_schwarz = LOG10(eps_schwarz) 
+      log10_eps_schwarz = LOG10(eps_schwarz)
     END IF
     !! get storage epsilon
     eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
 
 
     !! If we have a hybrid functional, we may need only a fraction of exact exchange
-    hf_fraction = general_parameter%fraction 
-   
+    hf_fraction = general_parameter%fraction
+
     !! The number of integrals that fit into the given MAX_MEMORY
 
     !! Parameters related to the potential 1/r, erf(wr)/r, erfc(wr/r)
     potential_parameter = actual_x_data%potential_parameter
-    
+
     !! Variable to check if we calculate the integrals in-core or on the fly
     !! If TRUE -> on the fly
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
-      buffer_overflow = .FALSE. 
+      buffer_overflow = .FALSE.
     ELSE
       buffer_overflow = .TRUE.
     END IF
     logger => cp_error_get_logger(error)
-   
+
 
     private_lib = actual_x_data%lib
 
-    !! Helper array to map local basis function indeces to global ones 
+    !! Helper array to map local basis function indeces to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
@@ -747,7 +747,7 @@ MODULE hfx_energy_potential
       CALL timeset(routineN//"_getP",handle_getP)
       CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
                             shm_master_x_data%block_offset, natom, &
-                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)   
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
 
       IF(nspins == 2) THEN
         ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
@@ -759,8 +759,8 @@ MODULE hfx_energy_potential
 
       !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
       !! and x_data%initial_p stores the same for the initial guess. The initial guess is updated only in the case of
-      !! a changed geometry 
-      NULLIFY(shm_initial_p) 
+      !! a changed geometry
+      NULLIFY(shm_initial_p)
       IF( do_p_screening) THEN
         shm_initial_p => shm_master_x_data%initial_p
         shm_pmax_atom => shm_master_x_data%pmax_atom
@@ -781,13 +781,13 @@ MODULE hfx_energy_potential
         CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
                               shm_master_x_data%block_offset, natom,  &
                               kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
-                              rho_beta=rho_ao(2)%matrix, error=error)   
+                              rho_beta=rho_ao(2)%matrix, error=error)
         CALL timestop(handle_getP)
 
         !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
         !! and x_data%initial_p stores the same for the initial guess. The initial guess is updated only in the case of
-        !! a changed geometry 
-        NULLIFY(shm_initial_p) 
+        !! a changed geometry
+        NULLIFY(shm_initial_p)
         shm_initial_p => actual_x_data%initial_p
         shm_pmax_atom => shm_master_x_data%pmax_atom
         IF(geometry_did_change ) THEN
@@ -813,8 +813,8 @@ MODULE hfx_energy_potential
     full_ks => shm_master_x_data%full_ks_alpha
     full_ks = 0.0_dp
 
-   
-    IF (.NOT. treat_lsd_in_core ) THEN 
+
+    IF (.NOT. treat_lsd_in_core ) THEN
       IF(nspins==2) THEN
         ALLOCATE(shm_master_x_data%full_ks_beta(shm_block_offset(ncpu+1)),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -825,7 +825,7 @@ MODULE hfx_energy_potential
 
     !! Initialize schwarz screening matrices for near field estimates and boxing screening matrices
     !! for far field estimates. The update is only performed if the geomtry of the system changed.
-    !! If the system is periodic, then the corresponding routines are called and some variables 
+    !! If the system is periodic, then the corresponding routines are called and some variables
     !! are initialized
 
 !$OMP END MASTER
@@ -903,7 +903,7 @@ MODULE hfx_energy_potential
     !!   DO jatom=iatom,natom                     DO latom=katom,natom
     !!
     !! The third symmetry
-    !!  
+    !!
     !!  (ab|cd) = (cd|ab)
     !!
     !! is taken into account by the following criterion:
@@ -923,8 +923,8 @@ MODULE hfx_energy_potential
     !! istart, jstart, kstart, lstart, number_of_atom_quartets, initial_cpu_id
     !!
     !! This tells the process where to start the main loops and how many bunches of integrals it has to
-    !! calculate. The original parallelization is a simple modulo distribution that is binned and 
-    !! optimized in the load_balance routines. Since the Monte Carlo routines can swap processors, 
+    !! calculate. The original parallelization is a simple modulo distribution that is binned and
+    !! optimized in the load_balance routines. Since the Monte Carlo routines can swap processors,
     !! we need to know which was the inital cpu_id.
     !! Furthermore, the indices iatom, jatom, katom, latom have to be set to istart, jstart, kstart and
     !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
@@ -941,12 +941,12 @@ MODULE hfx_energy_potential
       my_bin_size = 1
     END IF
     !! We do not need the containers if MAX_MEM = 0
-    IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
+    IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
         CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
         CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
-    
+
         DO bin = 1,my_bin_size
           maxval_container => actual_x_data%maxval_container(bin)
           integral_containers => actual_x_data%integral_containers(:,bin)
@@ -973,7 +973,7 @@ MODULE hfx_energy_potential
         END DO
       END IF
     END IF
-    
+
     !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
 !$OMP CRITICAL
     !! If we do disk storage, we have to initialize the containers/caches
@@ -999,7 +999,7 @@ MODULE hfx_energy_potential
 
 !$OMP BARRIER
 !$OMP MASTER
-   
+
     IF( do_dynamic_load_balancing ) THEN
       ! ** Lets contstruct the task list
       shm_total_bins = 0
@@ -1130,7 +1130,7 @@ MODULE hfx_energy_potential
           maxval_container => qs_env%x_data(irep,my_thread_id)%maxval_container(my_bin_id)
           integral_caches => qs_env%x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
           integral_containers => qs_env%x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
-          distribution_energy => qs_env%x_data(irep,my_thread_id)%distribution_energy(my_bin_id) 
+          distribution_energy => qs_env%x_data(irep,my_thread_id)%distribution_energy(my_bin_id)
           do_it = .TRUE.
           bins_left = .TRUE.
           IF( geometry_did_change) THEN
@@ -1179,7 +1179,7 @@ MODULE hfx_energy_potential
                            shm_pmax_block(latom_block, jatom_block), &
                            shm_pmax_block(latom_block, iatom_block), &
                            shm_pmax_block(katom_block, jatom_block) )
-        
+
         IF( 2.0_dp*coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
 
 
@@ -1249,7 +1249,7 @@ MODULE hfx_energy_potential
             rd=list_kl%elements(i_list_kl)%r2
             rcd2=list_kl%elements(i_list_kl)%dist2
 
-            IF( do_p_screening) THEN 
+            IF( do_p_screening) THEN
               pmax_atom = MAX(shm_pmax_atom(katom,iatom), &
                               shm_pmax_atom(latom,jatom), &
                               shm_pmax_atom(latom,iatom), &
@@ -1259,7 +1259,7 @@ MODULE hfx_energy_potential
             END IF
 
             screen_kind_ij = screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                             screen_coeffs_kind(jkind,ikind)%x(2) 
+                             screen_coeffs_kind(jkind,ikind)%x(2)
             screen_kind_kl = screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
                              screen_coeffs_kind(lkind,kkind)%x(2)
 
@@ -1271,7 +1271,7 @@ MODULE hfx_energy_potential
                       shm_is_assoc_atomic_block(katom,iatom)>=1 .AND. &
                       shm_is_assoc_atomic_block(katom,jatom)>=1 .AND. &
                       shm_is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
-  
+
             !! calculate symmetry_factor accordin to degeneracy of atomic quartet
             symm_fac = 0.5_dp
             IF(iatom==jatom) symm_fac = symm_fac*2.0_dp
@@ -1376,7 +1376,7 @@ MODULE hfx_energy_potential
               END IF
             END IF
 
-            
+
             !! At this stage, check for memory used in compression
 
             IF(geometry_did_change ) THEN
@@ -1384,7 +1384,7 @@ MODULE hfx_energy_potential
                 ! ** We know the maximum amount of integrals that we can store per MPI-process
                 ! ** Now we need to sum the current memory usage among all openMP threads
                 ! ** We can just read what is currently stored on the corresponding x_data type
-                ! ** If this is thread i and it tries to read the data from thread j, that is 
+                ! ** If this is thread i and it tries to read the data from thread j, that is
                 ! ** currently writing that data, we just dont care, because the possible error
                 ! ** is of the order of CACHE_SIZE
                 mem_compression_counter = 0
@@ -1403,7 +1403,7 @@ MODULE hfx_energy_potential
                 ELSE
                   counter = counter + 1
                   buffer_overflow = .FALSE.
-                END IF 
+                END IF
               END IF
             ELSE
               IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
@@ -1430,7 +1430,7 @@ MODULE hfx_energy_potential
               use_disk_storage = .TRUE.
               buffer_overflow = .FALSE.
             END IF
-            
+
             IF( use_disk_storage ) THEN
               mem_compression_counter_disk = memory_parameter%actual_memory_usage_disk *&
                                              memory_parameter%cache_size
@@ -1459,9 +1459,9 @@ MODULE hfx_energy_potential
                 max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
                                 screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
                 max_val2 = max_val1 + max_val2_set
-                                       
+
                 !! Near field screening
-                IF(max_val2 + pmax_atom <log10_eps_schwarz) CYCLE  
+                IF(max_val2 + pmax_atom <log10_eps_schwarz) CYCLE
                 sphi_c_ext_set => sphi_c_ext(:,:,:,kset)
                 sphi_d_ext_set => sphi_d_ext(:,:,:,lset)
                 !! get max_vals if we screen on initial density
@@ -1480,9 +1480,9 @@ MODULE hfx_energy_potential
                 !! store current number of integrals, update total number and number of integrals in buffer
                 current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                 IF(buffer_overflow) THEN
-                  neris_onthefly = neris_onthefly + current_counter 
+                  neris_onthefly = neris_onthefly + current_counter
                 END IF
-  
+
                 !! Get integrals from buffer and update Kohn-Sham matrix
                 IF(.NOT.buffer_overflow .AND. .NOT.geometry_did_change) THEN
                   nints = current_counter
@@ -1498,7 +1498,7 @@ MODULE hfx_energy_potential
                   END IF
                   spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                   IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
-                  nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1                         
+                  nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1
                   buffer_left = nints
                   buffer_start = 1
                   DO WHILE (buffer_left > 0 )
@@ -1584,7 +1584,7 @@ MODULE hfx_energy_potential
                     END IF
                   END IF
 
-                  IF(cartesian_estimate<eps_schwarz) CYCLE 
+                  IF(cartesian_estimate<eps_schwarz) CYCLE
 
                   !! Compress the array for storage
                   spherical_estimate = 0.0_dp
@@ -1595,7 +1595,7 @@ MODULE hfx_energy_potential
                   IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
                   estimate_to_store_int = EXPONENT(spherical_estimate)
                   estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
-                  
+
                   IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
                     IF(.NOT.use_disk_storage) THEN
                       CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
@@ -1610,7 +1610,7 @@ MODULE hfx_energy_potential
                     END IF
                   END IF
                   spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
-                  IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
+                  IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
                   IF(.NOT.buffer_overflow) THEN
                     nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1
                     buffer_left = nints
@@ -1655,7 +1655,7 @@ MODULE hfx_energy_potential
                   END IF
                 END IF
                 !! Update Kohn-Sham matrix
-                CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
+                CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                         fac, symm_fac, full_density, full_ks, &
                                         primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
                                         kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
@@ -1663,7 +1663,7 @@ MODULE hfx_energy_potential
                                         atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                 IF( .NOT. treat_lsd_in_core ) THEN
                   IF( nspins == 2 ) THEN
-                    CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
+                    CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                             fac, symm_fac, full_density_beta, full_ks_beta, &
                                             primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
                                             kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
@@ -1681,10 +1681,10 @@ MODULE hfx_energy_potential
       END DO atomic_blocks
       bintime_stop = m_walltime()
       IF (geometry_did_change) THEN
-        distribution_energy%time_first_scf=bintime_stop-bintime_start 
+        distribution_energy%time_first_scf=bintime_stop-bintime_start
       ELSE
         distribution_energy%time_other_scf= &
-            distribution_energy%time_other_scf+bintime_stop-bintime_start 
+            distribution_energy%time_other_scf+bintime_stop-bintime_start
       ENDIF
 !$OMP MASTER
       CALL timestop(handle_bin)
@@ -1763,11 +1763,11 @@ MODULE hfx_energy_potential
     actual_x_data%memory_parameter%final_comp_counter_energy = shm_mem_compression_counter
 
 
-!$OMP MASTER   
+!$OMP MASTER
     !! Calculate the exchange energies from the Kohn-Sham matrix. Before we can go on, we have to symmetrize.
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
- 
+
     mb_size_p = shm_block_offset(ncpu+1) /1024/128
     mb_size_f = shm_block_offset(ncpu+1) /1024/128
     IF (.NOT. treat_lsd_in_core ) THEN
@@ -1798,7 +1798,7 @@ MODULE hfx_energy_potential
       END IF
     END IF
     ! ** Initial P only MAX(alpha,beta) (shared)
-    IF(do_p_screening .OR. screening_parameter%do_p_screening_forces) THEN 
+    IF(do_p_screening .OR. screening_parameter%do_p_screening_forces) THEN
       mb_size_buffers = mb_size_buffers + memory_parameter%size_p_screen
     END IF
     ! ** In core forces require their own initial P
@@ -1812,8 +1812,8 @@ MODULE hfx_energy_potential
     mb_size_buffers = mb_size_buffers /1024/128
 
     CALL timestop(handle_main)
-  
-    ene_x_aa_diag = 0.0_dp 
+
+    ene_x_aa_diag = 0.0_dp
     ene_x_bb_diag = 0.0_dp
     DO iatom = 1,natom
       ikind = kind_of(iatom)
@@ -1833,17 +1833,17 @@ MODULE hfx_energy_potential
             DO mb=1,nsgfb(jset)
               IF(i>j) THEN
                 full_ks(i) = (full_ks(i) + full_ks(j))
-                full_ks(j) = full_ks(i) 
+                full_ks(j) = full_ks(i)
                 IF( .NOT. treat_lsd_in_core .AND. nspins == 2 ) THEN
                   full_ks_beta(i) = (full_ks_beta(i) + full_ks_beta(j))
-                  full_ks_beta(j) = full_ks_beta(i) 
+                  full_ks_beta(j) = full_ks_beta(i)
                 END IF
-              END IF  
+              END IF
               ! ** For adiabatically rescaled functionals we need the energy coming from the diagonal elements
               IF( i==j ) THEN
                 ene_x_aa_diag = ene_x_aa_diag + full_ks(i)*full_density(i)
                 IF( .NOT. treat_lsd_in_core .AND. nspins == 2 ) THEN
-                  ene_x_bb_diag = ene_x_bb_diag + full_ks_beta(i)*full_density_beta(i) 
+                  ene_x_bb_diag = ene_x_bb_diag + full_ks_beta(i)*full_density_beta(i)
                 END IF
               END IF
               i = i+ 1
@@ -1887,7 +1887,7 @@ MODULE hfx_energy_potential
         CALL cp_dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
                             ene_x_bb, error=error)
       END IF
-  
+
       !! Update energy type
       energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb) + energy%ex
     ELSE
@@ -1929,8 +1929,8 @@ MODULE hfx_energy_potential
       mem_eris_disk = (shm_stor_count_int_disk+128*1024-1)/1024/128
       compression_factor_disk = REAL(shm_neris_disk,dp)/REAL(shm_stor_count_int_disk,dp)
       mem_max_val = (shm_stor_count_max_val+128*1024-1)/1024/128
-     
-      IF( shm_neris_incore == 0 ) THEN 
+
+      IF( shm_neris_incore == 0 ) THEN
         mem_eris = 0
         compression_factor = 0.0_dp
       END IF
@@ -1938,7 +1938,7 @@ MODULE hfx_energy_potential
         mem_eris_disk = 0
         compression_factor_disk = 0.0_dp
       END IF
-        
+
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
            extension=".scfLog",error=error)
       IF (iw>0) THEN
@@ -1953,19 +1953,19 @@ MODULE hfx_energy_potential
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Number of sph. ERI's stored on disk:        ",shm_neris_disk
-  
+
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Number of sph. ERI's calculated on the fly: ",shm_neris_onthefly
-  
+
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]:            ",mem_eris
-        
+
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Whereof max-vals [MB's]:            ",mem_max_val
-      
+
         WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
-             
+
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Total memory consumption ERI's disk [MB's]:       ",mem_eris_disk
 
@@ -1988,13 +1988,13 @@ MODULE hfx_energy_potential
                  "HFX_MEM_INFO| Est. max. program size after HFX  [MB's]:", memsize_after/(1024*1024)
 
       END IF
-  
+
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
                                       "HF_INFO", error=error)
     END IF
 !$OMP END MASTER
 
-    !! flush caches if the geometry changed 
+    !! flush caches if the geometry changed
     IF( do_dynamic_load_balancing ) THEN
       my_bin_size = SIZE(actual_x_data%distribution_energy)
     ELSE
@@ -2008,7 +2008,7 @@ MODULE hfx_energy_potential
           maxval_container => actual_x_data%maxval_container(bin)
           integral_caches => actual_x_data%integral_caches(:,bin)
           integral_containers => actual_x_data%integral_containers(:,bin)
-          CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, & 
+          CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                     .FALSE., error)
           DO i=1,64
             CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
@@ -2037,7 +2037,7 @@ MODULE hfx_energy_potential
     !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
 !$OMP CRITICAL
     IF(do_disk_storage ) THEN
-      !! flush caches if the geometry changed 
+      !! flush caches if the geometry changed
       IF(geometry_did_change ) THEN
         CALL hfx_flush_last_cache(bits_max_val, maxval_cache_disk, maxval_container_disk, &
                                    memory_parameter%actual_memory_usage_disk, .TRUE., error)
@@ -2053,7 +2053,7 @@ MODULE hfx_energy_potential
         CALL hfx_reset_cache_and_container(integral_caches_disk(i), integral_containers_disk(i),&
                                             memory_parameter%actual_memory_usage_disk, do_disk_storage)
       END DO
-    END IF   
+    END IF
 !$OMP END CRITICAL
 !$OMP BARRIER
     !! Clean up
@@ -2119,14 +2119,14 @@ MODULE hfx_energy_potential
   END SUBROUTINE integrate_four_center
 
 ! *****************************************************************************
-!> \brief calculates two-electron integrals of a quartet/shell using the library 
+!> \brief calculates two-electron integrals of a quartet/shell using the library
 !>      lib_int in the periodic case
 !> \param r position
 !> \param z zeta
 !> \param l angular momentum
 !> \param npgf number of primitive cartesian gaussian in actual shell
 !> \param primitive_integrals array of primitive_integrals
-!> \param potential_parameter contains info for libint 
+!> \param potential_parameter contains info for libint
 !> \param neighbor_cells Periodic images
 !> \param screen1, screen2 set based coefficients for near field screening
 !> \param eps_schwarz threshold
@@ -2158,7 +2158,7 @@ MODULE hfx_energy_potential
                       primitive_integrals,&
                       potential_parameter, neighbor_cells,&
                       screen1, screen2, eps_schwarz, max_contraction_val,&
-                      cart_estimate, cell, neris_tmp, log10_pmax,& 
+                      cart_estimate, cell, neris_tmp, log10_pmax,&
                       log10_eps_schwarz,R1_pgf, R2_pgf, pgf1, pgf2,&
                       pgf_list_ij, pgf_list_kl,&
                       pgf_product_list,&
@@ -2167,7 +2167,7 @@ MODULE hfx_energy_potential
                       sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext,&
                       ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
                       nimages, do_periodic, p_work)
-   
+
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, &
@@ -2366,7 +2366,7 @@ MODULE hfx_energy_potential
                                                 offset_ac, offset_ad, &
                                                 offset_bc, offset_bd
 
-    IF( jatom >= latom ) THEN       
+    IF( jatom >= latom ) THEN
       i = 1
       offset_bd = offset_bd_set(jset,lset) + atomic_offset_bd - 1
       j = offset_bd
@@ -2376,7 +2376,7 @@ MODULE hfx_energy_potential
           i = i + 1
           j = j + 1
         END DO
-      END DO  
+      END DO
     ELSE
       i = 1
       offset_bd = offset_bd_set(lset,jset) + atomic_offset_bd - 1
@@ -2387,7 +2387,7 @@ MODULE hfx_energy_potential
           i = i + 1
           j = j + md_max
         END DO
-      END DO  
+      END DO
     END IF
     IF ( jatom >= katom ) THEN
       i = 1
@@ -2397,9 +2397,9 @@ MODULE hfx_energy_potential
         DO mb=1,mb_max
           pbc(i) = density(j)
           i = i + 1
-          j = j + 1 
+          j = j + 1
         END DO
-      END DO  
+      END DO
     ELSE
       i = 1
       offset_bc = offset_bc_set(kset,jset) + atomic_offset_bc - 1
@@ -2408,9 +2408,9 @@ MODULE hfx_energy_potential
         DO mb=1,mb_max
           pbc(i) = density(j)
           i = i + 1
-          j = j + mc_max 
+          j = j + mc_max
         END DO
-      END DO  
+      END DO
     END IF
     IF( iatom >= latom) THEN
       i = 1
@@ -2422,7 +2422,7 @@ MODULE hfx_energy_potential
           i = i + 1
           j = j + 1
         END DO
-      END DO  
+      END DO
     ELSE
       i = 1
       offset_ad = offset_ad_set(lset,iset) + atomic_offset_ad - 1
@@ -2433,7 +2433,7 @@ MODULE hfx_energy_potential
           i = i + 1
           j = j + md_max
         END DO
-      END DO  
+      END DO
     END IF
     IF( iatom >= katom ) THEN
       i = 1
@@ -2445,7 +2445,7 @@ MODULE hfx_energy_potential
           i = i + 1
           j = j + 1
         END DO
-      END DO  
+      END DO
     ELSE
       i = 1
       offset_ac = offset_ac_set(kset,iset) + atomic_offset_ac - 1
@@ -2456,7 +2456,7 @@ MODULE hfx_energy_potential
           i = i + 1
           j = j + mc_max
         END DO
-      END DO  
+      END DO
     END IF
 
     CALL contract_block(ma_max,mb_max,mc_max,md_max,kbd,kbc,kad,kac,pbd,pbc,pad,pac,prim,fac*symm_fac)

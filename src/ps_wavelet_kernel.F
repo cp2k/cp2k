@@ -22,7 +22,7 @@ MODULE ps_wavelet_kernel
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  
+
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_kernel'
@@ -41,7 +41,7 @@ CONTAINS
 !>             'F' free BC, isolated systems.
 !>                 The program calculates the solution as if the given density is
 !>                 "alone" in R^3 space.
-!>             'S' surface BC, isolated in y direction, periodic in xz plane                
+!>             'S' surface BC, isolated in y direction, periodic in xz plane
 !>                 The given density is supposed to be periodic in the xz plane,
 !>                 so the dimensions in these direction mus be compatible with the FFT
 !>                 Beware of the fact that the isolated direction is y!
@@ -52,15 +52,15 @@ CONTAINS
 !> \param iproc ,nproc: number of process, number of processes
 !> \param n 01,n02,n03; dimensions of the real space grid to be hit with the Poisson Solver
 !> \param itype_scf order of the interpolating scaling functions used in the decomposition
-!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
+!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to
 !>                 be equal in the three directions
 !> \param kernel pointer for the kernel FFT. Unallocated on input, allocated on output.
 !>                 Its dimensions are equivalent to the region of the FFT space for which the
-!>                 kernel is injective. This will divide by two each direction, 
+!>                 kernel is injective. This will divide by two each direction,
 !>                 since the kernel for the zero-padded convolution is real and symmetric.
 !> \warning Due to the fact that the kernel dimensions are unknown before the calling, the kernel
 !>     must be declared as pointer in input of this routine.
-!>     To avoid that, one can properly define the kernel dimensions by adding 
+!>     To avoid that, one can properly define the kernel dimensions by adding
 !>     the nd1,nd2,nd3 arguments to the PS_dim4allocation routine, then eliminating the pointer
 !>     declaration.
 !> \author Luigi Genovese
@@ -88,7 +88,7 @@ CONTAINS
   hgrid=MAX(hx,hy,hz)
 
   IF (geocode == 'P') THEN
-     
+
      CALL F_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,&
                            md1,md2,md3,nd1,nd2,nd3,nproc)
 
@@ -98,7 +98,7 @@ CONTAINS
      nlimk=0
 
   ELSE IF (geocode == 'S') THEN
-     
+
       CALL S_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,&
                             md1,md2,md3,nd1,nd2,nd3,nproc)
 
@@ -131,7 +131,7 @@ CONTAINS
      nlimk=n3/2+1
 
   ELSE
-     
+
      CALL cp_assert(.FALSE.,cp_assertion_failed,&
           cp_failure_level,routineP,&
           "No wavelet based poisson solver for given geometry",error,failure)
@@ -211,7 +211,7 @@ END SUBROUTINE createKernel
 ! *****************************************************************************
 SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
                            itype_scf,karray,iproc,nproc,mpi_group,error)
-  
+
     INTEGER, INTENT(in)                      :: n1, n2, n3, m3, nker1, nker2, &
                                                 nker3
     REAL(KIND=dp), INTENT(in)                :: h1, h2, h3
@@ -247,32 +247,32 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
     REAL(KIND=dp), DIMENSION(9, 8)           :: cpol
 
 !Better if higher (1024 points are enough 10^{-14}: 2*itype_scf*n_points)
-!  include "perfdata.inc"  
+!  include "perfdata.inc"
 !FFT arrays
 !coefficients for the polynomial interpolation
-!assign the values of the coefficients  
+!assign the values of the coefficients
 
   karray = 0.0_dp
   cpol(:,:)=1._dp
 
   cpol(1,2)=.25_dp
-  
+
   cpol(1,3)=1._dp/3._dp
-  
+
   cpol(1,4)=7._dp/12._dp
   cpol(2,4)=8._dp/3._dp
-  
+
   cpol(1,5)=19._dp/50._dp
   cpol(2,5)=3._dp/2._dp
-  
+
   cpol(1,6)=41._dp/272._dp
   cpol(2,6)=27._dp/34._dp
   cpol(3,6)=27._dp/272._dp
-  
+
   cpol(1,7)=751._dp/2989._dp
   cpol(2,7)=73._dp/61._dp
   cpol(3,7)=27._dp/61._dp
-  
+
   cpol(1,8)=-989._dp/4540._dp
   cpol(2,8)=-1472._dp/1135._dp
   cpol(3,8)=232._dp/1135._dp
@@ -287,7 +287,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   cpol(1:4,6)=34._dp/105._dp*cpol(1:4,6)
   cpol(1:4,7)=2989._dp/17280._dp*cpol(1:4,7)
   cpol(1:5,8)=-454._dp/2835._dp*cpol(1:5,8)
-  
+
   !assign the complete values
   cpol(2,1)=cpol(1,1)
 
@@ -334,7 +334,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   !Extend the range (no more calculations because fill in by 0._dp)
   n_cell = m3
   n_range = MAX(n_cell,n_range)
-  
+
   !Allocations
   ncache=ncache_optimal
   !the HalFFT must be performed only in the third dimension,
@@ -350,7 +350,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
         EXIT enlarge_ydim
      END IF
   END DO enlarge_ydim
-  
+
   !array for the MPI procedure
   ALLOCATE(kernel(nker1,nact2/nproc,nker3),stat=i_stat)
   i_all = i_all + i_stat
@@ -370,7 +370,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   i_all = i_all + i_stat
   ALLOCATE(before(7),stat=i_stat)
   i_all = i_all + i_stat
-  
+
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
   !constants
   pi=4._dp*ATAN(1._dp)
@@ -378,7 +378,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   !arrays for the halFFT
   CALL ctrig(n3/2,btrig,after,before,now,1,ic)
 
-  !build the phases for the HalFFT reconstruction 
+  !build the phases for the HalFFT reconstruction
   pion=2._dp*pi/REAL(n3,KIND=dp)
   DO i3=2,n3/2
      x=REAL(i3-1,KIND=dp)*pion
@@ -397,7 +397,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   ipolyord=8 !this part should be incorporated inside the numerical integration
   !here we have to choice the piece of the x-y grid to cover
 
-  !let us now calculate the fraction of mu that will be considered 
+  !let us now calculate the fraction of mu that will be considered
   j2st=iproc*(nact2/nproc)
   j2nd=MIN((iproc+1)*(nact2/nproc),n2/2+1)
 
@@ -437,7 +437,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
      loopimpulses : DO imu=istart+shift,iend
 
         !here there is the value of mu associated to hgrid
-        !note that we have multiplicated mu for hgrid to be comparable 
+        !note that we have multiplicated mu for hgrid to be comparable
         !with mu0ref
 
         !calculate the proper value of mu taking into account the periodic dimensions
@@ -447,7 +447,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
         i2=(imu-i1)/(n1/2+1)+1
         ponx=REAL(i1-1,KIND=dp)/REAL(n1,KIND=dp)
         pony=REAL(i2-1,KIND=dp)/REAL(n2,KIND=dp)
-        
+
         mu1=2._dp*pi*SQRT((ponx/h1)**2+(pony/h2)**2)*h3
 
         CALL calculates_green_opt(n_range,n_scf,itype_scf,ipolyord,x_scf,y_scf,&
@@ -506,12 +506,12 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
            feR=.5_dp*(a+c)
            feI=.5_dp*(b-d)
            foR=.5_dp*(a-c)
-           foI=.5_dp*(b+d) 
+           foI=.5_dp*(b+d)
            fR=feR+cp*foI-sp*foR
            kernel(i1,j2,i3)=fR
         END DO
      END DO
-     
+
   END DO
 
   !give to each processor a slice of the third dimension
@@ -533,7 +533,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
            END DO
         END DO
      END DO
-     
+
   ELSE
      karray(1:nker1,1:nker2,1:nker3)=kernel(1:nker1,1:nker2,1:nker3)
   ENDIF
@@ -640,12 +640,12 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      ivalue=ivalue+1
   END DO
   gright=hres*gright
-  
+
   !the scaling function is symmetric, so the same for the other direction
   gleft=gright
-  
+
   green(ikern)=gleft+gright
-  
+
   !now the loop until the last value
   DO ikern=1,nrec
      gltmp=0._dp
@@ -691,14 +691,14 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
 
   !Start the iteration to go from mu0 to mu
   CALL scf_recursion(itype_scf,n_iter,nrec,green(-nrec),green1(-nrec))
-  
+
   DO i=1,MIN(n,nrec)
      g_mu(i)=green(i-1)
   END DO
   DO i=MIN(n,nrec)+1,n
      g_mu(i)=0._dp
   END DO
-  
+
   DEALLOCATE(green,stat=i_all)
   DEALLOCATE(green1,stat=i_stat)
   CPPostcondition(i_stat+i_all==0,cp_failure_level,routineP,error,failure)
@@ -757,9 +757,9 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,e
   gl1=-gr1
   gl0=0.5_dp
   gr0=0.5_dp
-  
+
   green(1)=2._dp*gr1
-  
+
   !now the loop until the last value
   DO ikern=1,n-1
      c0=0._dp
@@ -784,7 +784,7 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,e
      END DO loop_integration
      c0=hres*c0
      c1=hres*c1
-     
+
      gl0=gl0+c0
      gl1=gl1+c1
      gr0=gr0-c0
@@ -793,7 +793,7 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,e
      green(ikern+1)=REAL(ikern,KIND=dp)*(gl0-gr0)+gr1-gl1
      !print *,ikern,izero,n_scf,gltmp,grtmp,gleft,gright,x0,x1,green(ikern)
   END DO
-  
+
 END SUBROUTINE calculates_green_opt_muzero
 
 ! *****************************************************************************
@@ -817,7 +817,7 @@ SUBROUTINE indices(var_realimag,nelem,intrn,extrn,index)
   END IF
   !complete index to be assigned
   index=extrn+nelem*(i-1)
-  
+
 END SUBROUTINE indices
 
 ! *****************************************************************************
@@ -825,7 +825,7 @@ END SUBROUTINE indices
 !>     for interpolating scaling functions.
 !>     Do the parallel HalFFT of the symmetrized function and stores into
 !>     memory only 1/8 of the grid divided by the number of processes nproc
-!> 
+!>
 !>     Build the kernel (karray) of a gaussian function
 !>     for interpolating scaling functions
 !>     $$ K(j) = \sum_k \omega_k \int \int \phi(x) g_k(x'-x) \delta(x'- j) dx dx' $$
@@ -898,7 +898,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
     IF(MODULO(nker3,nproc) == 0) EXIT
     nker3=nker3+1
  END DO
- 
+
  !this will be the array of the kernel in the real space
  ALLOCATE(kp(n1h+1,n3h+1,nker2/nproc),stat=i_all)
  CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
@@ -911,7 +911,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 
  istart1=istart
  IF(iproc .EQ. 0) istart1=n2h-n03+2
- 
+
  !Allocations
  i_all = 0
  ALLOCATE(x_scf(0:n_scf),stat=i_stat)
@@ -927,7 +927,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  !Extend the range (no more calculations because fill in by 0._dp)
  n_cell = MAX(n01,n02,n03)
  n_range = MAX(n_cell,n_range)
- 
+
  !Allocations
  ALLOCATE(kernel_scf(-n_range:n_range),stat=i_stat)
  i_all = i_all + i_stat
@@ -939,13 +939,13 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  a1 = hgrid * REAL(n01,KIND=dp)
  a2 = hgrid * REAL(n02,KIND=dp)
  a3 = hgrid * REAL(n03,KIND=dp)
- 
+
  x_scf(:) = hgrid * x_scf(:)
  y_scf(:) = 1._dp/hgrid * y_scf(:)
  dx = hgrid * dx
  !To have a correct integration
  p0_cell = p0_ref/(hgrid*hgrid)
- 
+
  !Initialization of the gaussian (Beylkin)
  CALL gequad(n_gauss,p_gauss,w_gauss,ur_gauss,dr_gauss,acc_gauss)
  !In order to have a range from a_range=sqrt(a1*a1+a2*a2+a3*a3)
@@ -961,13 +961,13 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  DO i_gauss=1,n_gauss
     w_gauss(i_gauss) = factor*w_gauss(i_gauss)
  END DO
- 
+
  kp(:,:,:)=0._dp
  !Use in this order (better for accuracy).
  loop_gauss: DO i_gauss=n_gauss,1,-1
     !Gaussian
     pgauss = p_gauss(i_gauss)
-    
+
     !We calculate the number of iterations to go from pgauss to p0_ref
     n_iter = NINT((LOG(pgauss) - LOG(p0_cell))/LOG(4._dp))
     IF (n_iter <= 0)THEN
@@ -976,7 +976,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
     ELSE
        p0gauss = pgauss/4._dp**n_iter
     END IF
-    
+
     !Stupid integration
     !Do the integration with the exponential centered in i_kern
     kernel_scf(:) = 0._dp
@@ -994,12 +994,12 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
           EXIT
        END IF
     END DO
-    
+
     !Start the iteration to go from p0gauss to pgauss
     CALL scf_recursion(itype_scf,n_iter,n_range,kernel_scf,kern_1_scf)
-    
+
     !Add to the kernel (only the local part)
-    
+
     DO i3=istart1,iend
        i03 = i3 - n2h -1
        DO i2=1,n02
@@ -1026,7 +1026,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 !!!!END KERNEL CONSTRUCTION
 
 !!$ if(iproc .eq. 0) print *,"Do a 3D PHalFFT for the kernel"
- 
+
  CALL kernelfft(nfft1,nfft2,nfft3,nker1,nker2,nker3,n1k,n2k,n3k,nproc,iproc,&
       kp,karray,mpi_group,error)
 
@@ -1046,7 +1046,7 @@ SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
 
     INTEGER                                  :: i01, i03i, i03r, i3, l1, l3
 
-  zw = 0.0_dp 
+  zw = 0.0_dp
   i3=0
   DO l3=1,n3,2
      i3=i3+1
@@ -1058,7 +1058,7 @@ SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
         zw(2,l1,i3)=zf(i01,i03i)
      END DO
   END DO
-  
+
 END SUBROUTINE inserthalf
 
 ! *****************************************************************************
@@ -1072,13 +1072,13 @@ END SUBROUTINE inserthalf
 !>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 !> \param zf Real kernel (input)
 !>                   zf(i1,i2,i3)
-!> \param zr Distributed Kernel FFT 
+!> \param zr Distributed Kernel FFT
 !>                   zr(2,i1,i2,i3)
 !> \param nproc number of processors used as returned by MPI_COMM_SIZE
 !> \param iproc [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!> \param n 1,n2,n3:    logical dimension of the transform. As transform lengths 
+!> \param n 1,n2,n3:    logical dimension of the transform. As transform lengths
 !>                   most products of the prime factors 2,3,5 are allowed.
-!>                   The detailed table with allowed transform lengths can 
+!>                   The detailed table with allowed transform lengths can
 !>                   be found in subroutine CTRIG
 !> \param nd 1,nd2,nd3: Dimensions of work arrays
 !> \author S. Goedecker, L. Genovese
@@ -1133,14 +1133,14 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
   CPPrecondition (nd3.GE.n3/2+1 ,cp_failure_level,routineP,error,failure)
   CPPrecondition (MOD(nd3,nproc).EQ.0 ,cp_failure_level,routineP,error,failure)
   CPPrecondition (MOD(nd2,nproc).EQ.0 ,cp_failure_level,routineP,error,failure)
-  
+
   !defining work arrays dimensions
   ncache=ncache_optimal
   IF (ncache <= MAX(n1,n2,n3/2)*4) ncache=MAX(n1,n2,n3/2)*4
   lzt=n2
   IF (MOD(n2,2).EQ.0) lzt=lzt+1
   IF (MOD(n2,4).EQ.0) lzt=lzt+1
-  
+
   !Allocations
   ALLOCATE(trig1(2,8192),stat=i_all)
   ALLOCATE(after1(7),stat=i_stat)
@@ -1175,28 +1175,28 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
   i_all=i_all+i_stat
   IF (nproc.GT.1) THEN
      ALLOCATE(zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc),stat=i_stat)
-     zmpi1 = 0.0_dp 
+     zmpi1 = 0.0_dp
   END IF
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
 
-  zmpi2 = 0.0_dp 
+  zmpi2 = 0.0_dp
   !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
   CALL ctrig(n3/2,trig3,after3,before3,now3,1,ic3)
   CALL ctrig(n1,trig1,after1,before1,now1,1,ic1)
   CALL ctrig(n2,trig2,after2,before2,now2,1,ic2)
-  
+
   !Calculating array of phases for HalFFT decoding
   twopion=8._dp*ATAN(1._dp)/REAL(n3,KIND=dp)
   DO i3=1,n3/2
      cosinarr(1,i3)=COS(twopion*(i3-1))
      cosinarr(2,i3)=-SIN(twopion*(i3-1))
   END DO
-  
+
   !transform along z axis
 
   lot=ncache/(2*n3)
   CPPostcondition(lot.GE.1,cp_failure_level,routineP,error,failure)
-  
+
   DO j2=1,nd2/nproc
      !this condition ensures that we manage only the interesting part for the FFT
      IF (iproc*(nd2/nproc)+j2.LE.n2) THEN
@@ -1204,12 +1204,12 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
            ma=i1
            mb=MIN(i1+(lot-1),n1)
            nfft=mb-ma+1
-           
+
            !inserting real data into complex array of half lenght
            !input: I1,I3,J2,(Jp2)
-           
+
            CALL inserthalf(n1,n3,lot,nfft,i1,zf(1,1,j2),zw(1,1,1))
-           
+
            !performing FFT
            inzee=1
            DO i=1,ic3
@@ -1218,8 +1218,8 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
               inzee=3-inzee
            ENDDO
            !output: I1,i3,J2,(Jp2)
-           
-           !unpacking FFT in order to restore correct result, 
+
+           !unpacking FFT in order to restore correct result,
            !while exchanging components
            !input: I1,i3,J2,(Jp2)
            CALL scramble_unpack(i1,j2,lot,nfft,n1,n3,nd2,nproc,nd3,zw(1,1,inzee),zmpi2,cosinarr)
@@ -1227,7 +1227,7 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
         END DO
      ENDIF
   END DO
-  
+
   !Interprocessor data transposition
   !input: I1,J2,j3,jp3,(Jp2)
   IF (nproc.GT.1) THEN
@@ -1243,16 +1243,16 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
      IF (iproc*(nd3/nproc)+j3.LE.n3/2+1) THEN
         Jp2st=1
         J2st=1
-        
+
         !transform along x axis
         lot=ncache/(4*n1)
         CPPostcondition(lot.GE.1,cp_failure_level,routineP,error,failure)
-        
+
         DO j=1,n2,lot
            ma=j
            mb=MIN(j+(lot-1),n2)
            nfft=mb-ma+1
-           
+
            !reverse ordering
            !input: I1,J2,j3,Jp2,(jp3)
            IF (nproc.EQ.1) THEN
@@ -1261,9 +1261,9 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
               CALL mpiswitch(j3,nfft,Jp2st,J2st,lot,n1,nd2,nd3,nproc,zmpi1,zw(1,1,1))
            ENDIF
            !output: J2,Jp2,I1,j3,(jp3)
-           
+
            !performing FFT
-           !input: I2,I1,j3,(jp3)          
+           !input: I2,I1,j3,(jp3)
            inzee=1
            DO i=1,ic1-1
               CALL fftstp(lot,nfft,n1,lot,n1,zw(1,1,inzee),zw(1,1,3-inzee), &
@@ -1272,11 +1272,11 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
            ENDDO
            !storing the last step into zt
            i=ic1
-           CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), & 
+           CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), &
                 trig1,after1(i),now1(i),before1(i),1)
            !output: I2,i1,j3,(jp3)
         END DO
-        
+
         !transform along y axis, and taking only the first half
         lot=ncache/(4*n2)
         CPPostcondition(lot.GE.1,cp_failure_level,routineP,error,failure)
@@ -1285,12 +1285,12 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
            ma=j
            mb=MIN(j+(lot-1),nk1)
            nfft=mb-ma+1
-           
+
            !reverse ordering
            !input: I2,i1,j3,(jp3)
            CALL switch(nfft,n2,lot,n1,lzt,zt(1,1,j),zw(1,1,1))
            !output: i1,I2,j3,(jp3)
-           
+
            !performing FFT
            !input: i1,I2,j3,(jp3)
            inzee=1
@@ -1299,14 +1299,14 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
                    trig2,after2(i),now2(i),before2(i),1)
               inzee=3-inzee
            ENDDO
-           
+
            CALL realcopy(lot,nfft,n2,nk1,nk2,zw(1,1,inzee),zr(j,1,j3))
-           
+
         END DO
         !output: i1,i2,j3,(jp3)
      ENDIF
   END DO
-  
+
   !De-allocations
   DEALLOCATE(trig1,stat=i_all)
   DEALLOCATE(after1,stat=i_stat)
@@ -1359,7 +1359,7 @@ SUBROUTINE realcopy(lot,nfft,n2,nk1,nk2,zin,zout)
         zout(j,i)=zin(1,j,i)
      END DO
   END DO
-  
+
 END SUBROUTINE realcopy
 
 ! *****************************************************************************
@@ -1377,7 +1377,7 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
 200     CONTINUE
         RETURN
       END SUBROUTINE switch
-      
+
 ! *****************************************************************************
       SUBROUTINE mpiswitch(j3,nfft,Jp2st,J2st,lot,n1,nd2,nd3,nproc,zmpi1,zw)
     INTEGER                                  :: j3, nfft, Jp2st, J2st, lot, &
@@ -1403,10 +1403,10 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
            J2st=1
 300        CONTINUE
          END SUBROUTINE mpiswitch
-         
+
 ! *****************************************************************************
          SUBROUTINE gequad(nterms,p,w,urange,drange,acc)
-! 
+!
     INTEGER                                  :: nterms
     REAL(KIND=dp)                            :: p(*), w(*), urange, drange, &
                                                 acc
@@ -1604,5 +1604,5 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
            !
            RETURN
          END SUBROUTINE gequad
-         
+
 END MODULE ps_wavelet_kernel

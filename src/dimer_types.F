@@ -49,7 +49,7 @@ MODULE dimer_types
      REAL(KIND=dp)                              :: angle_tol, angle1, angle2, dCdp, curvature
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: g0, g1, g1p
   END TYPE dimer_rotational_type
-  
+
 ! *****************************************************************************
 !> \brief Type containing all informations abour the translation of the Dimer
 !> \par History
@@ -88,7 +88,7 @@ MODULE dimer_types
   END TYPE dimer_env_type
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \par History
 !>      none
@@ -153,7 +153,7 @@ CONTAINS
        ELSE
           CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
        END IF
-       ! Check for translation in the dimer vector and remove them 
+       ! Check for translation in the dimer vector and remove them
        IF (natom>1) THEN
           xval = 0.0_dp
           DO j = 1, natom

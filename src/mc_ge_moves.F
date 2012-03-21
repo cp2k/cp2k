@@ -100,7 +100,7 @@ CONTAINS
 !> \param particles the pointers for the particle sets
 !> \param rng_stream the stream we pull random numbers from
 !> \param error the cp_error_type in case something goes wrong
-!> 
+!>
 !>      Designed for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -255,7 +255,7 @@ CONTAINS
             DO ibox=1,nboxes
 ! look for overlap
                IF(SUM(nchains(:,ibox)) .NE. 0) THEN
-! find the molecule bounds                  
+! find the molecule bounds
                   start_mol=1
                   DO jbox=1,ibox-1
                      start_mol=start_mol+SUM(nchains(:,jbox))
@@ -445,7 +445,7 @@ CONTAINS
 !> \param last_bias_energy the energy for the biased simulations
 !> \param rng_stream the stream we pull random numbers from
 !> \param error the cp_error_type in case something goes wrong
-!> 
+!>
 !>      Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -577,7 +577,7 @@ CONTAINS
 ! now assign the eta values for the insert and remove boxes
       CALL get_mc_par(mc_par(remove_box)%mc_par,eta=eta_remove)
       CALL get_mc_par(mc_par(insert_box)%mc_par,eta=eta_insert)
-      
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! testing
 !      remove_box=2
 !      insert_box=1
@@ -735,18 +735,18 @@ CONTAINS
          ENDDO
          start_atom_ins=1
       ELSE
-! the problem is I can't just tack the new molecule on to the end, 
-! because of reading in the dat_file...the topology stuff will crash 
-! if the molecules aren't all grouped together, so I have to insert it 
-! at the end of the section of molecules with the same type, then 
+! the problem is I can't just tack the new molecule on to the end,
+! because of reading in the dat_file...the topology stuff will crash
+! if the molecules aren't all grouped together, so I have to insert it
+! at the end of the section of molecules with the same type, then
 ! remember the start number for the CBMC stuff
          start_atom_ins=1
          DO itype=1,nmol_types
             start_atom_ins=start_atom_ins+&
                  nchains(itype,insert_box)*nunits(itype)
             IF(itype == molecule_type) EXIT
-         ENDDO     
-    
+         ENDDO
+
          DO iatom=1,start_atom_ins-1
             insert_coords(1:3,iatom)=&
                particles_old(insert_box)%list%els(iatom)%r(1:3)
@@ -882,9 +882,9 @@ CONTAINS
 ! compute the new molecule information...we need this for the CBMC part
       IF(rem_atoms == 0) THEN
          CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error,&
-              box_number=remove_box)      
+              box_number=remove_box)
       ELSE
-         CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error)      
+         CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error)
       ENDIF
       CALL get_mc_molecule_info(mc_molecule_info_test,nchains=nchains_test,&
            mol_type=mol_type_test)
@@ -1260,7 +1260,7 @@ CONTAINS
 !>               Quickstep calculation
 !> \param rng_stream the stream we pull random numbers from
 !> \param error the cp_error_type in case of problems
-!> 
+!>
 !>      Designed for parallel.
 !> \author MJM
 ! *****************************************************************************

@@ -37,14 +37,14 @@ MODULE mc_move_control
   PUBLIC :: init_mc_moves, &
            mc_move_update,move_q_reinit,q_move_accept,mc_moves_release,&
            write_move_stats
- 
+
 CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates and initializes the structure to record all move
 !>      attempts/successes
 !> \param moves the move structure to update
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -191,7 +191,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocates all the structures and nullifies the pointer
 !> \param moves the move structure to release
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -270,7 +270,7 @@ CONTAINS
 
 ! now nullify the moves
       NULLIFY(moves)
-      
+
  ! end the timing
       CALL timestop(handle)
 
@@ -281,7 +281,7 @@ CONTAINS
 !> \param moves the move structure to update
 !> \param lbias are we biasing translations/rotations/conformational changes
 !>        with a different potential?
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -325,11 +325,11 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 ! *****************************************************************************
 !> \brief updates accepted moves in the given structure...assumes you've been
 !>      recording all successful moves in "qsuccesses"...this was done to
-!>      compensate for doing multiple inner moves between Quickstep moves 
+!>      compensate for doing multiple inner moves between Quickstep moves
 !>      (which determine ultimate acceptance of moves)
 !> \param moves the move structure to update
 !> \param lbias are we biasing non-swap particle moves with a cheaper potential
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -383,7 +383,7 @@ SUBROUTINE q_move_accept(moves,lbias)
             +moves%avbmc_outin%qsuccesses
          moves%avbmc_outout%successes=moves%avbmc_outout%successes&
             +moves%avbmc_outout%qsuccesses
-      
+
          moves%trans_dis=moves%trans_dis+moves%qtrans_dis
       ENDIF
 
@@ -398,7 +398,7 @@ SUBROUTINE q_move_accept(moves,lbias)
 !> \param moves the structure containing the move data
 !> \param nnstep what step we're on
 !> \param unit the unit of the file we're writing to
-!> 
+!>
 !>    Use only in serial.
 !> \author MJM
 ! *****************************************************************************
@@ -480,7 +480,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 !>              volume moves and "trans" is for everything else
 !> \param nnstep how many steps the simulation has run
 !> \param ionode is this the main CPU running this job?
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -607,7 +607,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 ! clear the counters
             move_updates%bias_dihedral%attempts=0
             move_updates%bias_dihedral%successes=0
-               
+
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmdihedral = ',&
                  rmdihedral(molecule_type)/pi*180.0E0_dp,' degrees'
@@ -650,9 +650,9 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 ! first account for the extreme cases
             IF ( move_updates%bias_rot%successes == 0 ) THEN
                rmrot=rmrot/2.0E0_dp
-               
+
                IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type)=pi
-               
+
             ELSEIF ( move_updates%bias_rot%successes == &
                  move_updates%bias_rot%attempts ) THEN
                rmrot(molecule_type)=rmrot(molecule_type)*2.0E0_dp
@@ -670,7 +670,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! more than pi rotation is meaningless
                IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type)=pi
-               
+
             ENDIF
 
 ! clear the counters
@@ -681,7 +681,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
             IF(ionode) WRITE(rm,*) nnstep,' rmrot = ',&
                  rmrot(molecule_type)/pi*180.0E0_dp,' degrees'
          ENDIF
-            
+
       CASE ("volume")
 
 ! update the maximum displacement for volume displacement
@@ -690,7 +690,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 ! first account for the extreme cases
             IF ( move_updates%volume%successes == 0 ) THEN
                rmvolume=rmvolume/2.0E0_dp
-               
+
             ELSEIF ( move_updates%volume%successes == &
                   move_updates%volume%attempts ) THEN
                rmvolume=rmvolume*2.0E0_dp

@@ -297,7 +297,7 @@ CONTAINS
           CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%rho_elec")
         END IF
       END IF
- 
+
       IF (ASSOCIATED(qs_force(ikind)%vhxc_atom)) THEN
         DEALLOCATE (qs_force(ikind)%vhxc_atom,STAT=istat)
         IF (istat /= 0) THEN
@@ -346,7 +346,7 @@ CONTAINS
             CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%total")
          END IF
       END IF
-    
+
       IF (ASSOCIATED(qs_force(ikind)%fock_4c)) THEN
         DEALLOCATE (qs_force(ikind)%fock_4c,STAT=istat)
         IF (istat /= 0) THEN
@@ -440,9 +440,9 @@ CONTAINS
 !> \brief Duplicates a force type variable.
 !> \param qs_force_input The force type variable to be duplicated
 !> \param qs_force_output The force type duplicate
-!> \param natom_of_kind  
+!> \param natom_of_kind
 !> \note
-!>      The qs_force_variable is expected of the same size as 
+!>      The qs_force_variable is expected of the same size as
 !>      qs_force_input if present.
 !> \par History
 !>      06.2005 initial create [tdk]

@@ -134,14 +134,14 @@ CONTAINS
     SELECT CASE (dft_control%qs_control%method_id)
     CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
           do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
-       ! Go on with the calculation.. 
+       ! Go on with the calculation..
     CASE DEFAULT
        ! Otherwise stop..
        CALL stop_program(routineN,moduleN,__LINE__,&
             "Method not available",para_env)
     END SELECT
     anag = dft_control%qs_control%se_control%analytical_gradients
-    ! Setup type for SE integral control 
+    ! Setup type for SE integral control
     CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE.,do_ewald_r3=.FALSE.,&
          do_ewald_gks=.FALSE., integral_screening=dft_control%qs_control%se_control%integral_screening,&
          max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
@@ -222,7 +222,7 @@ CONTAINS
                                                  se_int_control,&
                                                  anag,&
                                                  qmmm_env%spherical_cutoff,&
-                                                 error)       
+                                                 error)
                 END IF
              END IF
           END DO Atoms
@@ -231,7 +231,7 @@ CONTAINS
        qs_env%energy%qmmm_nu = enuclear
        CALL semi_empirical_release(se_kind_mm,error)
     CASE(do_qmmm_none)
-       ! Zero Matrix 
+       ! Zero Matrix
        CALL cp_dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error=error)
     END SELECT
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -295,15 +295,15 @@ CONTAINS
        ! Loop over atoms belonging to this type
        LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
           Imm = Pot%mm_atom_index(Imp)
-          IndMM = mm_atom_index(Imm) 
+          IndMM = mm_atom_index(Imm)
           r_pbc=pbc(mm_particles(IndMM)%r-mm_particles(IndQM)%r, mm_cell)
-          rt1= r_pbc(1) 
-          rt2= r_pbc(2) 
-          rt3= r_pbc(3) 
+          rt1= r_pbc(1)
+          rt2= r_pbc(2)
+          rt3= r_pbc(3)
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
           ! Computes the screening factor for the spherical cutoff (if defined)
-          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
              se_kind_mm%zeff = se_kind_mm%zeff * sph_chrg_factor
           END IF

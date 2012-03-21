@@ -45,8 +45,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -82,8 +82,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -122,8 +122,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xb 88_params: input parameters (scaling)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -271,8 +271,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -666,8 +666,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief evaluates the becke 88 exchange functional for lsd
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -704,7 +704,7 @@ CONTAINS
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
     END DO
-    
+
     CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx,error=error)
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -854,7 +854,7 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle)
-    
+
   END SUBROUTINE xb88_lsd_eval
 
 ! *****************************************************************************
@@ -866,8 +866,8 @@ CONTAINS
 !> \param e_ *_spin: derivative of the functional wrt. to the variables
 !>        named where the * is. Everything wrt. to the spin of the arguments.
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2004 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]

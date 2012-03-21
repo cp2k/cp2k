@@ -131,7 +131,7 @@ CONTAINS
           ! snapshots
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
           my_end = my_end.OR.(LEN_TRIM(parser%input_line) == 0)
-          IF (my_end) THEN 
+          IF (my_end) THEN
              CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
                   "Number of lines in XYZ format not equal to the number of atoms."//&
                   " Error in XYZ format. Very probably the line with title is missing or is empty."//&

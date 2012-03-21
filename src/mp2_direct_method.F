@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Rountines to calculate MP2 energy 
+!> \brief Rountines to calculate MP2 energy
 !> \par History
 !>      06.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben
@@ -59,18 +59,18 @@ MODULE mp2_direct_method
 
   IMPLICIT NONE
   PRIVATE
-   
+
   PUBLIC  mp2_canonical_direct_single_batch
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_direct_method'
 
 !***
-  
+
   CONTAINS
 
 ! *****************************************************************************
-!> \brief 
-!> \param qs_env  
+!> \brief
+!> \param qs_env
 !> \param ks_matrix
 !> \param energy
 !> \param rho density matrix
@@ -86,7 +86,7 @@ MODULE mp2_direct_method
 !>      06.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_section,para_env,& 
+  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_section,para_env,&
                                                mp2_biel,dimen,C,Auto,i_batch_start,Ni_occupied,&
                                                occupied,elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                                occupied_beta,C_beta,Auto_beta,error)
@@ -508,15 +508,15 @@ MODULE mp2_direct_method
     shm_pmax_block => actual_x_data%pmax_block
 
     shm_atomic_pair_list => actual_x_data%atomic_pair_list
-   
+
     iatom_start=1
-    iatom_end=natom 
+    iatom_end=natom
     jatom_start=1
-    jatom_end=natom 
+    jatom_end=natom
     katom_start=1
-    katom_end=natom 
+    katom_end=natom
     latom_start=1
-    latom_end=natom 
+    latom_end=natom
 
     CALL build_pair_list_mp2(natom, list_ij,set_list_ij,iatom_start, iatom_end, &
                      jatom_start, jatom_end, &
@@ -561,14 +561,14 @@ MODULE mp2_direct_method
      ! calculate the minimum multiple of num_pe >= to Ni_occupied*occupied, in such a way
      ! that the i, j loop is performed exactly the same number of time for each procewssor
      multiple=0
-     DO 
+     DO
        multiple=multiple+para_env%num_pe
        IF(multiple>=Ni_occupied*Nj_occupied) EXIT
      END DO
- 
+
 
      ! proc_num_task contains the numer of time second occupied
-     ! orbital transformation is called for each processor, needs for balancing 
+     ! orbital transformation is called for each processor, needs for balancing
      ! the point to point send
      ALLOCATE(proc_num_task(0:para_env%num_pe-1),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -607,7 +607,7 @@ MODULE mp2_direct_method
           END DO
        END DO
      !!!! END DO
-     ! calculate the exact maximum  number of call to the second occupied 
+     ! calculate the exact maximum  number of call to the second occupied
      ! orbital transformation
      ! max_num_call_sec_transf=MAXVAL(proc_num_task)
 
@@ -732,7 +732,7 @@ MODULE mp2_direct_method
                   task_counter_RS(global_counter,2)=i_set_list_ij
                   task_counter_RS(global_counter,3)=nsgfb(jset)*nsgfa(iset)
                 END IF
-                
+
                 IF(ALLOCATED(BI1)) DEALLOCATE(BI1)
                 ALLOCATE(BI1(dimen,Ni_occupied,nsgfb(jset),nsgfa(iset)),STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -817,7 +817,7 @@ MODULE mp2_direct_method
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                     MNRS=0.D+00
- 
+
                      max_contraction_val =  max_contraction(iset,iatom) * &
                                              max_contraction(jset,jatom) * &
                                              max_contraction(kset,katom) * &
@@ -863,9 +863,9 @@ MODULE mp2_direct_method
                     estimate_to_store_int = MAX(estimate_to_store_int,-15_int_8)
                     cartesian_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
 
- 
+
                    IF(cartesian_estimate<eps_schwarz) CYCLE
-                  
+
                   !IF(case_index==2) THEN
                       primitive_counter=0
                       DO llB=1, nsgfd(lset)
@@ -894,7 +894,7 @@ MODULE mp2_direct_method
                                                           p1_energy,p2_energy,p3_energy)
                       cost_RS(global_counter)=cost_RS(global_counter)+cost_tmp
                    END IF
-                 
+
 
                  END DO ! i_set_list_kl
               END DO ! i_list_kl
@@ -952,10 +952,10 @@ MODULE mp2_direct_method
               DO jjB=1,total_num_RS_task
                 IF(task_counter_RS(jjB,3)>iiB-step_size .AND. task_counter_RS(jjB,3)<=iiB) THEN
                   global_counter=global_counter+1
-                  task_counter_RS_temp(global_counter,1:4)=task_counter_RS(jjB,1:4) 
-                  cost_RS_temp(global_counter)=cost_RS(jjB) 
+                  task_counter_RS_temp(global_counter,1:4)=task_counter_RS(jjB,1:4)
+                  cost_RS_temp(global_counter)=cost_RS(jjB)
                 END IF
-              END DO 
+              END DO
               same_size_kl_index=same_size_kl_index+1
               same_size_kl_elements_counter(same_size_kl_index)=global_counter
             END DO
@@ -973,7 +973,7 @@ MODULE mp2_direct_method
                     task_counter_RS_temp(iiB,1:4)=task_counter_RS_temp(jjB,1:4)
                     task_counter_RS_temp(jjB,1:4)=RS_counter_temp
 
-                    cost_tmp=cost_RS_temp(iiB) 
+                    cost_tmp=cost_RS_temp(iiB)
                     cost_RS_temp(iiB)=cost_RS_temp(jjB)
                     cost_RS_temp(jjB)=cost_tmp
                   END IF
@@ -1065,7 +1065,7 @@ MODULE mp2_direct_method
                   case_send_receive=0
                 ELSE
                   case_send_receive=1
-                END IF 
+                END IF
 
                 SELECT CASE(case_send_receive)
                   CASE(0)
@@ -1312,7 +1312,7 @@ MODULE mp2_direct_method
     size_parameter_send(5)=elements_ij_proc
 
     DO index_proc_shift=0, para_env%num_pe-1
- 
+
       proc_send=proc_map(para_env%mepos+index_proc_shift)
       proc_receive=proc_map(para_env%mepos-index_proc_shift)
 
@@ -1377,7 +1377,7 @@ MODULE mp2_direct_method
 
             END DO
           END DO
- 
+
          END IF
 
          SELECT CASE(case_send_receive)
@@ -1404,7 +1404,7 @@ MODULE mp2_direct_method
                BIb_RS_mat_rec(1:dimen,1:Rsize_rec)
 
                BIb(1:dimen,S_offset_rec+1:S_offset_rec+Ssize_rec,index_ij_rec)= &
-               BIb(1:dimen,S_offset_rec+1:S_offset_rec+Ssize_rec,index_ij_rec)+ & 
+               BIb(1:dimen,S_offset_rec+1:S_offset_rec+Ssize_rec,index_ij_rec)+ &
                BIb_RS_mat_rec(1:dimen,Rsize_rec+1:Rsize_rec+Ssize_rec)
 
              END IF
@@ -1417,7 +1417,7 @@ MODULE mp2_direct_method
       IF(proc_send/=para_env%mepos) THEN
         DEALLOCATE(BIb_RS_mat_rec)
       END IF
- 
+
     END DO ! loop over the processor starting from itself
 
     CALL timestop(handle)
@@ -1426,8 +1426,8 @@ MODULE mp2_direct_method
 
   SUBROUTINE transform_occupied_orbitals_second_big(dimen,latom,katom,lset,kset,&
                                              Ssize,Rsize,i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
-                                             ij_elem_max,BI1,C_T,mp2_biel,para_env,&       
-                                             elements_ij_proc,ij_list_proc,&        
+                                             ij_elem_max,BI1,C_T,mp2_biel,para_env,&
+                                             elements_ij_proc,ij_list_proc,&
                                              multiple,proc_map,BIb,error)
 
     INTEGER :: dimen, latom, katom, lset, kset, Ssize, Rsize, i_batch_start, &
@@ -1476,7 +1476,7 @@ MODULE mp2_direct_method
     size_parameter_send(5)=elements_ij_proc
 
     DO index_proc_shift=0, para_env%num_pe-1
-                                            
+
       proc_send=proc_map(para_env%mepos+index_proc_shift)
       proc_receive=proc_map(para_env%mepos-index_proc_shift)
 
@@ -1492,13 +1492,13 @@ MODULE mp2_direct_method
         elements_ij_proc_rec=size_parameter_rec(5)
         ALLOCATE(BIb_RS_mat_rec(dimen,Rsize_rec+Ssize_rec,ij_elem_max),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ELSE                                                                                        
-        elements_ij_proc_rec=elements_ij_proc                                                     
-      END IF                                                                                      
+      ELSE
+        elements_ij_proc_rec=elements_ij_proc
+      END IF
 
 
       index_ij_send=0
-      index_ij_rec=0 
+      index_ij_rec=0
       BIb_RS_mat=zero
 
       case_send_receive=-1
@@ -1517,63 +1517,63 @@ MODULE mp2_direct_method
 
          DO S=1, Ssize
            S_global=S+S_offset
-           R_start=1          
+           R_start=1
            IF(katom==latom .AND. kset==lset) R_start=S
-           DO R=R_start, Rsize                        
-              R_global=R+R_offset                     
+           DO R=R_start, Rsize
+              R_global=R+R_offset
 
                 IF(R_global/=S_global) THEN
-                  C_T_R=C_T(j,R_global)    
-                  C_T_S=C_T(j,S_global)    
-                  DO N=1, dimen            
+                  C_T_R=C_T(j,R_global)
+                  C_T_S=C_T(j,S_global)
+                  DO N=1, dimen
                     BIb_RS_mat(N,R,index_ij_send)=BIb_RS_mat(N,R,index_ij_send)+C_T_S*BI1(N,i,R,S)
-                  END DO                                                                          
-                  DO N=1, dimen                                                                   
+                  END DO
+                  DO N=1, dimen
                     BIb_RS_mat(N,Rsize+S,index_ij_send)=BIb_RS_mat(N,Rsize+S,index_ij_send)+C_T_R*BI1(N,i,R,S)
-                  END DO                                                                                      
-                ELSE                                                                                          
-                  C_T_S=C_T(j,S_global)                                                                       
-                  DO N=1, dimen                                                                               
-                    BIb_RS_mat(N,R,index_ij_send)=BIb_RS_mat(N,R,index_ij_send)+C_T_S*BI1(N,i,R,S)            
-                  END DO                                                                                      
-                END IF                                                                                        
+                  END DO
+                ELSE
+                  C_T_S=C_T(j,S_global)
+                  DO N=1, dimen
+                    BIb_RS_mat(N,R,index_ij_send)=BIb_RS_mat(N,R,index_ij_send)+C_T_S*BI1(N,i,R,S)
+                  END DO
+                END IF
 
            END DO
-         END DO  
-                  
-      END DO      
+         END DO
+
+      END DO
 
       SELECT CASE(case_send_receive)
-      CASE(0)                     
+      CASE(0)
         ! the processor is the sender and receiver itself
           BIb(1:dimen,R_offset+1:R_offset+Rsize,1:elements_ij_proc)= &
           BIb(1:dimen,R_offset+1:R_offset+Rsize,1:elements_ij_proc)+ &
-          BIb_RS_mat(1:dimen,1:Rsize,1:elements_ij_proc)              
+          BIb_RS_mat(1:dimen,1:Rsize,1:elements_ij_proc)
 
           BIb(1:dimen,S_offset+1:S_offset+Ssize,1:elements_ij_proc)= &
           BIb(1:dimen,S_offset+1:S_offset+Ssize,1:elements_ij_proc)+ &
-          BIb_RS_mat(1:dimen,Rsize+1:Rsize+Ssize,1:elements_ij_proc)  
+          BIb_RS_mat(1:dimen,Rsize+1:Rsize+Ssize,1:elements_ij_proc)
 
       CASE(1)
- 
+
         CALL mp_sendrecv(BIb_RS_mat,proc_send,BIb_RS_mat_rec,proc_receive,para_env%group)
 
           BIb(1:dimen,R_offset_rec+1:R_offset_rec+Rsize_rec,1:elements_ij_proc)= &
           BIb(1:dimen,R_offset_rec+1:R_offset_rec+Rsize_rec,1:elements_ij_proc)+ &
-          BIb_RS_mat_rec(1:dimen,1:Rsize_rec,1:elements_ij_proc)                  
+          BIb_RS_mat_rec(1:dimen,1:Rsize_rec,1:elements_ij_proc)
 
           BIb(1:dimen,S_offset_rec+1:S_offset_rec+Ssize_rec,1:elements_ij_proc)= &
-          BIb(1:dimen,S_offset_rec+1:S_offset_rec+Ssize_rec,1:elements_ij_proc)+ & 
+          BIb(1:dimen,S_offset_rec+1:S_offset_rec+Ssize_rec,1:elements_ij_proc)+ &
           BIb_RS_mat_rec(1:dimen,Rsize_rec+1:Rsize_rec+Ssize_rec,1:elements_ij_proc)
 
       CASE DEFAULT
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      END SELECT                
-                                   
+      END SELECT
+
       IF(proc_send/=para_env%mepos) THEN
-        DEALLOCATE(BIb_RS_mat_rec)      
-      END IF                            
-                                        
+        DEALLOCATE(BIb_RS_mat_rec)
+      END IF
+
     END DO ! loop over the processor starting from itself
 
     CALL timestop(handle)
@@ -1707,61 +1707,61 @@ MODULE mp2_direct_method
     ALLOCATE(BIa(dimen,virt_i),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DO index_ij=1, elements_ij_proc             
+    DO index_ij=1, elements_ij_proc
 
       DO a=1, virt_i
         a_global=a+occ_i
-        DO S=1, dimen   
-          parz=zero     
-          DO N=1, dimen 
+        DO S=1, dimen
+          parz=zero
+          DO N=1, dimen
             parz=parz+C_i(N,a_global)*BIb(N,S,index_ij)
-          END DO                                       
-          BIa(S,a)=parz                       
-        END DO                                         
-      END DO                                           
+          END DO
+          BIa(S,a)=parz
+        END DO
+      END DO
 
       BIb(1:dimen,1:virt_i,index_ij)=BIa
- 
+
     END DO
 
     DEALLOCATE(BIa)
     ALLOCATE(BIa(virt_i,virt_j),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DO index_ij=1, elements_ij_proc              
+    DO index_ij=1, elements_ij_proc
 
       DO a=1, virt_i
         DO b=1, virt_j
           b_global=b+occ_j
-          parz=zero       
-          DO S=1, dimen   
+          parz=zero
+          DO S=1, dimen
             parz=parz+C_j(S,b_global)*BIb(S,a,index_ij)
-          END DO                                       
-          BIa(a,b)=parz                       
-        END DO                                         
-      END DO      
+          END DO
+          BIa(a,b)=parz
+        END DO
+      END DO
 
-      BIb(1:virt_i,1:virt_j,index_ij)=BIa                                     
+      BIb(1:virt_i,1:virt_j,index_ij)=BIa
 
     END DO
 
     DO index_ij=1, elements_ij_proc
-       i=ij_list_proc(index_ij,1)  
-       j=ij_list_proc(index_ij,2)  
-       i_global=i+i_batch_start    
-       j_global=j+j_batch_start    
-       DO a=1, virt_i              
-         a_global=a+occ_i          
-         DO b=1, virt_j            
-           b_global=b+occ_j        
-           iajb=BIb(a,b,index_ij)  
+       i=ij_list_proc(index_ij,1)
+       j=ij_list_proc(index_ij,2)
+       i_global=i+i_batch_start
+       j_global=j+j_batch_start
+       DO a=1, virt_i
+         a_global=a+occ_i
+         DO b=1, virt_j
+           b_global=b+occ_j
+           iajb=BIb(a,b,index_ij)
            parz=iajb*iajb/(Auto_i(i_global)+Auto_j(j_global)-Auto_i(a_global)-Auto_j(b_global))
            ! Emp2=Emp2+parz/two
            Emp2_Cou=Emp2_Cou+parz/two
            Emp2=Emp2+parz/two
-         END DO                                                                                
-       END DO                                                                                  
-    END DO                                                                                     
+         END DO
+       END DO
+    END DO
 
     DEALLOCATE(BIa)
     DEALLOCATE(BIb)

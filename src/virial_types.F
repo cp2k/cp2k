@@ -53,12 +53,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_virial', &
       routineP = moduleN//':'//routineN
 
-    virial_out % pv_total = virial_in % pv_total 
-    virial_out % pv_kinetic = virial_in % pv_kinetic  
-    virial_out % pv_virial = virial_in % pv_virial 
-    virial_out % pv_xc = virial_in % pv_xc 
-    virial_out % pv_fock_4c = virial_in % pv_fock_4c 
-    virial_out % pv_constraint = virial_in % pv_constraint 
+    virial_out % pv_total = virial_in % pv_total
+    virial_out % pv_kinetic = virial_in % pv_kinetic
+    virial_out % pv_virial = virial_in % pv_virial
+    virial_out % pv_xc = virial_in % pv_xc
+    virial_out % pv_fock_4c = virial_in % pv_fock_4c
+    virial_out % pv_constraint = virial_in % pv_constraint
     virial_out % pv_availability = virial_in % pv_availability
     virial_out % pv_calculate = virial_in % pv_calculate
     virial_out % pv_numer = virial_in % pv_numer
@@ -119,12 +119,12 @@ CONTAINS
     my_reset = .TRUE.
     IF (PRESENT(reset)) my_reset = reset
 
-    virial % pv_total = 0.0_dp 
-    virial % pv_kinetic = 0.0_dp 
-    virial % pv_virial = 0.0_dp 
-    virial % pv_xc = 0.0_dp 
-    virial % pv_fock_4c = 0.0_dp 
-    virial % pv_constraint = 0.0_dp 
+    virial % pv_total = 0.0_dp
+    virial % pv_kinetic = 0.0_dp
+    virial % pv_virial = 0.0_dp
+    virial % pv_xc = 0.0_dp
+    virial % pv_fock_4c = 0.0_dp
+    virial % pv_constraint = 0.0_dp
     IF ( my_reset ) THEN
        virial % pv_availability = .FALSE.
        virial % pv_numer = .FALSE.
@@ -181,11 +181,11 @@ CONTAINS
     IF ( PRESENT ( pv_xc ) ) pv_xc = virial % pv_xc
     IF ( PRESENT ( pv_fock_4c ) ) pv_fock_4c = virial % pv_fock_4c
     IF ( PRESENT ( pv_constraint ) ) pv_constraint = virial % pv_constraint
-    IF ( PRESENT ( pv_kinetic ) ) pv_kinetic = virial % pv_kinetic 
-    IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability 
-    IF ( PRESENT ( pv_calculate ) ) pv_calculate = virial % pv_calculate 
-    IF ( PRESENT ( pv_numer ) ) pv_numer = virial % pv_numer 
-    IF ( PRESENT ( pv_diagonal ) ) pv_diagonal = virial % pv_diagonal 
+    IF ( PRESENT ( pv_kinetic ) ) pv_kinetic = virial % pv_kinetic
+    IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability
+    IF ( PRESENT ( pv_calculate ) ) pv_calculate = virial % pv_calculate
+    IF ( PRESENT ( pv_numer ) ) pv_numer = virial % pv_numer
+    IF ( PRESENT ( pv_diagonal ) ) pv_diagonal = virial % pv_diagonal
 
   END SUBROUTINE virial_get
 
@@ -212,8 +212,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given virial_type
 !> \param virial_type the virial_type to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      see doc/ReferenceCounting.html
 !> \par History
@@ -241,8 +241,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given virial_type
 !> \param virial the virial_type to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      see doc/ReferenceCounting.html
 !> \par History

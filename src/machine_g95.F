@@ -36,7 +36,7 @@ FUNCTION m_loc_r(a) RESULT(res)
 
     res=LOC(a)
 END FUNCTION m_loc_r
-  
+
 ! *****************************************************************************
 FUNCTION m_loc_c(a) RESULT(res)
     COMPLEX(KIND=dp), DIMENSION(*), &
@@ -85,7 +85,7 @@ END FUNCTION m_cputime
       INTEGER(KIND=int_8)                      :: m_memory
 
       !
-      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize 
+      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
@@ -182,7 +182,7 @@ END FUNCTION m_cputime
                  READ(meminfo(start:),*,ERR=999,END=999) value
                  ! XXXXXXX convert from Kb to bytes XXXXXXXX
                  get_field_value_in_bytes=value*1024
- 999             CONTINUE           
+ 999             CONTINUE
               ENDIF
            ENDIF
         END FUNCTION

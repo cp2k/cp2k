@@ -245,12 +245,12 @@ CONTAINS
        !   *** init the bibliography ***
        CALL add_all_references()
 
-       ! Initialize the MA_ARCH configuration  
-       IF (has_ma) THEN 
+       ! Initialize the MA_ARCH configuration
+       IF (has_ma) THEN
          CALL cp_ma_init_lib(init_mpi,group=mpi_comm_default,error=error)
          !default binding only if mpi_init - all MPI tasks will be present
          CALL cp_ma_default_affinity(init_mpi)
-       ENDIF 
+       ENDIF
 
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
@@ -612,7 +612,7 @@ CONTAINS
     END IF
 
     CALL timeset(routineN,handle)
-    
+
     CALL m_getcwd(old_dir)
     wdir = old_dir
     IF (PRESENT(work_dir)) THEN
@@ -625,7 +625,7 @@ CONTAINS
             wdir = work_dir
         END IF
     END IF
-    
+
     IF (PRESENT(output_unit)) THEN
        unit_nr=output_unit
     ELSE
@@ -743,7 +743,7 @@ CONTAINS
                   "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "//&
                   "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. "//&
 CPSourceFileRef,&
-                  only_ionode=.TRUE.) 
+                  only_ionode=.TRUE.)
              check = ASSOCIATED(force_env%mixed_env%sub_para_env)
              CPPrecondition(check,cp_failure_level,routineP,error,failure)
              ngroups = force_env%mixed_env%ngroups
@@ -843,7 +843,7 @@ CPSourceFileRef,&
              force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
           END IF
           ! Multiple para env for sub_force_eval
-          IF (.NOT.use_multiple_para_env) THEN 
+          IF (.NOT.use_multiple_para_env) THEN
              lgroup_distribution = iforce_eval
           END IF
           ! Release force_env_section
@@ -949,7 +949,7 @@ CPSourceFileRef,&
 !> \date   22.11.2010 (MK)
 ! *****************************************************************************
   SUBROUTINE get_natom(env_id, n_atom, ierr)
-  
+
     INTEGER, INTENT(IN)                      :: env_id
     INTEGER, INTENT(OUT)                     :: n_atom, ierr
 
@@ -978,7 +978,7 @@ CPSourceFileRef,&
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Matthias Krack
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE get_nparticle(env_id, n_particle, ierr)
 
@@ -1004,8 +1004,8 @@ CPSourceFileRef,&
   END SUBROUTINE get_nparticle
 
 ! *****************************************************************************
-!> \brief gets a cell 
-!> \param cell the array with the cell matrix 
+!> \brief gets a cell
+!> \param cell the array with the cell matrix
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
@@ -1044,7 +1044,7 @@ CPSourceFileRef,&
 
 
 ! *****************************************************************************
-!> \brief gets a result from CP2K that is a real 1D array 
+!> \brief gets a result from CP2K that is a real 1D array
 !> \param description, the tag of the result
 !> \param env_id id of the force_env
 !> \param result will contain the result
@@ -1066,7 +1066,7 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-  
+
     IF (.NOT. failure) THEN
        CALL get_results(results=f_env%force_env%results,&
             description=description,&
@@ -1076,9 +1076,9 @@ CPSourceFileRef,&
             values=RESULT,&
             nval=nres,error=error)
     ENDIF
-  
+
     CALL f_env_rm_defaults(f_env,error,ierr)
-  
+
   END SUBROUTINE get_result_r1
 
 ! *****************************************************************************
@@ -1178,8 +1178,8 @@ CPSourceFileRef,&
   END SUBROUTINE get_vel
 
 ! *****************************************************************************
-!> \brief sets a new cell 
-!> \param new_cell the array with the cell matrix 
+!> \brief sets a new cell
+!> \param new_cell the array with the cell matrix
 !> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele

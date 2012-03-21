@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
- 
+
 ! *****************************************************************************
 !> \brief a module to allow simple internal preprocessing in input files.
 !> \par History
@@ -29,7 +29,7 @@ MODULE cp_parser_inpp_methods
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  
+
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_methods'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
@@ -37,7 +37,7 @@ MODULE cp_parser_inpp_methods
 
   PUBLIC  :: inpp_process_directive, inpp_end_include, inpp_expand_variables
   PRIVATE :: inpp_find_variable, inpp_list_variables
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -102,7 +102,7 @@ CONTAINS
           indi = indi + 1
        END DO
        filename=TRIM(filename(indi:))
-       
+
        ! handle quoting of the filename
        pos1 = INDEX(filename,'"')
        pos2 = INDEX(filename(pos1+1:),'"')
@@ -224,8 +224,8 @@ CONTAINS
 
     CASE ("@IF")
        ! detect IF expression.
-       ! we recognize lexical equality or inequality, and presence of 
-       ! a string (true) vs. blank (false). in case the expression resolves 
+       ! we recognize lexical equality or inequality, and presence of
+       ! a string (true) vs. blank (false). in case the expression resolves
        ! to "false" we read lines here until we reach an @ENDIF or EOF.
        indi=indf
        pos1=INDEX(input_line,"==")
@@ -273,7 +273,7 @@ CONTAINS
              check=.FALSE.
           ENDIF
        ENDIF
-       
+
        ! Get rid of possible parentheses
        IF (INDEX(cond1,"(") /= 0) cond1 = cond1(INDEX(cond1,"(")+1:)
        IF (INDEX(cond2,")") /= 0) cond2 = cond2(1:INDEX(cond2,")")-1)
@@ -372,9 +372,9 @@ CONTAINS
        RETURN
        ! Do Nothing..
     END SELECT
- 
+
   END SUBROUTINE inpp_process_directive
-  
+
 
 ! *****************************************************************************
 !> \brief Restore older file status from stack after EOF on include file.
@@ -464,7 +464,7 @@ CONTAINS
        ELSE
           newline=TRIM(inpp%variable_value(idx)) // input_line(pos2+2:)
        ENDIF
- 
+
        input_line=newline
     END DO
 
@@ -493,7 +493,7 @@ CONTAINS
        ELSE
           newline=TRIM(inpp%variable_value(idx)) // input_line(pos2+1:)
        ENDIF
- 
+
        input_line=newline
     END DO
   END SUBROUTINE inpp_expand_variables

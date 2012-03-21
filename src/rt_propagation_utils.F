@@ -11,7 +11,7 @@
 MODULE  rt_propagation_utils
 
 
-  
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
@@ -72,17 +72,17 @@ MODULE  rt_propagation_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
 !***
-  
+
   CONTAINS
 
 
 
 ! *****************************************************************************
 !> \brief Calculates dS/dR respectily the velocity weighted derivatves
-!>        only needed for ehrenfest MD. 
-!>      
-!> \param qs_env the qs environment 
-!> \param error 
+!>        only needed for ehrenfest MD.
+!>
+!> \param qs_env the qs environment
+!> \param error
 !>
 !> \par History
 !>      02.2009 created [Manuel Guidon]
@@ -191,7 +191,7 @@ MODULE  rt_propagation_utils
           IF (first_sgf(iatom)<=irow_global .AND. irow_global <= last_sgf(iatom)) EXIT
        ENDDO
        row_atom_index(irow_local)=iatom
-    ENDDO 
+    ENDDO
 
     ALLOCATE(col_atom_index(SIZE(col_indices)))
     DO icol_local=1,ncol_local
@@ -200,7 +200,7 @@ MODULE  rt_propagation_utils
           IF (first_sgf(iatom)<=icol_global .AND. icol_global <= last_sgf(iatom)) EXIT
        ENDDO
        col_atom_index(icol_local)=iatom
-    ENDDO 
+    ENDDO
 
     !calculate scalar product v(Rb)*<alpha|d/dRb beta> (B_mat), and store the first derivatives
 
@@ -218,9 +218,9 @@ MODULE  rt_propagation_utils
              icol_atom=col_atom_index(icol_local)
              !signs are right, since s_derivs is <d/dR alpha|beta>
              IF (irow_global>icol_global) THEN
-                scale=1.0_dp 
+                scale=1.0_dp
              ELSE
-                scale=-1.0_dp 
+                scale=-1.0_dp
              ENDIF
              local_data(irow_local,icol_local)=local_data(irow_local,icol_local)+&
                   scale*(particle_set(icol_atom)%v(m))*tmp_mat2%local_data(irow_local,icol_local)
@@ -228,14 +228,14 @@ MODULE  rt_propagation_utils
           ENDDO
        ENDDO
     END DO
-    
+
 
     !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
     c_map_mat=0
     n=0
     DO j=1,3
        DO m=j,3
-          n=n+1 
+          n=n+1
           c_map_mat(n,1)=j
           IF(m==j)CYCLE
           c_map_mat(n,2)=m
@@ -245,7 +245,7 @@ MODULE  rt_propagation_utils
     DO m=1,3
        CALL cp_fm_set_all(C_mat(m)%matrix,0.0_dp,0.0_dp,error)
     END DO
-    
+
     DO m=1,6
        CALL copy_dbcsr_to_fm(s_derivs(m+4)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
@@ -283,7 +283,7 @@ MODULE  rt_propagation_utils
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE calc_S_derivs
 
 
@@ -344,13 +344,13 @@ MODULE  rt_propagation_utils
        CALL read_rt_mos_from_restart(mo_array,qs_env%rtp%mos_old,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr,dft_control%multiplicity,dft_section, error)
     END SELECT
-    
+
 
     DO ispin=1,nspin
        CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
             p_rmpv(ispin)%matrix,error=error)
     ENDDO
-    
+
 
   END SUBROUTINE get_restart_wfn
 
@@ -400,7 +400,7 @@ MODULE  rt_propagation_utils
 
 ! *****************************************************************************
 !> \brief calculats the three additional force contribution needed in EMD
-!>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der 
+!>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -479,7 +479,7 @@ MODULE  rt_propagation_utils
           IF (first_sgf(iatom)<=irow_global .AND. irow_global <= last_sgf(iatom)) EXIT
        ENDDO
        row_atom_index(irow_local)=iatom
-    ENDDO 
+    ENDDO
 
     ALLOCATE(col_atom_index(SIZE(col_indices)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -490,7 +490,7 @@ MODULE  rt_propagation_utils
           IF (first_sgf(iatom)<=icol_global .AND. icol_global <= last_sgf(iatom)) EXIT
        ENDDO
        col_atom_index(icol_local)=iatom
-    ENDDO 
+    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
@@ -508,7 +508,7 @@ MODULE  rt_propagation_utils
        alpha=mos(ispin)%mo_set%maxocc
 
        ! calculate the W matrix analogue for EMD
-       ! calculate B_mat force 
+       ! calculate B_mat force
 
        CALL get_rtp(rtp=rtp,B_mat=B_mat,S_der=S_der,S_inv=S_inv,SinvH=SinvH,SinvB=SinvB,mos_new=mos_new,error=error)
        CALL cp_fm_get_info(mos_new(2*ispin-1)%matrix,nrow_global=nao,ncol_global=nmo,error=error)
@@ -526,7 +526,7 @@ MODULE  rt_propagation_utils
        CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo2,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin-1)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
-       
+
 
        CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
        CALL cp_fm_scale_and_add(0.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
@@ -558,7 +558,7 @@ MODULE  rt_propagation_utils
 
                 force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
                      tmp_mat3%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)+ &
-                     local_data(irow_local,icol_local)* tmp_mat1%local_data(irow_local,icol_local)             
+                     local_data(irow_local,icol_local)* tmp_mat1%local_data(irow_local,icol_local)
              END DO
           END DO
        END DO
@@ -566,11 +566,11 @@ MODULE  rt_propagation_utils
        ! recall QS forces, at this point have the other sign.
        CALL cp_fm_release(tmp_mo1,error)
        CALL cp_fm_release(tmp_mo2,error)
-       
+
     END DO
     ! recall QS forces, at this point have the other sign.
     DO i=1,SIZE(force)
-       force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)    
+       force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)
     END DO
 
     CALL cp_fm_release(tmp_mat,error)

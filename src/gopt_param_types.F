@@ -67,12 +67,12 @@ MODULE gopt_param_types
   END TYPE gopt_param_type
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \brief creates a new gopt_param object
 !> \param gopt_param the object to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -101,8 +101,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the parameters of the geopmetry optimizer
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -163,7 +163,7 @@ CONTAINS
           CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%MAX_ALLOWED_STEP",&
                r_val=gopt_param%cg_ls%max_step,error=error)
        END SELECT
-       
+
        SELECT CASE(gopt_param%type_id)
        CASE(default_minimization_method_id)
           ! Do Nothing
@@ -179,8 +179,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param gopt_param the geometry optimization environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -204,8 +204,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param gopt_param the geometry optimization environment to release
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************

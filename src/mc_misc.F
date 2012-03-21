@@ -39,7 +39,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initializes the structure that holds running averages of MC variables
 !> \param averages the mc_averages strucutre you want to initialize
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -74,7 +74,7 @@ END SUBROUTINE mc_averages_create
 ! *****************************************************************************
 !> \brief deallocates the structure that holds running averages of MC variables
 !> \param averages the mc_averages strucutre you want to release
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -114,7 +114,7 @@ END SUBROUTINE mc_averages_release
 !> \param final_energy the final unbiased energy of the system
 !> \param averages the structure that holds computed average properites for
 !>               the simulation
-!> 
+!>
 !>    Only use in serial.
 !> \author MJM
 ! *****************************************************************************
@@ -301,7 +301,7 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
              WRITE(iw,'(A,A)') '-----------------------------------------------',&
                   '--------------------------------'
           ENDIF
-          
+
 ! now we write out information on the classical moves, if it's
 ! a classical simulations
           IF (lbias) THEN
@@ -314,13 +314,13 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
              CALL final_move_write(moves%bias_bond,string1,string2,iw,&
                   displacement=rmbond(itype),lbias=lbias,format_string=format_string,&
                   string3=string3)
-             
+
              string1="Angle Changes"
              string3="Maximum angle displacement [degrees]= "
              CALL final_move_write(moves%bias_angle,string1,string2,iw,&
                   displacement=rmangle(itype),lbias=lbias,format_string=format_string,&
                   string3=string3)
-             
+
              string1="Dihedral Changes"
              string3="Maximum dihedral displacement [degrees]= "
              CALL final_move_write(moves%bias_dihedral,string1,string2,iw,&
@@ -417,7 +417,7 @@ END SUBROUTINE final_move_write
 !>      &TOPOLOGY, and &TOPOLOGY comes before &GLOBAL (which comes before MC).
 !>      It also assumes that you use &MOL_SET in &TOPOLOGY.  Still, many fewer
 !>      assumptions than before.
-!> 
+!>
 !>      box_length and coordinates should be passed in a.u.
 !> \param coordinates the coordiantes of the atoms in the force_env (a.u.)
 !> \param natoms_tot the total number of atoms
@@ -426,7 +426,7 @@ END SUBROUTINE final_move_write
 !> \param force_env the force environment that holds the parameters needed
 !>                   to write on the file
 !> \param fft_lib the FFT library we're using (FFTW,FFTSG)
-!> 
+!>
 !>    Only use in serial.
 !> \author MJM
 ! *****************************************************************************
@@ -489,14 +489,14 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
 ! now write everything until the coordinates
       DO iline=cell_row+1,coord_row_start
          WRITE(unit,'(A)') TRIM(text(iline))
-      ENDDO      
-    
+      ENDDO
+
 ! we may pass nunits_tot=0, but we should still have coordinates
       IF(nunits_tot == 0) THEN
          DO iunit=1,nunits_empty
             WRITE(unit,'(5X,A,2X,3(F15.10))') &
                  TRIM(ADJUSTL(atom_names_empty(iunit))),&
-                 coordinates_empty(1:3,iunit)*angstrom            
+                 coordinates_empty(1:3,iunit)*angstrom
          ENDDO
       ELSE
          DO iunit=1,nunits_tot
@@ -520,7 +520,7 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
             WRITE(mol_string,'(I8)') nchains(itype)
          ENDIF
 
-         line_text=text(mol_set_nmol_row(itype))        
+         line_text=text(mol_set_nmol_row(itype))
          line_text(mol_set_nmol_column(itype):mol_set_nmol_column(itype)+9)=&
               mol_string(1:10)
          WRITE(unit,'(A)') TRIM(line_text)
@@ -531,7 +531,7 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
 ! that we can easily do ./cp2k.sdbg input.dat and have it run
       DO iline=mol_set_nmol_row(nmol_types)+1,run_type_row-1
          WRITE(unit,'(A)') TRIM(text(iline))
-      ENDDO 
+      ENDDO
       SELECT CASE ( in_use )
       CASE ( use_fist_force )
          WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
@@ -540,10 +540,10 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
       END SELECT
       DO iline=run_type_row+1,global_row_end
          WRITE(unit,'(A)') TRIM(text(iline))
-      ENDDO 
+      ENDDO
       DO iline=motion_row_start,motion_row_end
          WRITE(unit,'(A)') TRIM(text(iline))
-      ENDDO 
+      ENDDO
 
 ! close the file
       CALL close_file(unit_number=unit)

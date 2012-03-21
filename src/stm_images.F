@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Calculation of STM image as post processing of an electronic
-!>     structure calculation, 
+!>     structure calculation,
 !> \par History
 !>      Started as a copy from the code in qs_scf_post
 !> \author Joost VandeVondele 7.2008, MI 02.2009
@@ -63,17 +63,17 @@ MODULE stm_images
 
   ! Global parameters
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'stm_images'
-  PUBLIC :: th_stm_image 
+  PUBLIC :: th_stm_image
 
 
 CONTAINS
 ! *****************************************************************************
-!> \brief Driver for the calculation of STM image, as post processing of a 
-!>        ground-state electronic structure calculation. 
+!> \brief Driver for the calculation of STM image, as post processing of a
+!>        ground-state electronic structure calculation.
 !> \param
 !> \note
 !>   The Tersoff-Hamman
-!>        approximation is applied, occupied and a sufficient number of 
+!>        approximation is applied, occupied and a sufficient number of
 !>        unoccupied eigenstates are needed (depending on the given Bias potential)
 !>        and should be computed in advance. Unoccupied states are calculated
 !>        before enetering this module when NLUMO =/ 0
@@ -211,9 +211,9 @@ CONTAINS
                     output_unit, append_cube,  error=error)
      DO ispin = 1,nspin
        IF(nadd_unocc(ispin)>0) THEN
-            DEALLOCATE(evals(ispin)%array,STAT=istat) 
+            DEALLOCATE(evals(ispin)%array,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-            DEALLOCATE(occupation(ispin)%array,STAT=istat) 
+            DEALLOCATE(occupation(ispin)%array,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
             CALL cp_fm_release( mo_arrays(ispin)%matrix, error=error)
        END IF
@@ -240,7 +240,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes a simple approximation to the tunneling current for STM
-!> \param 
+!> \param
 !> \note
 !>      requires the MOs that are passed to be eigenstates, and energy ordered
 !> \par History
@@ -314,7 +314,7 @@ CONTAINS
                   IF(nstates(ispin)==0) state_start(ispin) = imo
                   nstates(ispin) = nstates(ispin)+1
                END IF
-             END DO 
+             END DO
              IF ((output_unit>0).AND.evals(ispin)%array(1)> efermi+stm_biases(ibias)) &
                  WRITE(output_unit,'(T4,A)') "Warning: EFermi+bias below lowest computed occupied MO"
           ELSE
@@ -325,7 +325,7 @@ CONTAINS
                   IF(nstates(ispin)==0) state_start(ispin) = imo
                   nstates(ispin) = nstates(ispin)+1
                END IF
-             END DO 
+             END DO
              IF ((output_unit>0) .AND.  evals(ispin)%array(nmo) < efermi+stm_biases(ibias)) &
                  WRITE(output_unit,'(T4,A)') "Warning: E-Fermi+bias above highest computed unoccupied MO"
           ENDIF
@@ -373,7 +373,7 @@ CONTAINS
                  qs_env=qs_env,  der_type=iorb, error=error)
 
          oname = torb_string(iorb)
-!         fname = "STM_"//TRIM(torb_string(iorb)) 
+!         fname = "STM_"//TRIM(torb_string(iorb))
          WRITE(filename,'(a4,I2.2,a1,I5.5)')"STM_d",iorb,"_",ibias
          my_pos = "REWIND"
          IF (append_cube) THEN
@@ -400,5 +400,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE stm_cubes
-  
+
 END MODULE stm_images

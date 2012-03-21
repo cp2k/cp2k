@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Type for the canonical sampling through velocity rescaling     
+!> \brief Type for the canonical sampling through velocity rescaling
 !> \author Teodoro Laino - 09.2007 University of Zurich [tlaino]
 ! *****************************************************************************
 MODULE csvr_system_types
@@ -84,7 +84,7 @@ CONTAINS
     ! and the second verlet step
     csvr%tau_csvr = csvr%tau_csvr/(0.5_dp*simpar%dt)
     CALL create_map_info_type(csvr%map_info, error)
-    
+
   END SUBROUTINE csvr_init
 
 ! *****************************************************************************
@@ -110,7 +110,7 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(csvr),cp_fatal_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(csvr%nvt),cp_fatal_level,routineP,error,failure)
-    
+
     ALLOCATE ( csvr%nvt(csvr%loc_num_csvr),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i = 1, csvr%loc_num_csvr
@@ -139,7 +139,7 @@ CONTAINS
     END DO
     DEALLOCATE (seed,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
   END SUBROUTINE csvr_thermo_create
 
 ! *****************************************************************************
@@ -196,6 +196,6 @@ CONTAINS
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     ENDIF
   END SUBROUTINE csvr_thermo_dealloc
-  
+
 END MODULE csvr_system_types
 

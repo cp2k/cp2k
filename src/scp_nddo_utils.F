@@ -98,14 +98,14 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=ks_scp,&
                   row=iatom,col=iatom,BLOCK=ks_block,found=found)
              CPPrecondition(ASSOCIATED(ks_block),cp_failure_level,routineP,error,failure)
-             DO i=1,SIZE(ks_block,1) 
-                DO j=1,SIZE(ks_block,2) 
+             DO i=1,SIZE(ks_block,1)
+                DO j=1,SIZE(ks_block,2)
                    ks_block(i,j) = a_scp (i,j) * ks_block(i,j)+ p_block(i,j)
                 END DO
              END DO
           END IF
        END DO ! iparticle_local
-    END DO ! ikind 
+    END DO ! ikind
     escp=escp*0.5_dp
 ! compute constraint force
     IF(.NOT.energy_only) THEN
@@ -118,7 +118,7 @@ CONTAINS
       sum_adiag = SUM ( ascp_diag )
       ratio = sum_ksdiag/sum_adiag
       DO ii = 1, n_el
-         ksdiag ( ii ) = ksdiag ( ii ) - ascp_diag ( ii ) * ratio 
+         ksdiag ( ii ) = ksdiag ( ii ) - ascp_diag ( ii ) * ratio
       END DO
 !      CALL cp_dbcsr_print ( ks_scp, matlab_format=.TRUE., error=error )
       CALL cp_dbcsr_set_diag ( ks_scp, ksdiag, error=error )

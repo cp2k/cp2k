@@ -158,7 +158,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE calc_rs_array ( rho, rs )
-    
+
 !   rs parameter : f*rho**(-1/3)
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
@@ -187,7 +187,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE calc_rs_pw ( rho, rs, n )
-    
+
 !   rs parameter : f*rho**(-1/3)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho
@@ -321,7 +321,7 @@ CONTAINS
   SUBROUTINE calc_fx_array(n, rhoa, rhob, fx, m )
 
 !   spin interpolation function and derivatives
-!   
+!
 !   f(x) = ( (1+x)^(4/3) + (1-x)^(4/3) - 2 ) / (2^(4/3)-2)
 !   df(x) = (4/3)( (1+x)^(1/3) - (1-x)^(1/3) ) / (2^(4/3)-2)
 !   d2f(x) = (4/9)( (1+x)^(-2/3) + (1-x)^(-2/3) ) / (2^(4/3)-2)
@@ -354,7 +354,7 @@ CONTAINS
        IF (SIZE(fx,2)<m) CALL stop_program(routineN,moduleN,__LINE__,&
                                            "SIZE(fx,2) too small")
 !!    END IF
-       
+
 !$omp parallel do private(ip,x,rhoab)
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
@@ -393,7 +393,7 @@ CONTAINS
   SUBROUTINE calc_fx_single ( rhoa, rhob, fx, m )
 
 !   spin interpolation function and derivatives
-!   
+!
 !   f(x) = ( (1+x)^(4/3) + (1-x)^(4/3) - 2 ) / (2^(4/3)-2)
 !   df(x) = (4/3)( (1+x)^(1/3) - (1-x)^(1/3) ) / (2^(4/3)-2)
 !   d2f(x) = (4/9)( (1+x)^(-2/3) + (1-x)^(-2/3) ) / (2^(4/3)-2)
@@ -434,7 +434,7 @@ CONTAINS
                fxfac * f43 * f13 * (-f23)
        END IF
     END IF
-    
+
   END SUBROUTINE calc_fx_single
 
 ! *****************************************************************************
@@ -470,6 +470,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE calc_z
-    
+
 END MODULE xc_functionals_utilities
 

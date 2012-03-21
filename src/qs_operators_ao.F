@@ -363,7 +363,7 @@ CONTAINS
           rbp = -zeta(ipgf)*rab/zet
 
           f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
-          
+
           ! *** Calculate the reccurence relation ***
 
           CALL os_rr_ovlp(rap,la_max+1,rbp,lb_max,zet,ldrr,rr)
@@ -736,7 +736,7 @@ CONTAINS
           rbp = -zeta(ipgf)*rab/zet
 
           f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
-          
+
           ! *** Calculate the reccurence relation ***
 
           CALL os_rr_ovlp(rap,la_max+1,rbp,lb_max,zet,ldrr,rr)
@@ -1347,7 +1347,7 @@ CONTAINS
 !>      therefore  [\mu | op | d(\nu)/dR(\nu)] = -[d(\mu)/dR(\mu)| op | \nu]
 !>        [\mu|op|d(\nu)/dR]-[d(\mu)/dR|op|\nu]=2[\mu|op|d(\nu)/dR]
 !>      When it is not the case a correction term is needed
-!> 
+!>
 !>     The momentum operator [\mu|M|\nu] is symmetric, the number of components is
 !>     detrermined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)
 !>     The derivative of the type [\mu | op | d(\nu)/dR_i(\nu)], where
@@ -1357,7 +1357,7 @@ CONTAINS
 !>   d([\mu|M|\nu])/dr_i = [d(\mu)/dr_i|M|\nu] + [\mu|M|d(\nu)/dr_i] + [\mu |d(M)/dr_i|\nu]
 !>   d([\mu|M|\nu])/dr_i = -[d(\mu)/dR_i(\mu)|M|\nu] -[\mu|M|d(\nu)/dR_i(\nu)] + [\mu |d(M)/dr_i|\nu]
 !>     Therefore we cannot use an antisymmetric matrix
-!> 
+!>
 !>     The same holds for the derivative with respect to the electronic position r
 !>     taking into account that [\mu|op|d(\nu)/dR] = -[\mu|op|d(\nu)/dr]
 !> \param op_sm matrix representation of the p operator

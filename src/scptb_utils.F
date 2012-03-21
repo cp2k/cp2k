@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Routines for SCPTB 
+!> \brief Routines for SCPTB
 !> \author JGH (12.2011)
 ! *****************************************************************************
 MODULE scptb_utils
@@ -84,7 +84,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     print_info = (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
-         "KINDS/BASIS_SET",error=error),cp_p_file)) 
+         "KINDS/BASIS_SET",error=error),cp_p_file))
     IF (print_info) THEN
        output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log",error=error)
        IF ( output_unit > 0 ) THEN

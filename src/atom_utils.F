@@ -190,7 +190,7 @@ CONTAINS
         CPAssert(occupation(3,n-3)==0,cp_failure_level,routineP,error,failure)
         occupation(3,n-3) = oo
       END IF
-      
+
     END DO
 
     wfnocc = 0._dp
@@ -218,7 +218,7 @@ CONTAINS
           END IF
         END DO
       END DO
- 
+
       IF (js==0 .AND. mult==-2) mult=1
       IF (js==0 .AND. mult==-3) mult=1
       IF (js==0) THEN
@@ -236,7 +236,7 @@ CONTAINS
       IF (js>1 .AND. mult/=-2) THEN
         CPAssert(mult==-2,cp_failure_level,routineP,error,failure)
       END IF
-      
+
     END IF
 
     IF(PRESENT(multiplicity)) multiplicity = mult
@@ -422,9 +422,9 @@ CONTAINS
         fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
         DO j=1,gthpot%nct_nlcc(i)
           IF(my_typ == "RHO") THEN
-            corden(:) = corden(:) + fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j,i) 
+            corden(:) = corden(:) + fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j,i)
           ELSE IF(my_typ == "DER") THEN
-            corden(:) = corden(:) - fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j,i)/a 
+            corden(:) = corden(:) - fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j,i)/a
             IF(j>1) THEN
               corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i)/a
             END IF
@@ -504,7 +504,7 @@ CONTAINS
       orb(1:m) = orb(1:m) + ff*basis%bf(1:m,i,l)
     END DO
     DO i=1,m-1
-      IF(basis%grid%rad(i) < rcov) THEN 
+      IF(basis%grid%rad(i) < rcov) THEN
         IF (orb(i)*orb(i+1) < 0._dp) node=node+1
       END IF
     END DO
@@ -607,7 +607,7 @@ CONTAINS
 
     nc = SIZE(fun)
     integral = SUM ( fun(1:nc) * grid%wr(1:nc) )
-    
+
   END FUNCTION integrate_grid_function1
 
   FUNCTION integrate_grid_function2 ( fun1, fun2, grid ) RESULT(integral)

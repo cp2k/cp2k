@@ -63,7 +63,7 @@ MODULE mc_types
   IMPLICIT NONE
 
   PRIVATE
-  
+
 ! *** Global parameters ***
 
  PUBLIC :: mc_simpar_type,&
@@ -242,7 +242,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_input_file_type
 !> \param mc_input_file the input file you want data for
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -282,7 +282,7 @@ CONTAINS
    IF(PRESENT(text)) text=> mc_input_file%text
    IF(PRESENT(atom_names_empty)) atom_names_empty=> mc_input_file%atom_names_empty
    IF(PRESENT(coordinates_empty)) coordinates_empty=> mc_input_file%coordinates_empty
-   
+
  END SUBROUTINE GET_MC_INPUT_FILE
 ! *****************************************************************************
  SUBROUTINE get_mc_par ( mc_par, nstep, nvirial, iuptrans, iupvolume, &
@@ -301,7 +301,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_parameters_type
 !> \param mc_par the structure mc parameters you want
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
     TYPE(mc_simpar_type), POINTER            :: mc_par
@@ -412,7 +412,7 @@ CONTAINS
     IF ( PRESENT ( rmtrans ) ) rmtrans => mc_par % rmtrans
 
     IF ( PRESENT ( eta ) ) eta => mc_par % eta
- 
+
     IF ( PRESENT ( ensemble ) ) ensemble = mc_par % ensemble
     IF ( PRESENT ( PROGRAM ) ) PROGRAM = mc_par % program
     IF ( PRESENT ( restart_file_name ) ) restart_file_name = &
@@ -446,7 +446,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_molecule_info_type
 !> \param mc_molecule_info the structure you want the parameters for
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
@@ -471,7 +471,7 @@ CONTAINS
     IF ( PRESENT ( nboxes ) ) nboxes = mc_molecule_info % nboxes
     IF ( PRESENT ( nchain_total ) ) nchain_total = mc_molecule_info % nchain_total
     IF ( PRESENT ( nmol_types ) ) nmol_types = mc_molecule_info % nmol_types
-    
+
     IF ( PRESENT ( names ) ) names => mc_molecule_info % names
     IF ( PRESENT ( atom_names ) ) atom_names => mc_molecule_info % atom_names
 
@@ -501,7 +501,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 ! *****************************************************************************
 !> \brief changes the private elements of the mc_parameters_type
 !> \param mc_par the structure mc parameters you want
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
     TYPE(mc_simpar_type), POINTER            :: mc_par
@@ -568,8 +568,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( lbias ) ) mc_par % lbias = lbias
     IF ( PRESENT ( lrestart ) ) mc_par % lrestart = lrestart
 
-    IF ( PRESENT ( exp_max_val ) ) mc_par % exp_max_val= exp_max_val 
-    IF ( PRESENT ( exp_min_val ) ) mc_par % exp_min_val= exp_min_val 
+    IF ( PRESENT ( exp_max_val ) ) mc_par % exp_max_val= exp_max_val
+    IF ( PRESENT ( exp_min_val ) ) mc_par % exp_min_val= exp_min_val
     IF ( PRESENT ( max_val ) ) mc_par % max_val = max_val
     IF ( PRESENT ( min_val ) ) mc_par % min_val = min_val
     IF ( PRESENT ( BETA ) ) mc_par % BETA = BETA
@@ -679,7 +679,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF(PRESENT(source)) mc_par%source=source
     IF(PRESENT(group)) mc_par%group=group
     IF(PRESENT(ionode)) mc_par%ionode=ionode
-    
+
     IF(PRESENT(rand2skip)) mc_par%rand2skip=rand2skip
   END SUBROUTINE set_mc_par
 
@@ -901,7 +901,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 ! now read in and store the input file, first finding out how many lines it is
     CALL open_file(file_name=input_file_name,&
-         unit_number=unit,file_action='READ',file_status='OLD')   
+         unit_number=unit,file_action='READ',file_status='OLD')
 
     nlines=0
     DO
@@ -935,7 +935,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
             'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
     ENDIF
 
-! Let's find the first END after MOTION...we might need this whole section 
+! Let's find the first END after MOTION...we might need this whole section
 ! because of hybrid MD/MC moves, which requires the MD information to always
 ! be attached to the force env
     CALL mc_parse_text(mc_input_file%text,1,nlines,"&MOTION",.TRUE.,&
@@ -1016,9 +1016,9 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           irep=irep+1
           CALL mc_parse_text(mc_input_file%text,nstart,nlines,"NMOL",&
                .FALSE.,mc_input_file%mol_set_nmol_row(irep), &
-               mc_input_file%mol_set_nmol_column(irep))   
+               mc_input_file%mol_set_nmol_column(irep))
           mc_input_file%mol_set_nmol_column(irep)=mc_input_file%mol_set_nmol_column(irep)+5
-          
+
        ENDDO
        IF(irep .NE. nmol_types) THEN
           IF (iw>0) THEN
@@ -1122,7 +1122,7 @@ SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
 
      index_string=-1
      index_string=INDEX(text(iline),string_search(1:string_size))
-     
+
      IF(index_string .GT. 0) THEN ! we found one
         IF(.NOT. lend) THEN
            row_number=iline
@@ -1264,7 +1264,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
 ! now an integer array
       CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_vals=temp_i_array,error=error)
-      
+
 ! find out if we're only doing HMC moves...we can ignore a lot of extra information
 ! then, which would ordinarily be cause for concern
       CALL section_vals_val_get(mc_section,"PMHMC",r_val=mc_par%pmhmc,error=error)
@@ -1657,7 +1657,7 @@ END SUBROUTINE read_mc_section
 !>                   out of
 !> \param lterminate set to .TRUE. if one of the sides of the box is
 !>            less than twice the cutoff
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -1709,7 +1709,7 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 END SUBROUTINE find_mc_rcut
 
 ! *****************************************************************************
-!> \brief figures out the number of total molecules, the number of atoms in each 
+!> \brief figures out the number of total molecules, the number of atoms in each
 !>      molecule, an array with the molecule types, etc...a lot of information
 !>      that we need.  I did this because I use multiple force_env (simulation
 !>      boxes) for MC, and they don't know about each other.
@@ -1717,7 +1717,7 @@ END SUBROUTINE find_mc_rcut
 !>        simulation
 !> \param mc_molecule_info the structure that will hold all the information
 !>          for the molecule types
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -1871,7 +1871,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
              atomic_kind => atom_list(iatom)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=mc_molecule_info%atom_names(iatom,iunique),&
-                  mass=mc_molecule_info%mass(iatom,iunique))   
+                  mass=mc_molecule_info%mass(iatom,iunique))
           ENDDO
 
 ! compute the probabilities of doing any particular kind of conformation change
@@ -1904,7 +1904,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
     DO iunique=1,nmol_types
        DO ibox=1,nboxes
           IF(ibox == skip_box) CYCLE
-          DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))    
+          DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))
              molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
              CALL get_molecule_kind(molecule_kind,nmolecule=nmolecule,&
                   name=name)
@@ -1939,7 +1939,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
        first_mol=last_mol+1
        last_mol=first_mol+SUM(mc_molecule_info%nchains(:,ibox))-1
        mc_molecule_info%in_box(first_mol:last_mol)=ibox
-       DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))    
+       DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))
           molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
           CALL get_molecule_kind(molecule_kind,nmolecule=nmolecule,&
                name=name,molecule_list=molecule_list)
@@ -1969,7 +1969,7 @@ END SUBROUTINE MC_DETERMINE_MOLECULE_INFO
 ! *****************************************************************************
 !> \brief deallocates all the arrays in the mc_molecule_info_type
 !> \param mc_molecule_info the structure we wish to deallocate
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -2000,7 +2000,7 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nunits_tot")
     DEALLOCATE(mc_molecule_info%mass,stat=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mass")
-    
+
     DEALLOCATE(mc_molecule_info,stat=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc_molecule_info")
     NULLIFY(mc_molecule_info)
@@ -2014,7 +2014,7 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 !> \brief accesses the private elements of the mc_molecule_info_type
 !> \param mc_molecule_info the structure you want the parameters for
 !> \param nmol_types the number of molecule types in the simulation
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
     TYPE(mc_simpar_type), POINTER            :: mc_par
@@ -2040,23 +2040,23 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 ! a chance we won't select a molecule type for a move
     IF(mc_par%pmavbmc_mol(nmol_types) .LT. 0.9999E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMAVBMC_MOL needs to be 1.0')       
+            'The last value of PMAVBMC_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmswap_mol(nmol_types) .LT. 0.9999E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMSWAP_MOL needs to be 1.0')       
+            'The last value of PMSWAP_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmtraion_mol(nmol_types) .LT. 0.9999E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMTRAION_MOL needs to be 1.0')       
+            'The last value of PMTRAION_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmtrans_mol(nmol_types) .LT. 0.9999E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMTRANS_MOL needs to be 1.0')       
+            'The last value of PMTRANS_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmrot_mol(nmol_types) .LT. 0.9999E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMROT_MOL needs to be 1.0')       
+            'The last value of PMROT_MOL needs to be 1.0')
     ENDIF
 
 ! check to make sure we have all the desired values for various

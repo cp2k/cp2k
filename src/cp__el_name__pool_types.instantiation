@@ -12,7 +12,7 @@
     'el_array_type':'type(cp_fm_p_type)',
     '%array_el':'%matrix',
     'el_release':'cp_fm_release',
-    
+
     'el_struct_type':'type(cp_fm_struct_type)',
     'el_struct_release':'cp_fm_struct_release',
     'el_struct_retain':'cp_fm_struct_retain',

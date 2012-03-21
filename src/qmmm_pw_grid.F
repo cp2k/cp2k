@@ -46,8 +46,8 @@ CONTAINS
 !> \brief Initialize the qmmm pool of pw_type.
 !>      Then Main difference w.r.t. QS pw_type pools is that this pool
 !>      has [0,L] as boundaries.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -74,7 +74,7 @@ CONTAINS
     failure = .FALSE.
     Maxdr   = TINY(0.0_dp)
     Mindr   = HUGE(0.0_dp)
-    IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN 
+    IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN
        CALL pw_env_get(pw_env=pw_env,&
                        pw_pools=pw_pools,&
                        auxbas_grid=auxbas_grid,&
@@ -107,7 +107,7 @@ CONTAINS
           IF (ALL(Mindr.EQ.el_struct%dr)) qmmm_env%gridlevel_info%auxbas_grid  = Ilevel
 
           CALL pw_grid_release(el_struct,error=error)
-          
+
        END DO
     END IF
 

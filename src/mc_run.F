@@ -99,7 +99,7 @@ CONTAINS
 !> \param input_file_name the name of the input file that force_env_1 was
 !>        created from
 !> \param error the error type
-!> 
+!>
 !>      Designed for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -186,7 +186,7 @@ CONTAINS
       CASE("GEMC_NVT","GEMC_NPT")
          force_env(1)%force_env => force_env_1
          force_env(2)%force_env => force_env_2
-      END SELECT      
+      END SELECT
       ALLOCATE (mc_par(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "mc_par",int_size*nboxes)
@@ -310,9 +310,9 @@ CONTAINS
 
 ! now check the input parameters and run the simulation
       DO ibox=1,nboxes
-         
+
          CALL mc_input_parameters_check(mc_par(ibox)%mc_par)
-         
+
 ! attach all the structures to one convientent structure
        CALL set_mc_env( mc_env(ibox)%mc_env,mc_par=mc_par(ibox)%mc_par,&
             force_env=force_env(ibox)%force_env)
@@ -338,12 +338,12 @@ CONTAINS
       CALL get_mc_env( mc_env(1)%mc_env, mc_par = mc_par(1)%mc_par)
       CALL get_mc_par(mc_par(1)%mc_par,mc_molecule_info=mc_molecule_info)
       CALL mc_molecule_info_destroy(mc_molecule_info)
-      
+
       DO ibox=1,nboxes
          CALL get_mc_env( mc_env(ibox)%mc_env, &
               mc_par = mc_par(ibox)%mc_par,force_env=force_env(ibox)%force_env)
          CALL get_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
-         
+
          CALL mc_input_file_destroy(mc_input_file)
          IF(lbias)THEN
             CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
@@ -354,7 +354,7 @@ CONTAINS
          CALL mc_env_release ( mc_env(ibox)%mc_env, error )
 
          IF (ibox == 2) THEN
-            CALL force_env_release(force_env(ibox)%force_env,error=error)           
+            CALL force_env_release(force_env(ibox)%force_env,error=error)
             CALL globenv_release(globenv_2,error)
          ELSE
             force_env_1 => force_env(1)%force_env
@@ -385,7 +385,7 @@ CONTAINS
 !>           for both boxes
 !> \param iw the unit number that prints to screen
 !> \param ionode equal to .TRUE. if this is the main MPI node
-!> 
+!>
 !>      Designed for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -416,7 +416,7 @@ CONTAINS
               'avbmc_atom'
          WRITE(iw,'( A,A )' ) 'avbmc_rmin,avmbc_rmax,pmavbmc_mol,pbias,pmswap'
       ENDIF
-      
+
       CALL get_mc_par(mc_par(1)%mc_par,nstep=nstep,iupvolume=iupvolume,&
            iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
            iprint=iprint,lbias=lbias,lstop=lstop,temperature=temperature,&

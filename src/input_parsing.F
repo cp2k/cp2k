@@ -727,10 +727,10 @@ CPSourceFileRef,&
                location,error,failure,info=info)
        ENDIF
     END IF
-    
+
     CALL cp_error_dealloc_ref(suberror)
     CALL timestop(handle)
-    
+
   END SUBROUTINE val_create_parsing
 
 ! *****************************************************************************

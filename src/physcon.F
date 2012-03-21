@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Definition of physical constants:
-!> 
+!>
 !>      a_bohr      : Bohr radius [m]
 !>      a_fine      : Fine-structure constant
 !>      a_mass      : Atomic mass unit [kg]; conversion factor [u] -> [kg]
@@ -88,7 +88,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Initialize all basic physical constants used by CP2K using
 !>         the recommended fundamental constants of physics and chemistry
-!>         based on the 1998 adjustment (CODATA 1998) 
+!>         based on the 1998 adjustment (CODATA 1998)
 !> \author  JGH
 !> \date    14.11.2000
 !> \par History
@@ -130,7 +130,7 @@ CONTAINS
     e_mass = 9.10938188E-31_dp
 
     ! Proton mass [kg]
-    p_mass = 1.67262158Eâˆ’27_dp
+    p_mass = 1.67262158Eâ27_dp
 
     ! Electron g factor [ ]
     e_gfactor = -2.0023193043718_dp
@@ -172,7 +172,7 @@ CONTAINS
     e_mass = 9.10938215E-31_dp
 
     ! Proton mass [kg]
-    p_mass = 1.672621637E-27_dp   
+    p_mass = 1.672621637E-27_dp
 
     ! Electron g factor [ ]
     e_gfactor = -2.0023193043622_dp
@@ -268,7 +268,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Write all basic physical constants used by CP2K to a logical
-!>           output unit. 
+!>           output unit.
 !> \author  JGH
 !> \date    14.11.2000
 !> \par History

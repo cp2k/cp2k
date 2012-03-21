@@ -32,8 +32,8 @@ CONTAINS
 !> \brief creates an ep_qs_env
 !> \param ep_qs_env the environemt to create
 !> \param qs_env the qs env the ep env will live in
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)

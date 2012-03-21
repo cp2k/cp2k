@@ -50,7 +50,7 @@ MODULE ewalds
 
   PRIVATE
   PUBLIC :: ewald_evaluate, ewald_self, ewald_self_atom, ewald_print
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -311,7 +311,7 @@ CONTAINS
                        message="Array of charges not implemented for mm_radius>0.0 !!",&
                        error=error, error_level=cp_failure_level)
           END IF
-       END DO 
+       END DO
     ELSE
        DO iparticle_kind=1,nparticle_kind
           atomic_kind => atomic_kind_set(iparticle_kind)

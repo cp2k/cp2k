@@ -9,7 +9,7 @@
 !>      01.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-MODULE xc_adiabatic_methods 
+MODULE xc_adiabatic_methods
   USE f77_blas
   USE input_constants,                 ONLY: do_hfx_potential_coulomb
   USE kinds,                           ONLY: dp
@@ -32,7 +32,7 @@ MODULE xc_adiabatic_methods
 !> \brief - Calculates rescaling factors for XC potentials and energy expression
 !> \param qs_en v
 !> \param hf_energy Array of size 2 containing the two HF energies (Ex^{HF} and Ex^{HF,LR}
-!> \param energy QS energy type 
+!> \param energy QS energy type
 !> \param adiabatic_lambda , adiabatic_omega: Parameters for adiabatic connection
 !> \param scale_ * : scaling coefficients for xc-potentials to be calculated
 !> \param total_energy will contain the full xc energy
@@ -40,7 +40,7 @@ MODULE xc_adiabatic_methods
 !>        see module cp_error_handling
 !> \note
 !>      - Model for adiabatic connection:
-!> 
+!>
 !>         W_lambda = a + b*lambda/(1+c*lambda)
 !>         Exc = a + b*(c-log(1+c)/c^2)
 !>         a = Ex^{HF}
@@ -129,6 +129,6 @@ MODULE xc_adiabatic_methods
       scale_dEx1 = scale_dEx2
       scale_dEx2 = swap_value
     END IF
-  END SUBROUTINE rescale_MCY3_pade   
-  
+  END SUBROUTINE rescale_MCY3_pade
+
 END MODULE xc_adiabatic_methods

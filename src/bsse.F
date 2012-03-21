@@ -57,14 +57,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Perform an COUNTERPOISE CORRECTION (BSSE)
-!>      For a 2-body system the correction scheme can be represented as:       
-!> 
+!>      For a 2-body system the correction scheme can be represented as:
+!>
 !>      E_{AB}^{2}        = E_{AB}(AB) - E_A(AB) - E_B(AB)  [BSSE-corrected interaction energy]
 !>      E_{AB}^{2,uncorr} = E_{AB}(AB) - E_A(A)  - E_B(B)
-!>      E_{AB}^{CP}       = E_{AB}(AB) + [ E_A(A) - E_A(AB) ] + [ E_B(B) - E_B(AB) ]  
+!>      E_{AB}^{CP}       = E_{AB}(AB) + [ E_A(A) - E_A(AB) ] + [ E_B(B) - E_B(AB) ]
 !>                                                          [CP-corrected total energy of AB]
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -148,11 +148,11 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE do_bsse_calculation
-     
+
 ! *****************************************************************************
 !> \brief Evaluate the N-body energy contribution to the BSSE evaluation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -182,7 +182,7 @@ CONTAINS
        NULLIFY(conf_loc, Em_loc)
        should_stop = .FALSE.
        ! Count the number of subconfiguration to evaluate..
-       Num_of_sub_frag = COUNT(conf == 1)    
+       Num_of_sub_frag = COUNT(conf == 1)
        Num_of_sub_conf = 0
        IF (Num_of_sub_frag == 1) THEN
           CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf, n_frags, root_section, globenv, Em, error)
@@ -198,7 +198,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Em_loc = 0.0_dp
           CALL gen_Nbody_conf(Num_of_sub_frag, Num_of_sub_conf, conf_loc)
-          CALL make_plan_conf(conf, conf_loc)           
+          CALL make_plan_conf(conf, conf_loc)
           DO i = 1, Num_of_sub_conf
              CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc(i,:), n_frags,&
                   root_section,globenv, Em_loc(i), error)
@@ -216,14 +216,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(conf_loc, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF       
+       END IF
     END IF
   END SUBROUTINE eval_bsse_energy
 
 ! *****************************************************************************
 !> \brief Evaluate the N-body energy contribution to the BSSE evaluation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -308,7 +308,7 @@ CONTAINS
           END DO
           atom_type(j) = name
        END DO
-       DO i = 1, SIZE(conf_loc)          
+       DO i = 1, SIZE(conf_loc)
           IF (my_conf(i) /= 0 .AND. conf_loc(i) == 0) THEN
              DO j = SUM(my_conf(1:i-1))+1, SUM(my_conf(1:i))
                 atom_type(j) = TRIM(atom_type(j))//"_ghost"
@@ -353,8 +353,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Dumps bsse information (configuration fragment)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -410,8 +410,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Read modified parameters for configurations
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino - University of Zurich
@@ -475,8 +475,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Dumps results
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino - University of Zurich
@@ -530,8 +530,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief generate the N-body configuration for the N-body BSSE evaluation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -548,12 +548,12 @@ CPSourceFileRef,&
     !
     conf = 0
     DO k= 1, Num_of_frag
-       CALL build_Nbody_conf( 1, Num_of_frag, conf, k, my_ind) 
+       CALL build_Nbody_conf( 1, Num_of_frag, conf, k, my_ind)
     END DO
   END SUBROUTINE gen_Nbody_conf
 
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE build_Nbody_conf(ldown, lup, conf, k, my_ind) 
+  RECURSIVE SUBROUTINE build_Nbody_conf(ldown, lup, conf, k, my_ind)
     INTEGER, INTENT(IN)                      :: ldown, lup
     INTEGER, DIMENSION(:, :), POINTER        :: conf
     INTEGER, INTENT(IN)                      :: k
@@ -565,7 +565,7 @@ CPSourceFileRef,&
     my_ind0 = my_ind
     IF (kloc /= 0) THEN
        DO i = ldown, lup
-          CALL build_Nbody_conf( i+1, lup, conf, kloc, my_ind) 
+          CALL build_Nbody_conf( i+1, lup, conf, kloc, my_ind)
           conf(my_ind0+1:my_ind,i) = 1
           my_ind0 = my_ind
        END DO
@@ -582,7 +582,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: num
     INTEGER                                  :: my_fact
 
-    IF (num<=1) THEN 
+    IF (num<=1) THEN
        my_fact = 1
     ELSE
        my_fact = num * FACT(num-1)
@@ -601,7 +601,7 @@ CPSourceFileRef,&
     tmp_conf = 0
     ind = 0
     DO i=1,SIZE(main_conf)
-       IF (main_conf(i) /= 0) THEN 
+       IF (main_conf(i) /= 0) THEN
           ind = ind + 1
           tmp_conf(:,i) = conf(:,ind)
        END IF
@@ -615,14 +615,14 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Writes restart for BSSE calculations
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE write_bsse_restart(bsse_section, root_section, error)
-    
+
     TYPE(section_vals_type), POINTER         :: bsse_section, root_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -642,10 +642,10 @@ CPSourceFileRef,&
        CALL write_restart_header(ires, error)
        CALL section_vals_write(root_section, unit_nr=ires, hide_root=.TRUE., error=error)
     ENDIF
-    
+
     CALL cp_print_key_finished_output(ires,logger,bsse_section,&
          "PRINT%RESTART", error=error)
-    
+
   END SUBROUTINE write_bsse_restart
 
 END MODULE bsse

@@ -8,7 +8,7 @@
 !>      The idea is that decisions about where to log should not be done in
 !>      the code that generates the log, but should be globally changeable
 !>      a central place.
-!>      So some care has been taken to have enough information about the 
+!>      So some care has been taken to have enough information about the
 !>      place from where the log comes so that in the future intelligent and
 !>      flexible decisions can be taken by the logger, without having to change
 !>      other code.
@@ -17,18 +17,18 @@
 !>      in my idea they should have been with variable length,
 !>      (i.e. they should have returned a trim(adjustl(actual_result)))
 !>      As a logger should be robust, at the moment I have given up.
-!> 
-!>      At the moment logging and output refer to the same object 
+!>
+!>      At the moment logging and output refer to the same object
 !>      (cp_logger_type)
 !>      as these are actually different it might be better to separate them
-!>      (they have already separate routines in a separate module 
+!>      (they have already separate routines in a separate module
 !>      @see cp_output_handling).
-!> 
+!>
 !>      some practices (use of print *, no cp_error_type,
 !>      manual retain release of some objects) are dictated by the need to
 !>      have minimal dependency
 !> \par History
-!>      08.2002 major update: retain, release, printkeys, para_env, 
+!>      08.2002 major update: retain, release, printkeys, para_env,
 !>              local logging [fawzi]
 !>      02.2004 made a stack of default loggers [Joost VandeVondele]
 !> \par
@@ -64,7 +64,7 @@ MODULE cp_log_handling
   ! types
   PUBLIC :: cp_logger_type
   ! parameter vars
-  PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level 
+  PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level
   ! default loggers
   PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger,&
             cp_default_logger_stack_size
@@ -98,7 +98,7 @@ MODULE cp_log_handling
 
 ! *****************************************************************************
 !> \brief type of a logger, at the moment it contains just a print level
-!>      starting at which level it should be logged 
+!>      starting at which level it should be logged
 !>      (0 note, 1 warning, 2 failure, 3 fatal)
 !>      it could be expanded with the ability to focus on one or more
 !>      module/object/thread/processor
@@ -109,7 +109,7 @@ MODULE cp_log_handling
 !>        yet initialized). Local logging guarantee to each task its own
 !>        file.
 !> \param default_global_unit_nr default unit for global logging
-!>        (-1 if not yet initialized). This unit is valid only on the 
+!>        (-1 if not yet initialized). This unit is valid only on the
 !>        processor with %para_env%mepos==%para_env%source.
 !> \param para_env the parallel environement for the output.
 !>        this might be a super environment of your computation environment
@@ -127,19 +127,19 @@ MODULE cp_log_handling
 !>        logging (can be different from the name of the file corresponding
 !>        to default_local_unit_nr, only the one used if the unit needs to
 !>        be opened)
-!> \param global_filename the root of the name of the file used for 
+!> \param global_filename the root of the name of the file used for
 !>        global logging (can be different from the name of the file
 !>        corresponding to default_global_unit_nr, only the one used if
 !>        the unit needs to be opened)
 !> \param print_keys print keys that tell what should be logged/outputted
 !> \note
-!>      This should be private, but as the output functions have been 
+!>      This should be private, but as the output functions have been
 !>      moved to another module and there is no "friend" keyword, they
 !>      are public.
 !>      DO NOT USE THE INTERNAL COMPONENTS DIRECTLY!!!
 !> \par History
 !>      04.2002 revised [fawzi]
-!>      08.2002 major update: retain, release, printkeys, para_env, 
+!>      08.2002 major update: retain, release, printkeys, para_env,
 !>              local logging [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
@@ -157,7 +157,7 @@ MODULE cp_log_handling
 
 ! *****************************************************************************
   TYPE default_logger_stack_type
-     TYPE(cp_logger_type), POINTER :: cp_default_logger 
+     TYPE(cp_logger_type), POINTER :: cp_default_logger
   END TYPE default_logger_stack_type
 
   INTEGER, PRIVATE            :: stack_pointer=0
@@ -169,8 +169,8 @@ MODULE cp_log_handling
 CONTAINS
 
 ! *****************************************************************************
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_default_logger_stack_size() RESULT(res)
@@ -261,10 +261,10 @@ CONTAINS
 !> \param default_global_unit_nr the default unit_nr for output
 !>        (if not given, and no file is given defaults to the standard output)
 !> \param default_local_unit_nr the default unit number for local (i.e. task)
-!>        output. If not given defaults to a out.taskid file created upon 
-!> \param global_filename a new file to open (can be given instread of the 
+!>        output. If not given defaults to a out.taskid file created upon
+!> \param global_filename a new file to open (can be given instread of the
 !>        global_unit_nr)
-!> \param local_filename a new file to open (with suffix and para_env%mepos 
+!> \param local_filename a new file to open (with suffix and para_env%mepos
 !>        appended). Can be given instread of the default_local_unit_nr).
 !>        the file is created only upon the first local logging request
 !> \param close_global_unit_on_dealloc if the unit should be closed when the
@@ -407,11 +407,11 @@ CONTAINS
   END SUBROUTINE cp_logger_create
 
 ! *****************************************************************************
-!> \brief retains the given logger (to be called to keep a shared copy of 
+!> \brief retains the given logger (to be called to keep a shared copy of
 !>      the logger)
 !> \param logger the logger to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -477,10 +477,10 @@ CONTAINS
 !> \brief this function can be called to check if the logger would log
 !>      a message with the given level from the given source
 !>      you should use this function if you do direct logging
-!>      (without using cp_logger_log), or if you want to know if the generation 
+!>      (without using cp_logger_log), or if you want to know if the generation
 !>      of some costly log info is necessary
 !> \param logger the logger you want to log in
-!> \param level describes the of the message: cp_fatal_level(3), 
+!> \param level describes the of the message: cp_fatal_level(3),
 !>     cp_failure_level(2), cp_warning_level(1), cp_note_level(0).
 !> \par History
 !>      4.2002 revised [fawzi]
@@ -533,7 +533,7 @@ CONTAINS
 !>     para_env%source should write to the global logger). Defaults to
 !>     false
 !> \par History
-!>      12.2009 created [tlaino] 
+!>      12.2009 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   FUNCTION cp_logger_get_default_io_unit(logger) RESULT(res)
@@ -546,7 +546,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Logs in a standard format
 !> \param logger is a type that describes where the logging must go.
-!> \param level describes the of the message: cp_fatal_level(3), 
+!> \param level describes the of the message: cp_fatal_level(3),
 !>     cp_failure_level(2), cp_warning_level(1), cp_note_level(0).
 !> \param fromWhere is a string of the form module:function or file:lineNr
 !>     that says where the error happend
@@ -554,8 +554,8 @@ CONTAINS
 !> \param local if true this goes to the local logger, otherwise (the default)
 !>     it goes to the global logger (and only the master process writes it)
 !> \note
-!>      In multithreaded situations it should be modified to print also 
-!>      the thread (and maybe the processor), and proper locking should be 
+!>      In multithreaded situations it should be modified to print also
+!>      the thread (and maybe the processor), and proper locking should be
 !>      performed.
 !>      At the moment it just goes to the default unit of the logger
 !> \par History
@@ -729,7 +729,7 @@ CONTAINS
                ".out",local=.TRUE.)
           CALL open_file(TRIM(filename),file_status="unknown",&
                file_action="WRITE",&
-               file_position="APPEND",& 
+               file_position="APPEND",&
                unit_number=lggr%default_local_unit_nr)
           WRITE (UNIT=lggr%default_local_unit_nr,FMT='(/,T2,A,I0,A,I0,A)',IOSTAT=iostat)&
                '*** Local logger file of MPI task ',lggr%para_env%mepos,&
@@ -790,7 +790,7 @@ CONTAINS
   END SUBROUTINE my_cp_para_env_release
 
 ! *****************************************************************************
-!> \brief generates a unique filename (ie adding eventual suffixes and 
+!> \brief generates a unique filename (ie adding eventual suffixes and
 !>      process ids)
 !> \param result the resulting string
 !> \param root the start of filename
@@ -799,7 +799,7 @@ CONTAINS
 !> \note
 !>      this should be a function returning a variable length string.
 !>      All spaces are moved to the end of the string.
-!>      Not fully optimized: result must be a littel longer than the 
+!>      Not fully optimized: result must be a littel longer than the
 !>      resulting compressed filename
 !> \par History
 !>      08.2002 created [fawzi]
@@ -841,7 +841,7 @@ CONTAINS
 !> \param logger the logger you want to change
 !> \param local_filename the root of the name of the file used for local
 !>        logging
-!> \param global_filename the root of the name of the file used for 
+!> \param global_filename the root of the name of the file used for
 !>        global logging
 !> \author Fawzi Mohamed
 ! *****************************************************************************
@@ -861,7 +861,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief converts an int to a string
-!>      (should be a variable length string, but that does not work with 
+!>      (should be a variable length string, but that does not work with
 !>      all the compilers)
 !> \param i the integer to convert
 !> \par History
@@ -889,7 +889,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief convert a double precision real in a string
-!>      (should be a variable length string, but that does not work with 
+!>      (should be a variable length string, but that does not work with
 !>      all the compilers)
 !> \param val the number to convert
 !> \par History

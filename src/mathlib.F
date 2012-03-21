@@ -333,7 +333,7 @@ CONTAINS
     abc = vector_product(bc,-ab)
     bcd = vector_product(cd,-bc)
     ! Calculate the normal vectors of the planes
-    ! defined by the points a,b,c and b,c,d     
+    ! defined by the points a,b,c and b,c,d
 
     det_abcd = det_3x3(abc,bcd,-bc)
     dihedral_angle_abcd = SIGN(1.0_dp,det_abcd)*angle(abc,bcd)
@@ -1355,7 +1355,7 @@ CONTAINS
       expint=EXP(-x)/x
     ELSE IF(x.EQ.0.0_dp) THEN  !Another special case.
       expint=1.0_dp/nm1
-    ELSE IF(x.GT.1.0_dp) THEN  !Lentz’s algorithm (§5.2).
+    ELSE IF(x.GT.1.0_dp) THEN  !Lentz�s algorithm (§5.2).
       b=x+n
       c=1.0_dp/FPMIN
       d=1.0_dp/b
@@ -1385,7 +1385,7 @@ CONTAINS
         IF(i.NE.nm1) THEN
           del=-fact/(i-nm1)
         ELSE
-          psi=-euler !Compute ψ(n).
+          psi=-euler !Compute �(n).
           DO ii=1,nm1
             psi=psi+1.0_dp/ii
           END DO

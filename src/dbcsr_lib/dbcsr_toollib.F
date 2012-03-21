@@ -477,8 +477,8 @@ CONTAINS
 !> \note
 !>       http://en.wikipedia.org/wiki/Hash_table
 !>       http://www.burtleburtle.net/bob/hash/doobs.html
-!>       However, since fortran doesn't have an unsigned 4 byte int 
-!>       we compute it using an integer with the appropriate range 
+!>       However, since fortran doesn't have an unsigned 4 byte int
+!>       we compute it using an integer with the appropriate range
 !>       we return already the index in the table as a final result
 !> \par History
 !>       09.2006 created [Joost VandeVondele]

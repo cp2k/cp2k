@@ -502,7 +502,7 @@ MODULE dbcsr_types
      INTEGER                 :: nfullrows_total, nfullcols_total
      INTEGER                 :: nblkrows_local, nblkcols_local
      INTEGER                 :: nfullrows_local, nfullcols_local
-     INTEGER                 :: data_type 
+     INTEGER                 :: data_type
      CHARACTER               :: replication_type
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
      !LOGICAL                 :: transpose

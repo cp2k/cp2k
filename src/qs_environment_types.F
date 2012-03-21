@@ -214,12 +214,12 @@ MODULE qs_environment_types
 !> \param id_nr identification number, guarateed to be unique
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param cell the simulation cell (box)
-!> \param image_matrix matrix needed for the image charge approach within QM/MM  
-!> \param image_coeff coefficients of the image charges within QM/MM             
+!> \param image_matrix matrix needed for the image charge approach within QM/MM
+!> \param image_coeff coefficients of the image charges within QM/MM
 !> \param ipiv auxiliary matrix needed for solving linear system of equations
-!>        within the QM/MM image charge approach                                 
+!>        within the QM/MM image charge approach
 !> \param calc_image_preconditioner LOGICAL which indicates if the preconditioner
-!>        matrix is calculated when determining the coefficients of the image 
+!>        matrix is calculated when determining the coefficients of the image
 !>        charges iteratively by CG
 !> \param dft_control object that contains the values of various parameters
 !>        relevant to a dft calculation
@@ -233,7 +233,7 @@ MODULE qs_environment_types
 !>        hartree term in semi-empirical methods
 !> \param sac_tbe: neighbor lists for the calculation of the tight binding
 !>        Ewald terms (DFTB)
-!> \param sab_core neighbor lists for the calculation of the core interactions 
+!> \param sab_core neighbor lists for the calculation of the core interactions
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
 !> \param sab_vdw: neighbor lists for the calculation of dispersion interactions
@@ -249,11 +249,11 @@ MODULE qs_environment_types
 !>        its derivatives wrt. x,y, and z (matrix_s(2:4))
 !> \param kinetic kinetic part of h
 !> \param gamma_matrix gamma (Coulomb) matrix in DFTB, if needed by the calculation also
-!>        its derivatives wrt. x,y, and z 
+!>        its derivatives wrt. x,y, and z
 !> \param rho the (old) density, in various representations (ao+grid)
 !> \param rho_xc the (old) soft density, used for the GAPW_XC method only
 !> \param scf_control various parameters relevant to the scf cycle
-!> \param rel_control various parameters relevant to the relativistic calclation 
+!> \param rel_control various parameters relevant to the relativistic calclation
 !> \param pw_env various things to create and get info on the grids used
 !>        by qs
 !> \param ewald_env information to perform ewald summation (used by DFTB)
@@ -285,7 +285,7 @@ MODULE qs_environment_types
 !> \param dftb_potential pair potentials for use with DFTB
 !> \param scp_env SCP environment for use with QS
 !> \param dispersion_env environment for use with QS dispersion
-!> 
+!>
 !>      compatibility get (things that you should get from the subsys):
 !> \param atomic_kind_set array with infos about the species (atomic_kinds)
 !>        present in the system
@@ -319,7 +319,7 @@ MODULE qs_environment_types
     LOGICAL :: has_unit_metric
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
-    LOGICAL :: calc_image_preconditioner                   
+    LOGICAL :: calc_image_preconditioner
     INTEGER :: nelectron_total
     INTEGER :: nelectron_spin(2)
     REAL(KIND=dp)                                         :: sim_time
@@ -360,7 +360,7 @@ MODULE qs_environment_types
                                                              rho_xc,&
                                                              rho_aux_fit
     TYPE(scf_control_type), POINTER                       :: scf_control
-    TYPE(rel_control_type), POINTER                       :: rel_control 
+    TYPE(rel_control_type), POINTER                       :: rel_control
     TYPE(scp_environment_type), POINTER                   :: scp_env
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
@@ -394,7 +394,7 @@ MODULE qs_environment_types
     INTEGER                                               :: outer_scf_ihistory
     TYPE(ep_qs_type), POINTER                             :: ep_qs_env
     TYPE(hfx_type),DIMENSION(:,:), POINTER                :: x_data
-    TYPE(et_coupling_type),POINTER                        :: et_coupling   
+    TYPE(et_coupling_type),POINTER                        :: et_coupling
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
     TYPE(cp_result_type) ,POINTER                         :: results
     TYPE(task_list_type), POINTER                         :: task_list
@@ -414,7 +414,7 @@ MODULE qs_environment_types
     TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
     TYPE(rt_prop_type),POINTER                            :: rtp
     TYPE(efield_berry_type),POINTER                       :: efield
-    ! a history for the broyden ot 
+    ! a history for the broyden ot
     REAL(KIND = dp)                                       :: broyden_adaptive_sigma
     TYPE(mp2_type), POINTER                               :: mp2_env
     TYPE(wannier_centres_type), POINTER,DIMENSION(:)      :: WannierCentres=>NULL()
@@ -444,8 +444,8 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_cn,sab_scp,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,particle_set,energy,force,harris_env,matrix_h,matrix_ks,run_rtp,rtp,& 
-       matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,& 
+       sab_se,sab_tbe,sab_core,particle_set,energy,force,harris_env,matrix_h,matrix_ks,run_rtp,rtp,&
+       matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
        vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr, local_particles,&
@@ -669,7 +669,7 @@ CONTAINS
     IF (PRESENT(mpools_aux_fit)) mpools_aux_fit => qs_env%mpools_aux_fit
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
-    IF (PRESENT(rel_control)) rel_control => qs_env%rel_control  
+    IF (PRESENT(rel_control)) rel_control => qs_env%rel_control
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
     IF (PRESENT(rho_nlcc)) rho_nlcc => qs_env%rho_nlcc
     IF (PRESENT(rho_nlcc_g)) rho_nlcc_g => qs_env%rho_nlcc_g
@@ -747,8 +747,8 @@ CONTAINS
     IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
     IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
     IF (PRESENT(x_data)) x_data => qs_env%x_data
-    IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
-    IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
+    IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling
+    IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
     IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
     IF (PRESENT(efield)) efield => qs_env%efield
 
@@ -764,7 +764,7 @@ CONTAINS
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
-!> \brief  Initialise the QUICKSTEP environment. 
+!> \brief  Initialise the QUICKSTEP environment.
 !> \author  MK
 !> \date    25.01.2002
 !> \version 1.0
@@ -825,7 +825,7 @@ CONTAINS
     NULLIFY (qs_env%ewald_env)
     NULLIFY (qs_env%ewald_pw)
     NULLIFY (qs_env%scf_control)
-    NULLIFY (qs_env%rel_control) 
+    NULLIFY (qs_env%rel_control)
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_nlcc)
     NULLIFY (qs_env%rho_nlcc_g)
@@ -877,7 +877,7 @@ CONTAINS
     qs_env%neighbor_list_id=-1
     qs_env%nelectron_total=-1
     qs_env%nelectron_spin=-1
-    
+
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
@@ -921,8 +921,8 @@ CONTAINS
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,energy,force,harris_env,matrix_h,matrix_ks,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
-       gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,& 
-       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,& 
+       gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,&
+       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,dbcsr_dist,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
@@ -1062,12 +1062,12 @@ CONTAINS
        CALL ga_env_retain(ga_env, error)
        CALL ga_env_release(qs_env%ga_env,error)
        qs_env%ga_env => ga_env
-    END IF 
+    END IF
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(qs_env%cell,error=error)
        qs_env%cell => cell
-    END IF 
+    END IF
     IF (PRESENT(nelectron_total)) qs_env%nelectron_total=nelectron_total
     IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
     IF (PRESENT(nelectron_spin))  qs_env%nelectron_spin=nelectron_spin
@@ -1631,7 +1631,7 @@ CONTAINS
           CALL qs_rho_release(qs_env%rho_aux_fit, error=error)
           CALL qs_rho_release(qs_env%rho_buffer,error=error)
           CALL scf_c_release(qs_env%scf_control, error=error)
-          CALL rel_c_release(qs_env%rel_control, error=error)  
+          CALL rel_c_release(qs_env%rel_control, error=error)
 
           IF(ASSOCIATED(qs_env%linres_control)) THEN
              CALL linres_control_release(qs_env%linres_control, error=error)
@@ -1672,14 +1672,14 @@ CONTAINS
              DEALLOCATE(qs_env%rho_core)
           ENDIF
           IF (ASSOCIATED(qs_env%image_matrix)) THEN
-             DEALLOCATE(qs_env%image_matrix)                 
-          ENDIF                                              
+             DEALLOCATE(qs_env%image_matrix)
+          ENDIF
           IF (ASSOCIATED(qs_env%ipiv)) THEN
-             DEALLOCATE(qs_env%ipiv)                         
-          ENDIF                                              
+             DEALLOCATE(qs_env%ipiv)
+          ENDIF
           IF (ASSOCIATED(qs_env%image_coeff)) THEN
-             DEALLOCATE(qs_env%image_coeff)                         
-          ENDIF                                              
+             DEALLOCATE(qs_env%image_coeff)
+          ENDIF
           IF (ASSOCIATED(qs_env%vppl)) THEN
              CALL pw_release(qs_env%vppl%pw,error=error)
              DEALLOCATE(qs_env%vppl)

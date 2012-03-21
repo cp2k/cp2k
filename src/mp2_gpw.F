@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Rountines to calculate MP2 energy using pw 
+!> \brief Rountines to calculate MP2 energy using pw
 !> \par History
 !>      10.2011 created [Joost VandeVondele and Mauro Del Ben]
 ! *****************************************************************************
@@ -127,7 +127,7 @@ MODULE mp2_gpw
   CONTAINS
 
 ! *****************************************************************************
-!> \brief with a big bang to mp2 
+!> \brief with a big bang to mp2
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,error)
@@ -339,8 +339,8 @@ MODULE mp2_gpw
     CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
     !CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
     !                poisson_env=poisson_env,error=error_sub)
-    
-    ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs 
+
+    ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
     progression_factor=qs_env%dft_control%qs_control%progression_factor
     n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
     ALLOCATE(cutoff_old(n_multigrid), STAT=stat)
@@ -355,7 +355,7 @@ MODULE mp2_gpw
     END DO
 
     relative_cutoff_old=qs_env%dft_control%qs_control%relative_cutoff
-    qs_env%dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp  
+    qs_env%dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp
 
     CALL pw_env_rebuild(pw_env=pw_env_sub, qs_env=qs_env, &
                         external_para_env=para_env_sub, error=error_sub)
@@ -484,7 +484,7 @@ MODULE mp2_gpw
                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                           mp2_env%mp2_memory,error_sub)
 
-    ! and now free the whole lot 
+    ! and now free the whole lot
     DEALLOCATE(C,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Auto,STAT=stat)
@@ -543,7 +543,7 @@ MODULE mp2_gpw
     CALL cp_logger_release(logger_sub)
 
     CALL cp_para_env_release(para_env_sub,error=error)
- 
+
     CALL timestop(handle)
 
   END SUBROUTINE mp2_gpw_main
@@ -618,7 +618,7 @@ MODULE mp2_gpw
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi_i
 
-!TYPE(pw_p_type)                          ::  psi_i  ! no store psi for occupied 
+!TYPE(pw_p_type)                          ::  psi_i  ! no store psi for occupied
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -721,7 +721,7 @@ MODULE mp2_gpw
     !  my_I_occupied_start=my_I_occupied_start+vector_batch_I_size_group(i)
     !  i_group_counter=i_group_counter+1
     !END DO
-    
+
     !XXXXXXXXXXXXX inverse group distribution
     group_counter=0
     a_group_counter=0
@@ -780,7 +780,7 @@ MODULE mp2_gpw
 
     DEALLOCATE(vector_B_sizes)
 
-    ! create an array containing a different "color" for each pair of 
+    ! create an array containing a different "color" for each pair of
     ! A_start and B_start, communication will take place only among
     ! those proc that have the same A_start and B_start
     ALLOCATE(color_array(0:para_env_sub%num_pe-1,0:q_best-1),STAT=stat)
@@ -886,7 +886,7 @@ MODULE mp2_gpw
         CALL integrate_v_rspace(rho_r, h=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
            basis_set_id=use_orb_basis_set, &
            sab_orb_external=sab_orb_sub, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
-        
+
         ! multiply and goooooooo ...
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
                                 0.0_dp, matrix_ia_jnu, filter_eps=eps_filter, error=error_sub)
@@ -909,14 +909,14 @@ MODULE mp2_gpw
            ENDDO
         ENDDO
         CALL cp_dbcsr_iterator_stop(iter)
- 
-        ! now mp_sum the matrix BIb_jb in and keep only my local 
+
+        ! now mp_sum the matrix BIb_jb in and keep only my local
         ! b_start, b_end
         CALL mp_sum(BIb_jb,para_env_sub%group)
         BIb_C(1:my_B_size,1:homo,i_counter)=BIb_jb(my_B_virtual_start:my_B_virtual_end,1:homo)
 
       END DO
-      
+
       DEALLOCATE(BIb_jb)
 
       ! calculate the contribution to MP2 energy for my local data
@@ -927,10 +927,10 @@ MODULE mp2_gpw
             Emp2_EX=Emp2_EX+BIb_C(b,j,i)*BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1)&
                   /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j))
           END DO
-        END DO 
+        END DO
       END DO
 
-      ! start communicating and collecting exchange contributions from 
+      ! start communicating and collecting exchange contributions from
       ! other processes in my exchange group
       DO index_proc_shift=1, size_of_exchange_group-1
         proc_send=proc_map(mepos_in_EX_group+index_proc_shift)
@@ -951,8 +951,8 @@ MODULE mp2_gpw
         ALLOCATE(BIb_send(my_B_size,size_EX_send,my_I_batch_size),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
         BIb_send(1:my_B_size,1:size_EX_send,1:my_I_batch_size)=BIb_C(1:my_B_size,EX_start_send:EX_end_send,1:my_I_batch_size)
-      
-        ! send and receive the exchange array 
+
+        ! send and receive the exchange array
         CALL mp_sendrecv(BIb_send,proc_send,BIb_EX,proc_receive,para_env_exchange%group)
 
         DO i=1,my_I_batch_size
@@ -988,10 +988,10 @@ MODULE mp2_gpw
     CALL cp_dbcsr_release(matrix_ia_jnu,error=error_sub)
     CALL cp_dbcsr_release(matrix_ia_jb,error=error_sub)
 
-    DO i=my_I_occupied_start, my_I_occupied_end  
+    DO i=my_I_occupied_start, my_I_occupied_end
       !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i(i)%pw,error=error_sub)
       CALL pw_release(psi_i(i)%pw,error=error_sub)
-    END DO 
+    END DO
     DEALLOCATE(psi_i)
     !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i%pw,error=error_sub) ! no store psi for occupied
 

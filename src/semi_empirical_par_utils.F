@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Utilities to post-process semi-empirical parameters
 !> \par History
-!>         [tlaino] 03.2008 - Splitting from semi_empirical_parameters and 
+!>         [tlaino] 03.2008 - Splitting from semi_empirical_parameters and
 !>                            keeping there only the setting of the SE params
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
@@ -91,7 +91,7 @@ MODULE semi_empirical_par_utils
         3, 3,                                                 3, 3, 3, 3, 3, 3,&!   18
         4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&!   36
         5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&!   54
-        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &      
+        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
                                 6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&!   86
        -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
@@ -101,7 +101,7 @@ MODULE semi_empirical_par_utils
         3, 3,                                                 3, 3, 3, 3, 3, 3,&!   18
         4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&!   36
         5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&!   54
-        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &      
+        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
                                 6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&!   86
         -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
@@ -111,17 +111,17 @@ MODULE semi_empirical_par_utils
        -1,-1,                                                 3, 3, 3, 3, 3,-1,&!   18
        -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3, 3,    4, 4, 4, 4, 4,-1,&!   36
        -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    5, 5, 5, 5, 5,-1,&!   54
-       -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &      
+       -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &
                                 5, 5, 5, 5, 5, 5, 5, 5, 5,   -1,-1,-1,-1,-1,-1,&!   86
        -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
-    
+
   INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqf = (/             -1,&!    0
        -1,                                                                  -1,&!    2
        -1,-1,                                                -1,-1,-1,-1,-1,-1,&!   10
        -1,-1,                                                -1,-1,-1,-1,-1,-1,&!   18
        -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&!   36
        -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&!   54
-       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &      
+       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &
                                -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&!   86
        -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
@@ -132,7 +132,7 @@ MODULE semi_empirical_par_utils
         1, 2,                                                 3, 4, 5, 6, 7, 8,&!   18
         1, 2, 3,                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7, 8,&!   36
         1, 2, 3,                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7, 8,&!   54
-        1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16, 3,                     &      
+        1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16, 3,                     &
                                 4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7,-1,&!   86
        -1,-1,-1, 4,-1, 6,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
@@ -144,10 +144,10 @@ MODULE semi_empirical_par_utils
         0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
         0, 0, 2,                4, 6, 5,10,12,14,16,10, 0,    0, 0, 0, 0, 0, 0,&!   36
         0, 0, 4,                4, 4, 5,10, 7, 8, 0,10, 0,    0, 0, 0, 0, 0, 0,&!   54
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &
                                 4, 6, 8,10,12,14, 9,10, 0,    0, 0, 0, 0, 0, 0,&!   86
-        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
-  
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
+
   ! r066:  <DD|DD> "0" term
   INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir066 =  (/             0,&!    0
         0,                                                                   0,&!    2
@@ -155,20 +155,20 @@ MODULE semi_empirical_par_utils
         0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
         0, 0, 0,                1, 3,10,10,15,21,28,45, 0,    0, 0, 0, 0, 0, 0,&!   36
         0, 0, 0,                1, 6,10,10,21,28,45,45, 0,    0, 0, 0, 0, 0, 0,&!   54
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &
                                 1, 3, 6,10,15,21,36,45, 0,    0, 0, 0, 0, 0, 0,&!   86
-        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
 
-  ! r244:  <SD|SD> 
+  ! r244:  <SD|SD>
   INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir244 =  (/             0,&!    0
         0,                                                                   0,&!    2
         0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
         0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
         0, 0, 1,                2, 3, 5, 5, 6, 7, 8, 5, 0,    0, 0, 0, 0, 0, 0,&!   36
         0, 0, 1,                2, 4, 5, 5, 5, 5, 0, 5, 0,    0, 0, 0, 0, 0, 0,&!   54
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &
                                 2, 3, 4, 5, 6, 7, 5, 5, 0,    0, 0, 0, 0, 0, 0,&!   86
-        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
 
   ! r266:  <DD|DD> "2" term
   INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir266 =  (/             0,&!    0
@@ -177,9 +177,9 @@ MODULE semi_empirical_par_utils
         0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
         0, 0, 0,                8,15,35,35,35,43,50,70, 0,    0, 0, 0, 0, 0, 0,&!   36
         0, 0, 0,                8,21,35,35,43,50,70,70, 0,    0, 0, 0, 0, 0, 0,&!   54
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &
                                 8,15,21,35,35,43,56,70, 0,    0, 0, 0, 0, 0, 0,&!   86
-        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
 
   ! r466:  <DD|DD> "4" term
   INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir466 =  (/             0,&!    0
@@ -188,9 +188,9 @@ MODULE semi_empirical_par_utils
         0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
         0, 0, 0,                1, 8,35,35,35,36,43,70, 0,    0, 0, 0, 0, 0, 0,&!   36
         0, 0, 0,                1,21,35,35,36,43,70,70, 0,    0, 0, 0, 0, 0, 0,&!   54
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &
                                 1, 8,21,35,35,36,56,70, 0,    0, 0, 0, 0, 0, 0,&!   86
-        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
 
   INTERFACE amn_l
      MODULE PROCEDURE amn_l1, amn_l2
@@ -307,7 +307,7 @@ CONTAINS
     sep%gss   = sep%gss/evolt
     sep%gsp   = sep%gsp/evolt
     sep%gpp   = sep%gpp/evolt
-    sep%gp2   = sep%gp2/evolt 
+    sep%gp2   = sep%gp2/evolt
     sep%gsd   = sep%gsd/evolt
     sep%gpd   = sep%gpd/evolt
     sep%gdd   = sep%gdd/evolt
@@ -363,14 +363,14 @@ CONTAINS
     iop = Nop(z)
     iod = Nod(z)
 
-    p  = 2.0_dp 
+    p  = 2.0_dp
     p4 = p**4
     !  GSSC is the number of two-electron terms of type <SS|SS>
     gssc  = REAL(MAX(ios-1,0),KIND=dp)
     k = iop
     !  GSPC is the number of two-electron terms of type <SS|PP>
-    gspc = REAL(ios*k,KIND=dp) 
-    l = MIN(k,6-k) 
+    gspc = REAL(ios*k,KIND=dp)
+    l = MIN(k,6-k)
     !  GP2C is the number of two-electron terms of type <PP|PP>
     !       plus 0.5 of the number of HPP integrals.
     !  (HPP is not used; instead it is replaced by 0.5(GPP-GP2))
@@ -382,52 +382,52 @@ CONTAINS
     !  P is non-zero, there are two S electrons)
     hspc = REAL(-k ,KIND=dp)
     !  Constraint the value of the STO exponent
-    zp = MAX(0.3_dp,zp) 
+    zp = MAX(0.3_dp,zp)
     !  Take into account constraints on the values of the integrals
-    hpp = 0.5_dp*(gpp-gp2) 
+    hpp = 0.5_dp*(gpp-gp2)
     hpp = MAX(0.1_dp,hpp)
     hsp = MAX(1.E-7_dp,hsp)
 
     ! Evaluation of EISOL
-    eisol = uss*ios + upp*iop + udd*iod + gss*gssc + gpp*gppc + gsp*gspc + gp2*gp2c + hsp*hspc 
+    eisol = uss*ios + upp*iop + udd*iod + gss*gssc + gpp*gppc + gsp*gspc + gp2*gp2c + hsp*hspc
 
-    ! Principal quantum number 
+    ! Principal quantum number
     qn = REAL(nqs(z),KIND=dp)
     CPPostcondition(qn>0, cp_failure_level, routineP, error, failure)
 
     ! Charge separation evaluation
-    dd = (2.0_dp*qn + 1)*(4.0_dp*zs*zp)**(qn + 0.5_dp)/(zs+zp)**(2.0_dp*qn + 2)/SQRT(3.0_dp) 
+    dd = (2.0_dp*qn + 1)*(4.0_dp*zs*zp)**(qn + 0.5_dp)/(zs+zp)**(2.0_dp*qn + 2)/SQRT(3.0_dp)
     qq = SQRT((4.0_dp*qn*qn + 6.0_dp*qn + 2.0_dp)/20.0_dp)/zp
 
     ! Calculation of the additive terms in atomic units
-    jmax = 5 
-    gdd1 = (hsp/(evolt*dd**2))**(1.0_dp/3.0_dp) 
-    d1 = gdd1 
-    d2 = gdd1 + 0.04_dp 
-    DO j = 1, jmax 
-       df = d2 - d1 
-       hsp1 = 0.5_dp*d1 - 0.5_dp/SQRT(4.0_dp*dd**2+1.0_dp/d1**2) 
-       hsp2 = 0.5_dp*d2 - 0.5_dp/SQRT(4.0_dp*dd**2+1.0_dp/d2**2) 
-       IF (ABS(hsp2 - hsp1) < EPSILON(0.0_dp)) EXIT  
-       d3 = d1 + df*(hsp/evolt-hsp1)/(hsp2 - hsp1) 
-       d1 = d2 
-       d2 = d3 
+    jmax = 5
+    gdd1 = (hsp/(evolt*dd**2))**(1.0_dp/3.0_dp)
+    d1 = gdd1
+    d2 = gdd1 + 0.04_dp
+    DO j = 1, jmax
+       df = d2 - d1
+       hsp1 = 0.5_dp*d1 - 0.5_dp/SQRT(4.0_dp*dd**2+1.0_dp/d1**2)
+       hsp2 = 0.5_dp*d2 - 0.5_dp/SQRT(4.0_dp*dd**2+1.0_dp/d2**2)
+       IF (ABS(hsp2 - hsp1) < EPSILON(0.0_dp)) EXIT
+       d3 = d1 + df*(hsp/evolt-hsp1)/(hsp2 - hsp1)
+       d1 = d2
+       d2 = d3
     END DO
-    gqq = (p4*hpp/(evolt*48.0_dp*qq**4))**0.2_dp 
-    q1 = gqq 
-    q2 = gqq + 0.04_dp 
-    DO j = 1, jmax 
-       qf = q2 - q1 
-       hpp1 = 0.25_dp*q1 - 0.5_dp/SQRT(4.0_dp*qq**2+1.0_dp/q1**2) + 0.25_dp/SQRT(8.0_dp*qq**2+1.0_dp/q1**2) 
-       hpp2 = 0.25_dp*q2 - 0.5_dp/SQRT(4.0_dp*qq**2+1.0_dp/q2**2) + 0.25_dp/SQRT(8.0_dp*qq**2+1.0_dp/q2**2) 
-       IF (ABS(hpp2 - hpp1) < EPSILON(0.0_dp)) EXIT  
-       q3 = q1 + qf*(hpp/evolt - hpp1)/(hpp2 - hpp1) 
-       q1 = q2 
-       q2 = q3 
+    gqq = (p4*hpp/(evolt*48.0_dp*qq**4))**0.2_dp
+    q1 = gqq
+    q2 = gqq + 0.04_dp
+    DO j = 1, jmax
+       qf = q2 - q1
+       hpp1 = 0.25_dp*q1 - 0.5_dp/SQRT(4.0_dp*qq**2+1.0_dp/q1**2) + 0.25_dp/SQRT(8.0_dp*qq**2+1.0_dp/q1**2)
+       hpp2 = 0.25_dp*q2 - 0.5_dp/SQRT(4.0_dp*qq**2+1.0_dp/q2**2) + 0.25_dp/SQRT(8.0_dp*qq**2+1.0_dp/q2**2)
+       IF (ABS(hpp2 - hpp1) < EPSILON(0.0_dp)) EXIT
+       q3 = q1 + qf*(hpp/evolt - hpp1)/(hpp2 - hpp1)
+       q1 = q2
+       q2 = q3
     END DO
-    am = gss/evolt 
-    ad = d2 
-    aq = q2 
+    am = gss/evolt
+    ad = d2
+    aq = q2
     IF (z==1) THEN
        ad = am
        aq = am
@@ -448,12 +448,12 @@ CONTAINS
   END SUBROUTINE calpar
 
 ! *****************************************************************************
-!> \brief  Finalize the initialization of parameters, defining additional 
+!> \brief  Finalize the initialization of parameters, defining additional
 !>         parameters for d-orbitals
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
-! *****************************************************************************  
+! *****************************************************************************
   SUBROUTINE calpar_d(sep,error)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -505,7 +505,7 @@ CONTAINS
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008 [tlaino]
-! *****************************************************************************    
+! *****************************************************************************
   FUNCTION element_has_d(sep, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -522,7 +522,7 @@ CONTAINS
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008 [tlaino]
-! *****************************************************************************    
+! *****************************************************************************
   FUNCTION element_has_f(sep, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -539,10 +539,10 @@ CONTAINS
 !>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
 !>
 !> \par    Notation Index: 1 (SS), 2 (SP), 3 (SD), 4 (PP), 5 (PD), 6 (DD)
-!> 
+!>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
-! *****************************************************************************    
+! *****************************************************************************
   SUBROUTINE amn_l1 (sep, amn, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(6), INTENT(OUT) :: amn
@@ -589,11 +589,11 @@ CPSourceFileRef)
 !> \brief  Computes the A^{\mu \nu}_l values for the evaluation of the two-center
 !>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
 !>
-!> \par    
-!> 
+!> \par
+!>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   09.2008 [tlaino]
-! *****************************************************************************    
+! *****************************************************************************
   SUBROUTINE amn_l2 (sep, amn, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(6, 0:2), &
@@ -652,13 +652,13 @@ CPSourceFileRef)
 !>         the two-center two-electron integrals with d-orbitals
 !> \par    Notation
 !>         -) Charge separations [sep%cs(1:6)]  [see equations (12)-(16) of TCA]
-!>         -) Additive terms of Klopman-Ohno terms [sep%ko(1:9)] [see equations 
+!>         -) Additive terms of Klopman-Ohno terms [sep%ko(1:9)] [see equations
 !>            (19)-(26) of TCA]
 !>         -) Atomic core additive term stored in sep%ko(9): used in the calculation
 !>            of the core-electron attractions and core-core repulsions
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE eval_cs_ko (sep,amn,error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(6), INTENT(IN)  :: amn
@@ -714,7 +714,7 @@ CPSourceFileRef)
 !> \brief  Computes the 1 center two-electrons integrals for a SPD basis
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE eval_1c_2el_spd(sep,error)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -858,7 +858,7 @@ CPSourceFileRef)
 !>         -) nb,nc:  Principle Quantum Number of AO,corresponding to electron 2
 !>         -) ec,ed:  Exponents of AO,corresponding to electron 2
 !> \date   03.2008 [tlaino]
-! ***************************************************************************** 
+! *****************************************************************************
   FUNCTION sc_param_low (k, na, ea, nb, eb, nc, ec, nd, ed, error) RESULT(res)
     INTEGER, INTENT(in)                      :: k, na
     REAL(KIND=dp), INTENT(in)                :: ea
@@ -932,7 +932,7 @@ CPSourceFileRef)
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE eisol_corr (sep, r016, r066, r244, r266, r466, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), INTENT(in)                :: r016, r066, r244, r266, r466
@@ -1015,7 +1015,7 @@ CPSourceFileRef)
   END FUNCTION ko_ij
 
 ! *****************************************************************************
-!> \brief  Fills the 1 center 2 electron integrals for the construction of the 
+!> \brief  Fills the 1 center 2 electron integrals for the construction of the
 !>         one-electron fock matrix
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008 [tlaino]

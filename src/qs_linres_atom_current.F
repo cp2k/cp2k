@@ -325,7 +325,7 @@ CONTAINS
                    !
                    ! thanks to the linearity of the response, we
                    ! can avoid computing soft-soft interations.
-                   ! those terms are already included in the 
+                   ! those terms are already included in the
                    ! regular grid.
                    IF(sgf_soft_only_a.AND.sgf_soft_only_b) CYCLE
                    !
@@ -441,7 +441,7 @@ CONTAINS
     DEALLOCATE(basis_set_list,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
-    ! parallel sum up 
+    ! parallel sum up
     nbr_dbl = 0.0_dp
     DO ikind = 1 ,nkind
        atomic_kind => atomic_kind_set(ikind)
@@ -545,7 +545,7 @@ CONTAINS
     CALL timestop(handle)
     !
   END SUBROUTINE calculate_jrho_atom_coeff
-  
+
   SUBROUTINE calculate_jrho_atom_rad(qs_env,current_env,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -854,11 +854,11 @@ CONTAINS
                             ENDIF
                          ENDIF
                          !------------------------------------------------------------------
-                         ! 
+                         !
                          Fr_h => jrho1_atom%jrho_h(ispin)%r_coef
                          Fr_s => jrho1_atom%jrho_s(ispin)%r_coef
                          !------------------------------------------------------------------
-                         ! 
+                         !
                          Fr_a_h => jrho1_atom%jrho_a_h(ispin)%r_coef
                          Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
                          Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef
@@ -1086,7 +1086,7 @@ CONTAINS
                    ENDDO ! iat
                    !
                    !------------------------------------------------------------------
-                   ! 
+                   !
                 ENDDO !ipgf2
              ENDDO ! ipgf1
              m2s = m2s+maxso
@@ -1222,9 +1222,9 @@ CONTAINS
              IF(do_igaim) THEN
                 !------------------------------------------------------------------
                 ! Hard current density response
-                ! radial(ia,ir) = (               aj(ia) * Rai(ir,iso) + Daij 
+                ! radial(ia,ir) = (               aj(ia) * Rai(ir,iso) + Daij
                 !                  -  aii(ia) * ( aj(ia) * Rbi(ir,iso) + Dbij )
-                !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij ) 
+                !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij )
                 !                 ) * Ylm(ia)
                 rad_part =                a(idir,ia)*Fr_a_h    (ir,iso)+Fr_b_h    (ir,iso) &
                      &   - g( iiB,ir,ia)*(a(idir,ia)*Fr_a_h_iii(ir,iso)+Fr_b_h_iii(ir,iso))&
@@ -1244,9 +1244,9 @@ CONTAINS
              ELSE
                 !------------------------------------------------------------------
                 ! Hard current density response
-                ! radial(ia,ir) = (               aj(ia) * Rai(ir,iso) + Daij 
+                ! radial(ia,ir) = (               aj(ia) * Rai(ir,iso) + Daij
                 !                  -  aii(ia) * ( aj(ia) * Rbi(ir,iso) + Dbij )
-                !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij ) 
+                !                  + aiii(ia) * ( aj(ia) * Rci(ir,iso) + Dcij )
                 !                 ) * Ylm(ia)
                 rad_part =             a(idir,ia)*Fr_a_h    (ir,iso)+Fr_b_h    (ir,iso) &
                      &   - a( iiB,ia)*(a(idir,ia)*Fr_a_h_iii(ir,iso)+Fr_b_h_iii(ir,iso))&
@@ -1363,7 +1363,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     cell=cell,&
-                    para_env=para_env,error=error) 
+                    para_env=para_env,error=error)
 
     CALL get_current_env(current_env=current_env,&
                          jrho1_atom_set=jrho1_atom_set,&
@@ -1391,7 +1391,7 @@ CONTAINS
           IF (.NOT.paw_atom) CYCLE
 
           ! Distribute the atoms of this kind
-    
+
           bo = get_limit( natom, para_env%num_pe, para_env%mepos )
 
           DO iat = bo(1),bo(2)
@@ -1425,6 +1425,6 @@ CONTAINS
     DEALLOCATE(ratom,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE calculate_jrho_atom 
+  END SUBROUTINE calculate_jrho_atom
 
 END MODULE qs_linres_atom_current

@@ -42,7 +42,7 @@ CONTAINS
 !>             'F' free BC, isolated systems.
 !>                 The program calculates the solution as if the given density is
 !>                 "alone" in R^3 space.
-!>             'S' surface BC, isolated in y direction, periodic in xz plane                
+!>             'S' surface BC, isolated in y direction, periodic in xz plane
 !>                 The given density is supposed to be periodic in the xz plane,
 !>                 so the dimensions in these direction mus be compatible with the FFT
 !>                 Beware of the fact that the isolated direction is y!
@@ -51,30 +51,30 @@ CONTAINS
 !>                 then all the dimensions must be compatible with the FFT.
 !>                 No need for setting up the kernel.
 !> \param datacode Indicates the distribution of the data of the input/output array:
-!>             'G' global data. Each process has the whole array of the density 
+!>             'G' global data. Each process has the whole array of the density
 !>                 which will be overwritten with the whole array of the potential
 !>             'D' distributed data. Each process has only the needed part of the density
 !>                 and of the potential. The data distribution is such that each processor
-!>                 has the xy planes needed for the calculation AND for the evaluation of the 
+!>                 has the xy planes needed for the calculation AND for the evaluation of the
 !>                 gradient, needed for XC part, and for the White-Bird correction, which
 !>                 may lead up to 8 planes more on each side. Due to this fact, the information
 !>                 between the processors may overlap.
 !> \param nproc number of processors
 !> \param iproc label of the process,from 0 to nproc-1
-!> \param n 01,n02,n03: global dimension in the three directions. They are the same no matter if the 
+!> \param n 01,n02,n03: global dimension in the three directions. They are the same no matter if the
 !>                 datacode is in 'G' or in 'D' position.
-!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
+!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to
 !>                 be equal in the three directions
 !> \param rhopot main input/output array.
 !>                 On input, it represents the density values on the grid points
-!>                 On output, it is the Hartree potential, namely the solution of the Poisson 
-!>                 equation PLUS (when ixc/=0) the XC potential PLUS (again for ixc/=0) the 
+!>                 On output, it is the Hartree potential, namely the solution of the Poisson
+!>                 equation PLUS (when ixc/=0) the XC potential PLUS (again for ixc/=0) the
 !>                 pot_ion array. The output is non overlapping, in the sense that it does not
 !>                 consider the points that are related to gradient and WB calculation
 !> \param karray kernel of the poisson equation. It is provided in distributed case, with
 !>                 dimensions that are related to the output of the PS_dim4allocation routine
 !>                 it MUST be created by following the same geocode as the Poisson Solver.
-!> \warning The dimensions of the arrays must be compatible with geocode, datacode, nproc, 
+!> \warning The dimensions of the arrays must be compatible with geocode, datacode, nproc,
 !>     ixc and iproc. Since the arguments of these routines are indicated with the *, it
 !>     is IMPERATIVE to use the PS_dim4allocation routine for calculation arrays sizes.
 !> \author Luigi Genovese
@@ -92,7 +92,7 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: nordgr = 4 
+    INTEGER, PARAMETER                       :: nordgr = 4
 
     INTEGER :: i1, i2, i3, i_all, i_stat, iend, istart, j2, m1, m2, m3, md1, &
       md2, md3, n1, n2, n3, nd1, nd2, nd3, nlim, nwb, nwbl, nwbr, nxc, nxcl, &
@@ -124,10 +124,10 @@ CONTAINS
     END IF
     !  CALL timing(iproc,'Exchangecorr  ','ON')
     !dimension for exchange-correlation (different in the global or distributed case)
-    !let us calculate the dimension of the portion of the rhopot array to be passed 
+    !let us calculate the dimension of the portion of the rhopot array to be passed
     !to the xc routine
-    !this portion will depend on the need of calculating the gradient or not, 
-    !and whether the White-Bird correction must be inserted or not 
+    !this portion will depend on the need of calculating the gradient or not,
+    !and whether the White-Bird correction must be inserted or not
     !(absent only in the LB ixc=13 case)
 
     !nxc is the effective part of the third dimension that is being processed
@@ -161,7 +161,7 @@ CONTAINS
     !!$  print *,'density must go from',min(istart+1,m2),'to',iend,'with n2/2=',n2/2
     !!$  print *,'        it goes from',i3start+nwbl+nxcl-1,'to',i3start+nxc-1
 
-    IF (istart+1 <= m2) THEN 
+    IF (istart+1 <= m2) THEN
        red_fact=1._dp
        CALL  scale_and_distribute(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
             hx,hy,hz,rhopot,zf,iproc,nproc,red_fact)
@@ -176,14 +176,14 @@ CONTAINS
        END DO
     END IF
 
-    !this routine builds the values for each process of the potential (zf), multiplying by scal 
+    !this routine builds the values for each process of the potential (zf), multiplying by scal
     IF(geocode == 'P') THEN
        !no powers of hgrid because they are incorporated in the plane wave treatment
        scal=1._dp/REAL(n1*n2*n3,KIND=dp)
        CALL P_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,zf,&
             scal,hx,hy,hz,pw_grid%para%rs_group,error)
     ELSE IF (geocode == 'S') THEN
-       !only one power of hgrid 
+       !only one power of hgrid
        scal=hy/REAL(n1*n2*n3,KIND=dp)
        CALL S_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf,&
             scal,hx,hy,hz,pw_grid%para%rs_group,error)
@@ -219,19 +219,19 @@ CONTAINS
 !> \brief Calculate four sets of dimension needed for the calculation of the
 !>     convolution for the periodic system
 !> \param n 01,n02,n03: original real dimensions (input)
-!> 
+!>
 !> \param m 1,m2,m3: original real dimension, with m2 and m3 exchanged
-!> 
+!>
 !> \param n 1,n2,n3: the first FFT dimensions, for the moment supposed to be even
-!> 
+!>
 !> \param md 1,md2,md3: the n1,n2,n3 dimensions. They contain the real unpadded space,
 !>                 properly enlarged to be compatible with the FFT dimensions n_i.
 !>                 md2 is further enlarged to be a multiple of nproc
-!> 
+!>
 !> \param nd 1,nd2,nd3: fourier dimensions for which the kernel is injective,
 !>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
 !>                 enlarged to be a multiple of nproc
-!> \warning This four sets of dimensions are actually redundant (mi=n0i), 
+!> \warning This four sets of dimensions are actually redundant (mi=n0i),
 !>     due to the backward-compatibility
 !>     with the other geometries of the Poisson Solver.
 !>     The dimensions 2 and 3 are exchanged.
@@ -291,7 +291,7 @@ CONTAINS
 
     !dimensions of the kernel, 1/8 of the total volume,
     !compatible with nproc
-    nd1=n1/2+1 
+    nd1=n1/2+1
     nd2=n2/2+1
     nd3=n3/2+1
 250 IF (MODULO(nd3,nproc) .NE. 0) THEN
@@ -305,22 +305,22 @@ CONTAINS
 !> \brief Calculate four sets of dimension needed for the calculation of the
 !>     convolution for the surface system
 !> \param n 01,n02,n03: original real dimensions (input)
-!> 
+!>
 !> \param m 1,m2,m3: original real dimension, with 2 and 3 exchanged
-!> 
+!>
 !> \param n 1,n2: the first FFT dimensions, for the moment supposed to be even
 !> \param n 3:    the double of the first FFT even dimension greater than m3
 !>           (improved for the HalFFT procedure)
-!> 
-!> \param md 1,md2:     the n1,n2 dimensions. 
+!>
+!> \param md 1,md2:     the n1,n2 dimensions.
 !> \param md 3:         half of n3 dimension. They contain the real unpadded space,
 !>                 properly enlarged to be compatible with the FFT dimensions n_i.
 !>                 md2 is further enlarged to be a multiple of nproc
-!> 
+!>
 !> \param nd 1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
 !>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
 !>                 enlarged to be a multiple of nproc
-!> \warning This four sets of dimensions are actually redundant (mi=n0i), 
+!> \warning This four sets of dimensions are actually redundant (mi=n0i),
 !>     due to the backward-compatibility
 !>     with the Poisson Solver with other geometries.
 !>     Dimensions n02 and n03 were exchanged
@@ -403,17 +403,17 @@ CONTAINS
 !> \brief Calculate four sets of dimension needed for the calculation of the
 !>     zero-padded convolution
 !> \param n 01,n02,n03: original real dimensions (input)
-!> 
+!>
 !> \param m 1,m2,m3: original real dimension with the dimension 2 and 3 exchanged
-!> 
+!>
 !> \param n 1,n2: the first FFT even dimensions greater that 2*m1, 2*m2
 !> \param n 3:    the double of the first FFT even dimension greater than m3
 !>           (improved for the HalFFT procedure)
-!> 
+!>
 !> \param md 1,md2,md3: half of n1,n2,n3 dimension. They contain the real unpadded space,
 !>                 properly enlarged to be compatible with the FFT dimensions n_i.
 !>                 md2 is further enlarged to be a multiple of nproc
-!> 
+!>
 !> \param nd 1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
 !>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
 !>                 enlarged to be a multiple of nproc

@@ -63,10 +63,10 @@ MODULE input_cp2k
 
   IMPLICIT NONE
   PRIVATE
-  
+
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k'
-  
+
   PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
        create_global_section, create_cp2k_input_reading, empty_initial_variables
 
@@ -76,8 +76,8 @@ CONTAINS
 !> \brief reads the cp2k input from the given filepath and returns a section_vals
 !>      containing the input
 !> \param file_path path where the input should be read
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION create_cp2k_input_reading(file_path,initial_variables,para_env,error) RESULT(res)
@@ -116,8 +116,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input structure of the file used by cp2k
 !> \param root_section the input structure to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_cp2k_root_section(root_section,error)
@@ -193,8 +193,8 @@ CONTAINS
 !> \brief utility function to ease the transition to the new input.
 !>      returns true if the new input was parsed
 !> \param input_file the parsed input file
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION parsed_cp2k_input(input_file,check_this_section,error) RESULT(res)
@@ -230,8 +230,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief section to hold global settings for the whole program
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_global_section(section,error)
@@ -314,7 +314,7 @@ CONTAINS
    CALL keyword_create(keyword, name="FFTW_PLAN_TYPE",&
          description="FFTW can have improved performance if it is allowed to plan with "//&
                      "explicit measurements which strategy is best for a given FFT. "//&
-                     "While a plan based on measurements is generally faster, "//& 
+                     "While a plan based on measurements is generally faster, "//&
                      "differences in machine load will lead to different plans for the same input file, "//&
                      "and thus numerics for the FFTs will be slightly different from run to run."//&
                      "PATIENT planning is recommended for long ab initio MD runs.",&
@@ -404,7 +404,7 @@ CONTAINS
          default_i_val=do_cp2k, supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
- 
+
     CALL keyword_create(keyword, name="PROJECT_NAME",&
          variants=(/"PROJECT"/),&
          description="Name of the project (used to build the name of the "//&
@@ -428,7 +428,7 @@ CONTAINS
          usage="RUN_TYPE MD",&
          default_i_val=energy_force_run,&
          enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT",&
-         "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS",&   
+         "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS",&
          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO",&
          "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES","RT_PROPAGATION",&
@@ -940,8 +940,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief section with the tests of the libraries or external code that cp2k uses
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_test_section(section,error)
@@ -999,7 +999,7 @@ CONTAINS
          description="Tests the Clebsch-Gordon Coefficients. "//&
          "Tests are repeated the given number of times.",&
          usage="clebsch_gordon 10",default_i_val=0,error=error)
-    
+
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -1010,7 +1010,7 @@ CONTAINS
          "of the size 8*10**requested_size, where requested_size is the value "//&
          "given to this keyword",&
          usage="mpi 6",default_i_val=0,error=error)
-    
+
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -1026,7 +1026,7 @@ CONTAINS
          print_level=medium_print_level,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
-    CALL section_release(print_key,error=error)    
+    CALL section_release(print_key,error=error)
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of tests output",&
@@ -1504,8 +1504,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief section to setup debugging parameter
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_debug_section(section,error)
@@ -1536,7 +1536,7 @@ CONTAINS
          usage="DEBUG_STRESS_TENSOR <LOGICAL>",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)    
+    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="DX",&
          description=" Setup the DX parameter to evaluate numerical derivatives",&
@@ -1556,8 +1556,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the multiple force_eval section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_multi_force_section(section,error)
@@ -1601,8 +1601,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the exteranal restart section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_ext_restart_section(section,error)
@@ -1840,8 +1840,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the farming section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_farming_section(section,error)
@@ -1886,7 +1886,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="GROUP_PARTITION",&
-         description="gives the exact number of processors for each group.",& 
+         description="gives the exact number of processors for each group.",&
          usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -1997,8 +1997,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief section for the chemical potential difference run
 !> \param section will contain the cpot section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_cpot_section(section,error)

@@ -2015,7 +2015,7 @@
     CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #else
     send_request=0
-    recv_request=0 
+    recv_request=0
     msgout = msgin
 #endif
 #if defined(__mp_timeset__)

@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE lib_kinds
   IMPLICIT NONE
-  
+
   PRIVATE
 #if defined(__SGL)
   INTEGER, PARAMETER, PUBLIC :: wp = KIND(0.0)

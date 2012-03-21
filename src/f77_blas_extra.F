@@ -5,9 +5,9 @@ MODULE f77_blas_extra
 ! with BLAS (http://www.netlib.org/blas/) Jan 2006.
 !
 ! Note: All procedures have intents specified for their arguments.
-!       These are the de facto intents of these arguments, as found  
+!       These are the de facto intents of these arguments, as found
 !       in the netlib source/comments. Nevertheless, since the netlib
-!       blas implementation is in Fortran77, INTENTs are 
+!       blas implementation is in Fortran77, INTENTs are
 !       not specified. Some compilers might produce an error/warning (if strict
 !       standard conformance checking is enabled). In that case, one option
 !       is to edit the files and remove all INTENT declarations. E.g. :
@@ -82,7 +82,7 @@ CONTAINS
         y(i + 6) = x(i + 6)
    50 CONTINUE
       RETURN
- 
+
    END SUBROUTINE SDCOPY
 
 ! *****************************************************************************

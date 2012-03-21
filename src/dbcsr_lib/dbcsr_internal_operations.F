@@ -211,7 +211,7 @@ MODULE dbcsr_internal_operations
 !> \var b_norms           Norms of B matrix blocks.
 !> \var my_wm             Work matrix associated with this thread
 !> \var lastblk           Number of elements in the work matrix
-!>                        
+!>
 !> \var datasize          Data size of the work matrix (view of
 !>                        same work matrix variable).
 !> \var original_lastblk  Number of work matrix blocks before addition
@@ -841,7 +841,7 @@ CONTAINS
     !
 !$omp parallel &
 !$omp default (none) &
-!$omp firstprivate (fill_guess_global) & 
+!$omp firstprivate (fill_guess_global) &
 !$omp shared (left_buffer_comm, right_buffer_comm, product_matrix,&
 !$omp         keep_sparsity, filter_eps, row_max_epss, &
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
@@ -1131,7 +1131,7 @@ CONTAINS
                   vprow=left_send_vrow, vpcol=left_send_vcol,& ! output
                   myvprow=left_myfirstvrow,& ! nothing happens in the rows
                   ! go through all my column images
-                  myvpcol=v_ki+left_myfirstvcol,& 
+                  myvpcol=v_ki+left_myfirstvcol,&
                   ! send to process min_nimages left in the grid
                   vpcol_shift=-min_nimages,&
                   shifting='0', error=error)
@@ -1546,7 +1546,7 @@ CONTAINS
             routineN, "Could not deallocate memory for row block epsilons",&
             __LINE__,&
             error=error)
-    ENDIF 
+    ENDIF
     !
     CALL dbcsr_destroy_array (right_buffer_1, error=error)
     CALL dbcsr_destroy_array (right_buffer_2, error=error)
@@ -1831,7 +1831,7 @@ CONTAINS
        carrier%k_locals => k_locals
        CALL ensure_array_size (carrier%k_sizes, ub=SIZE(k_locals), error=error)
        CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals),&
-            k_locals, carrier%k_sizes)    
+            k_locals, carrier%k_sizes)
     ELSE
        k_locals => carrier%k_locals
     ENDIF
@@ -2162,7 +2162,7 @@ CONTAINS
     ENDIF
     !
     !
-    !$ NULLIFY (product_thread_dist)    
+    !$ NULLIFY (product_thread_dist)
     !$ CALL dbcsr_assert (dbcsr_distribution_has_threads (product%dist),&
     !$      dbcsr_fatal_level, dbcsr_internal_error, routineN,&
     !$      "Missing thread distribution.", __LINE__, error=error)
@@ -2532,7 +2532,7 @@ CONTAINS
     ! Clear MM stack
     !CALL dbcsr_psg_rm_data_c (&
     !     dbcsr_ps_set_get_group(carrier%param_sets, 1, 1, error), error=error)
-   
+
     CALL dbcsr_ps_set_destroy (carrier%param_sets, error=error)
     !$OMP MASTER
     IF (mm_driver .EQ. mm_driver_cuda) THEN
@@ -2826,13 +2826,13 @@ CONTAINS
     ENDIF
 
     IF (af-ai+1 .GT. 0 .AND. bf-bi+1 .GT. 0) THEN
-      
+
        ! the maximum number of blocks can be safely estimated by considering both the rowxcol,
        ! but also the blocks the latter can never be larger than norec**2, which is a 'small' constant
        max_new_nblks = MIN(INT(mf-mi+1,int_8) * INT(nf-ni+1,int_8), &
                            INT(af-ai+1,int_8) * INT(bf-bi+1,int_8))
        nblks_new = carrier%lastblk + max_new_nblks
-       
+
        CALL ensure_array_size(carrier%my_wm%row_i, ub=nblks_new,&
             factor=default_resize_factor, error=error)
        CALL ensure_array_size(carrier%my_wm%col_i, ub=nblks_new,&
@@ -2892,7 +2892,7 @@ CONTAINS
        !
        ! If a stack group was filled up during the csr_multiply call then
        ! we roll around to a new memory region.
-       IF (advance_memreg) THEN 
+       IF (advance_memreg) THEN
             CALL dbcsr_ps_set_advance (carrier%param_sets,&
                  advance_memreg = .TRUE.,&
                  error=error)
@@ -3027,7 +3027,7 @@ CONTAINS
 
        a_row_eps = row_max_epss (a_row_l)
        mapped_row_size = row_size_maps(m_size)
-       
+
        a_blk_cycle: DO a_blk = a_row_p(a_row_l)+1, a_row_p(a_row_l+1)
           a_col_l = a_blk_info(1, a_blk)
           IF (debug_mod) WRITE(*,*)ithread,routineN//" A col", a_col_l,";",a_row_l
@@ -3754,9 +3754,9 @@ CONTAINS
 
     INTEGER                                  :: j
 
-    res=i  
-    j=0 
-    DO WHILE (j<res) 
+    res=i
+    j=0
+    DO WHILE (j<res)
       DO j=2,res-1
          IF (MOD(res,j)==0) THEN
             res=res+1
@@ -3766,7 +3766,7 @@ CONTAINS
     ENDDO
   END FUNCTION
 
-  SUBROUTINE hash_table_create(hash_table,table_size) 
+  SUBROUTINE hash_table_create(hash_table,table_size)
     TYPE(hash_table_type)                    :: hash_table
     INTEGER, INTENT(IN)                      :: table_size
 
@@ -3810,7 +3810,7 @@ CONTAINS
     IF (hash_table%nele*inv_hash_table_fill>hash_table%nmax) THEN
        ALLOCATE(tmp_hash(LBOUND(hash_table%table,1):UBOUND(hash_table%table,1)))
        tmp_hash=hash_table%table
-       CALL hash_table_release(hash_table) 
+       CALL hash_table_release(hash_table)
        CALL hash_table_create(hash_table,INT((UBOUND(tmp_hash,1)+8)*hash_table_expand))
        DO i=LBOUND(tmp_hash,1),UBOUND(tmp_hash,1)
           IF (tmp_hash(i)%c.NE.0) THEN
@@ -3983,8 +3983,8 @@ CONTAINS
     IF (verbose_acc) WRITE(*,*)'allocating',&
          host_matrix%wms(ithread+1)%lastblk*4, 'locks'
     CALL xtime_set (t_tmp)
-     
-    clocks_size = INT(host_matrix%nblkcols_local,KIND=int_8)* & 
+
+    clocks_size = INT(host_matrix%nblkcols_local,KIND=int_8)* &
                   INT(host_matrix%nblkrows_local,KIND=int_8)* &
                   fill_guess
     clocks_size = MAX(1,INT(clocks_size, KIND=int_4))

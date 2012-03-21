@@ -344,7 +344,7 @@ CONTAINS
        CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
        CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
        CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs,error=error)
-       
+
        IF (ewald_env%ewald_type==do_ewald_none) THEN
           ewald_env%rcut = 0.0_dp
        ELSE

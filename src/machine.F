@@ -15,7 +15,7 @@ MODULE machine
   !$ USE OMP_LIB
   USE  kinds,  ONLY        : dp
 #if defined ( __AIX )
-  USE machine_aix, ONLY    : & 
+  USE machine_aix, ONLY    : &
        m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details, &
@@ -144,10 +144,10 @@ SUBROUTINE m_flush(lunit)
    IF (flush_should_flush) CALL m_flush_internal(lunit)
 END SUBROUTINE
 ! *****************************************************************************
-!> \brief returns time from a real-time clock, protected against rolling 
-!>      early/easily 
+!> \brief returns time from a real-time clock, protected against rolling
+!>      early/easily
 !> \note
-!>      same implementation for all machines. 
+!>      same implementation for all machines.
 !>      might still roll, if not called multiple times per count_max/count_rate
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
@@ -169,7 +169,7 @@ FUNCTION m_walltime() RESULT (wt)
     ENDIF
 
     CALL SYSTEM_CLOCK(count=count)
-    
+
     ! protect against non-standard cases where time might be non-monotonous,
     ! but it is unlikely that the clock cycled (e.g. underlying system clock adjustments)
     ! i.e. if count is smaller than last_count by only a small fraction of count_max,
@@ -177,7 +177,7 @@ FUNCTION m_walltime() RESULT (wt)
     ! if count is smaller, we assume that the clock cycled.
     IF (count<last_count) THEN
        IF ( last_count-count < count_max / 100 ) THEN
-          count=last_count 
+          count=last_count
        ELSE
           cycles=cycles+1
        ENDIF

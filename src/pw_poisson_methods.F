@@ -96,15 +96,15 @@ CONTAINS
        END IF
        CALL pw_green_release(poisson_env%green_fft,pw_pool=pw_pool,error=error)
        poisson_env%rebuild=.TRUE.
-       
+
     END IF
   END SUBROUTINE pw_poisson_cleanup
 
 ! *****************************************************************************
 !> \brief checks if pw_poisson_rebuild has to be called and calls it if needed
 !> \param poisson_env the object to be checked
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_poisson_check(poisson_env,error)
@@ -192,8 +192,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief rebuilds all the internal values needed to use the poisson solver
 !> \param poisson_env the environment to rebuild
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      rebuilds if poisson_env%rebuild is true
 !> \author fawzi
@@ -228,7 +228,7 @@ CONTAINS
                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
                    error=error)
            CASE(use_wavelet)
-              CPPrecondition(ASSOCIATED(density%pw_grid),cp_failure_level,routineP,error,failure)             
+              CPPrecondition(ASSOCIATED(density%pw_grid),cp_failure_level,routineP,error,failure)
               CALL ps_wavelet_create(poisson_env%parameters,poisson_env%wavelet,&
                                      density%pw_grid,error)
            CASE(use_none)
@@ -307,7 +307,7 @@ CONTAINS
                      in_space = RECIPROCALSPACE, error=error)
                 CALL pw_copy(rhog,tmpg, error=error)
              END IF
-             
+
              DO ig=1,ng
                 rhog%cc(ig) = rhog%cc(ig) *  poisson_env%green_fft%influence_fn%cc(ig)
              ENDDO
@@ -352,7 +352,7 @@ CONTAINS
 
           CALL z_slices_to_cp2k_distribution(rhor ,poisson_env% wavelet,rhor% pw_grid, error)
           IF ( PRESENT ( vhartree ) ) THEN
-             CALL pw_transfer(rhor,vhartree, error=error)  
+             CALL pw_transfer(rhor,vhartree, error=error)
              IF ( PRESENT ( ehartree ) ) THEN
                 ehartree = 0.5_dp * pw_integral_ab ( density , vhartree , error=error)
              END IF
@@ -361,7 +361,7 @@ CONTAINS
              CALL pw_pool_give_back_pw(pw_pool, tmpg, error=error)
           END IF
           CALL pw_pool_give_back_pw (pw_pool, rhor, error=error )
-       END SELECT 
+       END SELECT
 
        ! do we need to calculate the derivative of the potential?
        IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN
@@ -380,7 +380,7 @@ CONTAINS
                 CALL pw_transfer ( dvg ( i )%pw, dvhartree ( i ) % pw , error=error)
              END DO
           END IF
-          ! Calculate the contribution to the stress tensor this is only the contribution from 
+          ! Calculate the contribution to the stress tensor this is only the contribution from
           ! the Greens FUNCTION and the volume factor of the plane waves
           IF ( PRESENT ( h_stress ) ) THEN
              ffa = -1.0_dp / fourpi
@@ -397,7 +397,7 @@ CONTAINS
              SELECT CASE(poisson_env%used_grid)
              CASE(use_gs_grid)
                 ! FFT based Poisson-Solver
-                SELECT CASE(poisson_env%green_fft%method)  
+                SELECT CASE(poisson_env%green_fft%method)
                 CASE(PERIODIC3D)
                    ! Do Nothing
                 CASE(ANALYTIC2D, MT2D)
@@ -449,7 +449,7 @@ CONTAINS
              CALL pw_pool_give_back_pw ( pw_pool, dvg ( i )%pw, error=error )
           END DO
        END IF
-       
+
        CALL pw_pool_give_back_pw (pw_pool, rhog, error=error )
     ELSE
        ! stop on failure ?!

@@ -40,7 +40,7 @@ MODULE topology_xtl
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -97,7 +97,7 @@ CONTAINS
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XTL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
 
     pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
@@ -117,7 +117,7 @@ CONTAINS
     CALL reallocate(atom_info%id_element,1,nblock)
 
     IF (iw>0)  WRITE(iw,*) "    Reading in XTL file ",TRIM(topology%coord_file_name)
-    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)  
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
 
     ! Check for TITLE
     CALL parser_search_string(parser,"TITLE",ignore_case=.FALSE.,found=found,&
@@ -141,7 +141,7 @@ CONTAINS
        ! Assuming by default we work in 3D-periodic systems
        dimensions = 3
     END IF
-    
+
     ! Parsing cell infos
     periodic = 1
     ! Check for   _cell_length_a
@@ -250,7 +250,7 @@ CPSourceFileRef)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(A)')" XTL_INFO| Symmetry Infos :: "//TRIM(parser%input_line(parser%icol:))
     END IF
-    
+
     ! Check for SYM MAT
     CALL parser_search_string(parser,"SYM MAT",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
@@ -277,7 +277,7 @@ CPSourceFileRef,&
              DO jj = 1, natom
                 r2 = atom_info%r(1:3,jj)
                 r  = pbc(r1-r2,cell)
-                IF (SQRT(DOT_PRODUCT(r,r))<=threshold) THEN 
+                IF (SQRT(DOT_PRODUCT(r,r))<=threshold) THEN
                    check = .FALSE.
                    EXIT
                 END IF
@@ -318,7 +318,7 @@ CPSourceFileRef,&
     ! Releasse local cell type and parser
     CALL cell_release(cell,error=error)
     CALL parser_release(parser,error=error)
-    
+
     ! Reallocate all structures with the exact NATOM size
     CALL reallocate(atom_info%id_molname,1,natom)
     CALL reallocate(atom_info%id_resname,1,natom)
@@ -330,7 +330,7 @@ CPSourceFileRef,&
     CALL reallocate(atom_info%occup,1,natom)
     CALL reallocate(atom_info%beta,1,natom)
     CALL reallocate(atom_info%id_element,1,natom)
-    
+
     topology%natoms            = natom
     topology%molname_generated = .TRUE.
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&

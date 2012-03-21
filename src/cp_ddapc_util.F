@@ -67,7 +67,7 @@ MODULE cp_ddapc_util
             restraint_functional_potential,&
             modify_hartree_pot,&
             cp_ddapc_init
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -158,7 +158,7 @@ CONTAINS
           CALL section_vals_val_get(density_fit_section,"MIN_RADIUS",r_val=rcmin,error=error)
           CALL section_vals_val_get(density_fit_section,"PFACTOR",r_val=pfact,error=error)
           ALLOCATE(radii(num_gauss), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO i = 1, num_gauss
              radii(i) = rcmin*pfact**(i-1)
           END DO
@@ -185,7 +185,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw2,logger,density_fit_section,&
             "PROGRAM_RUN_INFO/CONDITION_NUMBER",error=error)
        DEALLOCATE(radii, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
     END IF
@@ -193,7 +193,7 @@ CONTAINS
   END SUBROUTINE cp_ddapc_init
 
 ! *****************************************************************************
-!> \brief Computes the Density Derived Atomic Point Charges 
+!> \brief Computes the Density Derived Atomic Point Charges
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -253,7 +253,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure         = .FALSE.
     need_f          = .FALSE.
-    IF (PRESENT(calc_force))  need_f      = calc_force    
+    IF (PRESENT(calc_force))  need_f      = calc_force
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
             radii, inp_radii, particle_set, qs_charges, cp_ddapc_env)
@@ -269,7 +269,7 @@ CONTAINS
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
-       IF (PRESENT(iwc)) THEN 
+       IF (PRESENT(iwc)) THEN
           iw = iwc
        ELSE
           iw=cp_print_key_unit_nr(logger,density_fit_section,&
@@ -295,9 +295,9 @@ CONTAINS
           CASE(do_full_density)
              ! Otherwise build the total QS density (electron+nuclei) in G-space
              IF(dft_control%qs_control%gapw) THEN
-                CALL pw_transfer(rho0_s_gs%pw,rho_tot_g, error=error)       
+                CALL pw_transfer(rho0_s_gs%pw,rho_tot_g, error=error)
              ELSE
-                CALL pw_transfer(rho_core%pw,rho_tot_g, error=error)       
+                CALL pw_transfer(rho_core%pw,rho_tot_g, error=error)
              END IF
              DO ispin=1,SIZE(rho%rho_g)
                 CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_g, error=error)
@@ -328,7 +328,7 @@ CONTAINS
           CALL section_vals_val_get(density_fit_section,"MIN_RADIUS",r_val=rcmin,error=error)
           CALL section_vals_val_get(density_fit_section,"PFACTOR",r_val=pfact,error=error)
           ALLOCATE(radii(num_gauss), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO i = 1, num_gauss
              radii(i) = rcmin*pfact**(i-1)
           END DO
@@ -343,17 +343,17 @@ CONTAINS
           out_radii = radii
        END IF
        CALL section_vals_val_get(density_fit_section,"GCUT",r_val=gcut,error=error)
-       cp_ddapc_env => qs_env%cp_ddapc_env 
-       ! 
+       cp_ddapc_env => qs_env%cp_ddapc_env
+       !
        ! Start with the linear system
        !
-       ndim = SIZE(particle_set)*SIZE(radii) 
+       ndim = SIZE(particle_set)*SIZE(radii)
        ALLOCATE(bv(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(qv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(qtot(SIZE(particle_set)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(cv(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL timeset(routineN//"-charges",handle2)
@@ -397,7 +397,7 @@ CONTAINS
        !
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
        !
-       IF (need_f) THEN 
+       IF (need_f) THEN
           CALL timeset(routineN//"-forces",handle3)
           IF (iw>0) THEN
              WRITE(iw,'(T3,A)')" Evaluating DDAPC atomic derivatives .."
@@ -407,7 +407,7 @@ CONTAINS
           ALLOCATE(dbv(ndim,3), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)     
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           !NB refactor math in inner loop - no more dqv0, but new temporaries instead
           ALLOCATE(cvT_AmI(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -434,20 +434,20 @@ CONTAINS
              IF (debug_this_module) THEN
                 CALL debug_der_b_vector(dbv, particle_set, radii, rho_tot_g,&
                      gcut, iparticle, Vol, qs_env, error)
-                cp_ddapc_env => qs_env%cp_ddapc_env 
+                cp_ddapc_env => qs_env%cp_ddapc_env
              END IF
              CALL build_der_A_matrix(dAm, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                  particle_set, radii, rho_tot_g, gcut, iparticle, g_dot_rvec_sin, g_dot_rvec_cos, error); 
+                  particle_set, radii, rho_tot_g, gcut, iparticle, g_dot_rvec_sin, g_dot_rvec_cos, error);
              !NB no more reduction of dbv and dAm - instead we go through with each node's contribution
              !NB and reduce resulting charges/forces once, at the end.  Intermediate speedup can be
              !NB had by reducing dqv after the inner loop, and then other routines don't need to know
              !NB that contributions to dqv are distributed over the nodes.
-             !NB also get rid of zeroing of dAm and division by Vol**2 - it's slow, and can be done 
+             !NB also get rid of zeroing of dAm and division by Vol**2 - it's slow, and can be done
              !NB more quickly later, to a scalar or vector rather than a matrix
              IF (debug_this_module) THEN
                 CALL debug_der_A_matrix(dAm, particle_set, radii, rho_tot_g,&
                      gcut, iparticle, Vol, qs_env, error)
-                cp_ddapc_env => qs_env%cp_ddapc_env 
+                cp_ddapc_env => qs_env%cp_ddapc_env
              END IF
              DO j = 1, 3
                 !NB dAmj is actually pretty sparse - one block of cols + one block of rows - use this here:
@@ -472,7 +472,7 @@ CONTAINS
              dAm((iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:,:) = 0.0_dp
              dAm(:,(iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:) = 0.0_dp
           END DO ! iparticle
-          !NB final part of refactoring of math - one dgemm is faster than many dgemv 
+          !NB final part of refactoring of math - one dgemm is faster than many dgemv
           CALL dgemm('N','N',SIZE(dqv,1),SIZE(dqv,2)*SIZE(dqv,3),SIZE(cp_ddapc_env%AmI,2),1.0_dp,&
                      cp_ddapc_env%AmI,SIZE(cp_ddapc_env%AmI,1),tv,SIZE(tv,1),0.0_dp,dqv,SIZE(dqv,1))
           !NB deallocate g_dot_rvec_sin and g_dot_rvec_cos
@@ -492,7 +492,7 @@ CONTAINS
           IF (debug_this_module) THEN
              CALL debug_charge(dqv, qs_env, density_fit_section, &
                   particle_set, radii, rho_tot_g, type_of_density, error)
-             cp_ddapc_env => qs_env%cp_ddapc_env 
+             cp_ddapc_env => qs_env%cp_ddapc_env
           END IF
           DEALLOCATE(dqv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -606,12 +606,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              DO igauss = 1, SIZE(radii)
                 idim   = idim + 1
                 rc     = radii(igauss)
-                rc2    = rc*rc                
+                rc2    = rc*rc
                 rvec   = particle_set(iparticle)%r
                 arg    = DOT_PRODUCT(gvec,rvec)
                 phase  = CMPLX(COS(arg),-SIN(arg),KIND=dp)
                 gfunc  = EXP(-g2*rc2/4.0_dp)
-                g_corr = g_corr + gfunc * cv(idim) * phase 
+                g_corr = g_corr + gfunc * cv(idim) * phase
              END DO
           END DO
           g_corr = g_corr * w
@@ -681,12 +681,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              DO igauss = 1, SIZE(radii)
                 idim   = idim + 1
                 rc     = radii(igauss)
-                rc2    = rc*rc                
+                rc2    = rc*rc
                 rvec   = particle_set(iparticle)%r
                 arg    = DOT_PRODUCT(gvec,rvec)
                 phase  = CMPLX(COS(arg),-SIN(arg),KIND=dp)
                 gfunc  = EXP(-g2*rc2/4.0_dp)
-                g_corr = g_corr + gfunc * cv(idim) * phase 
+                g_corr = g_corr + gfunc * cv(idim) * phase
              END DO
           END DO
           g_corr = g_corr * w
@@ -697,7 +697,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
   END SUBROUTINE modify_hartree_pot
 
 ! *****************************************************************************
-!> \brief To Debug the derivative of the B vector for the solution of the 
+!> \brief To Debug the derivative of the B vector for the solution of the
 !>      linear system
 !> \par History
 !>      08.2005 created [tlaino]
@@ -738,7 +738,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(ddbv(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       rvec = particle_set(iparticle)%r                
+       rvec = particle_set(iparticle)%r
        cp_ddapc_env => qs_env%cp_ddapc_env
        DO i = 1, 3
           bv1 = 0.0_dp
@@ -776,7 +776,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
   END SUBROUTINE debug_der_b_vector
 
 ! *****************************************************************************
-!> \brief To Debug the derivative of the A matrix for the solution of the 
+!> \brief To Debug the derivative of the A matrix for the solution of the
 !>      linear system
 !> \par History
 !>      08.2005 created [tlaino]
@@ -821,7 +821,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(ddAm(ndim,ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       rvec = particle_set(iparticle)%r                
+       rvec = particle_set(iparticle)%r
        cp_ddapc_env => qs_env%cp_ddapc_env
        CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
        DO i = 1, 3
@@ -863,7 +863,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     END IF
     CALL timestop(handle)
   END SUBROUTINE debug_der_A_matrix
-  
+
 ! *****************************************************************************
 !> \brief To Debug the fitted charges
 !> \par History
@@ -900,7 +900,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        ndim = SIZE(particle_set)*SIZE(radii)
        NULLIFY(qtot1, qtot2)
        ALLOCATE(qtot1(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(qtot2(ndim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(ddqv(ndim),stat=stat)
@@ -936,5 +936,5 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     END IF
     CALL timestop(handle)
   END SUBROUTINE debug_charge
-  
+
 END MODULE cp_ddapc_util

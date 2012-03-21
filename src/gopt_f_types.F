@@ -72,12 +72,12 @@ MODULE gopt_f_types
   END TYPE gopt_f_type
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \param gopt_env the geometry optimization environment to be created
 !>      force_env:
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -145,13 +145,13 @@ CONTAINS
                 natom = force_env_get_natom(force_env,error)
                 dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
                 CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section, error)
-                
+
                 ! Setup the GEO_OPT environment for the rotation of the Dimer
                 rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT",error=error)
                 CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section,&
                      type_id=default_minimization_method_id,error=error)
                 gopt_env%gopt_dimer_param%type_id = default_ts_method_id
-                
+
                 CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
                      globenv=globenv, geo_opt_section=rot_opt_section, eval_opt_geo=eval_opt_geo, error=error)
                 CALL dimer_env_retain(gopt_env%dimer_env, error)
@@ -177,8 +177,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param gopt_env the geometry optimization environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -202,8 +202,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param gopt_env the geometry optimization environment to release
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************

@@ -21,7 +21,7 @@ MODULE exclusion_types
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei
      INTEGER, POINTER, DIMENSION(:)        :: list_onfo
   END TYPE
-  
+
   PUBLIC :: exclusion_type,&
             exclusion_release
 
@@ -71,6 +71,6 @@ CONTAINS
       DEALLOCATE(exclusions,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    ENDIF
- END SUBROUTINE exclusion_release  
+ END SUBROUTINE exclusion_release
 
 END MODULE exclusion_types

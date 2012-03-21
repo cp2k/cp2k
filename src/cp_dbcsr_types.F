@@ -11,7 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2010
-!> - Moved basic routines from _operations to 
+!> - Moved basic routines from _operations to
 !> - 2010-08-12 [UB] Added buffer definitions and mapping type.
 !> - 2011-11-14 [UB] Removed buffers and maps
 ! *****************************************************************************

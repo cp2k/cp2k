@@ -57,8 +57,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief performs further checks on an input that parsed successfully
 !> \param input_file the parsed input
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      at the moment does nothing
 !> \author fawzi
@@ -98,7 +98,7 @@ CONTAINS
        ! multiple force_eval only if present RESPA or MIXED calculation is performed
        section2 => section_vals_get_subs_vals(input_file,"MOTION%MD%RESPA",error=error)
        CALL section_vals_get(section2,explicit=explicit,error=error)
-       DO iforce_eval=1,nforce_eval         
+       DO iforce_eval=1,nforce_eval
           section3 =>section_vals_get_subs_vals(sections,"MIXED",&
                i_rep_section=iforce_eval,error=error)
           CALL section_vals_get(section3,explicit=explicit_mix,error=error)
@@ -142,8 +142,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief expand a shortcutted functional section
 !> \param functionals the functional section to expand
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xc_functionals_expand(functionals,xc_section,error)
@@ -157,7 +157,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     IF (.NOT. failure) THEN
        CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
             i_val=shortcut,error=error)
@@ -260,8 +260,8 @@ CONTAINS
 !> \brief Replaces the requested sections in the input with those found
 !>      in the external restart (EXT_RESTART%RESTART_FILE_NAME).
 !> \param input_file the input file to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE handle_ext_restart(input_file,para_env,output_unit,error)
@@ -300,8 +300,8 @@ CONTAINS
                                                 sections1, sections2
 
     NULLIFY(restarted_infos,iwalkers_status,rwalkers_status,vec,ivec,work,iwork)
-    CALL timeset(routineN,handle)   
-    failure=.FALSE. 
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
     IF (.NOT. failure) THEN
        ! Handle restart file
        r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART",error=error)
@@ -354,7 +354,7 @@ CONTAINS
                    CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
                    IF (flag) THEN
                       section  => section_vals_get_subs_vals(section1,"CELL",error=error)
-                      CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
+                      CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)
                       CALL set_restart_info("CELL",restarted_infos,error)
                    END IF
 
@@ -422,7 +422,7 @@ CONTAINS
                      routineP,"Error while reading the restart file. Two force_eval have incompatible"//&
                      " subsys.One of them has an allocated subsys while the other has not! Check your"//&
                      " input file or whether the restart file is compatible with the input!",&
-                     error,failure)    
+                     error,failure)
              END IF
              ! QMMM restarts
              CALL section_vals_val_get(r_section,"RESTART_QMMM",l_val=flag,error=error)
@@ -448,7 +448,7 @@ CONTAINS
              bsse_check = (explicit1.AND.explicit2)
              IF (flag.AND.bsse_check) THEN
                 section  => section_vals_get_subs_vals(section1,"FRAGMENT_ENERGIES",error=error)
-                CALL section_vals_set_subs_vals(section2,"FRAGMENT_ENERGIES",section,error=error) 
+                CALL section_vals_set_subs_vals(section2,"FRAGMENT_ENERGIES",section,error=error)
                 CALL set_restart_info("BSSE FRAGMENT ENERGIES",restarted_infos,error)
              END IF
           END DO
@@ -510,7 +510,7 @@ CONTAINS
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
-                !RG Adaptive hills 
+                !RG Adaptive hills
                 CALL section_vals_val_get(restart_file,&
                      "MOTION%FREE_ENERGY%METADYN%OLD_HILL_NUMBER",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
@@ -519,7 +519,7 @@ CONTAINS
                      "MOTION%FREE_ENERGY%METADYN%OLD_HILL_STEP",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
                      "MOTION%FREE_ENERGY%METADYN%OLD_HILL_STEP",i_val=myi,error=error)
-                !RG Adaptive hills 
+                !RG Adaptive hills
                 CALL set_restart_info("METADYNAMIC COUNTERS",restarted_infos,error)
              END IF
           END IF
@@ -796,7 +796,7 @@ CONTAINS
     failure = .FALSE.
     isize = 0
     IF (ASSOCIATED(restarted_infos)) isize = SIZE(restarted_infos)
-    isize = isize + 1 
+    isize = isize + 1
     CALL reallocate(restarted_infos,1,isize)
     restarted_infos(isize) = TRIM(label)
 
@@ -860,8 +860,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Possibly restart thermostats information
 !> \param input_file the input file to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE restart_thermostat(flag, input_file, restart_file, path, check, error)
@@ -889,7 +889,7 @@ CONTAINS
        ! sense to do any kind of restart
        CALL section_vals_val_get(input_file,TRIM(path)//"%TYPE",i_val=input_type,error=error)
        CALL section_vals_val_get(restart_file,TRIM(path)//"%TYPE",i_val=restart_type,error=error)
-       
+
        IF (input_type==do_thermo_same_as_part) THEN
           CALL section_vals_val_get(input_file,"MOTION%MD%THERMOSTAT%TYPE",i_val=input_type,error=error)
        END IF
@@ -908,13 +908,13 @@ CONTAINS
           CASE(do_thermo_nose)
              section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%COORD",error=error)
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%COORD",section,error=error)
-             
+
              section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%VELOCITY",error=error)
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%VELOCITY",section,error=error)
-             
+
              section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%MASS",error=error)
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%MASS",section,error=error)
-             
+
              section => section_vals_get_subs_vals(restart_file,TRIM(path)//"%NOSE%FORCE",error=error)
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%NOSE%FORCE",section,error=error)
           CASE(do_thermo_csvr)
@@ -952,8 +952,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Checks if there are the proper conditions to do a restart
 !> \param input_file the input file to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   FUNCTION check_restart(input_file, restart_file, tag_section, error) RESULT(do_restart)
@@ -970,14 +970,14 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: work_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE. 
+    failure=.FALSE.
     NULLIFY(work_section)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section),error=error)
        CALL section_vals_get(work_section,explicit=explicit1,error=error)
        work_section => section_vals_get_subs_vals(restart_file,TRIM(tag_section),error=error)
        CALL section_vals_get(work_section,explicit=explicit2,error=error)
-       
+
        do_restart = explicit1.AND.explicit2
     END IF
     CALL timestop(handle)
@@ -987,8 +987,8 @@ CPSourceFileRef,&
 !> \brief Removes section used to restart a calculation from an
 !>      input file in memory
 !> \param input_file the input file to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE remove_restart_info(input_file,error)
@@ -1006,15 +1006,15 @@ CPSourceFileRef,&
                                                 sections1, work_section
 
     CALL timeset(routineN,handle)
-    
-    failure=.FALSE. 
+
+    failure=.FALSE.
     NULLIFY(work_section)
     IF (.NOT. failure) THEN
        section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        sections1  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
-       
+
        DO iforce_eval = 1, nforce_eval1
           section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",i_rep_section=iforce_eval,error=error)
           section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
@@ -1098,8 +1098,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief This subroutine controls the defaults for the restartable quantities..
 !> \param input_file the input file to initialize
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
   SUBROUTINE handle_defaults_restart(r_section,error)
@@ -1115,7 +1115,7 @@ CPSourceFileRef,&
     TYPE(section_type), POINTER              :: section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE. 
+    failure=.FALSE.
     IF (.NOT. failure) THEN
        NULLIFY(keyword, section)
        CALL section_vals_get(r_section, section=section, error=error)
@@ -1137,5 +1137,5 @@ CPSourceFileRef,&
    CALL timestop(handle)
 
   END SUBROUTINE handle_defaults_restart
-  
+
 END MODULE input_cp2k_check

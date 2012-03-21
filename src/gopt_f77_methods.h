@@ -10,13 +10,13 @@
 !> \param x the position where the function should be evaluated
 !> \param f the function value
 !> \param gradient the value of its gradient
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
-INTERFACE 
+INTERFACE
 
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
     USE cp_para_types,                   ONLY: cp_para_env_type

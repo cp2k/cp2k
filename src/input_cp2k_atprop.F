@@ -36,8 +36,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the ATOMIC section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author JHU
 ! *****************************************************************************
   SUBROUTINE create_atprop_section(section,error)
@@ -72,7 +72,7 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Calculate atomic pressure tensors ",&

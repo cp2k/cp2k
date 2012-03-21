@@ -65,7 +65,7 @@ MODULE se_fock_matrix_ga
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_ga'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   LOGICAL, PARAMETER, PRIVATE          :: debug_energy_coulomb_lr = .FALSE.
-  
+
   PUBLIC :: build_se_fock_matrix
 
 CONTAINS
@@ -240,7 +240,7 @@ CONTAINS
                          energy%qmmm_el +&
                          energy%mulliken
 !      WRITE ( *, * ) ' AFTER TOTAL', energy%total
-  
+
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -287,6 +287,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_se_fock_matrix
-    
+
 END MODULE se_fock_matrix_ga
 

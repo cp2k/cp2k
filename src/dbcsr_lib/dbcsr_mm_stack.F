@@ -739,7 +739,7 @@ CONTAINS
      t_tmp=m_walltime()
      !$OMP ATOMIC
      t_process_stack = t_process_stack - t_tmp
-    ENDIF  
+    ENDIF
 
     state = dbcsr_ps_state_working
     IF (dbg) THEN
@@ -935,7 +935,7 @@ CONTAINS
      t_tmp=m_walltime()
     !$OMP ATOMIC
      t_process_stack = t_process_stack + t_tmp
-    ENDIF 
+    ENDIF
   END SUBROUTINE process_mm_stack
 
 

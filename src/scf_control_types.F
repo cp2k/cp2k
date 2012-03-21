@@ -387,7 +387,7 @@ CONTAINS
        IF(scf_control%use_diag) THEN
          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%_SECTION_PARAMETERS_",&
             l_val=scf_control%do_diag_sub,error=error)
-       END IF    
+       END IF
        CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=scf_control%use_ot,error=error)
        IF ( scf_control%use_diag .AND. scf_control%use_ot ) THEN
           ! don't allow both options to be true
@@ -405,12 +405,12 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"cholesky",i_val=cholesky_flag,error=error)
        IF(cholesky_flag>0) THEN
          scf_control%use_cholesky = .TRUE.
-       END IF 
+       END IF
        CALL section_vals_val_get(scf_section,"eps_scf",r_val=scf_control%eps_scf,error=error)
        CALL section_vals_val_get(scf_section,"level_shift",r_val=scf_control%level_shift,error=error)
        CALL section_vals_val_get(scf_section,"max_diis",i_val=scf_control%max_diis,error=error)
        CALL section_vals_val_get(scf_section,"max_scf",i_val=scf_control%max_scf,error=error)
- 
+
        ! Diagonaliztion section
        IF ( scf_control%use_diag ) THEN
           CALL section_vals_val_get(scf_section,"DIAGONALIZATION%ALGORITHM",&

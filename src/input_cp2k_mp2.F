@@ -38,8 +38,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the mp2 part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author MDB
 ! *****************************************************************************
   SUBROUTINE create_mp2_section(section,error)
@@ -107,7 +107,7 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
        CALL create_mp2_direct(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -121,10 +121,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
     END IF
- 
+
   END SUBROUTINE create_mp2_section
 
-  SUBROUTINE create_mp2_direct(section,error)                                 
+  SUBROUTINE create_mp2_direct(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -255,7 +255,7 @@ CONTAINS
                          "(Coulomb, TShPSC operator).",&
             usage="POTENTIAL_TYPE TSHPSC",&
             enum_c_vals=s2a("COULOMB","TShPSC"),&
-            enum_i_vals=(/do_hfx_potential_coulomb,& 
+            enum_i_vals=(/do_hfx_potential_coulomb,&
                           do_mp2_potential_TShPSC/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
                           "TShPSC: 1/x - s/Rc  ->  for x<=Rc "//&
@@ -268,11 +268,11 @@ CONTAINS
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-      
+
        CALL keyword_create(keyword, name="TRUNCATION_RADIUS",&
             description="Determines truncation radius for the truncated TShPSC potential. "//&
                         "Only valid when doing truncated calculation",&
-            usage="TRUNCATION_RADIUS 10.0",required=.FALSE.,type_of_var=real_t,&  
+            usage="TRUNCATION_RADIUS 10.0",required=.FALSE.,type_of_var=real_t,&
             default_r_val=10.0_dp,&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -292,6 +292,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_mp2_potential
-   
+
 END MODULE input_cp2k_mp2
 

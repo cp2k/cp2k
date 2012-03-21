@@ -7,7 +7,7 @@
 !> \brief routines and types for Hartree-Fock-Exchange
 !> \par History
 !>      11.2006 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_compression_methods
   USE cp_files,                        ONLY: close_file,&
@@ -27,7 +27,7 @@ MODULE hfx_compression_methods
           hfx_reset_cache_and_container, hfx_decompress_first_cache, &
           hfx_flush_last_cache, hfx_add_mult_cache_elements,&
           hfx_get_mult_cache_elements
-         
+
 
 #define CACHE_SIZE 1024
 
@@ -48,7 +48,7 @@ MODULE hfx_compression_methods
        36028797018963968_int_8, 72057594037927936_int_8, 144115188075855872_int_8, 288230376151711744_int_8, &
        576460752303423488_int_8, 1152921504606846976_int_8, 2305843009213693952_int_8, &
        4611686018427387904_int_8, ugly_duck /)
-       
+
 
 
 !***
@@ -83,7 +83,7 @@ MODULE hfx_compression_methods
     INTEGER(int_8)                           :: int_val
 
     int_val = value + shifts(nbits-1)
-    
+
     IF(cache%element_counter /= CACHE_SIZE ) THEN
       cache%data(cache%element_counter) = int_val
       cache%element_counter = cache%element_counter + 1
@@ -97,7 +97,7 @@ MODULE hfx_compression_methods
 
 ! *****************************************************************************
 !> \brief - This routine compresses a full cache and stores its values
-!>        in a container. If necessary, a new list entry is allocated 
+!>        in a container. If necessary, a new list entry is allocated
 !> \param full_array values from the cache
 !> \param container linked list, that stores the compressed values
 !> \param nints number of int_8 values to be compressed
@@ -155,7 +155,7 @@ MODULE hfx_compression_methods
       END IF
       !! compress remaining ints
       CALL ints2bits_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
-      container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
+      container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64
     END IF
 
   END SUBROUTINE hfx_compress_cache
@@ -181,12 +181,12 @@ MODULE hfx_compression_methods
     LOGICAL                                  :: use_disk_storage
 
     IF(cache%element_counter /= CACHE_SIZE ) THEN
-      value = cache%data(cache%element_counter) 
+      value = cache%data(cache%element_counter)
       cache%element_counter = cache%element_counter + 1
     ELSE
       value = cache%data(CACHE_SIZE)
       CALL hfx_decompress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
-      cache%element_counter = 1 
+      cache%element_counter = 1
     END IF
 
     value = value - shifts(nbits-1)
@@ -240,7 +240,7 @@ MODULE hfx_compression_methods
       END IF
       !! decompress remaining ints
       CALL bits2ints_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
-      container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
+      container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64
     END IF
   END SUBROUTINE hfx_decompress_cache
 
@@ -324,7 +324,7 @@ MODULE hfx_compression_methods
         memory_usage = memory_usage + 1
         container%file_counter = container%file_counter + 1
       END IF
-    END IF  
+    END IF
   END SUBROUTINE hfx_flush_last_cache
 
 ! *****************************************************************************
@@ -376,7 +376,7 @@ MODULE hfx_compression_methods
       END DO
       cache%element_counter = end_idx + 1
     ELSE
-      tmp_elements = CACHE_SIZE - start_idx + 1    
+      tmp_elements = CACHE_SIZE - start_idx + 1
       DO i=1,tmp_elements
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
@@ -399,7 +399,7 @@ MODULE hfx_compression_methods
           cache%data(i-tmp_elements) = shift
         END IF
       END DO
-      cache%element_counter = nints-tmp_elements + 1 
+      cache%element_counter = nints-tmp_elements + 1
     END IF
   END SUBROUTINE hfx_add_mult_cache_elements
 

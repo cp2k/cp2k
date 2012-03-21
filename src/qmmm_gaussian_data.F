@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief GEEP coefficients for fixed radii. THIS IS THE GEEP LIB.
 !>      They can be used together with the "omotetia" rule for erf function
-!>      to obtain the expansion for whatever radius one desires 
+!>      to obtain the expansion for whatever radius one desires
 !>      Radius value are in Angstrom
 !> \par History
 !>      7.2005 created [tlaino]
@@ -27,14 +27,14 @@ MODULE qmmm_gaussian_data
   ! G3
   REAL(KIND=dp), PARAMETER, PUBLIC :: g3_rc = 1.17_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a1 = 0.1142400_dp, g3_b1 = 3.08635_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a2 = 0.0867876_dp, g3_b2 = 2.38345_dp  
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a3 = 0.0971514_dp, g3_b3 = 4.35065_dp  
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a2 = 0.0867876_dp, g3_b2 = 2.38345_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a3 = 0.0971514_dp, g3_b3 = 4.35065_dp
   ! G4
   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_rc = 1.05_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a1 = 0.0776927_dp, g4_b1 = 2.10429_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a2 = 0.1123350_dp, g4_b2 = 2.59523_dp  
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a3 = 0.0812506_dp, g4_b3 = 4.73860_dp  
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a4 = 0.0989222_dp, g4_b4 = 3.44579_dp  
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a2 = 0.1123350_dp, g4_b2 = 2.59523_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a3 = 0.0812506_dp, g4_b3 = 4.73860_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a4 = 0.0989222_dp, g4_b4 = 3.44579_dp
   ! G5
   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_rc = 0.9_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a1 = 0.0728205_dp, g5_b1 = 4.98419_dp
@@ -95,30 +95,30 @@ MODULE qmmm_gaussian_data
   ! G11
   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_rc  = 0.50_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a1  = 0.1041690_dp, g11_b1  = 0.979627_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a2  = 0.0271666_dp, g11_b2  = 5.799740_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a3  = 0.0200111_dp, g11_b3  = 5.799660_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a4  = 0.0483906_dp, g11_b4  = 4.203330_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a5  = 0.1777430_dp, g11_b5  = 1.370190_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a6  = 0.0731972_dp, g11_b6  = 3.415900_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a7  = 0.0950076_dp, g11_b7  = 2.724470_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a8  = 0.0295802_dp, g11_b8  = 4.825220_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a9  = 0.1212380_dp, g11_b9  = 2.162170_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a10 = 0.1513510_dp, g11_b10 = 1.714860_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a11 = 0.1760780_dp, g11_b11 = 1.123400_dp 
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a2  = 0.0271666_dp, g11_b2  = 5.799740_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a3  = 0.0200111_dp, g11_b3  = 5.799660_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a4  = 0.0483906_dp, g11_b4  = 4.203330_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a5  = 0.1777430_dp, g11_b5  = 1.370190_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a6  = 0.0731972_dp, g11_b6  = 3.415900_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a7  = 0.0950076_dp, g11_b7  = 2.724470_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a8  = 0.0295802_dp, g11_b8  = 4.825220_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a9  = 0.1212380_dp, g11_b9  = 2.162170_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a10 = 0.1513510_dp, g11_b10 = 1.714860_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a11 = 0.1760780_dp, g11_b11 = 1.123400_dp
   ! G12
   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_rc  = 0.40_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a1  = 0.1420750_dp, g12_b1  = 0.786470_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a2  = 0.0880114_dp, g12_b2  = 2.942550_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a3  = 0.0645509_dp, g12_b3  = 3.669640_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a4  = 0.1505330_dp, g12_b4  = 1.826690_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a5  = 0.0183100_dp, g12_b5  = 5.965520_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a6  = 0.0182645_dp, g12_b6  = 5.965520_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a7  = 0.1160340_dp, g12_b7  = 2.326450_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a8  = 0.0449121_dp, g12_b8  = 4.458350_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a9  = 0.0264801_dp, g12_b9  = 5.182710_dp 
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a1  = 0.1420750_dp, g12_b1  = 0.786470_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a2  = 0.0880114_dp, g12_b2  = 2.942550_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a3  = 0.0645509_dp, g12_b3  = 3.669640_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a4  = 0.1505330_dp, g12_b4  = 1.826690_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a5  = 0.0183100_dp, g12_b5  = 5.965520_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a6  = 0.0182645_dp, g12_b6  = 5.965520_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a7  = 0.1160340_dp, g12_b7  = 2.326450_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a8  = 0.0449121_dp, g12_b8  = 4.458350_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a9  = 0.0264801_dp, g12_b9  = 5.182710_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a10 = 0.2338230_dp, g12_b10 = 0.912631_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a11 = 0.2295300_dp, g12_b11 = 1.128850_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a12 = 0.1911980_dp, g12_b12 = 1.431550_dp 
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a11 = 0.2295300_dp, g12_b11 = 1.128850_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a12 = 0.1911980_dp, g12_b12 = 1.431550_dp
   ! G13
   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_rc  = 0.30_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a1  = 0.2001960_dp, g13_b1  = 0.591285_dp
@@ -233,8 +233,8 @@ MODULE qmmm_gaussian_data
   ! S3
   REAL(KIND=dp), PARAMETER, PUBLIC :: s3_rc   = 1.05_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a1   = 0.1258370_dp, s3_b1   = 3.54518_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a2   = 0.0920562_dp, s3_b2   = 2.17201_dp 
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a3   = 0.0354098_dp, s3_b3   = 1.16797_dp 
+  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a2   = 0.0920562_dp, s3_b2   = 2.17201_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a3   = 0.0354098_dp, s3_b3   = 1.16797_dp
   ! S4
   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_rc   = 0.90_dp
   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a1   = 0.1237040_dp, s4_b1   = 3.82356_dp

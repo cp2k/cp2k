@@ -81,7 +81,7 @@ MODULE eip_environment_types
 !> \param force_env_input Pointer to the force_env input section
 !> \param cell The simulation cell
 !> \param cell_ref The reference simulation cell
-!> \param use_ref_cell Logical which indicates if reference 
+!> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
 !> \param virial Dummy virial pointer
 !> \par History
@@ -126,7 +126,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Retains a eip environment (see doc/ReferenceCounting.html)
 !> \param eip_env The eip environment to retain
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -145,7 +145,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -156,7 +156,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases the given eip environment (see doc/ReferenceCounting.html)
 !> \param eip_env The eip environment to release
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -176,7 +176,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     IF (ASSOCIATED(eip_env)) THEN
       CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP, error, failure)
       eip_env%ref_count = eip_env%ref_count-1
@@ -217,7 +217,7 @@ CONTAINS
 !> \brief Returns various attributes of the eip environment
 !> \param eip_env The enquired eip environment
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param eip_model Specifies which EIP model is in use.
 !> \param eip_kinetic_energy The EIP kinetic energy
@@ -240,11 +240,11 @@ CONTAINS
 !> \param force_env_input Pointer to the force_env input section
 !> \param cell The simulation cell
 !> \param cell_ref The reference simulation cell
-!> \param use_ref_cell Logical which indicates if reference 
+!> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
 !> \param virial Dummy virial pointer
-!> 
-!>      For possible missing arguments see the attributes of 
+!>
+!>      For possible missing arguments see the attributes of
 !>      eip_environment_type
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -347,7 +347,7 @@ CONTAINS
 !> \brief Sets various attributes of the eip environment
 !> \param eip_env The enquired eip environment
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param eip_model Specifies which EIP model is in use
 !> \param eip_kinetic_energy The EIP kinetic energy
@@ -370,11 +370,11 @@ CONTAINS
 !> \param force_env_input Pointer to the force_env input section
 !> \param cell The simulation cell
 !> \param cell_ref The reference simulation cell
-!> \param use_ref_cell Logical which indicates if reference 
+!> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
 !> \param virial Dummy virial pointer
-!> 
-!>      For possible missing arguments see the attributes of 
+!>
+!>      For possible missing arguments see the attributes of
 !>      eip_environment_type
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -521,10 +521,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Reinitializes the eip environment
 !> \param eip_env The eip environment to be reinitialized
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
-!>      For possible missing arguments see the attributes of 
+!>
+!>      For possible missing arguments see the attributes of
 !>      eip_environment_type
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -543,9 +543,9 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
       eip_env%eip_model            = 0
       eip_env%eip_kinetic_energy   = 0.0_dp
@@ -584,10 +584,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the eip environment
 !> \param eip_env The eip environment to be created
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
-!>      For possible missing arguments see the attributes of 
+!>
+!>      For possible missing arguments see the attributes of
 !>      eip_environment_type
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -605,7 +605,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-  
+
     ALLOCATE(eip_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 

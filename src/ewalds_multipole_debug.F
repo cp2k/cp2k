@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief  Debug routines for multipoles 
+!> \brief  Debug routines for multipoles
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 !> \date   05.2008
 ! *****************************************************************************
@@ -49,12 +49,12 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
        POINTER                                :: particle_set
   TYPE(distribution_1d_type), POINTER      :: local_particles
   INTEGER, INTENT(IN)                      :: iw
-  LOGICAL, INTENT(IN)                      :: debug_r_space 
+  LOGICAL, INTENT(IN)                      :: debug_r_space
   TYPE(cp_error_type), INTENT(inout)       :: error
-  
+
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles', &
        routineP = "ewalds_multipole_debug"//':'//routineN
-  
+
   INTEGER                                  :: i, ind, nparticles, stat
   LOGICAL                                  :: failure
   LOGICAL, DIMENSION(3)                    :: task
@@ -114,19 +114,19 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   g_pv = 0.0_dp
   r_pv = 0.0_dp
   g_energy = 0.0_dp
-  r_energy = 0.0_dp 
+  r_energy = 0.0_dp
   e_neut = 0.0_dp
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
        random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error) 
+       error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "CHARGE", echarge=1.0_dp, &
        random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error) 
+       error=error)
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy,&
        debug_r_space, error)
-  
+
   WRITE(*,*)"DEBUG ENERGY (CHARGE-CHARGE): ", debug_energy
   CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, &
        particle_set, local_particles, g_energy, r_energy, e_neut, e_self,&
@@ -150,16 +150,16 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   g_pv = 0.0_dp
   r_pv = 0.0_dp
   g_energy = 0.0_dp
-  r_energy = 0.0_dp 
+  r_energy = 0.0_dp
   e_neut = 0.0_dp
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
        random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error) 
+       error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "DIPOLE", echarge=0.5_dp, &
        random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error) 
+       error=error)
   WRITE(*,'("CHARGES",F15.9)')charges
   WRITE(*,'("DIPOLES",3F15.9)')dipoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -186,16 +186,16 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   g_pv = 0.0_dp
   r_pv = 0.0_dp
   g_energy = 0.0_dp
-  r_energy = 0.0_dp 
+  r_energy = 0.0_dp
   e_neut = 0.0_dp
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "DIPOLE", echarge=10000.0_dp, &
        random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error) 
+       error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "DIPOLE", echarge=20000._dp, &
        random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error) 
+       error=error)
   WRITE(*,'("DIPOLES",3F15.9)')dipoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
        debug_r_space, error)
@@ -222,16 +222,16 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   g_pv = 0.0_dp
   r_pv = 0.0_dp
   g_energy = 0.0_dp
-  r_energy = 0.0_dp 
+  r_energy = 0.0_dp
   e_neut = 0.0_dp
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
        random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error) 
+       error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10.0_dp, &
        random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error) 
+       error=error)
   WRITE(*,'("CHARGES",F15.9)')charges
   WRITE(*,'("QUADRUPOLES",9F15.9)')quadrupoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -259,13 +259,13 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   g_pv = 0.0_dp
   r_pv = 0.0_dp
   g_energy = 0.0_dp
-  r_energy = 0.0_dp 
+  r_energy = 0.0_dp
   e_neut = 0.0_dp
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "DIPOLE", echarge=10000.0_dp, &
        random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error) 
+       error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
        random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
        error=error)
@@ -295,16 +295,16 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   g_pv = 0.0_dp
   r_pv = 0.0_dp
   g_energy = 0.0_dp
-  r_energy = 0.0_dp 
+  r_energy = 0.0_dp
   e_neut = 0.0_dp
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "QUADRUPOLE", echarge=-20000.0_dp, &
        random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error) 
+       error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
        random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error) 
+       error=error)
   WRITE(*,'("QUADRUPOLES",9F15.9)')quadrupoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
        debug_r_space, error)
@@ -338,7 +338,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   DEALLOCATE(r_pv,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   CALL delete_rng_stream(random_stream,error=error)
-  
+
 CONTAINS
 ! *****************************************************************************
 !> \brief  Debug routines for multipoles - low level - charge interactions
@@ -373,7 +373,7 @@ CONTAINS
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
-    
+
     failure = .FALSE.
     energy  = 0.0_dp
     CALL fist_nonbond_env_get (nonbond_env, nonbonded=nonbonded, natom_types = nkinds,&
@@ -403,23 +403,23 @@ CONTAINS
                 rab    = rab + cell_v
                 rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
                 IF (rab2 <= rab2_max) THEN
-                   
+
                    DO k = 1, SIZE(multipoles(atom_a)%charge_typ)
                       DO k1 = 1, SIZE(multipoles(atom_a)%charge_typ(k)%charge)
-                         
+
                          DO l = 1, SIZE(multipoles(atom_b)%charge_typ)
                             DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
-                               
+
                                rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:,l1) - multipoles(atom_a)%charge_typ(k)%pos(:,k1)
                                r  = SQRT(DOT_PRODUCT(rm,rm))
-                               q  = multipoles(atom_b)%charge_typ(l)%charge(l1) * multipoles(atom_a)%charge_typ(k)%charge(k1) 
+                               q  = multipoles(atom_b)%charge_typ(l)%charge(l1) * multipoles(atom_a)%charge_typ(k)%charge(k1)
                                energy = energy + q / r * fac_ij
                             END DO
                          END DO
-                         
+
                       END DO
                    END DO
-                   
+
                 END IF
              END DO Pairs
           END DO Kind_Group_Loop
@@ -442,23 +442,23 @@ CONTAINS
              rab = rab0 + cell_v
              rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
              IF (rab2 <= rab2_max) THEN
-                
+
                 DO k = 1, SIZE(multipoles(atom_a)%charge_typ)
                    DO k1 = 1, SIZE(multipoles(atom_a)%charge_typ(k)%charge)
-                      
+
                       DO l = 1, SIZE(multipoles(atom_b)%charge_typ)
                          DO l1 = 1, SIZE(multipoles(atom_b)%charge_typ(l)%charge)
-                            
+
                             rm = rab + multipoles(atom_b)%charge_typ(l)%pos(:,l1) - multipoles(atom_a)%charge_typ(k)%pos(:,k1)
                             r  = SQRT(DOT_PRODUCT(rm,rm))
-                            q  = multipoles(atom_b)%charge_typ(l)%charge(l1) * multipoles(atom_a)%charge_typ(k)%charge(k1) 
+                            q  = multipoles(atom_b)%charge_typ(l)%charge(l1) * multipoles(atom_a)%charge_typ(k)%charge(k1)
                             energy = energy + q / r * fac_ij
                          END DO
                       END DO
-                      
+
                    END DO
                 END DO
-                
+
              END IF
           END DO
           END DO
@@ -469,7 +469,7 @@ CONTAINS
   END SUBROUTINE debug_ewald_multipole_low
 
 ! *****************************************************************************
-!> \brief  create multi_type for multipoles 
+!> \brief  create multi_type for multipoles
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 !> \date   05.2008
 ! *****************************************************************************
@@ -498,7 +498,7 @@ CONTAINS
     LOGICAL                                  :: failure
     INTEGER                                  :: i, stat, isize, k, l, m
     REAL(KIND=dp)                            :: dx, rvec(3), rvec1(3), rvec2(3), r2
-    
+
     failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPPostcondition(SIZE(multipoles)==idim,cp_failure_level,routineP,error,failure)
@@ -543,7 +543,7 @@ CONTAINS
           multipoles(i)%charge_typ(isize)%pos(1:3,1) = rvec
           multipoles(i)%charge_typ(isize)%charge(2)  =-echarge
           multipoles(i)%charge_typ(isize)%pos(1:3,2) =-rvec
-          
+
           dipoles(:,i) = dipoles(:,i) + 2.0_dp*echarge*rvec
        CASE("QUADRUPOLE")
           dx = 1.0E-2_dp
@@ -594,7 +594,7 @@ CONTAINS
   END SUBROUTINE create_multi_type
 
 ! *****************************************************************************
-!> \brief  release multi_type for multipoles 
+!> \brief  release multi_type for multipoles
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 !> \date   05.2008
 ! *****************************************************************************
@@ -609,9 +609,9 @@ CONTAINS
 
     LOGICAL                                  :: failure
     INTEGER                                  :: i, stat, j
-    
+
     failure = .FALSE.
-    IF (ASSOCIATED(multipoles)) THEN  
+    IF (ASSOCIATED(multipoles)) THEN
        DO i = 1, SIZE(multipoles)
           DO j = 1, SIZE(multipoles(i)%charge_typ)
              DEALLOCATE(multipoles(i)%charge_typ(j)%charge,stat=stat)
@@ -626,7 +626,7 @@ CONTAINS
   END SUBROUTINE release_multi_type
 
 ! *****************************************************************************
-!> \brief  reallocates multi_type for multipoles 
+!> \brief  reallocates multi_type for multipoles
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 !> \date   05.2008
 ! *****************************************************************************
@@ -742,7 +742,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
   TYPE(section_vals_type), POINTER         :: mm_section
   TYPE(cp_error_type), INTENT(inout)       :: error
-  
+
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
@@ -837,7 +837,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
            energy_glob = 0.0_dp
            energy_local= 0.0_dp
            e_neut      = 0.0_dp
-           e_self      = 0.0_dp           
+           e_self      = 0.0_dp
            efield0     = 0.0_dp
            CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, particle_set,&
                 local_particles, energy_local, energy_glob, e_neut, e_self, task, .FALSE., .TRUE., .TRUE.,&
@@ -877,7 +877,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
            energy_glob = 0.0_dp
            energy_local= 0.0_dp
            e_neut      = 0.0_dp
-           e_self      = 0.0_dp           
+           e_self      = 0.0_dp
            efield1     = 0.0_dp
            CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, particle_set,&
                 local_particles, energy_local, energy_glob, e_neut, e_self, task,.FALSE., .TRUE., .TRUE.,&
@@ -933,7 +933,7 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   LOGICAL, DIMENSION(3), INTENT(IN)        :: task
   INTEGER, INTENT(IN)                      :: iw
   TYPE(cp_error_type), INTENT(inout)       :: error
-  
+
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 

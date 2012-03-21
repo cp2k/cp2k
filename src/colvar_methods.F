@@ -107,12 +107,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads a colvar from the input
 !> \param colvar the place where to store what will be read
-!> \param extended_lagrange if the extended lagrangian formalismus should 
+!> \param extended_lagrange if the extended lagrangian formalismus should
 !>        be used
 !> \param icol number of the current colvar (repetition in colvar_section)
 !> \param colvar_section the colvar section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      04.2004 created [alessandro laio and fawzi mohamed]
 !> \author teo
@@ -274,7 +274,7 @@ CONTAINS
           DO k = 1, n_var
              CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
              CALL reallocate(colvar%coord_param%i_at_from,1, ndim+SIZE(iatms))
-             colvar%coord_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+             colvar%coord_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms
              ndim = ndim + SIZE(iatms)
           END DO
           colvar%coord_param%n_atoms_from = ndim
@@ -304,7 +304,7 @@ CONTAINS
           DO k = 1, n_var
              CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
              CALL reallocate(colvar%coord_param%i_at_to,1, ndim+SIZE(iatms))
-             colvar%coord_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+             colvar%coord_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms
              ndim = ndim + SIZE(iatms)
           END DO
           colvar%coord_param%n_atoms_to = ndim
@@ -341,7 +341,7 @@ CONTAINS
              DO k = 1, n_var
                 CALL section_vals_val_get(coordination_section,"ATOMS_TO_B",i_rep_val=k,i_vals=iatms,error=error)
                 CALL reallocate(colvar%coord_param%i_at_to_b,1, ndim+SIZE(iatms))
-                colvar%coord_param%i_at_to_b(ndim+1:ndim+SIZE(iatms)) = iatms 
+                colvar%coord_param%i_at_to_b(ndim+1:ndim+SIZE(iatms)) = iatms
                 ndim = ndim + SIZE(iatms)
              END DO
              colvar%coord_param%n_atoms_to_b = ndim
@@ -421,7 +421,7 @@ CONTAINS
        DO k = 1, n_var
           CALL section_vals_val_get(qparm_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
           CALL reallocate(colvar%qparm_param%i_at_from,1, ndim+SIZE(iatms))
-          colvar%qparm_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+          colvar%qparm_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms
           ndim = ndim + SIZE(iatms)
        END DO
        colvar%qparm_param%n_atoms_from = ndim
@@ -431,7 +431,7 @@ CONTAINS
        DO k = 1, n_var
           CALL section_vals_val_get(qparm_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
           CALL reallocate(colvar%qparm_param%i_at_to,1, ndim+SIZE(iatms))
-          colvar%qparm_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+          colvar%qparm_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms
           ndim = ndim + SIZE(iatms)
        END DO
        colvar%qparm_param%n_atoms_to = ndim
@@ -447,7 +447,7 @@ CONTAINS
        colvar%hydronium_param%n_hydrogens = SIZE(iatms)
        ALLOCATE(colvar%hydronium_param%i_hydrogens(SIZE(iatms)),stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-       colvar%hydronium_param%i_hydrogens = iatms       
+       colvar%hydronium_param%i_hydrogens = iatms
        CALL section_vals_val_get(hydronium_section,"ROO",r_val=colvar%hydronium_param%r_OO,error=error)
        CALL section_vals_val_get(hydronium_section,"ROH",r_val=colvar%hydronium_param%r_OH,error=error)
        CALL section_vals_val_get(hydronium_section,"pNH",i_val=colvar%hydronium_param%pnh,error=error)
@@ -477,16 +477,16 @@ CONTAINS
             error=error)
        CALL section_vals_val_get(path_section,"RMSD",l_val=colvar%reaction_path_param%rmsd,&
             error=error)
-       IF(colvar%reaction_path_param%dist_rmsd .AND. colvar%reaction_path_param%rmsd)THEN 
+       IF(colvar%reaction_path_param%dist_rmsd .AND. colvar%reaction_path_param%rmsd)THEN
           CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
                      "CV REACTION PATH: only one between DISTANCES_RMSD and RMSD can be used "//&
                      CPSourceFileRef)
        END IF
        IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
-          NULLIFY(colvar%reaction_path_param%i_rmsd, colvar%reaction_path_param%r_ref)         
+          NULLIFY(colvar%reaction_path_param%i_rmsd, colvar%reaction_path_param%r_ref)
           frame_section => section_vals_get_subs_vals(path_section,"FRAME",error=error)
           CALL section_vals_get(frame_section,n_repetition=nr_frame,error=error)
-          
+
           colvar%reaction_path_param%nr_frames=nr_frame
           CALL read_frames(frame_section,para_env,nr_frame,colvar%reaction_path_param%r_ref,&
                colvar%reaction_path_param%n_components,error=error)
@@ -507,7 +507,7 @@ CONTAINS
                 DO k = 1, n_var
                    CALL section_vals_val_get(path_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
                    CALL reallocate(colvar%reaction_path_param%i_rmsd,1, ndim+SIZE(iatms))
-                   colvar%reaction_path_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms 
+                   colvar%reaction_path_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms
                    ndim = ndim + SIZE(iatms)
                 END DO
                 colvar%reaction_path_param%n_components = ndim
@@ -517,7 +517,7 @@ CONTAINS
                      CPSourceFileRef)
              END IF
           END IF
-          
+
           CALL section_vals_val_get(path_section,"ALIGN_FRAMES",l_val=colvar%reaction_path_param%align_frames,&
                error=error)
        ELSE
@@ -539,7 +539,7 @@ CONTAINS
           colvar%reaction_path_param%n_components=ncol
           NULLIFY(range)
           CALL section_vals_val_get(path_section,"RANGE",r_vals=range,error=error)
-          CALL section_vals_val_get(path_section,"STEP_SIZE",r_val=colvar%reaction_path_param%step_size,error=error)     
+          CALL section_vals_val_get(path_section,"STEP_SIZE",r_val=colvar%reaction_path_param%step_size,error=error)
           iend=CEILING(MAX(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
           istart=FLOOR(MIN(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
           colvar%reaction_path_param%function_bounds(1)=istart
@@ -550,7 +550,7 @@ CONTAINS
           CALL section_vals_val_get(path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
           CALL section_vals_val_get(path_section,"FUNCTION",n_rep_val=ncol,error=error)
           check = (ncol==SIZE(colvar%reaction_path_param%colvar_p))
-          CPPostcondition(check,cp_failure_level,routinep,error,failure)     
+          CPPostcondition(check,cp_failure_level,routinep,error,failure)
           CALL initf(ncol)
           DO i=1,ncol
              CALL section_vals_val_get(path_section,"FUNCTION",c_val=path_function,i_rep_val=i,error=error)
@@ -562,7 +562,7 @@ CONTAINS
              END DO
           END DO
           CALL finalizef()
-          
+
           iw1= cp_print_key_unit_nr(logger,path_section,&
                "MAP",middle_name=fmid,extension=".dat",file_status="REPLACE",error=error)
           IF(iw1>0)THEN
@@ -611,7 +611,7 @@ CONTAINS
           CALL cp_print_key_finished_output(iw1,logger,path_section,&
                "MAP", error=error)
        END IF
-       
+
     ELSE IF(my_subsection(11))THEN
        ! combine colvar
        CALL colvar_create(colvar,combine_colvar_id, error)
@@ -690,7 +690,7 @@ CPSourceFileRef)
           DO k = 1, n_var
              CALL section_vals_val_get(population_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
              CALL reallocate(colvar%population_param%i_at_from,1, ndim+SIZE(iatms))
-             colvar%population_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+             colvar%population_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms
              ndim = ndim + SIZE(iatms)
           END DO
           colvar%population_param%n_atoms_from = ndim
@@ -720,7 +720,7 @@ CPSourceFileRef)
           DO k = 1, n_var
              CALL section_vals_val_get(population_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
              CALL reallocate(colvar%population_param%i_at_to,1, ndim+SIZE(iatms))
-             colvar%population_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+             colvar%population_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms
              ndim = ndim + SIZE(iatms)
           END DO
           colvar%population_param%n_atoms_to = ndim
@@ -765,7 +765,7 @@ CPSourceFileRef)
        IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_vec) THEN
           CALL section_vals_val_get(plane_sections,"NORMAL_VECTOR",i_rep_section=1,&
                r_vals=s1,error=error)
-          colvar%plane_plane_angle_param%plane1%normal_vec = s1 
+          colvar%plane_plane_angle_param%plane1%normal_vec = s1
        ELSE
           CALL section_vals_val_get(plane_sections,"ATOMS",i_rep_section=1,&
                i_vals=iatms,error=error)
@@ -800,7 +800,7 @@ CPSourceFileRef)
           DO k = 1, n_var
              CALL section_vals_val_get(gyration_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
              CALL reallocate(colvar%gyration_param%i_at,1, ndim+SIZE(iatms))
-             colvar%gyration_param%i_at(ndim+1:ndim+SIZE(iatms)) = iatms 
+             colvar%gyration_param%i_at(ndim+1:ndim+SIZE(iatms)) = iatms
              ndim = ndim + SIZE(iatms)
           END DO
           colvar%gyration_param%n_atoms = ndim
@@ -826,12 +826,12 @@ CPSourceFileRef)
        ! RMSD_AB
        wrk_section => rmsd_section
        CALL colvar_create(colvar, rmsd_colvar_id, error)
-       
+
        NULLIFY(colvar%rmsd_param%i_rmsd, colvar%rmsd_param%r_ref, colvar%rmsd_param%weights)
 
        frame_section => section_vals_get_subs_vals(rmsd_section,"FRAME",error=error)
        CALL section_vals_get(frame_section,n_repetition=nr_frame,error=error)
-  
+
        colvar%rmsd_param%nr_frames=nr_frame
        ! Calculation is aborted if reference frame are less than 2
        CPPostcondition((nr_frame>=2),cp_failure_level,routineP,error,failure)
@@ -858,7 +858,7 @@ CPSourceFileRef)
              DO k = 1, n_var
                 CALL section_vals_val_get(rmsd_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
                 CALL reallocate(colvar%rmsd_param%i_rmsd,1, ndim+SIZE(iatms))
-                colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms 
+                colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms
                 ndim = ndim + SIZE(iatms)
              END DO
              colvar%rmsd_param%n_atoms = ndim
@@ -875,7 +875,7 @@ CPSourceFileRef)
              DO k = 1, n_var
                 CALL section_vals_val_get(rmsd_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
                 CALL reallocate(colvar%rmsd_param%i_rmsd,1, ndim+SIZE(iatms))
-                colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms 
+                colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms
                 ndim = ndim + SIZE(iatms)
              END DO
              colvar%rmsd_param%n_atoms = ndim
@@ -908,7 +908,7 @@ CPSourceFileRef)
                   "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms and a list of weight need to be provided. "//&
                   CPSourceFileRef)
           END IF
-          
+
        ELSE
           CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
                "CV RMSD: unknown SUBSET_TYPE."//&
@@ -926,7 +926,7 @@ CPSourceFileRef)
        colvar%xyz_diag_param%i_atom     = iatm
        colvar%xyz_diag_param%component  = icomponent
     ELSE IF (my_subsection(18)) THEN
-       ! Work on the outer diagonal (two atoms A,B) XYZ positions 
+       ! Work on the outer diagonal (two atoms A,B) XYZ positions
        wrk_section => xyz_outerdiag_section
        CALL colvar_create(colvar, xyz_outerdiag_colvar_id, error)
        CALL colvar_check_points(colvar, wrk_section, error)
@@ -1006,7 +1006,7 @@ CPSourceFileRef)
              WRITE ( iw, '( A,T57,3F8.3)' )   ' COLVARS| PLANE-PLANE ANGLE - PLANE 1 (VECTOR) >>> '//tag,&
                   colvar%plane_plane_angle_param%plane1%normal_vec
           END IF
-          
+
           IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
              WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| PLANE-PLANE ANGLE - PLANE 1  (ATOMS) >>> '//tag,&
                   colvar%plane_plane_angle_param%plane2%points
@@ -1097,7 +1097,7 @@ CPSourceFileRef)
           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 1  >>> '//tag,&
                colvar%rotation_param%i_at1_bond1
           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 1  >>> '//tag,&
-               colvar%rotation_param%i_at2_bond1         
+               colvar%rotation_param%i_at2_bond1
           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 2  >>> '//tag,&
                colvar%rotation_param%i_at1_bond2
           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 2  >>> '//tag,&
@@ -1221,8 +1221,8 @@ CPSourceFileRef)
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !>      variables in a molecular environment
 !> \param colvar the collective variable to evaluate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, fixd_list, error)
@@ -1313,10 +1313,10 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !> \param colvar the collective variable to evaluate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
-!>      The torsion that generally is defined without the continuity problem 
+!>      The torsion that generally is defined without the continuity problem
 !>      here (for free energy calculations) is defined only for (-pi,pi]
 !> \author Alessandro Laio and fawzi
 ! *****************************************************************************
@@ -1399,8 +1399,8 @@ CPSourceFileRef)
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !>        for the specification of a recursive colvar type
 !> \param colvar the collective variable to evaluate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author sfchiff
 ! *****************************************************************************
   SUBROUTINE colvar_recursive_eval(colvar,cell,particles,error)
@@ -1578,17 +1578,17 @@ CPSourceFileRef)
     CASE(do_clv_x)
        xi(2)=0.0_dp
        xi(3)=0.0_dp
-    CASE(do_clv_y) 
+    CASE(do_clv_y)
        xi(1)=0.0_dp
        xi(3)=0.0_dp
-    CASE(do_clv_z) 
+    CASE(do_clv_z)
        xi(1)=0.0_dp
        xi(2)=0.0_dp
-    CASE(do_clv_xy) 
+    CASE(do_clv_xy)
        xi(3)=0.0_dp
-    CASE(do_clv_xz) 
+    CASE(do_clv_xz)
        xi(2)=0.0_dp
-    CASE(do_clv_yz) 
+    CASE(do_clv_yz)
        xi(1)=0.0_dp
     CASE DEFAULT
        ! do_clv_xyz
@@ -1655,17 +1655,17 @@ CPSourceFileRef)
        CASE(do_clv_x)
           xi(2,k)=0.0_dp
           xi(3,k)=0.0_dp
-       CASE(do_clv_y) 
+       CASE(do_clv_y)
           xi(1,k)=0.0_dp
           xi(3,k)=0.0_dp
-       CASE(do_clv_z) 
+       CASE(do_clv_z)
           xi(1,k)=0.0_dp
           xi(2,k)=0.0_dp
-       CASE(do_clv_xy) 
+       CASE(do_clv_xy)
           xi(3,k)=0.0_dp
-       CASE(do_clv_xz) 
+       CASE(do_clv_xz)
           xi(2,k)=0.0_dp
-       CASE(do_clv_yz) 
+       CASE(do_clv_yz)
           xi(1,k)=0.0_dp
        CASE DEFAULT
           ! do_clv_xyz
@@ -2036,7 +2036,7 @@ CPSourceFileRef)
        i1=colvar%plane_plane_angle_param%plane1%points(1)
        j1=colvar%plane_plane_angle_param%plane1%points(2)
        k1=colvar%plane_plane_angle_param%plane1%points(3)
-       
+
        ! Get coordinates of atoms or points
        CALL get_coordinates(colvar, i1, ri1, my_particles)
        CALL get_coordinates(colvar, j1, rj1, my_particles)
@@ -2068,7 +2068,7 @@ CPSourceFileRef)
        i2=colvar%plane_plane_angle_param%plane2%points(1)
        j2=colvar%plane_plane_angle_param%plane2%points(2)
        k2=colvar%plane_plane_angle_param%plane2%points(3)
-       
+
        ! Get coordinates of atoms or points
        CALL get_coordinates(colvar, i2, ri2, my_particles)
        CALL get_coordinates(colvar, j2, rj2, my_particles)
@@ -2214,7 +2214,7 @@ CPSourceFileRef)
   END SUBROUTINE plane_plane_angle_colvar
 
 ! *****************************************************************************
-!> \brief Evaluates the value of the rotation angle between two bonds 
+!> \brief Evaluates the value of the rotation angle between two bonds
 !> \author Teodoro Laino 02.2006 [created]
 ! *****************************************************************************
   SUBROUTINE rotation_colvar(colvar,cell,subsys,particles,error)
@@ -2359,7 +2359,7 @@ CPSourceFileRef)
        ss=ss-NINT(ss)
        xkl=MATMUL(cell%hmat,ss)
     ELSE
-       xkl=xpk-xpl 
+       xkl=xpk-xpl
     END IF
     r34=SQRT(xkl(1)**2+xkl(2)**2+xkl(3)**2)
     !
@@ -2495,17 +2495,17 @@ CPSourceFileRef)
     CASE(do_clv_x)
        xij(2)=0.0_dp
        xij(3)=0.0_dp
-    CASE(do_clv_y) 
+    CASE(do_clv_y)
        xij(1)=0.0_dp
        xij(3)=0.0_dp
-    CASE(do_clv_z) 
+    CASE(do_clv_z)
        xij(1)=0.0_dp
        xij(2)=0.0_dp
-    CASE(do_clv_xy) 
+    CASE(do_clv_xy)
        xij(3)=0.0_dp
-    CASE(do_clv_xz) 
+    CASE(do_clv_xz)
        xij(2)=0.0_dp
-    CASE(do_clv_yz) 
+    CASE(do_clv_yz)
        xij(1)=0.0_dp
     CASE DEFAULT
        !do_clv_xyz
@@ -2585,7 +2585,7 @@ CPSourceFileRef)
     ! dc
     ss=MATMUL(cell%h_inv,rr(:,4)-rr(:,3))
     ss=ss-NINT(ss)
-    ss=MATMUL(cell%hmat,ss)    
+    ss=MATMUL(cell%hmat,ss)
     xdc = ss(1)
     ydc = ss(2)
     zdc = ss(3)
@@ -2609,7 +2609,7 @@ CPSourceFileRef)
        cosine = MIN(1.0_dp,MAX(-1.0_dp,cosine))
        angle  = ACOS(cosine)
        IF (sine .LT. 0.0_dp)  angle = -angle
-       ! 
+       !
        dt = angle ! [rad]
        dt=MOD(2.0E4_dp*pi+dt-o0,2.0_dp*pi)
        IF ( dt .GT. pi ) dt = dt - 2.0_dp*pi
@@ -2629,7 +2629,7 @@ CPSourceFileRef)
        ss=MATMUL(cell%hmat,ss)
        xca = ss(1)
        yca = ss(2)
-       zca = ss(3)   
+       zca = ss(3)
        ! db
        ss=MATMUL(cell%h_inv,rr(:,4)-rr(:,2))
        ss=ss-NINT(ss)
@@ -2734,7 +2734,7 @@ CPSourceFileRef)
        qlm2 = 0.0_dp
        grad_tot(:) = 0.0_dp
        grad_nb_tot(:) = 0.0_dp
-       DO m = 0, l 
+       DO m = 0, l
           ylm = 0.0_dp
           grad(:) = 0.0_dp
           grad_nb(:) = 0.0_dp
@@ -2742,7 +2742,7 @@ CPSourceFileRef)
           DO jj=1,n_atoms_to
              j=colvar%qparm_param%i_at_to(jj)
              IF (i==j) CYCLE
-             CALL get_coordinates(colvar, j, xpj, my_particles)       
+             CALL get_coordinates(colvar, j, xpj, my_particles)
              ss=MATMUL(cell%h_inv,xpj(:)-xpi(:))
              ss=ss-NINT(ss)
              xij=MATMUL(cell%hmat,ss)
@@ -2751,7 +2751,7 @@ CPSourceFileRef)
              x_tmp = xij(1)
              y_tmp = xij(2)
              z_tmp = xij(3)
-             r_tmp = r12 
+             r_tmp = r12
              IF (ABS(x_tmp) .GT. 1.0E-8_dp) THEN
                 fi = ATAN(y_tmp/x_tmp)
              ELSE
@@ -2770,13 +2770,13 @@ CPSourceFileRef)
              lmm = fac(l-m)
              lpm = fac(l+m)
              bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
-             IF (bond > 1.0_dp) THEN 
+             IF (bond > 1.0_dp) THEN
                 CALL stop_program(routineN,moduleN,__LINE__,&
                                   "bond > 1.0_dp")
              END IF
              pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
              IF (plm < 0.0_dp) THEN
-                dylm = -pre_fac*dplm 
+                dylm = -pre_fac*dplm
              ELSE
                 dylm = pre_fac*dplm
              ENDIF
@@ -2810,7 +2810,7 @@ CPSourceFileRef)
           grad_tot(:) = grad_tot(:) + fact*grad(:)
           grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)
        ENDDO
-       pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1) 
+       pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1)
        qlm = SQRT(pre_fac*qlm)
        qlm2 = SQRT(pre_fac*qlm2)
        qparm=qparm+qlm
@@ -2825,7 +2825,7 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the hydronium collective variable
 !> \author Marcel Baer
-!> \note This function needs to be extended to the POINT structure!! 
+!> \note This function needs to be extended to the POINT structure!!
 !>       non-standard conform.. it's a breach in the colvar module.
 ! *****************************************************************************
   SUBROUTINE hydronium_colvar(colvar,cell,subsys,particles,error)
@@ -2900,17 +2900,17 @@ CPSourceFileRef)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
     ! Zero Arrays:
-    dfunc_nh = 0._dp 
-    dfunc_no = 0._dp 
-    M = 0._dp 
-    dM = 0._dp 
-    no = 0._dp 
-    qloc = 0._dp 
+    dfunc_nh = 0._dp
+    dfunc_no = 0._dp
+    M = 0._dp
+    dM = 0._dp
+    no = 0._dp
+    qloc = 0._dp
     nhcoord = 0._dp
     DO ii=1,n_oxygens
        i=colvar%hydronium_param%i_oxygens(ii)
        xpi(:)=my_particles(i)%r(1:3)
-       ! Computing M( n ( ii ) ) 
+       ! Computing M( n ( ii ) )
        DO jj=1,n_hydrogens
           i=colvar%hydronium_param%i_hydrogens(jj)
           xpj(:)=my_particles(i)%r(1:3)
@@ -2923,16 +2923,16 @@ CPSourceFileRef)
           invden=1.0_dp/(1.0_dp-rdist**qnh)
           IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
           fscalar = ((-pnh*(rdist**(pnh-1))*invden) &
-               + num*(invden)**2*qnh*(rdist**(qnh-1)))/(r12*r_OH) 
+               + num*(invden)**2*qnh*(rdist**(qnh-1)))/(r12*r_OH)
 
           dfunc_nh(1,ii,jj)= xij (1) * fscalar
           dfunc_nh(2,ii,jj)= xij (2) * fscalar
           dfunc_nh(3,ii,jj)= xij (3) * fscalar
 
-          nhcoord(ii)=nhcoord(ii) + num*invden 
+          nhcoord(ii)=nhcoord(ii) + num*invden
        END DO
        M(ii)  = 1.0_dp-(1.0_dp - (nhcoord(ii)/nh)**p)/&
-            (1.0_dp - (nhcoord(ii)/nh)**q) 
+            (1.0_dp - (nhcoord(ii)/nh)**q)
 
        ! Computing no ( ii )
        DO jj=1,n_oxygens
@@ -2948,13 +2948,13 @@ CPSourceFileRef)
           invden=1.0_dp/(1.0_dp-rdist**qno)
           IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
           fscalar = ((-pno*(rdist**(pno-1))*invden) &
-               + num*(invden)**2*qno*(rdist**(qno-1)))/(r12*r_OO) 
+               + num*(invden)**2*qno*(rdist**(qno-1)))/(r12*r_OO)
 
           dfunc_no(1,ii,jj)= xij(1)*fscalar
           dfunc_no(2,ii,jj)= xij(2)*fscalar
           dfunc_no(3,ii,jj)= xij(3)*fscalar
 
-          no(ii)=no(ii)+ num*invden 
+          no(ii)=no(ii)+ num*invden
        END DO
     END DO
 
@@ -2962,7 +2962,7 @@ CPSourceFileRef)
     qtot = 0._dp
     DO ii = 1, n_oxygens
        qloc ( ii ) = EXP ( lambda * M (ii) * no ( ii ) )
-       qtot = qtot + qloc ( ii ) 
+       qtot = qtot + qloc ( ii )
     END DO
     ! compute forces
     DO ii = 1, n_oxygens
@@ -3029,7 +3029,7 @@ CPSourceFileRef)
 !> \brief evaluates the force due (and on) the coordination-chain collective variable
 !> \author MI
 !> \note When the third set of atoms is not defined, this variable is equivalent
-!>       to the simple coordination number. 
+!>       to the simple coordination number.
 ! *****************************************************************************
   SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3085,7 +3085,7 @@ CPSourceFileRef)
        CALL get_coordinates(colvar, i, xpi, my_particles)
        DO jj=1,n_atoms_to_a
           j=colvar%coord_param%i_at_to(jj)
-          CALL get_coordinates(colvar, j, xpj, my_particles)       
+          CALL get_coordinates(colvar, j, xpj, my_particles)
           ! define coordination of atom A with itself to be 0. also fixes rij==0 for the force calculation
           IF (i.EQ.j) CYCLE
           ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
@@ -3094,7 +3094,7 @@ CPSourceFileRef)
           rij=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
           IF(rij < 1.0e-8_dp)CYCLE
           rdist_ij = rij/r_0_a
-          IF(ABS(1.0_dp-rdist_ij) > EPSILON(0.0_dp)*1.0E+4_dp) THEN 
+          IF(ABS(1.0_dp-rdist_ij) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
              num_ij=(1.0_dp-rdist_ij**p_a)
              invden_ij=1.0_dp/(1.0_dp-rdist_ij**q_a)
              func_ij=num_ij*invden_ij
@@ -3115,7 +3115,7 @@ CPSourceFileRef)
              DO kk = 1,n_atoms_to_b
                 k=colvar%coord_param%i_at_to_b(kk)
                 IF (k.EQ.j) CYCLE
-                CALL get_coordinates(colvar, k, xpk, my_particles)       
+                CALL get_coordinates(colvar, k, xpk, my_particles)
                 ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
                 ss=ss-NINT(ss)
                 xjk=MATMUL(cell%hmat,ss)
@@ -3202,7 +3202,7 @@ CPSourceFileRef)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     ALLOCATE(dss_vals(ncolv),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-    
+
     ! Evaluate the individual COLVARs
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%combine_cvs_param%colvar_p(i)%colvar,cell,my_particles,error)
@@ -3214,11 +3214,11 @@ CPSourceFileRef)
     ndim = SIZE(colvar%combine_cvs_param%c_parameters)+&
            SIZE(colvar%combine_cvs_param%variables)
     ALLOCATE(my_par(ndim),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure) 
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     my_par(1:SIZE(colvar%combine_cvs_param%variables)) =colvar%combine_cvs_param%variables
     my_par(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%c_parameters
     ALLOCATE(my_val(ndim),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure) 
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     my_val(1:SIZE(colvar%combine_cvs_param%variables)) =ss_vals
     my_val(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%v_parameters
     CALL parsef(1,TRIM(colvar%combine_cvs_param%function),my_par)
@@ -3262,9 +3262,9 @@ CPSourceFileRef,&
     DEALLOCATE(fi,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(dss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE combine_colvar
 
 ! *****************************************************************************
@@ -3273,7 +3273,7 @@ CPSourceFileRef,&
 !>                     [\sum_i exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]
 !> \author fschiff
 !> \note the system is still able to move in the space spanned by the CV
-!>       perpendicular to the path 
+!>       perpendicular to the path
 !> \par History
 !>      extended MI 01.2010
 ! *****************************************************************************
@@ -3315,7 +3315,7 @@ CPSourceFileRef,&
   END SUBROUTINE reaction_path_colvar
 
 ! *****************************************************************************
-!> \brief  position along the path calculated using selected colvars 
+!> \brief  position along the path calculated using selected colvars
 !>         as compared to functions describing the variation of these same colvars
 !>         along the path given as reference
 !> \author fschiff
@@ -3344,13 +3344,13 @@ CPSourceFileRef,&
 
     nconf=colvar%reaction_path_param%nr_frames
     step_size=colvar%reaction_path_param%step_size
-    ncolv=colvar%reaction_path_param%n_components 
+    ncolv=colvar%reaction_path_param%n_components
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     f_vals=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles,error)
@@ -3405,11 +3405,11 @@ CPSourceFileRef,&
     DEALLOCATE(f_vals,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(s1v,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1v,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)       
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(s1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1,stat=stat)
@@ -3501,7 +3501,7 @@ CPSourceFileRef,&
          ii = (i-1)*3
          vec_dif(iat) = (riat(1,iat)-r(ii+1))**2+(riat(2,iat)-r(ii+2))**2&
                        +(riat(3,iat)-r(ii+3))**2
-         sum_exp =  sum_exp + vec_dif(iat) 
+         sum_exp =  sum_exp + vec_dif(iat)
        END DO
 
        s1v(1,ik) = REAL(ik-1,dp)*EXP(-lambda*sum_exp)
@@ -3746,11 +3746,11 @@ CPSourceFileRef,&
   END SUBROUTINE  distance_from_path_colvar
 
 ! *****************************************************************************
-!> \brief  distance from path calculated using selected colvars 
+!> \brief  distance from path calculated using selected colvars
 !>         as compared to functions describing the variation of these same colvars
 !>         along the path given as reference
 !> \author MI
-!> \date  01.2010 
+!> \date  01.2010
 ! *****************************************************************************
   SUBROUTINE  dpath_colvar(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3772,13 +3772,13 @@ CPSourceFileRef,&
     istart=colvar%reaction_path_param%function_bounds(1)
     iend=colvar%reaction_path_param%function_bounds(2)
 
-    ncolv=colvar%reaction_path_param%n_components 
+    ncolv=colvar%reaction_path_param%n_components
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     f_vals=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles,error)
@@ -3797,7 +3797,7 @@ CPSourceFileRef,&
        DO j=1,ncolv
          ds1v(j,k)=f_vals(j,k)*s1v(k)
        END DO
-    END DO 
+    END DO
 
     s1 = accurate_sum(s1v(:))
     DO j=1,ncolv
@@ -3826,11 +3826,11 @@ CPSourceFileRef,&
     DEALLOCATE(f_vals,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(s1v,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1v,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)       
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -3841,7 +3841,7 @@ CPSourceFileRef,&
 !>         atoms as compared to the same positions in reference
 !>         configurations belonging to the given path.
 !> \author MI
-!> \date  01.2010 
+!> \date  01.2010
 ! *****************************************************************************
   SUBROUTINE dpath_dist_rmsd(colvar,particles,error)
 
@@ -3917,11 +3917,11 @@ CPSourceFileRef,&
          i = iatom(iat)
          ii = (i-1)*3
          vec_dif(iat) = (riat(1,iat)-r(ii+1))**2+(riat(2,iat)-r(ii+2))**2+(riat(3,iat)-r(ii+3))**2
-         sum_exp =  sum_exp + vec_dif(iat) 
+         sum_exp =  sum_exp + vec_dif(iat)
          dvec_dif(1,iat) = r(ii+1)
          dvec_dif(2,iat) = r(ii+2)
          dvec_dif(3,iat) = r(ii+3)
-       END DO 
+       END DO
        s1v(ik)=EXP(-lambda*sum_exp)
        DO iat = 1,rmsd_atom
          ds1v(1,iat,ik) = dvec_dif(1,iat) * s1v(ik)
@@ -3929,7 +3929,7 @@ CPSourceFileRef,&
          ds1v(3,iat,ik) = dvec_dif(3,iat) * s1v(ik)
        END DO
     END DO
-    
+
     s1 = accurate_sum(s1v(:))
     DO iat = 1,rmsd_atom
       ds1(1,iat) = accurate_sum( ds1v(1,iat,:))
@@ -3942,7 +3942,7 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
     DO iat = 1,rmsd_atom
-      fi(:,iat) = 2.0_dp*(riat(:,iat)-ds1(:,iat)/s1) 
+      fi(:,iat) = 2.0_dp*(riat(:,iat)-ds1(:,iat)/s1)
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
 
@@ -4098,7 +4098,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief evaluates the force due to population colvar
 !> \author fsterpone
-!> \date  01.2009 
+!> \date  01.2009
 ! *****************************************************************************
   SUBROUTINE population_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -4140,12 +4140,12 @@ CPSourceFileRef,&
     nncrd=colvar%population_param%nncrd
     ndcrd=colvar%population_param%ndcrd
     r_0=colvar%population_param%r_0
-    n_0=colvar%population_param%n0  
+    n_0=colvar%population_param%n0
     sigma=colvar%population_param%sigma
 
     ALLOCATE(ftmp_coord(3,n_atoms_to))
     ftmp_coord=0.0_dp
-      
+
     ncoord=0.0_dp
     population=0.0_dp
 
@@ -4160,7 +4160,7 @@ CPSourceFileRef,&
        CALL get_coordinates(colvar, i, xpi, my_particles)
        DO jj=1,n_atoms_to
           i=colvar%population_param%i_at_to(jj)
-          CALL get_coordinates(colvar, i, xpj, my_particles)       
+          CALL get_coordinates(colvar, i, xpj, my_particles)
           ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
           ss=ss-NINT(ss)
           xij=MATMUL(cell%hmat,ss)
@@ -4172,13 +4172,13 @@ CPSourceFileRef,&
           func_coord=num*invden
           dfunc_coord= (- nncrd*rdist **(nncrd-1) *invden  &
                + num*(invden)**2 * ndcrd *rdist **(ndcrd-1))/(r12*r_0)
-               
+
           ncoord=ncoord+func_coord
           ftmp_coord(1,jj) = dfunc_coord*xij(1)
           ftmp_coord(2,jj) = dfunc_coord*xij(2)
           ftmp_coord(3,jj) = dfunc_coord*xij(3)
        END DO
-              
+
        func=EXP(-(ncoord-n_0)**2/(2.0_dp*sigma*sigma))
        dfunc=-func*(ncoord-n_0)/(sigma*sigma)
 
@@ -4202,7 +4202,7 @@ CPSourceFileRef,&
 !> \brief evaluates the force due to the gyration radius colvar
 !>        sum_i (r_i-rcom)^2/N
 !> \author MI
-!> \date  03.2009 
+!> \date  03.2009
 ! *****************************************************************************
   SUBROUTINE gyration_radius_colvar(colvar,cell,subsys,particles,error)
 
@@ -4250,7 +4250,7 @@ CPSourceFileRef,&
        CALL get_mass(colvar, i, mi, my_particles)
         xpcom(:) = xpcom(:) + xpi(:)*mi
        mass_tot = mass_tot + mi
-    END DO 
+    END DO
     xpcom(:) = xpcom(:)/mass_tot
 
     func  = 0.0_dp
@@ -4258,20 +4258,20 @@ CPSourceFileRef,&
     dfunc = 0.0_dp
     DO ii = 1,n_atoms
        i=colvar%gyration_param%i_at(ii)
-       CALL get_coordinates(colvar, i, xpi, my_particles)       
+       CALL get_coordinates(colvar, i, xpi, my_particles)
        ss=MATMUL(cell%h_inv,xpi(:)-xpcom(:))
        ss=ss-NINT(ss)
        dxi=MATMUL(cell%hmat,ss)
        dri2=(dxi(1)**2+dxi(2)**2+dxi(3)**2)
        func = func + dri2
        dfunc(:) = dfunc(:) + dxi(:)
-    END DO 
+    END DO
     gyration = SQRT(inv_n*func)
 
     DO ii = 1,n_atoms
       i=colvar%gyration_param%i_at(ii)
-      CALL get_coordinates(colvar, i, xpi, my_particles)       
-      CALL get_mass(colvar, i, mi, my_particles)  
+      CALL get_coordinates(colvar, i, xpi, my_particles)
+      CALL get_mass(colvar, i, mi, my_particles)
       ss=MATMUL(cell%h_inv,xpi(:)-xpcom(:))
       ss=ss-NINT(ss)
       dxi=MATMUL(cell%hmat,ss)
@@ -4289,7 +4289,7 @@ CPSourceFileRef,&
 !> \brief evaluates the force due to the rmsd colvar
 !> \note  could be extended to be used with more than 2 reference structures
 !> \author MI
-!> \date  12.2009 
+!> \date  12.2009
 ! *****************************************************************************
   SUBROUTINE rmsd_colvar(colvar,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -4319,7 +4319,7 @@ CPSourceFileRef,&
 !>        ss = (RMSDA-RMSDB)/(RMSDA+RMSDB)
 !>        RMSD is calculated with respect to two reference structures, A and B,
 !>        considering all the atoms of the system or only a subset of them,
-!>        as selected by the input keyword LIST 
+!>        as selected by the input keyword LIST
 !> \author MI
 !> \date  12.2009
 ! *****************************************************************************
@@ -4380,7 +4380,7 @@ CPSourceFileRef,&
       r(ii+1) = my_particles(i)%r(1)
       r(ii+2) = my_particles(i)%r(2)
       r(ii+3) = my_particles(i)%r(3)
-    END DO 
+    END DO
     rmsdA = 0.0_dp
     rmsdB = 0.0_dp
 
@@ -4457,7 +4457,7 @@ CPSourceFileRef,&
           s1v(1,i)=EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:,i),gp(:)-f_vals(:,i)))
        END DO
        s1(1)=accurate_sum(s1v(1,:))
-       
+
        WRITE(iw1, '(5F10.5)')gp(:),-lambda*LOG(s1(1))
     END IF
   END FUNCTION rec_eval_grid
@@ -4490,7 +4490,7 @@ CPSourceFileRef,&
 
      failure = .FALSE.
      NULLIFY(rptr)
-   
+
      DO i = 1,nr_frames
        coord_section => section_vals_get_subs_vals(frame_section,"COORD",i_rep_section=i,error=error)
        CALL section_vals_get(coord_section,explicit=explicit,error=error)
@@ -4510,7 +4510,7 @@ CPSourceFileRef,&
                      i_rep_val=j,r_vals=rptr,error=error)
                r_ref((j-1)*3+1:(j-1)*3+3,i) = rptr(1:3)
           END DO ! natom
-       ELSE  
+       ELSE
           CALL section_vals_val_get(frame_section,"COORD_FILE_NAME",i_rep_section=i,c_val=filename,error=error)
           CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
           NULLIFY(parser)
@@ -4518,7 +4518,7 @@ CPSourceFileRef,&
           CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
                               error=error)
           CALL parser_get_next_line(parser,1,error=error)
-          ! Start parser             
+          ! Start parser
           CALL parser_get_object(parser,natom,error=error)
           CALL parser_get_next_line(parser,1,error=error)
           IF(i==1) THEN

@@ -13,7 +13,7 @@
 !>      a collection of easy to use conversion programs that can be found at
 !>      http://www.scripps.edu/~cdputnam/software/bibutils/
 !>      by Chris Putnam
-!> 
+!>
 !>      see thebibliography.F on how to add references easily
 !> \par History
 !>      08.2007 [Joost VandeVondele]
@@ -68,20 +68,20 @@ MODULE reference_manager
 
   PUBLIC :: add_reference, & ! use this one only in bibliography.F
             remove_all_references, & ! use only in f77_interface.F
-            get_citation_key         ! a string key describing the reference (e.g. Kohn1965b) 
+            get_citation_key         ! a string key describing the reference (e.g. Kohn1965b)
 
 CONTAINS
 
 ! *****************************************************************************
-!> \brief marks a given reference as cited. 
+!> \brief marks a given reference as cited.
 !> \param citation key as returned from add_reference
 !> \par History
 !>      XX.2007 created [ ]
 ! *****************************************************************************
-  SUBROUTINE cite_reference(key) 
+  SUBROUTINE cite_reference(key)
     INTEGER, INTENT(IN)                      :: key
 
-    IF (key<1 .OR. key>max_reference) STOP "citation key out of range" 
+    IF (key<1 .OR. key>max_reference) STOP "citation key out of range"
 
     ! set as cited
     thebib(key)%ref%is_cited=.TRUE.
@@ -110,8 +110,8 @@ CONTAINS
     INTEGER                                  :: commaloc, i, ires, line, &
                                                 match, mylen, nlines
 
-    IF (nbib+1>max_reference) STOP "increase max_reference" 
-    nbib=nbib+1 
+    IF (nbib+1>max_reference) STOP "increase max_reference"
+    nbib=nbib+1
     key =nbib
 
     ! initialize reference to zero
@@ -129,7 +129,7 @@ CONTAINS
     thebib(key)%ref%ISI_record=ISI_record
 
     ! construct a citation_key
-    line=1 
+    line=1
     author=get_next_author(thebib(key)%ref%ISI_record,line)
     commaloc=INDEX(author,',')
     IF (commaloc.GT.0) author=author(1:commaloc-1)
@@ -157,7 +157,7 @@ CONTAINS
     ENDDO
     IF (match>0) citation_key=citation_key(1:mylen)//CHAR(ICHAR('a')+match)
 
-    ! finally store it 
+    ! finally store it
     thebib(key)%ref%citation_key=citation_key
 
   END SUBROUTINE add_reference
@@ -170,7 +170,7 @@ CONTAINS
   SUBROUTINE remove_all_references()
     INTEGER                                  :: i
 
-    DO i=1,nbib        
+    DO i=1,nbib
        IF (ASSOCIATED(thebib(i)%ref%ISI_record)) DEALLOCATE(thebib(i)%ref%ISI_record)
        thebib(i)%ref%DOI=""
 
@@ -184,7 +184,7 @@ CONTAINS
 !>      optionally printing only those that are actually cited
 !>      during program execution
 !> \param cited_only print only those marked as cited
-!> \param sorted sort entries most recent first according to the date, 
+!> \param sorted sort entries most recent first according to the date,
 !>              otherways sort with respect to key
 !> \param format see module parameters print_format_XXXXXXXXX
 !> \param list optionally, output a sub-list only
@@ -284,7 +284,7 @@ CONTAINS
 
     INTEGER                                  :: I
 
-    IF (key<1 .OR. key>max_reference) STOP "citation key out of range" 
+    IF (key<1 .OR. key>max_reference) STOP "citation key out of range"
 
     SELECT CASE(FORMAT)
     CASE(print_format_isi)
@@ -351,7 +351,7 @@ CONTAINS
         journal=TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
     ENDIF
     IF (ipos_line+LEN_TRIM(journal)>71) THEN
-       WRITE(unit,'(A)') "" 
+       WRITE(unit,'(A)') ""
        WRITE(unit,'(T2,A)',ADVANCE="NO") ""
        ipos_line=2
     ENDIF
@@ -359,7 +359,7 @@ CONTAINS
 
     WRITE(unit,'(T2,A)') ""
     ! Title
-    line=1 ; ititle=0 
+    line=1 ; ititle=0
     title=get_next_title(thebib(key)%ref%ISI_record,line)
     DO WHILE (title.NE."")
        ititle=ititle+1
@@ -373,7 +373,7 @@ CONTAINS
     IF (thebib(key)%ref%DOI .NE. "") THEN
       WRITE(unit,'(T2,A)') "http://dx.doi.org/"//TRIM(thebib(key)%ref%DOI)
     ENDIF
-    
+
   END SUBROUTINE print_reference_journal
 
 ! *****************************************************************************
@@ -393,7 +393,7 @@ CONTAINS
 ! write the author list
 
     WRITE(unit,'(T2,A,I0,A)',ADVANCE="NO") '<A NAME="reference_',key,'">'
-    line=1 ; iauthor=0 
+    line=1 ; iauthor=0
     author=get_next_author(thebib(key)%ref%ISI_record,line)
     DO WHILE (author.NE."")
        iauthor=iauthor+1
@@ -426,7 +426,7 @@ CONTAINS
     WRITE(unit,'(A)') "</A><br>"
 
     ! Title
-    line=1 ; ititle=0 
+    line=1 ; ititle=0
     title=get_next_title(thebib(key)%ref%ISI_record,line)
     DO WHILE (title.NE."")
        ititle=ititle+1
@@ -470,7 +470,7 @@ CONTAINS
           ENDIF
        ENDIF
     ENDDO line_loop
- 
+
     ! We might want to fixup the initials, adding a dot after each of them
 
   END FUNCTION get_next_author

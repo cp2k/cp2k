@@ -33,7 +33,7 @@
 !>    can be found at  http://www.cp2k.org/
 !> \note
 !>       should be kept as lean as possible.
-!>       see cp2k_run for more comments  
+!>       see cp2k_run for more comments
 !> \author Joost VandeVondele
 ! *****************************************************************************
 PROGRAM cp2k
@@ -65,7 +65,7 @@ PROGRAM cp2k
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
-  TYPE(cp_error_type)                  :: error 
+  TYPE(cp_error_type)                  :: error
 
   ! output goes to the screen by default
   output_unit=default_output_unit
@@ -197,7 +197,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
        command_line_error = .TRUE.
      END IF
 
-     ! some first info concerning how to run CP2K 
+     ! some first info concerning how to run CP2K
 
      IF (usage.OR.command_line_error) THEN
        IF (default_para_env%source == default_para_env%mepos) THEN
@@ -282,9 +282,9 @@ arg_loop: DO WHILE (i_arg<n_arg)
         ENDIF
 
         IF (run_it .OR. force_run) THEN
-           CALL run_input(input_file_name,output_file_name,ierr=ierr) 
+           CALL run_input(input_file_name,output_file_name,ierr=ierr)
            CALL mp_max(ierr,default_para_env%group)
-           IF (ierr.NE.0 .AND. default_para_env%source==default_para_env%mepos) THEN 
+           IF (ierr.NE.0 .AND. default_para_env%source==default_para_env%mepos) THEN
               CALL mp_abort()
            ENDIF
         END IF
@@ -300,7 +300,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
      END DO
 #endif
   ELSE
-     WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error" 
+     WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"
   END IF
 
 #if defined(__USE_PAT)

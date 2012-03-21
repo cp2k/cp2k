@@ -50,7 +50,7 @@ MODULE qs_rho_atom_types
 
   TYPE rho_atom_p_type
      TYPE(rho_atom_type), POINTER       :: rho_atom
-  END TYPE rho_atom_p_type 
+  END TYPE rho_atom_p_type
 
   PUBLIC :: allocate_rho_atom_set,&
             deallocate_rho_atom_set,&
@@ -102,7 +102,7 @@ MODULE qs_rho_atom_types
   END SUBROUTINE allocate_rho_atom_set
 
 ! *****************************************************************************
-  SUBROUTINE deallocate_rho_atom_set(rho_atom_set) 
+  SUBROUTINE deallocate_rho_atom_set(rho_atom_set)
 
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
@@ -120,22 +120,22 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%cpc_h)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%cpc_h(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%cpc_h,1)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%cpc_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%cpc_s(i)%r_coef)
             END DO
-          END IF 
+          END IF
           DEALLOCATE (rho_atom_set(iat)%cpc_h)
           DEALLOCATE (rho_atom_set(iat)%cpc_s)
         END IF
         IF(ASSOCIATED(rho_atom_set(iat)%ga_Vlocal_gb_h)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%ga_Vlocal_gb_h(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%ga_Vlocal_gb_h,1)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%ga_Vlocal_gb_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%ga_Vlocal_gb_s(i)%r_coef)
             END DO
-          END IF 
+          END IF
           DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_h)
           DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_s)
         END IF
@@ -143,7 +143,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%drho_rad_h)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%drho_rad_h(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%drho_rad_h,1)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%drho_rad_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%drho_rad_s(i)%r_coef)
               DO j = 1,3
@@ -151,7 +151,7 @@ MODULE qs_rho_atom_types
                 DEALLOCATE(rho_atom_set(iat)%rho_rad_s_d(j,i)%r_coef)
               END DO
             ENDDO
-          END IF 
+          END IF
           DEALLOCATE (rho_atom_set(iat)%drho_rad_h)
           DEALLOCATE (rho_atom_set(iat)%drho_rad_s)
           DEALLOCATE (rho_atom_set(iat)%rho_rad_h_d)
@@ -161,7 +161,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_h)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_h(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%rho_rad_h)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%rho_rad_h(i)%r_coef)
             ENDDO
           ENDIF
@@ -171,7 +171,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_s)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_s(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%rho_rad_s)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%rho_rad_s(i)%r_coef)
             ENDDO
           ENDIF
@@ -181,7 +181,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_h)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_h(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%vrho_rad_h)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%vrho_rad_h(i)%r_coef)
             ENDDO
           END IF
@@ -191,7 +191,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_s)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_s(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%vrho_rad_s)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%vrho_rad_s(i)%r_coef)
             ENDDO
           END IF
@@ -201,7 +201,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%trho_rad_h)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%trho_rad_h(1,1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%trho_rad_h,2)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%trho_rad_h(1,i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%trho_rad_h(2,i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%trho_rad_h(3,i)%r_coef)
@@ -213,7 +213,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%trho_rad_s)) THEN
           IF(ASSOCIATED(rho_atom_set(iat)%trho_rad_s(1,1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%trho_rad_s,2)
-            DO i = 1,n 
+            DO i = 1,n
               DEALLOCATE(rho_atom_set(iat)%trho_rad_s(1,i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%trho_rad_s(2,i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%trho_rad_s(3,i)%r_coef)

@@ -321,12 +321,12 @@ CONTAINS
           CASE(no_mix)
              scf_env%mixing_method=no_mixing_nr
              scf_env%p_mix_alpha = 1.0_dp
-          CASE(direct_p_mix,kerker_mix,pulay_mix,broy_mix,broy_mix_new,multisec_mix) 
+          CASE(direct_p_mix,kerker_mix,pulay_mix,broy_mix,broy_mix_new,multisec_mix)
             scf_env%mixing_method =  scf_control%mixing_method
             mixing_section => section_vals_get_subs_vals(scf_section,"MIXING",error=error)
             CALL mixing_storage_create(scf_env%mixing_store, mixing_section, scf_env%mixing_method, &
                 dft_control%qs_control%cutoff, error=error)
-          CASE DEFAULT        
+          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"Unknown mixing method",error,failure)
           END SELECT
@@ -509,10 +509,10 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     input=input, dft_control=dft_control, scf_control=scf_control, &
                     error=error)
-     
+
     ! Defining SCP logicals
     scp_dft = dft_control%scp
-    scp_nddo = dft_control%qs_control%se_control%scp 
+    scp_nddo = dft_control%qs_control%se_control%scp
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -550,7 +550,7 @@ CONTAINS
          REPEAT("-",78)
     END IF
     CALL cp_add_iter_level(logger%iter_info,"QS_SCF",error=error)
-    ! *** outer loop of the scf, can treat other variables, 
+    ! *** outer loop of the scf, can treat other variables,
     ! *** such as lagrangian multipliers
     scf_env%outer_scf%iter_count=0
     iter_count = 0
@@ -567,7 +567,7 @@ CONTAINS
        IF ( scp_dft  ) THEN
 ! check if we are doing outer SCF optimization of SCP coeffs:
          IF ( scf_control%outer_scf%type==outer_scf_none ) THEN
-             scf_env%qs_ot_env(1)%settings%ks = .TRUE. 
+             scf_env%qs_ot_env(1)%settings%ks = .TRUE.
             !*** qs_ot_env%settings%scp_dft*** may be set .FALSE. on input
             !    and we will preserve this if there is no outer_scf
          ELSEIF ( scf_control%outer_scf%type==outer_scf_scp ) THEN
@@ -587,7 +587,7 @@ CONTAINS
        IF ( scp_nddo  ) THEN
 ! check if we are doing outer SCF optimization of SCP coeffs:
          IF ( scf_control%outer_scf%type==outer_scf_none ) THEN
-             scf_env%qs_ot_env(1)%settings%ks = .TRUE. 
+             scf_env%qs_ot_env(1)%settings%ks = .TRUE.
             !*** qs_ot_env%settings%scp_nddo*** may be set .FALSE. on input
             !    and we will preserve this if there is no outer_scf
          ELSEIF ( scf_control%outer_scf%type==outer_scf_scp ) THEN
@@ -641,7 +641,7 @@ CONTAINS
 
           scf_env%iter_param = 0.0_dp
 
-          ! this takes known energy and derivatives and produces 
+          ! this takes known energy and derivatives and produces
           ! new wfns and or density matrix
           SELECT CASE (scf_env%method)
           CASE DEFAULT
@@ -664,7 +664,7 @@ CONTAINS
                      CALL do_scf_diag_subspace(qs_env,scf_env,scf_env%subspace_env,mos,rho,&
                           ks_env,scf_section,scf_control,error=error)
                   END IF
-                END IF 
+                END IF
              END IF
           CASE(special_diag_method_nr)
              IF (dft_control%roks) THEN
@@ -704,7 +704,7 @@ CONTAINS
                      CALL do_scf_diag_subspace(qs_env,scf_env,scf_env%subspace_env,mos,rho,&
                           ks_env,scf_section, scf_control,error=error)
                 END IF
-             END IF 
+             END IF
           CASE(block_davidson_diag_method_nr)
 
              CALL do_block_davidson_diag(qs_env,scf_env,mos,matrix_ks,matrix_s,scf_control,&
@@ -844,7 +844,7 @@ CONTAINS
                 energy%total = harris_env%harris_energy%Eharris
              END IF
 
-             ! *** mixing methods need to undo mixing of the density matrix 
+             ! *** mixing methods need to undo mixing of the density matrix
              !     (restore original density) ***
              IF (scf_env%mixing_method>0) THEN
                 SELECT CASE(scf_env%mixing_method)
@@ -1042,7 +1042,7 @@ CONTAINS
 
     CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
                     total_energy, aux_coeff_set,    &
-                    pscp,fscp,energy_only,scf_env%iter_delta, & 
+                    pscp,fscp,energy_only,scf_env%iter_delta, &
                     scf_env%qs_ot_env,qs_env%input,error=error)
 
 
@@ -1426,7 +1426,7 @@ END SUBROUTINE qs_scf_print_summary
          matrix_s=matrix_s, error=error)
 
     scp_dft = dft_control%scp
-    scp_nddo = dft_control%qs_control%se_control%scp 
+    scp_nddo = dft_control%qs_control%se_control%scp
 
     ! if using mo_coeff_b then copy to fm
     DO ispin=1,SIZE(mos)!fm->dbcsr
@@ -1457,7 +1457,7 @@ END SUBROUTINE qs_scf_print_summary
        END IF
 
     CASE (ot_diag_method_nr)
-  
+
        IF(.NOT.scf_env%skip_diis) THEN
          IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
             CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
@@ -1480,14 +1480,14 @@ END SUBROUTINE qs_scf_print_summary
        CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&
             scf_control%diagonalization%ot_settings%preconditioner_type,&
             scf_control%diagonalization%ot_settings%precond_solver_type,&
-            scf_control%diagonalization%ot_settings%energy_gap,dft_control%nspins,error=error)       
+            scf_control%diagonalization%ot_settings%energy_gap,dft_control%nspins,error=error)
     CASE (block_davidson_diag_method_nr)
         ! Preconditioner initialized within the loop, when required
     CASE (ot_method_nr)
 
        CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
 
-       ! reortho the wavefunctions if we are having an outer scf and 
+       ! reortho the wavefunctions if we are having an outer scf and
        ! this is not the first iteration
        ! this is useful to avoid the build-up of numerical noise
        ! however, we can not play this trick if restricted (don't mix non-equivalent orbs)
@@ -1568,7 +1568,7 @@ CPSourceFileRef)
               scf_env%qs_ot_env(1)%settings%precond_solver_type,&
               scf_env%qs_ot_env(1)%settings%energy_gap,dft_control%nspins,&
               has_unit_metric=has_unit_metric,&
-              mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision,error=error) 
+              mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision,error=error)
 !new
           IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
              ! we have to treat the semi-empirical methods separately
@@ -1580,7 +1580,7 @@ CPSourceFileRef)
                      qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                      error=error)
              ELSE
-                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, &
                      broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                      qs_ot_env = scf_env%qs_ot_env,matrix_ks=matrix_ks(1)%matrix,&
                      error=error)
@@ -1595,7 +1595,7 @@ CPSourceFileRef)
                      qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                      error=error)
              ELSE
-                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, &
                      broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                      qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                      error=error)
@@ -1712,7 +1712,7 @@ CPSourceFileRef)
          scf_control=scf_control,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
-         mos=mos,matrix_ks=matrix_ks, rho=rho,&   
+         mos=mos,matrix_ks=matrix_ks, rho=rho,&
          matrix_h=matrix_h,matrix_s=matrix_s,&
          error=error)
 
@@ -1779,7 +1779,7 @@ CPSourceFileRef)
                            scf_control%eps_eigval,ndep,error=error)
            s_minus_half_available = .TRUE.
        END IF
-       
+
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
@@ -1856,7 +1856,7 @@ CPSourceFileRef)
     END IF
 
    !image charge method, calculate image_matrix
-   IF(qs_env%qmmm) THEN 
+   IF(qs_env%qmmm) THEN
      IF(qs_env%qmmm_env_qm%image_charge) THEN
        IF(.NOT.qs_env%qmmm_env_qm%image_charge_pot%coeff_iterative) &
           CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
@@ -2283,7 +2283,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
 
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
-       IF (ASSOCIATED(qs_env%wf_history)) THEN 
+       IF (ASSOCIATED(qs_env%wf_history)) THEN
           CALL wfi_extrapolate(qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
@@ -2291,7 +2291,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
           IF ((.NOT.orthogonal_wf).AND.&
               (scf_env%method == ot_method_nr).AND.&
-              (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN 
+              (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
              DO ispin=1,SIZE(qs_env%mos)
                 CALL get_mo_set(qs_env%mos(ispin)%mo_set, &
                      mo_coeff=mo_coeff, nmo=nmo)

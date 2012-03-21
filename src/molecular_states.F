@@ -72,7 +72,7 @@ MODULE molecular_states
 CONTAINS
 
 ! *****************************************************************************
-!> \brief constructs molecular states. mo_localized gets overwritten! 
+!> \brief constructs molecular states. mo_localized gets overwritten!
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
@@ -137,7 +137,7 @@ CONTAINS
        CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
                   r_vals=eval_range,error=error)
     ELSE
-       ALLOCATE(eval_range(2)) 
+       ALLOCATE(eval_range(2))
        eval_range(1)=-HUGE(0.0_dp)
        eval_range(2)=+HUGE(0.0_dp)
     ENDIF
@@ -199,7 +199,7 @@ CONTAINS
        IF (ASSOCIATED(molecule_set(imol)%lmi)) THEN
           nstates(1) = molecule_set(imol)%lmi%nstates
        ELSE
-          nstates(1) = 0 
+          nstates(1) = 0
        ENDIF
        nstates(2) = para_env%mepos
 
@@ -303,7 +303,7 @@ CONTAINS
                    WRITE(unit_report,*) tmp**2
                 ENDIF
              ENDDO
-          ENDDO 
+          ENDDO
        ENDIF
        CALL cp_fm_release(D_igk,error=error)
 

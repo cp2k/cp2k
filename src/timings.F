@@ -62,7 +62,7 @@ MODULE timings
      INTEGER                                         :: clock_status ( max_timer )
      REAL (KIND=dp)                                  :: exclusive_wallclock_accu ( max_timer )
      REAL (KIND=dp)                                  :: inclusive_wallclock_accu ( max_timer )
-     INTEGER                                         :: num_timer 
+     INTEGER                                         :: num_timer
      CHARACTER ( LEN = 15 )                          :: astring, bstring
      LOGICAL                                         :: trace,trace_master
      INTEGER                                         :: mepos,group,num_pe
@@ -76,7 +76,7 @@ MODULE timings
 
   INTEGER, SAVE, PRIVATE :: stack_pointer = 0       ! position in timer_env_stack
   INTEGER, SAVE, PRIVATE :: last_timer_env_id = 0
-  TYPE(timer_env_p_type), DIMENSION(max_timer_env_stack) :: timer_env_stack 
+  TYPE(timer_env_p_type), DIMENSION(max_timer_env_stack) :: timer_env_stack
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
 
 CONTAINS
@@ -84,7 +84,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief adds the given timer_env to the top of the stack
 !> \note
-!>      for each init_timer_env there should be the symmetric call to 
+!>      for each init_timer_env there should be the symmetric call to
 !>      rm_timer_env
 !> \par History
 !>      02.2004 created [Joost VandeVondele]
@@ -129,8 +129,8 @@ CONTAINS
     timer_env%stack_size=0
     timer_env%handle_stack=0
     timer_env%num_timer=0
-    timer_env%trace=.FALSE. 
-    timer_env%trace_master=.FALSE. 
+    timer_env%trace=.FALSE.
+    timer_env%trace_master=.FALSE.
     timer_env%group=-1
     timer_env%mepos=-1
     timer_env%num_pe=-1
@@ -141,7 +141,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief removes the current timer env from the stack
 !> \note
-!>      for each rm_timer_env there should have been the symmetric call to 
+!>      for each rm_timer_env there should have been the symmetric call to
 !>      add_timer_env
 !> \par History
 !>      02.2004 created [Joost VandeVondele]
@@ -312,7 +312,7 @@ CONTAINS
 
     ! count the number of active instances (recursion)
     timer_env%clock_status ( handle ) = timer_env%clock_status ( handle ) + 1
-   
+
     ! some properties
     timer_env%routine_calls ( handle ) = timer_env%routine_calls ( handle ) + 1
     timer_env%routine_stack_depth ( handle ) = timer_env%routine_stack_depth ( handle ) + stack_size
@@ -404,7 +404,7 @@ CONTAINS
 
     ! we fixup the clock of the caller
     IF (timer_env%stack_size>1) THEN
-       handle_up=timer_env%handle_stack (timer_env%stack_size-1) 
+       handle_up=timer_env%handle_stack (timer_env%stack_size-1)
        timer_env%exclusive_wallclock_accu ( handle_up ) = timer_env%exclusive_wallclock_accu ( handle_up ) - elapsed_wt
     ENDIF
 
@@ -412,7 +412,7 @@ CONTAINS
     IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
        WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-7),"X,I4,1X,I6,1X,A,F12.3)"
        WRITE ( mystring, sformat) &
-            timer_env%bstring, & 
+            timer_env%bstring, &
             timer_env%stack_size, &
             timer_env%routine_calls ( handle ), &
             TRIM(timer_env%routine_stack(timer_env%stack_size)),elapsed_wt
@@ -467,11 +467,11 @@ CONTAINS
     ! note: we assume that timing events on the parent
     !       include all possible timing events.. i.e. there
     !       are no other timing events on the rest of the group.
-    !       If this is the case they will be ignored in the 
+    !       If this is the case they will be ignored in the
     !       timing report.
     num_timer=timer_env%num_timer
     CALL mp_bcast(num_timer,para_env%source,para_env%group)
-    
+
     ALLOCATE(max_iwalltime(num_timer))
     ALLOCATE(sum_iwalltime(num_timer))
     ALLOCATE(max_ewalltime(num_timer))

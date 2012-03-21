@@ -291,7 +291,7 @@ CONTAINS
 !> \brief return a set of S orthonormal vectors (C^T S C == 1) where
 !>      a Loedwin transformation is applied to keep the rotated vectors as close
 !>      as possible to the original ones
-!> \param 
+!> \param
 !> \note
 !> \par History
 !>      05.2009 created [MI]

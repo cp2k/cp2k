@@ -189,7 +189,7 @@ CONTAINS
     eigensolver_section => section_vals_get_subs_vals(root_section,"TEST%EIGENSOLVER",error=error)
     CALL section_vals_get(eigensolver_section,explicit=explicit, error=error)
     IF (explicit) THEN
-      CALL eigensolver_test( para_env, iw,eigensolver_section,& 
+      CALL eigensolver_test( para_env, iw,eigensolver_section,&
                                 blacs_grid_layout=globenv%blacs_grid_layout,&
                                 blacs_repeatable=globenv%blacs_repeatable, error=error )
     ENDIF
@@ -727,7 +727,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   test rs_pw_transfer performance
 !> \author  Joost VandeVondele
-!>      9.2008 Randomise rs grid [Iain Bethune] 
+!>      9.2008 Randomise rs grid [Iain Bethune]
 !>      (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_test ( para_env, iw, globenv, rs_pw_transfer_section, error )
@@ -826,7 +826,7 @@ CONTAINS
        ENDIF
     ENDDO
 
-    !cleanup 
+    !cleanup
     CALL rs_grid_release(rs_grid,error=error)
     CALL rs_grid_release_descriptor(rs_desc, error=error)
     CALL pw_release ( ca%pw ,error=error)
@@ -904,7 +904,7 @@ CONTAINS
        CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT_ALL",i_rep_section=i_rep,&
             l_val=pw_grid_layout_all,error=error )
 
-       ! prepare to loop over all or a specific layout 
+       ! prepare to loop over all or a specific layout
        IF (pw_grid_layout_all) THEN
           ! count layouts that fit
           itmp=0
@@ -934,7 +934,7 @@ CONTAINS
        DO i_layout=1,SIZE(layouts,2)
 
           distribution_layout=layouts(:,i_layout)
-          
+
           CALL pw_grid_create ( grid, para_env%group ,error=error)
 
           CALL section_vals_val_get(pw_transfer_section,"PW_GRID",i_rep_section=i_rep,i_val=itmp,error=error)
@@ -1032,7 +1032,7 @@ CONTAINS
              IF (iw>0) CALL m_flush(iw)
           END IF
 
-          ! need debugging ??? 
+          ! need debugging ???
           IF ( em > toler .OR. et > toler ) THEN
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "The FFT results are not accurate ... starting debug pw_transfer")
@@ -1623,7 +1623,7 @@ CONTAINS
           WRITE(iw,*) "Matrix size",n
           WRITE(iw,*) "Number of eigenvalues",neig
           WRITE(iw,*) "Timing loops",n_loop
-          SELECT CASE(diag_method) 
+          SELECT CASE(diag_method)
           CASE(do_diag_syevd)
               WRITE(iw,*) "Diag using syevd"
           CASE(do_diag_syevx)
@@ -1632,7 +1632,7 @@ CONTAINS
               ! stop
           END SELECT
 
-          SELECT CASE(init_method) 
+          SELECT CASE(init_method)
           CASE(do_mat_random)
               WRITE(iw,*) "using random matrix"
           CASE(do_mat_read)
@@ -1842,13 +1842,13 @@ CONTAINS
        CALL section_vals_val_get(cp_fm_gemm_test_section,"transb",i_rep_section=i_rep,l_val=transb_p,error=error )
        CALL section_vals_val_get(cp_fm_gemm_test_section,"nrow_block",i_rep_section=i_rep,i_val=nrow_block,error=error )
        CALL section_vals_val_get(cp_fm_gemm_test_section,"ncol_block",i_rep_section=i_rep,i_val=ncol_block,error=error )
-       transa="N"  
+       transa="N"
        transb="N"
        IF (transa_p) transa="T"
        IF (transb_p) transb="T"
 
        IF (iw>0) THEN
-          WRITE(iw,'(T2,A)') "----------- TESTING PARALLEL MATRIX MULTIPLY -------------" 
+          WRITE(iw,'(T2,A)') "----------- TESTING PARALLEL MATRIX MULTIPLY -------------"
           WRITE(iw,'(T2,A)',ADVANCE="NO") "C = "
           IF (transa_p) THEN
             WRITE(iw,'(A)',ADVANCE="NO") "TRANSPOSE(A) x"
@@ -1863,7 +1863,7 @@ CONTAINS
           WRITE(iw,'(T2,A,I3,A,I3)') 'requested block size',nrow_block,' by ',ncol_block
           WRITE(iw,'(T2,A,I5)') 'number of repetitions of cp_fm_gemm ',n_loop
        ENDIF
-       
+
        NULLIFY (blacs_env)
        CALL cp_blacs_env_create(blacs_env=blacs_env,&
                                 para_env=para_env,&
@@ -1977,7 +1977,7 @@ CONTAINS
     DO i_rep = 1, n_rep
        ! how often should we do the multiply
        CALL section_vals_val_get(input_section,"N_loop",i_rep_section=i_rep,i_val=N_loop,error=error )
-       
+
        ! matrices def.
        CALL section_vals_val_get(input_section,"DATA_TYPE",i_rep_section=i_rep,i_val=data_type,error=error )
        CALL section_vals_val_get(input_section,"K",i_rep_section=i_rep,i_val=k,error=error )

@@ -100,7 +100,7 @@ MODULE hartree_local_types
       DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN 
+      IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN
           DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ENDIF

@@ -4,7 +4,7 @@
 
 ! *****************************************************************************
   SUBROUTINE collocate_gf_npbc(grid,xdat,ydat,zdat,bo1,bo2,zlb,zub,ylb,yub,xlb,xub)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: bo1(2,3)
     REAL(wp), INTENT(INOUT) :: &
       grid(bo1(1,1):bo1(2,1),bo1(1,2):bo1(2,2),bo1(1,3):bo1(2,3))
@@ -30,7 +30,7 @@
 
 ! *****************************************************************************
   SUBROUTINE integrate_gf_npbc(grid,xdat,ydat,zdat,bo,zlb,zub,ylb,yub,xlb,xub,force)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: bo(2,3)
     REAL(wp), INTENT(IN)                     :: zdat(2,bo(1,3):bo(2,3)), &
                                                 ydat(2,bo(1,2):bo(2,2)), &
@@ -63,15 +63,15 @@
              fyz2 = fyz2 + g2 * x1
              fx2  =  fx2 + g2 * x2
           END DO ! Loop on x
-          force(1) = force(1) + fx1  * zdat(1,iz) * ydat(1,iy) 
-          force(2) = force(2) + fyz1 * zdat(1,iz) * ydat(2,iy) 
-          force(3) = force(3) + fyz1 * zdat(2,iz) * ydat(1,iy) 
-          force(1) = force(1) + fx2  * zdat(1,iz) * ydat(1,iy2) 
-          force(2) = force(2) + fyz2 * zdat(1,iz) * ydat(2,iy2) 
-          force(3) = force(3) + fyz2 * zdat(2,iz) * ydat(1,iy2) 
+          force(1) = force(1) + fx1  * zdat(1,iz) * ydat(1,iy)
+          force(2) = force(2) + fyz1 * zdat(1,iz) * ydat(2,iy)
+          force(3) = force(3) + fyz1 * zdat(2,iz) * ydat(1,iy)
+          force(1) = force(1) + fx2  * zdat(1,iz) * ydat(1,iy2)
+          force(2) = force(2) + fyz2 * zdat(1,iz) * ydat(2,iy2)
+          force(3) = force(3) + fyz2 * zdat(2,iz) * ydat(1,iy2)
        END DO ! Loop on y
 
-       ! cleanup loop: check if the last loop element has done  
+       ! cleanup loop: check if the last loop element has done
        IF (iy2 .NE. yub) THEN
           iy2  = yub
           fx2  = 0.0_wp

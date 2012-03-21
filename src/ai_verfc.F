@@ -10,23 +10,23 @@
 !>      <a|Z*erf(r)/r|b>.  The integrals <a|Z*erf(r)/r|b> can be rewritten
 !>      as the three-center Coulomb integrals <ab||c> with a  primitive
 !>      s-type Gaussian function c multiplied by a factor N.
-!> 
+!>
 !>                       erfc(r)
 !>      <a|V|b> = -Z*<a|---------|b>
 !>                          r
-!> 
+!>
 !>                       1 - erf(r)
 !>              = -Z*<a|------------|b>
 !>                           r
-!> 
+!>
 !>                        1           erf(r)
 !>              = -Z*(<a|---|b> - <a|--------|b>)
 !>                        r             r
-!> 
+!>
 !>                        1
 !>              = -Z*(<a|---|b> - N*<ab||c>)
 !>                        r
-!> 
+!>
 !>                       1
 !>              = -Z*<a|---|b> + Z*N*<ab||c>
 !>                       r
@@ -58,20 +58,20 @@
 !>      -  zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
 !> Indices for pVp matrices
 !>      -  ax,ay,az                : Angular momentum index numbers of orbital a.
-!>      -  n{x1,y1,z1}{x2,y2,z2}   : indices for the pVp matrix elements 
+!>      -  n{x1,y1,z1}{x2,y2,z2}   : indices for the pVp matrix elements
 !>                                   <p_{x1,y1,z1}a|V|p_{x2,y2,z2}>
 !>      -  co{a,b}{m,p}{x,y,z}     : coefficients of the pVp matrix elements: co == coset(lx,ly,lz)
 !>                                   m == li - 1; p == li +1; li= x,y,z (which l quantum number is modified); l = a,b
 !>                                   coset ( ... -1 ...) = 1  , should be zero, lmi = 1.0 for li >=1 and lmi = 0.0 for li = 0
 !>                                  guarantees this as a prefactor
-!>      -  f{a,b}{x,y,z},ft{a,b},z : f(t)li: prefactors as a result of derivations of l with respect to i 
+!>      -  f{a,b}{x,y,z},ft{a,b},z : f(t)li: prefactors as a result of derivations of l with respect to i
 !>      -  pVpout                  : pVp matrix elements
 !>      -  pVp                     : local pVp matrix elements
 !>      -  lamin,lbmin             : minimal angular quantum number used in pVp matrices
-!>      _  vnucp                   : potential of the nuclei 
+!>      _  vnucp                   : potential of the nuclei
 !>      -  vnuc                    : potential of the electrons
 !>      _  pVpa, pVpb              : pVpl=coset(lx,ly,lz)
-!>      -  na_pgf,nb_pgf           : indice for primitive gaussian functions    
+!>      -  na_pgf,nb_pgf           : indice for primitive gaussian functions
 !> \par History
 !>      10.2008 added pVp matrix elements (jens)
 !> \author Matthias Krack (04.10.2000)
@@ -154,14 +154,14 @@ CONTAINS
       do_dkh=.TRUE.
       pVp = 0.0_dp
       ! pVp matrices requires angular momentum quantum numbers l+1 and l-1
-       
+
       la_max = la_max1+1
       IF(PRESENT(maxder))THEN
         IF(maxder > 0) THEN
           la_max = la_max1
         END IF
       END IF
-      lb_max = lb_max1+1  
+      lb_max = lb_max1+1
 
       la_min = MAX(0,la_min1-1)
       lb_min = MAX(0,lb_min1-1)
@@ -171,7 +171,7 @@ CONTAINS
       lb_max = lb_max1
       la_min = la_min1
       lb_min = lb_min1
-    END IF  
+    END IF
 
     nmax = la_max + lb_max + 1
 
@@ -204,7 +204,7 @@ CONTAINS
       ELSE
         IF (rpgfa(ipgf) + rpgfc < dac) THEN
           na = na + ncoset(la_max1-maxder_local)             !JT
-          nap = nap + ncoset(la_max1)                        !JT 
+          nap = nap + ncoset(la_max1)                        !JT
           CYCLE
         END IF
       END IF
@@ -221,7 +221,7 @@ CONTAINS
              nb = nb + ncoset(lb_max1)                        !JT
              CYCLE
            END IF
-         END IF 
+         END IF
        ELSE
          IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
              (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
@@ -870,9 +870,9 @@ END IF
 
 !JT
         IF(do_dkh)THEN
-          DO j=1,ncoset(lb_max1)                                       
-            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)      
-              vnabc(na+i,nb+j) = vnabc(na+i,nb+j) + cerf*verf(i,j,1)     
+          DO j=1,ncoset(lb_max1)
+            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)
+              vnabc(na+i,nb+j) = vnabc(na+i,nb+j) + cerf*verf(i,j,1)
             END DO
           END DO
           DO j=1,ncoset(lb_max1)
@@ -902,8 +902,8 @@ END IF
         IF(do_dkh)THEN
           ! *********** Calculate pVp matrix **************
           ! [pa|V|pb]=4*zeta*zetb*[a+i|V|b+i]-2*zetb*Ni(a)*[a-i|V|b+i]-2*zeta*Ni(b)*[a+i|V|b-i]+Ni(a)*Ni(b)*[a-i|V|b-i]
-          ! Every integral has been calculated before (except [-1|V|-1],[a|V|-1] and [-1|V|b], 
-          ! which do not contribute, because their prefactor Ni(a) or Ni(b) is zero) 
+          ! Every integral has been calculated before (except [-1|V|-1],[a|V|-1] and [-1|V|b],
+          ! which do not contribute, because their prefactor Ni(a) or Ni(b) is zero)
           ! and is given by verf/vnuc(coset(ax,ay,az),coset(bx,by,bz),1)
           ! ***********************************************
           ftaz = 2.0_dp*zeta(ipgf)
@@ -979,9 +979,9 @@ END IF
             END DO
           END DO
 
-          DO j=1,ncoset(lb_max1)                                       
-            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)      
-              pVp_sum(na+i,nb+j) = pVp_sum(na+i,nb+j) +pVp(i,j)    
+          DO j=1,ncoset(lb_max1)
+            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)
+              pVp_sum(na+i,nb+j) = pVp_sum(na+i,nb+j) +pVp(i,j)
             END DO
           END DO
         END IF

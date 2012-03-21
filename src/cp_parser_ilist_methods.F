@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
- 
+
 ! *****************************************************************************
 !> \brief a module to allow simple internal preprocessing in input files.
 !> \par History
@@ -22,7 +22,7 @@ MODULE cp_parser_ilist_methods
 
   PUBLIC :: ilist_setup, ilist_update, ilist_reset
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_ilist_methods'
-  
+
 CONTAINS
 
 ! ****************************************************************************
@@ -93,10 +93,10 @@ CONTAINS
     IF (ilist%ipresent==ilist%iend) THEN
        ilist%istart   = HUGE(0)
        ilist%iend     = HUGE(0)
-       ilist%nel_list = HUGE(0)    
+       ilist%nel_list = HUGE(0)
        ilist%ipresent = HUGE(0)
        ilist%in_use   = .FALSE.
     END IF
   END SUBROUTINE ilist_reset
-  
+
 END MODULE cp_parser_ilist_methods

@@ -249,7 +249,7 @@ MODULE dbcsr_pq_types
 
    TYPE(ps_host_type), DIMENSION(:), POINTER  :: ps_host_parameter
 
-  
+
 
   !> \brief Queue of parameter stacks
   !>

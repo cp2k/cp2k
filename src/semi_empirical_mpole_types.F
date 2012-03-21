@@ -91,13 +91,13 @@ CONTAINS
        NULLIFY(mpole(i)%mpole)
        CALL semi_empirical_mpole_create(mpole(i)%mpole, error=error)
     END DO
-    
+
   END SUBROUTINE semi_empirical_mpole_p_create
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_release(mpole, error)
     TYPE(semi_empirical_mpole_p_type), &
       DIMENSION(:), POINTER                  :: mpole
@@ -154,7 +154,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_release(mpole, error)
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -170,7 +170,7 @@ CONTAINS
        DEALLOCATE (mpole, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
   END SUBROUTINE semi_empirical_mpole_release
 
 ! *****************************************************************************
@@ -242,7 +242,7 @@ CONTAINS
        DEALLOCATE (nddo_mpole, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
   END SUBROUTINE nddo_mpole_release
-  
+
 END MODULE semi_empirical_mpole_types

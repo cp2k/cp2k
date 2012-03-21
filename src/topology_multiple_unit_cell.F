@@ -121,9 +121,9 @@ CPSourceFileRef)
                     topology%atom_info%r(3,n+m)         =  topology%atom_info%r(3,m)+trsl(3)
                     topology%atom_info%id_molname(n+m)  =  topology%atom_info%id_molname(m)
                     topology%atom_info%id_resname(n+m)  =  topology%atom_info%id_resname(m)
-                    topology%atom_info%resid(n+m)       =  topology%atom_info%resid(m)  
-                    topology%atom_info%id_element(n+m)  =  topology%atom_info%id_element(m)      
-                    topology%atom_info%atm_mass(n+m)    =  topology%atom_info%atm_mass(m)     
+                    topology%atom_info%resid(n+m)       =  topology%atom_info%resid(m)
+                    topology%atom_info%id_element(n+m)  =  topology%atom_info%id_element(m)
+                    topology%atom_info%atm_mass(n+m)    =  topology%atom_info%atm_mass(m)
                     topology%atom_info%atm_charge(n+m)  =  topology%atom_info%atm_charge(m)
                 END DO
              END DO

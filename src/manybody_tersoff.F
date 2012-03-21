@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \par History
-!>      Efficient tersoff implementation 
+!>      Efficient tersoff implementation
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
 MODULE manybody_tersoff
@@ -458,11 +458,11 @@ CONTAINS
           pv_nonbond(1,1) = pv_nonbond(1,1) + prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
           pv_nonbond(1,2) = pv_nonbond(1,2) + prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
           pv_nonbond(1,3) = pv_nonbond(1,3) + prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
-          
+
           pv_nonbond(2,1) = pv_nonbond(2,1) + prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
           pv_nonbond(2,2) = pv_nonbond(2,2) + prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
           pv_nonbond(2,3) = pv_nonbond(2,3) + prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
-          
+
           pv_nonbond(3,1) = pv_nonbond(3,1) + prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
           pv_nonbond(3,2) = pv_nonbond(3,2) + prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
           pv_nonbond(3,3) = pv_nonbond(3,3) + prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
@@ -557,7 +557,7 @@ CONTAINS
     CALL timeset ( routineN, handle )
     rij(:) = r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:) + cell_v
     drij = SQRT(DOT_PRODUCT(rij,rij))
-    rij_hat(:) = rij(:) / drij 
+    rij_hat(:) = rij(:) / drij
 
     fac = - 0.5_dp
     b_ij  = ter_b_ij  (tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,full_loc_list, loc_cell_v,cell_v,rcutsq)
@@ -799,11 +799,11 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(glob_loc_list)) THEN
        DEALLOCATE(glob_loc_list, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)      
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (ASSOCIATED(glob_loc_list_a)) THEN
        DEALLOCATE(glob_loc_list_a, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)      
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (ASSOCIATED(glob_cell_v)) THEN
        DEALLOCATE(glob_cell_v, stat=stat)
@@ -811,6 +811,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE destroy_tersoff_arrays
-  
+
 END MODULE manybody_tersoff
 

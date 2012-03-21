@@ -50,8 +50,8 @@ CONTAINS
 !> \brief returns a unique string for a given derivative string
 !> \param deriv_desc input string which describes the derivative and
 !>                    should be standardized
-!> \param error variable to control error logging, stopping,... 
-!>                    see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>                    see module cp_error_handling
 ! *****************************************************************************
  SUBROUTINE standardize_derivative_desc(deriv_desc,res,error)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
@@ -83,7 +83,7 @@ CONTAINS
           END IF
        END DO
     END DO
-    
+
     res=""
     pos=1
     DO i=1,SIZE(deriv_array)
@@ -100,8 +100,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns an array of 1st order derivative descriptions
 !> \param deriv_desc input string which describes the derivative
-!> \param error variable to control error logging, stopping,... 
-!>                    see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>                    see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE create_split_derivative_desc(deriv_desc,res,error)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
@@ -136,7 +136,7 @@ CONTAINS
           res(nderiv)=deriv_desc(i+1:j-1)
        END IF
     END DO
-    
+
   END SUBROUTINE create_split_derivative_desc
 
 END MODULE xc_derivative_desc

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief calculate the Hamprecht, Cohen, Tozer, and Handy (HCTH) exchange 
+!> \brief calculate the Hamprecht, Cohen, Tozer, and Handy (HCTH) exchange
 !>      functional
 !> \author fawzi
 ! *****************************************************************************
@@ -36,8 +36,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE hcth_lda_info(iparset,reference,shortform, needs, max_deriv, error)
@@ -106,8 +106,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param iparset the parameter set that should be used (93,120,147,407)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE hcth_lda_eval(iparset,rho_set,deriv_set,grad_deriv,error)
@@ -177,8 +177,8 @@ CONTAINS
 !> \param e_rho the derivative of the functional wrt. rho
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>     Literature:- F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,
 !>                  J. Chem. Phys. 109, 6264 (1998) -> HCTH/93

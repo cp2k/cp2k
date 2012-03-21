@@ -45,7 +45,7 @@ MODULE input_keyword_types
   INTEGER, PARAMETER, PUBLIC :: description_string_length=10*default_string_length,&
        usage_string_length=default_string_length*2
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
-  
+
   PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain,&
        keyword_release, keyword_get, keyword_describe,&
        keyword_describe_html, write_keyword_xml, keyword_typo_match
@@ -64,7 +64,7 @@ MODULE input_keyword_types
 !> \param names the names of the current keyword (at least one should be
 !>        present) for example "MAXSCF"
 !> \param usage how to use it "MAXSCF 10"
-!> \param description what does it do: "MAXSCF : determines the maximum 
+!> \param description what does it do: "MAXSCF : determines the maximum
 !>        number of steps in an SCF run"
 !> \param citations references to literature associated with this keyword
 !> \param type_of_var the type of keyword (controls how it is parsed)
@@ -108,8 +108,8 @@ CONTAINS
 !> \brief creates a keyword object
 !> \param keyword the keyword object to be created
 !> \param name the name of the keyword
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
@@ -218,7 +218,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           keyword%citations=citations
        ELSE
-          NULLIFY(keyword%citations) 
+          NULLIFY(keyword%citations)
        ENDIF
 
        keyword%repeats=.FALSE.
@@ -351,7 +351,7 @@ CONTAINS
                    END DO
                    CALL cp_assert(check,cp_failure_level,&
                         cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
-                        error,failure) 
+                        error,failure)
                 ENDIF
              ENDIF
           END IF
@@ -372,7 +372,7 @@ CONTAINS
                 END DO
                 CALL cp_assert(check,cp_failure_level,&
                      cp_assertion_failed,routineP,"default value not in enumeration : "//&
-                     keyword%names(1), error,failure) 
+                     keyword%names(1), error,failure)
              ENDIF
              keyword%n_var=SIZE(keyword%default_value%i_val)
           CASE(real_t)
@@ -390,7 +390,7 @@ CONTAINS
        IF (PRESENT(n_var)) keyword%n_var=n_var
        CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
             cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
-            //keyword%names(1), error,failure) 
+            //keyword%names(1), error,failure)
 
        IF (PRESENT(unit_str)) THEN
           CALL cp_unit_create(keyword%unit,unit_str,error=error)
@@ -401,8 +401,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given keyword (see doc/ReferenceCounting.html)
 !> \param keyword the keyword to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_retain(keyword, error)
@@ -425,8 +425,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given keyword (see doc/ReferenceCounting.html)
 !> \param keyword the keyword to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_release(keyword, error)
@@ -462,8 +462,8 @@ CONTAINS
   END SUBROUTINE keyword_release
 
 ! *****************************************************************************
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
@@ -512,8 +512,8 @@ CONTAINS
 !> \param level the description level (0 no description, 1 name
 !>        2: +usage, 3: +variants+description+default_value+required+repeats
 !>        4: +type_of_var)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
@@ -595,7 +595,7 @@ CONTAINS
              CASE (no_t)
                 WRITE(unit_nr,"('  Non-standard type.')")
              CASE default
-                CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)           
+                CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
              END SELECT
           END IF
           IF (keyword%type_of_var==enum_t) THEN
@@ -660,8 +660,8 @@ CONTAINS
 !> \brief writes out a description of the keyword
 !> \param keyword the keyword to describe
 !> \param unit_nr the unit to write to
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele [10.2004], based on keyword_describe
 ! *****************************************************************************
   SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
@@ -742,7 +742,7 @@ CONTAINS
        CASE (no_t)
           WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a non-standard input type'
        CASE DEFAULT
-          CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)           
+          CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
        END SELECT
        IF (keyword%repeats) THEN
           WRITE(unit_nr,"(', and may repeat')",ADVANCE="NO")
@@ -823,7 +823,7 @@ CONTAINS
 !> \param keyword The keyword to describe
 !> \param unit_number Number of the output unit
 !> \param error Variable to control error logging, stopping ...
-!>        see module cp_error_handling 
+!>        see module cp_error_handling
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)

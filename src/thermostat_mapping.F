@@ -92,7 +92,7 @@ CONTAINS
     NULLIFY ( const_mol, tot_const, point)
     CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,error,failure)
-    
+
     nkind = SIZE(molecule_kind_set)
     CALL adiabatic_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
          const_mol, tot_const, point, local_molecules, molecule_kind_set, molecule_set,&
@@ -103,7 +103,7 @@ CONTAINS
     CASE(do_region_global, do_region_molecule, do_region_massive)
        nsize = number
     CASE DEFAULT
-       ! STOP PROGRAM 
+       ! STOP PROGRAM
     END SELECT
     ALLOCATE (map_info%s_kin(nsize),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -125,12 +125,12 @@ CONTAINS
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
          local_molecules, para_env, massive_atom_list, region, shell,&
          error)
-    
+
     CALL adiabatic_mapping_region_low(region, map_info, nkind, point,&
          deg_of_freedom, local_molecules, const_mol, massive_atom_list,&
          tot_const, molecule_set, number_of_thermostats, shell, gci,&
          map_loc_thermo_gen, error)
-    
+
      number = number_of_thermostats
      sum_of_thermostats=number
      CALL mp_sum ( sum_of_thermostats, para_env%group )
@@ -184,7 +184,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle)
-    unity          = 1.0_dp 
+    unity          = 1.0_dp
     failure        = .FALSE.
     global_constraints = ASSOCIATED(gci)
     deg_of_freedom = 0
@@ -206,7 +206,7 @@ CONTAINS
                END DO
              ELSE
                DO ii = 1, 3
-                  NULLIFY ( map_info%p_kin(ii,jj)%point ) 
+                  NULLIFY ( map_info%p_kin(ii,jj)%point )
                   map_info%p_scale(ii,jj)%point => unity
                END DO
              ENDIF
@@ -220,7 +220,7 @@ CONTAINS
     ELSE IF ( region==do_region_molecule) THEN
        ! Molecular Region
        IF   ( map_info%dis_type == do_thermo_no_communication ) THEN
-          ! This is the standard case.. 
+          ! This is the standard case..
           DO ikind = 1, nkind
              nmol_local =  local_molecules % n_el (ikind)
              DO imol_local = 1, nmol_local
@@ -232,9 +232,9 @@ CONTAINS
                  !  WRITE ( *, * ) 'kk', size(map_loc_thermo_gen), kk, map_loc_thermo_gen ( kk )
                    IF ( map_loc_thermo_gen ( kk ) == HUGE ( 0 ) ) THEN
                      have_thermostat=.FALSE.
-                     EXIT 
+                     EXIT
                    ENDIF
-                END DO 
+                END DO
 ! If molecule has a thermostat, then map
                 IF ( have_thermostat ) THEN
 ! glob_therm_num is the global thermostat number attached to the local molecule
@@ -310,7 +310,7 @@ CONTAINS
                 first_atom = first_shell
                 last_atom  = last_shell
              ELSE
-                IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN 
+                IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN
                    CALL stop_program(routineN,moduleN,__LINE__,&
                                      "Massive thermostats with constraints are impossible!")
                 END IF
@@ -319,10 +319,10 @@ CONTAINS
 
              have_thermostat=.TRUE.
              DO ii =  point ( 1, icount ), point ( 2, icount )
-               IF ( map_loc_thermo_gen ( ii ) /= 1 ) THEN 
+               IF ( map_loc_thermo_gen ( ii ) /= 1 ) THEN
                   have_thermostat = .FALSE.
                   EXIT
-               END IF  
+               END IF
              END DO
 
              IF ( have_thermostat ) THEN
@@ -343,7 +343,7 @@ CONTAINS
              ELSE
                DO ii =  point ( 1, icount ), point ( 2, icount )
                  DO jj = 1, 3
-                   NULLIFY ( map_info%p_kin(jj,ii) %point ) 
+                   NULLIFY ( map_info%p_kin(jj,ii) %point )
                    map_info%p_scale(jj,ii) %point => unity
                  END DO
                END DO
@@ -453,7 +453,7 @@ CONTAINS
                    DO katom = first_atom, last_atom
                       DO ilist = 1, SIZE(fixd_list)
                          IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
-                              (.NOT. fixd_list(ilist)%restraint%active)) THEN 
+                              (.NOT. fixd_list(ilist)%restraint%active)) THEN
                             SELECT CASE(fixd_list(ilist)%itype)
                             CASE(use_perd_x,use_perd_y,use_perd_z)
                                nfixd=nfixd+1
@@ -548,7 +548,7 @@ CONTAINS
     NULLIFY ( const_mol, tot_const, point)
     CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,error,failure)
-    
+
     nkind = SIZE(molecule_kind_set)
     CALL mapping_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
          const_mol, tot_const, point, local_molecules, molecule_kind_set, molecule_set,&
@@ -580,12 +580,12 @@ CONTAINS
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
          local_molecules, para_env, massive_atom_list, region, shell,&
          error)
-    
+
     CALL  thermostat_mapping_region_low(region, map_info, nkind, point,&
          deg_of_freedom, local_molecules, const_mol, massive_atom_list,&
          tot_const, molecule_set, number_of_thermostats, shell, gci,&
          map_loc_thermo_gen, error)
-    
+
     check = (number==number_of_thermostats)
     CPPrecondition(check,cp_fatal_level,routineP,error,failure)
     DEALLOCATE (const_mol,STAT=stat)
@@ -677,7 +677,7 @@ CONTAINS
        map_info%map_index(number) = tmp(1)
        deg_of_freedom(number)     = tot_const(tmp(1))
        DO i = 2, itmp
-          IF (tmp(i)/=tmp(i-1)) THEN 
+          IF (tmp(i)/=tmp(i-1)) THEN
              number = number + 1
              map_info%index(number)     = tmp(i)
              map_info%map_index(number) = tmp(i)
@@ -702,7 +702,7 @@ CONTAINS
     ELSE IF ( region==do_region_molecule) THEN
        ! Molecular Region
        IF      ( map_info%dis_type == do_thermo_no_communication ) THEN
-          ! This is the standard case.. 
+          ! This is the standard case..
           DO ikind = 1, nkind
              nmol_local =  local_molecules % n_el (ikind)
              DO imol_local = 1, nmol_local
@@ -756,7 +756,7 @@ CONTAINS
                 first_atom = first_shell
                 last_atom  = last_shell
              ELSE
-                IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN 
+                IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN
                    CALL stop_program(routineN,moduleN,__LINE__,&
                                      "Massive thermostats with constraints are impossible!")
                 END IF
@@ -885,7 +885,7 @@ CONTAINS
                    DO katom = first_atom, last_atom
                       DO ilist = 1, SIZE(fixd_list)
                          IF ( ( katom == fixd_list(ilist)%fixd        ) .AND. &
-                              (.NOT. fixd_list(ilist)%restraint%active)) THEN 
+                              (.NOT. fixd_list(ilist)%restraint%active)) THEN
                             SELECT CASE(fixd_list(ilist)%itype)
                             CASE(use_perd_x,use_perd_y,use_perd_z)
                                nfixd=nfixd+1
@@ -1209,7 +1209,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (map_info%map_index(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     ! Begin the mapping loop
     DO i = 1, ndeg
        map_info%p_kin(1,i)%point   => map_info%s_kin(1)

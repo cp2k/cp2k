@@ -65,7 +65,7 @@ FUNCTION m_loc_r(a) RESULT(res)
 
   res=-1
 END FUNCTION m_loc_r
-  
+
 ! *****************************************************************************
 FUNCTION m_loc_c(a) RESULT(res)
     COMPLEX(KIND=dp), DIMENSION(*), &

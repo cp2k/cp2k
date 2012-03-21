@@ -93,7 +93,7 @@ END SUBROUTINE fftsg3d
 
 ! *****************************************************************************
 SUBROUTINE fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
-  
+
   USE fft_kinds, ONLY                                   : dp
   INTEGER, INTENT ( INOUT )                          :: fsign
   LOGICAL, INTENT ( IN )                             :: trans
@@ -101,9 +101,9 @@ SUBROUTINE fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
-  
+
 !------------------------------------------------------------------------------
-  
+
 #if defined ( __FFTSG )
 
   IF ( trans ) THEN

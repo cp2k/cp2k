@@ -219,7 +219,7 @@ CONTAINS
        check = (PRESENT(each_iter_names)).EQV.(PRESENT(each_iter_values))
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        ext_each = (PRESENT(each_iter_names)).AND.(PRESENT(each_iter_values))
-       
+
        DO i_each = 1, SIZE(each_possible_labels)
           my_value = 1
           IF (ext_each) THEN
@@ -240,7 +240,7 @@ CONTAINS
        END DO
        CALL section_add_subsection(print_key_section,subsection,error=error)
        CALL section_release(subsection,error=error)
-          
+
        my_add_last = add_last_no
        IF (PRESENT(add_last)) THEN
           my_add_last = add_last
@@ -737,13 +737,13 @@ CONTAINS
 !> \brief Utility function that retuns a unit number to write the print key.
 !>     Might open a file with a unique filename, generated from
 !>     the print_key name and iteration info.
-!> 
+!>
 !>     Normally a valid unit (>0) is returned only if cp_print_key_should_output
 !>     says that the print_key should be printed, and if the unit is global
 !>     only the io node has a valid unit.
 !>     So in many cases you can decide if you should print just checking if
 !>     the returned units is bigger than 0.
-!> 
+!>
 !>     IMPORTANT you should call cp_finished_output when an iteration output is
 !>     finished (to immediately close the file that might have been opened)
 !> \param logger the logger for the parallel environment, iteration info
@@ -926,7 +926,7 @@ CONTAINS
              IF (PRESENT(log_filename)) THEN
                 do_log = log_filename
              ELSE
-                CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log,error=error)              
+                CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log,error=error)
              END IF
              ! If required do a backup
              IF (my_do_backup) THEN
@@ -1001,7 +1001,7 @@ CONTAINS
 !> \brief should be called after you finish working with a unit obtained with
 !>      cp_print_key_unit_nr, so that the file that might have been opened
 !>      can be closed.
-!> 
+!>
 !>      the inputs should be exactly the same of the corresponding
 !>      cp_print_key_unit_nr
 !> \note

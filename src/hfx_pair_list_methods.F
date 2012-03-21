@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Rountines for optimizing load balance between processes in HFX calculations 
+!> \brief Rountines for optimizing load balance between processes in HFX calculations
 !> \par History
 !>      04.2008 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
-MODULE hfx_pair_list_methods 
+MODULE hfx_pair_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE gamma,                           ONLY: fgamma=>fgamma_0
@@ -34,7 +34,7 @@ MODULE hfx_pair_list_methods
 
   IMPLICIT NONE
   PRIVATE
-   
+
   PUBLIC build_pair_list, &
          build_pair_list_mp2, &
          build_pair_list_pgf, &
@@ -42,13 +42,13 @@ MODULE hfx_pair_list_methods
          build_atomic_pair_list
 
 !***
-  
+
   CONTAINS
 
   SUBROUTINE build_pgf_product_list(nneighbors3, list1, list2, product_list, nproducts, &
                                     log10_pmax, log10_eps_schwarz, neighbor_cells,&
                                     cell, potential_parameter, m_max, do_periodic)
-  
+
     INTEGER                                  :: nneighbors3
     TYPE(hfx_pgf_list)                       :: list1, list2
     TYPE(hfx_pgf_product_list), &
@@ -106,7 +106,7 @@ MODULE hfx_pair_list_methods
           temp_CC = rc+shift
           temp_DD = rd+shift
         END IF
-     
+
         DO k = 1,SIZE(neighbor_cells)
           IF( do_periodic )  THEN
             C11 = temp_CC + neighbor_cells(k)%cell_r(:)
@@ -324,7 +324,7 @@ MODULE hfx_pair_list_methods
           list(element_counter)%image_list(nimages(element_counter))%ra = ra
           list(element_counter)%image_list(nimages(element_counter))%rb = im_B
           list(element_counter)%image_list(nimages(element_counter))%rab2 = rab2
- 
+
           Zeta_A = zeta(ipgf)
           Zeta_B = zetb(jpgf)
           Zeta1 = Zeta_A + Zeta_B
@@ -349,7 +349,7 @@ MODULE hfx_pair_list_methods
         END DO
       END DO
       nelements = MAX(nelements,element_counter)
-    END DO  
+    END DO
     DO j = 1,nelements
       list(j)%nimages = nimages(j)
     END DO
@@ -370,7 +370,7 @@ MODULE hfx_pair_list_methods
         list(element_counter)%image_list(i) = list(j)%image_list(i)
       END DO
     END DO
-    
+
     nelements = element_counter
 
   END SUBROUTINE build_pair_list_pgf
@@ -378,7 +378,7 @@ MODULE hfx_pair_list_methods
   SUBROUTINE build_pair_list(natom, list,set_list,i_start,i_end,j_start,j_end,kind_of,basis_parameter,particle_set, &
                              do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
                              pmax_blocks, atomic_pair_list)
- 
+
     INTEGER, INTENT(IN)                      :: natom
     TYPE(pair_list_type), INTENT(OUT)        :: list
     TYPE(pair_set_list_type), DIMENSION(*), &
@@ -433,8 +433,8 @@ MODULE hfx_pair_list_methods
         END IF
         IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
              coeffs_kind(jkind,ikind)%x(2) ) + coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
-  
-        n_element=n_element+1 
+
+        n_element=n_element+1
         list%elements(n_element)%pair(1)=iatom
         list%elements(n_element)%pair(2)=jatom
         list%elements(n_element)%kind_pair(1)=ikind
@@ -456,9 +456,9 @@ MODULE hfx_pair_list_methods
         list%elements(n_element)%set_bounds(2)=nset_ij
       END DO
     END DO
-  
+
     list%n_element=n_element
-  
+
   END SUBROUTINE build_pair_list
 
   SUBROUTINE build_atomic_pair_list(natom, atomic_pair_list, kind_of,basis_parameter,particle_set, &
@@ -493,7 +493,7 @@ MODULE hfx_pair_list_methods
       DO jblock = 1,SIZE(blocks)
         jatom_start = blocks(jblock)%istart
         jatom_end = blocks(jblock)%iend
- 
+
         DO iatom = iatom_start, iatom_end
           ikind = kind_of(iatom)
           nseta =  basis_parameter(ikind)%nset
@@ -503,7 +503,7 @@ MODULE hfx_pair_list_methods
             jkind = kind_of(jatom)
             nsetb =  basis_parameter(jkind)%nset
             rb=particle_set(jatom)%r(:)
-    
+
             IF( do_periodic ) THEN
               temp = rb -ra
               pbc_B = pbc(temp,cell)
@@ -515,7 +515,7 @@ MODULE hfx_pair_list_methods
             END IF
             IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
                  coeffs_kind(jkind,ikind)%x(2) ) + coeffs_kind_max0  < log10_eps_schwarz ) CYCLE
-    
+
             atomic_pair_list(jatom,iatom) = .TRUE.
             atomic_pair_list(iatom,jatom) = .TRUE.
           END DO
@@ -524,11 +524,11 @@ MODULE hfx_pair_list_methods
     END DO
 
   END SUBROUTINE build_atomic_pair_list
- 
+
   SUBROUTINE build_pair_list_mp2(natom, list,set_list,i_start,i_end,j_start,j_end,kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&            
-                             pmax_blocks, atomic_pair_list, skip_atom_symmetry)                                      
-                                                                                                                     
+                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
+                             pmax_blocks, atomic_pair_list, skip_atom_symmetry)
+
     INTEGER, INTENT(IN)                      :: natom
     TYPE(pair_list_type_mp2)                 :: list
     TYPE(pair_set_list_type), DIMENSION(*), &
@@ -559,7 +559,7 @@ MODULE hfx_pair_list_methods
     REAL(KIND=dp), DIMENSION(3)              :: B11, pbc_B, ra, rb, temp
 
     n_element=0
-    nset_ij=0  
+    nset_ij=0
 
     my_skip_atom_symmetry=.FALSE.
     IF (PRESENT(skip_atom_symmetry)) my_skip_atom_symmetry=skip_atom_symmetry
@@ -570,41 +570,41 @@ MODULE hfx_pair_list_methods
 
         ikind = kind_of(iatom)
         nseta =  basis_parameter(ikind)%nset
-        ra=particle_set(iatom)%r(:)         
+        ra=particle_set(iatom)%r(:)
 
         IF(jatom<iatom .AND. (.NOT.my_skip_atom_symmetry)) CYCLE
-        jkind = kind_of(jatom)                                  
-        nsetb =  basis_parameter(jkind)%nset                    
-        rb=particle_set(jatom)%r(:)                             
+        jkind = kind_of(jatom)
+        nsetb =  basis_parameter(jkind)%nset
+        rb=particle_set(jatom)%r(:)
 
         IF( do_periodic ) THEN
-          temp = rb -ra       
+          temp = rb -ra
           pbc_B = pbc(temp,cell)
-          B11 = ra + pbc_B      
+          B11 = ra + pbc_B
           rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-        ELSE                                                          
-          rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2   
-          B11 = rb ! ra - rb                                          
-        END IF                                                        
-        IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&                     
+        ELSE
+          rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+          B11 = rb ! ra - rb
+        END IF
+        IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
              coeffs_kind(jkind,ikind)%x(2) ) + coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
-                                                                                                          
-        n_element=n_element+1                                                                             
-        list%elements(n_element)%pair(1)=iatom                                                            
-        list%elements(n_element)%pair(2)=jatom                                                            
-        list%elements(n_element)%kind_pair(1)=ikind                                                       
-        list%elements(n_element)%kind_pair(2)=jkind                                                       
-        list%elements(n_element)%r1   =ra                                                                 
-        list%elements(n_element)%r2   =B11                                                                
-        list%elements(n_element)%dist2=rab2                                                               
-        ! build a list of guaranteed overlapping sets                                                     
-        list%elements(n_element)%set_bounds(1)=nset_ij+1                                                  
-        DO iset = 1, nseta                                                                                
-          DO jset = 1,nsetb                                                                               
-            IF (coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + coeffs_set(jset,iset,jkind,ikind)%x(2) + &  
-                coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz ) CYCLE                                
-            nset_ij=nset_ij+1                                                                             
-            set_list(nset_ij)%pair(1)=iset                                                                
+
+        n_element=n_element+1
+        list%elements(n_element)%pair(1)=iatom
+        list%elements(n_element)%pair(2)=jatom
+        list%elements(n_element)%kind_pair(1)=ikind
+        list%elements(n_element)%kind_pair(2)=jkind
+        list%elements(n_element)%r1   =ra
+        list%elements(n_element)%r2   =B11
+        list%elements(n_element)%dist2=rab2
+        ! build a list of guaranteed overlapping sets
+        list%elements(n_element)%set_bounds(1)=nset_ij+1
+        DO iset = 1, nseta
+          DO jset = 1,nsetb
+            IF (coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + coeffs_set(jset,iset,jkind,ikind)%x(2) + &
+                coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz ) CYCLE
+            nset_ij=nset_ij+1
+            set_list(nset_ij)%pair(1)=iset
             set_list(nset_ij)%pair(2)=jset
           END DO
         END DO

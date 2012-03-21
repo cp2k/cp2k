@@ -799,7 +799,7 @@ CONTAINS
     chi_sym_tot(:,:) = ( chi_tensor_tmp(:,:) + TRANSPOSE(chi_tensor_tmp(:,:)) ) / 2.0_dp
     IF(gapw) THEN
        chi_sym_tot(:,:) = chi_sym_tot(:,:) &
-            & + ( chi_tensor_loc_tmp(:,:) + TRANSPOSE(chi_tensor_loc_tmp(:,:)) ) / 2.0_dp 
+            & + ( chi_tensor_loc_tmp(:,:) + TRANSPOSE(chi_tensor_loc_tmp(:,:)) ) / 2.0_dp
     ENDIF
     chi_tmp(:,:) = chi_sym_tot(:,:)
     CALL diamat_all(chi_tmp,eig,error=error)
@@ -872,7 +872,7 @@ CONTAINS
                '  ISO=',nmr_env%chi_SI2ppmcgs*chi_iso, &
                'ANISO=',nmr_env%chi_SI2ppmcgs*chi_aniso
        ENDIF
-       
+
        CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
             &                            "PRINT%CHI_TENSOR", error=error)
     ENDIF ! print chi

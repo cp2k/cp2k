@@ -776,7 +776,7 @@ CONTAINS
     CALL pw_transfer(scp_rho%pw, scp_rho_g%pw, error=error)
 
     ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
-    ! from the Hartree term if needed. 
+    ! from the Hartree term if needed.
     IF (use_virial .AND. calculate_forces) THEN
        h_stress(:,:) = 0.0_dp
        CALL pw_poisson_solve(poisson_env,scp_rho_g%pw,ehartree,scp_pot%pw,h_stress=h_stress,error=error)

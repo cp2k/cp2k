@@ -104,7 +104,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
- 
+
     ! *** Assigning local pointers ***
     CALL fist_nonbond_env_get(fist_nonbond_env,&
                               nonbonded=nonbonded,&
@@ -123,14 +123,14 @@ CONTAINS
                               num_update=num_update,&
                               potparm=potparm,&
                               last_update=last_update,error=error)
-    
+
     nparticle      = SIZE(particle_set)
     nparticle_kind = SIZE(atomic_kind_set)
     nshell = 0
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present, shell_adiabatic=shell_adiabatic)
     IF(shell_present) THEN
-       nshell = SIZE(shell_particle_set) 
+       nshell = SIZE(shell_particle_set)
     END IF
 
     ! *** Check, if the neighbor lists have to be built or updated ***
@@ -156,9 +156,9 @@ CONTAINS
              dr2_max = MAX(dr2_max,dr2)
           END DO
        END DO
-       
+
        CALL mp_max(dr2_max,para_env%group)
-       
+
        ! If the maximum distplacement is too large, ...
        IF (dr2_max > 0.25_dp*verlet_skin**2.OR.build_from_scratch) THEN
           DO iparticle=1,nparticle
@@ -173,7 +173,7 @@ CONTAINS
        DO iparticle=1,nparticle
           r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
        END DO
-       
+
        update_neighbor_lists = .TRUE.
        build_from_scratch = .TRUE.
     END IF
@@ -181,7 +181,7 @@ CONTAINS
     IF (PRESENT(force_update)) THEN
        IF (force_update) update_neighbor_lists = .TRUE.
     END IF
-    
+
     ! Allocate the r_last_update_pbc, rshell_last_update_pbc, rcore_last_update_pbc
     IF (.NOT.ASSOCIATED(r_last_update_pbc)) THEN
        ALLOCATE (r_last_update_pbc(nparticle),STAT=stat)
@@ -195,7 +195,7 @@ CONTAINS
        ALLOCATE (rcore_last_update_pbc(nshell),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
     ! update the neighbor lists
     IF (update_neighbor_lists) THEN
        ! determine which pairs of atom kinds need full neighbor lists. Full
@@ -221,11 +221,11 @@ CONTAINS
             build_from_scratch=build_from_scratch, geo_check=geo_check, &
             mm_section=mm_section, full_nl=full_nl,&
             exclusions=exclusions, error=error)
-       
+
        CALL cell_release(cell_last_update,error=error)
        CALL cell_create(cell_last_update,error=error)
        CALL cell_clone(cell,cell_last_update,error)
-       
+
        IF ( counter > 0 ) THEN
           num_update = num_update + 1
           lup = counter + 1 - last_update
@@ -237,7 +237,7 @@ CONTAINS
           last_update = 1
           aup = 0.0_dp
        END IF
-     
+
        CALL fist_nonbond_env_set(fist_nonbond_env,&
                                  lup=lup,&
                                  aup=aup,&
@@ -263,7 +263,7 @@ CONTAINS
        DEALLOCATE(full_nl,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
     ! Store particle positions after the last update, translated to the
     ! primitive cell, in r_last_update_pbc.
     DO iparticle=1,nparticle
@@ -298,7 +298,7 @@ CONTAINS
           END IF
        END IF
     END DO
-    
+
     counter = counter + 1
     CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter,error=error)
     CALL timestop(handle)

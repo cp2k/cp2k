@@ -10,7 +10,7 @@
 MODULE dbcsr_kinds
 
   IMPLICIT NONE
-  
+
   PRIVATE
 
   PUBLIC :: sp, dp

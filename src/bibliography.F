@@ -1873,7 +1873,7 @@ CONTAINS
          "SC Chemistry, Physical; Physics, Atomic, Molecular & Chemical",&
          "GA 635NE",&
          "UT ISI:000280661600009",&
-         "ER"),& 
+         "ER"),&
          DOI="10.1021/ct1002225")
 
   END SUBROUTINE add_all_references

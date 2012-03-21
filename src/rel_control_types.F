@@ -4,11 +4,11 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief parameters that control a relativistic calculation 
+!> \brief parameters that control a relativistic calculation
 !> \par History
 !>      09.2002 created [fawzi] (as scf_control_types.F)
 !>      10.2008 modifed for relativistic control types (Jens Thar)
-!> \author Fawzi Mohamed 
+!> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE rel_control_types
 
@@ -30,7 +30,7 @@ MODULE rel_control_types
 
   ! Public data types
 
-  PUBLIC :: rel_control_type 
+  PUBLIC :: rel_control_type
        !     smear_type  outer_scf_control_type,&
 
   ! Public subroutines
@@ -42,19 +42,19 @@ MODULE rel_control_types
 !           rel_c_write_parameters
 
 ! *****************************************************************************
-!> \brief contains the parameters needed by a relativistic calculation 
+!> \brief contains the parameters needed by a relativistic calculation
 !> \param method used relativistic method (NONE, DKH)
-!> \param DKH_order order of the DKH transformation (2,3) 
+!> \param DKH_order order of the DKH transformation (2,3)
 !> \param transformation used blocks of the full matrix (FULL, MOLECULE, ATOM)
 !> \param z_cutoff considered range of the Coulomb interaction
 !> \param potential nuclear electron Coulomb potential (FULL, ERFC)
 !> \par History
 !>      09.2002 created [fawzi] for scf_control_type
-!>      10.2008 copied to rel_control_type [JT] 
-!> \author Fawzi Mohamed 
+!>      10.2008 copied to rel_control_type [JT]
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE rel_control_type
-    INTEGER                               :: rel_method 
+    INTEGER                               :: rel_method
     INTEGER                               :: rel_DKH_order
     INTEGER                               :: rel_DKH_transformation
     INTEGER                               :: rel_z_cutoff
@@ -73,7 +73,7 @@ CONTAINS
 !>      09.2002 created [fawzi] for scf_control_type
 !>      - Default ROKS parameters added (05.04.06,MK)
 !>      10.2008 copied to rel_control_type [JT]
-!> \author Fawzi Mohamed 
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE rel_c_create(rel_control,error)
 
@@ -95,12 +95,12 @@ CONTAINS
 
       ! Load the default values
 
-      rel_control%rel_method = rel_none 
+      rel_control%rel_method = rel_none
       rel_control%rel_DKH_order = 2
       rel_control%rel_DKH_transformation = rel_trans_full
       rel_control%rel_z_cutoff = 1
-      rel_control%rel_potential = rel_pot_full 
-      rel_control%ref_count = 1 
+      rel_control%rel_potential = rel_pot_full
+      rel_control%ref_count = 1
 
     END IF
 
@@ -114,7 +114,7 @@ CONTAINS
 !> \par History
 !>      09.2002 created [fawzi] for scf_control_type
 !>      10.2008 copied to rel_control_type [JT]
-!> \author Fawzi Mohamed 
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE rel_c_retain(rel_control,error)
 
@@ -147,7 +147,7 @@ CONTAINS
 !> \par History
 !>      09.2002 created [fawzi] for scf_control_type
 !>      10.2008 copied to rel_control_type [JT]
-!> \author Fawzi Mohamed 
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE rel_c_release(rel_control,error)
 
@@ -183,7 +183,7 @@ CONTAINS
 !>      05.2001 created [Matthias] for scf_control_type
 !>      09.2002 created separated scf_control type [fawzi]
 !>      10.2008 copied to rel_control_type [JT]
-!> \author Matthias Krack 
+!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE rel_c_read_parameters(rel_control,dft_section,error)
 
@@ -223,7 +223,7 @@ CONTAINS
                                 i_val=rel_control%rel_potential,&
                                 error=error)
 
-    END IF 
+    END IF
 
   END SUBROUTINE rel_c_read_parameters
 
@@ -235,7 +235,7 @@ CONTAINS
 !>      05.2001 created [Matthias] for scf_control_type
 !>      09.2002 created separated scf_control type [fawzi]
 !>      10.2008 copied to rel_control_type [JT]
-!> \author Matthias Krack 
+!> \author Matthias Krack
 ! *****************************************************************************
 ! SUBROUTINE rel_c_write_parameters(rel_control,error)
 !

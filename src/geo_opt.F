@@ -129,7 +129,7 @@ MODULE geo_opt
     CPPrecondition(ASSOCIATED(gopt_env%force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_env%globenv),cp_failure_level,routineP,error,failure)
     force_env_section => gopt_env%force_env%force_env_section
-    
+
     CALL section_vals_val_get(geo_section,"STEP_START_VAL",i_val=step_start_val,error=error)
     CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",error=error)
     CALL cp_iterate(logger%iter_info,iter_nr=step_start_val,error=error)

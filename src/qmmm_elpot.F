@@ -37,14 +37,14 @@ MODULE qmmm_elpot
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_elpot'
   PUBLIC :: qmmm_potential_init
-  
+
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialize the QMMM potential stored on vector, 
+!> \brief Initialize the QMMM potential stored on vector,
 !>      according the qmmm_coupl_type
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -86,7 +86,7 @@ CONTAINS
     Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
-                mm_cell%hmat(3,3)**2 ) 
+                mm_cell%hmat(3,3)**2 )
     np   = CEILING(rmax/dx)+1
     !
     ! Preprocessing
@@ -111,7 +111,7 @@ CONTAINS
           Ndim = SIZE(radius)
           Ndim = Ndim + 1
           CALL REALLOCATE(radius,1,Ndim)
-          radius(Ndim) = mm_el_pot_radius(i)          
+          radius(Ndim) = mm_el_pot_radius(i)
        END IF
     END DO Loop_on_all_values
     !
@@ -120,7 +120,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
     Potential_Type: DO K = 1, SIZE(radius)
-       
+
        rc = radius(K)
        ALLOCATE(potentials(K)%Pot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -148,7 +148,7 @@ CONTAINS
                 pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
              END DO
           ELSEIF (qmmm_coupl_type==do_qmmm_swave) THEN
-             ! S-wave expansion :: 1/x - exp(-2*x/rc) * ( 1/x - 1/rc ) 
+             ! S-wave expansion :: 1/x - exp(-2*x/rc) * ( 1/x - 1/rc )
              pot0_2(1,1)= 1.0_dp/rc
              pot0_2(2,1)= 0.0_dp
              x=0.0_dp
@@ -157,7 +157,7 @@ CONTAINS
                 t=EXP(-2.0_dp*x/rc)/rc
                 pot0_2(1,i)=(1.0_dp-t*(rc+x))/x
                 pot0_2(2,i)=((t*(rc**2+2.0_dp*rc*x+2.0_dp*x**2)/rc-1.0_dp)/x**2)*dx
-             END DO             
+             END DO
           END IF
           pgf => pgfs(K)%pgf
           CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,error,failure)
@@ -173,9 +173,9 @@ CONTAINS
                 t=EXP(-(x/G)**2)*A
                 t1=1/G**2
                 t2=t1*t
-                pot0_2(1,i) = pot0_2(1,i)-t 
+                pot0_2(1,i) = pot0_2(1,i)-t
                 pot0_2(2,i) = pot0_2(2,i)+2.0_dp*x*t2*dx
-             END DO             
+             END DO
           END DO
 
           ! Print info on the unidimensional MM electrostatic potential
@@ -219,13 +219,13 @@ CONTAINS
        ! Build mm_atom_index List
        DO J= 1, SIZE(mm_el_pot_radius)
           IF (rc.EQ.mm_el_pot_radius(J)) THEN
-             Ndim = SIZE(mm_atom_index) 
+             Ndim = SIZE(mm_atom_index)
              mm_atom_index(Ndim) = J
              CALL reallocate(mm_atom_index,1, Ndim+1)
           ENDIF
        END DO
        CALL reallocate(mm_atom_index, 1, Ndim)
-      
+
        NULLIFY(potentials(K)%Pot%pot0_2)
        CALL qmmm_pot_type_create(potentials(K)%Pot, pot0_2=pot0_2,&
                                  Rmax=Rmax, Rmin=Rmin, dx=dx, Rc=rc, npts=np,&
@@ -238,8 +238,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the qmmm_pot_type structure
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2004 created [tlaino]
 !> \author Teodoro Laino

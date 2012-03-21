@@ -252,7 +252,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Determine the setup of real space grids - this is divided up into the
-!>        creation of a descriptor and the actual grid itself (see rs_grid_create) 
+!>        creation of a descriptor and the actual grid itself (see rs_grid_create)
 !> \par History
 !>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
 !>      Iain Bethune (05-Sep-2008) : modified cut heuristic (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
@@ -340,7 +340,7 @@ CONTAINS
           DO j=1, MIN(desc % npts (2), desc % group_size)
              i= MIN (desc % npts (1), desc % group_size/(j*k) )
              n_slices_tmp=(/i,j,k/)
-    
+
              ! we don't match the actual number of CPUs
              IF (PRODUCT(n_slices_tmp) .NE. desc % group_size) CYCLE
 
@@ -373,7 +373,7 @@ CONTAINS
              ! we go for the smallest local to real volume
              ! volume of the box without the wings / volume of the box with the wings
              ! with prefactodesc to promote less cuts in Z dimension
-             ratio = PRODUCT(REAL(desc % npts,KIND=dp) / n_slices_tmp ) /  & 
+             ratio = PRODUCT(REAL(desc % npts,KIND=dp) / n_slices_tmp ) /  &
                      PRODUCT(REAL(desc % npts,KIND=dp) / n_slices_tmp  +   &
                         MERGE((/0.0,0.0,0.0/),2*(/1.06*nmin,1.05*nmin,1.03*nmin/),n_slices_tmp==(/1,1,1/)))
              IF (ratio>ratio_best) THEN
@@ -387,20 +387,20 @@ CONTAINS
           ! if automatic we can still decide this is a replicated grid
           ! if the memory gain (or the gain is messages) is too small.
           IF (input_settings % distribution_type == rsgrid_automatic) THEN
-             volume=PRODUCT(REAL(desc % npts,KIND=dp)) 
+             volume=PRODUCT(REAL(desc % npts,KIND=dp))
              volume_dist=PRODUCT(REAL(desc % npts,KIND=dp) / n_slices  +   &
                           MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),n_slices==(/1,1,1/)))
              IF (volume<volume_dist*input_settings%memory_factor) THEN
                  n_slices=1
              ENDIF
           ENDIF
-          
+
        END IF
 
        desc % group_dim (:) = n_slices(:)
        CALL mp_comm_dup( pw_grid % para % group , desc % group )
        CALL mp_environ(desc % group_size, desc % my_pos, desc % group )
- 
+
        IF ( ALL (n_slices == 1 ) ) THEN
           ! CASE 1 : only one slice: we do not need overlapping regions and special
           !          recombination of the total density
@@ -480,7 +480,7 @@ CONTAINS
           DO dir=1,3
              DO l=0,desc % group_dim ( dir )-1
                IF (desc % group_dim(dir).GT.1) THEN
-                   lb = get_limit ( desc % npts ( dir ), desc % group_dim ( dir ), l ) 
+                   lb = get_limit ( desc % npts ( dir ), desc % group_dim ( dir ), l )
                    lb = lb + desc % lb ( dir ) - 1
                ELSE
                    lb(1) = desc % lb ( dir )
@@ -638,7 +638,7 @@ CONTAINS
     END IF
 
     CALL timestop(handle)
- 
+
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -673,7 +673,7 @@ CONTAINS
                   " RS_GRID: Group size ", rs % desc % group_dim (2)
           ELSE
              DO dir = 1,3
-                IF ( rs % desc % perd (dir) /= 1 ) THEN 
+                IF ( rs % desc % perd (dir) /= 1 ) THEN
                    WRITE ( iounit, '(A,T71,I3,A)' ) &
                         " RS_GRID: Real space distribution over ", rs % desc % group_dim ( dir ), " groups"
                    WRITE ( iounit, '(A,T71,I10)' ) &
@@ -928,22 +928,22 @@ CONTAINS
   END SUBROUTINE rs_pw_transfer_replicated
 
 ! *****************************************************************************
-!> \brief does the rs2pw and pw2rs transfer in the case where the rs grid is 
+!> \brief does the rs2pw and pw2rs transfer in the case where the rs grid is
 !>       distributed (3D domain decomposition)
 !> \note
 !>       the transfer is a two step procedure. For example, for the rs2pw transfer:
-!> 
+!>
 !>       1) Halo-exchange in 3D so that the local part of the rs_grid contains the full data
 !>       2) an alltoall communication to redistribute the local rs_grid to the local pw_grid
-!> 
+!>
 !>       the halo exchange is most expensive on a large number of CPUs. Particular in this halo
 !>       exchange is that the border region is rather large (e.g. 20 points) and that it might overlap
 !>       with the central domain of several CPUs (i.e. next nearest neighbors)
 !> \par History
 !>      12.2007 created [Matt Watkins]
-!>      9.2008 reduced amount of halo data sent [Iain Bethune] 
-!>      10.2008 added non-blocking communication [Iain Bethune] 
-!>      4.2009 added support for rank-reordering on the grid [Iain Bethune] 
+!>      9.2008 reduced amount of halo data sent [Iain Bethune]
+!>      10.2008 added non-blocking communication [Iain Bethune]
+!>      4.2009 added support for rank-reordering on the grid [Iain Bethune]
 !>      12.2009 added OMP and sparse alltoall [Iain Bethune]
 !>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008-2009 on behalf of the HECToR project
 ! *****************************************************************************
@@ -1018,7 +1018,7 @@ CONTAINS
                 ! offset_up and offset_down hold the real size of the neighbouring cells
                 position = MODULO ( rs % desc % virtual_group_coor (idir) - n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
-                dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 ) 
+                dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
 
                 position = MODULO ( rs % desc % virtual_group_coor (idir) + n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
@@ -1077,7 +1077,7 @@ CONTAINS
 !$              num_threads = MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)
 !$              my_id = omp_get_thread_num()
                 IF (my_id < num_threads) THEN
-                  lb = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads 
+                  lb = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads
                   ub = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads - 1
 
                   send_buf_3d_down(lb_send_down(1):ub_send_down(1), lb_send_down(2):ub_send_down(2), &
@@ -1194,7 +1194,7 @@ CONTAINS
                            lb = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
                            ub = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads - 1
 
-                           rs % r ( lb_recv_up(1):ub_recv_up(1), & 
+                           rs % r ( lb_recv_up(1):ub_recv_up(1), &
                                 lb_recv_up(2):ub_recv_up(2), lb:ub ) = &
                                 rs % r ( lb_recv_up(1):ub_recv_up(1), &
                                 lb_recv_up(2):ub_recv_up(2), lb:ub ) + &
@@ -1294,13 +1294,13 @@ CONTAINS
              pos (:) = get_limit ( rs % desc %  npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
              pos (:) = pos (:) - rs % desc %  npts (idir) / 2 - 1
              lb_send(idir) = pos(1)
-             ub_send(idir) = pos(2)                
+             ub_send(idir) = pos(2)
           ENDDO
 
           IF (lb_send(1) .GT.bounds(my_rs_rank,2)) CYCLE
-          IF (ub_send(1) .LT.bounds(my_rs_rank,1)) CYCLE 
+          IF (ub_send(1) .LT.bounds(my_rs_rank,1)) CYCLE
           IF (lb_send(2) .GT.bounds(my_rs_rank,4)) CYCLE
-          IF (ub_send(2) .LT.bounds(my_rs_rank,3)) CYCLE 
+          IF (ub_send(2) .LT.bounds(my_rs_rank,3)) CYCLE
 
           recv_tasks(i,1)= MAX(lb_send(1),bounds(my_rs_rank,1))
           recv_tasks(i,2)= MIN(ub_send(1),bounds(my_rs_rank,2))
@@ -1310,7 +1310,7 @@ CONTAINS
           recv_tasks(i,6)= ub_send(3)
           recv_sizes(i)  = (recv_tasks(i,2)-recv_tasks( i ,1)+1)* &
              (recv_tasks( i ,4)-recv_tasks( i ,3)+1)*(recv_tasks( i ,6)-recv_tasks( i ,5)+1)
-           
+
        ENDDO
 !$omp end parallel do
 
@@ -1420,7 +1420,7 @@ CONTAINS
              DO y = recv_tasks(completed-1,3) , recv_tasks(completed-1,4)
                 DO x = recv_tasks(completed-1,1) , recv_tasks(completed-1,2)
                    k=k+1
-                   pw % cr3d (x,y,z) = recv_bufs(completed-1)%array(k) 
+                   pw % cr3d (x,y,z) = recv_bufs(completed-1)%array(k)
                 ENDDO
              ENDDO
           ENDDO
@@ -1544,7 +1544,7 @@ CONTAINS
              pos (:) = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
              pos (:) = pos (:) - rs % desc % npts (idir) / 2 - 1
              lb_send(idir) = pos(1)
-             ub_send(idir) = pos(2)                
+             ub_send(idir) = pos(2)
           ENDDO
 
           IF (ub_send(1) .LT.bounds(my_rs_rank,1)) CYCLE
@@ -1579,7 +1579,7 @@ CONTAINS
 !$omp             shared(pw,lb_send,ub_send,bounds,recv_tasks,recv_sizes)
        DO j = 0, pw % pw_grid % para % group_size - 1
 
-          IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
+          IF (ub_send(1) .LT.bounds(j,1)) CYCLE
           IF (lb_send(1) .GT.bounds(j,2)) CYCLE
           IF (ub_send(2) .LT.bounds(j,3)) CYCLE
           IF (lb_send(2) .GT.bounds(j,4)) CYCLE
@@ -1672,7 +1672,7 @@ CONTAINS
              DO y = recv_tasks(completed-1,3) , recv_tasks(completed-1,4)
                 DO x = recv_tasks(completed-1,1) , recv_tasks(completed-1,2)
                    k=k+1
-                   rs % r (x,y,z) = recv_bufs(completed-1)%array(k) 
+                   rs % r (x,y,z) = recv_bufs(completed-1)%array(k)
                 ENDDO
              ENDDO
           ENDDO
@@ -1734,7 +1734,7 @@ CONTAINS
 
                 position = MODULO ( rs % desc % virtual_group_coor (idir) - n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
-                dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 ) 
+                dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
 
                 position = MODULO ( rs % desc % virtual_group_coor (idir) + n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
@@ -1752,13 +1752,13 @@ CONTAINS
                 ub_recv_down ( : ) = rs % ub_local ( : )
 
                 IF( dshifts ( n_shifts - 1 ) .LE. rs % desc % border ) THEN
-                   lb_send_down ( idir ) = lb_send_down ( idir ) + rs % desc % border 
+                   lb_send_down ( idir ) = lb_send_down ( idir ) + rs % desc % border
                    ub_send_down ( idir ) = MIN (ub_send_down (idir) - rs% desc % border,&
                         lb_send_down ( idir ) + rs % desc % border - 1 - dshifts (n_shifts - 1))
 
-                   lb_recv_down ( idir ) = ub_recv_down ( idir ) - rs % desc % border + 1 + ushifts ( n_shifts - 1 ) 
+                   lb_recv_down ( idir ) = ub_recv_down ( idir ) - rs % desc % border + 1 + ushifts ( n_shifts - 1 )
                    ub_recv_down ( idir ) = MIN (ub_recv_down ( idir ),&
-                        ub_recv_down ( idir ) - rs%desc % border + ushifts ( n_shifts )) 
+                        ub_recv_down ( idir ) - rs%desc % border + ushifts ( n_shifts ))
                 ELSE
                    lb_send_down( idir ) = 0
                    ub_send_down( idir ) = -1
@@ -1817,13 +1817,13 @@ CONTAINS
                 ub_recv_up ( : ) = rs % ub_local ( : )
 
                 IF( ushifts ( n_shifts - 1 ) .LE. rs % desc % border ) THEN
-                   ub_send_up ( idir ) = ub_send_up ( idir ) - rs % desc % border 
+                   ub_send_up ( idir ) = ub_send_up ( idir ) - rs % desc % border
                    lb_send_up ( idir ) = MAX (lb_send_up( idir) + rs % desc % border,&
                         ub_send_up ( idir ) - rs % desc % border + 1 + ushifts (n_shifts - 1) )
 
-                   ub_recv_up ( idir ) = lb_recv_up ( idir ) + rs % desc % border - 1 - dshifts ( n_shifts - 1 ) 
+                   ub_recv_up ( idir ) = lb_recv_up ( idir ) + rs % desc % border - 1 - dshifts ( n_shifts - 1 )
                    lb_recv_up ( idir ) = MAX (lb_recv_up ( idir ),&
-                        lb_recv_up ( idir ) + rs % desc % border - dshifts ( n_shifts )) 
+                        lb_recv_up ( idir ) + rs % desc % border - dshifts ( n_shifts ))
                 ELSE
                    lb_send_up( idir ) = 0
                    ub_send_up( idir ) = -1
@@ -1944,7 +1944,7 @@ CONTAINS
 
           halo_swapped (idir) = .TRUE.
 
-       END DO       
+       END DO
     END IF
 
   END SUBROUTINE rs_pw_transfer_distributed
@@ -1986,7 +1986,7 @@ CONTAINS
 !> \brief rs1(i) = rs1(i) + rs2(i)*rs3(i)
 !> \par History
 !>      none
-!> \author 
+!> \author
 ! *****************************************************************************
 SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
@@ -2207,7 +2207,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
 ! *****************************************************************************
 !> \brief emulates the function of an MPI_cart_shift operation, but the shift is
-!>        done in virtual coordinates, and the corresponding real ranks are returned 
+!>        done in virtual coordinates, and the corresponding real ranks are returned
 !> \par History
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project

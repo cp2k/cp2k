@@ -348,7 +348,7 @@ CONTAINS
 !> \param[in]  matrix_b  DBCSR matrix
 !> \param[in]  b_col     the column of the matrix B
 !> \param[out] pkd       the result in a packed format
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -411,7 +411,7 @@ CONTAINS
 !> \param[in]  pkd_b       packed vector b
 !> \param[in]  b_col       the column of the packed b (this should be changed in b_col_size)
 !> \param[out] pkd_c       packed vector c
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
@@ -477,13 +477,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a replicated array
-!>        c = alpha_scalar * A (dbscr) * b + c 
+!>        c = alpha_scalar * A (dbscr) * b + c
 !> \param[in]  matrix       DBCSR matrix
 !> \param[in]  vec_b        vectors b
 !> \param[inout] vec_c      vectors c
 !> \param[in]  ncol         nbr of columns
 !> \param[in]  alpha        alpha
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_local(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
@@ -505,7 +505,7 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN, timing_handle)
-    
+
     my_alpha = 1.0_dp
     IF (PRESENT(alpha)) my_alpha = alpha
 
@@ -562,7 +562,7 @@ CONTAINS
 !> \param[in]  ncol           nbr of columns
 !> \param[in]  alpha          alpha
 !> \param[in]  beta           beta
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -831,7 +831,7 @@ CONTAINS
 !> \param[in]  ivec        the vector to pack
 !> \param[out] pkd_vec     packed vector
 !> \param[in]  what        what to pack (row or column)
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -852,14 +852,14 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
+
     nblkrows_total = cp_dbcsr_nblkrows_total(matrix)
     pkd_vec(1:nblkrows_total+1) = 0.0_dp ! should be big enough to hold all the data
     !
     ! let's go
     SELECT CASE(what)
     CASE('column')
-       ! we need nblkrows_total+1 to store rows 
+       ! we need nblkrows_total+1 to store rows
        ! and 1 extra for adding new data
        pkd_vec(nblkrows_total+1) = REAL(nblkrows_total+2,dp)
        CALL cp_dbcsr_iterator_start(iter, matrix)
@@ -884,7 +884,7 @@ CONTAINS
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     CASE('row')
-       ! we need nblkrows_total+1 to store rows 
+       ! we need nblkrows_total+1 to store rows
        ! and 1 extra for adding new data
        pkd_vec(nblkrows_total+1) = REAL(nblkrows_total+2,dp)
        CALL cp_dbcsr_iterator_start(iter, matrix)
@@ -919,7 +919,7 @@ CONTAINS
 !> \param[in]     ivec        the vector to pack
 !> \param[in]     pkd_vec     packed vector
 !> \param[in]     what        what to unpack (row or column)
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, do_sum, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -940,7 +940,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
+
     my_do_sum = .FALSE.
     IF(PRESENT(do_sum))my_do_sum=do_sum
 
@@ -1081,7 +1081,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
+
     row_blk_size => array_data (cp_dbcsr_row_block_sizes (mat_u))
     col_blk_size => array_data (cp_dbcsr_col_block_sizes (mat_u))
 
@@ -1221,7 +1221,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
+
     nblkrows_total = cp_dbcsr_nblkrows_total(mat_v)
     row_blk_size => array_data (cp_dbcsr_row_block_sizes(mat_v))
 
@@ -1347,7 +1347,7 @@ CONTAINS
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"how do you wanna bcast")
     END SELECT
-    
+
     IF(SIZE(pkd_vec).lt.INT(buff2(n+1))-1) THEN
        DEALLOCATE(pkd_vec)
        ALLOCATE(pkd_vec(INT(buff2(n+1))))
@@ -1357,7 +1357,7 @@ CONTAINS
 
     DEALLOCATE(buff)
     DEALLOCATE(buff2)
-       
+
     CALL timestop(timing_handle)
 
   END SUBROUTINE packed_vec_alltoall
@@ -1557,7 +1557,7 @@ CONTAINS
     my_do_summation = .TRUE.
     IF(PRESENT(do_summation)) my_do_summation=do_summation
 
-    a_offset_last = INT(pkd_vec_a(n+1)) 
+    a_offset_last = INT(pkd_vec_a(n+1))
     IF (a_offset_last.LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
                                               "a_offset_last.LT.0!!!!!!!")
     DO i = 1,n
@@ -1599,7 +1599,7 @@ CONTAINS
 !> \param[in]    matrix_a  matrix
 !> \param[in]    what      row or column
 !> \param[in]    ivec      the column/row index
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
@@ -2028,7 +2028,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     ncol_block = fm%matrix_struct%ncol_block
     nrow_global = fm%matrix_struct%nrow_global
     ncol_global = fm%matrix_struct%ncol_global
-    
+
     CALL cp_dbcsr_get_info(matrix,&
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
@@ -2223,7 +2223,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     ncol_block = fm%matrix_struct%ncol_block
     nrow_global = fm%matrix_struct%nrow_global
     ncol_global = fm%matrix_struct%ncol_global
-    
+
     CALL cp_dbcsr_get_info(matrix,&
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)

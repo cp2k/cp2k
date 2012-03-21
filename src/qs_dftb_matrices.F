@@ -831,7 +831,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb,& 
+                    sab_orb=sab_orb,&
                     dbcsr_dist=dbcsr_dist,&
                     neighbor_list_id=neighbor_list_id, &
                     error=error)
@@ -934,12 +934,12 @@ CONTAINS
     !
     IF (clgp > ngrdcut) RETURN
     !
-    ! The grid point is either contained in the table --> matrix element 
-    ! can be interpolated, or it is outside the table --> matrix element 
+    ! The grid point is either contained in the table --> matrix element
+    ! can be interpolated, or it is outside the table --> matrix element
     ! needs to be extrapolated.
     !
     IF (clgp > ngrd) THEN
-      ! 
+      !
       ! Extrapolate external matrix elements if table does not finish with zero
       !
       CALL extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
@@ -1017,21 +1017,21 @@ CONTAINS
       ya(1:max_extra-3) = slakotab(fgp:lgp,l)
       CALL polint(xa,ya,max_extra,dx,skpar(l),error)
     END DO
-  END SUBROUTINE extrapol  
+  END SUBROUTINE extrapol
 
 ! *****************************************************************************
 !> \brief   Turn matrix element from z-axis to orientation of dxv
 !> \author  TH
 !> \date    13. Jan 2004
 !> \par Notes
-!>          These routines are taken from an old TB code (unknown to TH). 
-!>          They are highly optimised and taken because they are time critical. 
+!>          These routines are taken from an old TB code (unknown to TH).
+!>          They are highly optimised and taken because they are time critical.
 !>          They are explicit, so not recursive, and work up to d functions.
-!>         
+!>
 !>          Set variables necessary for rotation of matrix elements
-!>        
+!>
 !>          r_i^2/r, replicated in rr2(4:6) for index convenience later
-!>          r_i/r, direction vector, rr(4:6) are replicated from 1:3 
+!>          r_i/r, direction vector, rr(4:6) are replicated from 1:3
 !>          lmax of A and B
 !> \version 1.0
 ! *****************************************************************************
@@ -1044,7 +1044,7 @@ CONTAINS
     REAL(dp)                                 :: rinv, rr(6), rr2(6)
 
     lmaxab = MAX(lmaxa,lmaxb)
-    ! Determine l quantum limits. 
+    ! Determine l quantum limits.
     IF (lmaxab.gt.2)  STOP 'lmax=2'
     minlmaxab = MIN(lmaxa,lmaxb)
     !
@@ -1076,7 +1076,7 @@ CONTAINS
         CALL sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
       END IF
     END IF
-    ! 
+    !
     ! If there is only s-p interaction we have finished
     !
     IF (lmaxab.le.1) RETURN
@@ -1131,7 +1131,7 @@ CONTAINS
     ! The subroutines to turn the matrix elements are taken as internal subroutines
     ! as it is beneficial to inline them.
     !
-    ! They are both turning the matrix elements and placing them appropriately 
+    ! They are both turning the matrix elements and placing them appropriately
     ! into the matrix block
     !
 ! *****************************************************************************
@@ -1145,9 +1145,9 @@ CONTAINS
       mat(1,1) = mat(1,1) + skpar(1)
       !
     END SUBROUTINE skss
-    
+
 ! *****************************************************************************
-!> \brief  s-p interaction (simple rotation) 
+!> \brief  s-p interaction (simple rotation)
 !> \version 1.0
 ! *****************************************************************************
     SUBROUTINE sksp(skpar,mat,ind,transposed)
@@ -1542,10 +1542,10 @@ CONTAINS
   END SUBROUTINE urep_egr
 
 ! *****************************************************************************
-!> \brief  Computes the short-range gamma parameter from exact Coulomb 
-!>         interaction of normalized exp(-a*r) charge distribution - 1/r 
+!> \brief  Computes the short-range gamma parameter from exact Coulomb
+!>         interaction of normalized exp(-a*r) charge distribution - 1/r
 !> \par Literature
-!>         Elstner et al, PRB 58 (1998) 7260 
+!>         Elstner et al, PRB 58 (1998) 7260
 !> \version 1.1
 !> \par HIstory
 !>      10.2008 Axel Kohlmeyer - adding sr_damp
@@ -1564,11 +1564,11 @@ CONTAINS
     IF (g_sum.lt.tol_gamma) RETURN ! hardness screening
     IF (r < rtiny) THEN     ! This is for short distances but non-onsite terms
       ! This gives also correct diagonal elements (a=b, r=0)
-      gamma = 0.5_dp*(a*b/g_sum + (a*b)**2/g_sum**3) 
+      gamma = 0.5_dp*(a*b/g_sum + (a*b)**2/g_sum**3)
       RETURN
     END IF
     !
-    ! distinguish two cases: Gamma's are very close, e.g. for the same atom type, 
+    ! distinguish two cases: Gamma's are very close, e.g. for the same atom type,
     !                        and Gamma's are different
     !
     IF (ABS(a-b) < rtiny) THEN
@@ -1585,7 +1585,7 @@ CONTAINS
     ! functional form from Hu H. et al., J. Phys. Chem. A 2007, 111, 5685-5691
     ! according to Elstner M, Theor. Chem. Acc. 2006, 116, 316-325,
     ! this should only be applied to a-b pairs involving hydrogen.
-    IF (sr_damp) THEN   
+    IF (sr_damp) THEN
       gamma = gamma * EXP(-(0.5_dp*(ga+gb))**4 * r*r)
     END IF
   END FUNCTION gamma_rab_sr

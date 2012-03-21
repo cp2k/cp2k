@@ -155,7 +155,7 @@ CONTAINS
 !>      none
 ! *****************************************************************************
   SUBROUTINE rattle_3x3_int( molecule, particle_set, vel, dt, error)
-    
+
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
@@ -288,7 +288,7 @@ CONTAINS
 !>      none
 ! *****************************************************************************
   SUBROUTINE rattle_3x3_ext( gci, particle_set, vel, dt, error)
-    
+
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
@@ -352,9 +352,9 @@ CONTAINS
        index_b = g3x3_list ( iconst ) % b + first_atom -1
        index_c = g3x3_list ( iconst ) % c + first_atom -1
        IF (ishake==1) THEN
-          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
-          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
-          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
+          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b )
+          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c )
+          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c )
           atomic_kind => particle_set ( index_a ) % atomic_kind
           imass1 = 1.0_dp/atomic_kind % mass
           atomic_kind => particle_set ( index_b ) % atomic_kind
@@ -389,13 +389,13 @@ CONTAINS
           lg3x3 ( iconst ) % del_lambda = 0.0_dp
        ELSE
           ! Retrieve values
-          r0_12  = lg3x3 ( iconst ) % r0_12 
-          r0_13  = lg3x3 ( iconst ) % r0_13 
-          r0_23  = lg3x3 ( iconst ) % r0_23 
-          amat   = lg3x3 ( iconst ) % amat  
+          r0_12  = lg3x3 ( iconst ) % r0_12
+          r0_13  = lg3x3 ( iconst ) % r0_13
+          r0_23  = lg3x3 ( iconst ) % r0_23
+          amat   = lg3x3 ( iconst ) % amat
           imass1 = lg3x3 ( iconst ) % imass1
           imass2 = lg3x3 ( iconst ) % imass2
-          imass3 = lg3x3 ( iconst ) % imass3          
+          imass3 = lg3x3 ( iconst ) % imass3
        END IF
        ! Iterate until convergence
        vec= lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa *(imass1+imass2) + &
@@ -436,12 +436,12 @@ CONTAINS
        r12=r1-r2
        r13=r1-r3
        r23=r2-r3
-       
+
        ! compute the tolerance:
        sigma = DOT_PRODUCT(r12,r12) - g3x3_list ( iconst ) % dab *  &
             g3x3_list ( iconst ) % dab
        max_sigma=MAX(max_sigma,ABS(sigma))
-       sigma = DOT_PRODUCT(r13,r13) -  g3x3_list ( iconst ) % dac * & 
+       sigma = DOT_PRODUCT(r13,r13) -  g3x3_list ( iconst ) % dac * &
             g3x3_list ( iconst ) % dac
        max_sigma=MAX(max_sigma,ABS(sigma))
        sigma = DOT_PRODUCT(r23,r23) - g3x3_list ( iconst ) % dbc *  &
@@ -503,9 +503,9 @@ CONTAINS
        index_b = g3x3_list ( iconst ) % b + first_atom -1
        index_c = g3x3_list ( iconst ) % c + first_atom -1
        IF (ishake==1) THEN
-          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
-          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
-          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
+          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b )
+          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c )
+          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c )
           atomic_kind => particle_set ( index_a ) % atomic_kind
           imass1 = 1.0_dp/atomic_kind % mass
           atomic_kind => particle_set ( index_b ) % atomic_kind
@@ -547,16 +547,16 @@ CONTAINS
           lg3x3 ( iconst ) % del_lambda = 0.0_dp
        ELSE
           ! Retrieve values
-          r0_12  = lg3x3 ( iconst ) % r0_12 
-          r0_13  = lg3x3 ( iconst ) % r0_13 
+          r0_12  = lg3x3 ( iconst ) % r0_12
+          r0_13  = lg3x3 ( iconst ) % r0_13
           r0_23  = lg3x3 ( iconst ) % r0_23
           f_roll1 = lg3x3 ( iconst ) % f_roll1
           f_roll2 = lg3x3 ( iconst ) % f_roll2
           f_roll3 = lg3x3 ( iconst ) % f_roll3
-          amat   = lg3x3 ( iconst ) % amat  
+          amat   = lg3x3 ( iconst ) % amat
           imass1 = lg3x3 ( iconst ) % imass1
           imass2 = lg3x3 ( iconst ) % imass2
-          imass3 = lg3x3 ( iconst ) % imass3          
+          imass3 = lg3x3 ( iconst ) % imass3
        END IF
        ! Iterate until convergence
        vec= lg3x3 ( iconst ) % lambda ( 1 ) * f_roll1 *(imass1+imass2) + &
@@ -575,7 +575,7 @@ CONTAINS
        bvec(3,1)=g3x3_list ( iconst ) % dbc * g3x3_list ( iconst) % dbc &
             -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_23,r0_23)
        bvec = bvec * idtsq
-       
+
        ! get lambda
        atemp = amat
        CALL solve_system ( atemp, 3, bvec )
@@ -583,7 +583,7 @@ CONTAINS
        lg3x3 ( iconst ) % del_lambda( : ) = lg3x3 ( iconst ) % lambda ( : ) -&
                                             lg3x3 ( iconst ) % lambda_old ( : )
        lg3x3 ( iconst ) % lambda_old ( : )= lg3x3 ( iconst ) % lambda ( : )
-       
+
        fc1= lg3x3 ( iconst ) % del_lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
             lg3x3 ( iconst ) % del_lambda ( 2 ) * lg3x3 ( iconst ) % fb
        fc2=-lg3x3 ( iconst ) % del_lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
@@ -605,12 +605,12 @@ CONTAINS
        r12=r1-r2
        r13=r1-r3
        r23=r2-r3
-       
+
        ! compute the tolerance:
        sigma = DOT_PRODUCT(r12,r12) - g3x3_list ( iconst ) % dab *  &
             g3x3_list ( iconst ) % dab
        max_sigma=MAX(max_sigma,ABS(sigma))
-       sigma = DOT_PRODUCT(r13,r13) -  g3x3_list ( iconst ) % dac * & 
+       sigma = DOT_PRODUCT(r13,r13) -  g3x3_list ( iconst ) % dac * &
             g3x3_list ( iconst ) % dac
        max_sigma=MAX(max_sigma,ABS(sigma))
        sigma = DOT_PRODUCT(r23,r23) - g3x3_list ( iconst ) % dbc *  &
@@ -668,9 +668,9 @@ CONTAINS
        index_a = g3x3_list ( iconst ) % a + first_atom - 1
        index_b = g3x3_list ( iconst ) % b + first_atom - 1
        index_c = g3x3_list ( iconst ) % c + first_atom - 1
-       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b ) 
-       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c ) 
-       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c ) 
+       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b )
+       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c )
+       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c )
        r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
        r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
        r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )
@@ -717,7 +717,7 @@ CONTAINS
        ! get lambda
        CALL solve_system ( amat, 3, bvec )
        lambda ( : ) = bvec ( :, 1 )
-       lg3x3 ( iconst ) % lambda ( : )= lambda 
+       lg3x3 ( iconst ) % lambda ( : )= lambda
 
        fc1= lambda ( 1 ) * f_roll1 + &
             lambda ( 2 ) * f_roll2
@@ -737,7 +737,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, dt, error)
-    
+
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -766,9 +766,9 @@ CONTAINS
        index_a = g3x3_list ( iconst ) % a + first_atom - 1
        index_b = g3x3_list ( iconst ) % b + first_atom - 1
        index_c = g3x3_list ( iconst ) % c + first_atom - 1
-       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b ) 
-       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c ) 
-       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c ) 
+       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b )
+       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c )
+       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c )
        r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
        r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
        r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )

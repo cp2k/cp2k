@@ -240,7 +240,7 @@ CONTAINS
         DO jatom=1,natom
           IF (jatom .EQ. iatom) CYCLE ! iatom already done
           rab = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
-          rab2 = DOT_PRODUCT(rab,rab) 
+          rab2 = DOT_PRODUCT(rab,rab)
           IF (SQRT(rab2) <= int_radius) THEN
             DO ir = 1,grid_atom%nr
               IF (grid_atom%rad(ir) <= hard_radius) THEN

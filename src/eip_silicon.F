@@ -644,7 +644,7 @@ CONTAINS
 !> \param nat number of atoms
 !> \param alat lattice constants of the orthorombic box containing the particles
 !> \param rxyz 0: atomic positions in Angstrom
-!> 
+!>
 !> \param rxyz 0: rxyz0 may be modified on output.
 !>               If an atom is outside the box the program will bring it back
 !>               into the box by translations through alat
@@ -1752,7 +1752,7 @@ CONTAINS
 !> \param nat number of atoms
 !> \param alat lattice constants of the orthorombic box containing the particles
 !> \param rxyz 0: atomic positions in Angstrom
-!> 
+!>
 !> \param rxyz 0: rxyz0 may be modified on output.
 !>               If an atom is outside the box the program will bring it back
 !>               into the box by translations through alat

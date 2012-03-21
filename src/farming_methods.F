@@ -63,7 +63,7 @@ CONTAINS
         todo=do_nothing
         DO itry=start,END
            IF (farming_env%job(itry)%status==job_pending) THEN
-           
+
               ! see if all dependencies are OK
               ndep=SIZE(farming_env%job(itry)%dependencies)
               dep_ok=.TRUE.
@@ -71,7 +71,7 @@ CONTAINS
                  DO icheck=start,END
                     IF (farming_env%job(icheck)%status.NE.job_finished) THEN
                       IF (farming_env%job(icheck)%id==farming_env%job(itry)%dependencies(idep)) THEN
-                          dep_ok=.FALSE. 
+                          dep_ok=.FALSE.
                           EXIT dep
                       ENDIF
                     ENDIF
@@ -94,7 +94,7 @@ CONTAINS
            dep_OK=.FALSE.
            DO itry=start,END
               IF (farming_env%job(itry)%status.EQ.job_running) dep_OK=.TRUE.
-           ENDDO 
+           ENDDO
            IF (.NOT. dep_OK) todo=do_deadlock
         ENDIF
     ENDIF
@@ -159,33 +159,33 @@ CONTAINS
        END IF
     END IF
 
-    
+
     CALL section_vals_val_get(farming_section,"RESTART_FILE_NAME",&
-         explicit=explicit,error=error)      
+         explicit=explicit,error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(farming_section,"RESTART_FILE_NAME",&
-            c_val=farming_env%restart_file_name,error=error)      
+            c_val=farming_env%restart_file_name,error=error)
     ELSE
        print_key => section_vals_get_subs_vals(farming_section,"RESTART",error=error)
        farming_env%restart_file_name=cp_print_key_generate_filename(logger,print_key,extension=".restart",&
-                                     my_local=.FALSE., error=error) 
+                                     my_local=.FALSE., error=error)
     END IF
 
     CALL section_vals_val_get(farming_section,"DO_RESTART",&
-         l_val=farming_env%restart,error=error)      
+         l_val=farming_env%restart,error=error)
     CALL section_vals_val_get(farming_section,"MAX_JOBS_PER_GROUP",&
-         i_val=farming_env%max_steps,error=error)      
+         i_val=farming_env%max_steps,error=error)
     CALL section_vals_val_get(farming_section,"CYCLE",&
-         l_val=farming_env%cycle,error=error)      
+         l_val=farming_env%cycle,error=error)
     CALL section_vals_val_get(farming_section,"WAIT_TIME",&
-         r_val=farming_env%wait_time,error=error)      
+         r_val=farming_env%wait_time,error=error)
 
     CALL section_vals_val_get(farming_section,"MASTER_SLAVE",&
-         l_val=farming_env%master_slave,error=error)      
+         l_val=farming_env%master_slave,error=error)
 
     jobs_section => section_vals_get_subs_vals(farming_section,"JOB",error=error)
     CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs,error=error)
-    
+
     ALLOCATE(farming_env%Job(farming_env % njobs),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL init_job_type(farming_env%job)
@@ -231,7 +231,7 @@ CONTAINS
     ENDIF
 
     IF (.NOT. failure) THEN
-      
+
        output_unit=cp_print_key_unit_nr(logger,farming_section,"PROGRAM_RUN_INFO",&
                                           extension=".log",error=error)
 

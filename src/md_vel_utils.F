@@ -76,7 +76,7 @@ MODULE md_vel_utils
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_vel_utils'
 
- 
+
   PUBLIC :: temperature_control,&
             comvel_control,&
             angvel_control,&
@@ -84,7 +84,7 @@ MODULE md_vel_utils
 
 CONTAINS
 
-! ***************************************************************************** 
+! *****************************************************************************
 !> \brief compute center of mass position
 !>      *** is only used by initialize_velocities below ***
 !> \par History
@@ -303,7 +303,7 @@ CONTAINS
 !> \author  MI
 ! *****************************************************************************
   SUBROUTINE rescale_vel_region(part,md_env,simpar,error)
-    
+
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     TYPE(md_environment_type), POINTER       :: md_env
@@ -573,7 +573,7 @@ CONTAINS
     atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
     corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-    
+
     ! Logging
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
@@ -609,7 +609,7 @@ CONTAINS
           END DO
        END IF
     END DO
-    
+
     ! Compute the total mass when needed
     IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
          simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
@@ -720,7 +720,7 @@ CONTAINS
                 fac_massc = shell%mass_core/mass
                 vs = shell_part(shell_index)%v
                 vc = core_part(shell_index)%v
-                
+
                 shell_part(shell_index)%v(1) = part(i)%v(1) + fac_massc*(vs(1)-vc(1))
                 shell_part(shell_index)%v(2) = part(i)%v(2) + fac_massc*(vs(2)-vc(2))
                 shell_part(shell_index)%v(3) = part(i)%v(3) + fac_massc*(vs(3)-vc(3))
@@ -762,7 +762,7 @@ CONTAINS
              END SELECT
           END IF
        END DO
-       
+
        ! Subtract the vcom
        CALL compute_vcom(part,is_fixed,vcom)
        CALL subtract_vcom(part,is_fixed,vcom)
@@ -780,12 +780,12 @@ CONTAINS
          ekin = compute_ekin(part)
          CALL rescale_vel(part,simpar,ekin)
        END IF
-       
+
        ! Initialize the core and the shell velocity. Atom velocities are just
        ! copied so that the initial relative core-shell velocity is zero.
        IF (shell_present) THEN
          CALL optimize_shell_core(force_env,part,shell_part, core_part, globenv, error=error)
-       ENDIF 
+       ENDIF
     END IF
 
     IF (iw>0) THEN
@@ -812,7 +812,7 @@ CONTAINS
        END IF
        WRITE ( iw, '( 1X,79("*"),/)' )
     END IF
- 
+
     DEALLOCATE (is_fixed,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO", error=error)
@@ -944,7 +944,7 @@ CONTAINS
            md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree,KIND=dp)*kelvin
        END IF
        md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
-       
+
        IF (iw>0) THEN
           WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")"Temperature scaled to requested temperature:",&
              temp_old," K  ->",md_ener%temp_part," K"
@@ -1010,11 +1010,11 @@ CONTAINS
        END IF
        nfree_done = nfree_done + nfree
        ekin_total_new = ekin_total_new + ekin
-     END DO 
+     END DO
      nfree = simpar%nfree - nfree_done
      ekin = compute_ekin(part,ireg=0)
      IF(nfree>0) thermal_regions%temp_reg0 = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
-     temp_old(0) =  thermal_regions%temp_reg0 
+     temp_old(0) =  thermal_regions%temp_reg0
      IF(simpar%temp_tol > 0.0_dp .AND. nfree>0) THEN
         IF (ABS(simpar%temp_ext - thermal_regions%temp_reg0/kelvin) > simpar%temp_tol) THEN
            fscale =  SQRT((simpar%temp_ext/thermal_regions%temp_reg0)*kelvin)
@@ -1031,7 +1031,7 @@ CONTAINS
      END IF
      md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
 
-     DO ireg = 0,nregions 
+     DO ireg = 0,nregions
        IF (iw>0 .AND. temp_new(ireg)>0.0_dp) THEN
           WRITE (UNIT=iw,FMT="(/,T2,A,I5, A,F10.2,A,F10.2,A)")"Temperature region ", ireg, &
              " rescaled from:",temp_old(ireg)," K  to ",temp_new(ireg)," K"
@@ -1099,7 +1099,7 @@ CONTAINS
              tmp(2) = imass*(vs(2)-vc(2))
              tmp(3) = imass*(vs(3)-vc(3))
 
-             shell_particles%els(shell_index)%v(1) = particles%els(atom)%v(1) + tmp(1)*shell%mass_core 
+             shell_particles%els(shell_index)%v(1) = particles%els(atom)%v(1) + tmp(1)*shell%mass_core
              shell_particles%els(shell_index)%v(2) = particles%els(atom)%v(2) + tmp(2)*shell%mass_core
              shell_particles%els(shell_index)%v(3) = particles%els(atom)%v(3) + tmp(3)*shell%mass_core
 
@@ -1111,7 +1111,7 @@ CONTAINS
              v2 = v2 + SUM(particles%els(atom)%v**2)
              v(1) = v(1) + particles%els(atom)%v(1)
              v(2) = v(2) + particles%els(atom)%v(2)
-             v(3) = v(3) + particles%els(atom)%v(3)     
+             v(3) = v(3) + particles%els(atom)%v(3)
              tmass = tmass + mass
           END DO
        ELSE
@@ -1127,16 +1127,16 @@ CONTAINS
              v2 = v2 + SUM(particles%els(atom)%v**2)
              v(1) = v(1) + particles%els(atom)%v(1)
              v(2) = v(2) + particles%els(atom)%v(2)
-             v(3) = v(3) + particles%els(atom)%v(3)     
+             v(3) = v(3) + particles%els(atom)%v(3)
              tmass = tmass + mass
-          END DO 
+          END DO
        END IF
        ekin  = ekin + 0.5_dp*mass*v2
        vcom(1)    = vcom(1) + mass*v(1)
        vcom(2)    = vcom(2) + mass*v(2)
        vcom(3)    = vcom(3) + mass*v(3)
 
-     END DO 
+     END DO
      vcom = vcom / tmass
 
   END SUBROUTINE scale_velocity_low
@@ -1187,7 +1187,7 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list, mass=mass, natom=natom,&
              shell_active=is_shell, shell=shell)
           IF(is_shell) THEN
-             fac_mass = 1.0_dp/mass 
+             fac_mass = 1.0_dp/mass
              v2 = 0.0_dp
              DO iatom= 1, natom
                 atom = atom_list(iatom)
@@ -1198,7 +1198,7 @@ CONTAINS
                 tmp(1) = fac_mass*(vc(1)-vs(1))
                 tmp(2) = fac_mass*(vc(2)-vs(2))
                 tmp(3) = fac_mass*(vc(3)-vs(3))
- 
+
                 shell_particles%els(shell_index)%v(1) = v(1) - shell%mass_core*scale*tmp(1)
                 shell_particles%els(shell_index)%v(2) = v(2) - shell%mass_core*scale*tmp(2)
                 shell_particles%els(shell_index)%v(3) = v(3) - shell%mass_core*scale*tmp(3)
@@ -1267,7 +1267,7 @@ CONTAINS
          DO i = 1, 3
             DO j = 1, 3
              npt(i,j)%v = npt(i,j)%v*scale
-             md_ener%baro_kin = md_ener%baro_kin + 0.5_dp * npt(i,j)%v**2  * npt ( i, j )%mass 
+             md_ener%baro_kin = md_ener%baro_kin + 0.5_dp * npt(i,j)%v**2  * npt ( i, j )%mass
             END DO
          END DO
       END IF
@@ -1283,7 +1283,7 @@ CONTAINS
   END SUBROUTINE scale_velocity_baro
 
 ! *****************************************************************************
-!> \brief Perform all temperature manipulations during a QS MD run. 
+!> \brief Perform all temperature manipulations during a QS MD run.
 !> \par History
 !>     Creation (15.09.2003,MK)
 !>     adapted to force_env (05.10.2003,fawzi)
@@ -1318,10 +1318,10 @@ CONTAINS
     ! Control the particle motion
     IF(simpar%do_thermal_region) THEN
        CALL scale_velocity_region(md_env, subsys, md_ener, simpar, iw, error)
-    ELSE        
+    ELSE
       IF (simpar%temp_tol > 0.0_dp ) THEN
          CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw, error)
-      END IF    
+      END IF
     END IF
     ! Control the internal core-shell motion
     IF(simpar%temp_sh_tol > 0.0_dp) THEN
@@ -1342,7 +1342,7 @@ CONTAINS
   END SUBROUTINE temperature_control
 
 ! *****************************************************************************
-!> \brief Set to 0 the velocity of the COM along MD runs, if required. 
+!> \brief Set to 0 the velocity of the COM along MD runs, if required.
 !> \par History
 !>      Creation (29.04.2007,MI)
 !>      Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
@@ -1405,7 +1405,7 @@ CONTAINS
   END SUBROUTINE comvel_control
 
 ! *****************************************************************************
-!> \brief Set to 0 the angular velocity along MD runs, if required. 
+!> \brief Set to 0 the angular velocity along MD runs, if required.
 !> \par History
 !>      Creation (10.2009) Teodoro Laino [tlaino]
 ! *****************************************************************************
@@ -1440,7 +1440,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     ! If requested rescale ANGVEL
     CALL section_vals_val_get(md_section,"ANGVEL_TOL",explicit=explicit,error=error)
-    IF ( explicit ) THEN 
+    IF ( explicit ) THEN
        NULLIFY(subsys, cell)
        CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
        CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
@@ -1449,15 +1449,15 @@ CONTAINS
           CALL section_vals_val_get(md_section,"ANGVEL_TOL",r_val=angvel_tol,error=error)
           iw = cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".mdLog",error=error)
-          
+
           CALL cp_subsys_get(subsys,molecule_kinds_new=molecule_kinds,&
                particles=particles, error=error)
-          
+
           natoms = SIZE(particles%els)
           ! Build a list of all fixed atoms (if any)
           ALLOCATE (is_fixed(natoms),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          
+
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
           DO imolecule_kind=1,molecule_kinds%n_els
@@ -1470,13 +1470,13 @@ CONTAINS
                 END DO
              END IF
           END DO
-          
+
           ! If requested and the system is not periodic, subtract the angular velocity
           CALL compute_rcom(particles%els,is_fixed,rcom)
           CALL compute_vang(particles%els,is_fixed,rcom,vang,error)
-          IF (SQRT(DOT_PRODUCT(vang,vang))>angvel_tol) THEN 
+          IF (SQRT(DOT_PRODUCT(vang,vang))>angvel_tol) THEN
              CALL subtract_vang(particles%els,is_fixed,rcom,vang)
-             
+
              ! Rescale velocities after removal
              temp_old = md_ener%temp_part/kelvin
              CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
@@ -1487,10 +1487,10 @@ CONTAINS
                      "New VANG = ",vang_new(1:3)," a.u"
              END IF
           END IF
-          
+
           DEALLOCATE (is_fixed,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          
+
           CALL cp_print_key_finished_output(iw,logger,md_section,&
                "PRINT%PROGRAM_RUN_INFO", error=error)
        END IF
@@ -1553,7 +1553,7 @@ CONTAINS
     CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,molecule_kinds_new=molecule_kinds_new,&
          particles=particles,shell_particles=shell_particles,core_particles=core_particles,&
          error=error)
-    
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
          shell_adiabatic=shell_adiabatic)
 
@@ -1574,11 +1574,11 @@ CONTAINS
        subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
        shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
        para_env=para_env,error=error)
-    
+
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
        IF (apply_cns0) THEN
-          CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.,error=error)          
+          CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.,error=error)
           CALL force_env_shake(force_env,shake_tol=simpar%shake_tol,&
                log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
                dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
@@ -1672,7 +1672,7 @@ CONTAINS
     NULLIFY (molecule_kind_set)
     NULLIFY (logger)
     NULLIFY (val)
- 
+
     logger => cp_error_get_logger(error)
     print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
     iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
@@ -1717,7 +1717,7 @@ CONTAINS
        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
        ALLOCATE (weight(natom),STAT=stat)
        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
- 
+
        DO iatom=1,natom
           is_ok = cp_sll_val_next(atom_list,val,error=error)
           CALL val_get(val,c_val=line,error=error)

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of the derivative of the QMMM Hamiltonian integral 
+!> \brief Calculation of the derivative of the QMMM Hamiltonian integral
 !>      matrix <a|\sum_i q_i|b> for semi-empirical methods
 !> \author Teodoro Laino - 04.2007 [tlaino]
 ! *****************************************************************************
@@ -116,7 +116,7 @@ CONTAINS
        SELECT CASE (dft_control%qs_control%method_id)
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,&
              do_method_pm3,do_method_pm6,do_method_mndod,do_method_pnnl)
-          ! Go on with the calculation.. 
+          ! Go on with the calculation..
        CASE DEFAULT
           ! Otherwise stop..
           CALL stop_program(routineN,moduleN,__LINE__,"Method not available",para_env)
@@ -238,7 +238,7 @@ CONTAINS
   END SUBROUTINE deriv_se_qmmm_matrix
 
 ! *****************************************************************************
-!> \brief Low Level : Computes derivatives of the 1-el semi-empirical QMMM 
+!> \brief Low Level : Computes derivatives of the 1-el semi-empirical QMMM
 !>                  hamiltonian block w.r.t. MM and QM coordinates
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
@@ -286,15 +286,15 @@ CONTAINS
        ! Loop over atoms belonging to this type
        LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
           Imm = Pot%mm_atom_index(Imp)
-          IndMM = mm_atom_index(Imm) 
+          IndMM = mm_atom_index(Imm)
           r_pbc=pbc(mm_particles(IndMM)%r-mm_particles(IndQM)%r, mm_cell)
-          rt1= r_pbc(1) 
-          rt2= r_pbc(2) 
-          rt3= r_pbc(3) 
+          rt1= r_pbc(1)
+          rt2= r_pbc(2)
+          rt3= r_pbc(3)
           rij = (/rt1,rt2,rt3/)
-          se_kind_mm%zeff = mm_charges(Imm)          
+          se_kind_mm%zeff = mm_charges(Imm)
           ! Computes the screening factor for the spherical cutoff
-          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
              se_kind_mm%zeff = se_kind_mm%zeff * sph_chrg_factor
           END IF

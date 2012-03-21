@@ -3,7 +3,7 @@
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-! ***************************************************************************** 
+! *****************************************************************************
 !> \brief Thermal regions type: to initialize and control the temperature of
 !>        different regions
 !> \author MI
@@ -28,7 +28,7 @@ MODULE thermal_region_types
      LOGICAL :: force_rescaling
      REAL(KIND=dp) :: temp_reg0
      TYPE(section_vals_type), POINTER         :: section
-     TYPE(thermal_region_type), DIMENSION(:), POINTER :: thermal_region 
+     TYPE(thermal_region_type), DIMENSION(:), POINTER :: thermal_region
   END TYPE thermal_regions_type
 
   TYPE thermal_region_type
@@ -42,7 +42,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocate thermal_regions
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE allocate_thermal_regions(thermal_regions,error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
@@ -67,7 +67,7 @@ CONTAINS
   END SUBROUTINE allocate_thermal_regions
 ! *****************************************************************************
 !> \brief retains  thermal_regions
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE retain_thermal_regions(thermal_regions,error)
 
@@ -91,7 +91,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release thermal_regions
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE release_thermal_regions(thermal_regions, error)
 

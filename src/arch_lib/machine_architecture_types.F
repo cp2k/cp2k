@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief   Machine Hardware support for cp2k
-!           Data structures for machine representation 
+!           Data structures for machine representation
 !> \author  Christiane Pousa Ribeiro
 !> \date    2011-08-08
 !> \version 1.0
@@ -16,28 +16,28 @@
 MODULE machine_architecture_types
 #if !defined (__HAS_NO_ISO_C_BINDING)
   USE ISO_C_BINDING
-#endif  
+#endif
   USE ma_dummy_c_bindings
 
  IMPLICIT NONE
-  
+
  PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_types' 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_types'
 
  PUBLIC :: arch_topology, thread_inf, machine_output
 
-!Interface with the Machine Abstraction  
+!Interface with the Machine Abstraction
 #if !defined (__HAS_NO_ISO_C_BINDING)
- TYPE, BIND(C) :: arch_topology 
+ TYPE, BIND(C) :: arch_topology
 #else
- TYPE :: arch_topology 
+ TYPE :: arch_topology
 #endif
    INTEGER(C_INT)         :: nnodes, nsockets
    INTEGER(C_INT)         :: ncores, npus
    INTEGER(C_INT)         :: ngpus, ncaches
    INTEGER(C_INT)         :: nshared_caches, nsiblings
-   INTEGER(C_INT)          :: nmemcontroller, nnetcards                 
+   INTEGER(C_INT)          :: nmemcontroller, nnetcards
   END TYPE arch_topology
 
 !Interface with the console output
@@ -49,18 +49,18 @@ MODULE machine_architecture_types
    CHARACTER                   :: console_output(8192)
 #endif
    INTEGER(C_INT)              :: len
- END TYPE machine_output  
+ END TYPE machine_output
 
 !Information of the threads
  TYPE :: thread_inf
-   INTEGER                :: core, node, id_omp, id_real 
- END TYPE thread_inf 
+   INTEGER                :: core, node, id_omp, id_real
+ END TYPE thread_inf
 
 
- ! For machine architecture internal use 
+ ! For machine architecture internal use
  PUBLIC                   :: threads, mpi
  INTEGER, PARAMETER       :: threads = 0
- INTEGER, PARAMETER       :: mpi     = 1 
+ INTEGER, PARAMETER       :: mpi     = 1
 
  ! For manual setting of all affinity
  PUBLIC :: manual
@@ -68,12 +68,12 @@ MODULE machine_architecture_types
 
  ! MPI/Thread scheduling policies
  PUBLIC  :: def, nosched, linear, scatter, group
- 
+
  INTEGER, PARAMETER       :: nosched = 0
  INTEGER, PARAMETER       :: linear  = 1
  INTEGER, PARAMETER       :: scatter = 2
- INTEGER, PARAMETER       :: group = 3 
- INTEGER, PARAMETER       :: def = 4 
+ INTEGER, PARAMETER       :: group = 3
+ INTEGER, PARAMETER       :: def = 4
 
 
 !Information of the mempory
@@ -91,7 +91,7 @@ MODULE machine_architecture_types
  INTEGER, PARAMETER       :: none_pol   = 4
 
 
-#if defined (__HWLOC) 
+#if defined (__HWLOC)
   LOGICAL,  PUBLIC, PARAMETER        :: has_ma = .TRUE.
 #elif defined (__LIBNUMA)
   LOGICAL,  PUBLIC, PARAMETER        :: has_ma = .TRUE.
@@ -106,7 +106,7 @@ MODULE machine_architecture_types
 
 
  PUBLIC :: ma_mp_type, ma_process
- 
+
 ! *****************************************************************************
 !> \brief A processor (process) grid distribution
 !> \var myproc                my processor (process) number
@@ -123,18 +123,18 @@ MODULE machine_architecture_types
   END TYPE ma_mp_type
 
 ! *****************************************************************************
-!> \brief The process information 
+!> \brief The process information
 !> \var mp_info            my processor information of the parallel environment
 !> \var threads_info       my threads information
 !> \var nr_threads         my number of threads
 !> \var core               core where the process run
-!> \var node               NUMA node where the process run  
+!> \var node               NUMA node where the process run
 ! *****************************************************************************
   TYPE ma_process
      TYPE(ma_mp_type)                            :: mp_info
      TYPE(thread_inf), DIMENSION(:), ALLOCATABLE :: threads_info
      INTEGER                                     :: nr_threads
-     INTEGER                                     :: nr_neighbors 
+     INTEGER                                     :: nr_neighbors
      INTEGER                                     :: core, node
      INTEGER                                     :: gpu
   END TYPE ma_process

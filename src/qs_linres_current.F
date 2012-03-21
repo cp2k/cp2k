@@ -286,7 +286,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
        CALL cp_fm_create(  psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error) 
+       CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error)
        CALL cp_fm_set_all(  psi1(ispin)%matrix,0.0_dp,error=error)
        CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
     ENDDO
@@ -456,7 +456,7 @@ CONTAINS
              scale_fac = cell%deth / twopi
              CALL pw_scale(jrho_rspace%pw,scale_fac,error=error)
              CALL pw_scale(jrho_gspace%pw,scale_fac,error=error)
-             
+
              jrho_tot_G(idir,iB) = pw_integrate_function(jrho_gspace%pw,isign=-1,error=error)
              jrho_tot_R(idir,iB) = pw_integrate_function(jrho_rspace%pw,isign=-1,error=error)
 
@@ -473,7 +473,7 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           !
        ENDDO ! ispin
-       
+
        IF(gapw) THEN
           DO idir = 1,3
              !
@@ -498,7 +498,7 @@ CONTAINS
           ENDDO ! idir
        ENDIF
        !
-       ! Cube files 
+       ! Cube files
        IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
             &   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
           append_cube = section_get_lval(current_section,"PRINT%CURRENT_CUBES%APPEND",error=error)
@@ -535,7 +535,7 @@ CONTAINS
                   &                       extension=TRIM(ext),middle_name=TRIM(filename),&
                   &                       log_filename=.FALSE.,file_position=my_pos,&
                   &                       error=error)
-             
+
              CALL pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
                   &          particles=particles,&
                   &          stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
@@ -584,22 +584,22 @@ CONTAINS
 !>       In all cases the density matrices and therefore the collocation
 !>       are not symmetric, that means that all the pairs (ab and ba) have
 !>       to be considered separately
-!> 
+!>
 !>       mat_jp_{\mu\nu} is multiplied by
 !>           f_{\mu\nu} = \phi_{\mu} (d\phi_{\nu}/dr)_{idir} -
 !>                        (d\phi_{\mu}/dr)_{idir} \phi_{\nu}
-!> 
+!>
 !>       mat_jp_rii_{\mu\nu} is multiplied by
 !>           f_{\mu\nu} = \phi_{\mu} (r - R_{\nu})_{iiiB} (d\phi_{\nu}/dr)_{idir} -
 !>                        (d\phi_{\mu}/dr)_{idir} (r - R_{\nu})_{iiiB} \phi_{\nu} +
 !>                         \phi_{\mu} \phi_{\nu}  (last term only if iiiB=idir)
-!> 
+!>
 !>       mat_jp_riii_{\mu\nu} is multiplied by
 !>                             (be careful: change in sign with respect to previous)
 !>           f_{\mu\nu} = -\phi_{\mu} (r - R_{\nu})_{iiB} (d\phi_{\nu}/dr)_{idir} +
 !>                        (d\phi_{\mu}/dr)_{idir} (r - R_{\nu})_{iiB} \phi_{\nu} -
 !>                         \phi_{\mu} \phi_{\nu}  (last term only if iiB=idir)
-!> 
+!>
 !>       All the terms sum up to the same grid
 ! *****************************************************************************
   SUBROUTINE calculate_jrho_resp(mat_d0,mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
@@ -935,9 +935,9 @@ CONTAINS
        ENDIF
 
        IF (.NOT. map_consistent) THEN
-          IF ( ALL ( 100.0_dp*ABS(jpblock_a) < eps_rho_rspace ) .AND. & 
-               ALL ( 100.0_dp*ABS(jpblock_b) < eps_rho_rspace ) .AND. & 
-               ALL ( 100.0_dp*ABS(jpblock_c) < eps_rho_rspace ) ) THEN 
+          IF ( ALL ( 100.0_dp*ABS(jpblock_a) < eps_rho_rspace ) .AND. &
+               ALL ( 100.0_dp*ABS(jpblock_b) < eps_rho_rspace ) .AND. &
+               ALL ( 100.0_dp*ABS(jpblock_c) < eps_rho_rspace ) ) THEN
              CYCLE
           END IF
        END IF
@@ -1058,7 +1058,7 @@ CONTAINS
     IF(do_igaim) jpab_d => jpabt_d(:,:,ithread)
     work => workt(:,:,ithread)
 
-    iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
+    iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1
     ikind_old = -1 ; jkind_old = -1
 
     loop_tasks: DO itask = 1,ntasks
@@ -1068,7 +1068,7 @@ CONTAINS
        ! apparently generalised collocation not implemented correctly yet
        CPPostcondition(tasks(4,itask).NE.2,cp_failure_level,routineP,error,failure)
 
-       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
           ikind = particle_set(iatom)%atomic_kind%kind_number
           jkind = particle_set(jatom)%atomic_kind%kind_number
@@ -1113,7 +1113,7 @@ CONTAINS
                   pgf_radius=rpgfb,&
                   set_radius=set_radius_b,&
                   sphi=sphi_b,&
-                  zet=zetb)          
+                  zet=zetb)
 
           ENDIF
 
@@ -1337,7 +1337,7 @@ CONTAINS
     END IF
 
     ! Free the array of grids (grids themselves are released in density_rs2pw)
-    DEALLOCATE (rs_current,STAT=istat)         
+    DEALLOCATE (rs_current,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
@@ -1844,7 +1844,7 @@ CONTAINS
          DO j = 0,nbox(2)-1
          DO i = 0,nbox(1)-1
             IF(box(i,j,k)%n.GT.0) THEN
-               WRITE(*,*) 
+               WRITE(*,*)
                WRITE(*,*) 'box=',i,j,k
                box_center(1) = ( REAL(i,dp)+0.5_dp ) * dbox(1)
                box_center(2) = ( REAL(j,dp)+0.5_dp ) * dbox(2)
@@ -1881,12 +1881,12 @@ CONTAINS
             box_center = pbc(box_center,cell)
             r_ptr => box(i,j,k)%r
             DO iatom = 1,natms
-               r(:) = pbc(box_center(:)-ratom(:,iatom),cell)                  
+               r(:) = pbc(box_center(:)-ratom(:,iatom),cell)
                ifind = 0
                DO jatom = 1,box(i,j,k)%n
                   IF(SUM(ABS(ratom(:,iatom)-r_ptr(:,jatom))).LT.1E-10_dp) ifind = 1
                ENDDO
-                  
+
                IF(ifind.EQ.0) THEN
                   IF(SQRT(DOT_PRODUCT(r,r)).LT.gauge_atom_radius) THEN
                      WRITE(*,*) 'error atom too close'
@@ -2854,7 +2854,7 @@ CONTAINS
        ! only one column of the chi tensor is computed here
        DO idir = 1,3
           !
-          ! 
+          !
           !
           ! term: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
           IF(.NOT.chi_pbc) THEN

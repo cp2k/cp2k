@@ -101,14 +101,14 @@ CONTAINS
                   SIN(angle2)/SIN(angle1)*dimer_env%rot%g1p+&
                   (1.0_dp-COS(angle2)-SIN(angle2)*TAN(angle1/2.0_dp))*dimer_env%rot%g0
           END IF
-          
-          ! Determine the theta vector (i.e. the search direction for line minimization) 
+
+          ! Determine the theta vector (i.e. the search direction for line minimization)
           gradient = -2.0_dp*(dimer_env%rot%g1-dimer_env%rot%g0)
           IF (debug_this_module.AND.(iw>0)) THEN
              WRITE(iw,'(A)')"G1 vector:"
              WRITE(iw,'(3F15.9)')dimer_env%rot%g1
              WRITE(iw,'(A)')"-2*(G1-G0) vector:"
-             WRITE(iw,'(3F15.9)')gradient 
+             WRITE(iw,'(3F15.9)')gradient
           END IF
           CALL get_theta(gradient, dimer_env, norm, error)
           f = norm
@@ -147,7 +147,7 @@ CONTAINS
     ELSE
        ! Compute energy, gradients and rotation vector for R0
        CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  dimer_env%rot%g0, error)
-       
+
        ! The dimer is rotated only when we are out of the translation line search
        IF (.NOT.gopt_env%do_line_search) THEN
           IF (debug_this_module.AND.(iw>0)) THEN
@@ -166,7 +166,7 @@ CONTAINS
           gradient =  - DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec
           CALL remove_rot_transl_component(gopt_env, gradient, print_section, error)
        ELSE
-          gradient =  dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec 
+          gradient =  dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec
           CALL remove_rot_transl_component(gopt_env, gradient, print_section, error)
        END IF
        IF (debug_this_module.AND.(iw>0)) THEN
@@ -285,7 +285,7 @@ CONTAINS
     IF (PRESENT(f)) THEN
        CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
     END IF
-    
+
     ! Possibly take the gradients
     IF (PRESENT(gradient)) THEN
        idg=0

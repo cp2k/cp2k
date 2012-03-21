@@ -5,12 +5,12 @@
 
 ! *****************************************************************************
 !> \brief unit conversion facility
-!> 
-!>      Units are complex, this module does not try to be very smart, for 
+!>
+!>      Units are complex, this module does not try to be very smart, for
 !>      example SI prefixes are not supported automatically, and
 !>      which kinds are really basic can change depending on the system of
 !>      units choosen, and equivalences are not always catched.
-!> 
+!>
 !>      This is thought as a simple conversion facility for the input and output.
 !>      If you need something more you are probably better off using the
 !>      physcon module directly.
@@ -45,7 +45,7 @@ MODULE cp_units
   LOGICAL, PRIVATE, PARAMETER          :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
   INTEGER, SAVE, PRIVATE               :: last_unit_id=0, last_unit_set_id=0
-  
+
   INTEGER, PARAMETER, PUBLIC :: cp_ukind_none=0,&
                                 cp_ukind_energy=1,&
                                 cp_ukind_length=2,&
@@ -75,7 +75,7 @@ MODULE cp_units
                                 cp_units_kjmol=136,&
                                 cp_units_jmol=137,&
                                 cp_units_keV=138
-  
+
   ! Length
   INTEGER, PARAMETER, PUBLIC :: cp_units_bohr=140,&
                                 cp_units_angstrom=141,&
@@ -110,7 +110,7 @@ MODULE cp_units
        cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc,&
        cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release,&
        cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, print_all_units
-  
+
 ! *****************************************************************************
 !> \brief stores a unit
 !> \param ref_count the reference count (see doc/ReferenceCounting.html)
@@ -148,8 +148,8 @@ CONTAINS
 !> \brief creates a unit parsing a string
 !> \param unit the unit to initialize
 !> \param string the string containing the description of the unit
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_create(unit, string, error)
@@ -311,7 +311,7 @@ CONTAINS
           kind_id(i_unit)=cp_ukind_time
        CASE("wavenumber_t")
           unit_id(i_unit)=cp_units_wn
-          kind_id(i_unit)=cp_ukind_time          
+          kind_id(i_unit)=cp_ukind_time
        CASE("au_t")
           unit_id(i_unit)=cp_units_au
           kind_id(i_unit)=cp_ukind_time
@@ -436,11 +436,11 @@ CONTAINS
 !> \brief creates and initializes the given unit of mesure (performs some error
 !>      check)
 !> \param unit the unit descriptor to be initialized
-!> \param kind_id the kind of unit (length,energy,...), use the constants 
+!> \param kind_id the kind of unit (length,energy,...), use the constants
 !>        cp_ukind_*
 !> \param unit_id the actual unit (use constants cp_units_*)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
@@ -544,8 +544,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given unit
 !> \param unit the unit to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      at the moment not needed, there for completeness
 !> \author fawzi
@@ -571,8 +571,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given unit
 !> \param unit the unit to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      at the moment not needed, there for completeness
 !> \author fawzi
@@ -605,8 +605,8 @@ CONTAINS
 !> \param basic_unit the unit to check
 !> \param error_level error level of the errors due to invalid values.
 !>        Defaults to cp_failure_level
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
@@ -724,8 +724,8 @@ CONTAINS
 !> \param basic_kind the kind of the unit of the value
 !> \param basic_unit the unit of the value
 !> \param power the power of the unit (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)  RESULT(res)
@@ -895,7 +895,7 @@ CONTAINS
                cp_assertion_failed, routineP,&
                "if the kind of the unit is none also unit must be undefined,not:"&
                //TRIM(cp_to_string(basic_unit)),&
-               error,failure)        
+               error,failure)
        CASE default
           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
@@ -909,8 +909,8 @@ CONTAINS
 !> \param basic_kind the kind of the unit of the value
 !> \param basic_unit the unit of the value
 !> \param power the power of the unit (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,accept_undefined,error)&
@@ -1128,7 +1128,7 @@ CONTAINS
                cp_assertion_failed, routineP,&
                "if the kind of the unit is none also unit must be undefined,not:"&
                //TRIM(cp_to_string(basic_unit)),&
-               error,failure)        
+               error,failure)
        CASE default
           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
@@ -1149,8 +1149,8 @@ CONTAINS
 !> \param defaults defaults for the undefined units, optional
 !> \param accept_undefined if defaults is not present or is not associated
 !>        whether undefined units should be accepted (defaults to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
@@ -1207,8 +1207,8 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
@@ -1262,8 +1262,8 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_from_cp2k1(value,unit,defaults,power,error) RESULT(res)
@@ -1299,8 +1299,8 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
@@ -1335,8 +1335,8 @@ CONTAINS
 !> \param defaults the defaults unit for those that are left free
 !>        (cp_units_none)
 !> \param power the power of the unit (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
@@ -1366,8 +1366,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returs true if the two units are compatible
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - 11.2007 - University of Zurich
 ! *****************************************************************************
   FUNCTION cp_unit_compatible(ref_unit,unit,error) RESULT(res)
@@ -1395,8 +1395,8 @@ CONTAINS
 !> \param unit_set the set to initialize
 !> \param name the name of the set, used for the dafault initialization of
 !>        the various units
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_set_create(unit_set,name,error)
@@ -1481,8 +1481,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given unit set
 !> \param unit_set the unit set to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_set_retain(unit_set,error)
@@ -1506,8 +1506,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given unit set
 !> \param unit_set the unit set to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_set_release(unit_set,error)
@@ -1571,7 +1571,7 @@ CONTAINS
          "measurement of pressure is in internal units), useful for dimensional analysis.",&
          units_set=s2a("bar","atm","kbar","Pa","MPa","GPa","au_p","pressure"),&
          unit_nr=unit_nr)
-    
+
     CALL print_section_unit(unit_label="Angle",description="Possible units of measurement "//&
          "for Angles. The [angle] entry acts like a dummy flag (assumes the unit of "//&
          "measurement of angle is in internal units), useful for dimensional analysis.",&

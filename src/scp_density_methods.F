@@ -78,7 +78,7 @@ MODULE scp_density_methods
 
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_density_methods'
- 
+
 ! *** Public subroutines ***
 
   PUBLIC :: collocate_scp_density, integrate_rhoscp_vrspace, update_rhoscp
@@ -126,7 +126,7 @@ CONTAINS
 
     CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
     CALL get_scp_env ( scp_env = scp_env, rspw = rspw, error = error )
-    CALL scp_rspw_get ( scp_rspw=rspw, qs_pw_env = pw_env, error = error ) 
+    CALL scp_rspw_get ( scp_rspw=rspw, qs_pw_env = pw_env, error = error )
     para_env=>qs_env%para_env
     ionode=para_env%ionode
 
@@ -148,7 +148,7 @@ CONTAINS
                                  error=error )
   t1 = m_walltime()
   CALL timestop(handle)
-  END SUBROUTINE update_rhoscp 
+  END SUBROUTINE update_rhoscp
 
 ! *****************************************************************************
   SUBROUTINE collocate_scp_density( scp_env, atomic_kind_set, particle_set, &
@@ -204,15 +204,15 @@ CONTAINS
 
     IF ( PRESENT ( eps_rho_rspace ) ) THEN
       my_eps_rho_rspace = eps_rho_rspace
-    ELSE 
+    ELSE
       CALL get_scp_env(scp_env=scp_env, eps_rho_rspace = my_eps_rho_rspace, error= error )
-    ENDIF 
+    ENDIF
 
     CALL get_scp_env( scp_env=scp_env, rho_scp = rho_scp, &
                       aux_coeff_set=aux_coeff_set, error=error)
     CALL scp_rho_get ( rho_scp = rho_scp, rhop_r = rhop_r, &
                        rhop_g = rhop_g, error=error )
-    
+
     ! Set up the pw multi-grids
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
@@ -236,7 +236,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
                              natom=natom )
-                             
+
     ALLOCATE (pab(maxco,1),STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",maxco*dp_size)
@@ -283,8 +283,8 @@ CONTAINS
             sgfa = first_sgfa(1,iset)
 
 ! polarization density is not frozen. The coefficients of each contracted
-! gaussian polarization functions , stored in eigenvector(:), are here 
-! multiplied for the contraction coefficients in sphi and stored in work(:,:). 
+! gaussian polarization functions , stored in eigenvector(:), are here
+! multiplied for the contraction coefficients in sphi and stored in work(:,:).
 ! Then a decontraction is performed in order to operate on each pgf.
 
             DO i=1,nsgfa(iset)
@@ -439,10 +439,10 @@ CONTAINS
     CALL pw_env_get ( pw_env = pw_env, auxbas_grid=auxbas_grid, &
                       rs_descs = rs_descs, rs_grids=rs_v, pw_pools=pw_pools, &
                       cube_info = cube_info, gridlevel_info=gridlevel_info, &
-                      error = error ) 
+                      error = error )
 
     IF ( PRESENT ( eps_gvg_rspace ) ) THEN
-      my_eps_gvg_rspace = eps_gvg_rspace 
+      my_eps_gvg_rspace = eps_gvg_rspace
     ELSE
       CALL get_scp_env(scp_env=scp_env,&
                        eps_gvg_rspace = my_eps_gvg_rspace, &
@@ -454,7 +454,7 @@ CONTAINS
     interp_section => section_vals_get_subs_vals(dft_section,"MGRID%INTERPOLATOR",&
          error=error)
     DO i=1, SIZE(rs_v)
-      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error) 
+      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
     END DO
     CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
 

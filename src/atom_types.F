@@ -163,7 +163,7 @@ MODULE atom_types
 
 !> Holds atomic orbitals and energies
 ! *****************************************************************************
-  TYPE atom_orbitals 
+  TYPE atom_orbitals
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: wfn,wfna,wfnb
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: pmat,pmata,pmatb
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: ener,enera,enerb
@@ -260,26 +260,26 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the basis for the atomic code
-!> \note  Highly accurate relativistic universal Gaussian basis set: Dirac-Fock-Coulomb calculations 
+!> \note  Highly accurate relativistic universal Gaussian basis set: Dirac-Fock-Coulomb calculations
 !>        for atomic systems up to nobelium
 !>        J. Chem. Phys. 101, 6829 (1994); DOI:10.1063/1.468311
 !>        G. L. Malli and A. B. F. Da Silva
 !>        Department of Chemistry, Simon Fraser University, Burnaby, B.C., Canada
 !>        Yasuyuki Ishikawa
 !>        Department of Chemistry, University of Puerto Rico, San Juan, Puerto Rico
-!>        
-!>        A universal Gaussian basis set is developed that leads to relativistic Dirac-Fock SCF energies 
-!>        of comparable accuracy as that obtained by the accurate numerical finite-difference method 
-!>        (GRASP2 package) [J. Phys. B 25, 1 (1992)]. The Gaussian-type functions of our universal basis 
-!>        set satisfy the relativistic boundary conditions associated with the finite nuclear model for a 
-!>        finite speed of light and conform to the so-called kinetic balance at the nonrelativistic limit. 
-!>        We attribute the exceptionally high accuracy obtained in our calculations to the fact that the 
-!>        representation of the relativistic dynamics of an electron in a spherical ball finite nucleus 
-!>        near the origin in terms of our universal Gaussian basis set is as accurate as that provided by 
-!>        the numerical finite-difference method. Results of the Dirac-Fock-Coulomb energies for a number 
-!>        of atoms up to No (Z=102) and some negative ions are presented and compared with the recent 
-!>        results obtained with the numerical finite-difference method and geometrical Gaussian basis sets 
-!>        by Parpia, Mohanty, and Clementi [J. Phys. B 25, 1 (1992)]. The accuracy of our calculations is 
+!>
+!>        A universal Gaussian basis set is developed that leads to relativistic Dirac-Fock SCF energies
+!>        of comparable accuracy as that obtained by the accurate numerical finite-difference method
+!>        (GRASP2 package) [J. Phys. B 25, 1 (1992)]. The Gaussian-type functions of our universal basis
+!>        set satisfy the relativistic boundary conditions associated with the finite nuclear model for a
+!>        finite speed of light and conform to the so-called kinetic balance at the nonrelativistic limit.
+!>        We attribute the exceptionally high accuracy obtained in our calculations to the fact that the
+!>        representation of the relativistic dynamics of an electron in a spherical ball finite nucleus
+!>        near the origin in terms of our universal Gaussian basis set is as accurate as that provided by
+!>        the numerical finite-difference method. Results of the Dirac-Fock-Coulomb energies for a number
+!>        of atoms up to No (Z=102) and some negative ions are presented and compared with the recent
+!>        results obtained with the numerical finite-difference method and geometrical Gaussian basis sets
+!>        by Parpia, Mohanty, and Clementi [J. Phys. B 25, 1 (1992)]. The accuracy of our calculations is
 !>        estimated to be within a few parts in 109 for all the atomic systems studied.
 ! *****************************************************************************
   SUBROUTINE init_atom_basis(basis,basis_section,zval,btyp,error)
@@ -302,7 +302,7 @@ CONTAINS
       334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, 2213310.684886_dp&
       ,4155735.557141_dp,7802853.046713_dp, 14650719.428954_dp,&
       27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp,&
-      182087882.613702_dp, 341890134.751331_dp /) 
+      182087882.613702_dp, 341890134.751331_dp /)
 
     CHARACTER(LEN=default_string_length)     :: basis_fn, basis_name
     INTEGER                                  :: basistype, i, ierr, j, k, l, &
@@ -325,7 +325,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
     ! get information on quadrature type and number of grid points
-    ! allocate and initialize the atomic grid 
+    ! allocate and initialize the atomic grid
     CALL allocate_grid_atom(basis%grid,error)
     CALL section_vals_val_get(basis_section,"QUADRATURE",i_val=quadtype,error=error)
     CALL section_vals_val_get(basis_section,"GRID_POINTS",i_val=ngp,error=error)
@@ -735,7 +735,7 @@ CONTAINS
     DEALLOCATE(atom,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     NULLIFY(atom)
-  
+
   END SUBROUTINE release_atom_type
 
   SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,&
@@ -797,13 +797,13 @@ CONTAINS
 
     ALLOCATE(orbs,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-    
+
     ALLOCATE(orbs%wfn(mbas,mo,0:3),orbs%wfna(mbas,mo,0:3),orbs%wfnb(mbas,mo,0:3),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%wfn = 0._dp
     orbs%wfna = 0._dp
     orbs%wfnb = 0._dp
-    
+
     ALLOCATE(orbs%pmat(mbas,mbas,0:3),orbs%pmata(mbas,mbas,0:3),orbs%pmatb(mbas,mbas,0:3),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%pmat = 0._dp
@@ -839,7 +839,7 @@ CONTAINS
     orbs%wpsir0 = 0._dp
 
   END SUBROUTINE create_atom_orbs
-  
+
   SUBROUTINE release_atom_orbs(orbs,error)
     TYPE(atom_orbitals), POINTER             :: orbs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2017,8 +2017,8 @@ CONTAINS
     CALL section_vals_val_get(opt_section,"DAMPING",r_val=damp,error=error)
 
     optimization%max_iter = miter
-    optimization%eps_scf  = eps_scf 
-    optimization%n_diis   = ndiis  
+    optimization%eps_scf  = eps_scf
+    optimization%n_diis   = ndiis
     optimization%eps_diis = eps_diis
     optimization%damping  = damp
 
@@ -2315,7 +2315,7 @@ CONTAINS
              END DO
              ! Extended type input
              DO
-               CALL parser_get_next_line(parser,1,error=error) 
+               CALL parser_get_next_line(parser,1,error=error)
                IF(parser_test_next_token(parser,error=error) == "INT") THEN
                  EXIT
                ELSEIF(parser_test_next_token(parser,error=error) == "STR") THEN

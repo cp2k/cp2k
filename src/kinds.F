@@ -22,14 +22,14 @@ MODULE kinds
   USE f77_blas
 
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
   PUBLIC :: int_4, int_8, int_4_size, int_8_size
   PUBLIC :: real_4, real_8, real_4_size, real_8_size
   PUBLIC :: default_string_length, default_path_length, max_line_length
 
-#if __SGL 
+#if __SGL
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 6, 30 )
   ! we rely on this (libraries) but do not check this

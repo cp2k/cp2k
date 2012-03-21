@@ -48,7 +48,7 @@ MODULE averages_types
      REAL(KIND=dp)                                 :: avetemp_qm, avekin_qm, econs
      ! Virial
      TYPE(virial_type), POINTER                    :: virial
-     ! Colvar 
+     ! Colvar
      REAL(KIND=dp), POINTER, DIMENSION(:)          :: avecolvar
      REAL(KIND=dp), POINTER, DIMENSION(:)          :: aveMmatrix
   END TYPE average_quantities_type
@@ -202,7 +202,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    
+
   END SUBROUTINE release_averages
 
 ! *****************************************************************************
@@ -254,7 +254,7 @@ CONTAINS
        IF (time>=start_time) THEN
 
           ! Handling properly the restart
-          IF (averages%itimes_start==-1) THEN 
+          IF (averages%itimes_start==-1) THEN
              restart_section => section_vals_get_subs_vals(averages%averages_section,"RESTART_AVERAGES",error=error)
              CALL section_vals_get(restart_section, explicit=restart_averages, error=error)
              IF (restart_averages) THEN
@@ -359,7 +359,7 @@ CONTAINS
              CALL get_averages(averages%aveca,abc(1),delta_t,error)
              CALL get_averages(averages%avecb,abc(2),delta_t,error)
              CALL get_averages(averages%avecc,abc(3),delta_t,error)
-             CALL get_averages(averages%aveal,cell_angle(3),delta_t,error) 
+             CALL get_averages(averages%aveal,cell_angle(3),delta_t,error)
              CALL get_averages(averages%avebe,cell_angle(2),delta_t,error)
              CALL get_averages(averages%avega,cell_angle(1),delta_t,error)
              CALL get_averages(averages%econs,md_ener%delta_cons,delta_t,error)

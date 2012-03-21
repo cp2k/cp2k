@@ -46,8 +46,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the free energy section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_fe_section(section,error)
@@ -70,7 +70,7 @@ CONTAINS
             " with different possible methods",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
-       
+
        CALL keyword_create(keyword, name="METHOD",&
             description="Defines the method to use to compute free energy.",&
             usage="METHOD (METADYN|UI)",&
@@ -93,7 +93,7 @@ CONTAINS
 
        CALL create_ac_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL cp_print_key_section_create(print_key,"free_energy_info",&
             description="Controls the printing of basic and summary information during the"//&
@@ -102,7 +102,7 @@ CONTAINS
             each_iter_values=(/1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)        
+       CALL section_release(print_key,error=error)
 
     END IF
   END SUBROUTINE create_fe_section
@@ -110,8 +110,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the metadynamics section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_metadyn_section(section,error)
@@ -126,14 +126,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="metadyn",&
             description="This section sets parameters to set up a calculation of metadynamics.",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             citations=(/VandenCic2006/),error=error)
-        
+
        NULLIFY(subsection,keyword,print_key)
 
        CALL keyword_create(keyword, name="MIN_NT_HILLS",&
@@ -424,8 +424,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the alchemical section for free energy evaluation
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teodoro laino [tlaino] 04.2007
 ! *****************************************************************************
   SUBROUTINE create_ac_section(section,error)
@@ -447,7 +447,7 @@ CONTAINS
             " with the alchemical change method.",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-       
+
        CALL keyword_create(keyword, name="PARAMETER",&
             description="Defines the perturbing parameter of the alchemical change tranformation",&
             usage="PARAMETERS k", required=.TRUE., type_of_var=char_t,&
@@ -482,8 +482,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the umbrella integration section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teodoro laino [tlaino] 01.2007
 ! *****************************************************************************
   SUBROUTINE create_ui_section(section,error)
@@ -504,15 +504,15 @@ CONTAINS
             " with the umbrella integration method.",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-       
+
        NULLIFY(subsection)
        CALL create_uvar_conv_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)    
+       CALL section_release(subsection,error=error)
 
        CALL create_uvar_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_ui_section
@@ -520,8 +520,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the velocity section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_metadyn_history(section, metadyn_section, error)
@@ -662,8 +662,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the metavar section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_metavar_section(section,error)
@@ -678,14 +678,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection, wall_section
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="METAVAR",&
             description="This section specify the nature of the collective variables.",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
@@ -730,7 +730,7 @@ CONTAINS
             description="Controls the activation of walls on COLVAR during a metadynamic run.",&
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
-       
+
        CALL keyword_create(keyword, name="TYPE",&
             description="Specify the type of wall",&
             usage=" TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)",&
@@ -743,7 +743,7 @@ CONTAINS
             enum_i_vals=(/do_wall_reflective,do_wall_quadratic,do_wall_quartic,do_wall_gaussian,do_wall_none/),&
             default_i_val=do_wall_none,error=error)
        CALL section_add_keyword(wall_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="POSITION",&
             description="Specify the value of the colvar for the wall position",&
@@ -766,7 +766,7 @@ CONTAINS
                           "Wall extends from the position towards smaller values of COLVAR"),&
             enum_i_vals=(/do_wall_p,do_wall_m/),default_i_val=do_wall_p,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(wall_section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -841,12 +841,12 @@ CONTAINS
             type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL section_add_subsection(wall_section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
        CALL section_add_subsection(section, wall_section, error=error)
-       CALL section_release(wall_section,error=error)       
+       CALL section_release(wall_section,error=error)
 
     END IF
 
@@ -855,8 +855,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the uvar section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_uvar_section(section,error)
@@ -870,7 +870,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="UVAR",&
@@ -878,7 +878,7 @@ CONTAINS
             " used in computing the free energy.",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="COLVAR",&
@@ -893,8 +893,8 @@ CONTAINS
 !> \brief  creates the section specifying parameters to control the convergence
 !>         of the free energy
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teodoro laino [tlaino] 01.2007
 ! *****************************************************************************
   SUBROUTINE create_uvar_conv_section(section,error)
@@ -908,7 +908,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="CONVERGENCE_CONTROL",&
@@ -916,7 +916,7 @@ CONTAINS
             " of the free energy.",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="COARSE_GRAINED_WIDTH",&
             variants=(/"CG_WIDTH"/),&
@@ -924,7 +924,7 @@ CONTAINS
             " coarse grained data, providing a correlation independent data set.",&
             usage="COARSE_GRAINED_WIDTH <INTEGER>", default_i_val=50,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_COARSE_GRAINED_WIDTH",&
             variants=(/"MAX_CG_WIDTH"/),&
@@ -932,7 +932,7 @@ CONTAINS
             " coarse grained data.",&
             usage="MAX_COARSE_GRAINED_WIDTH <INTEGER>", default_i_val=200,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="COARSE_GRAINED_POINTS",&
             variants=(/"CG_POINTS"/),&
@@ -940,7 +940,7 @@ CONTAINS
             " before starting the statistical analysis",&
             usage="COARSE_GRAINED_POINTS <INTEGER>", default_i_val=30,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_CONV",&
             description="Set the relative tolerance for the convergence of the collective"//&

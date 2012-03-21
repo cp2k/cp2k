@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Type definitiona for linear response calculations
-!> \author MI 
+!> \author MI
 ! *****************************************************************************
 MODULE qs_linres_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -45,9 +45,9 @@ MODULE qs_linres_types
 !> \param opt_method method to optimize the psi1 by minimization of the second order term of the energy
 !> \param preconditioner which kind of preconditioner should be used, if any
 !> \param localized_psi 0 : don't use the canonical psi0, but the maximally localized wavefunctions
-!> \param do_kernel the kernel is zero if the rho1 is zero as for the magnetic field perturbation 
+!> \param do_kernel the kernel is zero if the rho1 is zero as for the magnetic field perturbation
 !> \param tolerance convergence criterium for the optimization of the psi1
-!> \author MI 
+!> \author MI
 ! *****************************************************************************
   TYPE linres_control_type
      INTEGER                                   :: ref_count
@@ -74,14 +74,14 @@ MODULE qs_linres_types
 !> \param simplenmr_done , fullnmr_done : flags that indicate what has been
 !>                    already calculated: used for restart
 !> \param centers_set centers of the maximally localized psi0
-!> \param spreads_set spreads of the maximally localized psi0 
+!> \param spreads_set spreads of the maximally localized psi0
 !> \param p_psi 0      : full matrixes, operator p applied to psi0
 !> \param rxp_psi 0    : full matrixes, operator (r-d)xp applied to psi0
-!> \param psi 1_p      : response wavefunctions to the perturbation given by 
+!> \param psi 1_p      : response wavefunctions to the perturbation given by
 !>                    H1=p (xyz)  applied to psi0
-!> \param psi 1_rxp    : response wavefunctions to the perturbation given by 
+!> \param psi 1_rxp    : response wavefunctions to the perturbation given by
 !>                    H1=(r-d_i)xp applied to psi0_i where d_i is the center
-!> \param psi 1_D      : response wavefunctions to the perturbation given by 
+!> \param psi 1_D      : response wavefunctions to the perturbation given by
 !>                    H1=(d_j-d_i)xp applied to psi0_i where d_i is the center
 !>                    and d_j is the center of psi0_j and psi1_D_j is the result
 !>                    This operator has to be used in nstate scf calculations,
@@ -90,7 +90,7 @@ MODULE qs_linres_types
 !> \param chi_tensor the susceptibility tensor
 !> \param jrho 1_set   : current density on the global grid, if gapw this is only the soft part
 !> \param jrho 1_atom_set : current density on the local atomic grids (only if gapw)
-!> \author MI 
+!> \author MI
 ! *****************************************************************************
   TYPE realspaces_grid_p_type
      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs
@@ -167,7 +167,7 @@ MODULE qs_linres_types
 ! *****************************************************************************
   TYPE jrho_atom_p_type
      TYPE(jrho_atom_type), POINTER       :: jrho_atom
-  END TYPE jrho_atom_p_type 
+  END TYPE jrho_atom_p_type
 
 ! *****************************************************************************
   TYPE jrho_atom_type
@@ -214,11 +214,11 @@ MODULE qs_linres_types
   PUBLIC :: linres_control_create, linres_control_retain, linres_control_release,&
             nmr_env_create, epr_env_create, current_env_create
 
-CONTAINS  
+CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE linres_control_create(linres_control,error)
- 
+
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -255,7 +255,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE linres_control_release(linres_control,error)
- 
+
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -266,7 +266,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
      failure =.FALSE.
-     
+
      IF (ASSOCIATED(linres_control)) THEN
        CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=linres_control%ref_count-1
@@ -281,7 +281,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE linres_control_retain(linres_control,error)
- 
+
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -297,7 +297,7 @@ CONTAINS
        CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=linres_control%ref_count+1
      END IF
-     
+
   END SUBROUTINE linres_control_retain
 
 ! *****************************************************************************
@@ -368,10 +368,10 @@ CONTAINS
        NULLIFY(nmr_env%r_nics)
        NULLIFY(nmr_env%cs_atom_list)
        NULLIFY(nmr_env%do_calc_cs_atom)
-     END IF 
+     END IF
 
   END SUBROUTINE nmr_env_create
-       
+
 ! *****************************************************************************
   SUBROUTINE issc_env_create(issc_env,error)
 
@@ -405,10 +405,10 @@ CONTAINS
      ENDIF
 
    END SUBROUTINE issc_env_create
-       
+
 ! *****************************************************************************
   SUBROUTINE epr_env_create(epr_env,error)
-    
+
     TYPE(epr_env_type)                       :: epr_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -431,17 +431,17 @@ CONTAINS
        NULLIFY(epr_env%g_so)
        NULLIFY(epr_env%g_soo)
        NULLIFY(epr_env%vks_atom_set)
-     END IF 
+     END IF
 
   END SUBROUTINE epr_env_create
-       
+
   SUBROUTINE get_current_env(current_env,simple_done,simple_converged,full_done,ref_count,nao,&
        &                     nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
        &                     nbr_center,center_list,centers_set,psi1_p,psi1_rxp,psi1_D,p_psi0,&
        &                     rxp_psi0,jrho1_atom_set,jrho1_set,chi_tensor,&
        &                     chi_tensor_loc,gauge_atom_radius,rs_gauge,use_old_gauge_atom,&
        &                     chi_pbc,psi0_order,error)
-    
+
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
                                                 simple_converged(6)
@@ -610,14 +610,14 @@ CONTAINS
     IF(PRESENT(psi1_efg         )) psi1_efg          => issc_env%psi1_efg
     IF(PRESENT(psi1_pso         )) psi1_pso          => issc_env%psi1_pso
     IF(PRESENT(psi1_dso         )) psi1_dso          => issc_env%psi1_dso
-    IF(PRESENT(psi1_fc          )) psi1_fc           => issc_env%psi1_fc    
-    IF(PRESENT(efg_psi0         )) efg_psi0          => issc_env%efg_psi0   
-    IF(PRESENT(pso_psi0         )) pso_psi0          => issc_env%pso_psi0   
+    IF(PRESENT(psi1_fc          )) psi1_fc           => issc_env%psi1_fc
+    IF(PRESENT(efg_psi0         )) efg_psi0          => issc_env%efg_psi0
+    IF(PRESENT(pso_psi0         )) pso_psi0          => issc_env%pso_psi0
     IF(PRESENT(dso_psi0         )) dso_psi0          => issc_env%dso_psi0
-    IF(PRESENT(fc_psi0          )) fc_psi0           => issc_env%fc_psi0    
-    IF(PRESENT(matrix_efg       )) matrix_efg        => issc_env%matrix_efg 
-    IF(PRESENT(matrix_pso       )) matrix_pso        => issc_env%matrix_pso 
-    IF(PRESENT(matrix_fc        )) matrix_fc         => issc_env%matrix_fc  
+    IF(PRESENT(fc_psi0          )) fc_psi0           => issc_env%fc_psi0
+    IF(PRESENT(matrix_efg       )) matrix_efg        => issc_env%matrix_efg
+    IF(PRESENT(matrix_pso       )) matrix_pso        => issc_env%matrix_pso
+    IF(PRESENT(matrix_fc        )) matrix_fc         => issc_env%matrix_fc
     IF(PRESENT(matrix_dso       )) matrix_dso        => issc_env%matrix_dso
     IF(PRESENT(do_fc            )) do_fc             =  issc_env%do_fc
     IF(PRESENT(do_sd            )) do_sd             =  issc_env%do_sd
@@ -654,7 +654,7 @@ CONTAINS
           ENDIF
           current_env%jrho1_atom_set => jrho1_atom_set
        END IF
-       
+
        IF(PRESENT(jrho1_set)) THEN
           IF(ASSOCIATED(current_env%jrho1_set)) THEN
              DO idir = 1,3
@@ -733,7 +733,7 @@ CONTAINS
     failure =.FALSE.
 
     CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,error,failure)
-     
+
     IF(PRESENT(g_total)) g_total => epr_env%g_total
     IF(PRESENT(g_so)) g_so => epr_env%g_so
     IF(PRESENT(g_soo)) g_soo => epr_env%g_soo
@@ -854,7 +854,7 @@ CONTAINS
                    CPPrecondition(istat==0, cp_failure_level,routineP,error,failure)
                 ENDDO
              ENDDO
-          ENDIF   
+          ENDIF
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
           CPPrecondition(istat==0, cp_failure_level,routineP,error,failure)
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
@@ -883,7 +883,7 @@ CONTAINS
 
     ALLOCATE(jrho_atom_set(natom), STAT=istat)
     CPPrecondition(istat==0, cp_failure_level,routineP,error,failure)
-     
+
     DO iat = 1,natom
        NULLIFY(jrho_atom_set(iat)%cjc0_h)
        NULLIFY(jrho_atom_set(iat)%cjc0_s)
@@ -960,7 +960,7 @@ CONTAINS
                &     STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
+
        IF(ASSOCIATED(jrho_atom_set(iat)%jrho_a_h)) THEN
           IF(ASSOCIATED(jrho_atom_set(iat)%jrho_a_h(1)%r_coef)) THEN
              n = SIZE(jrho_atom_set(iat)%jrho_a_h)
@@ -1030,7 +1030,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE  allocate_jrho_atom_rad(jrho1_atom,ispin,nr,na,max_iso_not0,error)
-  
+
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     INTEGER, INTENT(IN)                      :: ispin, nr, na, max_iso_not0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1135,7 +1135,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE allocate_jrho_coeff(jrho1_atom_set,iatom,nsotot,error)
-  
+
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     INTEGER, INTENT(IN)                      :: iatom, nsotot
@@ -1178,7 +1178,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE deallocate_jrho_coeff(jrho1_atom_set,iatom,error)
-  
+
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     INTEGER, INTENT(IN)                      :: iatom
@@ -1290,7 +1290,7 @@ CONTAINS
                             atom_list=atom_list,natom=nat)
 
        DO iat = 1,nat
-          iatom = atom_list(iat) 
+          iatom = atom_list(iat)
 
           !*** allocate the radial density for each LM,for each atom ***
           ALLOCATE(jrho1_atom_set(iatom)%jrho_vec_rad_h(3,nspins),&
@@ -1311,7 +1311,7 @@ CONTAINS
                &   jrho1_atom_set(iatom)%jrho_b_h_iii(nspins),&
                &   jrho1_atom_set(iatom)%cjc0_h(nspins),&
                &   jrho1_atom_set(iatom)%cjc0_s(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_h(nspins),& 
+               &   jrho1_atom_set(iatom)%cjc_h(nspins),&
                &   jrho1_atom_set(iatom)%cjc_s(nspins),&
                &   jrho1_atom_set(iatom)%cjc_ii_h(nspins),&
                &   jrho1_atom_set(iatom)%cjc_ii_s(nspins),&
@@ -1407,15 +1407,15 @@ CONTAINS
                             harmonics=harmonics,&
                             grid_atom=grid_atom)
 
-       na = grid_atom%ng_sphere 
-       nr = grid_atom%nr 
+       na = grid_atom%ng_sphere
+       nr = grid_atom%nr
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                               maxso=maxso, nset=nset)
-       nsotot = maxso * nset 
+       nsotot = maxso * nset
        max_iso_not0 = harmonics%max_iso_not0
        DO iat = 1,nat
-          iatom = atom_list(iat) 
+          iatom = atom_list(iat)
           !*** allocate the radial density for each LM,for each atom ***
 
             ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_h(3,nspins),STAT=istat)

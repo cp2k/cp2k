@@ -434,14 +434,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     ALLOCATE(fist_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL init_fist_env(fist_env,para_env=para_env, error=error)
     END IF
   END SUBROUTINE fist_env_create
-  
+
 ! *****************************************************************************
 !> \brief retains the given fist_env (see doc/ReferenceCounting.html)
 !> \param fist_env the object to retain
@@ -467,7 +467,7 @@ CONTAINS
        fist_env%ref_count=fist_env%ref_count+1
     END IF
   END SUBROUTINE fist_env_retain
-  
+
 ! *****************************************************************************
 !> \brief releases the given fist_env (see doc/ReferenceCounting.html)
 !> \param fist_env the object to release
@@ -488,7 +488,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     IF (ASSOCIATED(fist_env)) THEN
        CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
        fist_env%ref_count=fist_env%ref_count-1
@@ -500,9 +500,9 @@ CONTAINS
           CALL ewald_env_release(fist_env%ewald_env,error=error)
           CALL cp_para_env_release(fist_env%para_env,error=error)
           CALL deallocate_fist_energy(fist_env%thermo)
-          
+
           CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-          CALL cp_result_release(fist_env%results,error=error)          
+          CALL cp_result_release(fist_env%results,error=error)
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
           CALL exclusion_release(fist_env%exclusions,error=error)

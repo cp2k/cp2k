@@ -65,7 +65,7 @@ MODULE global_types
 !> \param id_nr identification number (unique)
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param handle handle with the total time of the computation
-!> 
+!>
 !>      Personally I think that all the other attributes should go away
 !>      (and maybe add  a logger)[fawzi]
 !> \note

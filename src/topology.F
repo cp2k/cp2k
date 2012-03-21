@@ -204,7 +204,7 @@ CONTAINS
             topology, my_qmmm, qmmm_env, subsys_section,&
             force_env_section=force_env_section, exclusions=exclusions,&
             error=error)
-    ELSE 
+    ELSE
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
             topology,subsys_section=subsys_section,&
@@ -233,20 +233,20 @@ CONTAINS
        CALL write_coordinate_pdb(iw2,topology,subsys_section,error)
     END IF
     CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
-         "TOPOLOGY%DUMP_PDB",error=error)  
+         "TOPOLOGY%DUMP_PDB",error=error)
     iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PSF",&
           file_status="REPLACE",extension=".psf",error=error)
     IF (iw2>0) THEN
        CALL write_topology_psf(iw2,topology,subsys_section,force_env_section,error)
     END IF
     CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
-         "TOPOLOGY%DUMP_PSF",error=error)  
+         "TOPOLOGY%DUMP_PSF",error=error)
 
     !13. Cleanup the topology structure type
     CALL deallocate_topology(topology, error)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO",error=error)  
+         "PRINT%TOPOLOGY_INFO",error=error)
   END SUBROUTINE topology_control
 
 ! *****************************************************************************
@@ -293,14 +293,14 @@ CONTAINS
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
-    ! 1. Read in the connectivity information (if this is the case) 
+    ! 1. Read in the connectivity information (if this is the case)
     SELECT CASE (topology%conn_type)
     CASE (do_conn_generate, do_conn_off, do_conn_user)
        ! Do nothing for the time being.. after we check element and proceed with the workflow..
     CASE DEFAULT
        ! Prepare arrays
        CALL pre_read_topology(topology,error)
-       
+
        ! Read connectivity from file
        CALL read_topology_conn(topology, topology%conn_type, topology%conn_file_name, &
                                para_env, subsys_section, error)
@@ -312,7 +312,7 @@ CONTAINS
        END SELECT
     END SELECT
 
-    ! 2. In case element was autoassigned let's keep up2date the element name 
+    ! 2. In case element was autoassigned let's keep up2date the element name
     !    with the atom_name
     IF (topology%aa_element) THEN
        check = SIZE(topology%atom_info%id_element)==SIZE(topology%atom_info%id_atmname)
@@ -320,7 +320,7 @@ CONTAINS
        topology%atom_info%id_element = topology%atom_info%id_atmname
     END IF
 
-    ! 3. Check for the element name.. 
+    ! 3. Check for the element name..
     CALL timeset(routineN//"_check_element_name",handle2)
     ! Fix element name
 
@@ -348,10 +348,10 @@ CONTAINS
        IF (id==-1) id = LEN_TRIM(elements(i))
        ! Many atomic kind have been defined as ELEMENT+LETTER+NUMBER
        ! the number at the end can vary arbitrarily..
-       ! Let's check all ELEMENT+LETTER skipping the number.. we should 
+       ! Let's check all ELEMENT+LETTER skipping the number.. we should
        ! identify in any case the element
        DO j = id, 1, -1
-          itmp = ICHAR(elements(i)(j:j)) 
+          itmp = ICHAR(elements(i)(j:j))
           IF ((itmp<map0).OR.(itmp>map9)) EXIT
        END DO
        element0 = elements(i)(1:j)
@@ -493,7 +493,7 @@ CPSourceFileRef,&
     CASE (do_conn_amb7)
        CALL read_connectivity_amber(conn_file_name,topology,para_env,subsys_section,error)
     END SELECT
-    
+
   END SUBROUTINE read_topology_conn
 
 ! *****************************************************************************
@@ -575,7 +575,7 @@ CPSourceFileRef,&
        CALL read_coordinate_cp2k(topology,para_env,subsys_section,error)
     CASE DEFAULT
        ! We should never reach this point..
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)   
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
     ! Parse &COORD section and in case overwrite
@@ -639,8 +639,8 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(cell_muc),cp_failure_level,routineP,error,failure)       
-    
+    CPPostcondition(.NOT.ASSOCIATED(cell_muc),cp_failure_level,routineP,error,failure)
+
     CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
                               i_vals=multiple_unit_cell, error=error)
     IF (ANY(multiple_unit_cell/=1)) THEN
@@ -648,7 +648,7 @@ CPSourceFileRef,&
        hmat_ref(:,1) = cell%hmat(:,1)/multiple_unit_cell(1)
        hmat_ref(:,2) = cell%hmat(:,2)/multiple_unit_cell(2)
        hmat_ref(:,3) = cell%hmat(:,3)/multiple_unit_cell(3)
-      
+
        ! Create the MUC cell
        CALL cell_create(cell_muc,hmat=hmat_ref,periodic=cell%perd,&
                         orthorhombic=cell%orthorhombic,error=error)

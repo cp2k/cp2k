@@ -18,12 +18,12 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
 
   INTEGER :: n2, n3
   COMPLEX ( wp ) :: cone
-  
+
   cone = CMPLX ( 1._wp, KIND = wp )
   n2 = n ( 1 ) * n ( 2 )
   n3 = n2 * n ( 3 )
   scr ( 1:n2 ) = CMPLX ( 0._wp, KIND = wp )
-#if defined (__SGL) 
+#if defined (__SGL)
   CALL cgeru ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
   CALL cscal ( n3, za, cmat, 1 )
   CALL cgeru ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
@@ -33,7 +33,7 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
   CALL zgeru ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
 #endif
 
-END SUBROUTINE rankup 
+END SUBROUTINE rankup
 
 !-----------------------------------------------------------------------------!
 
@@ -61,7 +61,7 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
     cvec ( 2, i ) = im_c * re_c2 + re_c * im_c2
   END DO
 
-END SUBROUTINE vc_x_vc 
+END SUBROUTINE vc_x_vc
 
 !-----------------------------------------------------------------------------!
 
@@ -84,7 +84,7 @@ SUBROUTINE vr_x_vc ( n, rvec, cvec )
     cvec ( 2, i ) = cvec ( 2, i ) * rvec ( i )
   END DO
 
-END SUBROUTINE vr_x_vc 
+END SUBROUTINE vr_x_vc
 
 !-----------------------------------------------------------------------------!
 

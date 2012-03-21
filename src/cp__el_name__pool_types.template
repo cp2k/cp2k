@@ -6,26 +6,26 @@
 ! *****************************************************************************
 !> \brief pool for for elements that are retained and released
 !> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/                                        
-!>      ____ _                  ___                              _ _       _       _       
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>                                                        |___/
+!>      ____ _                  ___                              _ _       _       _
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/ 
-!>     _____ _     _       _____ _ _      _ 
+!>                                                                                   |___/
+!>     _____ _     _       _____ _ _      _
 !>    |_   _| |__ (_)___  |  ___(_) | ___| |
 !>      | | | '_ \| / __| | |_  | | |/ _ \ |
 !>      | | | | | | \__ \ |  _| | | |  __/_|
 !>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!> 
+!>
 !>      This is a template
-!> 
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify the .template and .instantition instead
 !> \par History
@@ -100,8 +100,8 @@ CONTAINS
 !> \param pool the pool to create
 !> \param el_struct the structure of the elements that are stored in
 !>        this pool
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -135,8 +135,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the pool (see cp2k/doc/ReferenceCounting.html)
 !> \param pool the pool to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -161,8 +161,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocates all the cached elements
 !> \param pool the pool to flush
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -193,8 +193,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given pool (see cp2k/doc/ReferenceCounting.html)
 !> \param pool the pool to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -231,7 +231,7 @@ CONTAINS
 !> \brief returns an element, allocating it if none is in the pool
 !> \param pool the pool from where you get the element
 !> \param element will contain the new element[create_el-extra_args_doc]
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
@@ -274,8 +274,8 @@ CONTAINS
 !> \param pool the pool from where you get the elements
 !> \param n_elements the number of elements in the vector
 !> \param elements will contain the new vector[create_els-extra_args_doc]
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -313,8 +313,8 @@ CONTAINS
 !> \brief returns the element to the pool
 !> \param pool the pool where to cache the element
 !> \param element the element to give back
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      transfers the ownership of the element to the pool
 !>      (it is as if you had called cp_[el_name]_release)
@@ -358,8 +358,8 @@ CONTAINS
 !> \brief returns the elements to the pool
 !> \param pool the pool where to cache the elements
 !> \param elements the elements to give back
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      transfers the ownership of the elements to the pool
 !>      and deallocates the array of elements
@@ -400,8 +400,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the structure of the elements in this pool
 !> \param pool the pool you are interested in
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -410,12 +410,12 @@ FUNCTION [el_name]_pool_get_el_struct(pool,error) RESULT(res)
   [el_struct_type], POINTER :: res
   TYPE(cp_[el_name]_pool_type), POINTER :: pool
   TYPE(cp_error_type), INTENT(inout) :: error
-  
+
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_get_el_struct',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -431,8 +431,8 @@ END FUNCTION [el_name]_pool_get_el_struct
 !> \brief shallow copy of an array of pools (retains each pool)
 !> \param source_pools the pools to copy
 !> \param target_pools will contains the new pools
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -441,13 +441,13 @@ SUBROUTINE [el_name]_pools_copy(source_pools, target_pools, error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
        target_pools
   TYPE(cp_error_type), INTENT(inout) :: error
-  
+
   LOGICAL :: failure
   INTEGER :: stat, i
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pools_copy',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
@@ -464,8 +464,8 @@ END SUBROUTINE [el_name]_pools_copy
 ! *****************************************************************************
 !> \brief deallocate an array of pools (releasing each pool)
 !> \param pools the pools to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -473,13 +473,13 @@ END SUBROUTINE [el_name]_pools_copy
 SUBROUTINE [el_name]_pools_dealloc(pools, error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
   TYPE(cp_error_type), INTENT(inout)   :: error
-  
+
   LOGICAL :: failure
   INTEGER :: stat, i
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pools_dealloc',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
         CALL [el_name]_pool_release(pools(i)%pool,error=error)
@@ -492,8 +492,8 @@ END SUBROUTINE [el_name]_pools_dealloc
 ! *****************************************************************************
 !> \brief deallocates all the cached elements of an array of pools
 !> \param pools the pools to flush
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -501,13 +501,13 @@ END SUBROUTINE [el_name]_pools_dealloc
 SUBROUTINE [el_name]_pools_flush_cache(pools, error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
   TYPE(cp_error_type), INTENT(inout)   :: error
-  
+
   LOGICAL :: failure
   INTEGER :: stat,i
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pools_flush_cache',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      DO i=1,SIZE(pools)
@@ -520,8 +520,8 @@ END SUBROUTINE [el_name]_pools_flush_cache
 !> \brief Returns a vector with an element from each pool
 !> \param pools the pools to create the elements from
 !> \param elements will contain the vector of elements[create_els-extra_args_doc]
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -532,7 +532,7 @@ SUBROUTINE [el_name]_pools_create_[el_name]_vect(pools,elements,&
   [el_array_type], DIMENSION(:), POINTER :: elements
   TYPE(cp_error_type), INTENT(inout) :: error
   [create_els-extra_args_types]
-  
+
   LOGICAL :: failure
   INTEGER :: stat,i
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pools_create_[el_name]_vect',&
@@ -541,7 +541,7 @@ SUBROUTINE [el_name]_pools_create_[el_name]_vect(pools,elements,&
 
   failure=.FALSE.
   NULLIFY(pool)
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(elements(SIZE(pools)),stat=stat)
@@ -563,8 +563,8 @@ END SUBROUTINE [el_name]_pools_create_[el_name]_vect
 !>      (like cp_[el_name]_vect_dealloc)
 !> \param pools the pool where to give back the vector
 !> \param elements the vector of elements to give back
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      accept unassociated vect?
 !> \par History
@@ -575,13 +575,13 @@ SUBROUTINE [el_name]_pools_give_back_[el_name]_vect(pools,elements,error)
   TYPE(cp_[el_name]_pool_p_type), DIMENSION(:), POINTER :: pools
   [el_array_type], DIMENSION(:), POINTER :: elements
   TYPE(cp_error_type), INTENT(inout) :: error
-  
+
   LOGICAL :: failure
   INTEGER :: i, stat
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pools_give_back_[el_name]_vect',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(elements),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pools)==SIZE(elements),cp_failure_level,routineP,error,failure)

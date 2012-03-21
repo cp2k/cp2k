@@ -222,7 +222,7 @@ CONTAINS
     !************************************************************
     !
     ! Since many psi0 vector can have the same center, depending on how the center is selected,
-    ! the (r - dk)xp operator matrix is computed Ncenter times, 
+    ! the (r - dk)xp operator matrix is computed Ncenter times,
     ! where Ncenter is the total number of different centers
     ! and each time it is multiplied by all the psi0 with center dk to get the rxp_psi0 matrix
 
@@ -361,7 +361,7 @@ CONTAINS
     !  the angular momentum operator is computed directly for each dk independently
     !  and multiplied by the proper psi0 (i.e. those centered in dk)
     !  If Wannier centers are used, and no grouping of states with close centers is applied
-    !  the (r-dk)xp operator is computed Nstate times and each time applied to only one vector psi0 
+    !  the (r-dk)xp operator is computed Nstate times and each time applied to only one vector psi0
     !
     ! Apply the (r-c)xp operator to the psi0
     !DO ispin = 1,nspins
@@ -393,7 +393,7 @@ CONTAINS
           END DO
           CALL cp_fm_create (fm_work1,tmp_fm_struct,error=error)
           CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-          
+
           ! This part should be done better, using the full matrix distribution
           DO istate = 1,nmo
              CALL cp_fm_get_submatrix(psi0_order(ispin)%matrix,vecbuf_c0,1,istate,nao,1,&
@@ -411,7 +411,7 @@ CONTAINS
                      1,istate,nao,1,transpose=.TRUE.,error=error)
              END DO  ! idir
           END DO  ! istate
-       
+
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
 
@@ -421,7 +421,7 @@ CONTAINS
                   fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
              CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                   1.0_dp, fm_work1,error=error)
-          
+
              CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
              CALL cp_dbcsr_sm_fm_multiply(op_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
                   fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)

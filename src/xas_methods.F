@@ -339,7 +339,7 @@ CONTAINS
               qs_loc_env%localized_wfn_control%set_of_states == state_loc_range ) THEN
               WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-set contains states from ",&
                   qs_loc_env%localized_wfn_control%lu_bound_states(1,1), " to ",&
-                  qs_loc_env%localized_wfn_control%lu_bound_states(2,1)  
+                  qs_loc_env%localized_wfn_control%lu_bound_states(2,1)
          ELSEIF (qs_loc_env%localized_wfn_control%set_of_states==state_loc_list) THEN
               WRITE (UNIT=output_unit,FMT="( A )") " The sub-set contains states given in the input list"
          END IF
@@ -492,7 +492,7 @@ CONTAINS
           CALL xas_do_tp_scf(dft_control,xas_env,iatom,scf_env,qs_env,&
                xas_section,scf_section,converged,should_stop,error=error)
 
-          CALL external_control(should_stop,"CLS",target_time=qs_env%target_time,& 
+          CALL external_control(should_stop,"CLS",target_time=qs_env%target_time,&
                start_time=qs_env%start_time,error=error)
           IF(should_stop)THEN
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
@@ -657,7 +657,7 @@ CONTAINS
                 sab_orb=sab_orb,&
                 dbcsr_dist=dbcsr_dist,&
                 error=error)
-   
+
       nexc_search = xas_control%nexc_search
       IF(nexc_search < 0) THEN
         ! ground state occupation
@@ -672,7 +672,7 @@ CONTAINS
       IF(eps_diis .LT. 0.0_dp) eps_diis = scf_control%eps_diis
       CALL set_xas_env(xas_env=xas_env,eps_diis=eps_diis,nexc_search=nexc_search,&
            nexc_atoms=nexc_atoms,error=error)
-   
+
       CALL mpools_get(mpools, ao_mo_fm_pools= xas_env%ao_mo_fm_pools,error=error)
 
       NULLIFY(mo_coeff)
@@ -725,7 +725,7 @@ CONTAINS
        nele = REAL(nelectron,dp) - 0.5_dp
       ELSEIF(xas_control%xas_method==xas_tp_xhh) THEN
        occ_estate = 0.5_dp
-       nele = REAL(nelectron,dp) 
+       nele = REAL(nelectron,dp)
       ELSEIF(xas_control%xas_method==xas_tp_fh) THEN
        occ_estate = 0.0_dp
        nele = REAL(nelectron,dp) - 1.0_dp
@@ -748,7 +748,7 @@ CONTAINS
         NULLIFY(bounds,list)
         CALL section_vals_val_get(xas_section,&
              "PRINT%CLS_FUNCTION_CUBES%CUBES_LU_BOUNDS",&
-             i_vals=bounds,error=error) 
+             i_vals=bounds,error=error)
         ncubes = bounds(2) - bounds(1)  + 1
         IF(ncubes > 0 ) THEN
           ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
@@ -798,7 +798,7 @@ CONTAINS
            para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
       CALL cp_fm_create (xas_env%fm_work,tmp_fm_struct,error=error)
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-  
+
       ALLOCATE (xas_env%groundstate_coeff(nspins), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO ispin = 1,nspins
@@ -808,7 +808,7 @@ CONTAINS
              xas_env%groundstate_coeff(ispin)%matrix,&
            name="xas_env%mo0"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
       END DO  ! ispin
-  
+
       NULLIFY(tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=1,&
            ncol_global=nvirtual,para_env=para_env,&
@@ -822,7 +822,7 @@ CONTAINS
         END DO
       END DO
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-  
+
       !Array to store all the eigenstates: occupied and the required not occupied
       IF(nvirtual2 .GT. 0) THEN
         ALLOCATE(xas_env%unoccupied_evals(nvirtual2), STAT=istat)
@@ -835,7 +835,7 @@ CONTAINS
         CALL cp_fm_create (xas_env%unoccupied_orbs,tmp_fm_struct,error=error)
         CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
       END IF
-  
+
       NULLIFY(tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao, &
            ncol_global=nvirtual,&
@@ -843,11 +843,11 @@ CONTAINS
       NULLIFY(xas_env%all_vectors)
       CALL cp_fm_create (xas_env%all_vectors,tmp_fm_struct,error=error)
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-  
+
       ! Array to store all the energies needed  for the spectrum
       ALLOCATE(xas_env%all_evals(nvirtual), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  
+
       IF(xas_control%dipole_form==xas_dip_len2) THEN
         CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
         DO i = 1,3
@@ -910,7 +910,7 @@ CONTAINS
         CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
         print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
         CALL qs_loc_control_init(qs_loc_env,xas_section,print_loc_section,do_homo=.TRUE.,&
-             do_xas=.TRUE.,nloc_xas=nexc_search,error=error) 
+             do_xas=.TRUE.,nloc_xas=nexc_search,error=error)
         IF(.NOT. qs_loc_env%do_localize) THEN
           qs_loc_env%localized_wfn_control%localization_method = do_loc_none
         ELSE
@@ -1130,7 +1130,7 @@ CONTAINS
       END IF
 
       CALL get_mo_set(mos(1)%mo_set, lfomo=lfomo)
-      ! writw thw spectrum, if the file exists it is appended 
+      ! writw thw spectrum, if the file exists it is appended
       IF( .NOT. xas_control%xas_method == xas_dscf) THEN
         length = (.NOT. xas_control%dipole_form==xas_dip_vel)
         CALL xas_write(sp_em,sp_ab, xas_estate, &
@@ -1191,7 +1191,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-   
+
     failure = .FALSE.
 
     my_pos = "APPEND"
@@ -1211,7 +1211,7 @@ CONTAINS
         IF(length) ene2 = sp_em(1,istate)*sp_em(1,istate)
          WRITE(out_sp_em,'(I6,5F16.8,F10.5)') istate, sp_em(1,istate)*evolt, &
                  sp_em(2,istate)*ene2, sp_em(3,istate)*ene2,&
-                 sp_em(4,istate)*ene2, sp_em(5,istate)*ene2,sp_em(6,istate) 
+                 sp_em(4,istate)*ene2, sp_em(5,istate)*ene2,sp_em(6,istate)
       END DO
     END IF
     CALL cp_print_key_finished_output(out_sp_em,logger,xas_section,&
@@ -1232,7 +1232,7 @@ CONTAINS
         IF(length) ene2 = sp_ab(1,i)*sp_ab(1,i)
          WRITE(out_sp_ab,'(I6,5F16.8,F10.5)') istate, sp_ab(1,i)*evolt, &
                  sp_ab(2,i)*ene2, sp_ab(3,i)*ene2,&
-                 sp_ab(4,i)*ene2, sp_ab(5,i)*ene2,sp_ab(6,i) 
+                 sp_ab(4,i)*ene2, sp_ab(5,i)*ene2,sp_ab(6,i)
       END DO
     END IF
 
@@ -1493,7 +1493,7 @@ CONTAINS
            sp_em(2,istate) = dip(1)
            sp_em(3,istate) = dip(2)
            sp_em(4,istate) = dip(3)
-           sp_em(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3) 
+           sp_em(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
            sp_em(6,istate) = occupation_numbers(istate)
          END IF
          IF(istate>=lfomo ) THEN

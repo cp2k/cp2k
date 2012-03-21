@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Utilities for Integrals for semi-empiric methods
-!> \author Teodoro Laino (03.2008) [tlaino] - University of Zurich 
+!> \author Teodoro Laino (03.2008) [tlaino] - University of Zurich
 ! *****************************************************************************
 MODULE semi_empirical_int_utils
 
@@ -35,7 +35,7 @@ MODULE semi_empirical_int_utils
 
   PUBLIC ::   ijkl_sp,   ijkl_d, rotmat, rot_2el_2c_first, store_2el_2c_diag,&
             d_ijkl_sp, d_ijkl_d
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -78,8 +78,8 @@ CONTAINS
   END FUNCTION ijkl_sp
 
 ! *****************************************************************************
-!> \brief General driver for computing derivatives of semi-empirical integrals 
-!>        <ij|kl> with sp basis set. 
+!> \brief General driver for computing derivatives of semi-empirical integrals
+!>        <ij|kl> with sp basis set.
 !>        This code uses the old definitions of quadrupoles and therefore
 !>        cannot be used for integrals involving d-orbitals (which requires a
 !>        definition of quadrupoles based on the rotational invariant property)
@@ -457,7 +457,7 @@ CONTAINS
     IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMyy .AND. m2 == CLMxx) THEN
        qxxqyy = &
             + 1.0_dp/SQRT(r**2+add)                   - 1.0_dp/SQRT(r**2+da**2+add) &
-            - 1.0_dp/SQRT(r**2+db**2+add)             + 1.0_dp/SQRT(r**2+da**2+db**2+add) 
+            - 1.0_dp/SQRT(r**2+db**2+add)             + 1.0_dp/SQRT(r**2+da**2+db**2+add)
        charg = qxxqyy*0.25_dp*fact
        RETURN
     END IF
@@ -478,8 +478,8 @@ CONTAINS
   END FUNCTION charg_int_nri
 
 ! *****************************************************************************
-!> \brief Derivatives of interaction function between two point-charge 
-!>        configurations NDDO sp-code. 
+!> \brief Derivatives of interaction function between two point-charge
+!>        configurations NDDO sp-code.
 !>        Non-Rotational Invariant definition of quadrupoles
 !>
 !>        r    -  Distance r12
@@ -655,7 +655,7 @@ CONTAINS
     IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMyy .AND. m2 == CLMxx) THEN
        qxxqyy = &
             + r/SQRT(r**2+add)**3                   - r/SQRT(r**2+da**2+add)**3 &
-            - r/SQRT(r**2+db**2+add)**3             + r/SQRT(r**2+da**2+db**2+add)**3 
+            - r/SQRT(r**2+db**2+add)**3             + r/SQRT(r**2+da**2+db**2+add)**3
        charg = -qxxqyy*0.25_dp*fact
        RETURN
     END IF
@@ -664,7 +664,7 @@ CONTAINS
        qxxqxx = &
             + 2.0_dp*r/SQRT(r**2+add)**3                    +        r/SQRT(r**2+(da-db)**2+add)**3  &
             +        r/SQRT(r**2+(da+db)**2+add)**3         - 2.0_dp*r/SQRT(r**2+da**2+add)**3       &
-            - 2.0_dp*r/SQRT(r**2+db**2+add)**3 
+            - 2.0_dp*r/SQRT(r**2+db**2+add)**3
        qxxqyy = &
             + r/SQRT(r**2+add)**3                   - r/SQRT(r**2+da**2+add)**3 &
             - r/SQRT(r**2+db**2+add)**3             + r/SQRT(r**2+da**2+db**2+add)**3
@@ -676,7 +676,7 @@ CONTAINS
   END FUNCTION dcharg_int_nri
 
 ! *****************************************************************************
-!> \brief Derivatives of interaction function between two point-charge 
+!> \brief Derivatives of interaction function between two point-charge
 !>        configurations NDDO sp-code. The derivative takes care of the screening
 !>        term only.
 !>        Non-Rotational Invariant definition of quadrupoles
@@ -856,7 +856,7 @@ CONTAINS
     IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMyy .AND. m2 == CLMxx) THEN
        qxxqyy = &
             + add0/SQRT(r**2+add)**3                   - add0/SQRT(r**2+da**2+add)**3 &
-            - add0/SQRT(r**2+db**2+add)**3             + add0/SQRT(r**2+da**2+db**2+add)**3 
+            - add0/SQRT(r**2+db**2+add)**3             + add0/SQRT(r**2+da**2+db**2+add)**3
        charg = -qxxqyy*0.25_dp*fact
        RETURN
     END IF
@@ -865,7 +865,7 @@ CONTAINS
        qxxqxx = &
             + 2.0_dp*add0/SQRT(r**2+add)**3                    +        add0/SQRT(r**2+(da-db)**2+add)**3  &
             +        add0/SQRT(r**2+(da+db)**2+add)**3         - 2.0_dp*add0/SQRT(r**2+da**2+add)**3       &
-            - 2.0_dp*add0/SQRT(r**2+db**2+add)**3 
+            - 2.0_dp*add0/SQRT(r**2+db**2+add)**3
        qxxqyy = &
             + add0/SQRT(r**2+add)**3                   - add0/SQRT(r**2+da**2+add)**3 &
             - add0/SQRT(r**2+db**2+add)**3             + add0/SQRT(r**2+da**2+db**2+add)**3
@@ -877,16 +877,16 @@ CONTAINS
   END FUNCTION dcharg_int_nri_fs
 
 ! *****************************************************************************
-!> \brief General driver for computing semi-empirical integrals <ij|kl> 
+!> \brief General driver for computing semi-empirical integrals <ij|kl>
 !>        involving d-orbitals.
-!>        The choice of the linear quadrupole was REALLY unhappy 
+!>        The choice of the linear quadrupole was REALLY unhappy
 !>        in the first development of the NDDO codes. That choice makes
 !>        impossible the merging of the integral code with or without d-orbitals
 !>        unless a reparametrization of all NDDO codes for s and p orbitals will
-!>        be performed.. more over the choice of the linear quadrupole does not make 
-!>        calculations rotational invariants (of course the rotational invariant 
-!>        can be forced). The definitions of quadrupoles for d-orbitals is the 
-!>        correct one in order to have the rotational invariant property by 
+!>        be performed.. more over the choice of the linear quadrupole does not make
+!>        calculations rotational invariants (of course the rotational invariant
+!>        can be forced). The definitions of quadrupoles for d-orbitals is the
+!>        correct one in order to have the rotational invariant property by
 !>        construction..
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
@@ -922,16 +922,16 @@ CONTAINS
   END FUNCTION ijkl_d
 
 ! *****************************************************************************
-!> \brief General driver for computing the derivatives of semi-empirical integrals <ij|kl> 
+!> \brief General driver for computing the derivatives of semi-empirical integrals <ij|kl>
 !>        involving d-orbitals.
-!>        The choice of the linear quadrupole was REALLY unhappy 
+!>        The choice of the linear quadrupole was REALLY unhappy
 !>        in the first development of the NDDO codes. That choice makes
 !>        impossible the merging of the integral code with or without d-orbitals
 !>        unless a reparametrization of all NDDO codes for s and p orbitals will
-!>        be performed.. more over the choice of the linear quadrupole does not make 
-!>        calculations rotational invariants (of course the rotational invariant 
-!>        can be forced). The definitions of quadrupoles for d-orbitals is the 
-!>        correct one in order to have the rotational invariant property by 
+!>        be performed.. more over the choice of the linear quadrupole does not make
+!>        calculations rotational invariants (of course the rotational invariant
+!>        can be forced). The definitions of quadrupoles for d-orbitals is the
+!>        correct one in order to have the rotational invariant property by
 !>        construction..
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
@@ -993,16 +993,16 @@ CONTAINS
   END FUNCTION d_ijkl_d
 
 ! *****************************************************************************
-!> \brief Low level general driver for computing semi-empirical integrals <ij|kl> 
+!> \brief Low level general driver for computing semi-empirical integrals <ij|kl>
 !>        and their derivatives involving d-orbitals.
-!>        The choice of the linear quadrupole was REALLY unhappy 
+!>        The choice of the linear quadrupole was REALLY unhappy
 !>        in the first development of the NDDO codes. That choice makes
 !>        impossible the merging of the integral code with or without d-orbitals
 !>        unless a reparametrization of all NDDO codes for s and p orbitals will
-!>        be performed.. more over the choice of the linear quadrupole does not make 
-!>        calculations rotational invariants (of course the rotational invariant 
-!>        can be forced). The definitions of quadrupoles for d-orbitals is the 
-!>        correct one in order to have the rotational invariant property by 
+!>        be performed.. more over the choice of the linear quadrupole does not make
+!>        calculations rotational invariants (of course the rotational invariant
+!>        can be forced). The definitions of quadrupoles for d-orbitals is the
+!>        correct one in order to have the rotational invariant property by
 !>        construction..
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
@@ -1135,7 +1135,7 @@ CONTAINS
        IF (shortrange)     res = res - sum
     END IF
   END FUNCTION ijkl_d_low
-  
+
 ! *****************************************************************************
 !> \brief Interaction function between two point-charge configurations (MNDO/d)
 !>        Rotational invariant property built-in in the quadrupole definition
@@ -1267,7 +1267,7 @@ CONTAINS
   END FUNCTION charg_int_ri
 
 ! *****************************************************************************
-!> \brief Derivatives of the interaction function between two point-charge 
+!> \brief Derivatives of the interaction function between two point-charge
 !>        configurations (MNDO/d)
 !>        Rotational invariant property built-in in the quadrupole definition
 !>        r    -  Distance r12
@@ -1399,7 +1399,7 @@ CONTAINS
   END FUNCTION dcharg_int_ri
 
 ! *****************************************************************************
-!> \brief Derivatives of the interaction function between two point-charge 
+!> \brief Derivatives of the interaction function between two point-charge
 !>        configurations (MNDO/d). This derivative takes into account only the
 !>        tapering term
 !>        Rotational invariant property built-in in the quadrupole definition
@@ -1806,23 +1806,23 @@ CONTAINS
              d_d(:, 1, 2) =  pt5sq3 * ( ca_d * s2b + ca * s2b_d )
              d_d(:, 2, 2) =  ca_d * c2b + ca * c2b_d
              d_d(:, 3, 2) = -sa_d * cb - sa * cb_d
-             d_d(:, 4, 2) = -0.5_dp * ( ca_d * s2b + ca * s2b_d ) 
+             d_d(:, 4, 2) = -0.5_dp * ( ca_d * s2b + ca * s2b_d )
              d_d(:, 5, 2) =  sa_d * sb + sa * sb_d
              d_d(:, 1, 3) =  cb2_d - 0.5_dp * sb2_d
              d_d(:, 2, 3) = -pt5sq3 * s2b_d
              d_d(:, 3, 3) =  0.0_dp
              d_d(:, 4, 3) =  pt5sq3 * sb2_d
              d_d(:, 5, 3) =  0.0_dp
-             d_d(:, 1, 4) =  pt5sq3 * ( sa_d * s2b + sa * s2b_d )  
+             d_d(:, 1, 4) =  pt5sq3 * ( sa_d * s2b + sa * s2b_d )
              d_d(:, 2, 4) =  sa_d * c2b + sa * c2b_d
-             d_d(:, 3, 4) =  ca_d * cb + ca * cb_d 
+             d_d(:, 3, 4) =  ca_d * cb + ca * cb_d
              d_d(:, 4, 4) = -0.5_dp * ( sa_d * s2b + sa * s2b_d )
              d_d(:, 5, 4) = -ca_d * sb -ca * sb_d
              d_d(:, 1, 5) =  pt5sq3 * ( s2a_d * sb2 + s2a * sb2_d )
              d_d(:, 2, 5) =  0.5_dp * ( s2a_d * s2b + s2a * s2b_d )
-             d_d(:, 3, 5) =  c2a_d * sb + c2a * sb_d 
+             d_d(:, 3, 5) =  c2a_d * sb + c2a * sb_d
              d_d(:, 4, 5) =  s2a_d * (cb2+0.5_dp*sb2) + s2a * (cb2_d+0.5_dp*sb2_d)
-             d_d(:, 5, 5) =  c2a_d * cb + c2a * cb_d 
+             d_d(:, 5, 5) =  c2a_d * cb + c2a * cb_d
           END IF
           !  Derivative for Rotation Elements for : S-P
           DO k = 1, 3
@@ -1840,15 +1840,15 @@ CONTAINS
              ij_matrix%pp_d(:, 6, k, k) = p_d(:, k, 2) * p(k, 3) +  p(k, 2) * p_d(:, k, 3)
              IF (k /= 1) THEN
                 DO l = 1, k - 1
-                   ij_matrix%pp_d(:, 1, k, l) = 2.0_dp * ( p_d(:, k, 1) * p(l, 1) + p(k, 1) * p_d(:, l, 1) ) 
+                   ij_matrix%pp_d(:, 1, k, l) = 2.0_dp * ( p_d(:, k, 1) * p(l, 1) + p(k, 1) * p_d(:, l, 1) )
                    ij_matrix%pp_d(:, 2, k, l) = 2.0_dp * ( p_d(:, k, 2) * p(l, 2) + p(k, 2) * p_d(:, l, 2) )
                    ij_matrix%pp_d(:, 3, k, l) = 2.0_dp * ( p_d(:, k, 3) * p(l, 3) + p(k, 3) * p_d(:, l, 3) )
                    ij_matrix%pp_d(:, 4, k, l) = ( p_d(:, k, 1) * p(l, 2) + p(k, 1) * p_d(:, l, 2) ) + &
-                                                ( p_d(:, k, 2) * p(l, 1) + p(k, 2) * p_d(:, l, 1) ) 
+                                                ( p_d(:, k, 2) * p(l, 1) + p(k, 2) * p_d(:, l, 1) )
                    ij_matrix%pp_d(:, 5, k, l) = ( p_d(:, k, 1) * p(l, 3) + p(k, 1) * p_d(:, l, 3) ) + &
-                                                ( p_d(:, k, 3) * p(l, 1) + p(k, 3) * p_d(:, l, 1) ) 
+                                                ( p_d(:, k, 3) * p(l, 1) + p(k, 3) * p_d(:, l, 1) )
                    ij_matrix%pp_d(:, 6, k, l) = ( p_d(:, k, 2) * p(l, 3) + p(k, 2) * p_d(:, l, 3) ) + &
-                                                ( p_d(:, k, 3) * p(l, 2) + p(k, 3) * p_d(:, l, 2) ) 
+                                                ( p_d(:, k, 3) * p(l, 2) + p(k, 3) * p_d(:, l, 2) )
                 END DO
              END IF
           END DO
@@ -1881,7 +1881,7 @@ CONTAINS
              END DO
              !  Rotation Elements for : D-D
              DO k = 1, 5
-                ij_matrix%dd_d(:,  1, k, k) = ( d_d(:, k, 1) * d(k, 1) + d(k, 1) * d_d(:, k, 1) ) 
+                ij_matrix%dd_d(:,  1, k, k) = ( d_d(:, k, 1) * d(k, 1) + d(k, 1) * d_d(:, k, 1) )
                 ij_matrix%dd_d(:,  2, k, k) = ( d_d(:, k, 2) * d(k, 2) + d(k, 2) * d_d(:, k, 2) )
                 ij_matrix%dd_d(:,  3, k, k) = ( d_d(:, k, 3) * d(k, 3) + d(k, 3) * d_d(:, k, 3) )
                 ij_matrix%dd_d(:,  4, k, k) = ( d_d(:, k, 4) * d(k, 4) + d(k, 4) * d_d(:, k, 4) )
@@ -1927,7 +1927,7 @@ CONTAINS
                 END IF
              END DO
           END IF
-          IF (debug_this_module) THEN 
+          IF (debug_this_module) THEN
              CALL check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert=do_invert, error=error)
           END IF
        END IF
@@ -1935,7 +1935,7 @@ CONTAINS
   END SUBROUTINE rotmat
 
 ! *****************************************************************************
-!> \brief First Step of the rotation of the two-electron two-center integrals in 
+!> \brief First Step of the rotation of the two-electron two-center integrals in
 !>        SPD basis
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich

@@ -1,5 +1,5 @@
     INTEGER                                  :: istat, lb1, lb1_old, &
-                                                ub1,  ub1_old    
+                                                ub1,  ub1_old
     IF (ASSOCIATED(p)) THEN
        lb1_old = LBOUND(p,1)
        ub1_old = UBOUND(p,1)

@@ -46,7 +46,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create thermal_regions
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE create_thermal_regions(thermal_regions, md_section, simpar, force_env, error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
@@ -86,7 +86,7 @@ CONTAINS
              "controlled by thermostats. The definition of different thermal "//&
              "regions might result inconsistent with the presence of thermostats."//&
 CPSourceFileRef,&
-             only_ionode=.TRUE.)          
+             only_ionode=.TRUE.)
        END IF
        IF(simpar%temp_tol>0.0_dp) THEN
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -94,7 +94,7 @@ CPSourceFileRef,&
              "is not consistent with the presence of different thermal regions."//&
              "The temperature of different regions is rescaled separatedly."//&
 CPSourceFileRef,&
-             only_ionode=.TRUE.)          
+             only_ionode=.TRUE.)
        END IF
        CALL section_vals_val_get(thermal_region_section,"FORCE_RESCALING",l_val=thermal_regions%force_rescaling , error=error)
        region_sections =>  section_vals_get_subs_vals(thermal_region_section,"DEFINE_REGION",error=error)
@@ -112,7 +112,7 @@ CPSourceFileRef,&
            NULLIFY(t_region%part_index)
            t_region%npart = 0
            DO il = 1,nlist
-             
+
              CALL section_vals_val_get(region_sections,"LIST", i_rep_section=ireg,i_rep_val=il,i_vals=tmplist, error=error)
              CALL reallocate(t_region%part_index,1,t_region%npart+SIZE(tmplist))
              DO i =1,SIZE(tmplist)
@@ -122,14 +122,14 @@ CPSourceFileRef,&
                t_region%part_index(t_region%npart) = ipart
                particles%els(ipart)%t_region_index = ireg
              END DO
-           END DO 
+           END DO
            CALL section_vals_val_get(region_sections,"TEMPERATURE",&
                i_rep_section=ireg,r_val=temp , error=error)
            t_region%temp_expected = temp
            CALL section_vals_val_get(region_sections,"TEMP_TOL", &
                i_rep_section=ireg,r_val=temp_tol , error=error)
            t_region%temp_tol = temp_tol
-         END DO 
+         END DO
          simpar%do_thermal_region = .TRUE.
        ELSE
          CALL release_thermal_regions(thermal_regions,error)
@@ -144,7 +144,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief create thermal_regions
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE print_thermal_regions(thermal_regions, itimes, time, pos, act , error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions

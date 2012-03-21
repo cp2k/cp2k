@@ -7,7 +7,7 @@
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
 MODULE csvr_system_dynamics
- 
+
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE csvr_system_types,               ONLY: csvr_system_type
   USE csvr_system_utils,               ONLY: rescaling_factor
@@ -76,7 +76,7 @@ CONTAINS
 
     ! Compute thermostat energy
     CALL do_csvr_eval_energy(csvr, map_info, error)
-    
+
     CALL timestop(handle)
   END SUBROUTINE csvr_barostat
 
@@ -112,11 +112,11 @@ CONTAINS
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
     map_info => csvr%map_info
-    
+
     ! Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, vel, error)
-    
+
     ! Apply the Canonical Sampling through Velocity Rescaling
     CALL do_csvr(csvr, map_info, error)
 
@@ -124,7 +124,7 @@ CONTAINS
     CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
          local_molecules, my_shell_adiabatic, shell_particle_set,core_particle_set,&
          vel, shell_vel, core_vel, error)
-       
+
     ! Re-Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, vel, error)
@@ -165,7 +165,7 @@ CONTAINS
     ! Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
     group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
-    
+
     ! Apply the Canonical Sampling through Velocity Rescaling
     CALL do_csvr(csvr, map_info, error)
 

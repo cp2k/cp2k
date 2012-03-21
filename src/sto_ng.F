@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \par History
-!>      06.2004 created 
+!>      06.2004 created
 !> \author jgh
 ! *****************************************************************************
 MODULE sto_ng
@@ -32,11 +32,11 @@ MODULE sto_ng
 !> \par History
 !>      06.2004 created using parameters from : RF Stewart JCP 52 p431 1970
 !>      01.2008 added newly generated parameters for 6s - 7i
-!> \author jgh 
+!> \author jgh
 CONTAINS
 
 ! *****************************************************************************
-SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error ) 
+SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error )
 
     REAL(KIND=dp), INTENT(IN)                :: zeta
     INTEGER, INTENT(IN)                      :: n, nq, lq
@@ -740,7 +740,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error )
          SELECT CASE ( n )
            CASE ( 1 )
              alpha( 1 ) = 0.012170316100569041_dp; coef ( 1 ) = 1._dp
-            
+
            CASE ( 2 )
              alpha( 1 ) = 0.02380792064880498_dp;  coef ( 1 ) = 2.4733498823505897_dp
              alpha( 2 ) = 0.0413963085083486_dp;   coef ( 2 ) = -1.7500626134752972_dp
@@ -970,7 +970,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error )
     alpha (1:n) = zeta**2 * alpha (1:n)
   END IF
 
-END SUBROUTINE get_sto_ng 
+END SUBROUTINE get_sto_ng
 
 END MODULE sto_ng
 

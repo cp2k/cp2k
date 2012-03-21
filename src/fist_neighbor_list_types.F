@@ -58,7 +58,7 @@ MODULE fist_neighbor_list_types
             fist_neighbor_add
 
 CONTAINS
- 
+
 ! *****************************************************************************
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -118,7 +118,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        DEALLOCATE(fist_neighbor, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE fist_neighbor_deallocate
 
@@ -236,7 +236,7 @@ CONTAINS
     ENDIF
 
     fist_neighbor%nlists=nlistmin
-    DO i=1,nlistmin    
+    DO i=1,nlistmin
        fist_neighbor%neighbor_kind_pairs(i)%npairs=0
        fist_neighbor%neighbor_kind_pairs(i)%list=HUGE(0)
        fist_neighbor%neighbor_kind_pairs(i)%id_kind=HUGE(0)
@@ -317,7 +317,7 @@ CONTAINS
 
     ! The check_spline is set to .TRUE. when the van derwaals is not excluded.
     ! Electrostatic interactions do not matter here as they are not evaluated
-    ! with splines. 
+    ! with splines.
     check_spline = (.NOT.ex_vdw)
 
     ! If both types of interactions are excluded, the corresponding potentials
@@ -365,20 +365,20 @@ CONTAINS
        new_npairs = INT(5+1.2*old_npairs)
        ! Pair Atoms Info
        ALLOCATE(new_list(2,new_npairs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        new_list(1:2,1:old_npairs)=neighbor_kind_pair%list(1:2,1:old_npairs)
        DEALLOCATE(neighbor_kind_pair%list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        neighbor_kind_pair%list=>new_list
        ! Kind Info
        ALLOCATE(new_id_kind(new_npairs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        new_id_kind(1:old_npairs)=neighbor_kind_pair%id_kind(1:old_npairs)
        DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        neighbor_kind_pair%id_kind=>new_id_kind
     ENDIF
-    
+
     ! Store the pair ...
     npairs = neighbor_kind_pair%npairs + 1
     IF ((ex_ei.OR.ex_vdw.OR.is_onfo).AND.(npairs>nscale)) THEN

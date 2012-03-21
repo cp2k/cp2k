@@ -990,12 +990,12 @@ CONTAINS
                 maxcgf = MAX(maxcgf,imax)
              END IF
              SELECT CASE (my_basis_set_id)
-             CASE (use_orb_basis_set) 
+             CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
                   maxcgf = MAX(maxcgf,imax)
                END IF
-             CASE (use_scp_basis_set) 
+             CASE (use_scp_basis_set)
                IF (ASSOCIATED(scp_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=scp_basis_set,ncgf=imax)
                   maxcgf = MAX(maxcgf,imax)
@@ -1022,7 +1022,7 @@ CONTAINS
                 END IF
                 maxco = MAX(maxco,imax)
              END IF
-             SELECT CASE (my_basis_set_id) 
+             SELECT CASE (my_basis_set_id)
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                   IF (PRESENT(maxder)) THEN
@@ -1091,7 +1091,7 @@ CONTAINS
                      nset=n)
                 maxgtop = MAX(maxgtop, n*imax)
               END IF
-            END SELECT  
+            END SELECT
           END IF
           IF (PRESENT(maxgtops)) THEN
             SELECT CASE (my_basis_set_id)
@@ -1113,7 +1113,7 @@ CONTAINS
                      nset=n)
                 maxgtops = MAX(maxgtops, n*imax)
               END IF
-            CASE (use_aux_fit_basis_set) 
+            CASE (use_aux_fit_basis_set)
               IF (ASSOCIATED(aux_fit_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxso=imax,&
                      nset=n)
@@ -1580,7 +1580,7 @@ CONTAINS
             "The pointer atomic_kind_set is not associated",&
             para_env)
     END IF
- 
+
     CALL timestop(handle)
 
   END SUBROUTINE init_atomic_kind_set
@@ -1607,7 +1607,7 @@ CONTAINS
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
-       qs_control%gapw_control%non_paw_atoms = .FALSE.     
+       qs_control%gapw_control%non_paw_atoms = .FALSE.
        nkind = SIZE(atomic_kind_set)
 
        DO ikind=1,nkind
@@ -1635,7 +1635,7 @@ CONTAINS
              CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
                   force_env_section,error)
           ELSE
-             qs_control%gapw_control%non_paw_atoms = .TRUE. 
+             qs_control%gapw_control%non_paw_atoms = .TRUE.
           END IF
 
           ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
@@ -1647,7 +1647,7 @@ CONTAINS
        IF(qs_control%gapw_control%non_paw_atoms) THEN
           qs_control%gapw_control%nopaw_as_gpw = .TRUE.
        ELSE
-          qs_control%gapw_control%nopaw_as_gpw = .FALSE.        
+          qs_control%gapw_control%nopaw_as_gpw = .FALSE.
        END IF
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1879,7 +1879,7 @@ CONTAINS
             error=error)
        IF (section_enabled) THEN
           atomic_kind%bs_occupation = .TRUE.
-          !Alpha spin 
+          !Alpha spin
           NULLIFY(spin_section)
           spin_section => section_vals_get_subs_vals(bs_section,"ALPHA",error=error)
           CALL section_vals_get(spin_section, explicit=explicit, error=error)
@@ -1904,7 +1904,7 @@ CONTAINS
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
                  keyword_name="N",n_rep_val=i,error=error)
-              IF(i>0) THEN 
+              IF(i>0) THEN
                 CALL section_vals_val_get(spin_section,&
                      keyword_name="N",i_vals=add_el,error=error)
                 IF(SIZE(add_el)==SIZE( atomic_kind%addel,1)) THEN
@@ -1912,7 +1912,7 @@ CONTAINS
                 END IF
               END IF
           END IF
-          !Beta spin 
+          !Beta spin
           NULLIFY(spin_section)
           spin_section => section_vals_get_subs_vals(bs_section,"BETA",error=error)
           CALL section_vals_get(spin_section, explicit=explicit, error=error)
@@ -1929,10 +1929,10 @@ CONTAINS
                  keyword_name="L",i_vals=add_el,error=error)
             CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
             atomic_kind%laddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
-              
+
             CALL section_vals_val_get(spin_section,&
                 keyword_name="N",n_rep_val=i,error=error)
-            IF(i>0) THEN 
+            IF(i>0) THEN
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
                     keyword_name="N",i_vals=add_el,error=error)
@@ -1940,7 +1940,7 @@ CONTAINS
                 atomic_kind%naddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
               END IF
             END IF
-          END IF  
+          END IF
        END IF
 
        ! Read the DFT+U subsection of the current atomic kind, if enabled
@@ -2121,7 +2121,7 @@ CONTAINS
              ! No special cases for other elements..
           END SELECT
           ! Set default parameters
-          CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)          
+          CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)
           CALL se_param_set_default(atomic_kind%se_parameter,z,method_id,error)
           CALL init_se_param(atomic_kind%se_parameter,atomic_kind%orb_basis_set,ngauss,error=error)
           CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
@@ -2180,7 +2180,7 @@ CONTAINS
                norm_type=naux)
        END IF
 
-       ! Allocate and initialise the geminal basis set data set structure 
+       ! Allocate and initialise the geminal basis set data set structure
        IF ((geminal_basis_set_name /= '').OR.explicit_geminal) THEN
           CALL allocate_geminal_basis_set(atomic_kind%geminal_basis_set,error)
           CALL read_geminal_basis_set(atomic_kind%element_symbol,geminal_basis_set_name,&
@@ -2200,7 +2200,7 @@ CONTAINS
                 potential_type = potential_name
              END IF
              CALL uppercase(potential_type)
-             
+
              SELECT CASE (TRIM(potential_type))
              CASE ("ALL")
                 CALL allocate_potential(atomic_kind%all_potential,error)

@@ -7,7 +7,7 @@
 !> \brief module that contains the algorithms to perform an itrative
 !>         diagonalization by the block-Davidson approach
 !>         P. Blaha, et al J. Comp. Physics, 229, (2010), 453-460
-!>         \Iterative diagonalization in augmented plane wave based 
+!>         \Iterative diagonalization in augmented plane wave based
 !>              methods in electronic structure calculations\
 !> \par History
 !>      05.2011 created [MI]
@@ -125,10 +125,10 @@ CONTAINS
     ! compute CHC
     CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_hc,0.0_dp,matrix_tmp,error=error)
     CALL cp_fm_get_diag(matrix_tmp,chc_diag,error=error)
-    ! set the top left part of H[C,Z] block matrix CHC 
+    ! set the top left part of H[C,Z] block matrix CHC
     block_mat => bdav_env%H_block_mat
     CALL cp_fm_to_fm_submat(matrix_tmp,block_mat,nmo,nmo,1,1,1,1,error=error)
- 
+
     DO i=1,nmo
 !      IF(ABS(csc_diag(i))>EPSILON(0.0_dp)) THEN
         ritz_coeff(i) = chc_diag(i)!/csc_diag(i)
@@ -211,7 +211,7 @@ CONTAINS
     converged=.FALSE.
     DO iter = 1, max_iter
 
-     ! compute Ritz values 
+     ! compute Ritz values
       ritz_coeff=0.0_dp
       CALL cp_fm_create(m_hc,mo_coeff%matrix_struct,name="hc",error=error)
       CALL cp_dbcsr_sm_fm_multiply(matrix_h,mo_coeff,m_hc,nmo,error=error)
@@ -227,7 +227,7 @@ CONTAINS
       CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,m_hc,0.0_dp,m_tmp,error=error)
       CALL cp_fm_get_diag(m_tmp,ritz_coeff,error=error)
       CALL cp_fm_release(m_tmp,error=error)
-      
+
       ! Check for converged eigenvectors
 !      CALL cp_fm_create(c_z,mo_coeff%matrix_struct,name="tmp",error=error)
       c_z => bdav_env%matrix_z
@@ -266,7 +266,7 @@ CONTAINS
         nset = 0
         DO j = 1,nmo_converged
           imo=iconv(j)
-            
+
           IF(imo==i_last+1) THEN
            i_last=imo
            iconv_set(nset,2)=imo
@@ -283,7 +283,7 @@ CONTAINS
         nset = 0
         DO j = 1,nmo_not_converged
           imo=inotconv(j)
-            
+
           IF(imo==i_last+1) THEN
            i_last=imo
            inotconv_set(nset,2)=imo
@@ -302,7 +302,7 @@ CONTAINS
 
 
       IF(REAL(nmo_converged,dp)/REAL(nmo,dp)>bdav_env%conv_percent) THEN
-         converged=.TRUE. 
+         converged=.TRUE.
          DEALLOCATE(iconv_set,STAT=istat)
          DEALLOCATE (inotconv_set,STAT=istat)
          t2 = m_walltime()
@@ -328,17 +328,17 @@ CONTAINS
         !copy matrix_h in h_fm
         CALL copy_dbcsr_to_fm(matrix_h,h_fm,error=error)
         CALL cp_fm_upper_to_full(h_fm,s_fm,error=error)
-     
+
         !copy matrix_s in s_fm
 !        CALL cp_fm_set_all(s_fm,0.0_dp,error=error)
         CALL copy_dbcsr_to_fm(matrix_s,s_fm,error=error)
-     
+
         !allocate c_out
         CALL cp_fm_create(c_out,fm_struct_tmp,name="matrix_tmp",error=error)
         ! set c_out to zero
         CALL cp_fm_set_all(c_out,0.0_dp,error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-   
+
        !allocate c_conv
         CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nao,ncol_global=nmo_converged, &
                                context=mo_coeff%matrix_struct%context, &
@@ -349,7 +349,7 @@ CONTAINS
         CALL cp_fm_create(m_tmp,fm_struct_tmp,name="m_tmp_nxmc",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
       END IF
-   
+
       !allocate c_notconv
       CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nao,ncol_global=nmo_not_converged, &
                                context=mo_coeff%matrix_struct%context, &
@@ -375,7 +375,7 @@ CONTAINS
         END DO
         CALL cp_fm_symm('L','U',nao,nmo_converged,1.0_dp,s_fm,c_conv,0.0_dp,m_tmp,error=error)
         CALL cp_fm_gemm('N','T',nao,nao,nmo_converged,1.0_dp,m_tmp,m_tmp,0.0_dp,c_out,error=error)
-   
+
         ! project c_out out of H
         lambda = 100.0_dp*ABS(eigenvalues(homo))
         CALL cp_fm_scale_and_add(lambda,c_out,1.0_dp,h_fm,error=error)
@@ -383,7 +383,7 @@ CONTAINS
         CALL cp_fm_release(h_fm,error=error)
 
       END IF
-   
+
       !allocate m_tmp
       CALL cp_fm_create(m_tmp,fm_struct_tmp,name="m_tmp_nxm",error=error)
       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
@@ -417,36 +417,36 @@ CONTAINS
         CALL cp_fm_to_fm(c_z,c_pz,error=error)
        END IF
        CALL cp_fm_release(m_tmp,error=error)
-   
+
        CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo_not_converged,ncol_global=nmo_not_converged, &
                                context=mo_coeff%matrix_struct%context, &
                                para_env=mo_coeff%matrix_struct%para_env,error=error)
-       
+
        CALL cp_fm_create(m_tmp,fm_struct_tmp,name="m_tmp_mxm",error=error)
        CALL cp_fm_create(mt_tmp,fm_struct_tmp,name="mt_tmp_mxm",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-   
+
        nmat = nmo_not_converged
        nmat2 = 2* nmo_not_converged
        CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmat2,ncol_global=nmat2, &
                                context=mo_coeff%matrix_struct%context, &
                                para_env=mo_coeff%matrix_struct%para_env,error=error)
-   
+
        CALL cp_fm_create(s_block,fm_struct_tmp,name="sb",error=error)
        CALL cp_fm_create(h_block,fm_struct_tmp,name="hb",error=error)
        CALL cp_fm_create(v_block,fm_struct_tmp,name="vb",error=error)
        CALL cp_fm_create(w_block,fm_struct_tmp,name="wb",error=error)
        ALLOCATE(evals(nmat2))
-   
+
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-       
+
        ! compute CSC
        CALL cp_fm_set_all(s_block,0.0_dp, 1.0_dp,error=error)
-   
+
        ! compute CHC
        CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_notconv,m_hc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,h_block,nmat,nmat,1,1,1,1,error=error)
-   
+
        ! compute ZSC
        CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_sc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,s_block,nmat,nmat,1,1,1+nmat,1,error=error)
@@ -457,9 +457,9 @@ CONTAINS
        CALL cp_fm_to_fm_submat(m_tmp,h_block,nmat,nmat,1,1,1+nmat,1,error=error)
        CALL cp_fm_transpose(m_tmp,mt_tmp,error=error)
        CALL cp_fm_to_fm_submat(mt_tmp,h_block,nmat,nmat,1,1,1,1+nmat,error=error)
-   
+
        CALL cp_fm_release(mt_tmp,error=error)
-   
+
        ! reuse m_sc and m_hc to computr HZ and SZ
        IF(nmo_converged>0) THEN
          CALL cp_fm_gemm('N','N',nao,nmat,nao,1.0_dp,c_out,c_pz,0.0_dp,m_hc,error=error)
@@ -479,7 +479,7 @@ CONTAINS
        ! compute ZHZ
        CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_hc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,h_block,nmat,nmat,1,1,1+nmat,1+nmat,error=error)
-   
+
        CALL cp_fm_release(m_sc,error=error)
 
        ! solution of the reduced eigenvalues problem
@@ -490,15 +490,15 @@ CONTAINS
        CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,c_notconv,m_tmp,0.0_dp,m_hc,error=error)
        CALL cp_fm_to_fm_submat(v_block,m_tmp, nmat,nmat,1+nmat,1,1,1,error=error)
        CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,c_pz,m_tmp,1.0_dp,m_hc,error=error)
-       
+
        CALL cp_fm_release(m_tmp,error=error)
-       
+
        CALL cp_fm_release(c_notconv,error=error)
        CALL cp_fm_release(s_block,error=error)
        CALL cp_fm_release(h_block,error=error)
        CALL cp_fm_release(w_block,error=error)
        CALL cp_fm_release(v_block,error=error)
-   
+
        IF(nmo_converged>0) THEN
          CALL cp_fm_release(c_z,error=error)
          CALL cp_fm_release(c_pz,error=error)
@@ -518,9 +518,9 @@ CONTAINS
          eigenvalues(1:nmo) = evals(1:nmo)
        END IF
        DEALLOCATE(evals,STAT=istat)
-   
+
        CALL cp_fm_release(m_hc,error=error)
-   
+
        CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!fm->dbcsr
 
        t2 = m_walltime()
@@ -622,7 +622,7 @@ CONTAINS
     converged=.FALSE.
     DO iter = 1, max_iter
       NULLIFY(c_out, mo_conv, mo_notconv_fm, mo_notconv)
-      ! Prepare HC and SC, using mo_coeff_b (sparse), these are still sparse 
+      ! Prepare HC and SC, using mo_coeff_b (sparse), these are still sparse
       CALL cp_dbcsr_init_p(matrix_hc,error=error)
       CALL cp_dbcsr_create(matrix_hc,"matrix_hc",cp_dbcsr_distribution(mo_coeff_b),&
          dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(mo_coeff_b),&
@@ -631,12 +631,12 @@ CONTAINS
       CALL cp_dbcsr_create(matrix_sc,"matrix_sc",cp_dbcsr_distribution(mo_coeff_b),&
          dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(mo_coeff_b),&
          cp_dbcsr_col_block_sizes(mo_coeff_b),0,0,dbcsr_type_real_default,error=error)
- 
+
       CALL cp_dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
       CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_h,mo_coeff_b,0.0_dp,matrix_hc,last_column=k,error=error)
       CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_s,mo_coeff_b,0.0_dp,matrix_sc,last_column=k,error=error)
 
-      ! compute Ritz values 
+      ! compute Ritz values
       ritz_coeff=0.0_dp
       ! Allocate Sparse matrices: nmoxnmo
       ! matrix_mm
@@ -657,11 +657,11 @@ CONTAINS
 
 
       CALL cp_dbcsr_multiply('t','n',1.0_dp,mo_coeff_b,matrix_hc,0.0_dp,matrix_mm, last_column=k, error=error)
-      CALL cp_dbcsr_get_diag(matrix_mm,ritz_coeff,error=error) 
+      CALL cp_dbcsr_get_diag(matrix_mm,ritz_coeff,error=error)
       CALL mp_sum(ritz_coeff,mo_coeff%matrix_struct%para_env%group)
 
 
-      ! extended subspace P Z = P [H - theta S]C  this ia another matrix of type and size as mo_coeff_b 
+      ! extended subspace P Z = P [H - theta S]C  this ia another matrix of type and size as mo_coeff_b
       CALL cp_dbcsr_init_p(matrix_z,error=error)
       CALL cp_dbcsr_create(matrix_z,"matrix_z",cp_dbcsr_distribution(mo_coeff_b),&
            dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(mo_coeff_b),&
@@ -694,7 +694,7 @@ CONTAINS
         END IF
       END DO
 
-  
+
       IF(nmo_converged>0) THEN
         ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -704,7 +704,7 @@ CONTAINS
         nset = 0
         DO j = 1,nmo_converged
           imo=iconv(j)
-            
+
           IF(imo==i_last+1) THEN
            i_last=imo
            iconv_set(nset,2)=imo
@@ -721,7 +721,7 @@ CONTAINS
         nset = 0
         DO j = 1,nmo_not_converged
           imo=inotconv(j)
-            
+
           IF(imo==i_last+1) THEN
            i_last=imo
            inotconv_set(nset,2)=imo
@@ -747,9 +747,9 @@ CONTAINS
         DEALLOCATE (inotconv_set,STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-        converged=.TRUE. 
+        converged=.TRUE.
         t2 = m_walltime()
-        IF (output_unit > 0)  THEN 
+        IF (output_unit > 0)  THEN
             WRITE(output_unit,'(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')&
                  iter, nmo_converged,  max_norm, min_norm, t2-t1
 
@@ -759,7 +759,7 @@ CONTAINS
 
         EXIT
       END IF
-   
+
       IF(nmo_converged>0) THEN
 
         !allocate mo_conv_fm
@@ -843,7 +843,7 @@ CONTAINS
         CALL cp_dbcsr_init_p(mo_notconv,error=error)
         CALL cp_dbcsr_create(mo_notconv,"mo_notconv",dist,dbcsr_type_no_symmetry,&
               cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
-  
+
         CALL cp_dbcsr_init_p(matrix_hc,error=error)
         CALL cp_dbcsr_create(matrix_hc,"matrix_hc",dist,dbcsr_type_no_symmetry,&
               cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
@@ -861,7 +861,7 @@ CONTAINS
         CALL array_release (col_blk_size)
         CALL array_release (col_dist)
 
-        
+
         CALL cp_dbcsr_multiply('n','n',1.0_dp,c_out,mo_notconv,0.0_dp,matrix_hc,&
              last_column=nmo_not_converged,error=error)
         CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_s,mo_notconv,0.0_dp,matrix_sc,&
@@ -926,7 +926,7 @@ CONTAINS
        CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmat2,ncol_global=nmat2, &
                                context=mo_coeff%matrix_struct%context, &
                                para_env=mo_coeff%matrix_struct%para_env,error=error)
-   
+
        CALL cp_fm_create(s_block,fm_struct_tmp,name="sb",error=error)
        CALL cp_fm_create(h_block,fm_struct_tmp,name="hb",error=error)
        CALL cp_fm_create(v_block,fm_struct_tmp,name="vb",error=error)
@@ -964,13 +964,13 @@ CONTAINS
       CALL cp_dbcsr_multiply('n','n',1.0_dp,c_out,matrix_pz,0.0_dp,matrix_hc,last_column=k,error=error)
       CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_s,matrix_pz,0.0_dp,matrix_sc,last_column=k,error=error)
 
-      ! compute the bottom right  ZSZ 
+      ! compute the bottom right  ZSZ
       CALL cp_dbcsr_multiply('t','n',1.0_dp,matrix_pz,matrix_sc,0.0_dp,matrix_mm,last_column=k,error=error)
       ! set the bottom right part of S[C,Z] block matrix  ZSZ
       CALL copy_dbcsr_to_fm(matrix_mm,matrix_mm_fm,error=error)
       CALL cp_fm_to_fm_submat(matrix_mm_fm,s_block,nmat,nmat,1,1,1+nmat,1+nmat,error=error)
 
-      ! compute the bottom right  ZHZ 
+      ! compute the bottom right  ZHZ
       CALL cp_dbcsr_multiply('t','n',1.0_dp,matrix_pz,matrix_hc,0.0_dp,matrix_mm,last_column=k,error=error)
       ! set the bottom right part of H[C,Z] block matrix  ZHZ
       CALL copy_dbcsr_to_fm(matrix_mm,matrix_mm_fm,error=error)
@@ -989,14 +989,14 @@ CONTAINS
        CALL cp_fm_create(matrix_nm_fm,fm_struct_tmp,name="m_nxm",error=error)
        CALL cp_fm_create(matrix_z_fm,fm_struct_tmp,name="m_nxm",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-   
+
        CALL copy_dbcsr_to_fm(matrix_pz,matrix_z_fm,error=error)
       ! extract egenvectors
        CALL cp_fm_to_fm_submat(v_block,matrix_mm_fm, nmat,nmat,1,1,1,1,error=error)
        CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,mo_notconv_fm,matrix_mm_fm,0.0_dp,matrix_nm_fm,error=error)
        CALL cp_fm_to_fm_submat(v_block,matrix_mm_fm, nmat,nmat,1+nmat,1,1,1,error=error)
        CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,matrix_z_fm,matrix_mm_fm,1.0_dp,matrix_nm_fm,error=error)
-       
+
        CALL cp_dbcsr_release_p(matrix_z, error=error)
        CALL cp_dbcsr_release_p(matrix_pz, error=error)
        CALL cp_fm_release(matrix_z_fm,error=error)
@@ -1032,7 +1032,7 @@ CONTAINS
       END IF
       DEALLOCATE(evals,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   
+
       CALL cp_fm_release(matrix_nm_fm,error=error)
       CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!fm->dbcsr
 

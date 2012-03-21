@@ -34,7 +34,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates taper type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE taper_create(taper, rc, range, error)
     TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), INTENT(IN)                :: rc, range
@@ -63,7 +63,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases taper type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE taper_release(taper, error)
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -101,7 +101,7 @@ CONTAINS
        ft = 0.5_dp*(1.0_dp-TANH(dr))
     END IF
   END FUNCTION taper_eval
-  
+
 ! *****************************************************************************
 !> \brief Analytical derivatives for taper function
 ! *****************************************************************************

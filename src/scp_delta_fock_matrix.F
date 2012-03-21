@@ -5,14 +5,14 @@
 
 ! *****************************************************************************
 !> \brief Module that collects all Coulomb parts of the fock matrix construction
-!>        
+!>
 !> \author Teodoro Laino (05.2009) [tlaino] - split and module reorganization
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : d-orbitals
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Speed-up
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Periodic SE
 !>      Teodoro Laino (05.2009) [tlaino] - Stress Tensor
-!>      
+!>
 ! *****************************************************************************
 MODULE scp_delta_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -87,11 +87,11 @@ MODULE scp_delta_fock_matrix
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_delta_fock_matrix'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
-  
+
   PUBLIC :: build_delta_fock_matrix
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
 !> \author JGH
@@ -171,11 +171,11 @@ CONTAINS
        NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p, pmat_loc, kmat_loc, &
                delta_ks, delta_ks_tmp, se_control,se_taper,pscp,ks_scp,scp_env,&
                energy_scp, ascp_diag)
-       
+
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_se=sab_se, atomic_kind_set=atomic_kind_set, &
             particle_set=particle_set, virial=virial, error=error)
-      
+
        ! Parameters
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
@@ -198,7 +198,7 @@ CONTAINS
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-       
+
        nkind = SIZE(atomic_kind_set)
        IF(calculate_forces) THEN
           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -249,7 +249,7 @@ CONTAINS
        CALL cp_dbcsr_replicate_all(delta_ks, error=error)
        CALL cp_dbcsr_replicate_all(pmat_loc, error=error)
        CALL cp_dbcsr_replicate_all(kmat_loc, error=error)
-       
+
        ecore2   = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
@@ -274,7 +274,7 @@ CONTAINS
           natorb_b = se_natorb(jkind)
           natorb_a2 = natorb_a**2
           natorb_b2 = natorb_b**2
- 
+
           IF (inode==1) THEN
          ! density matrix
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
@@ -283,10 +283,10 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=pmat_loc,&
                   row=iatom,col=iatom,BLOCK=ptmp_a_block,found=found)
              CPPostcondition(ASSOCIATED(ptmp_a_block),cp_failure_level,routineP,error,failure)
-          ! copy everything to structures of the correct size 
+          ! copy everything to structures of the correct size
              IF ( natorb_a == SIZE (pa_block_a,1 ) ) THEN
-                ptmp_a_block = pa_block_a 
-             ELSE 
+                ptmp_a_block = pa_block_a
+             ELSE
                 ptmp_a_block = 0.0_dp
                 ptmp_a_block ( 1, 1 ) = pa_block_a ( 1, 1 )
              END IF
@@ -297,16 +297,16 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=kmat_loc,&
                   row=iatom,col=iatom,BLOCK=ktmp_a_block,found=found)
              CPPostcondition(ASSOCIATED(ktmp_a_block),cp_failure_level,routineP,error,failure)
-          ! copy everything to structures of the correct size 
+          ! copy everything to structures of the correct size
              IF ( natorb_a == SIZE (ksa_block_a,1 ) ) THEN
-                ktmp_a_block = ksa_block_a 
-             ELSE 
+                ktmp_a_block = ksa_block_a
+             ELSE
                 ktmp_a_block = 0.0_dp
                 ktmp_a_block ( 1, 1 ) = ksa_block_a ( 1, 1 )
              END IF
 
              p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * ptmp_a_block
-             pa_a(1:natorb_a2)                    = RESHAPE(ptmp_a_block,(/natorb_a2/)) 
+             pa_a(1:natorb_a2)                    = RESHAPE(ptmp_a_block,(/natorb_a2/))
 
            ! pscp
              CALL cp_dbcsr_get_block_p(matrix=pscp,&
@@ -353,10 +353,10 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=pmat_loc,&
                   row=jatom,col=jatom,BLOCK=ptmp_b_block,found=found)
              CPPostcondition(ASSOCIATED(ptmp_b_block),cp_failure_level,routineP,error,failure)
-          ! copy everything to structures of the correct size 
+          ! copy everything to structures of the correct size
              IF ( natorb_b == SIZE (pb_block_a,1 ) ) THEN
-                ptmp_b_block = pb_block_a 
-             ELSE 
+                ptmp_b_block = pb_block_a
+             ELSE
                 ptmp_b_block = 0.0_dp
                 ptmp_b_block ( 1, 1 ) = pb_block_a ( 1, 1 )
              END IF
@@ -368,16 +368,16 @@ CONTAINS
                   row=jatom,col=jatom,BLOCK=ktmp_b_block,found=found)
              CPPostcondition(ASSOCIATED(ktmp_b_block),cp_failure_level,routineP,error,failure)
 
-          ! copy everything to structures of the correct size 
+          ! copy everything to structures of the correct size
              IF ( natorb_b == SIZE (ksb_block_a,1 ) ) THEN
-                ktmp_b_block = ksb_block_a 
-             ELSE 
+                ktmp_b_block = ksb_block_a
+             ELSE
                 ktmp_b_block = 0.0_dp
                 ktmp_b_block ( 1, 1 ) = ksb_block_a ( 1, 1 )
              END IF
 
              p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * ptmp_b_block
-             pb_a(1:natorb_b2)                    = RESHAPE(ptmp_b_block,(/natorb_b2/)) 
+             pb_a(1:natorb_b2)                    = RESHAPE(ptmp_b_block,(/natorb_b2/))
 
            ! pscp
              CALL cp_dbcsr_get_block_p(matrix=pscp,&
@@ -386,7 +386,7 @@ CONTAINS
              check = (SIZE(pscpb_block,1)==natorb_b).AND.(SIZE(pscpb_block,2)==natorb_b)
              CPPostcondition(check,cp_failure_level,routineP,error,failure)
              pscp_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp*pscpb_block
-             pscpb(1:natorb_b2)                    = RESHAPE(pscpb_block,(/natorb_b2/)) 
+             pscpb(1:natorb_b2)                    = RESHAPE(pscpb_block,(/natorb_b2/))
 
            ! ks_scp
              CALL cp_dbcsr_get_block_p(matrix=ks_scp,&
@@ -424,17 +424,17 @@ CONTAINS
                    CALL scp2C (se_kind_a, se_kind_b, rij, switch, p_block_tot_a, k_scpa_block, p_block_tot_b,&
                         k_scpb_block, factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                         store_int_env=store_int_env, error=error)
-                   ! copy everything to structures of the correct size 
+                   ! copy everything to structures of the correct size
                    ! b block
                    IF ( natorb_b == SIZE (delta_ksb_tmp,1 ) ) THEN
                          delta_ksb_tmp =  delta_ksb_block
-                   ELSE 
+                   ELSE
                          delta_ksb_tmp ( 1, 1 ) =  delta_ksb_block ( 1, 1 )
                    END IF
                    ! a block
                    IF ( natorb_a == SIZE (delta_ksa_tmp,1 ) ) THEN
                          delta_ksa_tmp =  delta_ksa_block
-                   ELSE 
+                   ELSE
                          delta_ksa_tmp ( 1, 1 ) =  delta_ksa_block ( 1, 1 )
                    END IF
                 END IF
@@ -451,7 +451,7 @@ CONTAINS
                    CALL dscp_1el (se_kind_a,se_kind_b,rij, pscpa, pscpb, itype=itype, anag=anag,&
                         se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                         delta=delta, error=error)
-                 
+
 
                    IF (use_virial) THEN
                       CALL virial_pair_force (virial%pv_virial, -1.0_dp, force_ab, rij, error)
@@ -480,7 +480,7 @@ CONTAINS
                            anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                            error=error)
                    END IF
-                   IF ( switch ) THEN 
+                   IF ( switch ) THEN
                       force_ab(1) = -force_ab(1)
                       force_ab(2) = -force_ab(2)
                       force_ab(3) = -force_ab(3)
@@ -514,17 +514,17 @@ CONTAINS
                 ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
                    ! compute C Pscp, where delta_ks = C Pscp
-                   CALL scp2C_ew(se_kind_a, rij, pscp_block_tot_a, delta_ksa_block,& 
+                   CALL scp2C_ew(se_kind_a, rij, pscp_block_tot_a, delta_ksa_block,&
                         factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                         store_int_env=store_int_env, error=error)
                    ! compute C ( P + Z )
-                   CALL scp2C_ew(se_kind_a, rij, p_block_tot_a, k_scpa_block,& 
+                   CALL scp2C_ew(se_kind_a, rij, p_block_tot_a, k_scpa_block,&
                         factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                         store_int_env=store_int_env, error=error)
                    ! a block
                    IF ( natorb_a == SIZE (delta_ksa_tmp,1 ) ) THEN
                          delta_ksa_tmp =  delta_ksa_block
-                   ELSE 
+                   ELSE
                          delta_ksa_tmp ( 1, 1 ) =  delta_ksa_block ( 1, 1 )
                    END IF
                 END IF
@@ -542,7 +542,7 @@ CONTAINS
        DO ispin = 1, nspins
          CALL cp_dbcsr_sum_replicated(diagmat_ks(ispin)%matrix, error=error)
        END DO
-       ! Update the fock matrix.  Here K =  Pscp C 
+       ! Update the fock matrix.  Here K =  Pscp C
        CALL cp_dbcsr_add ( diagmat_ks(1)%matrix, delta_ks_tmp, 1.0_dp, 1.0_dp, error )
        ! add Kscp = Kscp (=C*(P+Z) ) + delta_ks (=C*Pscp).
        CALL cp_dbcsr_add ( ks_scp, delta_ks, 1.0_dp, 1.0_dp, error )
@@ -550,9 +550,9 @@ CONTAINS
        CALL cp_dbcsr_trace ( ks_scp, pscp, trace=ecoul_scp, local_sum=.TRUE., error=error )
        CALL mp_sum(ecore2,para_env%group)
        energy_scp%e_scp_hartree = ecoul_scp + ecore2
-       energy_scp%e_scp_hartree = 0.5_dp * energy_scp%e_scp_hartree 
-       CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
-       ! put diagmat_ks back into ks_matrix 
+       energy_scp%e_scp_hartree = 0.5_dp * energy_scp%e_scp_hartree
+       CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error )
+       ! put diagmat_ks back into ks_matrix
        DO ispin = 1, nspins
           CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
@@ -570,16 +570,16 @@ CONTAINS
        CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, &
                                  just_energy, energy_scp%e_scp_kernel, error )
 
-       IF (calculate_forces) THEN 
+       IF (calculate_forces) THEN
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
 ! Add to total QS  energy
        energy% total =  energy_scp % e_scp_hartree + energy_scp % e_scp_kernel + energy_scp % e_scp_disp
- 
+
     END IF
-    CALL finalize_se_taper(se_taper,error=error)    
+    CALL finalize_se_taper(se_taper,error=error)
 
     CALL timestop(handle)
   END SUBROUTINE build_delta_fock_matrix

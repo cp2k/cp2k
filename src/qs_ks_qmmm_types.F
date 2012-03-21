@@ -36,7 +36,7 @@ MODULE qs_ks_qmmm_types
 !>      holds the QM/MM potential and all the needed variables to
 !>      compute the QM/MM electrostatic 1-electron ks matrix
 !>      assumes that the core hamiltonian and energy are up to date.
-!>      v_metal_rspace is the potential at the metal sites within the image 
+!>      v_metal_rspace is the potential at the metal sites within the image
 !>      charge approach
 !> \par History
 !>      05.2004 created [tlaino]
@@ -70,8 +70,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the ks_qmmm_env (see doc/ReferenceCounting.html)
 !> \param ks_qmmm_env the ks_qmmm_env to be released
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -117,8 +117,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given ks_environment
 !> \param ks_qmmm_env the KohnSham QM/MM environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -133,7 +133,7 @@ SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(ks_qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)

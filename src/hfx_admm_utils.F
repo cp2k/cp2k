@@ -147,7 +147,7 @@ CONTAINS
 
     DO ispin=1,nspins!fm->dbcsr
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
-          CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr            
+          CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr
        ENDIF!fm->dbcsr
     ENDDO!fm->dbcsr
 
@@ -247,7 +247,7 @@ CONTAINS
                                 i_rep_section=1,error=error)
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
- 
+
 
 
     ! *** Initialize the auxiliary ks matrix to zero if required
@@ -412,7 +412,7 @@ CONTAINS
     IF (do_pw_hfx) THEN
        CALL section_vals_val_get(hfx_section, "FRACTION", r_val=fraction, error=error)
        CALL section_vals_val_get(hfx_section, "PW_HFX_BLOCKSIZE", i_val=blocksize, error=error)
-   
+
        CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
                        cell=cell, particle_set=particle_set, &
                        atomic_kind_set=atomic_kind_set, error=error)
@@ -432,10 +432,10 @@ CONTAINS
                                use_data=COMPLEXDATA1D,&
                                in_space=RECIPROCALSPACE,error=error)
 
-       ALLOCATE(rho_i(blocksize)) 
-       ALLOCATE(rho_j(blocksize)) 
-  
-       DO iorb_block=1,blocksize 
+       ALLOCATE(rho_i(blocksize))
+       ALLOCATE(rho_j(blocksize))
+
+       DO iorb_block=1,blocksize
           NULLIFY(rho_i(iorb_block)%pw)
           CALL pw_create(rho_i(iorb_block)%pw,rho_r%pw%pw_grid,&
                                   use_data=REALDATA3D,&
@@ -447,7 +447,7 @@ CONTAINS
        ENDDO
 
        exchange_energy = 0.0_dp
-   
+
        DO ispin=1,SIZE(mo_array)
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
 
@@ -467,9 +467,9 @@ CONTAINS
                           pw_env,error=error)
 
              ENDDO
-   
+
              DO jorb_block=iorb_block,norb,blocksize
-  
+
                 DO jorb=jorb_block,MIN(jorb_block+blocksize-1,norb)
 
                    jloc=jorb-jorb_block+1
@@ -478,35 +478,35 @@ CONTAINS
                             pw_env,error=error)
 
                 ENDDO
-   
+
                 DO iorb=iorb_block,MIN(iorb_block+blocksize-1,norb)
                    iloc=iorb-iorb_block+1
                    DO jorb=jorb_block,MIN(jorb_block+blocksize-1,norb)
-                      jloc=jorb-jorb_block+1 
+                      jloc=jorb-jorb_block+1
                       IF (jorb<iorb) CYCLE
 
                       ! compute the pair density
                       rho_r%pw%cr3d = rho_i(iloc)%pw%cr3d * rho_j(jloc)%pw%cr3d
-         
+
                       ! go the g-space and compute hartree energy
                       CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
                       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
-         
+
                       ! sum up to the full energy
                       scaling=fraction
                       IF (SIZE(mo_array)==1) scaling=scaling*2.0_dp
                       IF (iorb/=jorb) scaling=scaling*2.0_dp
-         
+
                       exchange_energy=exchange_energy - scaling * pair_energy
 
                    ENDDO
                 ENDDO
-        
+
              ENDDO
           ENDDO
        ENDDO
-       
-       DO iorb_block=1,blocksize 
+
+       DO iorb_block=1,blocksize
           CALL pw_release(rho_i(iorb_block)%pw,error=error)
           CALL pw_release(rho_j(iorb_block)%pw,error=error)
        ENDDO
@@ -514,20 +514,20 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error)
-   
+
        iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
               extension=".scfLog",error=error)
-   
+
        IF (iw>0) THEN
            WRITE (UNIT=iw,FMT="((T3,A,T61,F20.10))")&
                     "HF_PW_HFX| PW exchange energy:",exchange_energy
            WRITE (UNIT=iw,FMT="((T3,A,T61,F20.10),/)")&
                     "HF_PW_HFX| Gaussian exchange energy:",energy%ex
        ENDIF
-   
+
        CALL cp_print_key_finished_output(iw,logger,hfx_section,&
                                          "HF_INFO", error=error)
-   
+
     ENDIF
 
     CALL timestop(handle)

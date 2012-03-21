@@ -89,7 +89,7 @@ CONTAINS
     nkind = SIZE ( molecule_kind_set )
     ! Intermolecular Virtual Site Constraints
     do_ext_constraint = .FALSE.
-    IF (ASSOCIATED(gci)) THEN 
+    IF (ASSOCIATED(gci)) THEN
        do_ext_constraint = (gci%ntot/=0)
     END IF
     ! Intramolecular Virtual Site Constraints
@@ -178,8 +178,8 @@ CONTAINS
        index_c = vsite_list(iconst)%c + first_atom -1
        index_d = vsite_list(iconst)%d + first_atom -1
 
-       r1(:) = pos(:,index_b) - pos(:,index_c ) 
-       r2(:) = pos(:,index_d) - pos(:,index_c ) 
+       r1(:) = pos(:,index_b) - pos(:,index_c )
+       r2(:) = pos(:,index_d) - pos(:,index_c )
        pos(:,index_a)=pos(:,index_c)+vsite_list(iconst)%wbc*r1(:)+&
                                      vsite_list(iconst)%wdc*r2(:)
     END DO
@@ -204,7 +204,7 @@ CONTAINS
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, nvsite = nvsite, vsite_list = vsite_list )
     CALL get_molecule ( molecule, first_atom = first_atom)
-    
+
     DO iconst = 1, nvsite
        IF (vsite_list(iconst)%restraint%active) CYCLE
        index_a = vsite_list(iconst)%a + first_atom -1
@@ -243,7 +243,7 @@ CONTAINS
     nvsite = gci%nvsite
     vsite_list => gci%vsite_list
     ! Real Shake
-    
+
     DO iconst = 1, nvsite
        IF (vsite_list(iconst)%restraint%active) CYCLE
        index_a = vsite_list(iconst)%a + first_atom -1

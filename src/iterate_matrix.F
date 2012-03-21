@@ -37,7 +37,7 @@ MODULE iterate_matrix
 CONTAINS
 
 ! *****************************************************************************
-!> \brief invert a symmetric positive definite matrix by Hotelling's method 
+!> \brief invert a symmetric positive definite matrix by Hotelling's method
 !>        explicit symmetrization makes this code not suitable for other matrix types
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
@@ -104,7 +104,7 @@ CONTAINS
        ! S^-1_{n+1} = 2 S^-1 - S^-1 S S^-1
        CALL cp_dbcsr_add(matrix_inverse, tmp2, 2.0_dp, -1.0_dp, error=error)
 
-       CALL cp_dbcsr_filter(matrix_inverse, threshold, error=error) 
+       CALL cp_dbcsr_filter(matrix_inverse, threshold, error=error)
        t2 = m_walltime()
 
        IF (unit_nr>0) THEN
@@ -113,7 +113,7 @@ CONTAINS
                                                                     (flop1+flop2)/(1.0E6_dp*(t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
- 
+
        ! convergence.... convergence is quadratic, so the current iteration made is below the threshold
        IF (frob_matrix/frob_matrix_base<SQRT(threshold)) EXIT
 
@@ -128,12 +128,12 @@ CONTAINS
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,frob_matrix/frob_matrix_base
 
-       WRITE(unit_nr,'()') 
+       WRITE(unit_nr,'()')
        CALL m_flush(unit_nr)
     ENDIF
 
-    CALL cp_dbcsr_release(tmp1,error=error) 
-    CALL cp_dbcsr_release(tmp2,error=error) 
+    CALL cp_dbcsr_release(tmp1,error=error)
+    CALL cp_dbcsr_release(tmp2,error=error)
 
     CALL timestop(handle)
 
@@ -200,7 +200,7 @@ CONTAINS
        frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
        frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
-        
+
        ! update the above to 3*I-X*X
        CALL cp_dbcsr_add_on_diag(tmp1,+2.0_dp,error=error)
        occ_matrix=cp_dbcsr_get_occupation(matrix_sign)
@@ -235,12 +235,12 @@ CONTAINS
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final NS sign iter",i,occ_matrix,&
                                                     frob_matrix/frob_matrix_base
-       WRITE(unit_nr,'()') 
+       WRITE(unit_nr,'()')
        CALL m_flush(unit_nr)
     ENDIF
 
-    CALL cp_dbcsr_release(tmp1,error=error) 
-    CALL cp_dbcsr_release(tmp2,error=error) 
+    CALL cp_dbcsr_release(tmp1,error=error)
+    CALL cp_dbcsr_release(tmp2,error=error)
 
     CALL timestop(handle)
 
@@ -308,7 +308,7 @@ CONTAINS
                               filter_eps=threshold, flop=flop1, error=error)
        frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
- 
+
        ! check convergence (frob norm of what should be the identity matrix minus identity matrix)
        frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
 
@@ -353,7 +353,7 @@ CONTAINS
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final NS sqrt iter ",i,occ_matrix,&
                                                     frob_matrix/frob_matrix_base
-       WRITE(unit_nr,'()') 
+       WRITE(unit_nr,'()')
        CALL m_flush(unit_nr)
     ENDIF
 
@@ -361,8 +361,8 @@ CONTAINS
     CALL cp_dbcsr_scale(matrix_sqrt,1/SQRT(scaling),error=error)
     CALL cp_dbcsr_scale(matrix_sqrt_inv,SQRT(scaling),error=error)
 
-    CALL cp_dbcsr_release(tmp1,error=error) 
-    CALL cp_dbcsr_release(tmp2,error=error) 
+    CALL cp_dbcsr_release(tmp1,error=error)
+    CALL cp_dbcsr_release(tmp2,error=error)
 
     CALL timestop(handle)
 
@@ -414,9 +414,9 @@ CONTAINS
     CALL cp_dbcsr_init(D,error=error)
     CALL cp_dbcsr_create(D,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
     CALL cp_dbcsr_copy(D,C,error=error)
-    
-    !   write(*,*) 
-    !   write(*,*) 
+
+    !   write(*,*)
+    !   write(*,*)
     !   CALL cp_dbcsr_print(D, nodata=.FALSE., matlab_format=.TRUE., variable_name="D", unit_nr=6, error=error)
 
     ! set the B matrix as B=Identity+D
@@ -424,8 +424,8 @@ CONTAINS
     CALL cp_dbcsr_create(B,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
     CALL cp_dbcsr_copy(B,D,error=error)
     CALL cp_dbcsr_add_on_diag(B, alpha_scalar=one,  error=error)
-   
-    !   CALL cp_dbcsr_print(B, nodata=.FALSE., matlab_format=.TRUE., variable_name="B", unit_nr=6, error=error) 
+
+    !   CALL cp_dbcsr_print(B, nodata=.FALSE., matlab_format=.TRUE., variable_name="B", unit_nr=6, error=error)
 
     ! Calculate the norm of C and moltiply by toll to be used as a threshold
     norm_C=toll*cp_dbcsr_frobenius_norm(matrix)
@@ -460,14 +460,14 @@ CONTAINS
       CALL cp_dbcsr_multiply("N", "N", one, B, B, &
                              zero, B_square, filter_eps=threshold,error=error)
       ! copy Bsquare in B to iterate
-      CALL cp_dbcsr_copy(B,B_square,error=error) 
+      CALL cp_dbcsr_copy(B,B_square,error=error)
     END DO
 
-    ! copy B_square in matrix_exp and 
+    ! copy B_square in matrix_exp and
     CALL cp_dbcsr_copy(matrix_exp,B_square,error=error)
 
     ! scale matrix_exp by omega, matrix_exp=omega*B_square
-    CALL cp_dbcsr_scale(matrix_exp, alpha_scalar=omega, error=error) 
+    CALL cp_dbcsr_scale(matrix_exp, alpha_scalar=omega, error=error)
     ! write(6,*) alpha,omega
 
     CALL timestop(handle)

@@ -135,10 +135,10 @@ CONTAINS
 
     iter_total=0
 
-    outer_scf: DO 
+    outer_scf: DO
 
       NULLIFY(qs_ot_env)
-   
+
       NULLIFY(matrix_s_ortho)
       NULLIFY(matrix_os_ortho)
       NULLIFY(matrix_buf1_ortho)
@@ -211,10 +211,10 @@ CONTAINS
               row_dist_o, col_dist)
          CALL array_release(row_dist_o); CALL array_release(col_dist_o)
          CALL array_release(row_dist); CALL array_release(col_dist)
-         
+
          CALL cp_dbcsr_init_p(matrix_os_ortho, error=error)
          CALL cp_dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_no_symmetry,&
-              row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default,& 
+              row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default,&
               error=error)
 
          CALL cp_dbcsr_init_p(matrix_buf1_ortho, error=error)
@@ -271,7 +271,7 @@ CONTAINS
           CALL cp_dbcsr_release_p(matrix_buf2_ortho, error=error)
           CALL cp_dbcsr_release_p(matrix_os_ortho, error=error)
           CALL cp_dbcsr_release_p(matrix_s_ortho, error=error)
-          
+
       ELSE
 
          ! set c0,sc0

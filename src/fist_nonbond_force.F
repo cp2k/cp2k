@@ -140,7 +140,7 @@ CONTAINS
     ! Initializing the potential energy, pressure tensor and force
     pot_nonbond        = 0.0_dp
     f_nonbond(:,:)     = 0.0_dp
-    
+
     IF (use_virial) THEN
        pv_nonbond(:,:) = 0.0_dp
     END IF
@@ -358,7 +358,7 @@ CONTAINS
                       pot_nonbond = pot_nonbond + energy
                       etot = etot + energy
                    END IF
-          
+
                    IF (shell_type == sh_sh) THEN
                       ! shell-shell : VDW + Coulomb
                       rab  = rab_list(:,4)
@@ -554,7 +554,7 @@ CONTAINS
   SUBROUTINE bonded_correct_gaussian(fist_nonbond_env, atomic_kind_set, &
              local_particles, particle_set, ewald_env, v_bonded_corr, pv_bc, &
              shell_particle_set, core_particle_set, atprop_env, cell, use_virial, error)
- 
+
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -798,7 +798,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \par History
-!>      Splitted routines to clean and to fix a bug with the tensor whose 
+!>      Splitted routines to clean and to fix a bug with the tensor whose
 !>      original definition was not correct for PBC..
 !> \author Teodoro Laino
 ! *****************************************************************************
@@ -876,7 +876,7 @@ CONTAINS
 !> \brief specific for shell models cleans the interaction core-shell on the same
 !>      atom
 !> \par History
-!>      Splitted routines to clean and to fix a bug with the tensor whose 
+!>      Splitted routines to clean and to fix a bug with the tensor whose
 !>      original definition was not correct for PBC..
 !> \author Teodoro Laino
 ! *****************************************************************************
@@ -942,11 +942,11 @@ CONTAINS
     core_particle_set(i)%f(1) = core_particle_set(i)%f(1) - fr(1)
     core_particle_set(i)%f(2) = core_particle_set(i)%f(2) - fr(2)
     core_particle_set(i)%f(3) = core_particle_set(i)%f(3) - fr(3)
-    
+
     shell_particle_set(i)%f(1) = shell_particle_set(i)%f(1) + fr(1)
     shell_particle_set(i)%f(2) = shell_particle_set(i)%f(2) + fr(2)
     shell_particle_set(i)%f(3) = shell_particle_set(i)%f(3) + fr(3)
-    
+
     IF ((shell_adiabatic).AND.use_virial) THEN
        pv_bc(1,1) = pv_bc(1,1) - fr(1)*rij(1)
        pv_bc(1,2) = pv_bc(1,2) - fr(1)*rij(2)

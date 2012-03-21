@@ -34,7 +34,7 @@ MODULE qs_energy_types
                        core_overlap0,&
                        core_self,&
                        repulsive,&
-                       dispersion,& 
+                       dispersion,&
                        ex,&
                        exc,&
                        exc_aux_fit,&
@@ -43,7 +43,7 @@ MODULE qs_energy_types
                        hartree_1c,&
                        e_hartree,& ! contains the hartree energy of electrons only
                                    ! computed if requested
-                       image_charge,& 
+                       image_charge,&
                        qmmm_el,&
                        qmmm_nu,&
                        mulliken,&
@@ -55,7 +55,7 @@ MODULE qs_energy_types
                        s2_restraint,&
                        dft_plus_u,& ! DFT+U energy contribution
                        ktS,& ! electronic entropic contribution
-                       efermi,& ! Fermi energy 
+                       efermi,& ! Fermi energy
                        mp2,&
                        total,&
                        tot_old,&
@@ -166,7 +166,7 @@ CONTAINS
       qs_energy%e_hartree = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%hartree_1c = 0.0_dp
-      qs_energy%image_charge = 0.0_dp   
+      qs_energy%image_charge = 0.0_dp
       qs_energy%mulliken = 0.0_dp
       qs_energy%becke = 0.0_dp
       qs_energy%efield = 0.0_dp
@@ -215,13 +215,13 @@ CONTAINS
 
     CALL allocate_qs_energy(qs_energy_out)
     CALL copy_qs_energy(qs_energy_in,qs_energy_out)
-    
+
   END SUBROUTINE duplicate_qs_energy
 
 ! *****************************************************************************
 !> \brief Copies the whole content of a qs_energy_type variable.
 !> \param qs_energy_in The qs_energy_type varibale to be copied.
-!> \param qs_energy_out The output variable which contains the 
+!> \param qs_energy_out The output variable which contains the
 !>                       same data as the original.
 !> \par History
 !>      08.2005 initial create [tdk]
@@ -251,7 +251,7 @@ CONTAINS
       qs_energy_out%exc1            = qs_energy_in%exc1
       qs_energy_out%hartree         = qs_energy_in%hartree
       qs_energy_out%hartree_1c      = qs_energy_in%hartree_1c
-      qs_energy_out%image_charge    = qs_energy_in%image_charge   
+      qs_energy_out%image_charge    = qs_energy_in%image_charge
       qs_energy_out%mulliken        = qs_energy_in%mulliken
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
       qs_energy_out%becke           = qs_energy_in%becke

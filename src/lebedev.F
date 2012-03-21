@@ -101,8 +101,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Get the number of the Lebedev grid, which has the requested
-!          angular momentum quantnum number l or size n. 
-!> \author Matthias Krack 
+!          angular momentum quantnum number l or size n.
+!> \author Matthias Krack
 !> \date   05.05.99
 !> \par Variables
 !       - l : Minimal angular momentum quantum number of the requested Lebedev grid.
@@ -145,7 +145,7 @@ CONTAINS
   END FUNCTION get_number_of_lebedev_grid
 
 ! *****************************************************************************
-!> \brief  Load the Lebedev grid points of a subsystem. 
+!> \brief  Load the Lebedev grid points of a subsystem.
 !> \author  Matthias Krack
 !> \date    06.05.99
 !> \par Variables
@@ -332,7 +332,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Load the coordinates and weights of the nonredundant Lebedev grid
-!         points.  
+!         points.
 !> \author  Matthias Krack
 !> \date    04.05.99
 !> \version 1.0

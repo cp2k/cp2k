@@ -43,9 +43,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the input section for the atom code
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \author jgh   
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
 ! *****************************************************************************
   SUBROUTINE create_atom_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -67,7 +67,7 @@ CONTAINS
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             supported_feature=.FALSE.,error=error)
        NULLIFY(keyword, subsection)
-       
+
        CALL keyword_create(keyword, name="ATOMIC_NUMBER",&
             description="Specify the atomic number",&
             default_i_val=1, supported_feature=.FALSE.,error=error)
@@ -180,11 +180,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print atom section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE create_atom_print_section(section,error) 
+  SUBROUTINE create_atom_print_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -296,7 +296,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE create_atom_aebasis_section(section,error) 
+  SUBROUTINE create_atom_aebasis_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -314,7 +314,7 @@ CONTAINS
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       CALL atom_basis_section(section,error) 
+       CALL atom_basis_section(section,error)
 
     END IF
   END SUBROUTINE create_atom_aebasis_section
@@ -344,7 +344,7 @@ CONTAINS
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       CALL atom_basis_section(section,error) 
+       CALL atom_basis_section(section,error)
 
     END IF
   END SUBROUTINE create_atom_ppbasis_section
@@ -356,7 +356,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE atom_basis_section(section,error) 
+  SUBROUTINE atom_basis_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

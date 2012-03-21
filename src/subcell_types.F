@@ -7,7 +7,7 @@
 !> \brief subcell types and allocation routines
 !> \par History
 !>      - Separated from qs_neighbor_lists (25.07.2010,jhu)
-!> \author Matthias Krack 
+!> \author Matthias Krack
 ! *****************************************************************************
 MODULE subcell_types
 
@@ -40,8 +40,8 @@ MODULE subcell_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Allocate and initialize a subcell grid structure for the atomic neighbor search.  
-!> \author MK  
+!> \brief Allocate and initialize a subcell grid structure for the atomic neighbor search.
+!> \author MK
 !> \date    12.06.2003
 !> \version 1.0
 ! *****************************************************************************

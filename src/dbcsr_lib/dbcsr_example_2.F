@@ -112,7 +112,7 @@ PROGRAM dbcsr_example_2
   !
   ! create the dbcsr matrix, i.e. a double precision non symmetric matrix
   ! with nblkrows_total x nblkcols_total blocks and
-  ! sizes "sum(row_blk_sizes)" x "sum(col_blk_sizes)", distributed as 
+  ! sizes "sum(row_blk_sizes)" x "sum(col_blk_sizes)", distributed as
   ! specified by the dist object
   CALL dbcsr_create (matrix=matrix_a,&
        name="this is my matrix a",&
@@ -137,7 +137,7 @@ PROGRAM dbcsr_example_2
   max_nze = dbcsr_max_row_size (matrix_a) * dbcsr_max_col_size (matrix_a)
 
   !
-  ! allocate a 1d buffer that is needed to put a block 
+  ! allocate a 1d buffer that is needed to put a block
   ! into the matrix (2d buffer can also be used)
   ALLOCATE (values (max_nze))
 

@@ -63,7 +63,7 @@ MODULE force_fields
   PUBLIC :: force_field_control
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \brief 1. If reading in from external file, make sure its there first
 !>      2. Read in the force_field from the corresponding locations
@@ -121,7 +121,7 @@ CONTAINS
     ! 2. Read in the force field section in the input file if any
     !-----------------------------------------------------------------------------
     CALL read_force_field_section(ff_type,para_env,mm_section,error)
-    
+
     !-----------------------------------------------------------------------------
     ! 2.1 In case exclusion 1-4 was requested, we need to modify the values of
     !     the scale factors setting them to zero..
@@ -235,7 +235,7 @@ CONTAINS
        CASE (do_ff_charmm)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Dumping FF parameter file for CHARMM FF  not implemented!", &
-               error=error, error_level=cp_warning_level)       
+               error=error, error_level=cp_warning_level)
        CASE (do_ff_amber)
           IF (iw>0) THEN
              ! Bonds

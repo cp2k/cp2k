@@ -69,7 +69,7 @@ MODULE neb_io
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io' 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io'
 
   PUBLIC :: read_neb_section,&
             dump_neb_info,&
@@ -148,7 +148,7 @@ CONTAINS
             "A band calculation was requested with a full potential energy. USE_COLVAR cannot"//&
             " be set for this kind of calculation!"//&
  CPSourceFileRef,&
-            error=error,failure=failure)       
+            error=error,failure=failure)
     END IF
     ! String Method
     CALL section_vals_val_get(neb_section,"STRING_METHOD%SMOOTHING",r_val=neb_env%smoothing,error=error)
@@ -221,7 +221,7 @@ CONTAINS
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,crd,dump_xmol,"POS",title,&
                   cell=cell,array=coords%xyz(:,irep),unit_conv=unit_conv,error=error)
-             CALL m_flush(crd)             
+             CALL m_flush(crd)
           END IF
           ! Dump Velocities
           IF (vel>0.AND.PRESENT(vels)) THEN
@@ -284,7 +284,7 @@ CONTAINS
                ' RMSD DISTANCE DEFINITION      =',neb_env%rotate_frames
           ! velocity control parameters output
           CALL section_vals_get(vc_section,explicit=explicit,error=error)
-          IF (explicit) THEN          
+          IF (explicit) THEN
              CALL section_vals_val_get(vc_section,"PROJ_VELOCITY_VERLET",l_val=lval, error=error)
              IF (lval) WRITE ( output_unit, '( A,T71,L10 )' )&
                ' PROJECTED VELOCITY VERLET     =',lval
@@ -299,7 +299,7 @@ CONTAINS
           END IF
           ! temperature control parameters output
           CALL section_vals_get(tc_section,explicit=explicit,error=error)
-          IF (explicit) THEN          
+          IF (explicit) THEN
              CALL section_vals_val_get(tc_section,"TEMP_TOL_STEPS",i_val=ttst, error=error)
              IF (istep<=ttst) THEN
                 CALL section_vals_val_get(tc_section,"TEMPERATURE",r_val=f_ann, error=error)
@@ -482,7 +482,7 @@ CONTAINS
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(handle)
-    
+
   END SUBROUTINE handle_band_file_names
 
 ! *****************************************************************************
@@ -574,7 +574,7 @@ CONTAINS
        ! update runtime info before printing the footer
        CALL get_runtime_info()
        ! print footer
-       CALL cp2k_footer(output_unit)        
+       CALL cp2k_footer(output_unit)
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF

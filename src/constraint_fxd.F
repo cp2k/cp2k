@@ -116,7 +116,7 @@ CONTAINS
                 END DO
              END DO
           END IF
-          
+
           ! Create the list of locally fixed atoms
           CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles,&
                error)
@@ -183,7 +183,7 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle)
-    
+
   END SUBROUTINE fix_atom_control
 
 ! *****************************************************************************
@@ -391,7 +391,7 @@ CONTAINS
        END DO
        ! Sort the number of all atoms to be constrained/restrained
        CALL sort(fixed_atom_all, nsize, work1)
-       
+
        ! Sort the local particles
        nparticle_local_all = 0
        DO i = 1, SIZE(local_particles%n_el)
@@ -411,14 +411,14 @@ CONTAINS
           END DO
        END DO
        CALL sort(local_particle_all, nparticle_local_all, work2)
-       
+
        ! Count the amount of local constraints/restraints
        ncnst = 0
        jsize = 1
        Loop_count: DO isize = 1, nparticle_local_all
           DO WHILE (local_particle_all(isize)>fixed_atom_all(jsize))
              jsize = jsize + 1
-             IF (jsize>nsize) THEN 
+             IF (jsize>nsize) THEN
                 jsize = nsize
                 EXIT Loop_count
              END IF
@@ -436,7 +436,7 @@ CONTAINS
        Loop_fill: DO isize = 1, nparticle_local_all
           DO WHILE (local_particle_all(isize)>fixed_atom_all(jsize))
              jsize = jsize + 1
-             IF (jsize>nsize) THEN 
+             IF (jsize>nsize) THEN
                 jsize = nsize
                 EXIT Loop_fill
              END IF
@@ -483,7 +483,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(lfixd_list),cp_failure_level,routineP,error,failure)    
+    CPPostcondition(ASSOCIATED(lfixd_list),cp_failure_level,routineP,error,failure)
     DEALLOCATE(lfixd_list, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE release_local_fixd_list

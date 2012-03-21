@@ -314,8 +314,8 @@ CONTAINS
 !>      specified epsilon divided by the maximum number of possible
 !>      multiplies in each row.  In addition a final filtering is done
 !>      as well with the same epsilon value.
-!> \param[in] transa, transb  specifies the form of op( A or B ) to be used in 
-!>                            the matrix multiplication 
+!> \param[in] transa, transb  specifies the form of op( A or B ) to be used in
+!>                            the matrix multiplication
 !>                            transx = 'N' or 'n',  op( X ) = X.
 !>                            transx = 'T' or 't',  op( X ) = transpose(X).
 !>                            transx = 'C' or 'c',  op( X ) = transpose(conjg(X)).
@@ -345,7 +345,7 @@ CONTAINS
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, filter_eps,&
        left_set, right_set, error, flop)
-    
+
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -398,7 +398,7 @@ CONTAINS
 
     IF (has_cuda) THEN
        IF(mm_driver .NE. mm_driver_cuda) CALL dbcsr_ps_set_finalize(error=error)
-    ENDIF 
+    ENDIF
 
     IF (mm_driver .EQ. mm_driver_cuda) THEN
        CALL dbcsr_cuda_dev_mem_setup (a_tmp, dbcsr_type_real_8)
@@ -446,7 +446,7 @@ CONTAINS
     CALL dbcsr_access_flush (matrix_b, error=error)
     CALL dbcsr_access_flush (matrix_c, error=error)
     !
-    ! transpose/conjg left and/or right matrices if needed 
+    ! transpose/conjg left and/or right matrices if needed
     SELECT CASE(transa_l)
     CASE(dbcsr_no_transpose)
        matrix_left = matrix_a
@@ -455,7 +455,7 @@ CONTAINS
        CALL dbcsr_init(matrix_left)
        IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) THEN
           !
-          ! For antisymmetric matrix, we need to do a hard copy 
+          ! For antisymmetric matrix, we need to do a hard copy
           ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
           CALL dbcsr_new_transposed (matrix_left, matrix_a,&
                shallow_data_copy=.FALSE., redistribute=.FALSE., &
@@ -486,7 +486,7 @@ CONTAINS
        CALL dbcsr_init(matrix_right)
        IF(dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric) THEN
           !
-          ! For antisymmetric matrix, we need to do a hard copy 
+          ! For antisymmetric matrix, we need to do a hard copy
           ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
           CALL dbcsr_new_transposed (matrix_right, matrix_b,&
                shallow_data_copy=.FALSE., redistribute=.FALSE.,&
@@ -1073,7 +1073,7 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multiply_anytype
-  
+
 
 
   SUBROUTINE dbcsr_multiply_s(transa, transb,&
@@ -1149,7 +1149,7 @@ CONTAINS
             error=error, flop=flop)
     ELSE
        CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_internal_error,&
-            routineP, "This combination of data types NYI",__LINE__, error)       
+            routineP, "This combination of data types NYI",__LINE__, error)
     ENDIF
   END SUBROUTINE dbcsr_multiply_d
   SUBROUTINE dbcsr_multiply_c(transa, transb,&
@@ -1208,7 +1208,7 @@ CONTAINS
          filter_eps=filter_eps,&
          error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_z
-  
+
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha
 !> \param[inout] matrix_a       DBCSR matrix
@@ -1349,7 +1349,7 @@ CONTAINS
 !> \param[in] first_limit    lower limit
 !> \param[in] last_limit     upper limit
 !> \param[out] frame_size    size of block region within the limits
-!> \param[out] frame_offset  starting position of the block region 
+!> \param[out] frame_offset  starting position of the block region
 !>                           that is within the limits
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE frame_block_limit (block_size, block_offset,&
@@ -1602,7 +1602,7 @@ CONTAINS
 !> \brief Set a DBCSR matrix by alpha
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in] alpha           a scalar
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_anytype(matrix, alpha, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -1638,7 +1638,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Conjugate a DBCSR matrix
 !> \param[inout] matrix       DBCSR matrix
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_conjg(matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -1679,13 +1679,13 @@ CONTAINS
   END SUBROUTINE dbcsr_conjg
 
 ! *****************************************************************************
-!> \brief add and scale matrices 
-!>    A = alpha*A + beta*B or 
+!> \brief add and scale matrices
+!>    A = alpha*A + beta*B or
 !> \param[in,out] matrix_a   DBCSR matrix
 !> \param[in] matrix_b       DBCSR matrix
-!> \param[in] alpha_scalar   (optional) 
+!> \param[in] alpha_scalar   (optional)
 !> \param[in] beta_scalar    (optional)
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_anytype(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -1781,7 +1781,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief add and scale matrices
-!>    A = alpha*A + beta*B or 
+!>    A = alpha*A + beta*B or
 !> \par Internal implementation
 !>      This routine avoids using work matrices. Instead, it pre-sizes the
 !>      matrix so that the add functions
@@ -2507,7 +2507,7 @@ CONTAINS
 !> \brief get the diagonal of a dbcsr matrix
 !> \param[in] matrix    the matrix
 !> \param[inout] diag   the diagonal
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_diag(matrix, diag, error)
 
@@ -2548,7 +2548,7 @@ CONTAINS
 !> \brief get the diagonal of a dbcsr matrix
 !> \param[in] matrix    the matrix
 !> \param[inout] diag   diagonal
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_diag_anytype(matrix, diag, error)
 
@@ -2605,7 +2605,7 @@ CONTAINS
 !> \brief set the diagonal of a dbcsr matrix
 !> \param[in] matrix    the matrix
 !> \param[inout] diag   diagonal
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_diag_anytype(matrix, diag, error)
 
@@ -2657,7 +2657,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief copy a matrix 
+!> \brief copy a matrix
 !> \param[inout] matrix_b       target DBCSR matrix
 !> \param[in]    matrix_a       source DBCSR matrix
 !> \param[in]    name           (optional) name of the new matrix
@@ -3460,7 +3460,7 @@ CONTAINS
 !> \brief block triu of a dbcsr matrix
 !> \param[in] matrix_b  triu of the matrix
 !> \param[in] matrix_a  the matrix
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_btriu(matrix_b, matrix_a, error)
 
@@ -3498,7 +3498,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  triu of a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_triu(matrix_a, error)
 
@@ -3543,7 +3543,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  symmetrize the block diagonal of a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_symmetrize_block_diag(matrix_a, error)
 
@@ -3589,7 +3589,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  tril of a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_tril(matrix_a, error)
 
@@ -3748,7 +3748,7 @@ CONTAINS
 !> \param[in] matrix  the matrix
 !> \param[out] norm
 !> \param[in] which_norm
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_norm_anytype(matrix, which_norm, norm_scalar, norm_vector, error)
 
@@ -3942,7 +3942,7 @@ CONTAINS
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \param[out] norm
-!> 
+!>
 ! *****************************************************************************
   FUNCTION dbcsr_gershgorin_norm_r8(matrix) RESULT (norm)
 
@@ -4034,7 +4034,7 @@ CONTAINS
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-    CALL mp_sum(buff_d,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))       
+    CALL mp_sum(buff_d,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
     norm = MAXVAL(buff_d)
     DEALLOCATE(buff_d)
 
@@ -4044,7 +4044,7 @@ CONTAINS
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \param[out] norm
-!> 
+!>
 ! *****************************************************************************
   FUNCTION dbcsr_maxabs_r8(matrix) RESULT (norm)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -4103,7 +4103,7 @@ CONTAINS
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \param[out] norm
-!> 
+!>
 ! *****************************************************************************
   FUNCTION dbcsr_frobenius_norm_r8(matrix, local) RESULT (norm)
 
@@ -4324,7 +4324,7 @@ CONTAINS
   END FUNCTION dbcsr_block_in_limits
 
 ! *****************************************************************************
-!> \brief compute the extremal eigenvalues of a symmetric real matrix 
+!> \brief compute the extremal eigenvalues of a symmetric real matrix
 !>        with a (simple) Lanczos approach
 !> \param[in] matrix
 !> \param[in] max_iter            maximum iteration
@@ -4333,7 +4333,7 @@ CONTAINS
 !> \param[out] approx_norm_2      approximation of the 2 norm (1 < max_iter < 10)
 !> \param[out] converged          true if the iteration converged
 !> \param[inout] error
-!> 
+!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_lanczos_extremal_eig(matrix, max_iter, eps, min_eig, max_eig, &
        approx_norm_2, converged, error)
@@ -4520,12 +4520,12 @@ CONTAINS
        mem_type = dbcsr_memory_CUDA_host_pinned
        CALL dbcsr_get_conf_nstacks (nxstacks, n_stack_buffers, n_stack_mem_regions,&
             error)
-         
+
         nstacks = nxstacks(1) * nxstacks(2) * nxstacks(3) + 1
         stack_size = dbcsr_get_conf_mm_stacksize()*n_stack_buffers*nstacks
         group_size = n_stack_buffers*nstacks
-                
-      
+
+
        !$OMP PARALLEL default (none), &
        !$OMP          private (t_error) &
        !$OMP          shared (mynode, ngpus, error, &

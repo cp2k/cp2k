@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief calculate the orbitals for a given atomic kind type       
+!> \brief calculate the orbitals for a given atomic kind type
 ! *****************************************************************************
 MODULE atom_kind_orbitals
   USE atom_electronic_structure,       ONLY: calculate_atom
@@ -152,7 +152,7 @@ CONTAINS
       potential%gth_pot%cl(:)     = 0._dp
       IF (ac > 0._dp) THEN
         DO i=1,ne
-          potential%gth_pot%cl(i) = ce(i)/(2._dp*ac)**(i-1) 
+          potential%gth_pot%cl(i) = ce(i)/(2._dp*ac)**(i-1)
         END DO
       END IF
       !extended type
@@ -172,7 +172,7 @@ CONTAINS
                            alpha_lpot=alpha_lpot,&
                            nct_lpot=nct_lpot,&
                            cval_lpot=cval_lpot)
-        potential%gth_pot%lpotextended = .TRUE. 
+        potential%gth_pot%lpotextended = .TRUE.
         potential%gth_pot%nexp_lpot = nexp_lpot
         potential%gth_pot%alpha_lpot(1:nexp_lpot) = SQRT(0.5_dp/alpha_lpot(1:nexp_lpot))
         potential%gth_pot%nct_lpot(1:nexp_lpot) = nct_lpot(1:nexp_lpot)
@@ -202,7 +202,7 @@ CONTAINS
       END IF
 
       ! nonlocal part
-      potential%gth_pot%nl(:)     = 0 
+      potential%gth_pot%nl(:)     = 0
       potential%gth_pot%rcnl(:)   = 0._dp
       potential%gth_pot%hnl(:,:,:)= 0._dp
       DO l=0,lm
@@ -245,7 +245,7 @@ CONTAINS
 
     NULLIFY(grid)
     ngp = 400
-    quadtype = do_gapw_log 
+    quadtype = do_gapw_log
     CALL allocate_grid_atom(grid,error)
     CALL create_grid_atom(grid,ngp,1,1,quadtype)
     grid%nr = ngp
@@ -434,12 +434,12 @@ CONTAINS
                    nn = ii
                  ELSE
                    ncalc(l,ii+1) = ncalc(l,ii+1)+ne
-                   nn = ii + 1 
+                   nn = ii + 1
                  END IF
                  EXIT
               ELSE IF (ii==1) THEN
                  ncalc(l,ii)=ncalc(l,ii)+ne
-                 nn = ii 
+                 nn = ii
               END IF
             END DO
           ELSE

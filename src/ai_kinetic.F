@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Calculation of the kinetic energy integrals over Cartesian
 !>      Gaussian-type functions.
-!> 
+!>
 !>      [a|T|b] = [a|-nabla**2/2|b]
 !> \par Literature
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)

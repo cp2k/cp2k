@@ -167,7 +167,7 @@ CONTAINS
 !>        independent random number generator for each COLVAR.
 !> \author Fabio Sterpone
 !> \date   01.2009
-!>      
+!>
 ! *****************************************************************************
   SUBROUTINE create_wiener_process_cv(meta_env,error)
 
@@ -186,9 +186,9 @@ CONTAINS
 
     failure=.FALSE.
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
- 
+
     initial_seed = next_rng_seed(error=error)
- 
+
     DO i_c=1,meta_env%n_colvar
        NULLIFY (meta_env%rng(i_c)%stream)
     END DO
@@ -203,10 +203,10 @@ CONTAINS
     DO i_c=2,meta_env%n_colvar
        seed(:,:,i_c) = next_rng_seed(seed(:,:,i_c-1),error=error)
     END DO
-    
+
     ! Update initial seed
     initial_seed = next_rng_seed(seed(:,:,meta_env%n_colvar),error=error)
-    
+
     ! Create a random number stream (Wiener process) for each particle
     DO i_c=1,meta_env%n_colvar
        WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for COLVAR",i_c

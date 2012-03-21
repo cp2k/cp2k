@@ -129,11 +129,11 @@ CONTAINS
 !> \param reference the reference to the acticle where the functional is
 !>        explained
 !> \param shortform the short definition of the functional
-!> \param needs the flags corresponding to the inputs needed by this 
+!> \param needs the flags corresponding to the inputs needed by this
 !>        functional are set to true (the flags not needed aren't touched)
 !> \param max_deriv the maximal derivative available
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
@@ -154,7 +154,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
     REAL(kind=dp)                            :: r_param
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(functional),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      SELECT CASE(functional%section%name)
@@ -348,12 +348,12 @@ END SUBROUTINE xc_functional_get_info
 !>        added to the derivatives)
 !> \param deriv_order degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is requested (but to simplify 
+!>        if negative only the given degree is requested (but to simplify
 !>        the code all the derivatives might be calculated, you should ignore
 !> \param them when adding derivatives of various functionals they might contain
 !>        the derivative of just one functional)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -495,7 +495,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL thomas_fermi_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
         ELSE
            CALL thomas_fermi_lda_eval(rho_set,deriv_set,deriv_order,error=error)
-        END IF        
+        END IF
      CASE("VWN")
         IF (lsd) THEN
            CALL vwn_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
@@ -579,12 +579,12 @@ END SUBROUTINE xc_functional_eval
 !>        added to the derivatives)
 !> \param deriv_order degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is requested (but to simplify 
+!>        if negative only the given degree is requested (but to simplify
 !>        the code all the derivatives might be calculated, you should ignore
 !>        them when adding derivatives of various functionals they might contain
 !>        the derivative of just one functional)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
@@ -604,11 +604,11 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     TYPE(section_vals_type), POINTER         :: xc_fun
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ifun=0
-     DO 
+     DO
         ifun=ifun+1
         xc_fun => section_vals_get_subs_vals2(functionals,i_section=ifun,error=error)
         IF (.NOT.ASSOCIATED(xc_fun)) EXIT
@@ -629,8 +629,8 @@ END SUBROUTINE xc_functionals_eval
 !> \param add_basic_components makes sure that if some gradient combination
 !>        is needed also the gradient components are requested, and if lsd
 !>        is true rho_spin is requested. Defaults to false.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
@@ -652,7 +652,7 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
   failure=.FALSE.
   my_add_basic_components=.FALSE.
   IF (PRESENT(add_basic_components)) my_add_basic_components=add_basic_components
-  
+
   CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)

@@ -62,13 +62,13 @@ SUBROUTINE scp_rspw_create(rspw,error)
 END SUBROUTINE scp_rspw_create
 
 ! *****************************************************************************
-!> \brief Initialize the maxradius to be used in cube file 
+!> \brief Initialize the maxradius to be used in cube file
 !>      initialization. Can be called from qs pw_env_methods
 !>      or wherever needed (e.g. Fist, or scp_rspw routines )
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
-!>      04.2007 
+!>      04.2007
 !> \author CJM
 ! *****************************************************************************
 SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
@@ -110,7 +110,7 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
         nkind = SIZE ( atomic_kind_set )
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
-          
+
           CALL get_atomic_kind ( atomic_kind=atomic_kind,&
                                  orb_basis_set=aux_basis_set )
           CALL get_gto_basis_set ( gto_basis_set=aux_basis_set, &
@@ -175,8 +175,8 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
        CALL get_qs_env ( qs_env = qs_env, pw_env = pw_env, &
                          atomic_kind_set = atomic_kind_set, &
                          error = error )
-       CALL pw_env_retain ( pw_env, error ) 
-       CALL pw_env_release ( rspw % qs_pw_env, error=error ) 
+       CALL pw_env_retain ( pw_env, error )
+       CALL pw_env_release ( rspw % qs_pw_env, error=error )
        rspw % qs_pw_env => pw_env
     END IF
 

@@ -60,7 +60,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \par History
 !>      tlaino [2007] - New algorithm for tersoff potential
-!> \author CJM, I-Feng W. Kuo, Teodoro Laino 
+!> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, local_particles,&
        particle_set, cell, pot_manybody, atprop_env, para_env, error )
@@ -107,7 +107,7 @@ CONTAINS
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
          potparm = potparm , eam_data=eam_data, error=error)
-    ! EAM requires a single loop 
+    ! EAM requires a single loop
     DO ikind = 1, SIZE ( atomic_kind_set )
        pot => potparm %pot ( ikind, ikind ) % pot
        DO i = 1, SIZE(pot%type)
@@ -178,7 +178,7 @@ CONTAINS
                    ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    sort_list = list(:,istart:iend)
-                   ! Sort the list of neighbors, this increases the efficiency for single 
+                   ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
                    CALL sort(sort_list(1,:),npairs,work_list)
                    DO ipair = 1, npairs
@@ -293,7 +293,7 @@ CONTAINS
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
- 
+
     nkinds = SIZE(potparm%pot,1)
     ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -311,7 +311,7 @@ CONTAINS
           END DO
        END DO
     END DO
- 
+
     ! starting the force loop
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
@@ -344,7 +344,7 @@ CONTAINS
              i_b    = eam_kinds_index(kind_b,kind_b)
              eam_a => potparm%pot(kind_a,kind_a)%pot%set(i_a)%eam
              eam_b => potparm%pot(kind_b,kind_b)%pot%set(i_b)%eam
-             
+
              !set this outside the potential type in case need multiple potentials
              !Do everything necessary for EAM here
              rab  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
@@ -360,7 +360,7 @@ CONTAINS
                 f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
                 f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
                 f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-          
+
                 f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
                 f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
                 f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
@@ -398,7 +398,7 @@ CONTAINS
              list  => neighbor_kind_pair%list
              cvi   =  neighbor_kind_pair%cell_vector
              pot   => potparm %pot( ikind, jkind )%pot
-             
+
              IF (pot%no_mb) CYCLE
              rab2_max = pot%rcutsq
              CALL matvec_3x3(cell_v, cell%hmat,cvi)
@@ -410,7 +410,7 @@ CONTAINS
                    ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    sort_list = list(:,istart:iend)
-                   ! Sort the list of neighbors, this increases the efficiency for single 
+                   ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
                    CALL sort(sort_list(1,:),npairs,work_list)
                    DO ipair = 1, npairs

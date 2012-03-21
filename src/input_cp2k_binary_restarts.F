@@ -8,7 +8,7 @@
 !> \author Matthias Krack (MK)
 !> \par History
 !>      - Creation (17.02.2011,MK)
-!> \version 1.0 
+!> \version 1.0
 ! *****************************************************************************
 MODULE input_cp2k_binary_restarts
 
@@ -58,7 +58,7 @@ CONTAINS
 !> \brief   Read the input section &COORD from an external file written in
 !>          binary format.
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      - Creation (10.02.2011,MK)
 ! *****************************************************************************
@@ -110,7 +110,7 @@ CONTAINS
     natom = 0
     ncore = 0
     nshell = 0
-    nmoleculekind = 0 
+    nmoleculekind = 0
     nmolecule = 0
 
     ! Open binary restart file and read number atomic kinds, atoms, etc.
@@ -330,7 +330,7 @@ CONTAINS
 !> \brief   Read the input section &CORE_COORD or &SHELL_COORD from an external
 !>          file written in binary format.
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      - Creation (17.02.2011,MK)
 ! *****************************************************************************
@@ -469,7 +469,7 @@ CONTAINS
 !> \brief   Read the input section &VELOCITY, &CORE_VELOCITY, or
 !>          &SHELL_VELOCITY from an external file written in binary format.
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      - Creation (17.02.2011,MK)
 ! *****************************************************************************
@@ -538,7 +538,7 @@ CONTAINS
                       file_position="ASIS",&
                       unit_number=input_unit,&
                       debug=iw)
-       DO 
+       DO
           READ (UNIT=input_unit,IOSTAT=istat) section_label,nbuf
           IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
                                          "section_label, ndum -> "//&
@@ -646,7 +646,7 @@ CONTAINS
 !> \brief   Read the input section &THERMOSTAT for Nose thermostats from an
 !>          external file written in binary format.
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      - Creation (28.02.2011,MK)
 ! *****************************************************************************

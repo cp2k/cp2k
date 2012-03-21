@@ -572,7 +572,7 @@ CONTAINS
     update = qs_ot_ref_update(qs_ot_env1)
     !
     ! do we want to on the fly localize?
-    ! for the moment this is set from the input, 
+    ! for the moment this is set from the input,
     ! later we might want to localize every n-step or
     ! when the sparsity increases...
     on_the_fly_loc = qs_ot_env1%settings%on_the_fly_loc
@@ -682,7 +682,7 @@ CONTAINS
           CALL cp_dbcsr_filter(p2,eps_irac_filter_matrix,error=error)
           occ_out = cp_dbcsr_get_occupation(p2)
           IF(output_unit>0.AND.eps_irac_filter_matrix.GT.0.0_dp) &
-               WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(P2): occ_in',occ_in,' occ_out',occ_out 
+               WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(P2): occ_in',occ_in,' occ_out',occ_out
        ENDIF
        r =  -5.0_dp/16.0_dp
        CALL cp_dbcsr_multiply('N', 'N', r, P2, P, 0.0_dp, FY, error=error)
@@ -773,7 +773,7 @@ CONTAINS
           CALL cp_dbcsr_filter(chc,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
           occ_out = cp_dbcsr_get_occupation(chc)
           IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
-               WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(CHC): occ_in',occ_in,' occ_out',occ_out 
+               WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(CHC): occ_in',occ_in,' occ_out',occ_out
        ENDIF
        ! (S*C)*(C'*H*C)
        CALL cp_dbcsr_multiply('N','N',1.0_dp,SC,CHC,0.0_dp,G_dp,error=error)
@@ -960,7 +960,7 @@ CONTAINS
        CALL cp_dbcsr_init(cmat_buf2, error=error)
        CALL cp_dbcsr_copy(cmat_buf1,qs_ot_env%rot_mat_evec,"cmat_buf1",error=error)
        CALL cp_dbcsr_copy(cmat_buf2,qs_ot_env%rot_mat_evec,"cmat_buf2",error=error)
-       
+
        ! init cmat_buf1
        !CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r,error=error)
        !CALL cp_cfm_get_info(cmat_buf1, nrow_local=nrow_local,   ncol_local=ncol_local, &
@@ -1133,7 +1133,7 @@ CONTAINS
     CALL cp_dbcsr_copy(qs_ot_env%xmat,pscp,error=error)
     CALL cp_dbcsr_copy(qs_ot_env%gxmat,fscp,error=error)
 
-  END SUBROUTINE qs_ot_get_scp_nddo_derivative 
+  END SUBROUTINE qs_ot_get_scp_nddo_derivative
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_dft_coeffs ( qs_ot_env, aux_coeff_set, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -1150,7 +1150,7 @@ CONTAINS
     DO ikind = 1, nkind
        local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
        IF ( ASSOCIATED ( local_coeffs ) ) THEN
-          CALL get_aux_coeff ( coeffs = local_coeffs, c = c,  & 
+          CALL get_aux_coeff ( coeffs = local_coeffs, c = c,  &
                n_els = n_els, ncoef_atom = ncoef_atom, &
                error = error  )
           DO i = 1, n_els
@@ -1160,13 +1160,13 @@ CONTAINS
                 !              IF ( icoef == 1 ) &
                 !              c ( i, icoef_atom ) = qs_ot_env % x ( icoef ) + .05
                 !DBG
-                c ( i, icoef_atom ) = qs_ot_env % x ( icoef ) 
+                c ( i, icoef_atom ) = qs_ot_env % x ( icoef )
              END DO
           END DO
        END IF
     END DO
   END SUBROUTINE qs_ot_get_scp_dft_coeffs
-  ! this routines sets the SCP derivative to the appropriate 
+  ! this routines sets the SCP derivative to the appropriate
   ! qs_ot_env subtype
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_dft_derivative ( qs_ot_env, aux_coeff_set, error )
@@ -1184,7 +1184,7 @@ CONTAINS
     DO ikind = 1, nkind
        local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
        IF ( ASSOCIATED ( local_coeffs ) ) THEN
-          CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  & 
+          CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  &
                n_els = n_els, ncoef_atom = ncoef_atom, &
                error = error  )
           DO i = 1, n_els

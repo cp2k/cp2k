@@ -24,9 +24,9 @@ MODULE d3_poly
 #include "cp_common_uses.h"
 
     IMPLICIT NONE
-    
+
     PRIVATE
-    
+
     PUBLIC :: poly_size1,poly_size2,poly_size3,&
         grad_size1,grad_size2,grad_size3,poly_mult1,poly_mult2,poly_mult3,&
         poly_write1,poly_write2,poly_write3,poly_random,poly_affine_t3,&
@@ -34,7 +34,7 @@ MODULE d3_poly
         poly_eval3,poly_derive3,poly_p_eval3b,poly_cp2k2d3,&
         poly_padd_uneval3,poly_padd_uneval3b,poly_padd_uneval2,poly_padd_uneval2b,&
         poly_affine_t3t,poly_d32cp2k
-    
+
 #ifdef FD_DEBUG
 #define IF_CHECK(x,y) x
 #else
@@ -48,7 +48,7 @@ MODULE d3_poly
     INTEGER, PUBLIC, PARAMETER :: cached_dim1=max_grad2+1
     INTEGER, PUBLIC, PARAMETER :: cached_dim2=(max_grad2+1)*(max_grad2+2)/2
     INTEGER, PUBLIC, PARAMETER :: cached_dim3=(max_grad3+1)*(max_grad3+2)*(max_grad3+3)/6
-    
+
 
 ! cached index -> monomial exponents
     LOGICAL, SAVE, PRIVATE :: module_initialized=.FALSE.
@@ -785,7 +785,7 @@ FUNCTION poly_random(p,maxSize,minSize,error) RESULT(res)
 END FUNCTION
 
 ! *****************************************************************************
-!> \brief returns in the polynomials pRes the transpose of the 
+!> \brief returns in the polynomials pRes the transpose of the
 !> affine transformation x -> m*x+b of p
 ! *****************************************************************************
 SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
@@ -831,7 +831,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
         ii1=ii1+size_p
     END DO
     IF (size_p==1) RETURN
-    
+
     ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
         monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
@@ -869,11 +869,11 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
             resShift=resShift+size_res
             pShift=pShift+size_p
         END DO
-        
+
         rest_size_p=rest_size_p-k
         ii1=ii1+k
         IF (rest_size_p<=0) EXIT
-        
+
         monoSize2=igrad+2+monoSize1
         monoDim2=monoDim1+monoSize2
         monoFullDim2=monoSize2*monoDim2
@@ -913,11 +913,11 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
             resShift=resShift+size_res
             pShift=pShift+size_p
         END DO
-        
+
         rest_size_p=rest_size_p-k
         ii1=ii1+k
         IF (rest_size_p<=0) EXIT
-        
+
         monoSize1=igrad+2+monoSize2
         monoDim1=monoDim2+monoSize1
         monoFullDim1=monoSize1*monoDim1
@@ -992,7 +992,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
         ii1=ii1+size_p
     END DO
     IF (size_p==1) RETURN
-    
+
     ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
         monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
@@ -1030,11 +1030,11 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
             resShift=resShift+size_res
             pShift=pShift+size_p
         END DO
-        
+
         rest_size_p=rest_size_p-k
         ii1=ii1+k
         IF (rest_size_p<=0) EXIT
-        
+
         monoSize2=igrad+2+monoSize1
         monoDim2=monoDim1+monoSize2
         monoFullDim2=monoSize2*monoDim2
@@ -1074,11 +1074,11 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
             resShift=resShift+size_res
             pShift=pShift+size_p
         END DO
-        
+
         rest_size_p=rest_size_p-k
         ii1=ii1+k
         IF (rest_size_p<=0) EXIT
-        
+
         monoSize1=igrad+2+monoSize2
         monoDim1=monoDim2+monoSize1
         monoFullDim1=monoSize1*monoDim1
@@ -1140,7 +1140,7 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly,error)
     DEALLOCATE(xi,stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
 END SUBROUTINE
-    
+
 ! *****************************************************************************
 !> \brief low level routine of poly_p_eval3 without checks
 ! *****************************************************************************
@@ -1246,7 +1246,7 @@ SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly,error)
     DEALLOCATE(xi,stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
 END SUBROUTINE
-    
+
 ! *****************************************************************************
 !> \brief low level routine of poly_padd_uneval3 without checks
 !> \note loop should be structured differently (more contiguous pRes access)

@@ -7,7 +7,7 @@
 !> \brief Types and set/get functions for HFX
 !> \par History
 !>      04.2008 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -62,7 +62,7 @@ MODULE hfx_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  hfx_type, hfx_create, hfx_release,& 
+  PUBLIC  hfx_type, hfx_create, hfx_release,&
           hfx_set_distr_energy, &
           hfx_set_distr_forces, &
           hfx_cell_type, hfx_distribution, &
@@ -99,7 +99,7 @@ MODULE hfx_types
                                                              2.0317_dp,&
                                                              2.1261_dp,&
                                                              2.2165_dp/)
-  
+
   INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
 !***
@@ -107,7 +107,7 @@ MODULE hfx_types
 ! *****************************************************************************
   TYPE hfx_potential_type
     INTEGER                                  :: potential_type     !! 1/r/ erfc(wr)/r ...
-    REAL(dp)                                 :: omega              !! w 
+    REAL(dp)                                 :: omega              !! w
     REAL(dp)                                 :: scale_coulomb      !! scaling factor for mixed potential
     REAL(dp)                                 :: scale_longrange    !! scaling factor for mixed potential
     REAL(dp)                                 :: scale_gaussian     !! scaling factor for mixed potential
@@ -122,11 +122,11 @@ MODULE hfx_types
     LOGICAL                                  :: do_p_screening_forces  !! screen on P^2 ?
     LOGICAL                                  :: do_initial_p_screening !! screen on inital guess?
   END TYPE
-  
+
 ! *****************************************************************************
   TYPE hfx_memory_type
     INTEGER                                  :: max_memory              !! user def max memory MB
-    INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
+    INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals
     INTEGER(int_8)                           :: final_comp_counter_energy
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
     REAL(dp)                                 :: eps_storage_scaling
@@ -146,7 +146,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_periodic_type
-    INTEGER                                  :: number_of_shells        !! number of periodic image cells 
+    INTEGER                                  :: number_of_shells        !! number of periodic image cells
     LOGICAL                                  :: do_periodic             !! periodic ?
     INTEGER                                  :: perd(3)                 !! x,xy,xyz,...
     INTEGER                                  :: mode
@@ -156,7 +156,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_load_balance_type
-    INTEGER                                  :: nbins                   
+    INTEGER                                  :: nbins
     INTEGER                                  :: block_size
     INTEGER                                  :: nblocks
     LOGICAL                                  :: rtp_redistribute
@@ -206,14 +206,14 @@ MODULE hfx_types
     TYPE(pair_list_element_type), DIMENSION(max_atom_block**2) :: elements
     INTEGER :: n_element
   END TYPE pair_list_type
-  
+
 ! *****************************************************************************
   TYPE hfx_compression_type
     INTEGER(int_8), DIMENSION(:), POINTER    :: compressed_data
     INTEGER(int_8)                           :: element_pointer
     INTEGER                                  :: bit_pointer
   END TYPE
- 
+
 ! *****************************************************************************
   TYPE hfx_cache_type
     INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
@@ -228,7 +228,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_container_type
-    TYPE(hfx_container_node), POINTER        :: first, current    
+    TYPE(hfx_container_node), POINTER        :: first, current
     INTEGER                                  :: element_counter
     INTEGER(int_8)                           :: file_counter
     CHARACTER(LEN=5)                         :: desc
@@ -352,7 +352,7 @@ MODULE hfx_types
 !> \param pair_dist_radii_pgf pgf based radii coefficients of pair distributions
 !> \param screen_funct_coeffs_set set based near field screening coefficients
 !> \param screen_funct_coeffs_kind kind based near field screening coefficients
-!> \param screen_funct_is_initialized flag that indicates if the coefficients 
+!> \param screen_funct_is_initialized flag that indicates if the coefficients
 !>        have already been fitted
 !> \par History
 !>      11.2006 created [Manuel Guidon]
@@ -491,7 +491,7 @@ MODULE hfx_types
     !! There might be 2 hf sections
     CALL section_vals_get(hfx_section,n_repetition=n_rep_hf,error=error)
     n_threads = 1
-!$  n_threads = omp_get_max_threads() 
+!$  n_threads = omp_get_max_threads()
     ALLOCATE(x_data(n_rep_hf,n_threads),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i_thread=1,n_threads
@@ -502,10 +502,10 @@ MODULE hfx_types
         !! GENERAL params
         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%fraction = real_val
-        actual_x_data%n_rep_hf = n_rep_hf  
+        actual_x_data%n_rep_hf = n_rep_hf
 
         NULLIFY(actual_x_data%map_atoms_to_cpus)
-       
+
         CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%treat_lsd_in_core = logic_val
 
@@ -525,25 +525,25 @@ MODULE hfx_types
         ELSE
           actual_x_data%periodic_parameter%do_periodic = .TRUE.
         END IF
- 
+
         !! SCREENING section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"SCREENING",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
         actual_x_data%screening_parameter%eps_schwarz = real_val
         CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val, error=error)
-        actual_x_data%screening_parameter%eps_schwarz_forces = real_val 
+        actual_x_data%screening_parameter%eps_schwarz_forces = real_val
         CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val, error=error)
-        actual_x_data%screening_parameter%do_p_screening_forces = logic_val 
+        actual_x_data%screening_parameter%do_p_screening_forces = logic_val
         CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val, error=error)
-        actual_x_data%screening_parameter%do_initial_p_screening = logic_val 
+        actual_x_data%screening_parameter%do_initial_p_screening = logic_val
         actual_x_data%screen_funct_is_initialized = .FALSE.
-    
+
         !! INTERACTION_POTENTIAL section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"INTERACTION_POTENTIAL",i_rep_section=irep,error=error)
         CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val, error=error)
         actual_x_data%potential_parameter%potential_type = int_val
         CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
-        actual_x_data%potential_parameter%omega = real_val 
+        actual_x_data%potential_parameter%omega = real_val
         CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=real_val, error=error)
         actual_x_data%potential_parameter%scale_coulomb = real_val
         CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=real_val, error=error)
@@ -557,7 +557,7 @@ MODULE hfx_types
           CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val, error=error)
           CALL compress(char_val,.TRUE.)
           ! ** Check if file is there
-          INQUIRE(FILE=char_val,exist=exist) 
+          INQUIRE(FILE=char_val,exist=exist)
           IF ( .NOT. exist ) THEN
             WRITE(error_msg,'(A,A,A)') "Truncated hfx calculation requested. The file containing "//&
                  "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "//&
@@ -570,7 +570,7 @@ MODULE hfx_types
             actual_x_data%potential_parameter%filename = char_val
           END IF
         END IF
-    
+
         !! LOAD_BALANCE section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
@@ -593,7 +593,7 @@ MODULE hfx_types
         ENDIF
         ! at least 1 atom per block, and avoid overly large blocks
         actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
-   
+
         !! BASIS parameter
         nkind = SIZE(atomic_kind_set,1)
         ALLOCATE(actual_x_data%basis_parameter(nkind), STAT=stat)
@@ -818,9 +818,9 @@ MODULE hfx_types
           ! ** Initialize this guy to enable non periodic stress regtests
           actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
-     
-        !! ** This guy is allocated on the master thread only 
-        IF (i_thread == 1 ) THEN 
+
+        !! ** This guy is allocated on the master thread only
+        IF (i_thread == 1 ) THEN
           ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(actual_x_data%atomic_block_offset(natom,natom),STAT=stat)
@@ -830,12 +830,12 @@ MODULE hfx_types
           ALLOCATE(actual_x_data%block_offset(para_env%num_pe+1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-    
+
         ALLOCATE(actual_x_data%distribution_forces(1),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
         actual_x_data%memory_parameter%size_p_screen = 0_int_8
         IF( i_thread == 1 ) THEN
           ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
@@ -844,7 +844,7 @@ MODULE hfx_types
 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
-          !! ** This guy is allocated on the master thread only 
+          !! ** This guy is allocated on the master thread only
           IF (i_thread == 1 ) THEN
             ALLOCATE(actual_x_data%pmax_atom(natom,natom),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -866,7 +866,7 @@ MODULE hfx_types
                 ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 actual_x_data%memory_parameter%size_p_screen = &
-                  actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b 
+                  actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
                 i = i + 1
               END DO
             END DO
@@ -892,7 +892,7 @@ MODULE hfx_types
                   ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                   actual_x_data%memory_parameter%size_p_screen = &
-                  actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b 
+                  actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
                   i = i + 1
                 END DO
               END DO
@@ -906,13 +906,13 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                    kind_of=kind_of)
-  
+
           atom2kind = 0
           DO iatom=1,natom
             ikind = kind_of(iatom)
             atom2kind(ikind) = atom2kind(ikind) + 1
             actual_x_data%map_atom_to_kind_atom(iatom) = atom2kind(ikind)
-          END DO 
+          END DO
           DEALLOCATE(kind_of, atom2kind, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
@@ -972,7 +972,7 @@ MODULE hfx_types
       CALL hfx_print_info(actual_x_data, hfx_section, irep, error=error)
     END DO
     CALL timestop(handle)
-  END SUBROUTINE hfx_create 
+  END SUBROUTINE hfx_create
 
 ! *****************************************************************************
 !> \brief - Parses the memory section
@@ -1003,7 +1003,7 @@ MODULE hfx_types
             (PRESENT(storage_id).EQV.PRESENT(para_env)) .AND.&
             (PRESENT(storage_id).EQV.PRESENT(irep))
     CPPostcondition(check,cp_failure_level,routineP,error,failure)
-    
+
     ! Memory Storage
     CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
     memory_parameter%max_memory = int_val
@@ -1039,7 +1039,7 @@ MODULE hfx_types
        CALL section_vals_val_get(hf_sub_section, "STORAGE_LOCATION", c_val=char_val, error=error)
        CALL compress(char_val,.TRUE.)
        !! Add ending / if necessary
-       
+
        IF( SCAN(char_val,"/",.TRUE.) /= LEN_TRIM(char_val)) THEN
           WRITE(filename,'(A,A)') TRIM(char_val),"/"
           CALL compress(filename)
@@ -1047,7 +1047,7 @@ MODULE hfx_types
           filename = TRIM(char_val)
        END IF
        CALL compress(filename,.TRUE.)
-       
+
        !! quickly check if we can write on storage_location
        CALL m_getcwd(orig_wd)
        CALL m_chdir(TRIM(filename),stat)
@@ -1114,7 +1114,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
         IF( actual_x_data%load_balance_parameter%blocks_initialized ) THEN
           DEALLOCATE(actual_x_data%blocks,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1123,12 +1123,12 @@ MODULE hfx_types
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
         END IF
-         
+
         IF( i_thread == 1 ) THEN
           DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
- 
+
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           IF( i_thread == 1 ) THEN
@@ -1154,7 +1154,7 @@ MODULE hfx_types
           DEALLOCATE(actual_x_data%map_atom_to_kind_atom,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-        IF( i_thread == 1 ) THEN 
+        IF( i_thread == 1 ) THEN
           DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(actual_x_data%atomic_block_offset,STAT=stat)
@@ -1164,7 +1164,7 @@ MODULE hfx_types
           DEALLOCATE(actual_x_data%block_offset,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-    
+
         !! BASIS parameter
         DO i=1,SIZE(actual_x_data%basis_parameter)
           DEALLOCATE(actual_x_data%basis_parameter(i)%nsgfl,STAT=stat)
@@ -1174,7 +1174,7 @@ MODULE hfx_types
         END DO
         DEALLOCATE(actual_x_data%basis_parameter,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
         !! Deallocate containers
         CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
         CALL dealloc_containers(actual_x_data, hfx_do_eval_forces, error)
@@ -1190,8 +1190,8 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-        DO i=1,64   
+
+        DO i=1,64
           CALL hfx_init_container(actual_x_data%integral_containers_disk(i), &
                                   actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                   .FALSE., error)
@@ -1215,7 +1215,7 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          actual_x_data%screen_funct_is_initialized = .FALSE. 
+          actual_x_data%screen_funct_is_initialized = .FALSE.
         END IF
 
         ! ** maps
@@ -1334,7 +1334,7 @@ MODULE hfx_types
           END DO
         END DO
       END DO
-  
+
       R_max = 2.0_dp*R_max + x_data%potential_parameter%cutoff_radius
       nothing_more_to_add = .FALSE.
       max_shell = 0
@@ -1347,7 +1347,7 @@ MODULE hfx_types
       x_data%neighbor_cells(1)%cell = 0.0_dp
       x_data%neighbor_cells(1)%cell_r = 0.0_dp
 
-      ! ** What follows is kind of a ray tracing algorithm 
+      ! ** What follows is kind of a ray tracing algorithm
       ! ** Given a image cell (ishell, jshell, kshell) we try to figure out the
       ! ** shortest distance of this image cell to the basic unit cell (0,0,0), i.e. the point
       ! ** (0.0, 0.0, 0.0)
@@ -1362,7 +1362,7 @@ MODULE hfx_types
       ! **              /P4____________________P8/|
       ! **             / / ___________________/ / |
       ! **            / / /| |               / /  |       z
-      ! **           / / / | |              / / . |      /|\  _ y 
+      ! **           / / / | |              / / . |      /|\  _ y
       ! **          / / /| | |             / / /| |       |   /|
       ! **         / / / | | |            / / / | |       |  /
       ! **        / / /  | | |           / / /| | |       | /
@@ -1378,10 +1378,10 @@ MODULE hfx_types
       ! **      | | | / /              | | ' /
       ! **      | | |/_/_______________| |  /
       ! **      | |____________________| | /
-      ! **      |P1_____________________P5/  
-      ! **   
-      ! **   
-  
+      ! **      |P1_____________________P5/
+      ! **
+      ! **
+
       DO WHILE (.NOT. nothing_more_to_add)
         ! Calculate distances to the eight points P1 to P8
         image_cell_found = .FALSE.
@@ -1402,10 +1402,10 @@ MODULE hfx_types
           x_data%neighbor_cells(i)%cell = 0.0_dp
           x_data%neighbor_cells(i)%cell_r = 0.0_dp
         END DO
-  
+
         DEALLOCATE(tmp_neighbor_cells, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-   
+
         DO ishell=-max_shell,max_shell
         DO jshell=-max_shell,max_shell
         DO kshell=-max_shell,max_shell
@@ -1428,7 +1428,7 @@ MODULE hfx_types
             END DO
           END DO
           ! Now check distance to Faces and only take them into account if the base point lies within quadrilateral
-    
+
           ! Face A (1342) 1 is the reference
           idx = idx + 1
           plane_vector(:,1) = P(:,3)-P(:,1)
@@ -1438,13 +1438,13 @@ MODULE hfx_types
           cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
           normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
           point_in_plane = -normal(:,1)*(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
-    
+
           IF (point_is_in_quadrilateral(P(:,1),P(:,3),P(:,4),P(:,2),point_in_plane) ) THEN
             distance(idx)=ABS(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
           ELSE
             distance(idx)=HUGE(distance(idx))
           END IF
-    
+
           ! Face B (1562) 1 is the reference
           idx = idx + 1
           plane_vector(:,1) = P(:,2)-P(:,1)
@@ -1454,13 +1454,13 @@ MODULE hfx_types
           cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
           normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
           point_in_plane = -normal(:,1)*(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
-    
+
           IF (point_is_in_quadrilateral(P(:,1),P(:,5),P(:,6),P(:,2),point_in_plane) ) THEN
             distance(idx)=ABS(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
           ELSE
             distance(idx)=HUGE(distance(idx))
           END IF
-    
+
           ! Face C (5786) 5 is the reference
           idx = idx + 1
           plane_vector(:,1) = P(:,7)-P(:,5)
@@ -1470,13 +1470,13 @@ MODULE hfx_types
           cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
           normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
           point_in_plane = -normal(:,1)*(normal(1,1)*P(1,5)+normal(2,1)*P(2,5)+normal(3,1)*P(3,5))
-    
+
           IF (point_is_in_quadrilateral(P(:,5),P(:,7),P(:,8),P(:,6),point_in_plane) ) THEN
             distance(idx)=ABS(normal(1,1)*P(1,5)+normal(2,1)*P(2,5)+normal(3,1)*P(3,5))
           ELSE
             distance(idx)=HUGE(distance(idx))
           END IF
-    
+
           ! Face D (3784) 3 is the reference
           idx = idx + 1
           plane_vector(:,1) = P(:,7)-P(:,3)
@@ -1486,13 +1486,13 @@ MODULE hfx_types
           cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
           normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
           point_in_plane = -normal(:,1)*(normal(1,1)*P(1,3)+normal(2,1)*P(2,3)+normal(3,1)*P(3,3))
-    
+
           IF (point_is_in_quadrilateral(P(:,3),P(:,7),P(:,8),P(:,4),point_in_plane) ) THEN
             distance(idx)=ABS(normal(1,1)*P(1,3)+normal(2,1)*P(2,3)+normal(3,1)*P(3,3))
           ELSE
             distance(idx)=HUGE(distance(idx))
           END IF
-    
+
           ! Face E (2684) 2 is the reference
           idx = idx + 1
           plane_vector(:,1) = P(:,6)-P(:,2)
@@ -1502,13 +1502,13 @@ MODULE hfx_types
           cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
           normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
           point_in_plane = -normal(:,1)*(normal(1,1)*P(1,2)+normal(2,1)*P(2,2)+normal(3,1)*P(3,2))
-    
+
           IF (point_is_in_quadrilateral(P(:,2),P(:,6),P(:,8),P(:,4),point_in_plane) ) THEN
             distance(idx)=ABS(normal(1,1)*P(1,2)+normal(2,1)*P(2,2)+normal(3,1)*P(3,2))
           ELSE
             distance(idx)=HUGE(distance(idx))
           END IF
-    
+
           ! Face F (1573) 1 is the reference
           idx = idx + 1
           plane_vector(:,1) = P(:,5)-P(:,1)
@@ -1518,13 +1518,13 @@ MODULE hfx_types
           cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
           normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
           point_in_plane = -normal(:,1)*(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
-    
+
           IF (point_is_in_quadrilateral(P(:,1),P(:,5),P(:,7),P(:,3),point_in_plane) )THEN
             distance(idx)=ABS(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
           ELSE
             distance(idx)=HUGE(distance(idx))
           END IF
-    
+
           dist_min=MINVAL(distance)
           IF( max_shell == 0) THEN
             image_cell_found=.TRUE.
@@ -1535,15 +1535,15 @@ MODULE hfx_types
             ub = ub + 1
             image_cell_found = .TRUE.
           END IF
-    
+
         END DO
         END DO
-        END DO  
+        END DO
         IF( image_cell_found) THEN
           max_shell = max_shell + 1
         ELSE
           nothing_more_to_add = .TRUE.
-        END IF  
+        END IF
       END DO
       ! now remove what is not needed
       ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
@@ -1572,7 +1572,7 @@ MODULE hfx_types
       DEALLOCATE(tmp_neighbor_cells, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN 
+      IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN
         ! Do nothing
       ELSE
         total_number_of_cells = 0
@@ -1600,7 +1600,7 @@ MODULE hfx_types
         END DO
         DEALLOCATE(x_data%neighbor_cells, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
         ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         m = 0
@@ -1672,18 +1672,18 @@ MODULE hfx_types
     ! **
 
     ! ** ABC
-    
+
     v0 = D - A
     v1 = C - A
     v2 = P - A
-    
+
     ! ** Compute dot products
     dot00 = DOT_PRODUCT(v0, v0)
     dot01 = DOT_PRODUCT(v0, v1)
     dot02 = DOT_PRODUCT(v0, v2)
     dot11 = DOT_PRODUCT(v1, v1)
     dot12 = DOT_PRODUCT(v1, v2)
-    
+
     ! ** Compute barycentric coordinates
     invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
     u = (dot11 * dot02 - dot01 * dot12) * invDenom
@@ -1696,19 +1696,19 @@ MODULE hfx_types
     v0 = C - A
     v1 = B - A
     v2 = P - A
-    
+
     ! ** Compute dot products
     dot00 = DOT_PRODUCT(v0, v0)
     dot01 = DOT_PRODUCT(v0, v1)
     dot02 = DOT_PRODUCT(v0, v2)
     dot11 = DOT_PRODUCT(v1, v1)
     dot12 = DOT_PRODUCT(v1, v2)
-    
+
     ! ** Compute barycentric coordinates
     invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
     u = (dot11 * dot02 - dot01 * dot12) * invDenom
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
-    
+
     ! ** Check if point is in triangle
     IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
       point_is_in_quadrilateral = .TRUE.
@@ -1775,7 +1775,7 @@ MODULE hfx_types
 
 
 ! *****************************************************************************
-!> \brief - This routine stores the data obtained from the load balance routine 
+!> \brief - This routine stores the data obtained from the load balance routine
 !>        for the energy
 !> \param ptr_to_distr_energy contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
@@ -1807,7 +1807,7 @@ MODULE hfx_types
   END SUBROUTINE hfx_set_distr_energy
 
 ! *****************************************************************************
-!> \brief - This routine stores the data obtained from the load balance routine 
+!> \brief - This routine stores the data obtained from the load balance routine
 !>        for the forces
 !> \param ptr_to_distr_energy contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
@@ -1831,7 +1831,7 @@ MODULE hfx_types
 
     DEALLOCATE(x_data%distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-   
+
     ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     x_data%distribution_forces = ptr_to_distr
@@ -1869,7 +1869,7 @@ MODULE hfx_types
   END SUBROUTINE hfx_reset_memory_usage_counter
 
 ! *****************************************************************************
-!> \brief - This routine prints some information on HFX 
+!> \brief - This routine prints some information on HFX
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param hfx_section HFX input section
 !> \param i_rep current replica ID
@@ -1907,7 +1907,7 @@ MODULE hfx_types
             "HFX_INFO| NBINS:     ", x_data%load_balance_parameter%nbins
       WRITE (UNIT=iw,FMT="((T3,A,T61,I20))")&
             "HFX_INFO| BLOCK_SIZE:     ", x_data%load_balance_parameter%block_size
-      WRITE(iw,'(T3,A,T61,F20.10)') & 
+      WRITE(iw,'(T3,A,T61,F20.10)') &
             "HFX_INFO| FRACTION:     ", x_data%general_parameter%fraction
       SELECT CASE (x_data%potential_parameter%potential_type)
         CASE(do_hfx_potential_coulomb)
@@ -2011,7 +2011,7 @@ MODULE hfx_types
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(x_data%maxval_cache,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
+
       DO bin = 1,SIZE(x_data%integral_containers,2)
         DO i=1,64
           CALL hfx_init_container(x_data%integral_containers(i,bin), x_data%memory_parameter%actual_memory_usage, &
@@ -2022,7 +2022,7 @@ MODULE hfx_types
       END DO
       DEALLOCATE(x_data%integral_containers,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
+
       DEALLOCATE(x_data%integral_caches, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE (hfx_do_eval_forces)
@@ -2036,7 +2036,7 @@ MODULE hfx_types
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(x_data%maxval_cache_forces,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
+
       DO bin = 1,SIZE(x_data%integral_containers_forces,2)
         DO i=1,64
           CALL hfx_init_container(x_data%integral_containers_forces(i,bin), x_data%memory_parameter%actual_memory_usage, &
@@ -2047,7 +2047,7 @@ MODULE hfx_types
       END DO
       DEALLOCATE(x_data%integral_containers_forces,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
+
       DEALLOCATE(x_data%integral_caches_forces, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -2087,12 +2087,12 @@ MODULE hfx_types
         x_data%maxval_container(bin)%current%data = 0
         x_data%maxval_container(bin)%element_counter = 1
       END DO
-  
+
       ALLOCATE(x_data%integral_containers(64,bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(x_data%integral_caches(64,bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
+
       DO bin = 1,bin_size
         DO i=1,64
           x_data%integral_caches(i,bin)%element_counter = 1
@@ -2123,12 +2123,12 @@ MODULE hfx_types
         x_data%maxval_container_forces(bin)%current%data = 0
         x_data%maxval_container_forces(bin)%element_counter = 1
       END DO
-  
+
       ALLOCATE(x_data%integral_containers_forces(64,bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(x_data%integral_caches_forces(64,bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
+
       DO bin = 1,bin_size
         DO i=1,64
           x_data%integral_caches_forces(i,bin)%element_counter = 1

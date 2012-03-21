@@ -16,7 +16,7 @@
 !> \author Teodoro Laino 09.2006
 !> \par  History
 !>       - Teodoro Laino 10.2008 [tlaino] - University of Zurich
-!>         Extension to a subspace of collective variables  
+!>         Extension to a subspace of collective variables
 ! *****************************************************************************
 MODULE neb_methods
   USE colvar_utils,                    ONLY: number_of_colvar
@@ -156,7 +156,7 @@ CPSourceFileRef,&
           neb_env%nsize_int            = number_of_colvar(f_env%force_env, error=error)
           check = (neb_env%nsize_xyz >= neb_env%nsize_int)
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
-          ! Check that teh used colvar are uniquely determined 
+          ! Check that teh used colvar are uniquely determined
           check = (number_of_colvar(f_env%force_env, error=error) == &
                    number_of_colvar(f_env%force_env, unique=.TRUE., error=error))
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
@@ -446,7 +446,7 @@ CPSourceFileRef,&
                           vels=vels,&
                           output_unit=output_unit,&
                           error=error)
-       ! If rotation is requested let's apply it at the beginning of the 
+       ! If rotation is requested let's apply it at the beginning of the
        ! Geometry optimization and then let's disable it
        neb_env%rotate_frames= .FALSE.
        ! Main SD/DIIS loop
@@ -479,7 +479,7 @@ CPSourceFileRef,&
           sline%wrk = stepsize*sline%wrk
           diis_on = accept_diis_step(istep>max_sd_steps,n_diis,err,crr,set_err,sline,coords,&
                                      output_unit,check_diis,error)
-          IF (diis_on) THEN 
+          IF (diis_on) THEN
              neb_env%opt_type_label= "DIIS"
           END IF
           do_ls = .TRUE.

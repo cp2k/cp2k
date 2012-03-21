@@ -6,53 +6,53 @@
 ! *****************************************************************************
 !> \brief Calculation of the core Hamiltonian integral matrix <a|H|b> over
 !>      Cartesian Gaussian-type functions.
-!> 
+!>
 !>      <a|H|b> = <a|T|b> + <a|V|b>
-!> 
+!>
 !>      Kinetic energy:
-!> 
+!>
 !>      <a|T|b> = <a|-nabla**2/2|b>
 !>                \_______________/
 !>                        |
 !>                     kinetic
-!> 
+!>
 !>      Nuclear potential energy:
-!> 
+!>
 !>      a) Allelectron calculation:
-!> 
+!>
 !>                          erfc(r)
 !>         <a|V|b> = -Z*<a|---------|b>
 !>                             r
-!> 
+!>
 !>                          1 - erf(r)
 !>                 = -Z*<a|------------|b>
 !>                              r
-!> 
+!>
 !>                           1           erf(r)
 !>                 = -Z*(<a|---|b> - <a|--------|b>)
 !>                           r             r
-!> 
+!>
 !>                           1
 !>                 = -Z*(<a|---|b> - N*<ab||c>)
 !>                           r
-!> 
+!>
 !>                      -Z
 !>                 = <a|---|b> + Z*N*<ab||c>
 !>                       r
 !>                   \_______/       \_____/
 !>                       |              |
 !>                    nuclear        coulomb
-!> 
+!>
 !>      b) Pseudopotential calculation (Goedecker, Teter and Hutter; GTH):
-!> 
+!>
 !>         <a|V|b> = <a|(V(local) + V(non-local))|b>
-!> 
+!>
 !>                 = <a|(V(local)|b> + <a|V(non-local))|b>
-!> 
+!>
 !>         <a|V(local)|b> = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
 !>                             (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
 !>                              C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
-!> 
+!>
 !>         <a|V(non-local)|b> = <a|p(l,i)>*h(i,j)*<p(l,j)|b>
 !> \par Literature
 !>      S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
@@ -131,7 +131,7 @@ CONTAINS
 !> \brief Cosntruction of the QS Core Hamiltonian Matrix
 !> \author Creation (11.03.2002,MK)
 !>      Non-redundant calculation of the non-local part of the GTH PP (22.05.2003,MK)
-!>      New parallelization scheme (27.06.2003,MK) 
+!>      New parallelization scheme (27.06.2003,MK)
 ! *****************************************************************************
   SUBROUTINE build_core_hamiltonian_matrix(qs_env,calculate_forces,error)
 
@@ -224,13 +224,13 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-    
+
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-    
+
     nders = 0
     IF (calculate_forces) THEN
        nder = 1
-       
+
        CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
 
        do_ep=ASSOCIATED(ep_qs_env)
@@ -273,7 +273,7 @@ CONTAINS
           nder = 0
        END IF
     END IF
-    
+
     IF ((cp_print_key_should_output(logger%iter_info,qs_env%input,&
          "DFT%PRINT%AO_MATRICES/OVERLAP",error=error)/=0.AND.&
          BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
@@ -291,7 +291,7 @@ CONTAINS
            nders = 1
        ENDIF
     ENDIF
-    
+
     maxder = ncoset(nder)
 
     IF (calculate_forces) THEN
@@ -369,7 +369,7 @@ CONTAINS
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             gth_potential_present=gth_potential_present,&
                             all_potential_present=all_potential_present)
-   
+
     ppl_present = ASSOCIATED(sac_ppl)
 
     IF (calculate_forces) THEN
@@ -425,16 +425,16 @@ CONTAINS
                message="DKH currently not implemented", &
                error=error, error_level=cp_failure_level)
     END IF
-    
+
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
          qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
-    
+
   END SUBROUTINE build_core_hamiltonian_matrix
 
 ! *****************************************************************************
-!> \brief Possibly prints matrices after the construction of the Core 
+!> \brief Possibly prints matrices after the construction of the Core
 !>     Hamiltonian Matrix
 ! *****************************************************************************
   SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, qs_env, &

@@ -119,8 +119,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief checks if a restart needs to be written and does so, updating all necessary fields
 !>      in the input file. This is a relatively simple wrapper routine.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -225,8 +225,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Writes the header for the restart file
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 [created] - Splitted from write_restart
 !> \author Teodoro Laino - University of Zurich - 01.2008
@@ -263,9 +263,9 @@ CONTAINS
   END SUBROUTINE write_restart_header
 
 ! *****************************************************************************
-!> \brief deallocate some sub_sections of the section subsys to save some memory 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief deallocate some sub_sections of the section subsys to save some memory
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2007 created [MI]
 !> \author MI
@@ -302,7 +302,7 @@ CONTAINS
 
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,force_env=my_force_env,error=error)
-    ELSEIF (PRESENT(force_env)) THEN 
+    ELSEIF (PRESENT(force_env)) THEN
        my_force_env => force_env
     END IF
 
@@ -329,7 +329,7 @@ CONTAINS
           CALL force_env_get(my_force_b, subsys=subsys, error=error)
 
           CALL cp_subsys_get(subsys, particles=particles, shell_particles=shell_particles,&
-               core_particles=core_particles, error=error)       
+               core_particles=core_particles, error=error)
 
           work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
           CALL section_vals_get(work_section,explicit=explicit,error=error)
@@ -385,9 +385,9 @@ CONTAINS
                 CALL section_vals_remove_values(work_section, error=error)
              END IF
           END IF
-       
+
        END DO
-       
+
        DEALLOCATE (i_force_eval)
 
     END IF
@@ -398,8 +398,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocate the nose subsections (coord, vel, force, mass) in the md section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [MI]
 !> \author MI
@@ -439,7 +439,7 @@ CONTAINS
     CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
     CALL section_vals_remove_values(work_section,error)
-    
+
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
     CALL section_vals_remove_values(work_section,error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
@@ -455,8 +455,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Updates the whole input file for the restart
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
@@ -489,7 +489,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    
+
     NULLIFY(logger,motion_section,my_force_env)
 
     IF (PRESENT(save_mem)) THEN
@@ -511,7 +511,7 @@ CONTAINS
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
           CALL get_md_env ( md_env=md_env, force_env=my_force_env, error=error)
-       ELSE IF (PRESENT(force_env)) THEN 
+       ELSE IF (PRESENT(force_env)) THEN
           my_force_env => force_env
        END IF
        ! The real restart setting...
@@ -543,8 +543,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Updates the motion section of the input file
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
@@ -647,7 +647,7 @@ CONTAINS
     END IF
     IF (ASSOCIATED(constant)) THEN
        CALL section_vals_val_set(motion_section,"MD%ECONS_START_VAL",r_val=constant,error=error)
-    END IF 
+    END IF
     CALL timestop(handle2)
     ! AVERAGES
     CALL timeset(routineN//"_AVERAGES",handle2)
@@ -854,12 +854,12 @@ CONTAINS
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ss0,&
-                  i_rep_val=irep,error=error) 
+                  i_rep_val=irep,error=error)
           END DO
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP",error=error)
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%vvp,&
-                  i_rep_val=irep,error=error) 
+                  i_rep_val=irep,error=error)
           END DO
 
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS",error=error)
@@ -880,7 +880,7 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           walkers_status = meta_env%multiple_walkers%walkers_status
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"MULTIPLE_WALKERS",error=error)
-          CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status,error=error) 
+          CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status,error=error)
        END IF
     END IF
     CALL timestop(handle2)
@@ -898,17 +898,17 @@ CONTAINS
           END DO
           ! Write Values
           DO isec = 1, coords%size_wrk(2)
-             CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec,error=error) 
+             CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec,error=error)
              work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
              CALL section_neb_coord_val_set(work_section,coords%xyz(:,isec),SIZE(coords%xyz,1),3*SIZE(particles%els),&
                                             3,particles%els,angstrom,error)
              ! Update Collective Variables
              IF (coords%in_use == do_band_collective) THEN
                 ALLOCATE (wrk(coords%size_wrk(1)),stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
                 wrk = coords%wrk(:,isec)
                 CALL section_vals_val_set(replica_section,"COLLECTIVE",r_vals_ptr=wrk,&
-                     i_rep_section=isec,error=error) 
+                     i_rep_section=isec,error=error)
              END IF
           END DO
        END IF
@@ -1349,7 +1349,7 @@ CONTAINS
   END SUBROUTINE update_motion_helium
 
 ! *****************************************************************************
-!> \brief routine to dump thermostat CSVR energies 
+!> \brief routine to dump thermostat CSVR energies
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1430,8 +1430,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Collect all information needed to dump the restart for CSVR
 !>      thermostat
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino] - University of Zurich
 !> \author Teodoro Laino
@@ -1454,7 +1454,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.    
+    failure = .FALSE.
     ! Thermostat Energies
     ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1493,7 +1493,7 @@ CONTAINS
        ! Collect data if there was no communication in this thermostat
        CALL mp_sum(dwork,para_env%group)
     ELSE
-       ! Perform some check and collect data in case of communicating thermostats 
+       ! Perform some check and collect data in case of communicating thermostats
        CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env, error)
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork,&
@@ -1572,7 +1572,7 @@ CONTAINS
        ! Collect data if there was no communication in this thermostat
        CALL mp_sum(dwork,para_env%group)
     ELSE
-       ! Perform some check and collect data in case of communicating thermostats 
+       ! Perform some check and collect data in case of communicating thermostats
        CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env, error)
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork,&
@@ -1639,8 +1639,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Collect all information needed to dump the restart for Nose-Hoover
 !>      thermostat
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino] - University of Zurich
 !> \author Teodoro Laino
@@ -1676,7 +1676,7 @@ CONTAINS
     NULLIFY(work,index)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! nhc%eta  
+    ! nhc%eta
     !-----------------------------------------------------------------------------
     ALLOCATE (eta(tot_nhcneed*nhc_len),STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1709,7 +1709,7 @@ CONTAINS
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! nhc%veta   
+    ! nhc%veta
     !-----------------------------------------------------------------------------
     ALLOCATE (veta(tot_nhcneed*nhc_len),STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1818,8 +1818,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief routine to dump NEB coordinates and velocities section.. fast implementation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2006 created [teo]
 !> \author Teodoro Laino
@@ -1901,8 +1901,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set the nose structure like restart
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
@@ -1963,8 +1963,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Updates the force_eval section of the input file
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
@@ -2026,7 +2026,7 @@ CONTAINS
        IF (virial%pv_availability.AND.multiple_subsys) THEN
           DO iforce_eval = 2, nforce_eval
              subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-                  i_rep_section=i_force_eval(iforce_eval),error=error)    
+                  i_rep_section=i_force_eval(iforce_eval),error=error)
              CALL update_cell_section(force_env, subsys_section, error)
           END DO
        END IF
@@ -2035,13 +2035,13 @@ CONTAINS
     IF(myid == ehrenfest)CALL section_vals_val_set(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN",&
                                                    i_val=use_rt_restart,error=error)
     DEALLOCATE(i_force_eval)
-    
+
   END SUBROUTINE update_force_eval
 
 ! *****************************************************************************
 !> \brief Updates the qmmm section if needed
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [teo]
 !> \author Teodoro Laino
@@ -2058,12 +2058,12 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
-    failure = .FALSE. 
+    failure = .FALSE.
     SELECT CASE(force_env%in_use)
-    CASE(use_qmmm)   
+    CASE(use_qmmm)
        CALL section_vals_get(qmmm_section, explicit=explicit, error=error)
        CPPostcondition(explicit,cp_failure_level,routineP,error,failure)
-       
+
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        work = force_env%qmmm_env%transl_v
@@ -2075,8 +2075,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Updates the rng section of the input file
 !>      Write current status of the parallel random number generator (RNG)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
@@ -2140,8 +2140,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Updates the subsys section of the input file
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
@@ -2181,7 +2181,7 @@ CONTAINS
 
     CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
          shell_particles=shell_particles, core_particles=core_particles,&
-         multipoles=multipoles, error=error)       
+         multipoles=multipoles, error=error)
 
     ! Remove the multiple_unit_cell from the input structure.. at this point we have
     ! already all the information we need..
@@ -2285,8 +2285,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief routine to update cell section.. splitted from the main update subsys_section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2007 created [teo] Zurich University
 !> \author Teodoro Laino
@@ -2375,8 +2375,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief routine to dump coordinates.. fast implementation
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      02.2006 created [teo]
 !> \author Teodoro Laino
@@ -2437,7 +2437,7 @@ CONTAINS
        IF (my_shell) THEN
          s = particles%els(irk)%r
          IF (scale) THEN
-            r = s   
+            r = s
             CALL real_to_scaled(s,r,cell)
          ELSE
             s = s*conv_factor
@@ -2479,7 +2479,7 @@ CONTAINS
          ldum = qmmm_ff_precond_only_qm(name)
          s = particles%els(irk)%r
          IF (scale) THEN
-            r = s   
+            r = s
             CALL real_to_scaled(s,r,cell)
          ELSE
             s = s*conv_factor
@@ -2563,11 +2563,11 @@ CONTAINS
          "_DEFAULT_KEYWORD_",error,failure)
 
     ! At least one of the two arguments must be present..
-    check = PRESENT(particles).NEQV.PRESENT(velocity) 
+    check = PRESENT(particles).NEQV.PRESENT(velocity)
     CPPostcondition(check,cp_failure_level,routineP,error,failure)
     IF(PRESENT(particles)) nloop = particles%n_els
     IF(PRESENT(velocity))  nloop = SIZE(velocity,2)
-    
+
     DO
        IF (SIZE(velocity_section%values,2)==1) EXIT
        CALL section_vals_add_values(velocity_section,error=error)
@@ -3165,7 +3165,7 @@ CONTAINS
 !> \brief   Dump atomic, core, or shell coordinates to a file in CP2K &COORD
 !>          section format
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      07.02.2011 (Creation, MK)
 ! *****************************************************************************
@@ -3251,7 +3251,7 @@ CONTAINS
 !> \brief   Write all input sections scaling in size with the number of atoms
 !>          in the system to an external file in binary format
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      - Creation (10.02.2011,MK)
 ! *****************************************************************************
@@ -3309,7 +3309,7 @@ CONTAINS
                        thermostat_part=thermostat_part,&
                        thermostat_shell=thermostat_shell,&
                        error=error)
-    ELSE IF (PRESENT(force_env)) THEN 
+    ELSE IF (PRESENT(force_env)) THEN
        my_force_env => force_env
     END IF
 
@@ -3720,7 +3720,7 @@ CONTAINS
 !> \brief   Write an input section for Nose thermostats to an external file in
 !>          binary format
 !> \author  Matthias Krack (MK)
-!> \version 1.0 
+!> \version 1.0
 !> \par History
 !>      - Creation (23.03.2011,MK)
 ! *****************************************************************************

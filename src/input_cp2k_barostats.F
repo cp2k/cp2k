@@ -41,9 +41,9 @@ PUBLIC :: create_barostat_section
 CONTAINS
 
 ! *****************************************************************************
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_barostat_section(section, error)
@@ -60,7 +60,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="barostat",&
             description="Parameters of barostat.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,error=error)
@@ -71,7 +71,7 @@ CONTAINS
             usage="PRESSURE real",&
             default_r_val=0._dp,unit_str='bar',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
@@ -79,21 +79,21 @@ CONTAINS
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMPERATURE",&
             description="Barostat initial temperature. If not set, the ensemble temperature is used instead.",&
             usage="TEMPERATURE real",type_of_var=real_t,&
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="Maximum oscillation of the Barostat temperature imposed by recaling.",&
             usage="TEMP_TOL real",default_r_val=0._dp, &
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VIRIAL",&
             description="For NPT_F only: allows the screening of one or more components of the virial in order"//&

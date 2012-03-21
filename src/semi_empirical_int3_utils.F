@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Utilities for evaluating the residual part (1/r^3) of Integrals for 
+!> \brief Utilities for evaluating the residual part (1/r^3) of Integrals for
 !>        semi-empiric methods
 !> \author Teodoro Laino (11.2008) [tlaino]
 ! *****************************************************************************
@@ -24,7 +24,7 @@ MODULE semi_empirical_int3_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int3_utils'
 
   PUBLIC ::   ijkl_low_3, charg_int_3, dcharg_int_3, coeff_int_3
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -100,7 +100,7 @@ CONTAINS
   END FUNCTION ijkl_low_3
 
 ! *****************************************************************************
-!> \brief Evaluates the residual Interaction function between two point-charges 
+!> \brief Evaluates the residual Interaction function between two point-charges
 !>        The term evaluated is the 1/r^3 (for short range interactions)
 !>        r    -  Distance r12
 !>        l1   -  Quantum numbers for multipole of configuration 1
@@ -108,7 +108,7 @@ CONTAINS
 !>        add  -  additive term
 !>
 !> \author Teodoro Laino [tlaino]
-!> \date 11.2008 [tlaino] 
+!> \date 11.2008 [tlaino]
 ! *****************************************************************************
   FUNCTION charg_int_3(r, l1, l2, add, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
@@ -135,14 +135,14 @@ CONTAINS
   END FUNCTION charg_int_3
 
 ! *****************************************************************************
-!> \brief Evaluates the coefficient for the residual Interaction function 
-!>        between two point-charges 
+!> \brief Evaluates the coefficient for the residual Interaction function
+!>        between two point-charges
 !>        l1   -  Quantum numbers for multipole of configuration 1
 !>        l2   -  Quantum numbers for multipole of configuration 2
 !>        add  -  additive term
 !>
 !> \author Teodoro Laino [tlaino]
-!> \date 11.2008 [tlaino] 
+!> \date 11.2008 [tlaino]
 ! *****************************************************************************
   FUNCTION coeff_int_3(r, l1, l2, add, error) RESULT(coeff)
     REAL(KIND=dp), INTENT(in)                :: r
@@ -169,7 +169,7 @@ CONTAINS
   END FUNCTION coeff_int_3
 
 ! *****************************************************************************
-!> \brief Derivatives of residual interaction function between two point-charges 
+!> \brief Derivatives of residual interaction function between two point-charges
 !>
 !>        r    -  Distance r12
 !>        l1   -  Quantum numbers for multipole of configuration 1

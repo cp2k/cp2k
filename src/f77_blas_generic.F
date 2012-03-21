@@ -24,9 +24,9 @@ MODULE f77_blas_generic
 ! http://www.netlib.org/lapack/lug/node145.html
 !
 ! Note: All procedures have intents specified for their arguments.
-!       These are the de facto intents of these arguments, as found  
+!       These are the de facto intents of these arguments, as found
 !       in the netlib source/comments. Nevertheless, since the netlib
-!       blas implementation is in Fortran77, INTENTs are 
+!       blas implementation is in Fortran77, INTENTs are
 !       not specified. Some compilers might produce an error/warning (if strict
 !       standard conformance checking is enabled). In that case, one option
 !       is to edit the files and remove all INTENT declarations. E.g. :

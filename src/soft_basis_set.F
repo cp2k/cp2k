@@ -46,7 +46,7 @@ MODULE soft_basis_set
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   create the soft basis from a GTO basis 
+!> \brief   create the soft basis from a GTO basis
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_soft_basis(orb_basis,soft_basis,gapw,rc,paw_atom,gpw_type_forced,&
@@ -80,7 +80,7 @@ CONTAINS
     NULLIFY(gcc,l,lmax,lmin,n,npgf,nshell,zet)
     eps_fit=gapw%eps_fit
     paw_atom = .FALSE.
-    my_gpw_type_forced = gpw_type_forced 
+    my_gpw_type_forced = gpw_type_forced
     IF(gapw%force_paw) THEN
       paw_atom = .TRUE.
       my_gpw_type_forced = .FALSE.
@@ -91,7 +91,7 @@ CONTAINS
             maxpgf=maxpgf,maxshell=maxshell,nset=nset)
 
        soft_basis%name = TRIM(bsname)//"_soft"
-       
+
        CALL reallocate(npgf,1,nset)
        CALL reallocate(nshell,1,nset)
        CALL reallocate(lmax,1,nset)
@@ -99,10 +99,10 @@ CONTAINS
 
        CALL reallocate(n,1,maxshell,1,nset)
        CALL reallocate(l,1,maxshell,1,nset)
-       
+
        CALL reallocate(zet,1,maxpgf,1,nset)
        CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
-       
+
        ALLOCATE(iset_s2h(nset),stat=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
@@ -110,7 +110,7 @@ CONTAINS
        iset_s = 0
        maxpgf_s =0
        maxshell_s = 0
-       
+
        DO iset=1,nset                            ! iset
           minzet = orb_basis%zet(orb_basis%npgf(iset),iset)
           DO ipgf = orb_basis%npgf(iset)-1,1,-1
@@ -119,24 +119,24 @@ CONTAINS
              ENDIF
           ENDDO
           radius = exp_radius(orb_basis%lmax(iset),minzet,eps_fit,1.0_dp)
-          
+
           !      The soft basis contains this set
           iset_s = iset_s + 1
           nshell(iset_s) = orb_basis%nshell(iset)
           lmax(iset_s)   = orb_basis%lmax(iset)
           lmin(iset_s)   = orb_basis%lmin(iset)
-          
+
           iset_s2h(iset_s) = iset
-          
+
           DO ishell=1,nshell(iset_s)
              n(ishell,iset_s) =  orb_basis%n(ishell,iset)
              l(ishell,iset_s) =  orb_basis%l(ishell,iset)
           ENDDO
-          
+
           IF ( nshell(iset_s) > maxshell_s) THEN
              maxshell_s = nshell(iset_s)
           ENDIF
-          
+
           IF (radius < rc ) THEN
              ! The soft basis does not contain this set
              ! For the moment I keep the set as a dummy set
@@ -144,18 +144,18 @@ CONTAINS
              ! In a second time it can be taken away, by creating a pointer
              ! which connects the remaining sets to the right contraction index
              paw_atom = .TRUE.
-             npgf(iset_s) = 0 
+             npgf(iset_s) = 0
              CYCLE
           ENDIF
-          
+
           ipgf_s = 0
-          DO ipgf = 1,orb_basis%npgf(iset)         ! ipgf 
+          DO ipgf = 1,orb_basis%npgf(iset)         ! ipgf
              IF (orb_basis%zet(ipgf,iset) > 100.0_dp) THEN
                 ! The soft basis does not contain this exponent
                 paw_atom = .TRUE.
                 CYCLE
              ENDIF
-             
+
              radius = exp_radius(orb_basis%lmax(iset),orb_basis%zet(ipgf,iset),&
                   eps_fit,1.0_dp)
              IF (radius < rc ) THEN
@@ -163,16 +163,16 @@ CONTAINS
                 paw_atom = .TRUE.
                 CYCLE
              ENDIF
-             
+
              ! The soft basis contains this exponent
              ipgf_s = ipgf_s + 1
              zet(ipgf_s,iset_s) = orb_basis%zet(ipgf,iset)
-             
+
              lshell_old = orb_basis%l(1,iset)
              radius = exp_radius(lshell_old,zet(ipgf_s,iset_s),eps_fit,1.0_dp)
 
              DO ishell = 1,nshell(iset_s)
-                lshell = orb_basis%l(ishell,iset)      
+                lshell = orb_basis%l(ishell,iset)
                 IF (lshell == lshell_old) THEN
                 ELSE
                    lshell_old = lshell
@@ -193,7 +193,7 @@ CONTAINS
        ENDDO
        nset_s = iset_s
        IF (paw_atom) THEN
-          soft_basis%nset = nset_s 
+          soft_basis%nset = nset_s
           CALL reallocate(soft_basis%lmax,1,nset_s)
           CALL reallocate(soft_basis%lmin,1,nset_s)
           CALL reallocate(soft_basis%npgf,1,nset_s)
@@ -202,9 +202,9 @@ CONTAINS
           CALL reallocate(soft_basis%l,1,maxshell_s,1,nset_s)
           CALL reallocate(soft_basis%zet,1,maxpgf_s,1,nset_s)
           CALL reallocate(soft_basis%gcc,1,maxpgf_s,1,maxshell_s,1,nset_s)
-          
+
           ! *** Copy the basis set information into the data structure ***
-          
+
           DO iset=1,nset_s
              soft_basis%lmax(iset) = lmax(iset)
              soft_basis%lmin(iset) = lmin(iset)
@@ -221,7 +221,7 @@ CONTAINS
                 soft_basis%zet(ipgf,iset) = zet(ipgf,iset)
              END DO
           END DO
-          
+
           ! *** Initialise the depending soft_basis pointers ***
           CALL reallocate(soft_basis%set_radius,1,nset_s)
           CALL reallocate(soft_basis%pgf_radius,1,maxpgf_s,1,nset_s)
@@ -231,11 +231,11 @@ CONTAINS
           CALL reallocate(soft_basis%last_sgf,1,maxshell_s,1,nset_s)
           CALL reallocate(soft_basis%ncgf_set,1,nset_s)
           CALL reallocate(soft_basis%nsgf_set,1,nset_s)
-          
+
           maxco = 0
           ncgf = 0
           nsgf = 0
-          
+
           DO iset=1,nset_s
              soft_basis%ncgf_set(iset) = 0
              soft_basis%nsgf_set(iset) = 0
@@ -256,7 +256,7 @@ CONTAINS
           END DO
           soft_basis%ncgf = ncgf
           soft_basis%nsgf = nsgf
-          
+
           CALL reallocate(soft_basis%cphi,1,maxco,1,ncgf)
           CALL reallocate(soft_basis%sphi,1,maxco,1,nsgf)
           CALL reallocate(soft_basis%lx,1,ncgf)
@@ -268,10 +268,10 @@ CONTAINS
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           ALLOCATE (soft_basis%sgf_symbol(nsgf),STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          
+
           ncgf = 0
           nsgf = 0
-          
+
           DO iset=1,nset_s
              DO ishell=1,nshell(iset)
                 lshell = soft_basis%l(ishell,iset)
@@ -293,14 +293,14 @@ CONTAINS
                 END DO
              END DO
           ENDDO
-          
-          ! *** Normalization factor of the contracted Gaussians *** 
+
+          ! *** Normalization factor of the contracted Gaussians ***
           soft_basis%norm_type = orb_basis%norm_type
-          
+
           SELECT CASE (soft_basis%norm_type)
           CASE ( 0 )
              ! *** No normalisation requested ***
-          CASE ( 1 ) 
+          CASE ( 1 )
              DO iset_s = 1 , nset_s
                 iset = iset_s2h(iset_s)
                 DO ishell = 1,nshell(iset_s)
@@ -339,9 +339,9 @@ CONTAINS
              END DO
           END SELECT
           ! *** Initialize the transformation matrices ***
-          CALL init_cphi_and_sphi(soft_basis,error)          
+          CALL init_cphi_and_sphi(soft_basis,error)
        ENDIF
-       
+
        DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,iset_s2h,STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF

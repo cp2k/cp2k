@@ -167,8 +167,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the atprop
 !> \param atprop_env the object to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE atprop_release(atprop_env,error)

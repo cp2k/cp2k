@@ -89,14 +89,14 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.  
+    failure = .FALSE.
 
     NULLIFY(itimes, para_env, simpar)
-    
+
     CALL zero_md_ener(md_ener, tkind, tshell, error=error)
 
     myqmmm = .FALSE.
-    
+
     CALL get_md_env (md_env=md_env,&
                      constant=constant,&
                      itimes=itimes,&
@@ -106,7 +106,7 @@ CONTAINS
                      error=error)
 
     CALL get_part_ke ( md_env, md_ener, tkind, tshell, para_env%group,  error=error)
-           
+
     IF (md_ener%nfree /= 0) THEN
          md_ener%temp_part = 2.0_dp * md_ener%ekin / REAL ( simpar%nfree,KIND=dp)
          md_ener%temp_part = md_ener%temp_part*kelvin
@@ -168,7 +168,7 @@ CONTAINS
        CALL get_econs_nvt_adiabatic (md_env, md_ener,  para_env, error=error)
     END SELECT
 
-    IF (init) THEN 
+    IF (init) THEN
        ! If the value was not read from input let's set it at the begin of the MD
        IF (constant == 0.0_dp) THEN
           constant = md_ener%constant
@@ -237,7 +237,7 @@ CONTAINS
     CALL get_thermostat_energies ( thermostat_fast, md_ener%thermostat_fast_pot, &
          md_ener%thermostat_fast_kin, para_env, error=error )
     md_ener%constant = md_ener% ekin + md_ener%epot + &
-                      md_ener%thermostat_fast_kin + md_ener%thermostat_fast_pot 
+                      md_ener%thermostat_fast_kin + md_ener%thermostat_fast_pot
     CALL get_thermostat_energies ( thermostat_slow, md_ener%thermostat_slow_pot, &
          md_ener%thermostat_slow_kin, para_env, error=error )
     md_ener%constant = md_ener%constant + &
@@ -398,7 +398,7 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, group, error) 
+  SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, group, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     LOGICAL, INTENT(IN)                      :: tkind, tshell
@@ -429,7 +429,7 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     failure = .FALSE.
-    
+
     NULLIFY(qmmm_env)
     CALL get_md_env ( md_env, force_env = force_env, error=error )
     CALL force_env_get (force_env, subsys = subsys, qmmm_env=qmmm_env, error=error)
@@ -451,7 +451,7 @@ CONTAINS
          md_ener%nfree_shell_kind = 0
       END IF
     END IF
-    
+
     particle_set => particles%els
     IF(tshell) THEN
        shell_particle_set => shell_particles%els
@@ -475,7 +475,7 @@ CONTAINS
                 md_ener%vcom(2) = md_ener%vcom(2) + particle_set(iparticle)%v(2)*mass
                 md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
                 md_ener%total_mass = md_ener%total_mass + mass
-                
+
                 md_ener%ekin = md_ener%ekin +  ekin_com
                 ekin_c =  0.5_dp * shell%mass_core *  &
                      ( core_particle_set(shell_index)%v(1)* core_particle_set(shell_index)%v(1) &
@@ -486,7 +486,7 @@ CONTAINS
                      + shell_particle_set(shell_index)%v(2)* shell_particle_set(shell_index)%v(2) &
                      + shell_particle_set(shell_index)%v(3)* shell_particle_set(shell_index)%v(3) )
                 md_ener%ekin_shell = md_ener%ekin_shell + ekin_c + ekin_s - ekin_com
-                
+
                 IF(tkind) THEN
                    md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
                    md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
@@ -494,7 +494,7 @@ CONTAINS
                         ekin_c + ekin_s - ekin_com
                    md_ener%nfree_shell_kind(iparticle_kind) = md_ener%nfree_shell_kind(iparticle_kind) + 3
                 END IF
-                
+
              END DO  ! iparticle_local
           ELSE
              DO iparticle_local=1,nparticle_local
@@ -508,7 +508,7 @@ CONTAINS
                 md_ener%vcom(2) = md_ener%vcom(2) + particle_set(iparticle)%v(2)*mass
                 md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
                 md_ener%total_mass = md_ener%total_mass + mass
-                
+
                 md_ener%ekin = md_ener%ekin +  ekin_com
                 IF(tkind) THEN
                    md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
@@ -537,13 +537,13 @@ CONTAINS
                   ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
                   + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                   + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-             
+
              !vcom
              md_ener%vcom(1) = md_ener%vcom(1) + particle_set(iparticle)%v(1)*mass
              md_ener%vcom(2) = md_ener%vcom(2) + particle_set(iparticle)%v(2)*mass
              md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
              md_ener%total_mass = md_ener%total_mass + mass
-             
+
              md_ener%ekin = md_ener%ekin +  ekin_com
              IF(tkind) THEN
                 md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
@@ -556,7 +556,7 @@ CONTAINS
           CALL mp_sum(md_ener%nfree_kind, group )
        END IF
     END IF
-    
+
     ! sum all contributions to energy over calculated parts on all processors
     CALL mp_sum ( md_ener%ekin, group )
     CALL mp_sum ( md_ener%vcom, group )

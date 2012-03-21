@@ -40,8 +40,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the RESP section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_resp_section(section,error)
@@ -74,21 +74,21 @@ CONTAINS
             " 1 number valid for all components.",&
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="INTEGER_TOTAL_CHARGE",&
             description="Forces the total charge to be integer",&
             usage="INTEGER_TOTAL_CHARGE TRUE",&
             default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_TO_ZERO",&
             description="Restrain non-hydrogen atoms to zero.",&
             usage="RESTRAIN_HEAVIES_TO_ZERO FALSE",&
             default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_STRENGTH",&
             description="If defined, enforce the restraint of non-hydrogen atoms to zero. Its value is the"//&
@@ -102,37 +102,37 @@ CONTAINS
             description="Specifies the lower boundary of the box along X used to sample the potential.",&
             usage="X_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="X_HI",&
             description="Specifies the upper boundary of the box along X used to sample the potential.",&
             usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Y_LOW",&
             description="Specifies the lower boundary of the box along Y used to sample the potential.",&
             usage="Y_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Y_HI",&
             description="Specifies the upper boundary of the box along Y used to sample the potential.",&
             usage="Y_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Z_LOW",&
             description="Specifies the lower boundary of the box along Z used to sample the potential.",&
             usage="Z_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Z_HI",&
             description="Specifies the upper boundary of the box along Z used to sample the potential.",&
             usage="Z_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Specifies the maximum distance a fit point is away from an atom. ",&
@@ -140,7 +140,7 @@ CONTAINS
             default_r_val=cp_unit_to_cp2k(value=2.5_dp, unit_str="angstrom", error=error),&
             unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Specifies the minimum distance a fit point is away from an atom. ",&
@@ -148,7 +148,7 @@ CONTAINS
             default_r_val=cp_unit_to_cp2k(value=2.1_dp, unit_str="angstrom", error=error),&
             unit_str='angstrom', error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL create_constraint_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -172,8 +172,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief specifies constraints to be satisfied in a resp fit
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_constraint_section(section,error)
@@ -227,8 +227,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief specifies restraints to be added to a resp fit
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_restraint_section(section,error)

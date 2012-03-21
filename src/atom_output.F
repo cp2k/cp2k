@@ -185,7 +185,7 @@ CONTAINS
             "State","L","Occupation","Energy[a.u.]","Energy[eV]"
        DO l=0,atom%state%maxl_calc
          n = atom%state%maxn_calc(l)
-         DO i=1,n 
+         DO i=1,n
            WRITE(iw,'(T23,I2,T30,I1,T36,F10.3,T46,F15.6,T66,F15.6)') &
               i,l,atom%state%occupation(l,i),atom%orbitals%ener(i,l),atom%orbitals%ener(i,l)*evolt
          END DO
@@ -196,11 +196,11 @@ CONTAINS
             "State","Spin","L","Occupation","Energy[a.u.]","Energy[eV]"
        DO l=0,atom%state%maxl_calc
          n = atom%state%maxn_calc(l)
-         DO i=1,n 
+         DO i=1,n
            WRITE(iw,'(T23,I2,T29,A,T36,I1,T42,F10.3,T52,F15.6,T68,F13.6)') &
               i,"alpha",l,atom%state%occa(l,i),atom%orbitals%enera(i,l),atom%orbitals%enera(i,l)*evolt
          END DO
-         DO i=1,n 
+         DO i=1,n
            WRITE(iw,'(T23,I2,T29,A,T36,I1,T42,F10.3,T52,F15.6,T68,F13.6)') &
               i," beta",l,atom%state%occb(l,i),atom%orbitals%enerb(i,l),atom%orbitals%enerb(i,l)*evolt
          END DO

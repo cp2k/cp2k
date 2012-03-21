@@ -270,7 +270,7 @@ CONTAINS
        ALLOCATE ( s(npoints), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       DO ispin=1,2          
+       DO ispin=1,2
           CALL calc_s(rho(ispin)%array, norm_drho(ispin)%array, s, npoints)
 
           IF ( order>=0 ) THEN

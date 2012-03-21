@@ -110,7 +110,7 @@ CONTAINS
     IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
        CALL cp_dbcsr_release_p (preconditioner_env%sparse_matrix_inner, error=error)
     ENDIF
- 
+
     IF (ASSOCIATED(preconditioner_env%fm)) THEN
        CALL cp_fm_release(preconditioner_env%fm,error=error)
     ENDIF
@@ -125,7 +125,7 @@ CONTAINS
     ENDIF
     CALL cp_para_env_release(preconditioner_env%para_env,error=error)
     CALL cp_blacs_env_release(preconditioner_env%ctxt,error=error)
- 
+
     preconditioner_env%in_use=0
 
     CALL timestop(handle)

@@ -120,7 +120,7 @@ CONTAINS
     CASE(ls_cluster_molecular)
        ! create format of the clustered matrix
        natom=cp_dbcsr_nblkrows_total(matrix_qs)
-       nmol=MAXVAL(ls_mstruct%atom_to_molecule) 
+       nmol=MAXVAL(ls_mstruct%atom_to_molecule)
        ALLOCATE(atom_to_cluster_primus(natom))
        ALLOCATE(atom_to_cluster(natom))
        ALLOCATE(primus_of_mol(nmol))
@@ -241,7 +241,7 @@ CONTAINS
        ENDIF
        CALL cp_dbcsr_release (matrix_qs_nosym, error=error)
 
-    CASE DEFAULT 
+    CASE DEFAULT
        STOP
     END SELECT
 
@@ -288,11 +288,11 @@ CONTAINS
     CASE(ls_cluster_molecular)
        CALL cp_dbcsr_set(matrix_qs,0.0_dp,error=error)
        IF (ls_mstruct%single_precision) THEN
-          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE., error=error) 
+          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE., error=error)
        ELSE
-          CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE., error=error) 
+          CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE., error=error)
        ENDIF
-    CASE DEFAULT 
+    CASE DEFAULT
        STOP "BUG"
     END SELECT
 
@@ -402,7 +402,7 @@ CONTAINS
 
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T2,A,F20.9)') "Energy with the initial guess:",energy%total
-       WRITE(unit_nr,'()') 
+       WRITE(unit_nr,'()')
     ENDIF
 
     CALL timestop(handle)
@@ -432,7 +432,7 @@ CONTAINS
     nspin=ls_scf_env%nspins
     CALL get_qs_env(qs_env, energy=energy, error=error)
 
-    ! set the new density matrix 
+    ! set the new density matrix
     DO ispin=1,nspin
          CALL matrix_ls_to_qs(qs_env%rho%rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
     END DO

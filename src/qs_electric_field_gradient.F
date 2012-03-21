@@ -387,8 +387,8 @@ CONTAINS
              WRITE (UNIT=unit_nr,FMT="(T2,A,E24.16)") "CheckSum splines =",&
               chk_spl
              WRITE (UNIT=unit_nr,FMT=*)
-         END IF 
-      END IF 
+         END IF
+      END IF
     END IF
 
     DO iatom=1,natom
@@ -537,7 +537,7 @@ CONTAINS
             zet12 = zet(ipgf1,iset1)+zet(ipgf2,iset2)
 
             vgg = 0.0_dp
-            
+
             DO iso = 1,max_iso_not0_local
                l_iso = indso(1,iso)
                IF ( l_iso /= 2 ) CYCLE
@@ -565,7 +565,7 @@ CONTAINS
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) - &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
               ENDDO ! i
-              
+
               DO iso = 1,max_iso_not0_local
                  l_iso = indso(1,iso)
                  m_iso = indso(1,iso)

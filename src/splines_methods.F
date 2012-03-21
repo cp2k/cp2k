@@ -203,7 +203,7 @@ CONTAINS
     i = (xx-spl_p(1)%spline_data%x1)*invh + 1
     a = (spl_p(1)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a
-    
+
     ylo  = spl_p(1)%spline_data%y(i)
     yhi  = spl_p(1)%spline_data%y(i+1)
     y2lo = spl_p(1)%spline_data%y2(i)
@@ -220,7 +220,7 @@ CONTAINS
 !>        (and possibly the first derivative) WITHOUT checks
 !>        and without any funny scaling business, or weird
 !>        1/x^2 grid assumptions
-!> 
+!>
 !> \author HAF
 ! *****************************************************************************
   FUNCTION spline_value ( spl, xx, y1 )

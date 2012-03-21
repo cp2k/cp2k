@@ -258,7 +258,7 @@ MODULE qs_rho0_methods
             IF(paw_atom) THEN
                mpole_rho%Qlm_h(iso) = 0.0_dp
                mpole_rho%Qlm_s(iso) = 0.0_dp
-   
+
                DO ispin = 1,nspins
                  mpole_rho%Qlm_h(iso) =  mpole_rho%Qlm_h(iso) + &
                        trace_r_AxB(mpole_gau%Qlm_gg(:,:,iso),nsotot,&
@@ -267,7 +267,7 @@ MODULE qs_rho0_methods
                        trace_r_AxB(mpole_gau%Qlm_gg(:,:,iso),nsotot,&
                            cpc_as(:,:,ispin),nsotot,nsotot,nsotot)
                END DO  ! ispin
-   
+
                mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
                                         mpole_rho%Qlm_h(iso)-mpole_rho%Qlm_s(iso)
             END IF
@@ -308,7 +308,7 @@ MODULE qs_rho0_methods
      DO iat = 1,natom
         iatom = a_list(iat)
         mpole_rho => rho0_mp%mp_rho(iatom)
-  
+
         DO lshell = 0,lmax0
           DO ic = 1,nco(lshell)
             ico = ic + ncoset(lshell-1)
@@ -316,15 +316,15 @@ MODULE qs_rho0_methods
             lx = indco(1,ico)
             ly = indco(2,ico)
             lz = indco(3,ico)
-  
+
             DO is = 1,nso(lshell)
               iso = is + nsoset(lshell-1)
-  
+
               mpole_rho%Qlm_car(ico) = mpole_rho%Qlm_car(ico) + &
                    orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
                    norm_g0l_h(lshell)&
                   /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
-  
+
             END DO
           END DO
         END DO  ! lshell

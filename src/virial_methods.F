@@ -35,7 +35,7 @@ MODULE virial_methods
 
 CONTAINS
 ! *****************************************************************************
-!> \brief Updates the virial given the virial and subsys   
+!> \brief Updates the virial given the virial and subsys
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - 03.2008 - Zurich University
@@ -108,7 +108,7 @@ CONTAINS
                         mass * particle_set(iparticle)%v(i)*particle_set(iparticle)%v(j)
                 END DO
              END DO
-             virial%pv_kinetic(j,i) = virial%pv_kinetic(i,j) 
+             virial%pv_kinetic(j,i) = virial%pv_kinetic(i,j)
           END DO
        END DO
        mfl = REAL( 9 * nnodes, KIND=dp) * 2.0_dp * 1.e-6_dp
@@ -125,7 +125,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the contribution to the stress tensor from two-body
-!>      pair-wise forces    
+!>      pair-wise forces
 !> \par History
 !>      none
 !> \author JGH

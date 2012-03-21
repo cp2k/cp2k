@@ -80,37 +80,37 @@ CONTAINS
 
     CALL init_orbital_pointers(lmax)
 
-    i2c(0) = "(s|s)" 
-    i2c(1) = "(p|p)" 
-    i2c(2) = "(d|d)" 
-    i2c(3) = "(f|f)" 
-    i2c(4) = "(g|g)" 
-    i2c(5) = "(h|h)" 
-    i2c(6) = "(i|i)" 
+    i2c(0) = "(s|s)"
+    i2c(1) = "(p|p)"
+    i2c(2) = "(d|d)"
+    i2c(3) = "(f|f)"
+    i2c(4) = "(g|g)"
+    i2c(5) = "(h|h)"
+    i2c(6) = "(i|i)"
 
-    i2g(0) = "[(ss)|(ss)]" 
-    i2g(1) = "[(pp)|(pp)]" 
-    i2g(2) = "[(dd)|(dd)]" 
-    i2g(3) = "[(ff)|(ff)]" 
-    i2g(4) = "[(gg)|(gg)]" 
-    i2g(5) = "[(hh)|(hh)]" 
-    i2g(6) = "[(ii)|(ii)]" 
+    i2g(0) = "[(ss)|(ss)]"
+    i2g(1) = "[(pp)|(pp)]"
+    i2g(2) = "[(dd)|(dd)]"
+    i2g(3) = "[(ff)|(ff)]"
+    i2g(4) = "[(gg)|(gg)]"
+    i2g(5) = "[(hh)|(hh)]"
+    i2g(6) = "[(ii)|(ii)]"
 
-    i2f(0) = "[ss|(ss)]" 
-    i2f(1) = "[pp|(pp)]" 
-    i2f(2) = "[dd|(dd)]" 
-    i2f(3) = "[ff|(ff)]" 
-    i2f(4) = "[gg|(gg)]" 
-    i2f(5) = "[hh|(hh)]" 
-    i2f(6) = "[ii|(ii)]" 
+    i2f(0) = "[ss|(ss)]"
+    i2f(1) = "[pp|(pp)]"
+    i2f(2) = "[dd|(dd)]"
+    i2f(3) = "[ff|(ff)]"
+    i2f(4) = "[gg|(gg)]"
+    i2f(5) = "[hh|(hh)]"
+    i2f(6) = "[ii|(ii)]"
 
-    i2e(0) = "(ss|ss)" 
-    i2e(1) = "(pp|pp)" 
-    i2e(2) = "(dd|dd)" 
-    i2e(3) = "(ff|ff)" 
-    i2e(4) = "(gg|gg)" 
-    i2e(5) = "(hh|hh)" 
-    i2e(6) = "(ii|ii)" 
+    i2e(0) = "(ss|ss)"
+    i2e(1) = "(pp|pp)"
+    i2e(2) = "(dd|dd)"
+    i2e(3) = "(ff|ff)"
+    i2e(4) = "(gg|gg)"
+    i2e(5) = "(hh|hh)"
+    i2e(6) = "(ii|ii)"
 
     npgfa = 4
     npgfb = 2
@@ -277,9 +277,9 @@ CONTAINS
 
     IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal Repulsion Integrals (GRI) "
 
-    xa = 0.783300000000   
-    xb = 1.239648746700  
-    xc = 0.548370000000 
+    xa = 0.783300000000
+    xb = 1.239648746700
+    xc = 0.548370000000
     xd = 0.111100000000
 
     a = (/0.329309000000,0.28408240000,0.28408240000/) * bohr
@@ -498,9 +498,9 @@ CONTAINS
 
     delta = 0.00001_dp
 
-    xa = 0.783300000000   
-    xb = 1.239648746700  
-    xc = 0.548370000000 
+    xa = 0.783300000000
+    xb = 1.239648746700
+    xc = 0.548370000000
     xd = 0.111100000000
 
     a = (/0.329309000000,0.28408240000,0.28408240000/) * bohr
@@ -646,9 +646,9 @@ CONTAINS
     delta = 0.00001_dp
     dmax  = 0.0_dp
 
-    xa = 0.783300000000   
-    xb = 1.239648746700  
-    xc = 0.548370000000 
+    xa = 0.783300000000
+    xb = 1.239648746700
+    xc = 0.548370000000
     xd = 0.111100000000
 
     a = (/0.329309000000,0.28408240000,0.28408240000/) * bohr
@@ -700,7 +700,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO k=1,3
-      
+
       iabc1p =0._dp
       iabc1m =0._dp
       iabc2p =0._dp

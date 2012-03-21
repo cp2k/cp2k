@@ -7,7 +7,7 @@
 !> \brief generate the tasks lists used by collocate and integrate routines
 !> \par History
 !>      01.2008 [Joost VandeVondele] refactered out of qs_collocate / qs_integrate
-!> \author Joost VandeVondele 
+!> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE task_list_methods
   USE array_types,                     ONLY: array_data
@@ -99,13 +99,13 @@ CONTAINS
 !> \note  If this routine is called several times with different task lists,
 !>        the default behaviour is to re-optimize the grid ranks and overwrite
 !>        the rs descriptor and grids. reorder_rs_grid_ranks = .FALSE. prevents the code
-!>        of performing a new optimization by leaving the rank order in 
+!>        of performing a new optimization by leaving the rank order in
 !>        its current state.
 ! *****************************************************************************
   SUBROUTINE generate_qs_task_list(qs_env, task_list,&
                                    reorder_rs_grid_ranks, skip_load_balance_distributed, &
                                    soft_valid, basis_set_id, pw_env_external, sab_orb_external, error)
-                                   
+
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(task_list_type), POINTER            :: task_list
@@ -219,7 +219,7 @@ CONTAINS
               softb = my_soft, &
               aux_fit_basis_set=orb_basis_set,&
               basis_set_id=my_basis_set_id)
-       END SELECT 
+       END SELECT
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -326,7 +326,7 @@ CONTAINS
     ALLOCATE (task_list%npairs(SIZE(rs_descs)),STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "task_list%npairs",int_size*SIZE(rs_descs))
-    
+
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1
     ipair = 0
     task_list%npairs = 0
@@ -356,7 +356,7 @@ CONTAINS
     ! Second, for each atom pair, find the indices in the task list
     ! of the first and last task
 
-    ! Array sized for worst case 
+    ! Array sized for worst case
     ALLOCATE (task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "taskstart",int_size*MAXVAL(task_list%npairs)*SIZE(rs_descs))
@@ -366,7 +366,7 @@ CONTAINS
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1
     ipair = 0
-    task_list%taskstart = 0 
+    task_list%taskstart = 0
     task_list%taskstop = 0
 
     DO i=1,task_list%ntasks
@@ -377,7 +377,7 @@ CONTAINS
         END IF
         ipair = 1
         task_list%taskstart(ipair,igrid_level) = i
- 
+
         igrid_level_old = igrid_level
         iatom_old = iatom
         jatom_old = jatom
@@ -385,10 +385,10 @@ CONTAINS
         ipair = ipair + 1
         task_list%taskstart(ipair,igrid_level) = i
         task_list%taskstop(ipair-1,igrid_level) = i - 1
-  
+
         iatom_old = iatom
         jatom_old = jatom
-      END IF 
+      END IF
     END DO
     ! Take care of the last iteration
     IF (task_list%ntasks /= 0) THEN
@@ -464,7 +464,7 @@ CONTAINS
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                            ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
-   
+
                 CALL pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
                           rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,la_max(iset),lb_max(jset),&
                           rs_descs(igrid_level)%rs_desc,igrid_level,gridlevel_info%ngrid_levels,cube_center,&
@@ -482,13 +482,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief combines the calculation of several basic properties of a given pgf:
-!>  its center, the bounding cube, the radius, the cost, 
+!>  its center, the bounding cube, the radius, the cost,
 !>  tries to predict the time needed for processing this task
 !>      in this way an improved load balance might be obtained
 !> \note
 !>      -) this requires the radius to be computed in the same way as
 !>      collocate_pgf_product_rspace, we should factor that part into a subroutine
-!>      -) we're assuming that integrate_pgf and collocate_pgf are the same cost for load balancing 
+!>      -) we're assuming that integrate_pgf and collocate_pgf are the same cost for load balancing
 !>         this is more or less true for map_consistent
 !>      -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
 !>         the same, this could lead to a small speedup
@@ -538,8 +538,8 @@ CONTAINS
     ELSE
        ! untested so far
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
-       extent(:)  = ub_cube(:) - lb_cube(:)          
-       lb_cube(:) = -extent(:) / 2 - 1          
+       extent(:)  = ub_cube(:) - lb_cube(:)
+       lb_cube(:) = -extent(:) / 2 - 1
        ub_cube(:) = extent(:) / 2
     ENDIF
 
@@ -690,9 +690,9 @@ CONTAINS
     ! this encoding yields the right order of the tasks for collocation after the sort
     ! in distribute_tasks. E.g. for a atom pair, all sets and pgfs are computed in one go.
     ! The exception is the gridlevel. Tasks are first ordered wrt to grid_level. This implies
-    ! that a given density matrix block will be decontracted several times, but cache effects on the 
+    ! that a given density matrix block will be decontracted several times, but cache effects on the
     ! grid make up for this.
-    ! 
+    !
     res=ilevel*natom8**2*maxset8**2*maxpgf8**2+&
         ((iatom-1)*natom8+jatom-1)*maxset8**2*maxpgf8**2 + &
         ((iset-1)*maxset8+jset-1)*maxpgf8**2+ &
@@ -713,7 +713,7 @@ CONTAINS
                                                 natom8, tmp
 
     natom8=natom ; maxset8=maxset ; maxpgf8=maxpgf
-    
+
     ilevel=res/(natom8**2*maxset8**2*maxpgf8**2)
     tmp=MOD(res,natom8**2*maxset8**2*maxpgf8**2)
     ijatom=tmp/(maxpgf8**2*maxset8**2)
@@ -727,7 +727,7 @@ CONTAINS
     ipgf8=ijpgf/maxpgf8+1
     jpgf8=MOD(ijpgf,maxpgf8)+1
 
-    iatom=iatom8 ; jatom=jatom8; iset=iset8 ; jset=jset8 
+    iatom=iatom8 ; jatom=jatom8; iset=iset8 ; jset=jset8
     ipgf=ipgf8 ; jpgf=jpgf8
 
   END SUBROUTINE int2pair
@@ -835,14 +835,14 @@ CONTAINS
         load(icpu)=SUM(list_global(2,:,icpu))
         DO idest=1,maxdest
            dest=list_global(1,idest,icpu)
-           IF (dest<ncpu) THEN 
-              IF (dest.NE.icpu) THEN 
-                 IF (dest>icpu) THEN 
+           IF (dest<ncpu) THEN
+              IF (dest.NE.icpu) THEN
+                 IF (dest>icpu) THEN
                     Nflux=Nflux+1
                     flux_limits(2,Nflux)=list_global(2,idest,icpu)
                     flux_connections(1,Nflux)=icpu
                     flux_connections(2,Nflux)=dest
-                 ELSE              
+                 ELSE
                     DO iflux=1,Nflux
                        IF (flux_connections(1,iflux)==dest .AND. flux_connections(2,iflux)==icpu) THEN
                           flux_limits(1,iflux)=-list_global(2,idest,icpu)
@@ -861,7 +861,7 @@ CONTAINS
 
      ! an iterative solver, if iterated till convergence the maximum load is minimal
      ! we terminate before things are fully converged, since this does show up in the timings
-     ! once the largest shift becomes less than a small fraction of the average load, we're done 
+     ! once the largest shift becomes less than a small fraction of the average load, we're done
      ! we're perfectly happy if the load balance is within 1 percent or so
      ! the maximum load normally converges even faster
      average=SUM(load)/SIZE(load)
@@ -986,7 +986,7 @@ CONTAINS
        CALL balance_global_list(list_global)
 
        ! figure out the amount of data a given CPU can send to a destination
-       ! 
+       !
        i=0
        DO jcpu=1,ncpu
          DO  icpu=1,ncpu
@@ -1012,13 +1012,13 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE optimize_load_list
 ! *****************************************************************************
 !> \brief fill the load list with values derived from the tasks array
 !>        from the alternate locations, we select the alternate location that
-!>        can be used without increasing the number of matrix blocks needed to 
-!>        distribute. 
+!>        can be used without increasing the number of matrix blocks needed to
+!>        distribute.
 !>        Replicated tasks are not yet considered
 !>
 !> \par History
@@ -1066,7 +1066,7 @@ CONTAINS
     ALLOCATE (all_dests(0))
     ALLOCATE (INDEX(0))
 
-    DO 
+    DO
 
        ! first find the range of tasks that deal with the same atom pair
        itask_start=itask_stop+1
@@ -1111,7 +1111,7 @@ CONTAINS
 
        DO itask=itask_start,itask_stop
 
-          
+
           dest=decode_rank(tasks(1,itask), SIZE(rs_descs)) ! notice that dest can be changed
           CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
           ! Only proceed with tasks which are on this grid level
@@ -1163,7 +1163,7 @@ CONTAINS
                   nopt=nopt+1
                   options(nopt)=rank
                ENDIF
-            ENDIF 
+            ENDIF
             IF (nopt>0) THEN
               ! set it to the rank with the lowest load
               rank=options(1)
@@ -1232,9 +1232,9 @@ CONTAINS
     ENDDO
   END FUNCTION list_index
 ! *****************************************************************************
-!> \brief create a list with possible destinations (i.e. the central cpu and neighbors) for each cpu 
+!> \brief create a list with possible destinations (i.e. the central cpu and neighbors) for each cpu
 !>        note that we allocate it with an additional field to store the load of this destination
-!>       
+!>
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -1274,13 +1274,13 @@ CONTAINS
     maxcount=1
     DO icpu=0,ncpu-1
        sublist(1)=icpu
-       coord=rs_descs(grid_level)%rs_desc%rank2coord(:,icpu)  
-       sublist(2)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/-1,0,0/))    
-       sublist(3)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/+1,0,0/))    
-       sublist(4)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,-1,0/))    
-       sublist(5)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,+1,0/))    
-       sublist(6)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,0,-1/))    
-       sublist(7)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,0,+1/))    
+       coord=rs_descs(grid_level)%rs_desc%rank2coord(:,icpu)
+       sublist(2)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/-1,0,0/))
+       sublist(3)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/+1,0,0/))
+       sublist(4)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,-1,0/))
+       sublist(5)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,+1,0/))
+       sublist(6)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,0,-1/))
+       sublist(7)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,0,+1/))
        ! only retain unique values of the destination
        CALL sort(sublist,ultimate_max,index)
        j=1
@@ -1351,7 +1351,7 @@ CONTAINS
     ! send buffer now contains for each target the cost of the tasks it will receive
     send_buf_i=0
     DO i = 1, ntasks
-       CALL int2pair(tasks(3,i),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf) 
+       CALL int2pair(tasks(3,i),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
        IF (ilevel .NE. grid_level) CYCLE
        IF (use_reordered_ranks) THEN
          send_buf_i( rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(1,i), SIZE(rs_descs))) +1 ) = &
@@ -1448,7 +1448,7 @@ CONTAINS
        IF (load_imbalance(i) .LT. 0 ) no_underloaded = no_underloaded + 1
     ENDDO
 
-    ! sort the recv_buffer on number of tasks, gives us index which provides a 
+    ! sort the recv_buffer on number of tasks, gives us index which provides a
     ! mapping between processor ranks and how overloaded the processor
     CALL sort(recv_buf_i,SIZE(recv_buf_i),index)
 
@@ -1473,7 +1473,7 @@ CONTAINS
 
     ! simplest algorithm I can think of of is that the processor with the most
     ! excess tasks fills up the process needing most, then moves on to next most.
-    ! At the moment if we've got less replicated tasks than we're overloaded then 
+    ! At the moment if we've got less replicated tasks than we're overloaded then
     ! task balancing will be incomplete
 
     ! only need to do anything if I've excess tasks
@@ -1491,7 +1491,7 @@ CONTAINS
           ENDIF
        ENDDO
 
-       ! find my starting processor to send to 
+       ! find my starting processor to send to
        proc_receiving = HUGE(proc_receiving)
        DO i = 1, no_underloaded
           offset = offset + load_imbalance ( INDEX (i) )
@@ -1593,11 +1593,11 @@ CONTAINS
     send_buf_i=0
     DO i = 1, ntasks
        rank = rs_descs(decode_level(tasks(1,i), SIZE(rs_descs)))%rs_desc%virtual2real(decode_rank(tasks(1,i), SIZE(rs_descs)))
-       send_buf_i( rank+1 ) = send_buf_i( rank+1 ) + 1 
+       send_buf_i( rank+1 ) = send_buf_i( rank+1 ) + 1
     END DO
 
     CALL mp_alltoall(send_buf_i, recv_buf_i, 1, desc % group)
-    
+
     ! pack the tasks, and send them around
 
     task_dim = SIZE(tasks,1)
@@ -1612,7 +1612,7 @@ CONTAINS
     DO i = 2,desc%group_size
        send_sizes(i) = send_buf_i(i) * task_dim
        recv_sizes(i) = recv_buf_i(i) * task_dim
-       send_disps(i)=send_disps(i-1)+send_sizes(i-1)           
+       send_disps(i)=send_disps(i-1)+send_sizes(i-1)
        recv_disps(i)=recv_disps(i-1)+recv_sizes(i-1)
     ENDDO
 
@@ -1657,7 +1657,7 @@ CONTAINS
     DO i = 1, desc % group_size
        DO j = 0,recv_sizes(i)/task_dim-1
           l = l + 1
-          DO k=1,task_dim 
+          DO k=1,task_dim
              tasks_recv(k,l)=recv_buf_i(recv_disps(i)+j*task_dim+k)
           ENDDO
        ENDDO
@@ -1842,18 +1842,18 @@ CONTAINS
                ALLOCATE (trial_loads(0:desc%group_size-1),STAT=stat)
                IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                "trial_loads",int_8_size*desc%group_size)
-  
+
                trial_loads = total_loads + loads(:,igrid_level)
                max_load = MAXVAL(trial_loads)
                load_gap = 0
                DO irank=0, desc%group_size-1
                  load_gap = load_gap + max_load - trial_loads(irank)
-               END DO 
-               
+               END DO
+
                ! If there is not enough replicated load to load balance well enough
                ! then we will reorder this grid level
                IF (load_gap > replicated_load * 1.05_dp) THEN
-  
+
                  ALLOCATE (INDEX(0:desc%group_size-1),STAT=stat)
                  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "index",int_size*desc%group_size)
@@ -1870,7 +1870,7 @@ CONTAINS
                  total_loads_tmp = total_loads
                  CALL sort(total_loads_tmp, desc%group_size, total_index)
                  CALL sort(loads(:,igrid_level), desc%group_size, index)
-  
+
                  ! Reorder so that the rank with smallest load on this grid level is paired with
                  ! the highest load in total
                  DO irank=0, desc%group_size-1
@@ -1878,9 +1878,9 @@ CONTAINS
                                loads(desc%group_size - irank - 1, igrid_level)
                    real2virtual(total_index(irank)-1)=INDEX(desc%group_size - irank - 1) - 1
                  END DO
-  
+
                  CALL rs_grid_reorder_ranks(rs_descs(igrid_level)%rs_desc, real2virtual, error)
-  
+
                  DEALLOCATE (index,STAT=stat)
                  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"index")
                  DEALLOCATE (total_index,STAT=stat)
@@ -1892,10 +1892,10 @@ CONTAINS
                ELSE
                  total_loads = trial_loads
                ENDIF
-  
+
                DEALLOCATE (trial_loads,STAT=stat)
                IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"trial_loads")
-  
+
              ENDIF
            ENDIF
          END DO
@@ -1932,7 +1932,7 @@ CONTAINS
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, rs_descs=rs_descs )
 
- 
+
        ! natom_send=SIZE(atom_pair_send)
        ! CALL mp_sum(natom_send,desc%group)
        ! IF (desc%my_pos==0) THEN
@@ -1994,7 +1994,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"index")
 
     !
-    ! final lists are ready 
+    ! final lists are ready
     !
 
     tasks=>tasks_recv
@@ -2072,7 +2072,7 @@ CONTAINS
      j=1
      ! first atom pair must be allowed
      DO i = 2,SIZE(atom_pair)
-        IF( atom_pair(i) .GT. atom_pair(i-1) ) THEN 
+        IF( atom_pair(i) .GT. atom_pair(i-1) ) THEN
            j = j + 1
            atom_pair(j) = atom_pair(i)
         ENDIF
@@ -2173,9 +2173,9 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      acol = MOD(pair, natom8) + 1
 
      nrow = last_row(arow) - first_row(arow) + 1
-     ncol = last_col(acol) - first_col(acol) + 1       
+     ncol = last_col(acol) - first_col(acol) + 1
 
-     send_sizes(k) = send_sizes(k) + nrow * ncol        
+     send_sizes(k) = send_sizes(k) + nrow * ncol
      send_pair_count(k) = send_pair_count(k) + 1
 
   ENDDO
@@ -2242,7 +2242,7 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
   ! do packing
 !$omp do schedule(guided)
   DO l =1, desc%group_size
-   IF (l .EQ. me) CYCLE 
+   IF (l .EQ. me) CYCLE
     send_sizes(l)=0
     DO i = 1, send_pair_count(l)
      pair = MOD(atom_pair_send(send_pair_disps(l)+i),natom8**2)
@@ -2255,7 +2255,7 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
 
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           block=p_block,found=found)
-     IF ( .NOT. ASSOCIATED ( p_block ) ) THEN 
+     IF ( .NOT. ASSOCIATED ( p_block ) ) THEN
         CALL stop_program(routineN,moduleN,__LINE__,"Matrix block not found")
      ENDIF
 
@@ -2289,7 +2289,7 @@ SUBROUTINE distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
 !$    call omp_init_lock(locks(i))
 !$  end do
 !$omp end do
-    
+
   ! Distribute work over remaining threads assuming one is still in the alltoall
 !$omp do schedule(dynamic,MAX(1,send_pair_count(me)/nthread_left))
     DO i = 1, send_pair_count(me)
@@ -2477,9 +2477,9 @@ END SUBROUTINE distribute_matrix
        DO i=1,3
           IF (rs_desc % perd ( i ) ==  1) THEN
              bit_pattern=IBCLR(bit_pattern,bit_index)
-             bit_index=bit_index+1 
+             bit_index=bit_index+1
              bit_pattern=IBCLR(bit_pattern,bit_index)
-             bit_index=bit_index+1 
+             bit_index=bit_index+1
           ELSE
              ! fits the left neighbor ?
              IF (ubc(i)<=rs_desc%lb_global(i,dest)-1+rs_desc%border) THEN
@@ -2489,7 +2489,7 @@ END SUBROUTINE distribute_matrix
                 bit_pattern=IBCLR(bit_pattern,bit_index)
                 bit_index=bit_index+1
              ENDIF
-             ! fits the right neighbor ? 
+             ! fits the right neighbor ?
              IF (lbc(i)>=rs_desc%ub_global(i,dest)+1-rs_desc%border) THEN
                 bit_pattern=IBSET(bit_pattern,bit_index)
                 bit_index=bit_index+1
@@ -2542,8 +2542,8 @@ END SUBROUTINE distribute_matrix
        ! some care is needed for the periodic boundaries
        DO i=1,3
           IF (ub_domain(i)-lb_domain(i)+1>=rs_desc%npts(i)) THEN
-             dir_periodic(i)=.TRUE. 
-             lb_coord(i)=0 
+             dir_periodic(i)=.TRUE.
+             lb_coord(i)=0
              ub_coord(i)=rs_desc%group_dim(i)-1
           ELSE
              dir_periodic(i)=.FALSE.
@@ -2564,7 +2564,7 @@ END SUBROUTINE distribute_matrix
           idest=rs_desc%coord2rank(icoord(1),icoord(2),icoord(3))
           tasks(1,itask)=encode_rank(idest, igrid_level, n_levels)
           tasks(4,itask)=2
-          tasks(6,itask)=0 
+          tasks(6,itask)=0
           ! encode the domain size for this task
           ! if the bit is set, we need to add the border in that direction
           IF (ix==lb_coord(1).AND..NOT.dir_periodic(1)) tasks(6,itask)=IBSET(tasks(6,itask),0)

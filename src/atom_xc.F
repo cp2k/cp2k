@@ -88,7 +88,7 @@ CONTAINS
     END IF
 
     IF ( ASSOCIATED(xc_section) ) THEN
-      NULLIFY(rho_set) 
+      NULLIFY(rho_set)
 
       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
       CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
@@ -105,14 +105,14 @@ CONTAINS
         needs = xc_functionals_get_needs(xc_fun_section,lsd=lsd,add_basic_components=.FALSE.,error=error)
 
         ! Prepare the structures needed to calculate and store the xc derivatives
-  
+
         ! Array dimension: here anly one dimensional arrays are used,
         ! i.e. only the first column of deriv_data is read.
         ! The other to dimensions  are set to size equal 1
         nr = atom%basis%grid%nr
         bounds(1:2,1:3) = 1
         bounds(2,1) = nr
-  
+
         ! create a place where to put the derivatives
         NULLIFY(deriv_set)
         CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
@@ -268,31 +268,31 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF ( ASSOCIATED(xc_section) ) THEN
-       NULLIFY(rho_set) 
- 
+       NULLIFY(rho_set)
+
        xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
        CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
- 
+
        IF(myfun == xc_none) THEN
          atom%energy%exc = 0._dp
        ELSE
          CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",r_val=density_cut,error=error)
          CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",r_val=gradient_cut,error=error)
          CALL section_vals_val_get(xc_section,"TAU_CUTOFF",r_val=tau_cut,error=error)
- 
+
          lsd = .TRUE.
          nspins = 2
          needs = xc_functionals_get_needs(xc_fun_section,lsd=lsd,add_basic_components=.FALSE.,error=error)
- 
+
          ! Prepare the structures needed to calculate and store the xc derivatives
-   
+
          ! Array dimension: here anly one dimensional arrays are used,
          ! i.e. only the first column of deriv_data is read.
          ! The other to dimensions  are set to size equal 1
          nr = atom%basis%grid%nr
          bounds(1:2,1:3) = 1
          bounds(2,1) = nr
-   
+
          ! create a place where to put the derivatives
          NULLIFY(deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
@@ -301,7 +301,7 @@ CONTAINS
                 drho_cutoff=gradient_cut,tau_cutoff=tau_cut,error=error)
          ! allocate the required 3d arrays where to store rho and drho
          CALL xc_rho_set_atom_update(rho_set,needs,nspins,bounds)
- 
+
          NULLIFY(rho,drho,tau)
          IF ( needs%rho_spin ) THEN
            ALLOCATE(rho(nr,2),STAT=ierr)
@@ -323,20 +323,20 @@ CONTAINS
            CALL atom_density(tau(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,&
                              typ="KIN",rr=atom%basis%grid%rad2,error=error)
          END IF
- 
+
          CALL fill_rho_set(rho_set,nspins,needs,rho,drho,tau,nr,error=error)
- 
+
          CALL xc_dset_zero_all(deriv_set, error)
- 
+
          deriv_order = 1
          CALL xc_functionals_eval(xc_fun_section,lsd=lsd,rho_set=rho_set,deriv_set=deriv_set,&
                                   deriv_order=deriv_order,error=error)
- 
+
          ! Integration to get the matrix elements and energy
          deriv => xc_dset_get_derivative(deriv_set,"",allocate_deriv=.FALSE., error=error)
          CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
          atom%energy%exc = fourpi*integrate_grid(xcpot(:,1,1),atom%basis%grid)
- 
+
          IF ( needs%rho_spin ) THEN
            deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",allocate_deriv=.FALSE.,error=error)
            CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
@@ -397,19 +397,19 @@ CONTAINS
            DO l=0,3
              xcmatb%op(:,:,l) = xcmatb%op(:,:,l) + REAL(l*(l+1),dp)*taumat(:,:,l)
            END DO
- 
+
            DEALLOCATE(tau,STAT=ierr)
            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
            DEALLOCATE(taumat,STAT=ierr)
            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
          END IF
- 
+
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set, error=error)
          CALL xc_rho_set_release(rho_set,error=error)
- 
+
        END IF !xc_none
- 
+
      ELSE
 
       ! we don't have an xc_section, use a default setup
@@ -577,7 +577,7 @@ CONTAINS
       a3 = 0.1968227878617998E-1_dp, b1 = 1.0000000000000000E+0_dp, &
       b2 = 0.4504130959426697E+1_dp, b3 = 0.1110667363742916E+1_dp, &
       b4 = 0.2359291751427506E-1_dp, f13 = (1.0_dp/3.0_dp), &
-      rsfac = 0.6203504908994000166680065_dp 
+      rsfac = 0.6203504908994000166680065_dp
 
     INTEGER                                  :: i, n
     LOGICAL                                  :: failure
@@ -626,7 +626,7 @@ CONTAINS
       db2 = 0.2673612973836267E+0_dp, db3 = 0.2052004607777787E+0_dp, &
       db4 = 0.4200005045691381E-2_dp, f13 = (1.0_dp/3.0_dp), &
       f43 = (4.0_dp/3.0_dp), fxfac = 1.923661050931536319759455_dp , &
-      rsfac = 0.6203504908994000166680065_dp 
+      rsfac = 0.6203504908994000166680065_dp
 
     INTEGER                                  :: i, n
     LOGICAL                                  :: failure

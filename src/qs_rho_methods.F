@@ -125,9 +125,9 @@ CONTAINS
     ELSE
       my_basis_set_id = use_orb_basis_set
     END IF
- 
+
     SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set) 
+    CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
            matrix_s=matrix_s, &
            sab_orb=sab_orb,&
@@ -141,7 +141,7 @@ CONTAINS
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     nspins=dft_control%nspins
-  
+
     IF (.NOT.ASSOCIATED(rho)) THEN
        my_rebuild_grids=.TRUE.
        my_rebuild_ao=.TRUE.
@@ -166,7 +166,7 @@ CONTAINS
           IF (.not.failure) rho%tot_rho_r=0.0_dp
        END IF
     END IF
-  
+
     ! rho_ao
     IF (.NOT.my_gapw_xc) THEN
       IF (my_rebuild_ao.OR.(.NOT.ASSOCIATED(rho%rho_ao))) THEN
@@ -200,7 +200,7 @@ CONTAINS
          END IF
        END IF
     END IF
-  
+
     ! rho_r
     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_r)) THEN
        IF (.NOT.failure) THEN
@@ -221,7 +221,7 @@ CONTAINS
           END DO
        END IF
     END IF
-  
+
     ! rho_g
     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_g)) THEN
        IF (.NOT.failure) THEN
@@ -242,7 +242,7 @@ CONTAINS
           END DO
        END IF
     END IF
-  
+
     ! allocate drho_r and drho_g if xc_deriv_collocate
     IF (dft_control%drho_by_collocation) THEN
        ! drho_r
@@ -309,7 +309,7 @@ CONTAINS
              END DO
           END IF
        END IF
-  
+
        ! tau_g
        IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_g)) THEN
           IF (.NOT.failure) THEN
@@ -331,7 +331,7 @@ CONTAINS
           END IF
        END IF
     END IF  ! use_kinetic_energy_density
-  
+
     CALL timestop(handle)
 END SUBROUTINE qs_rho_rebuild
 

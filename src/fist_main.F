@@ -85,7 +85,7 @@ CONTAINS
        CALL fist_env_set (fist_env, qmmm=myqmmm, qmmm_env=qmmm_env, error=error)
     ELSE
        CALL fist_env_set (fist_env, qmmm=myqmmm, error=error)
-    END IF    
+    END IF
     ! *** Read the input and the database files and perform further  ***
     ! *** initializations for the setup of the FIST environment ***
     CALL fist_init ( fist_env, root_section, para_env, force_env_section,&

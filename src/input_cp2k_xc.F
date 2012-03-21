@@ -9,7 +9,7 @@
 !>      10.2009 moved out of input_cp2k_dft [jgh]
 !> \author fawzi
 ! *****************************************************************************
-MODULE input_cp2k_xc 
+MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Ortiz1994, Perdew1981, Perdew1996, &
@@ -743,7 +743,7 @@ CONTAINS
 !> \param section the section that will be created
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author jgh              
+!> \author jgh
 ! *****************************************************************************
   SUBROUTINE create_vdw_potential_section(section,error)
     TYPE(section_type), POINTER              :: section

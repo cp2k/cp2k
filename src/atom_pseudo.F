@@ -171,7 +171,7 @@ CONTAINS
     ! Check for the total number of method types to be calculated
     method_section => section_vals_get_subs_vals(atom_section,"METHOD",error=error)
     CALL section_vals_get(method_section,n_repetition=n_meth,error=error)
- 
+
     ! integrals
     ALLOCATE(ae_int, pp_int,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -181,9 +181,9 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log",error=error)
     IF(iw > 0) THEN
-        WRITE(iw,'(/," ",79("*"))') 
+        WRITE(iw,'(/," ",79("*"))')
         WRITE(iw,'(" ",26("*"),A,25("*"))') " Calculate Reference States "
-        WRITE(iw,'(" ",79("*"))') 
+        WRITE(iw,'(" ",79("*"))')
     END IF
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
 
@@ -194,8 +194,8 @@ CONTAINS
         CALL create_atom_type(atom_info(in,im)%atom,error)
         CALL create_atom_type(atom_refs(in,im)%atom,error)
 
-        atom_info(in,im)%atom%optimization = optimization 
-        atom_refs(in,im)%atom%optimization = optimization 
+        atom_info(in,im)%atom%optimization = optimization
+        atom_refs(in,im)%atom%optimization = optimization
 
         atom_info(in,im)%atom%z = zval
         atom_refs(in,im)%atom%z = zval
@@ -213,7 +213,7 @@ CONTAINS
         pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
         CPPostcondition(.NOT.pp_calc, cp_failure_level, routineP, error, failure)
 
-        ! set occupations 
+        ! set occupations
         CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity,error)
         state%maxl_occ = get_maxl_occ(state%occ)
         state%maxn_occ = get_maxn_occ(state%occ)
@@ -323,9 +323,9 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_PSEUDO",extension=".log",error=error)
     IF(iw > 0) THEN
-        WRITE(iw,'(/," ",79("*"))') 
+        WRITE(iw,'(/," ",79("*"))')
         WRITE(iw,'(" ",21("*"),A,21("*"))') " Optimize Pseudopotential Parameters "
-        WRITE(iw,'(" ",79("*"))') 
+        WRITE(iw,'(" ",79("*"))')
     END IF
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_PSEUDO",error=error)
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
@@ -349,11 +349,11 @@ CONTAINS
     CALL atom_int_release(ae_int,error)
     CALL atom_ppint_release(ae_int,error)
     CALL atom_relint_release(ae_int,error)
-    
+
     CALL atom_int_release(pp_int,error)
     CALL atom_ppint_release(pp_int,error)
     CALL atom_relint_release(pp_int,error)
-   
+
     CALL release_atom_basis(ae_basis,error)
     CALL release_atom_basis(pp_basis,error)
 

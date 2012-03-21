@@ -69,7 +69,7 @@
 !> \note
 !>      result_list is a character list, in which everthing can be stored
 !>      before passing any variable just name the variable like '[NAME]'
-!>      brackets will be used to identify the start of a new set 
+!>      brackets will be used to identify the start of a new set
 !> \author fschiff (12.2007)
 ! *****************************************************************************
   TYPE cp_result_type
@@ -112,7 +112,7 @@ CONTAINS
     ALLOCATE(results%result_label(0), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(results%result_value(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE cp_result_create
 
@@ -133,7 +133,7 @@ CONTAINS
     INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,handle)    
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     IF(ASSOCIATED(results))THEN
        CPPrecondition(results%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -142,18 +142,18 @@ CONTAINS
           ! Description
           IF(ASSOCIATED(results%result_label))THEN
              DEALLOCATE(results%result_label,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           ! Values
           IF(ASSOCIATED(results%result_value))THEN
-             DO i = 1, SIZE(results%result_value) 
+             DO i = 1, SIZE(results%result_value)
                 CALL cp_result_value_release(results%result_value(i)%value, error)
              END DO
              DEALLOCATE(results%result_value,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           DEALLOCATE(results,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
     CALL timestop(handle)
@@ -173,21 +173,21 @@ CONTAINS
     INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,handle)    
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     IF(ASSOCIATED(results))THEN
        ! Description
        IF(ASSOCIATED(results%result_label))THEN
           DEALLOCATE(results%result_label,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        ! Values
        IF(ASSOCIATED(results%result_value))THEN
-          DO i = 1, SIZE(results%result_value) 
+          DO i = 1, SIZE(results%result_value)
              CALL cp_result_value_release(results%result_value(i)%value, error)
           END DO
           DEALLOCATE(results%result_value,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
     CALL timestop(handle)
@@ -345,7 +345,7 @@ CONTAINS
     CPPostcondition(ASSOCIATED(results_in),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(results_out),cp_failure_level,routineP,error,failure)
     CALL cp_result_clean(results_out,error)
-    
+
     check = SIZE(results_in%result_label)==SIZE(results_in%result_value)
     CPPostcondition(check,cp_failure_level,routineP,error,failure)
     ndim  = SIZE(results_in%result_value)

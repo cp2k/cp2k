@@ -359,12 +359,12 @@ CONTAINS
        index_c = g4x6_list ( iconst ) % c + first_atom -1
        index_d = g4x6_list ( iconst ) % d + first_atom -1
        IF (ishake==1) THEN
-          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
-          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
-          r0_14 ( : ) = pos ( :, index_a ) - pos ( :,index_d ) 
-          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
-          r0_24 ( : ) = pos ( :, index_b ) - pos ( :,index_d ) 
-          r0_34 ( : ) = pos ( :, index_c ) - pos ( :,index_d ) 
+          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b )
+          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c )
+          r0_14 ( : ) = pos ( :, index_a ) - pos ( :,index_d )
+          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c )
+          r0_24 ( : ) = pos ( :, index_b ) - pos ( :,index_d )
+          r0_34 ( : ) = pos ( :, index_c ) - pos ( :,index_d )
           atomic_kind => particle_set ( index_a ) % atomic_kind
           imass1 = 1.0_dp/atomic_kind%mass
           atomic_kind => particle_set ( index_b ) % atomic_kind
@@ -395,35 +395,35 @@ CONTAINS
           amat(1,4)=-imass2*DOTPROD_3D(r0_12, lg4x6 ( iconst ) % fd )
           amat(1,5)=-imass2*DOTPROD_3D(r0_12, lg4x6 ( iconst ) % fe )
           amat(1,6)=0.0_dp
-          
+
           amat(2,1)=imass1*DOTPROD_3D(r0_13,lg4x6 ( iconst ) % fa )
           amat(2,2)=(imass1+imass3)*DOTPROD_3D(r0_13, lg4x6 ( iconst) % fb )
           amat(2,3)=imass1*DOTPROD_3D(r0_13, lg4x6 ( iconst ) % fc )
           amat(2,4)=imass3*DOTPROD_3D(r0_13, lg4x6 ( iconst ) % fd )
           amat(2,5)=0.0_dp
           amat(2,6)=-imass3*DOTPROD_3D(r0_13, lg4x6 ( iconst ) % ff )
-          
+
           amat(3,1)=imass1*DOTPROD_3D(r0_14,lg4x6 ( iconst ) % fa )
           amat(3,2)=imass1*DOTPROD_3D(r0_14, lg4x6 ( iconst) % fb )
           amat(3,3)=(imass1+imass4)*DOTPROD_3D(r0_14, lg4x6 ( iconst ) % fc )
           amat(3,4)=0.0_dp
           amat(3,5)=imass4*DOTPROD_3D(r0_14, lg4x6 ( iconst ) % fe )
           amat(3,6)=imass4*DOTPROD_3D(r0_14, lg4x6 ( iconst ) % ff )
-          
+
           amat(4,1)=-imass2*DOTPROD_3D(r0_23,lg4x6 ( iconst ) % fa )
           amat(4,2)=imass3*DOTPROD_3D(r0_23, lg4x6 ( iconst) % fb )
           amat(4,3)=0.0_dp
           amat(4,4)=(imass3+imass2)*DOTPROD_3D(r0_23, lg4x6 ( iconst ) % fd )
           amat(4,5)=imass2*DOTPROD_3D(r0_23, lg4x6 ( iconst ) % fe )
           amat(4,6)=-imass3*DOTPROD_3D(r0_23, lg4x6 ( iconst ) % ff )
-          
+
           amat(5,1)=-imass2*DOTPROD_3D(r0_24,lg4x6 ( iconst ) % fa )
           amat(5,2)=0.0_dp
           amat(5,3)=imass4*DOTPROD_3D(r0_24, lg4x6 ( iconst) % fc )
           amat(5,4)=imass2*DOTPROD_3D(r0_24, lg4x6 ( iconst ) % fd )
           amat(5,5)=(imass4+imass2)*DOTPROD_3D(r0_24, lg4x6 ( iconst ) % fe )
           amat(5,6)=imass4*DOTPROD_3D(r0_24, lg4x6 ( iconst ) % ff )
-          
+
           amat(6,1)=0.0_dp
           amat(6,2)=-imass3*DOTPROD_3D(r0_34,lg4x6 ( iconst ) % fb )
           amat(6,3)=imass4*DOTPROD_3D(r0_34, lg4x6 ( iconst) % fc )
@@ -446,18 +446,18 @@ CONTAINS
           lg4x6 ( iconst ) % del_lambda = 0.0_dp
        ELSE
           ! Retrieve values
-          r0_12  = lg4x6 ( iconst ) % r0_12  
-          r0_13  = lg4x6 ( iconst ) % r0_13  
-          r0_14  = lg4x6 ( iconst ) % r0_14  
-          r0_23  = lg4x6 ( iconst ) % r0_23  
-          r0_24  = lg4x6 ( iconst ) % r0_24  
-          r0_34  = lg4x6 ( iconst ) % r0_34  
-          amat   = lg4x6 ( iconst ) % amat   
-          imass1 = lg4x6 ( iconst ) % imass1 
-          imass2 = lg4x6 ( iconst ) % imass2 
-          imass3 = lg4x6 ( iconst ) % imass3 
-          imass4 = lg4x6 ( iconst ) % imass4 
-       END IF          
+          r0_12  = lg4x6 ( iconst ) % r0_12
+          r0_13  = lg4x6 ( iconst ) % r0_13
+          r0_14  = lg4x6 ( iconst ) % r0_14
+          r0_23  = lg4x6 ( iconst ) % r0_23
+          r0_24  = lg4x6 ( iconst ) % r0_24
+          r0_34  = lg4x6 ( iconst ) % r0_34
+          amat   = lg4x6 ( iconst ) % amat
+          imass1 = lg4x6 ( iconst ) % imass1
+          imass2 = lg4x6 ( iconst ) % imass2
+          imass3 = lg4x6 ( iconst ) % imass3
+          imass4 = lg4x6 ( iconst ) % imass4
+       END IF
 
        ! Iterate until convergence:
        vec= lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa *(imass1+imass2) + &
@@ -503,24 +503,24 @@ CONTAINS
        bvec(6,1)=g4x6_list ( iconst ) % dcd * g4x6_list ( iconst) % dcd &
             -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_34,r0_34)
        bvec = bvec * idtsq
-       
+
        ! get lambda
        atemp = amat
        CALL solve_system ( atemp, 6, bvec )
        lg4x6 ( iconst ) % lambda ( : ) = bvec ( :, 1 )
        lg4x6 ( iconst ) % del_lambda( : ) = lg4x6 ( iconst ) % lambda ( : ) -&
                                             lg4x6 ( iconst ) % lambda_old ( : )
-       lg4x6 ( iconst ) % lambda_old ( : )= lg4x6 ( iconst ) % lambda ( : )       
-       
+       lg4x6 ( iconst ) % lambda_old ( : )= lg4x6 ( iconst ) % lambda ( : )
+
        fc1= lg4x6 ( iconst ) % del_lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
             lg4x6 ( iconst ) % del_lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
-            lg4x6 ( iconst ) % del_lambda ( 3 ) * lg4x6 ( iconst ) % fc 
+            lg4x6 ( iconst ) % del_lambda ( 3 ) * lg4x6 ( iconst ) % fc
        fc2=-lg4x6 ( iconst ) % del_lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
             lg4x6 ( iconst ) % del_lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-            lg4x6 ( iconst ) % del_lambda ( 5 ) * lg4x6 ( iconst ) % fe 
+            lg4x6 ( iconst ) % del_lambda ( 5 ) * lg4x6 ( iconst ) % fe
        fc3=-lg4x6 ( iconst ) % del_lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
             lg4x6 ( iconst ) % del_lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-            lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+            lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff
        fc4=-lg4x6 ( iconst ) % del_lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
             lg4x6 ( iconst ) % del_lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
             lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff
@@ -617,12 +617,12 @@ CONTAINS
        index_c = g4x6_list ( iconst ) % c + first_atom -1
        index_d = g4x6_list ( iconst ) % d + first_atom -1
        IF (ishake==1) THEN
-          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
-          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
-          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
-          r0_14 ( : ) = pos ( :, index_a ) - pos ( :,index_d ) 
-          r0_24 ( : ) = pos ( :, index_b ) - pos ( :,index_d ) 
-          r0_34 ( : ) = pos ( :, index_c ) - pos ( :,index_d ) 
+          r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b )
+          r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c )
+          r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c )
+          r0_14 ( : ) = pos ( :, index_a ) - pos ( :,index_d )
+          r0_24 ( : ) = pos ( :, index_b ) - pos ( :,index_d )
+          r0_34 ( : ) = pos ( :, index_c ) - pos ( :,index_d )
           atomic_kind => particle_set ( index_a ) % atomic_kind
           imass1 = 1.0_dp/atomic_kind%mass
           atomic_kind => particle_set ( index_b ) % atomic_kind
@@ -630,7 +630,7 @@ CONTAINS
           atomic_kind => particle_set ( index_c ) % atomic_kind
           imass3 = 1.0_dp/atomic_kind%mass
           atomic_kind => particle_set ( index_d ) % atomic_kind
-          imass4 = 1.0_dp/atomic_kind%mass      
+          imass4 = 1.0_dp/atomic_kind%mass
           lg4x6 ( iconst ) % fa = -2.0_dp*( lg4x6 ( iconst ) % ra_old - &
                lg4x6 ( iconst ) % rb_old )
           lg4x6 ( iconst ) % fb = -2.0_dp*( lg4x6 ( iconst ) % ra_old - &
@@ -653,7 +653,7 @@ CONTAINS
           CALL matvec_3x3 (f_roll4, r_shake, lg4x6 ( iconst ) % fd )
           CALL matvec_3x3 (f_roll5, r_shake, lg4x6 ( iconst ) % fe )
           CALL matvec_3x3 (f_roll6, r_shake, lg4x6 ( iconst ) % ff )
-          
+
           ! construct matrix
           amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12, f_roll1)
           amat(1,2)=imass1*DOTPROD_3D(r0_12, f_roll2 )
@@ -661,35 +661,35 @@ CONTAINS
           amat(1,4)=-imass2*DOTPROD_3D(r0_12, f_roll4 )
           amat(1,5)=-imass2*DOTPROD_3D(r0_12, f_roll5 )
           amat(1,6)=0.0_dp
-          
+
           amat(2,1)=imass1*DOTPROD_3D(r0_13, f_roll1 )
           amat(2,2)=(imass1+imass3)*DOTPROD_3D(r0_13, f_roll2 )
           amat(2,3)=imass1*DOTPROD_3D(r0_13, f_roll3 )
           amat(2,4)=imass3*DOTPROD_3D(r0_13, f_roll4 )
           amat(2,5)=0.0_dp
           amat(2,6)=-imass3*DOTPROD_3D(r0_13, f_roll6 )
-          
+
           amat(3,1)=imass1*DOTPROD_3D(r0_14, f_roll1 )
           amat(3,2)=imass1*DOTPROD_3D(r0_14, f_roll2 )
           amat(3,3)=(imass1+imass4)*DOTPROD_3D(r0_14, f_roll3 )
           amat(3,4)=0.0_dp
           amat(3,5)=imass4*DOTPROD_3D(r0_14, f_roll5 )
           amat(3,6)=imass4*DOTPROD_3D(r0_14, f_roll6 )
-          
+
           amat(4,1)=-imass2*DOTPROD_3D(r0_23, f_roll1 )
           amat(4,2)=imass3*DOTPROD_3D(r0_23, f_roll2)
           amat(4,3)=0.0_dp
           amat(4,4)=(imass3+imass2)*DOTPROD_3D(r0_23, f_roll4 )
           amat(4,5)=imass2*DOTPROD_3D(r0_23, f_roll5 )
           amat(4,6)=-imass3*DOTPROD_3D(r0_23, f_roll6 )
-          
+
           amat(5,1)=-imass2*DOTPROD_3D(r0_24, f_roll1 )
           amat(5,2)=0.0_dp
           amat(5,3)=imass4*DOTPROD_3D(r0_24, f_roll3 )
           amat(5,4)=imass2*DOTPROD_3D(r0_24, f_roll4 )
           amat(5,5)=(imass4+imass2)*DOTPROD_3D(r0_24, f_roll5 )
           amat(5,6)=imass4*DOTPROD_3D(r0_24, f_roll6 )
-          
+
           amat(6,1)=0.0_dp
           amat(6,2)=-imass3*DOTPROD_3D(r0_34, f_roll2 )
           amat(6,3)=imass4*DOTPROD_3D(r0_34, f_roll3 )
@@ -718,11 +718,11 @@ CONTAINS
           lg4x6 ( iconst ) % del_lambda = 0.0_dp
        ELSE
           ! Retrieve values
-          r0_12  = lg4x6 ( iconst ) % r0_12  
-          r0_13  = lg4x6 ( iconst ) % r0_13  
-          r0_14  = lg4x6 ( iconst ) % r0_14  
-          r0_23  = lg4x6 ( iconst ) % r0_23  
-          r0_24  = lg4x6 ( iconst ) % r0_24  
+          r0_12  = lg4x6 ( iconst ) % r0_12
+          r0_13  = lg4x6 ( iconst ) % r0_13
+          r0_14  = lg4x6 ( iconst ) % r0_14
+          r0_23  = lg4x6 ( iconst ) % r0_23
+          r0_24  = lg4x6 ( iconst ) % r0_24
           r0_34  = lg4x6 ( iconst ) % r0_34
           f_roll1 = lg4x6 ( iconst ) % f_roll1
           f_roll2 = lg4x6 ( iconst ) % f_roll2
@@ -730,14 +730,14 @@ CONTAINS
           f_roll4 = lg4x6 ( iconst ) % f_roll4
           f_roll5 = lg4x6 ( iconst ) % f_roll5
           f_roll6 = lg4x6 ( iconst ) % f_roll6
-          amat   = lg4x6 ( iconst ) % amat   
-          imass1 = lg4x6 ( iconst ) % imass1 
-          imass2 = lg4x6 ( iconst ) % imass2 
-          imass3 = lg4x6 ( iconst ) % imass3 
-          imass4 = lg4x6 ( iconst ) % imass4 
-       END IF          
+          amat   = lg4x6 ( iconst ) % amat
+          imass1 = lg4x6 ( iconst ) % imass1
+          imass2 = lg4x6 ( iconst ) % imass2
+          imass3 = lg4x6 ( iconst ) % imass3
+          imass4 = lg4x6 ( iconst ) % imass4
+       END IF
 
-       ! Iterate until convergence:          
+       ! Iterate until convergence:
        vec= lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1*(imass1+imass2) + &
             lg4x6 ( iconst ) % lambda ( 2 ) * imass1*f_roll2 + &
             lg4x6 ( iconst ) % lambda ( 3 ) * imass1*f_roll3 - &
@@ -781,27 +781,27 @@ CONTAINS
        bvec(6,1)=g4x6_list ( iconst ) % dcd * g4x6_list ( iconst) % dcd &
             -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_34,r0_34)
        bvec = bvec * idtsq
-       
+
        ! get lambda
        atemp = amat
        CALL solve_system ( atemp, 6, bvec )
        lg4x6 ( iconst ) % lambda ( : ) = bvec ( :, 1 )
        lg4x6 ( iconst ) % del_lambda( : ) = lg4x6 ( iconst ) % lambda ( : ) -&
                                             lg4x6 ( iconst ) % lambda_old ( : )
-       lg4x6 ( iconst ) % lambda_old ( : )= lg4x6 ( iconst ) % lambda ( : )       
-              
+       lg4x6 ( iconst ) % lambda_old ( : )= lg4x6 ( iconst ) % lambda ( : )
+
        fc1= lg4x6 ( iconst ) % del_lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
             lg4x6 ( iconst ) % del_lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
-            lg4x6 ( iconst ) % del_lambda ( 3 ) * lg4x6 ( iconst ) % fc 
+            lg4x6 ( iconst ) % del_lambda ( 3 ) * lg4x6 ( iconst ) % fc
        fc2=-lg4x6 ( iconst ) % del_lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
             lg4x6 ( iconst ) % del_lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-            lg4x6 ( iconst ) % del_lambda ( 5 ) * lg4x6 ( iconst ) % fe 
+            lg4x6 ( iconst ) % del_lambda ( 5 ) * lg4x6 ( iconst ) % fe
        fc3=-lg4x6 ( iconst ) % del_lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
             lg4x6 ( iconst ) % del_lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-            lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+            lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff
        fc4=-lg4x6 ( iconst ) % del_lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
             lg4x6 ( iconst ) % del_lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
-            lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+            lg4x6 ( iconst ) % del_lambda ( 6 ) * lg4x6 ( iconst ) % ff
        CALL MATVEC_3x3(vec,r_shake,fc1)
        r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*vec
        CALL MATVEC_3x3(vec,r_shake,fc2)
@@ -818,7 +818,7 @@ CONTAINS
        v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*vec
        CALL MATVEC_3x3(vec,r_shake,fc4)
        v4 ( : ) = vel ( :, index_d ) + imass4*dtby2*vec
-       
+
        r12=r1-r2
        r13=r1-r3
        r23=r2-r3
@@ -844,7 +844,7 @@ CONTAINS
        sigma = DOT_PRODUCT(r34,r34) - g4x6_list ( iconst ) % dcd *  &
             g4x6_list ( iconst ) % dcd
        max_sigma=MAX(max_sigma,ABS(sigma))
-    
+
        ! update positions with full multiplier
        pos ( :, index_a ) = r1 ( : )
        pos ( :, index_b ) = r2 ( : )
@@ -896,12 +896,12 @@ CONTAINS
        index_b = g4x6_list ( iconst ) % b + first_atom -1
        index_c = g4x6_list ( iconst ) % c + first_atom -1
        index_d = g4x6_list ( iconst ) % d + first_atom -1
-       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b ) 
-       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c ) 
-       v14 ( : ) = vel ( :, index_a ) - vel ( :, index_d ) 
-       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c ) 
-       v24 ( : ) = vel ( :, index_b ) - vel ( :, index_d ) 
-       v34 ( : ) = vel ( :, index_c ) - vel ( :, index_d ) 
+       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b )
+       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c )
+       v14 ( : ) = vel ( :, index_a ) - vel ( :, index_d )
+       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c )
+       v24 ( : ) = vel ( :, index_b ) - vel ( :, index_d )
+       v34 ( : ) = vel ( :, index_c ) - vel ( :, index_d )
 
        r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
        r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
@@ -988,16 +988,16 @@ CONTAINS
 
        fc1=lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
             lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb + &
-            lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc 
+            lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc
        fc2=-lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa + &
             lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-            lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe 
+            lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe
        fc3=-lg4x6 ( iconst ) % lambda ( 2 ) * lg4x6 ( iconst ) % fb - &
             lg4x6 ( iconst ) % lambda ( 4 ) * lg4x6 ( iconst ) % fd + &
-            lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+            lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff
        fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
             lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
-            lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+            lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff
        vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
        vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
        vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
@@ -1047,12 +1047,12 @@ CONTAINS
        index_b = g4x6_list ( iconst ) % b + first_atom -1
        index_c = g4x6_list ( iconst ) % c + first_atom -1
        index_d = g4x6_list ( iconst ) % d + first_atom -1
-       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b ) 
-       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c ) 
-       v14 ( : ) = vel ( :, index_a ) - vel ( :, index_d ) 
-       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c ) 
-       v24 ( : ) = vel ( :, index_b ) - vel ( :, index_d ) 
-       v34 ( : ) = vel ( :, index_c ) - vel ( :, index_d ) 
+       v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b )
+       v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c )
+       v14 ( : ) = vel ( :, index_a ) - vel ( :, index_d )
+       v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c )
+       v24 ( : ) = vel ( :, index_b ) - vel ( :, index_d )
+       v34 ( : ) = vel ( :, index_c ) - vel ( :, index_d )
 
        r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
        r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
@@ -1153,16 +1153,16 @@ CONTAINS
 
        fc1=lambda ( 1 ) * f_roll1 + &
             lambda ( 2 ) * f_roll2 + &
-            lambda ( 3 ) * f_roll3 
+            lambda ( 3 ) * f_roll3
        fc2=-lambda ( 1 ) * f_roll1 + &
             lambda ( 4 ) * f_roll4 + &
-            lambda ( 5 ) * f_roll5 
+            lambda ( 5 ) * f_roll5
        fc3=-lambda ( 2 ) * f_roll2 - &
             lambda ( 4 ) * f_roll4 + &
-            lambda ( 6 ) * f_roll6 
+            lambda ( 6 ) * f_roll6
        fc4=-lambda ( 3 ) * f_roll3 - &
             lambda ( 5 ) * f_roll5 - &
-            lambda ( 6 ) * f_roll6 
+            lambda ( 6 ) * f_roll6
        vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
        vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
        vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )

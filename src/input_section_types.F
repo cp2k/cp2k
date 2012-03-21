@@ -131,7 +131,7 @@ MODULE input_section_types
      TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER   :: values
      TYPE(section_vals_p_type), DIMENSION(:,:), POINTER :: subs_vals
   END TYPE section_vals_type
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -141,10 +141,10 @@ CONTAINS
 !> \param n_sections a hint about how many sections will be added to this
 !>        structure, defaults to 0
 !> \param repeats if this section can repeat (defaults to false)
-!> \param required if this section is required (and thus it cannot be 
+!> \param required if this section is required (and thus it cannot be
 !>        totally default). Defaults to false.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_create(section,name,description,n_keywords,&
@@ -222,8 +222,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given keyword list (see doc/ReferenceCounting.html)
 !> \param section the list to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_retain(section,error)
@@ -247,8 +247,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given keyword list (see doc/ReferenceCounting.html)
 !> \param section the list to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_release(section,error)
@@ -331,8 +331,8 @@ CONTAINS
 !>        then see keyword_describe :-)
 !> \param hide_root if the name of the first section should be hidden
 !>        (defaults to false).
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurse,error)
@@ -444,9 +444,9 @@ CONTAINS
 
        IF (ASSOCIATED(section%citations)) THEN
           IF (SIZE(section%citations,1)>1) THEN
-             WRITE(179,FMT='(A)') '<BR><BR> This section cites following references: ' 
+             WRITE(179,FMT='(A)') '<BR><BR> This section cites following references: '
           ELSE
-             WRITE(179,FMT='(A)') '<BR><BR> This section cites following reference: ' 
+             WRITE(179,FMT='(A)') '<BR><BR> This section cites following reference: '
           ENDIF
           DO iref=1,SIZE(section%citations,1)
              WRITE(179,FMT='(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
@@ -552,8 +552,8 @@ CONTAINS
 !> \brief returns the index of requested subsection (-1 if not found)
 !> \param section the root section
 !> \param subsection_name the name of the subsection you want to get
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      private utility function
 !> \author fawzi
@@ -593,8 +593,8 @@ CONTAINS
 !> \brief returns the requested subsection
 !> \param section the root section
 !> \param subsection_name the name of the subsection you want to get
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION section_get_subsection(section,subsection_name,error) RESULT(res)
@@ -620,8 +620,8 @@ CONTAINS
 !> \brief returns the index of the requested keyword (or -2 if not found)
 !> \param section the section the keyword is in
 !> \param keyword_name the keyword you are interested in
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      private utility function
 !> \author fawzi
@@ -673,8 +673,8 @@ CONTAINS
 !> \brief returns the requested keyword
 !> \param section the section the keyword is in
 !> \param keyword_name the keyword you are interested in
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE FUNCTION section_get_keyword(section,keyword_name,error) RESULT(res)
@@ -711,9 +711,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns various attibutes of a section object
 !> \param section the section you want informations about
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
 !>      For the other attributes see the section type
 !> \note
 !>       give direct access to keywords and subsections?
@@ -753,8 +753,8 @@ CONTAINS
 !> \brief adds a keyword to the given section
 !> \param section the section to which the keyword should be added
 !> \param keyword the keyword to add
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_add_keyword(section,keyword,error)
@@ -822,8 +822,8 @@ CONTAINS
 !> \brief adds a subsection to the given section
 !> \param section to section to which you want to add a subsection
 !> \param subsection the subsection to add
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_add_subsection(section,subsection,error)
@@ -875,8 +875,8 @@ CONTAINS
 !> \brief creates a object where to store the values of a section
 !> \param section_vals the parsed section that will be created
 !> \param section the structure of the section that you want to parse
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
@@ -918,8 +918,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given section values (see doc/ReferenceCounting.html)
 !> \param section_vals the object to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_retain(section_vals,error)
@@ -942,8 +942,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given object
 !> \param section_vals the section_vals to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_release(section_vals, error)
@@ -1000,10 +1000,10 @@ CONTAINS
 !> \param n_repetition number of repetitions of the section
 !> \param n_sub_vals_rep number of repetitions of the subsections values
 !>        (max(1,n_repetition))
-!> \param explicit if the section was explicitly present in 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> 
+!> \param explicit if the section was explicitly present in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
 !>      For the other arguments see the attributes of section_vals_type
 !> \author fawzi
 ! *****************************************************************************
@@ -1045,8 +1045,8 @@ CONTAINS
 !> \param i_rep_section index of the repetition of section_vals from which
 !>        you want to extract the subsection (defaults to 1)
 !> \param can_return_null if the results can be null (defaults to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
@@ -1103,7 +1103,7 @@ CONTAINS
          error,failure)
     IF (is_path .AND. ASSOCIATED(res) ) THEN
        res=>section_vals_get_subs_vals(res,subsection_name(my_index+2:LEN_TRIM(subsection_name)),&
-            i_rep_section,can_return_null,error) 
+            i_rep_section,can_return_null,error)
     ENDIF
 
   END FUNCTION section_vals_get_subs_vals
@@ -1115,8 +1115,8 @@ CONTAINS
 !> \param i_section index of the section
 !> \param i_rep_section index of the repetition of section_vals from which
 !>        you want to extract the subsection (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION section_vals_get_subs_vals2(section_vals,i_section,i_rep_section,error) RESULT(res)
@@ -1162,8 +1162,8 @@ CONTAINS
 !> \param i_section index of the section
 !> \param i_rep_section index of the repetition of section_vals from which
 !>        you want to extract the subsection (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION section_vals_get_subs_vals3(section_vals,subsection_name,&
@@ -1198,8 +1198,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief adds the place to store the values of a repetition of the section
 !> \param section_vals the section you want to extend
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_add_values(section_vals,error)
@@ -1261,8 +1261,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief removes the values of a repetition of the section
 !> \param section_vals the section you want to extend
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_remove_values(section_vals,error)
@@ -1305,7 +1305,7 @@ CONTAINS
     END IF
   END SUBROUTINE section_vals_remove_values
 
-! These accessor functions can be used instead of passing a variable 
+! These accessor functions can be used instead of passing a variable
 ! in the parameter list of a subroutine call. This should make the
 ! code a lot simpler. See xc_rho_set_and_dset_create in xc.F as
 ! an example.
@@ -1383,8 +1383,8 @@ CONTAINS
 !>        character value
 !> \param l_vals ,i_vals,r_vals,c_vals: returns the logical,integer,real or
 !>        character arrays. The val reamins the owner of the array
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
@@ -1597,8 +1597,8 @@ CONTAINS
 !>        character value
 !> \param l_vals_ptr ,i_vals_ptr,r_vals,c_vals: sets the logical,integer,real or
 !>        character arrays. The val becomes the owner of the array
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,i_rep_val,&
@@ -1756,8 +1756,8 @@ CONTAINS
 !>        (defaults to 1)
 !> \param ival which repetition of the keyword/val you are interested in
 !>        (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
@@ -1838,8 +1838,8 @@ CONTAINS
 !>      release version
 !> \param section_vals the section to check for released features
 !> \param unit_nr the unit where to write to
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      skips required sections which weren't read
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
@@ -1897,7 +1897,7 @@ CONTAINS
                 IF (ASSOCIATED(keyword)) THEN
                    CALL section_vals_val_get(section_vals,keyword%names(1),i_rep_s,n_rep_val=nval,error=error)
                    check_key = .FALSE.
-                   IF (i_rep_s<=SIZE(section_vals%values,2)) THEN 
+                   IF (i_rep_s<=SIZE(section_vals%values,2)) THEN
                       vals  => section_vals%values(ik,i_rep_s)%list
                       new_pos => vals
                       IF (ASSOCIATED(new_pos)) THEN
@@ -1941,7 +1941,7 @@ CONTAINS
        END DO
     END IF
     CALL cp_error_dealloc_ref(suberror)
-    
+
   END SUBROUTINE section_vals_check_release
 
 ! *****************************************************************************
@@ -1949,8 +1949,8 @@ CONTAINS
 !>      the automatic parsing
 !> \param section_vals the section to write out
 !> \param unit_nr the unit where to write to
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      skips required sections which weren't read
 !> \author fawzi
@@ -2005,7 +2005,7 @@ CONTAINS
              IF (.NOT.(section%required.AND.defaultSection)) THEN
                 IF (.NOT.my_hide_root) indent = indent + 2
                 WRITE(myfmt,*)indent,"X"
-                CALL compress(myfmt,full=.TRUE.)           
+                CALL compress(myfmt,full=.TRUE.)
                 DO ik=-1,section%n_keywords
                    keyword => section%keywords(ik)%keyword
                    IF (ASSOCIATED(keyword)) THEN
@@ -2039,14 +2039,14 @@ CONTAINS
                                        TRIM(keyword%names(1))
                                ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
                                     keyword%type_of_var/=lchar_t) THEN
-                                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO") 
+                                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                                END IF
                                CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
                                     fmt=myfmt,error=suberror)
                                CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                                     message="for val "// TRIM(keyword%names(1))//" in section "//&
                                     TRIM(section%name),error=error, failure=failure)
-                               IF (failure) EXIT                          
+                               IF (failure) EXIT
                             END DO
                          ELSEIF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
                             ! Section was not parsed but default for the keywords may exist
@@ -2061,14 +2061,14 @@ CONTAINS
                                     TRIM(keyword%names(1))
                             ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
                                  keyword%type_of_var/=lchar_t) THEN
-                               WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO") 
+                               WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                             END IF
                             CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
                                  fmt=myfmt,error=suberror)
                             CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                                  message="for val "// TRIM(keyword%names(1))//" in section "//&
                                  TRIM(section%name),error=error, failure=failure)
-                            IF (failure) EXIT                       
+                            IF (failure) EXIT
                          END IF
                       END IF
                    END IF
@@ -2238,8 +2238,8 @@ CONTAINS
 !> \param new_section_vals the new section_vals to use
 !> \param i_rep_section index of the repetition of section_vals of which
 !>        you want to replace the subsection (defaults to 1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_set_subs_vals(section_vals,subsection_name,&
@@ -2306,9 +2306,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a deep copy from section_vals_in to section_vals_out
 !> \param section_vals_in the section_vals to copy
-!> \param section_vals_out the section_vals to create 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section_vals_out the section_vals to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
@@ -2338,8 +2338,8 @@ CONTAINS
 !> \brief deep copy from section_vals_in to section_vals_out
 !> \param section_vals_in the section_vals to copy
 !> \param section_vals_out the section_vals where to copy
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      private, only works with a newly initialized section_vals_out
 !> \author fawzi

@@ -77,7 +77,7 @@ CONTAINS
 !> \par History
 !>      created [MI]
 !>      the loop over the spins is done internally [03-05,MI]
-!>      Rewrite using new OCE matrices [08.02.09, jhu]        
+!>      Rewrite using new OCE matrices [08.02.09, jhu]
 ! *****************************************************************************
   SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
 
@@ -353,7 +353,7 @@ CONTAINS
                          rho_at,force_tmp,nspins,iatom,jatom,nsoctot,&
                          list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
                          dista,distb,coc,error)
-                   
+
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                       force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                       force_tmp(1:3,3)

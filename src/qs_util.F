@@ -96,7 +96,7 @@ MODULE qs_util
   ! *** Public subroutines ***
 
   PUBLIC :: cart2sph_mat,&
-       exp_radius,& 
+       exp_radius,&
        gauss_exponent,&
        gaussint_sph,&
        trace_r_AxB, &
@@ -109,8 +109,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  The exponent of a primitive Gaussian function for a given radius
-!>         and threshold is calculated. 
-!> \author MK 
+!>         and threshold is calculated.
+!> \author MK
 !> \date   07.03.1999
 !> \par Variables
 !>      - exponent : Exponent of the primitive Gaussian function.
@@ -118,7 +118,7 @@ CONTAINS
 !>      - prefactor: Prefactor of the Gaussian function (e.g. a contraction
 !>                   coefficient).
 !>      - radius   : Calculated radius of the Gaussian function.
-!>      - threshold: Threshold for radius. 
+!>      - threshold: Threshold for radius.
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION gauss_exponent(l,radius,threshold,prefactor) RESULT(exponent)
@@ -137,7 +137,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  The radius of a primitive Gaussian function for a given threshold
-!>         is calculated. 
+!>         is calculated.
 !>               g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
 !> \par History
 !>            - Modified to bisection to avoid division by zero (01.2002, Joost)
@@ -225,7 +225,7 @@ CONTAINS
     rlow  = r
     rhigh = 2.0_dp*rlow+1.0_dp
     iter=0
-    DO 
+    DO
        iter=iter+1
        IF (iter.gt.maxiter) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
@@ -234,7 +234,7 @@ CONTAINS
        g = d*rhigh**l*EXP(-a*rhigh**2)
        IF (g < t) EXIT
        rlow = rhigh
-       rhigh =  2.0_dp*rlow+1.0_dp 
+       rhigh =  2.0_dp*rlow+1.0_dp
     ENDDO
 
     DO iter=1,maxiter
@@ -483,9 +483,9 @@ CONTAINS
                 work(ic1,is2+nsoset(l-1)) = &
                      work(ic1,is2+nsoset(l-1)) + &
                      CPC_co(ic1,ic2+ncoset(l-1))*&
-                     orbtramat(l)%c2s(is2,ic2)*& 
+                     orbtramat(l)%c2s(is2,ic2)*&
                      SQRT(fourpi/dfac(2*l+1)*&
-                     dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)) 
+                     dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
                 !         write(*,*) 'dfac 1', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
              ENDDO
           ENDDO
@@ -586,7 +586,7 @@ CONTAINS
     nc2 = ncoset(lm2)
 
     !   A = matso (ns1 x ns2)
-    !   C = Tt x A x T = matco (nc1 x nc2)   
+    !   C = Tt x A x T = matco (nc1 x nc2)
     !   B = A x T      = matsc (ns1 x nc2)
 
     !   Calculate B

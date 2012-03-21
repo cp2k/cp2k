@@ -9,7 +9,7 @@
 !>   - TCA:   W. Thiel and  A. A. Voityuk - Teor. Chim. Acta (1992) 81:391-404
 !>   - TCA77: M.J.S. Dewar and W. Thiel - Teor. Chim. Acta (1977) 46:89-104
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich 
+!> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
 ! *****************************************************************************
 MODULE semi_empirical_int_arrays
@@ -24,7 +24,7 @@ MODULE semi_empirical_int_arrays
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_arrays'
   REAL(KINd=dp), PARAMETER, PUBLIC     :: rij_threshold = 0.00002_dp
-  
+
   ! Mapping index for orbital ordering
   INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer=(/1,4,2,3,9,8,7,6,5/)
   INTEGER, DIMENSION(9), PUBLIC        :: se_map_alm        =(/1,3,4,2,8,6,5,7,9/)
@@ -79,7 +79,7 @@ MODULE semi_empirical_int_arrays
   INTEGER, DIMENSION(9), PARAMETER, PUBLIC        :: l_index=(/&
        0, 1, 1, 1, 2, 2, 2, 2, 2/)
 
-  ! Index for <ij|kl> 
+  ! Index for <ij|kl>
   INTEGER, DIMENSION (45, 45), PUBLIC             :: ijkl_ind
 
   ! Symmetry index for <ij|kl>
@@ -137,7 +137,7 @@ CONTAINS
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008 [tlaino]
-! *****************************************************************************  
+! *****************************************************************************
   SUBROUTINE init_se_intd_array(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -171,34 +171,34 @@ CONTAINS
        DO j = 1, i
           ! indexa:
           !           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy
-          !      s    1    2    3    4    5    6    7    8    9 
-          !      pz   2   10   11   12   13   14   15   16   17 
-          !      px   3   11   18   19   20   21   22   23   24 
-          !      py   4   12   19   25   26   27   28   29   30 
-          !     dz2   5   13   20   26   31   32   33   34   35 
-          !     dzx   6   14   21   27   32   36   37   38   39 
-          !     dzy   7   15   22   28   33   37   40   41   42 
-          !  dx2-y2   8   16   23   29   34   38   41   43   44 
-          !     dxy   9   17   24   30   35   39   42   44   45 
+          !      s    1    2    3    4    5    6    7    8    9
+          !      pz   2   10   11   12   13   14   15   16   17
+          !      px   3   11   18   19   20   21   22   23   24
+          !      py   4   12   19   25   26   27   28   29   30
+          !     dz2   5   13   20   26   31   32   33   34   35
+          !     dzx   6   14   21   27   32   36   37   38   39
+          !     dzy   7   15   22   28   33   37   40   41   42
+          !  dx2-y2   8   16   23   29   34   38   41   43   44
+          !     dxy   9   17   24   30   35   39   42   44   45
           indexa(i,j) = (9*(j-1))-(j*(j-1))/2+i
           indexa(j,i) = indexa(i,j)
           ! indexb:
           !           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy
-          !      s    1    2    4    7   11   16   22   29   37 
-          !      pz   2    3    5    8   12   17   23   30   38 
-          !      px   4    5    6    9   13   18   24   31   39 
-          !      py   7    8    9   10   14   19   25   32   40 
-          !     dz2  11   12   13   14   15   20   26   33   41 
-          !     dzx  16   17   18   19   20   21   27   34   42 
-          !     dzy  22   23   24   25   26   27   28   35   43 
-          !  dx2-y2  29   30   31   32   33   34   35   36   44 
-          !     dxy  37   38   39   40   41   42   43   44   45 
+          !      s    1    2    4    7   11   16   22   29   37
+          !      pz   2    3    5    8   12   17   23   30   38
+          !      px   4    5    6    9   13   18   24   31   39
+          !      py   7    8    9   10   14   19   25   32   40
+          !     dz2  11   12   13   14   15   20   26   33   41
+          !     dzx  16   17   18   19   20   21   27   34   42
+          !     dzy  22   23   24   25   26   27   28   35   43
+          !  dx2-y2  29   30   31   32   33   34   35   36   44
+          !     dxy  37   38   39   40   41   42   43   44   45
           indexb(i,j) = (i*(i-1))/2+j
           indexb(j,i) = indexb(i,j)
        END DO
     END DO
   END SUBROUTINE setup_index_array
-    
+
 ! *****************************************************************************
 !> \brief Fills in array for the rotation of the integrals
 !>
@@ -312,13 +312,13 @@ CONTAINS
     ! Notation (1) s
     !          (2) pz = p_sigma             (5) d_sigma           = dz2  (8) d_delta               = dx2-y2
     !          (3) px = p_pi                (6) d_pi              = dzx  (9) d_{\overline{delta}}  = dxy
-    !          (4) py = pi_{\overline{pi}}  (7) d_{\overline{pi}} = dzy    
-    
+    !          (4) py = pi_{\overline{pi}}  (7) d_{\overline{pi}} = dzy
+
     clm_d = 0.0_dp
     clm_sp= 0.0_dp
     alm   = 0.0_dp
     ! Let's fill all element of table 1 with resulting multipole lesser than 2
-    ! Important Note: the value of the clm_sp does not reflect any phyisical 
+    ! Important Note: the value of the clm_sp does not reflect any phyisical
     !                 rule for decomposing/summing multipoles. It's just a
     !                 computational trick to put some order where conceptual mess
     !                 has been created..
@@ -382,7 +382,7 @@ CONTAINS
     clm_d (18, 2, 0) = CLM23m
     clm_d (18, 2, 2) = CLM1
     clm_sp(18, 0, 0) = CLM1
-    clm_sp(18, 2, 0) = CLMyy 
+    clm_sp(18, 2, 0) = CLMyy
     alm   (18, 0, 0) = ALM1
     alm   (18, 2, 0) = ALMs15m
     alm   (18, 2, 2) = ALMs35
@@ -398,7 +398,7 @@ CONTAINS
     alm   (21, 1, 0) = ALMs35
     ! px dx2-y2
     clm_d (23, 1, 1) = CLM1
-    alm   (23, 1, 1) = ALMs35 
+    alm   (23, 1, 1) = ALMs35
     ! px dxy
     clm_d (24, 1,-1) = CLM1
     alm   (24, 1,-1) = ALMs35
@@ -480,7 +480,7 @@ CONTAINS
     alm   (45, 0, 0) = ALM1
     alm   (45, 2, 0) = ALMs20_49m
   END SUBROUTINE setup_clm_array
-  
+
 ! *****************************************************************************
 !> \brief Fills in the index number for the <ij|kl> integral as well as the
 !>        symmetry index
@@ -499,16 +499,16 @@ CONTAINS
     failure = .FALSE.
     ! Address unique indexes (excluding those related by rotations)
     ! Indexes according:
-    !           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy 
-    !      s    1    2    3    4    5    6    7    8    9  
-    !      pz   2   10   11   12   13   14   15   16   17  
-    !      px   3   11   18   19   20   21   22   23   24  
-    !      py   4   12   19   25   26   27   28   29   30  
-    !     dz2   5   13   20   26   31   32   33   34   35  
-    !     dzx   6   14   21   27   32   36   37   38   39  
-    !     dzy   7   15   22   28   33   37   40   41   42  
-    !  dx2-y2   8   16   23   29   34   38   41   43   44  
-    !     dxy   9   17   24   30   35   39   42   44   45  
+    !           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy
+    !      s    1    2    3    4    5    6    7    8    9
+    !      pz   2   10   11   12   13   14   15   16   17
+    !      px   3   11   18   19   20   21   22   23   24
+    !      py   4   12   19   25   26   27   28   29   30
+    !     dz2   5   13   20   26   31   32   33   34   35
+    !     dzx   6   14   21   27   32   36   37   38   39
+    !     dzy   7   15   22   28   33   37   40   41   42
+    !  dx2-y2   8   16   23   29   34   38   41   43   44
+    !     dxy   9   17   24   30   35   39   42   44   45
     ! ################  Zero the Arrays #######################
     ijkl_ind = 0
     ijkl_sym = 0
@@ -534,7 +534,7 @@ CONTAINS
     ijkl_ind( 1, 21) = 38
     !                       s       s   -      dzx     dzx
     ijkl_ind( 1, 36) = 39
-    !                       s       s   -      dzy      py        
+    !                       s       s   -      dzy      py
     ijkl_ind( 1, 28) = 40
     ijkl_sym(40)     = 38
     !                       s       s   -      dzy     dzy
@@ -579,7 +579,7 @@ CONTAINS
     ijkl_ind( 2, 45) = 52
     ijkl_sym(52)     = 51
     ! ################     pz      pz   #######################
-    !                      pz      pz   -        s       s              
+    !                      pz      pz   -        s       s
     ijkl_ind(10,  1) = 11
     !                      pz      pz   -       pz       s
     ijkl_ind(10,  2) = 12
@@ -612,7 +612,7 @@ CONTAINS
     ijkl_ind(10, 45) = 61
     ijkl_sym(61)     = 60
     ! ################     px       s   #######################
-    !                      px       s   -       px       s  
+    !                      px       s   -       px       s
     ijkl_ind( 3,  3) = 16
     !                      px       s   -       px      pz
     ijkl_ind( 3, 11) = 17
@@ -734,7 +734,7 @@ CONTAINS
     !                      py      pz   -      dzy       s
     ijkl_ind(12, 26) = 98
     ijkl_sym(98)     = 70
-    !                      py      pz   -      dzy      pz 
+    !                      py      pz   -      dzy      pz
     ijkl_ind(12,  7) = 99
     ijkl_sym(99)     = 71
     !                      py      pz   -      dzy     dz2
@@ -776,46 +776,46 @@ CONTAINS
     ijkl_ind(19, 35) = 111
     ijkl_sym(111)    = 87
     ! ################     py      py   #######################
-    !                      py      py   -        s       s 
+    !                      py      py   -        s       s
     ijkl_ind(25,  1) = 30
     ijkl_sym(30)     = 20
-    !                      py      py   -       pz       s 
+    !                      py      py   -       pz       s
     ijkl_ind(25,  2) = 31
     ijkl_sym(31)     = 21
-    !                      py      py   -       pz      pz 
+    !                      py      py   -       pz      pz
     ijkl_ind(25, 10) = 32
     ijkl_sym(32)     = 22
-    !                      py      py   -       px      px 
+    !                      py      py   -       px      px
     ijkl_ind(25, 18) = 33
     ijkl_sym(33)     = 24
     !                      py      py   -       py      py
     ijkl_ind(25, 25) = 34
     ijkl_sym(34)     = 23
-    !                      py      py   -      dz2       s 
+    !                      py      py   -      dz2       s
     ijkl_ind(25,  5) = 112
     ijkl_sym(112)    = 78
-    !                      py      py   -      dz2      pz 
+    !                      py      py   -      dz2      pz
     ijkl_ind(25, 13) = 113
     ijkl_sym(113)    = 79
-    !                      py      py   -      dz2     dz2   
+    !                      py      py   -      dz2     dz2
     ijkl_ind(25, 31) = 114
     ijkl_sym(114)    = 80
-    !                      py      py   -      dzx      px  
+    !                      py      py   -      dzx      px
     ijkl_ind(25, 21) = 115
     ijkl_sym(115)    = 83
-    !                      py      py   -      dzx     dzx 
+    !                      py      py   -      dzx     dzx
     ijkl_ind(25, 36) = 116
     ijkl_sym(116)    = 84
-    !                      py      py   -      dzy      py 
+    !                      py      py   -      dzy      py
     ijkl_ind(25, 28) = 117
     ijkl_sym(117)    = 81
-    !                      py      py   -      dzy     dzy  
+    !                      py      py   -      dzy     dzy
     ijkl_ind(25, 40) = 118
     ijkl_sym(118)    = 82
     !                      py      py   -   dx2-y2       s
     ijkl_ind(25,  8) = 119
     ijkl_sym(119)    = 85*(-1)
-    !                      py      py   -   dx2-y2      pz 
+    !                      py      py   -   dx2-y2      pz
     ijkl_ind(25, 16) = 120
     ijkl_sym(120)    = 86*(-1)
     !                      py      py   -   dx2-y2     dz2
@@ -824,7 +824,7 @@ CONTAINS
     !                      py      py   -   dx2-y2  dx2-y2
     ijkl_ind(25, 43) = 122
     ijkl_sym(122)    = 88
-    !                      py      py   -      dxy     dxy 
+    !                      py      py   -      dxy     dxy
     ijkl_ind(25, 45) = 123
     ijkl_sym(123)    = 88
     ! ################    dz2     dz2   #######################
@@ -895,33 +895,33 @@ CONTAINS
     ijkl_sym(151)    = 150
     ! ################    dz2      px   #######################
     !                     dz2      px   -       px       s
-    ijkl_ind(20,  3) = 152          
+    ijkl_ind(20,  3) = 152
     !                     dz2      px   -       px      pz
-    ijkl_ind(20, 11) = 153          
+    ijkl_ind(20, 11) = 153
     !                     dz2      px   -      dz2      px
-    ijkl_ind(20, 20) = 154          
+    ijkl_ind(20, 20) = 154
     !                     dz2      px   -      dzx       s
-    ijkl_ind(20,  6) = 155          
+    ijkl_ind(20,  6) = 155
     !                     dz2      px   -      dzx      pz
-    ijkl_ind(20, 14) = 156          
+    ijkl_ind(20, 14) = 156
     !                     dz2      px   -      dzx     dz2
-    ijkl_ind(20, 32) = 157          
+    ijkl_ind(20, 32) = 157
     !                     dz2      px   -   dx2-y2      px
-    ijkl_ind(20, 23) = 158          
-    !                     dz2      px   -   dx2-y2     dzx 
-    ijkl_ind(20, 38) = 159          
-    !                     dz2      px   -      dxy      py 
-    ijkl_ind(20, 30) = 160          
+    ijkl_ind(20, 23) = 158
+    !                     dz2      px   -   dx2-y2     dzx
+    ijkl_ind(20, 38) = 159
+    !                     dz2      px   -      dxy      py
+    ijkl_ind(20, 30) = 160
     ijkl_sym(160)    = 158
-    !                     dz2      px   -      dxy     dxy 
-    ijkl_ind(20, 42) = 161          
+    !                     dz2      px   -      dxy     dxy
+    ijkl_ind(20, 42) = 161
     ijkl_sym(161)    = 159
     ! ################    dz2      py   #######################
-    !                     dz2      py   -       py       s   
-    ijkl_ind(26,  4) = 162          
+    !                     dz2      py   -       py       s
+    ijkl_ind(26,  4) = 162
     ijkl_sym(162)    = 152
     !                     dz2      py   -       py      pz
-    ijkl_ind(26, 12) = 163          
+    ijkl_ind(26, 12) = 163
     ijkl_sym(163)    = 153
     !                     dz2      py   -      dz2      py
     ijkl_ind(26, 26) = 164
@@ -939,7 +939,7 @@ CONTAINS
     ijkl_ind(26, 29) = 168
     ijkl_sym(168)    = 158*(-1)
     !                     dz2      py   -   dx2-y2     dzy
-    ijkl_ind(26, 41) = 169 
+    ijkl_ind(26, 41) = 169
     ijkl_sym(169)    = 159*(-1)
     !                     dz2      py   -      dxy      px
     ijkl_ind(26, 24) = 170
@@ -949,36 +949,36 @@ CONTAINS
     ijkl_sym(171)    = 159
     ! ################    dz2     dz2   #######################
     !                     dz2     dz2   -        s       s
-    ijkl_ind(31,  1) = 172          
+    ijkl_ind(31,  1) = 172
     !                     dz2     dz2   -       pz       s
-    ijkl_ind(31,  2) = 173          
+    ijkl_ind(31,  2) = 173
     !                     dz2     dz2   -       pz      pz
-    ijkl_ind(31, 10) = 174          
+    ijkl_ind(31, 10) = 174
     !                     dz2     dz2   -       px      px
-    ijkl_ind(31, 18) = 175          
+    ijkl_ind(31, 18) = 175
     !                     dz2     dz2   -       py      py
     ijkl_ind(31, 25) = 176
     ijkl_sym(176)    = 175
     !                     dz2     dz2   -      dz2       s
-    ijkl_ind(31,  5) = 177          
+    ijkl_ind(31,  5) = 177
     !                     dz2     dz2   -      dz2      pz
-    ijkl_ind(31, 13) = 178          
+    ijkl_ind(31, 13) = 178
     !                     dz2     dz2   -      dz2     dz2
-    ijkl_ind(31, 31) = 179          
+    ijkl_ind(31, 31) = 179
     !                     dz2     dz2   -      dzx      px
-    ijkl_ind(31, 21) = 180          
+    ijkl_ind(31, 21) = 180
     !                     dz2     dz2   -      dzx     dzx
-    ijkl_ind(31, 36) = 181          
+    ijkl_ind(31, 36) = 181
     !                     dz2     dz2   -      dzy      py
-    ijkl_ind(31, 28) = 182          
+    ijkl_ind(31, 28) = 182
     ijkl_sym(182)    = 180
     !                     dz2     dz2   -      dzy     dzy
-    ijkl_ind(31, 40) = 183          
+    ijkl_ind(31, 40) = 183
     ijkl_sym(183)    = 181
     !                     dz2     dz2   -   dx2-y2  dx2-y2
-    ijkl_ind(31, 43) = 184          
+    ijkl_ind(31, 43) = 184
     !                     dz2     dz2   -      dxy     dxy
-    ijkl_ind(31, 45) = 185          
+    ijkl_ind(31, 45) = 185
     ijkl_sym(185)    = 184
     ! ################    dzx       s   #######################
     !                     dzx       s   -       px       s
@@ -1030,29 +1030,29 @@ CONTAINS
     !                     dzx      px   -        s       s
     ijkl_ind(21,  1) = 206
     !                     dzx      px   -       pz       s
-    ijkl_ind(21,  2) = 207                                           
+    ijkl_ind(21,  2) = 207
     !                     dzx      px   -       pz      pz
-    ijkl_ind(21, 10) = 208                                             
+    ijkl_ind(21, 10) = 208
     !                     dzx      px   -       px      px
-    ijkl_ind(21, 18) = 209                                             
+    ijkl_ind(21, 18) = 209
     !                     dzx      px   -       py      py
-    ijkl_ind(21, 25) = 210                                             
+    ijkl_ind(21, 25) = 210
     !                     dzx      px   -      dz2       s
-    ijkl_ind(21,  5) = 211                                             
+    ijkl_ind(21,  5) = 211
     !                     dzx      px   -      dz2      pz
-    ijkl_ind(21, 13) = 212                                             
+    ijkl_ind(21, 13) = 212
     !                     dzx      px   -      dz2     dz2
-    ijkl_ind(21, 31) = 213                                             
+    ijkl_ind(21, 31) = 213
     !                     dzx      px   -      dzx      px
-    ijkl_ind(21, 21) = 214                                             
+    ijkl_ind(21, 21) = 214
     !                     dzx      px   -      dzx     dzx
-    ijkl_ind(21, 36) = 215                                             
+    ijkl_ind(21, 36) = 215
     !                     dzx      px   -      dzy      py
-    ijkl_ind(21, 28) = 216                                             
+    ijkl_ind(21, 28) = 216
     !                     dzx      px   -      dzy     dzy
-    ijkl_ind(21, 40) = 217                                             
+    ijkl_ind(21, 40) = 217
     !                     dzx      px   -   dx2-y2       s
-    ijkl_ind(21,  8) = 218                                             
+    ijkl_ind(21,  8) = 218
     !                     dzx      px   -   dx2-y2      pz
     ijkl_ind(21, 16) = 219
     !                     dzx      px   -   dx2-y2     dz2
@@ -1064,110 +1064,110 @@ CONTAINS
     ijkl_sym(222)    = 221
     ! ################    dzx      py   #######################
     !                     dzx      py   -       px      py
-    ijkl_ind(27, 19) = 223                                                        
+    ijkl_ind(27, 19) = 223
     !                     dzx      py   -      dzx      py
-    ijkl_ind(27, 27) = 224                                                       
+    ijkl_ind(27, 27) = 224
     ijkl_sym(224)    = 219
     !                     dzx      py   -      dzy      px
-    ijkl_ind(27, 22) = 225                                                       
+    ijkl_ind(27, 22) = 225
     ijkl_sym(225)    = 219
     !                     dzx      py   -      dzy     dzx
-    ijkl_ind(27, 37) = 226                                                       
+    ijkl_ind(27, 37) = 226
     !                     dzx      py   -      dxy       s
-    ijkl_ind(27,  9) = 227                                                       
+    ijkl_ind(27,  9) = 227
     ijkl_sym(227)    = 218
     !                     dzx      py   -      dxy      pz
-    ijkl_ind(27, 17) = 228                                                       
+    ijkl_ind(27, 17) = 228
     ijkl_sym(228)    = 219
     !                     dzx      py   -      dxy     dz2
     ijkl_ind(27, 35) = 229
     ijkl_sym(229)    = 220
     ! ################    dzx     dz2   #######################
     !                     dzx     dz2   -       px       s
-    ijkl_ind(32,  3) = 230                                                       
+    ijkl_ind(32,  3) = 230
     !                     dzx     dz2   -       px      pz
-    ijkl_ind(32, 11) = 231                                                       
+    ijkl_ind(32, 11) = 231
     !                     dzx     dz2   -      dz2      px
-    ijkl_ind(32, 20) = 232                                                       
+    ijkl_ind(32, 20) = 232
     !                     dzx     dz2   -      dzx       s
-    ijkl_ind(32,  6) = 233                                                       
+    ijkl_ind(32,  6) = 233
     !                     dzx     dz2   -      dzx      pz
-    ijkl_ind(32, 14) = 234                                                       
+    ijkl_ind(32, 14) = 234
     !                     dzx     dz2   -      dzx     dz2
-    ijkl_ind(32, 32) = 235                                                       
+    ijkl_ind(32, 32) = 235
     !                     dzx     dz2   -   dx2-y2      px
-    ijkl_ind(32, 23) = 236                                                       
+    ijkl_ind(32, 23) = 236
     !                     dzx     dz2   -   dx2-y2  dx2-y2
-    ijkl_ind(32, 38) = 237                                                       
+    ijkl_ind(32, 38) = 237
     !                     dzx     dz2   -      dxy      py
-    ijkl_ind(32, 30) = 238                                                       
+    ijkl_ind(32, 30) = 238
     ijkl_sym(238)    = 236
     !                     dzx     dz2   -      dxy     dzy
     ijkl_ind(32, 42) = 239
     ijkl_sym(239)    = 237
     ! ################    dzx     dzx   #######################
     !                     dzx     dzx   -        s       s
-    ijkl_ind(36,  1) = 240                                                       
+    ijkl_ind(36,  1) = 240
     !                     dzx     dzx   -       pz       s
-    ijkl_ind(36,  2) = 241                                    
+    ijkl_ind(36,  2) = 241
     !                     dzx     dzx   -       pz      pz
-    ijkl_ind(36, 10) = 242                                    
+    ijkl_ind(36, 10) = 242
     !                     dzx     dzx   -       px      px
-    ijkl_ind(36, 18) = 243                                    
+    ijkl_ind(36, 18) = 243
     !                     dzx     dzx   -       py      py
-    ijkl_ind(36, 25) = 244                                    
+    ijkl_ind(36, 25) = 244
     !                     dzx     dzx   -      dz2       s
-    ijkl_ind(36,  5) = 245                                    
+    ijkl_ind(36,  5) = 245
     !                     dzx     dzx   -      dz2      pz
-    ijkl_ind(36, 13) = 246                                    
+    ijkl_ind(36, 13) = 246
     !                     dzx     dzx   -      dz2     dz2
-    ijkl_ind(36, 31) = 247                                    
+    ijkl_ind(36, 31) = 247
     !                     dzx     dzx   -      dzx      px
-    ijkl_ind(36, 21) = 248                                    
+    ijkl_ind(36, 21) = 248
     !                     dzx     dzx   -      dzx     dzx
-    ijkl_ind(36, 36) = 249                                    
+    ijkl_ind(36, 36) = 249
     !                     dzx     dzx   -      dzy      py
-    ijkl_ind(36, 28) = 250                                    
+    ijkl_ind(36, 28) = 250
     !                     dzx     dzx   -      dzy     dzy
-    ijkl_ind(36, 40) = 251                                    
+    ijkl_ind(36, 40) = 251
     !                     dzx     dzx   -   dx2-y2       s
-    ijkl_ind(36,  8) = 252                                    
+    ijkl_ind(36,  8) = 252
     !                     dzx     dzx   -   dx2-y2      pz
-    ijkl_ind(36, 16) = 253                                                       
+    ijkl_ind(36, 16) = 253
     !                     dzx     dzx   -   dx2-y2     dz2
-    ijkl_ind(36, 34) = 254                                                       
+    ijkl_ind(36, 34) = 254
     !                     dzx     dzx   -   dx2-y2  dx2-y2
-    ijkl_ind(36, 43) = 255                                                       
+    ijkl_ind(36, 43) = 255
     !                     dzx     dzx   -      dxy     dxy
     ijkl_ind(36, 45) = 256
     ijkl_sym(256)    = 255
     ! ################    dzy       s   #######################
     !                     dzy       s   -       py       s
-    ijkl_ind( 7,  4) = 257                                             
+    ijkl_ind( 7,  4) = 257
     ijkl_sym(257)    = 186
     !                     dzy       s   -       py      pz
-    ijkl_ind( 7, 12) = 258                                             
+    ijkl_ind( 7, 12) = 258
     ijkl_sym(258)    = 187
     !                     dzy       s   -      dz2      py
-    ijkl_ind( 7, 26) = 259                                             
+    ijkl_ind( 7, 26) = 259
     ijkl_sym(259)    = 188
     !                     dzy       s   -      dzy       s
-    ijkl_ind( 7,  7) = 260                                             
+    ijkl_ind( 7,  7) = 260
     ijkl_sym(260)    = 189
     !                     dzy       s   -      dzy      pz
-    ijkl_ind( 7, 15) = 261                                             
+    ijkl_ind( 7, 15) = 261
     ijkl_sym(261)    = 190
     !                     dzy       s   -      dzy     dz2
-    ijkl_ind( 7, 33) = 262                                             
+    ijkl_ind( 7, 33) = 262
     ijkl_sym(262)    = 191
     !                     dzy       s   -   dx2-y2      py
-    ijkl_ind( 7, 29) = 263                                             
+    ijkl_ind( 7, 29) = 263
     ijkl_sym(263)    = 192*(-1)
     !                     dzy       s   -   dx2-y2     dzy
-    ijkl_ind( 7, 41) = 264                                             
+    ijkl_ind( 7, 41) = 264
     ijkl_sym(264)    = 193*(-1)
     !                     dzy       s   -      dxy      px
-    ijkl_ind( 7, 24) = 265                                             
+    ijkl_ind( 7, 24) = 265
     ijkl_sym(265)    = 192
     !                     dzy       s   -      dxy     dzx
     ijkl_ind( 7, 39) = 266
@@ -1177,103 +1177,103 @@ CONTAINS
     ijkl_ind(15,  4) = 267
     ijkl_sym(267)    = 196
     !                     dzy      pz   -       py      pz
-    ijkl_ind(15, 12) = 268                                             
+    ijkl_ind(15, 12) = 268
     ijkl_sym(268)    = 197
     !                     dzy      pz   -      dz2      py
-    ijkl_ind(15, 26) = 269                                             
+    ijkl_ind(15, 26) = 269
     ijkl_sym(269)    = 198
     !                     dzy      pz   -      dzy       s
-    ijkl_ind(15,  7) = 270                                             
+    ijkl_ind(15,  7) = 270
     ijkl_sym(270)    = 199
     !                     dzy      pz   -      dzy      pz
-    ijkl_ind(15, 15) = 271                                             
+    ijkl_ind(15, 15) = 271
     ijkl_sym(271)    = 200
     !                     dzy      pz   -      dzy     dz2
-    ijkl_ind(15, 33) = 272                                             
+    ijkl_ind(15, 33) = 272
     ijkl_sym(272)    = 201
     !                     dzy      pz   -   dx2-y2      py
-    ijkl_ind(15, 29) = 273                                             
+    ijkl_ind(15, 29) = 273
     ijkl_sym(273)    = 202*(-1)
     !                     dzy      pz   -   dx2-y2     dzy
-    ijkl_ind(15, 41) = 274                                             
+    ijkl_ind(15, 41) = 274
     ijkl_sym(274)    = 203*(-1)
     !                     dzy      pz   -      dxy      px
-    ijkl_ind(15, 24) = 275                                             
+    ijkl_ind(15, 24) = 275
     ijkl_sym(275)    = 202
     !                     dzy      pz   -      dxy     dzx
     ijkl_ind(15, 39) = 276
     ijkl_sym(276)    = 203
     ! ################    dzy      px   #######################
     !                     dzy      px   -       px      py
-    ijkl_ind(22, 19) = 277                                    
+    ijkl_ind(22, 19) = 277
     ijkl_sym(277)    = 223
     !                     dzy      px   -      dzx      py
-    ijkl_ind(22, 27) = 278                                    
+    ijkl_ind(22, 27) = 278
     ijkl_sym(278)    = 219
     !                     dzy      px   -      dzy      px
-    ijkl_ind(22, 22) = 279                                    
+    ijkl_ind(22, 22) = 279
     ijkl_sym(279)    = 219
     !                     dzy      px   -      dzy     dzx
-    ijkl_ind(22, 37) = 280                                    
+    ijkl_ind(22, 37) = 280
     ijkl_sym(280)    = 226
     !                     dzy      px   -      dxy       s
-    ijkl_ind(22,  9) = 281                                    
+    ijkl_ind(22,  9) = 281
     ijkl_sym(281)    = 218
     !                     dzy      px   -      dxy      pz
-    ijkl_ind(22, 17) = 282                                    
+    ijkl_ind(22, 17) = 282
     ijkl_sym(282)    = 219
     !                     dzy      px   -      dxy     dz2
     ijkl_ind(22, 35) = 283
     ijkl_sym(283)    = 220
     ! ################    dzy      py   #######################
     !                     dzy      py   -        s       s
-    ijkl_ind(28,  1) = 284                                                       
+    ijkl_ind(28,  1) = 284
     ijkl_sym(284)    = 206
     !                     dzy      py   -       pz       s
-    ijkl_ind(28,  2) = 285                                    
+    ijkl_ind(28,  2) = 285
     ijkl_sym(285)    = 207
     !                     dzy      py   -       pz      pz
-    ijkl_ind(28, 10) = 286                                    
+    ijkl_ind(28, 10) = 286
     ijkl_sym(286)    = 208
     !                     dzy      py   -       px      px
-    ijkl_ind(28, 18) = 287                                    
+    ijkl_ind(28, 18) = 287
     ijkl_sym(287)    = 210
     !                     dzy      py   -       py      py
-    ijkl_ind(28, 25) = 288                                    
+    ijkl_ind(28, 25) = 288
     ijkl_sym(288)    = 209
     !                     dzy      py   -      dz2       s
-    ijkl_ind(28,  5) = 289                                    
+    ijkl_ind(28,  5) = 289
     ijkl_sym(289)    = 211
     !                     dzy      py   -      dz2      pz
-    ijkl_ind(28, 13) = 290                                    
+    ijkl_ind(28, 13) = 290
     ijkl_sym(290)    = 212
     !                     dzy      py   -      dz2     dz2
-    ijkl_ind(28, 31) = 291                                    
+    ijkl_ind(28, 31) = 291
     ijkl_sym(291)    = 213
     !                     dzy      py   -      dzx      px
-    ijkl_ind(28, 21) = 292                                    
+    ijkl_ind(28, 21) = 292
     ijkl_sym(292)    = 216
     !                     dzy      py   -      dzx     dzx
-    ijkl_ind(28, 36) = 293                                    
+    ijkl_ind(28, 36) = 293
     ijkl_sym(293)    = 217
     !                     dzy      py   -      dzy      py
-    ijkl_ind(28, 28) = 294                                    
+    ijkl_ind(28, 28) = 294
     ijkl_sym(294)    = 214
     !                     dzy      py   -      dzy     dzy
-    ijkl_ind(28, 40) = 295                                    
+    ijkl_ind(28, 40) = 295
     ijkl_sym(295)    = 215
     !                     dzy      py   -   dx2-y2       s
-    ijkl_ind(28,  8) = 296                                    
+    ijkl_ind(28,  8) = 296
     ijkl_sym(296)    = 218*(-1)
     !                     dzy      py   -   dx2-y2      pz
-    ijkl_ind(28, 16) = 297                                                       
+    ijkl_ind(28, 16) = 297
     ijkl_sym(297)    = 219*(-1)
     !                     dzy      py   -   dx2-y2     dz2
-    ijkl_ind(28, 34) = 298                                                       
+    ijkl_ind(28, 34) = 298
     ijkl_sym(298)    = 220*(-1)
     !                     dzy      py   -   dx2-y2  dx2-y2
-    ijkl_ind(28, 43) = 299                                                       
-    ijkl_sym(299)    = 221                                             
+    ijkl_ind(28, 43) = 299
+    ijkl_sym(299)    = 221
     !                     dzy      py   -      dxy     dxy
     ijkl_ind(28, 45) = 300
     ijkl_sym(300)    = 221
@@ -1282,124 +1282,124 @@ CONTAINS
     ijkl_ind(33,  4) = 301
     ijkl_sym(301)    = 230
     !                     dzy     dz2   -       py      pz
-    ijkl_ind(33, 12) = 302                                             
+    ijkl_ind(33, 12) = 302
     ijkl_sym(302)    = 231
     !                     dzy     dz2   -      dz2      py
-    ijkl_ind(33, 26) = 303                                             
+    ijkl_ind(33, 26) = 303
     ijkl_sym(303)    = 232
     !                     dzy     dz2   -      dzy       s
-    ijkl_ind(33,  7) = 304                                             
+    ijkl_ind(33,  7) = 304
     ijkl_sym(304)    = 233
     !                     dzy     dz2   -      dzy      pz
-    ijkl_ind(33, 15) = 305                                             
+    ijkl_ind(33, 15) = 305
     ijkl_sym(305)    = 234
     !                     dzy     dz2   -      dzy     dz2
-    ijkl_ind(33, 33) = 306                                             
+    ijkl_ind(33, 33) = 306
     ijkl_sym(306)    = 235
     !                     dzy     dz2   -   dx2-y2      py
-    ijkl_ind(33, 29) = 307                                             
+    ijkl_ind(33, 29) = 307
     ijkl_sym(307)    = 236*(-1)
     !                     dzy     dz2   -   dx2-y2     dzy
-    ijkl_ind(33, 41) = 308                                             
+    ijkl_ind(33, 41) = 308
     ijkl_sym(308)    = 237*(-1)
     !                     dzy     dz2   -      dxy      px
-    ijkl_ind(33, 24) = 309                                             
+    ijkl_ind(33, 24) = 309
     ijkl_sym(309)    = 236
     !                     dzy     dz2   -      dxy     dzx
     ijkl_ind(33, 39) = 310
     ijkl_sym(310)    = 237
     ! ################    dzy     dzx   #######################
     !                     dzy     dzx   -       px      py
-    ijkl_ind(37, 19) = 311                                    
+    ijkl_ind(37, 19) = 311
     !                     dzy     dzx   -      dzx      py
-    ijkl_ind(37, 27) = 312                                    
+    ijkl_ind(37, 27) = 312
     ijkl_sym(312)    = 253
     !                     dzy     dzx   -      dzy      px
-    ijkl_ind(37, 22) = 313                                    
+    ijkl_ind(37, 22) = 313
     ijkl_sym(313)    = 253
     !                     dzy     dzx   -      dzy     dzx
-    ijkl_ind(37, 37) = 314                                    
+    ijkl_ind(37, 37) = 314
     !                     dzy     dzx   -      dxy       s
-    ijkl_ind(37,  9) = 315                                    
+    ijkl_ind(37,  9) = 315
     ijkl_sym(315)    = 252
     !                     dzy     dzx   -      dxy      pz
-    ijkl_ind(37, 17) = 316                                    
+    ijkl_ind(37, 17) = 316
     ijkl_sym(316)    = 253
     !                     dzy     dzx   -      dxy     dz2
     ijkl_ind(37, 35) = 317
     ijkl_sym(317)    = 254
     ! ################    dzy     dzy   #######################
     !                     dzy     dzy   -        s       s
-    ijkl_ind(40,  1) = 318                                                       
+    ijkl_ind(40,  1) = 318
     ijkl_sym(318)    = 240
     !                     dzy     dzy   -       pz       s
-    ijkl_ind(40,  2) = 319                                    
+    ijkl_ind(40,  2) = 319
     ijkl_sym(319)    = 241
     !                     dzy     dzy   -       pz      pz
-    ijkl_ind(40, 10) = 320                                    
-    ijkl_sym(320)    = 242                                             
+    ijkl_ind(40, 10) = 320
+    ijkl_sym(320)    = 242
     !                     dzy     dzy   -       px      px
-    ijkl_ind(40, 18) = 321                                    
+    ijkl_ind(40, 18) = 321
     ijkl_sym(321)    = 244
     !                     dzy     dzy   -       py      py
-    ijkl_ind(40, 25) = 322                                    
+    ijkl_ind(40, 25) = 322
     ijkl_sym(322)    = 243
     !                     dzy     dzy   -      dz2       s
-    ijkl_ind(40,  5) = 323                                    
+    ijkl_ind(40,  5) = 323
     ijkl_sym(323)    = 245
     !                     dzy     dzy   -      dz2      pz
-    ijkl_ind(40, 13) = 324                                    
+    ijkl_ind(40, 13) = 324
     ijkl_sym(324)    = 246
     !                     dzy     dzy   -      dz2     dz2
-    ijkl_ind(40, 31) = 325                                    
+    ijkl_ind(40, 31) = 325
     ijkl_sym(325)    = 247
     !                     dzy     dzy   -      dzx      px
-    ijkl_ind(40, 21) = 326                                    
+    ijkl_ind(40, 21) = 326
     ijkl_sym(326)    = 250
     !                     dzy     dzy   -      dzx     dzx
-    ijkl_ind(40, 36) = 327                                    
+    ijkl_ind(40, 36) = 327
     ijkl_sym(327)    = 251
     !                     dzy     dzy   -      dzy      py
-    ijkl_ind(40, 28) = 328                                    
+    ijkl_ind(40, 28) = 328
     ijkl_sym(328)    = 248
     !                     dzy     dzy   -      dzy     dzy
-    ijkl_ind(40, 40) = 329                                    
+    ijkl_ind(40, 40) = 329
     ijkl_sym(329)    = 249
     !                     dzy     dzy   -   dx2-y2       s
-    ijkl_ind(40,  8) = 330                                    
+    ijkl_ind(40,  8) = 330
     ijkl_sym(330)    = 252*(-1)
     !                     dzy     dzy   -   dx2-y2      pz
-    ijkl_ind(40, 16) = 331                                                       
+    ijkl_ind(40, 16) = 331
     ijkl_sym(331)    = 253*(-1)
     !                     dzy     dzy   -   dx2-y2     dz2
-    ijkl_ind(40, 34) = 332                                                       
+    ijkl_ind(40, 34) = 332
     ijkl_sym(332)    = 254*(-1)
     !                     dzy     dzy   -   dx2-y2  dx2-y2
-    ijkl_ind(40, 43) = 333                                                       
+    ijkl_ind(40, 43) = 333
     ijkl_sym(333)    = 255
     !                     dzy     dzy   -      dxy     dxy
     ijkl_ind(40, 45) = 334
     ijkl_sym(334)    = 255
     ! ################ dx2-y2       s   #######################
     !                  dx2-y2       s   -       px      px
-    ijkl_ind( 8, 18) = 335                                                       
+    ijkl_ind( 8, 18) = 335
     !                  dx2-y2       s   -       py      py
-    ijkl_ind( 8, 25) = 336                                                       
+    ijkl_ind( 8, 25) = 336
     ijkl_sym(336)    = 335*(-1)
     !                  dx2-y2       s   -      dzx      px
-    ijkl_ind( 8, 21) = 337                                                       
+    ijkl_ind( 8, 21) = 337
     !                  dx2-y2       s   -      dzx     dzx
-    ijkl_ind( 8, 36) = 338                                                       
+    ijkl_ind( 8, 36) = 338
     !                  dx2-y2       s   -      dzy      py
-    ijkl_ind( 8, 28) = 339                                                       
+    ijkl_ind( 8, 28) = 339
     ijkl_sym(339)    = 337*(-1)
     !                  dx2-y2       s   -      dzy     dzy
-    ijkl_ind( 8, 40) = 340                                                       
+    ijkl_ind( 8, 40) = 340
     ijkl_sym(340)    = 338*(-1)
     !                  dx2-y2       s   -   dx2-y2       s
-    ijkl_ind( 8,  8) = 341                                                       
+    ijkl_ind( 8,  8) = 341
     !                  dx2-y2       s   -   dx2-y2      pz
-    ijkl_ind( 8, 16) = 342                                                       
+    ijkl_ind( 8, 16) = 342
     ijkl_sym(342)    = 337
     !                  dx2-y2       s   -   dx2-y2     dz2
     ijkl_ind( 8, 34) = 343
@@ -1433,234 +1433,234 @@ CONTAINS
     ijkl_sym(352)    = 220
     ! ################ dx2-y2      px   #######################
     !                  dx2-y2      px   -       px       s
-    ijkl_ind(23,  3) = 353                                    
+    ijkl_ind(23,  3) = 353
     !                  dx2-y2      px   -       px      pz
-    ijkl_ind(23, 11) = 354                                    
+    ijkl_ind(23, 11) = 354
     !                  dx2-y2      px   -      dz2      px
-    ijkl_ind(23, 20) = 355                                    
+    ijkl_ind(23, 20) = 355
     !                  dx2-y2      px   -      dzx       s
-    ijkl_ind(23,  6) = 356                                    
+    ijkl_ind(23,  6) = 356
     !                  dx2-y2      px   -      dzx      pz
-    ijkl_ind(23, 14) = 357                                    
+    ijkl_ind(23, 14) = 357
     !                  dx2-y2      px   -      dzx     dz2
-    ijkl_ind(23, 32) = 358                                    
+    ijkl_ind(23, 32) = 358
     !                  dx2-y2      px   -   dx2-y2      px
-    ijkl_ind(23, 23) = 359                                    
+    ijkl_ind(23, 23) = 359
     !                  dx2-y2      px   -   dx2-y2  dx2-y2
-    ijkl_ind(23, 38) = 360                                    
+    ijkl_ind(23, 38) = 360
     !                  dx2-y2      px   -      dxy      py
-    ijkl_ind(23, 30) = 361                                    
+    ijkl_ind(23, 30) = 361
     !                  dx2-y2      px   -      dxy     dzy
     ijkl_ind(23, 42) = 362
     ! ################ dx2-y2      py   #######################
     !                  dx2-y2      py   -       py       s
-    ijkl_ind(29,  4) = 363                                             
+    ijkl_ind(29,  4) = 363
     ijkl_sym(363)    = 353*(-1)
     !                  dx2-y2      py   -       py      pz
-    ijkl_ind(29, 12) = 364                                             
+    ijkl_ind(29, 12) = 364
     ijkl_sym(364)    = 354*(-1)
     !                  dx2-y2      py   -      dz2      py
-    ijkl_ind(29, 26) = 365                                             
+    ijkl_ind(29, 26) = 365
     ijkl_sym(365)    = 355*(-1)
     !                  dx2-y2      py   -      dzy       s
-    ijkl_ind(29,  7) = 366                                             
+    ijkl_ind(29,  7) = 366
     ijkl_sym(366)    = 356*(-1)
     !                  dx2-y2      py   -      dzy      pz
-    ijkl_ind(29, 15) = 367                                             
+    ijkl_ind(29, 15) = 367
     ijkl_sym(367)    = 357*(-1)
     !                  dx2-y2      py   -      dzy     dz2
-    ijkl_ind(29, 33) = 368                                             
+    ijkl_ind(29, 33) = 368
     ijkl_sym(368)    = 358*(-1)
     !                  dx2-y2      py   -   dx2-y2      py
-    ijkl_ind(29, 29) = 369                                             
+    ijkl_ind(29, 29) = 369
     ijkl_sym(369)    = 359
     !                  dx2-y2      py   -   dx2-y2     dzy
-    ijkl_ind(29, 41) = 370                                             
+    ijkl_ind(29, 41) = 370
     ijkl_sym(370)    = 360
     !                  dx2-y2      py   -      dxy      px
-    ijkl_ind(29, 24) = 371                                             
+    ijkl_ind(29, 24) = 371
     ijkl_sym(371)    = 361*(-1)
     !                  dx2-y2      py   -      dxy     dzx
     ijkl_ind(29, 39) = 372
     ijkl_sym(372)    = 362*(-1)
     ! ################ dx2-y2     dz2   #######################
     !                  dx2-y2     dz2   -       px      px
-    ijkl_ind(34, 18) = 373                                    
+    ijkl_ind(34, 18) = 373
     !                  dx2-y2     dz2   -       py      py
-    ijkl_ind(34, 25) = 374                                    
+    ijkl_ind(34, 25) = 374
     ijkl_sym(374)    = 373*(-1)
     !                  dx2-y2     dz2   -      dzx      px
-    ijkl_ind(34, 21) = 375                                    
+    ijkl_ind(34, 21) = 375
     !                  dx2-y2     dz2   -      dzx     dzx
-    ijkl_ind(34, 36) = 376                                    
+    ijkl_ind(34, 36) = 376
     !                  dx2-y2     dz2   -      dzy      py
-    ijkl_ind(34, 28) = 377                                    
+    ijkl_ind(34, 28) = 377
     ijkl_sym(377)    = 375*(-1)
     !                  dx2-y2     dz2   -      dzy     dzy
-    ijkl_ind(34, 40) = 378                                    
+    ijkl_ind(34, 40) = 378
     ijkl_sym(378)    = 376*(-1)
     !                  dx2-y2     dz2   -   dx2-y2       s
-    ijkl_ind(34,  8) = 379                                    
+    ijkl_ind(34,  8) = 379
     !                  dx2-y2     dz2   -   dx2-y2      pz
-    ijkl_ind(34, 16) = 380                                    
+    ijkl_ind(34, 16) = 380
     ijkl_sym(380)    = 375
     !                  dx2-y2     dz2   -   dx2-y2     dz2
     ijkl_ind(34, 34) = 381
     ! ################ dx2-y2     dzx   #######################
     !                  dx2-y2     dzx   -       px       s
-    ijkl_ind(38,  3) = 382                                    
+    ijkl_ind(38,  3) = 382
     !                  dx2-y2     dzx   -       px      pz
-    ijkl_ind(38, 11) = 383                                    
+    ijkl_ind(38, 11) = 383
     !                  dx2-y2     dzx   -      dz2      px
-    ijkl_ind(38, 20) = 384                                    
+    ijkl_ind(38, 20) = 384
     !                  dx2-y2     dzx   -      dzx       s
-    ijkl_ind(38,  6) = 385                                    
+    ijkl_ind(38,  6) = 385
     !                  dx2-y2     dzx   -      dzx      pz
-    ijkl_ind(38, 14) = 386                                    
+    ijkl_ind(38, 14) = 386
     !                  dx2-y2     dzx   -      dzx     dz2
-    ijkl_ind(38, 32) = 387                                    
+    ijkl_ind(38, 32) = 387
     !                  dx2-y2     dzx   -   dx2-y2      px
-    ijkl_ind(38, 23) = 388                                    
+    ijkl_ind(38, 23) = 388
     !                  dx2-y2     dzx   -   dx2-y2  dx2-y2
-    ijkl_ind(38, 38) = 389                                    
+    ijkl_ind(38, 38) = 389
     !                  dx2-y2     dzx   -      dxy      py
-    ijkl_ind(38, 30) = 390                                    
+    ijkl_ind(38, 30) = 390
     !                  dx2-y2     dzx   -      dxy     dzy
     ijkl_ind(38, 42) = 391
     ! ################ dx2-y2     dzy   #######################
     !                  dx2-y2     dzy   -       py       s
-    ijkl_ind(41,  4) = 392                                             
+    ijkl_ind(41,  4) = 392
     ijkl_sym(392)    = 382*(-1)
     !                  dx2-y2     dzy   -       py      pz
-    ijkl_ind(41, 12) = 393                                             
+    ijkl_ind(41, 12) = 393
     ijkl_sym(393)    = 383*(-1)
     !                  dx2-y2     dzy   -      dz2      py
-    ijkl_ind(41, 26) = 394                                             
+    ijkl_ind(41, 26) = 394
     ijkl_sym(394)    = 384*(-1)
     !                  dx2-y2     dzy   -      dzy       s
-    ijkl_ind(41,  7) = 395                                             
+    ijkl_ind(41,  7) = 395
     ijkl_sym(395)    = 385*(-1)
     !                  dx2-y2     dzy   -      dzy      pz
-    ijkl_ind(41, 15) = 396                                             
+    ijkl_ind(41, 15) = 396
     ijkl_sym(396)    = 386*(-1)
     !                  dx2-y2     dzy   -      dzy     dz2
-    ijkl_ind(41, 33) = 397                                             
+    ijkl_ind(41, 33) = 397
     ijkl_sym(397)    = 387*(-1)
     !                  dx2-y2     dzy   -   dx2-y2      py
-    ijkl_ind(41, 29) = 398                                             
+    ijkl_ind(41, 29) = 398
     ijkl_sym(398)    = 388
     !                  dx2-y2     dzy   -   dx2-y2     dzy
-    ijkl_ind(41, 41) = 399                                             
+    ijkl_ind(41, 41) = 399
     ijkl_sym(399)    = 389
     !                  dx2-y2     dzy   -      dxy      px
-    ijkl_ind(41, 24) = 400                                             
+    ijkl_ind(41, 24) = 400
     ijkl_sym(400)    = 390*(-1)
     !                  dx2-y2     dzy   -      dxy     dzx
     ijkl_ind(41, 39) = 401
     ijkl_sym(401)    = 391*(-1)
     ! ################ dx2-y2  dx2-y2   #######################
     !                  dx2-y2  dx2-y2   -        s       s
-    ijkl_ind(43,  1) = 402                                                       
+    ijkl_ind(43,  1) = 402
     !                  dx2-y2  dx2-y2   -       pz       s
-    ijkl_ind(43,  2) = 403                                                       
+    ijkl_ind(43,  2) = 403
     !                  dx2-y2  dx2-y2   -       pz      pz
-    ijkl_ind(43, 10) = 404                                                       
+    ijkl_ind(43, 10) = 404
     !                  dx2-y2  dx2-y2   -       px      px
-    ijkl_ind(43, 18) = 405                                                       
+    ijkl_ind(43, 18) = 405
     !                  dx2-y2  dx2-y2   -       py      py
-    ijkl_ind(43, 25) = 406                                                       
+    ijkl_ind(43, 25) = 406
     ijkl_sym(406)    = 405
     !                  dx2-y2  dx2-y2   -      dz2       s
-    ijkl_ind(43,  5) = 407                                                       
+    ijkl_ind(43,  5) = 407
     !                  dx2-y2  dx2-y2   -      dz2      pz
-    ijkl_ind(43, 13) = 408                                                       
+    ijkl_ind(43, 13) = 408
     !                  dx2-y2  dx2-y2   -      dz2     dz2
-    ijkl_ind(43, 31) = 409                                                       
+    ijkl_ind(43, 31) = 409
     !                  dx2-y2  dx2-y2   -      dzx      px
-    ijkl_ind(43, 21) = 410                                                       
+    ijkl_ind(43, 21) = 410
     !                  dx2-y2  dx2-y2   -      dzx     dzx
-    ijkl_ind(43, 36) = 411                                                       
+    ijkl_ind(43, 36) = 411
     !                  dx2-y2  dx2-y2   -      dzy      py
-    ijkl_ind(43, 28) = 412                                                       
+    ijkl_ind(43, 28) = 412
     ijkl_sym(412)    = 410
     !                  dx2-y2  dx2-y2   -      dzy     dzy
-    ijkl_ind(43, 40) = 413                                                       
+    ijkl_ind(43, 40) = 413
     ijkl_sym(413)    = 411
     !                  dx2-y2  dx2-y2   -   dx2-y2  dx2-y2
-    ijkl_ind(43, 43) = 414                                                       
+    ijkl_ind(43, 43) = 414
     !                  dx2-y2  dx2-y2   -      dxy     dxy
     ijkl_ind(43, 45) = 415
     ! ################    dxy       s   #######################
     !                     dxy       s   -       px      py
-    ijkl_ind( 9, 19) = 416                                    
+    ijkl_ind( 9, 19) = 416
     ijkl_sym(416)    = 335
     !                     dxy       s   -      dzx      py
-    ijkl_ind( 9, 27) = 417                                    
+    ijkl_ind( 9, 27) = 417
     ijkl_sym(417)    = 337
     !                     dxy       s   -      dzy      px
-    ijkl_ind( 9, 22) = 418                                    
+    ijkl_ind( 9, 22) = 418
     ijkl_sym(418)    = 337
     !                     dxy       s   -      dzy     dzx
-    ijkl_ind( 9, 37) = 419                                    
+    ijkl_ind( 9, 37) = 419
     ijkl_sym(419)    = 338
     !                     dxy       s   -      dxy       s
-    ijkl_ind( 9,  9) = 420                                    
+    ijkl_ind( 9,  9) = 420
     ijkl_sym(420)    = 341
     !                     dxy       s   -      dxy      pz
-    ijkl_ind( 9, 17) = 421                                    
+    ijkl_ind( 9, 17) = 421
     ijkl_sym(421)    = 337
     !                     dxy       s   -      dxy     dz2
     ijkl_ind( 9, 35) = 422
     ijkl_sym(422)    = 343
     ! ################    dxy      pz   #######################
     !                     dxy      pz   -       px      py
-    ijkl_ind(17, 19) = 423                                    
+    ijkl_ind(17, 19) = 423
     ijkl_sym(423)    = 223
     !                     dxy      pz   -      dzx      py
-    ijkl_ind(17, 27) = 424                                    
+    ijkl_ind(17, 27) = 424
     ijkl_sym(424)    = 219
     !                     dxy      pz   -      dzy      px
-    ijkl_ind(17, 22) = 425                                    
+    ijkl_ind(17, 22) = 425
     ijkl_sym(425)    = 219
     !                     dxy      pz   -      dzy     dzx
-    ijkl_ind(17, 37) = 426                                    
+    ijkl_ind(17, 37) = 426
     ijkl_sym(426)    = 226
     !                     dxy      pz   -      dxy       s
-    ijkl_ind(17,  9) = 427                                    
+    ijkl_ind(17,  9) = 427
     ijkl_sym(427)    = 218
     !                     dxy      pz   -      dxy      pz
-    ijkl_ind(17, 17) = 428                                    
+    ijkl_ind(17, 17) = 428
     ijkl_sym(428)    = 219
     !                     dxy      pz   -      dxy     dz2
     ijkl_ind(17, 35) = 429
     ijkl_sym(429)    = 220
     ! ################    dxy      px   #######################
     !                     dxy      px   -       py       s
-    ijkl_ind(24,  4) = 430                                             
+    ijkl_ind(24,  4) = 430
     ijkl_sym(430)    = 353
     !                     dxy      px   -       py      pz
-    ijkl_ind(24, 12) = 431                                             
+    ijkl_ind(24, 12) = 431
     ijkl_sym(431)    = 354
     !                     dxy      px   -      dz2      py
-    ijkl_ind(24, 26) = 432                                             
+    ijkl_ind(24, 26) = 432
     ijkl_sym(432)    = 355
     !                     dxy      px   -      dzy       s
-    ijkl_ind(24,  7) = 433                                             
+    ijkl_ind(24,  7) = 433
     ijkl_sym(433)    = 356
     !                     dxy      px   -      dzy      pz
-    ijkl_ind(24, 15) = 434                                             
+    ijkl_ind(24, 15) = 434
     ijkl_sym(434)    = 357
     !                     dxy      px   -      dzy     dz2
-    ijkl_ind(24, 33) = 435                                             
+    ijkl_ind(24, 33) = 435
     ijkl_sym(435)    = 358
     !                     dxy      px   -   dx2-y2      py
-    ijkl_ind(24, 29) = 436                                             
+    ijkl_ind(24, 29) = 436
     ijkl_sym(436)    = 361*(-1)
     !                     dxy      px   -   dx2-y2     dzy
-    ijkl_ind(24, 41) = 437                                             
+    ijkl_ind(24, 41) = 437
     ijkl_sym(437)    = 362*(-1)
     !                     dxy      px   -      dxy      px
-    ijkl_ind(24, 24) = 438                                             
+    ijkl_ind(24, 24) = 438
     ijkl_sym(438)    = 359
     !                     dxy      px   -      dxy     dzx
     ijkl_ind(24, 39) = 439
@@ -1670,112 +1670,112 @@ CONTAINS
     ijkl_ind(30,  3) = 440
     ijkl_sym(440)    = 353
     !                     dxy      py   -       px      pz
-    ijkl_ind(30, 11) = 441                                    
+    ijkl_ind(30, 11) = 441
     ijkl_sym(441)    = 354
     !                     dxy      py   -      dz2      px
-    ijkl_ind(30, 20) = 442                                    
+    ijkl_ind(30, 20) = 442
     ijkl_sym(442)    = 355
     !                     dxy      py   -      dzx       s
-    ijkl_ind(30,  6) = 443                                    
+    ijkl_ind(30,  6) = 443
     ijkl_sym(443)    = 356
     !                     dxy      py   -      dzx      pz
-    ijkl_ind(30, 14) = 444                                    
+    ijkl_ind(30, 14) = 444
     ijkl_sym(444)    = 357
     !                     dxy      py   -      dzx     dz2
-    ijkl_ind(30, 32) = 445                                    
+    ijkl_ind(30, 32) = 445
     ijkl_sym(445)    = 358
     !                     dxy      py   -   dx2-y2      px
-    ijkl_ind(30, 23) = 446                                    
+    ijkl_ind(30, 23) = 446
     ijkl_sym(446)    = 361
     !                     dxy      py   -   dx2-y2  dx2-y2
-    ijkl_ind(30, 38) = 447                                    
+    ijkl_ind(30, 38) = 447
     ijkl_sym(447)    = 362
     !                     dxy      py   -      dxy      py
-    ijkl_ind(30, 30) = 448                                    
+    ijkl_ind(30, 30) = 448
     ijkl_sym(448)    = 359
     !                     dxy      py   -      dxy     dzy
     ijkl_ind(30, 42) = 449
     ijkl_sym(449)    = 360
     ! ################    dxy     dz2   #######################
     !                     dxy     dz2   -       px      py
-    ijkl_ind(35, 19) = 450                                    
+    ijkl_ind(35, 19) = 450
     ijkl_sym(450)    = 373
     !                     dxy     dz2   -      dzx      py
-    ijkl_ind(35, 27) = 451                                    
+    ijkl_ind(35, 27) = 451
     ijkl_sym(451)    = 375
     !                     dxy     dz2   -      dzy      px
-    ijkl_ind(35, 22) = 452                                    
+    ijkl_ind(35, 22) = 452
     ijkl_sym(452)    = 375
     !                     dxy     dz2   -      dzy     dzx
-    ijkl_ind(35, 37) = 453                                    
+    ijkl_ind(35, 37) = 453
     ijkl_sym(453)    = 376
     !                     dxy     dz2   -      dxy       s
-    ijkl_ind(35,  9) = 454                                    
+    ijkl_ind(35,  9) = 454
     ijkl_sym(454)    = 379
     !                     dxy     dz2   -      dxy      pz
-    ijkl_ind(35, 17) = 455                                    
+    ijkl_ind(35, 17) = 455
     ijkl_sym(455)    = 375
     !                     dxy     dz2   -      dxy     dz2
     ijkl_ind(35, 35) = 456
     ijkl_sym(456)    = 381
     ! ################    dxy     dzx   #######################
     !                     dxy     dzx   -       py       s
-    ijkl_ind(39,  4) = 457                                             
+    ijkl_ind(39,  4) = 457
     ijkl_sym(457)    = 382
     !                     dxy     dzx   -       py      pz
-    ijkl_ind(39, 12) = 458                                             
+    ijkl_ind(39, 12) = 458
     ijkl_sym(458)    = 383
     !                     dxy     dzx   -      dz2      py
-    ijkl_ind(39, 26) = 459                                             
+    ijkl_ind(39, 26) = 459
     ijkl_sym(459)    = 384
     !                     dxy     dzx   -      dzy       s
-    ijkl_ind(39,  7) = 460                                             
-    ijkl_sym(460)    = 385                                 
+    ijkl_ind(39,  7) = 460
+    ijkl_sym(460)    = 385
     !                     dxy     dzx   -      dzy      pz
     ijkl_ind(39, 15) = 461
     ijkl_sym(461)    = 386
     !                     dxy     dzx   -      dzy     dz2
-    ijkl_ind(39, 33) = 462                                             
+    ijkl_ind(39, 33) = 462
     ijkl_sym(462)    = 387
     !                     dxy     dzx   -   dx2-y2      py
-    ijkl_ind(39, 29) = 463                                             
+    ijkl_ind(39, 29) = 463
     ijkl_sym(463)    = 390*(-1)
     !                     dxy     dzx   -   dx2-y2     dzy
-    ijkl_ind(39, 41) = 464                                             
+    ijkl_ind(39, 41) = 464
     ijkl_sym(464)    = 391*(-1)
     !                     dxy     dzx   -      dxy      px
-    ijkl_ind(39, 24) = 465                                             
+    ijkl_ind(39, 24) = 465
     ijkl_sym(465)    = 388
     !                     dxy     dzx   -      dxy     dzx
     ijkl_ind(39, 39) = 466
     ijkl_sym(466)    = 389
     ! ################    dxy     dzy   #######################
     !                     dxy     dzy   -       px       s
-    ijkl_ind(42,  3) = 467                                    
+    ijkl_ind(42,  3) = 467
     ijkl_sym(467)    = 382
     !                     dxy     dzy   -       px      pz
-    ijkl_ind(42, 11) = 468                                    
+    ijkl_ind(42, 11) = 468
     ijkl_sym(468)    = 383
     !                     dxy     dzy   -      dz2      px
-    ijkl_ind(42, 20) = 469                                    
+    ijkl_ind(42, 20) = 469
     ijkl_sym(469)    = 384
     !                     dxy     dzy   -      dzx       s
-    ijkl_ind(42,  6) = 470                                    
+    ijkl_ind(42,  6) = 470
     ijkl_sym(470)    = 385
     !                     dxy     dzy   -      dzx      pz
-    ijkl_ind(42, 14) = 471                                    
+    ijkl_ind(42, 14) = 471
     ijkl_sym(471)    = 386
     !                     dxy     dzy   -      dzx     dz2
-    ijkl_ind(42, 32) = 472                                    
+    ijkl_ind(42, 32) = 472
     ijkl_sym(472)    = 387
     !                     dxy     dzy   -   dx2-y2      px
-    ijkl_ind(42, 23) = 473                                    
+    ijkl_ind(42, 23) = 473
     ijkl_sym(473)    = 390
     !                     dxy     dzy   -   dx2-y2  dx2-y2
-    ijkl_ind(42, 38) = 474                                    
+    ijkl_ind(42, 38) = 474
     ijkl_sym(474)    = 391
     !                     dxy     dzy   -      dxy      py
-    ijkl_ind(42, 30) = 475                                    
+    ijkl_ind(42, 30) = 475
     ijkl_sym(475)    = 388
     !                     dxy     dzy   -      dxy     dzy
     ijkl_ind(42, 42) = 476
@@ -1785,43 +1785,43 @@ CONTAINS
     ijkl_ind(44, 44) = 477
     ! ################    dxy     dxy   #######################
     !                     dxy     dxy   -        s       s
-    ijkl_ind(45,  1) = 478                                                       
+    ijkl_ind(45,  1) = 478
     ijkl_sym(478)    = 402
     !                     dxy     dxy   -       pz       s
-    ijkl_ind(45,  2) = 479                                                       
+    ijkl_ind(45,  2) = 479
     ijkl_sym(479)    = 403
     !                     dxy     dxy   -       pz      pz
-    ijkl_ind(45, 10) = 480                                                       
+    ijkl_ind(45, 10) = 480
     ijkl_sym(480)    = 404
     !                     dxy     dxy   -       px      px
-    ijkl_ind(45, 18) = 481                                                       
+    ijkl_ind(45, 18) = 481
     ijkl_sym(481)    = 405
     !                     dxy     dxy   -       py      py
-    ijkl_ind(45, 25) = 482                                                       
+    ijkl_ind(45, 25) = 482
     ijkl_sym(482)    = 405
     !                     dxy     dxy   -      dz2       s
-    ijkl_ind(45,  5) = 483                                                       
+    ijkl_ind(45,  5) = 483
     ijkl_sym(483)    = 407
     !                     dxy     dxy   -      dz2      pz
-    ijkl_ind(45, 13) = 484                                                       
+    ijkl_ind(45, 13) = 484
     ijkl_sym(484)    = 408
     !                     dxy     dxy   -      dz2     dz2
-    ijkl_ind(45, 31) = 485                                                       
+    ijkl_ind(45, 31) = 485
     ijkl_sym(485)    = 409
     !                     dxy     dxy   -      dzx      px
-    ijkl_ind(45, 21) = 486                                                       
+    ijkl_ind(45, 21) = 486
     ijkl_sym(486)    = 410
     !                     dxy     dxy   -      dzx     dzx
-    ijkl_ind(45, 36) = 487                                                       
+    ijkl_ind(45, 36) = 487
     ijkl_sym(487)    = 411
     !                     dxy     dxy   -      dzy      py
-    ijkl_ind(45, 28) = 488                                                       
+    ijkl_ind(45, 28) = 488
     ijkl_sym(488)    = 410
     !                     dxy     dxy   -      dzy     dzy
-    ijkl_ind(45, 40) = 489                                                       
+    ijkl_ind(45, 40) = 489
     ijkl_sym(489)    = 411
     !                     dxy     dxy   -   dx2-y2  dx2-y2
-    ijkl_ind(45, 43) = 490                                                       
+    ijkl_ind(45, 43) = 490
     ijkl_sym(490)    = 415
     !                     dxy     dxy   -      dxy     dxy
     ijkl_ind(45, 45) = 491

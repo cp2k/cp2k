@@ -50,10 +50,10 @@ CONTAINS
 !> \param enum the enumeration to be created
 !> \param c_vals string values
 !> \param i_vals integer values
-!> \param strict if integer values not in the list should be accepted, 
+!> \param strict if integer values not in the list should be accepted,
 !>        defaults defaults to true
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
@@ -73,7 +73,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(.NOT.ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(c_vals)==SIZE(i_vals),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -114,8 +114,8 @@ END SUBROUTINE enum_create
 ! *****************************************************************************
 !> \brief retains the given enumeration
 !> \param enum the obect to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE enum_retain(enum,error)
@@ -138,8 +138,8 @@ SUBROUTINE enum_retain(enum,error)
 ! *****************************************************************************
 !> \brief releases the given enumeration
 !> \param enum the obect to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE enum_release(enum,error)
@@ -174,8 +174,8 @@ SUBROUTINE enum_release(enum,error)
 !> \brief maps an integer to a string
 !> \param enum the enumeration to use for the mapping
 !> \param i the value to map
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 FUNCTION enum_i2c(enum,i,error) RESULT(res)
@@ -191,7 +191,7 @@ FUNCTION enum_i2c(enum,i,error) RESULT(res)
     LOGICAL                                  :: failure, found
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,error,failure)
   res=" "
@@ -224,8 +224,8 @@ END FUNCTION enum_i2c
 !> \brief maps a string to an integer
 !> \param enum the enumeration to use for the mapping
 !> \param c the value to map
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 FUNCTION enum_c2i(enum,c,error) RESULT(res)
@@ -242,7 +242,7 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
     LOGICAL                                  :: failure, found
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,error,failure)
   upc=c

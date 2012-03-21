@@ -42,9 +42,9 @@ MODULE scptb_types
     INTEGER                                :: lmaxorb    !max angular momentum orbitals
     INTEGER                                :: lmaxscp    !max angular momentum scp density
     INTEGER, DIMENSION(0:3)                :: norb       !number of orbitals per l QN
-    INTEGER, DIMENSION(10,0:3)             :: nqm        !principle quantum numbers   
-    REAL(KIND=dp), DIMENSION(10,0:3)       :: zeta       !orbital exponents    
-    REAL(KIND=dp), DIMENSION(10,0:3)       :: orbene     !orbital energy       
+    INTEGER, DIMENSION(10,0:3)             :: nqm        !principle quantum numbers
+    REAL(KIND=dp), DIMENSION(10,0:3)       :: zeta       !orbital exponents
+    REAL(KIND=dp), DIMENSION(10,0:3)       :: orbene     !orbital energy
     REAL(KIND=dp), DIMENSION(10,0:3)       :: hcore      !core potential energy
     REAL(KIND=dp), DIMENSION(10,0:3)       :: occupation !free atom occupation
     REAL(KIND=dp)                          :: energy     !free atom energy
@@ -528,14 +528,14 @@ CONTAINS
     WRITE(*,*) "Index   Type   Atom    Basis       Value"
     j = 0
     DO i=1,SIZE(vec%vector)
-       na = vec%vector(i)%natom 
+       na = vec%vector(i)%natom
        nb = vec%vector(i)%nbasis
        DO ia = 1,na
           DO ib = 1,nb
              j = j+1
              WRITE(*,"(i5,i7,i7,i7,F20.10)") j,i,ia,ib,vec%vector(i)%vmat(ib,ia)
           END DO
-       END DO 
+       END DO
     END DO
 
   END SUBROUTINE scp_vector_print

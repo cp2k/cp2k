@@ -10,7 +10,7 @@
 MODULE ma_kinds
 
   IMPLICIT NONE
-  
+
   PRIVATE
 
   PUBLIC :: sp, dp

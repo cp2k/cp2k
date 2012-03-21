@@ -48,12 +48,12 @@ MODULE xc_b97
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_b97'
 
   PUBLIC :: b97_lda_info, b97_lsd_info, b97_lda_eval, b97_lsd_eval
-  
+
   REAL(dp), DIMENSION(10) :: params_b97_orig=(/ 0.8094_dp, 0.5073_dp, 0.7481_dp, &
     0.9454_dp, 0.7471_dp, -4.5961_dp, 0.1737_dp, 2.3487_dp, -2.4868_dp , 1.0_dp-0.1943_dp /)
   REAL(dp), DIMENSION(10) :: params_b97_grimme=(/ 1.08662_dp, -0.52127_dp, 3.25429_dp, &
     0.69041_dp, 6.30270_dp, -14.9712_dp, 0.22340_dp, -1.56208_dp, 1.94293_dp, 1.0_dp /)
-  
+
 CONTAINS
 
   SUBROUTINE b97_ref(param,lda,sx,sc,reference,shortform,error)
@@ -133,8 +133,8 @@ CONTAINS
   !> \param shortform string with the shortform of the functional name
   !> \param needs the components needed by this functional are set to
   !>        true (does not set the unneeded components to false)
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
+  !> \param error variable to control error logging, stopping,...
+  !>        see module cp_error_handling
   !> \author fawzi
   ! *****************************************************************************
   SUBROUTINE b97_lda_info(b97_params,reference,shortform, needs, max_deriv,&
@@ -174,8 +174,8 @@ CONTAINS
   !> \param shortform string with the shortform of the functional name
   !> \param needs the components needed by this functional are set to
   !>        true (does not set the unneeded components to false)
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
+  !> \param error variable to control error logging, stopping,...
+  !>        see module cp_error_handling
   !> \author fawzi
   ! *****************************************************************************
   SUBROUTINE b97_lsd_info(b97_params,reference,shortform, needs, max_deriv,&
@@ -216,8 +216,8 @@ CONTAINS
   !> \param grad_deriv degree of the derivative that should be evalated,
   !>        if positive all the derivatives up to the given degree are evaluated,
   !>        if negative only the given degree is calculated
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
+  !> \param error variable to control error logging, stopping,...
+  !>        see module cp_error_handling
   !> \author fawzi
   ! *****************************************************************************
   SUBROUTINE b97_lda_eval(rho_set,deriv_set,grad_deriv,b97_params,error)
@@ -353,8 +353,8 @@ CONTAINS
 
   ! *****************************************************************************
   !> \brief evaluates the b 97 xc functional for lsd
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
+  !> \param error variable to control error logging, stopping,...
+  !>        see module cp_error_handling
   !> \author fawzi
   ! *****************************************************************************
   SUBROUTINE b97_lsd_eval(rho_set,deriv_set,grad_deriv,b97_params,error)
@@ -541,8 +541,8 @@ CONTAINS
   !> \param e_ 0: adds to it the local value of the functional
   !> \param e_ *: derivative of the functional wrt. to the variables
   !>        named where the * is.
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
+  !> \param error variable to control error logging, stopping,...
+  !>        see module cp_error_handling
   !> \author fawzi
   ! *****************************************************************************
   SUBROUTINE b97_lsd_calc(rhoa, rhob, norm_drhoa, norm_drhob,&
@@ -1234,7 +1234,7 @@ CONTAINS
                             u_c_a1rhoa * c_css_2 + u_c_a * u_c_arhoarhoa * c_css_2))
                        e_ra_ra(ii)=e_ra_ra(ii)+exc_rhoa_rhoa
                    END IF
-           
+
                    chirhoarhob = 0.2e1_dp * t601
                    rsrhoarhob = rsrhoarhoa
                    t974 = t221 * t396 * t236
@@ -1270,7 +1270,7 @@ CONTAINS
                         0.4e1_dp * t113 * t289 * chirhoarhob
                    u_c_abrhoarhob = -0.2e1_dp * t906 * t480 + 0.2e1_dp * t911 * t914 &
                         * s_avg_2rhob
-           
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_rhoa_rhob = scale_c * (((e_c_u_0rhoarhob + (0.2e1_dp * t260 * &
                             rsrhoarhob * t92 - t719 * t1047 - t1049 * t721 + 0.2e1_dp * t726 * &
@@ -1288,7 +1288,7 @@ CONTAINS
                             u_c_abrhob * c_cab_2 + u_c_ab * u_c_abrhoarhob * c_cab_2))
                        e_ra_rb(ii)=e_ra_rb(ii)+exc_rhoa_rhob
                    END IF
-           
+
                    t1152 = t20 ** 2
                    t1157 = t365 * my_rhob
                    s_brhobrhob = 0.28e2_dp / 0.9e1_dp * my_norm_drhob / t20 / t1157
@@ -1380,7 +1380,7 @@ CONTAINS
                         t1451 * t1452 + 0.2e1_dp * t1455 * t1458 * s_b_21rhob - t484 * t486 &
                         * s_b_2rhobrhob
                    u_c_b1rhob = gamma_c_ss * s_b_21rhob * t168 - t484 * t1452
-           
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_rhob_rhob = scale_x * (-t4 * t6 / t1152 * gx_b / &
                             0.6e1_dp + e_lsda_x_brhob * (u_x_b1rhob * t31 + u_x_b * u_x_b1rhob *&
@@ -1409,7 +1409,7 @@ CONTAINS
                             * c_css_2))
                        e_rb_rb(ii)=e_rb_rb(ii)+exc_rhob_rhob
                    END IF
-           
+
                    s_arhoanorm_drhoa = -0.4e1_dp / 0.3e1_dp * t188
                    u_x_arhoanorm_drhoa = 0.2e1_dp * gamma_x * s_anorm_drhoa * t192 - &
                         0.10e2_dp * t568 * t199 * s_anorm_drhoa + 0.2e1_dp * t191 * t16 * &
@@ -1424,7 +1424,7 @@ CONTAINS
                    u_c_arhoanorm_drhoa = gamma_c_ss * s_a_2rhoanorm_drhoa * t165 - &
                         0.2e1_dp * t925 * t516 + 0.2e1_dp * t930 * t933 * s_a_2norm_drhoa - &
                         t345 * t347 * s_a_2rhoanorm_drhoa
-                
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_rhoa_norm_drhoa = scale_x * (e_lsda_x_arhoa * gx_anorm_drhoa +&
                             e_lsda_x_a * (u_x_arhoanorm_drhoa * t18 + 0.2e1_dp * u_x_arhoa * &
@@ -1440,7 +1440,7 @@ CONTAINS
 
                    u_c_abrhobnorm_drhoa = -0.2e1_dp * t1436 * t512 + 0.2e1_dp * t911 &
                         * t1440 * s_avg_2norm_drhoa
-        
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_rhob_norm_drhoa = scale_c * (e_lsda_c_abrhob * gc_abnorm_drhoa&
                             + e_lsda_c_ab * (u_c_abrhobnorm_drhoa * t170 + 0.2e1_dp * &
@@ -1448,7 +1448,7 @@ CONTAINS
                             u_c_abrhobnorm_drhoa * c_cab_2))
                        e_rb_ndra(ii)=e_rb_ndra(ii)+exc_rhob_norm_drhoa
                    END IF
-           
+
                    t1571 = s_anorm_drhoa ** 2
                    u_x_anorm_drhoanorm_drhoa = 0.2e1_dp * gamma_x * t1571 * t16 - &
                         0.10e2_dp * t568 * t198 * t1571 + 0.8e1_dp * t577 * t579 * t1571
@@ -1468,7 +1468,7 @@ CONTAINS
                         * t165 - 0.2e1_dp * t344 * s_a_2norm_drhoa * t1605 + 0.2e1_dp * &
                         t930 * t932 * s_a_2norm_drhoa * s_a_21norm_drhoa - t345 * t347 * &
                         s_a_2norm_drhoanorm_drhoa
-                
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_norm_drhoa_norm_drhoa = scale_x * e_lsda_x_a * (&
                             u_x_anorm_drhoanorm_drhoa * t18 + 0.2e1_dp * u_x_anorm_drhoa ** 2 * &
@@ -1481,10 +1481,10 @@ CONTAINS
                             t1605) * c_css_2 + u_c_a * u_c_anorm_drhoanorm_drhoa * c_css_2))
                        e_ndra_ndra(ii)=e_ndra_ndra(ii)+exc_norm_drhoa_norm_drhoa
                    END IF
-           
+
                    u_c_abrhoanorm_drhob = -0.2e1_dp * t906 * t539 + 0.2e1_dp * t911 *&
                         t914 * s_avg_2norm_drhob
-                
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_rhoa_norm_drhob = scale_c * (e_lsda_c_abrhoa * gc_abnorm_drhob&
                             + e_lsda_c_ab * (u_c_abrhoanorm_drhob * t170 + 0.2e1_dp * &
@@ -1492,7 +1492,7 @@ CONTAINS
                             u_c_abrhoanorm_drhob * c_cab_2))
                        e_ra_ndrb(ii)=e_ra_ndrb(ii)+exc_rhoa_norm_drhob
                    END IF
-           
+
                    s_brhobnorm_drhob = -0.4e1_dp / 0.3e1_dp * t367
                    u_x_brhobnorm_drhob = 0.2e1_dp * gamma_x * s_bnorm_drhob * t371 - &
                         0.10e2_dp * t1165 * t377 * s_bnorm_drhob + 0.2e1_dp * t370 * t29 * &
@@ -1520,7 +1520,7 @@ CONTAINS
                             * c_css_2 + u_c_b * u_c_brhobnorm_drhob * c_css_2))
                        e_rb_ndrb(ii)=e_rb_ndrb(ii)+exc_rhob_norm_drhob
                    END IF
-                    
+
                    u_c_abnorm_drhoanorm_drhob = -0.2e1_dp * t1589 * t539 + 0.2e1_dp *&
                         t911 * t1593 * s_avg_2norm_drhob
 
@@ -1531,7 +1531,7 @@ CONTAINS
                             c_cab_2)
                        e_ndra_ndrb(ii)=e_ndra_ndrb(ii)+exc_norm_drhoa_norm_drhob
                    END IF
-           
+
                    t1719 = s_bnorm_drhob ** 2
                    u_x_bnorm_drhobnorm_drhob = 0.2e1_dp * gamma_x * t1719 * t29 - &
                         0.10e2_dp * t1165 * t376 * t1719 + 0.8e1_dp * t1173 * t1175 * t1719
@@ -1550,7 +1550,7 @@ CONTAINS
                         * t168 - 0.2e1_dp * t344 * s_b_2norm_drhob * t1753 + 0.2e1_dp * &
                         t1455 * t1457 * s_b_2norm_drhob * s_b_21norm_drhob - t484 * t486 * &
                         s_b_2norm_drhobnorm_drhob
-                
+
                    IF (grad_deriv>1 .OR. grad_deriv==-2) THEN
                        exc_norm_drhob_norm_drhob = scale_x * e_lsda_x_b * (&
                             u_x_bnorm_drhobnorm_drhob * t31 + 0.2e1_dp * u_x_bnorm_drhob ** 2 * &
@@ -1580,8 +1580,8 @@ CONTAINS
 !> \param e_ 0: adds to it the local value of the functional
 !> \param e_ *: derivative of the functional wrt. to the variables
 !>        named where the * is.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&

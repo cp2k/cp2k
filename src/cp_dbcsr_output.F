@@ -65,7 +65,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Print a spherical matrix of blacs type. 
+!> \brief Print a spherical matrix of blacs type.
 !> \author Creation (12.06.2001,MK)
 !>       Allow for printing of a sub-matrix (01.07.2003,MK)
 ! *****************************************************************************
@@ -139,7 +139,7 @@ CONTAINS
        DEALLOCATE (matrix,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
   END SUBROUTINE write_fm_with_basis_info
 
   SUBROUTINE cp_dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
@@ -602,7 +602,7 @@ CONTAINS
 
     IF (matrix_type == dbcsr_type_symmetric .OR.&
          matrix_type == dbcsr_type_antisymmetric) THEN
-      nblock_tot = INT(natom,KIND=int_8)*INT(natom + 1,KIND=int_8)/2 
+      nblock_tot = INT(natom,KIND=int_8)*INT(natom + 1,KIND=int_8)/2
     ELSE
       nblock_tot = INT(natom,KIND=int_8)**2
     END IF

@@ -48,7 +48,7 @@ MODULE pw_types
 
      TYPE ( pw_grid_type ), POINTER :: pw_grid
   END TYPE pw_type
-  
+
 ! *****************************************************************************
   TYPE pw_p_type
      TYPE(pw_type), POINTER :: pw
@@ -74,8 +74,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains a pw type
 !> \param pw the pw to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      see doc/ReferenceCounting.html
 !> \par History
@@ -92,7 +92,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP,error)
@@ -103,8 +103,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given pw
 !> \param pw the pw to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      see doc/ReferenceCounting.html
 !> \par History
@@ -122,7 +122,7 @@ SUBROUTINE pw_release(pw, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pw)) THEN
      CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP,error)
      pw%ref_count=pw%ref_count-1
@@ -164,10 +164,10 @@ END SUBROUTINE pw_release
 !> \param pw the type that will bw allocated and initialized
 !> \param use_data which kind of data will be used
 !> \param in_space in which space the pw is (real or reciprocal)
-!> \param cr 3d_ptr: pointer with the cr3d data (make sense only if 
+!> \param cr 3d_ptr: pointer with the cr3d data (make sense only if
 !>        use_data==REALDATA3D)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -190,7 +190,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
     TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
-  
+
   CALL timeset(routineN,handle)
   CPPrecondition(.NOT.ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
   ALLOCATE(pw,stat=stat)

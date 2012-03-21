@@ -779,7 +779,7 @@ CONTAINS
     nze = rsize*csize
     dt1 = area%d%data_type
     dt2 = pointee%d%data_type
-    IF (careful_mod) THEN 
+    IF (careful_mod) THEN
         compatible = dt1 .EQ. dt2 .OR. dt1 .EQ. dbcsr_type_1d_to_2d (dt2)
         CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
              dbcsr_wrong_args_error, routineN,&
@@ -787,7 +787,7 @@ CONTAINS
 
     ENDIF
     pointee_is_2d = dbcsr_type_is_2d (dt2)
-    IF (careful_mod) THEN 
+    IF (careful_mod) THEN
         CALL dbcsr_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
              dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
              "Lower bound specification not possible with 2-d data",__LINE__,error)
@@ -1285,7 +1285,7 @@ CONTAINS
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_data_clear_2d_pointer
- 
+
 
 ! *****************************************************************************
 !> \brief Returns the allocated data size

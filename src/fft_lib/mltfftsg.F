@@ -34,19 +34,19 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
 
   ncache = get_cache_size ( )
   LENGTH = 2 * ( NCACHE / 4 + 1 )
-  
+
   ISIG = -ISIGN
   TSCAL = ( ABS ( SCALE -1._dbl ) > 1.e-12_dbl )
   CALL ctrig ( N, TRIG, AFTER, BEFORE, NOW, ISIG, IC )
   LOT = NCACHE / ( 4 * N )
   LOT = LOT - MOD ( LOT + 1, 2 )
   LOT = MAX ( 1, LOT )
-  
+
   ! initializations for serial mode
   id = 0; num_threads = 1
 
 !$omp parallel &
-!$omp private ( id, istart, iend, nfft, i, inzee, itr ) 
+!$omp private ( id, istart, iend, nfft, i, inzee, itr )
 
 !$omp single
 !$  num_threads = omp_get_num_threads()
@@ -65,7 +65,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   iend = MIN((id+1)*chunk,M)
 
   DO ITR = istart, iend, LOT
-     
+
      NFFT = MIN ( M - ITR + 1, LOT )
      IF ( TRANSA == 'N' .OR. TRANSA == 'n' ) THEN
         CALL fftpre ( NFFT, NFFT, LDAX, LOT, N, A ( 1, ITR ), Z ( 1, 1, id ), &
@@ -122,5 +122,5 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
      B(1:LDBX,N+1:LDBY) = CMPLX(0._dbl,0._dbl,dbl)
      B(M+1:LDBX,1:N) = CMPLX(0._dbl,0._dbl,dbl)
   ENDIF
-    
+
 END SUBROUTINE mltfftsg

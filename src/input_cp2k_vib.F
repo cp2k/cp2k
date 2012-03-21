@@ -30,18 +30,18 @@ MODULE input_cp2k_vib
 
   IMPLICIT NONE
   PRIVATE
-  
+
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_vib'
-  
+
   PUBLIC :: create_vib_section
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the exteranal restart section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_vib_section(section,error)
@@ -64,7 +64,7 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             supported_feature=.TRUE.,error=error)
        NULLIFY(keyword, subsection)
-       
+
        CALL keyword_create(keyword, name="DX",&
             description="Specify the increment to be used to construct the HESSIAN with "//&
             "finite difference method",&
@@ -104,7 +104,7 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL create_mode_selective_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -118,8 +118,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print section for VIB
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - 10.2008
 ! *****************************************************************************
   SUBROUTINE create_print_vib_section(section,error)
@@ -148,7 +148,7 @@ CONTAINS
             print_level=low_print_level, common_iter_levels=1,&
             filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing basic info about the vibrational method", &
@@ -184,8 +184,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the input section for MODE selective
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_mode_selective_section(section,error)
@@ -298,8 +298,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the input section for Ivolved_atoms keyword in mode selective
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_involved_atoms_section(section,error)

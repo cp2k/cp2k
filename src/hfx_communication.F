@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Routines for data exchange between MPI processes 
+!> \brief Routines for data exchange between MPI processes
 !> \par History
 !>      04.2008 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
-MODULE hfx_communication 
+MODULE hfx_communication
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
@@ -43,7 +43,7 @@ MODULE hfx_communication
 
   IMPLICIT NONE
   PRIVATE
-   
+
   PUBLIC get_full_density,&
          distribute_ks_matrix,&
          scale_and_add_fock_to_ks_matrix,&
@@ -51,7 +51,7 @@ MODULE hfx_communication
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_communication'
 
 !***
-  
+
   CONTAINS
 
 ! *****************************************************************************
@@ -197,7 +197,7 @@ MODULE hfx_communication
 !> \param full_ks The full Kohn-Sham matrix
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs 
+!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
 !> \param particle_se t
 !> \param nato m
 !> \param last_sgf_global helper array for mapping local to global indices
@@ -308,7 +308,7 @@ MODULE hfx_communication
 
     DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            
+
   END SUBROUTINE distribute_ks_matrix
 
 ! *****************************************************************************
@@ -319,7 +319,7 @@ MODULE hfx_communication
 !> \param full_ks The full Kohn-Sham matrix
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs 
+!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
 !> \param particle_se t
 !> \param nato m
 !> \param last_sgf_global helper array for mapping local to global indices
@@ -363,20 +363,20 @@ MODULE hfx_communication
 
     actual_x_data => qs_env%x_data(irep, 1)
     basis_parameter => actual_x_data%basis_parameter
-   
+
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     error=error)
 
-    nspins = qs_env%dft_control%nspins    
+    nspins = qs_env%dft_control%nspins
     natom = SIZE(particle_set,1)
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
-    
+
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
@@ -410,7 +410,7 @@ MODULE hfx_communication
     DEALLOCATE(kind_of, last_sgf_global, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE scale_and_add_fock_to_ks_matrix 
+  END SUBROUTINE scale_and_add_fock_to_ks_matrix
 
 ! *****************************************************************************
 !> \brief Given a 2d index pair, this function returns a 1d index pair for

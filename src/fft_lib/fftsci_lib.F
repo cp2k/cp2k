@@ -10,7 +10,7 @@
 ! *****************************************************************************
 SUBROUTINE fftsci_get_lengths ( DATA, max_length )
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
@@ -35,7 +35,7 @@ SUBROUTINE fftsci3d ( fft_in_place, fsign, scale, n, zin, zout )
 #if defined ( __FFTSCI )
 
   fsign = 0
-  
+
 #else
 
   fsign = 0

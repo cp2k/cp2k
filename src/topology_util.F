@@ -71,7 +71,7 @@ MODULE topology_util
   INTERFACE reorder_structure
      MODULE PROCEDURE reorder_structure1d, reorder_structure2d
   END INTERFACE
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -126,7 +126,7 @@ CONTAINS
     NULLIFY(logger,generate_section,isolated_section,tmp_v,tmp_n)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
     output_unit= cp_logger_get_default_io_unit(logger)
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
@@ -135,7 +135,7 @@ CONTAINS
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env_mm)) my_qmmm = qmmm
 
     atom_info => topology%atom_info
-    conn_info => topology%conn_info    
+    conn_info => topology%conn_info
     natom = topology%natoms
 
     NULLIFY( new_position, reference_set)
@@ -171,7 +171,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(atm_map2(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     ! The only information we have at this level is the connectivity of the system.
     ! 0. Build a list of mapping atom types
     ALLOCATE(map_atom_type(natom),stat=stat)
@@ -351,7 +351,7 @@ CONTAINS
     DEALLOCATE(atom_bond_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(atom_info%map_mol_num,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! Deallocate reference_set
     DO i = 1,SIZE(reference_set)
        DO j = 1, SIZE(reference_set(i)%graph)
@@ -470,7 +470,7 @@ CONTAINS
     isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS",error=error)
     CALL section_vals_get(isolated_section, explicit=explicit, error=error)
     IF (explicit) THEN
-       CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep, error=error)    
+       CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep, error=error)
        DO i = 1, n_rep
           CALL section_vals_val_get(isolated_section,"LIST", i_vals=tmp_v, i_rep_val=i, error=error)
           ALLOCATE(tmp_n(SIZE(tmp_v)),stat=stat)
@@ -504,8 +504,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(mol_num,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    ! DEALLOCATE the bond structures in the connectivity 
+
+    ! DEALLOCATE the bond structures in the connectivity
     DEALLOCATE(conn_info%bond_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(conn_info%bond_b,STAT=stat)
@@ -590,7 +590,7 @@ CONTAINS
        END DO
        ! Copy graph structure into the temporary array
        DO i = 1, mydim_in
-          v_dim = SIZE(graph_set_in(i)%graph)          
+          v_dim = SIZE(graph_set_in(i)%graph)
           ALLOCATE(graph_set_out(i)%graph(v_dim),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO j = 1, v_dim
@@ -598,7 +598,7 @@ CONTAINS
              b_dim = SIZE(graph_set_in(i)%graph(j)%bonds)
              ALLOCATE(graph_set_out(i)%graph(j)%bonds(b_dim),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             graph_set_out(i)%graph(j)%bonds = graph_set_in(i)%graph(j)%bonds 
+             graph_set_out(i)%graph(j)%bonds = graph_set_in(i)%graph(j)%bonds
              DEALLOCATE(graph_set_in(i)%graph(j)%bonds,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END DO
@@ -802,7 +802,7 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE reorder_list_array_low
-  
+
 ! *****************************************************************************
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
@@ -854,7 +854,7 @@ CONTAINS
   END SUBROUTINE tag_molecule
 
 ! *****************************************************************************
-!> \brief Given two lists of corresponding element a complex type is built in 
+!> \brief Given two lists of corresponding element a complex type is built in
 !>      which each element of the type has a list of mapping elements
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
@@ -885,7 +885,7 @@ CONTAINS
        work(index1)%array1(Nsize+1) = index2
        DEALLOCATE(wrk_tmp,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        wrk_tmp => work(index2)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
@@ -894,12 +894,12 @@ CONTAINS
        work(index2)%array1(Nsize+1) = index1
        DEALLOCATE(wrk_tmp,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO    
+    ENDDO
 
   END SUBROUTINE reorder_structure1d
 
 ! *****************************************************************************
-!> \brief Given two lists of corresponding element a complex type is built in 
+!> \brief Given two lists of corresponding element a complex type is built in
 !>      which each element of the type has a list of mapping elements
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
@@ -932,7 +932,7 @@ CONTAINS
        work(index1)%array1(Nsize+1) = index2
        DEALLOCATE(wrk_tmp,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        wrk_tmp => work(index2)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
@@ -959,13 +959,13 @@ CONTAINS
        work(index2)%array2(Nsize+1) = -index3
        DEALLOCATE(wrk_tmp,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO    
+    ENDDO
 
   END SUBROUTINE reorder_structure2d
-    
+
 ! *****************************************************************************
 !> \brief each atom will be assigned a molecule number based on bonded fragments
-!>      The array mol_info should be initialized with -1 before calling the 
+!>      The array mol_info should be initialized with -1 before calling the
 !>      find_molecule routine
 !> \author Joost 05.2006
 ! *****************************************************************************
@@ -1006,7 +1006,7 @@ CONTAINS
     DO I=1,SIZE(atom_bond_list(iatom)%array1)
        atom_b=atom_bond_list(iatom)%array1(I)
        ! In this way we're really sure that all atoms belong to the same
-       ! molecule. This should correct possible errors in the generation of 
+       ! molecule. This should correct possible errors in the generation of
        ! the bond list..
        IF (mol_info(atom_b)==-1.AND.my_mol_name==mol_name(atom_b)) THEN
           CALL spread_mol(atom_bond_list,mol_info,atom_b,imol,my_mol_name, mol_name)
@@ -1014,7 +1014,7 @@ CONTAINS
        END IF
     ENDDO
   END SUBROUTINE spread_mol
- 
+
 ! *****************************************************************************
 !> \brief Use info from periodic table and set atm_mass
 ! *****************************************************************************
@@ -1043,12 +1043,12 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
-    
+
     atom_info => topology%atom_info
     natom = topology%natoms
-    
+
     ! Available external info
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
@@ -1094,7 +1094,7 @@ CONTAINS
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
-    
+
   END SUBROUTINE topology_set_atm_mass
 
 ! *****************************************************************************
@@ -1125,7 +1125,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
@@ -1165,7 +1165,7 @@ CONTAINS
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
                   " expected number of atoms="//cp_to_string(counter)//" found="//&
-                  cp_to_string(loc_counter))            
+                  cp_to_string(loc_counter))
           END IF
        END IF
        IF (.NOT.icheck_typ) THEN
@@ -1175,7 +1175,7 @@ CONTAINS
           loc_counter = 1
           mol_typ     = atom_info%map_mol_typ(iatom)
        END IF
-       IF (icheck_num) THEN 
+       IF (icheck_num) THEN
           IF (icheck_typ) loc_counter = loc_counter + 1
           !-----------------------------------------------------------------------------
           !-----------------------------------------------------------------------------
@@ -1216,7 +1216,7 @@ CONTAINS
                   " expected bonds="//&
                   cp_to_string(SIZE(atom_bond_list(first+loc_counter-1)%array1))//" - "//&
                   cp_to_string(SIZE(atom_bond_list(iatom)%array1))//&
-                  " NOT FOUND! Check the connectivity of your system.")             
+                  " NOT FOUND! Check the connectivity of your system.")
           END IF
        ELSE
           mol_num = atom_info%map_mol_num(iatom)
@@ -1270,7 +1270,7 @@ CONTAINS
     element_out    = ""
     defined_kind_section = .FALSE.
 
-    ! First check if a KIND section is overriding the element 
+    ! First check if a KIND section is overriding the element
     ! definition
     CALL uppercase(atom_name)
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
@@ -1285,7 +1285,7 @@ CONTAINS
           IF (i>0) THEN
              CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
                   keyword_name="ELEMENT",c_val=element_symbol,error=error)
-             defined_kind_section = .TRUE.           
+             defined_kind_section = .TRUE.
              EXIT
           ELSE
              element_symbol=element_in
@@ -1296,12 +1296,12 @@ CONTAINS
 
     ! Let's check the validity of the element so far stored..
     ! if we are not having a connectivity file, we must first match against the ptable.
-    ! this helps to resolve Ca/CA (calcium and Calpha) or Cn/CN7 (Coppernicum (112) CN) conflicts 
+    ! this helps to resolve Ca/CA (calcium and Calpha) or Cn/CN7 (Coppernicum (112) CN) conflicts
     ! so, in the presence of connectivity CA will be 'C', while in the absence of connectivity CA will be 'Ca'
     IF (defined_kind_section .OR. .NOT. use_mm_map_first) THEN
        ! lengths larger than 2 should not match, because 'trailing' characters are ignored.
        in_ptable=.FALSE.
-       IF (LEN_TRIM(element_symbol)<=2) CALL get_ptable_info(element_symbol,found=in_ptable) 
+       IF (LEN_TRIM(element_symbol)<=2) CALL get_ptable_info(element_symbol,found=in_ptable)
        IF (in_ptable) THEN
           element_out = TRIM(element_symbol)
           found=.TRUE.
@@ -1359,7 +1359,7 @@ CPSourceFileRef,&
     ! Try again the periodic table.
     IF(.NOT.found) THEN
        in_ptable=.FALSE.
-       IF (LEN_TRIM(element_symbol)<=2) CALL get_ptable_info(element_symbol,found=in_ptable) 
+       IF (LEN_TRIM(element_symbol)<=2) CALL get_ptable_info(element_symbol,found=in_ptable)
        IF (in_ptable) THEN
           element_out = TRIM(element_symbol)
           found=.TRUE.
@@ -1372,7 +1372,7 @@ CPSourceFileRef,&
             " Unknown element for KIND <"//TRIM(atom_name_in)//">."//&
             " This problem can be fixed specifying properly elements in PDB"//&
             " or specifying a KIND section or getting in touch with one of "//&
-            " the developers!")         
+            " the developers!")
     END IF
 
   END SUBROUTINE check_subsys_element

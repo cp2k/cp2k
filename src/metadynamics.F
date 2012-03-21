@@ -54,7 +54,7 @@ MODULE metadynamics
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  PRIVATE 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics'
   INTEGER, SAVE, PRIVATE :: last_meta_env_id=0
@@ -65,7 +65,7 @@ MODULE metadynamics
 CONTAINS
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics
-!> \author Teodoro Laino 
+!> \author Teodoro Laino
 !> \date   01.2009
 !> \par History
 !>      01.2009 created
@@ -95,7 +95,7 @@ CONTAINS
                   message="Langevin on COLVAR not implemented for this MD ensemble!", &
                   error=error, error_level=cp_fatal_level)
           END IF
-          !    *** Velocity Verlet for Langevin S(t)->S(t+1) 
+          !    *** Velocity Verlet for Langevin S(t)->S(t+1)
           CALL metadyn_position_colvar(force_env, error=error)
           !    *** Forces from Vs and  S(X(t+1))
           CALL metadyn_forces(force_env, error=error)
@@ -205,14 +205,14 @@ CONTAINS
           END IF
        END IF
        !
-       IF(.NOT.meta_env%extended_lagrange) THEN 
+       IF(.NOT.meta_env%extended_lagrange) THEN
           cv%ss0 = cv%ss
           cv%vvp = 0.0_dp
        END IF
     ENDDO
     ! History dependent forces (evaluated at s0)
     IF(meta_env%do_hills) CALL  hills(meta_env,error)
-    
+
     ! Apply walls to the colvars
     CALL meta_walls(meta_env, error)
 
@@ -343,7 +343,7 @@ CONTAINS
                    IF (PRESENT(vel)) THEN
                       scal=scal+vel(1,i)*colvar_p(icolvar)%colvar%dsdr(1,ii)
                       scal=scal+vel(2,i)*colvar_p(icolvar)%colvar%dsdr(2,ii)
-                      scal=scal+vel(3,i)*colvar_p(icolvar)%colvar%dsdr(3,ii)                      
+                      scal=scal+vel(3,i)*colvar_p(icolvar)%colvar%dsdr(3,ii)
                    ELSE
                       scal=scal+particles%els(i)%v(1)*colvar_p(icolvar)%colvar%dsdr(1,ii)
                       scal=scal+particles%els(i)%v(2)*colvar_p(icolvar)%colvar%dsdr(2,ii)
@@ -379,7 +379,7 @@ CONTAINS
   END SUBROUTINE metadyn_forces
 
 ! *****************************************************************************
-!> \brief Evolves velocities COLVAR according to 
+!> \brief Evolves velocities COLVAR according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
 !> \author Fabio Sterpone and Teodoro Laino
 !> \date  01.2009
@@ -426,7 +426,7 @@ CONTAINS
        END IF
        cv%epot_s = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
        cv%ff_s   = cv%lambda*(diff_ss)
-       
+
        fft    = cv%ff_s+cv%ff_hills
        sigma  = SQRT((meta_env%temp_wanted*kelvin)*2.0_dp*(boltzmann/joule)*cv%gamma/cv%mass)
        cv%vvp = cv%vvp+0.5_dp*dt*fft/cv%mass-0.5_dp*dt*cv%gamma*cv%vvp+&
@@ -472,7 +472,7 @@ CONTAINS
 
     ! Update of ss0
     DO i_c = 1, meta_env%n_colvar
-       cv => meta_env%metavar(i_c)             
+       cv => meta_env%metavar(i_c)
        cv%ss0 =cv%ss0 +dt*cv%vvp
        IF (cv%periodic) THEN
           ! A periodic COLVAR is always within [-pi,pi]
@@ -484,7 +484,7 @@ CONTAINS
   END SUBROUTINE metadyn_position_colvar
 
 ! *****************************************************************************
-!> \brief Write down COLVAR information evolved  according to 
+!> \brief Write down COLVAR information evolved  according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
 !> \author Fabio Sterpone and Teodoro Laino
 !> \date  01.2009
@@ -528,7 +528,7 @@ CONTAINS
           END IF
           cv%epot_s = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
           cv%ff_s   = cv%lambda*(diff_ss)
-          
+
           meta_env%epot_s = meta_env%epot_s + cv%epot_s
           meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
        ENDDO
@@ -561,7 +561,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
          "PRINT%COLVAR", error=error)
-    
+
     ! Temperature for COLVAR
     IF (meta_env%extended_lagrange) THEN
        temp = meta_env%ekin_s*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
@@ -624,8 +624,8 @@ CONTAINS
     ! Create a temporary logger level specific for metadynamics
     CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS",error=error)
     CALL get_meta_iter_level(meta_env, iter_nr, error)
-    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_nr,error=error)   
- 
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_nr,error=error)
+
     ! Set-up restart if any
     IF (meta_env%hills_env%restart) THEN
        meta_env%hills_env%restart = .FALSE.
@@ -639,7 +639,7 @@ CONTAINS
        END IF
     END IF
 
- 
+
     ! Proceed with normal calculation
     intermeta_steps=n_step-hills_env%old_hill_step
     force_gauss=.FALSE.
@@ -651,8 +651,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
 
        local_last_hills(1:n_colvar)=hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
-     
-       !RG Calculate the displacement 
+
+       !RG Calculate the displacement
        dp2=0.0_dp
        DO i = 1, n_colvar
           ddp(i) = colvars(i)%ss0 - local_last_hills(i)
@@ -663,7 +663,7 @@ CONTAINS
           dp2 = dp2 + ddp(i)**2
        ENDDO
        dp2=SQRT(dp2)
- 
+
       IF(dp2 > hills_env%min_disp) force_gauss=.TRUE.
       DEALLOCATE(ddp, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -801,7 +801,7 @@ CONTAINS
     ENDDO
     DEALLOCATE(ddp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-    CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)    
+    CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)
 
     CALL timestop(handle)
 

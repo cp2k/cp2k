@@ -3,13 +3,13 @@
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
-!> \brief Calculation of the nuclear attraction contribution to the core Hamiltonian 
+!> \brief Calculation of the nuclear attraction contribution to the core Hamiltonian
 !>         <a|erfc|b> :we only calculate the non-screened part
 !> \par History
 !>      - core_ppnl refactored from qs_core_hamiltonian [Joost VandeVondele, 2008-11-01]
 !>      - adapted for nuclear attraction [jhu, 2009-02-24]
 ! *****************************************************************************
-MODULE core_ae 
+MODULE core_ae
 
   USE ai_verfc,                        ONLY: verfc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -119,7 +119,7 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-    
+
     ALLOCATE (atom_of_kind(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
@@ -132,7 +132,7 @@ CONTAINS
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     END IF
-  
+
     maxder = ncoset(nder)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -403,7 +403,7 @@ CONTAINS
     END IF
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE build_core_ae
 
 !==========================================================================================================
@@ -478,5 +478,5 @@ CONTAINS
   END SUBROUTINE verfc_force
 
 !==========================================================================================================
-  
+
 END MODULE core_ae

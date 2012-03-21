@@ -49,7 +49,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Perform a basic blocking of the text in message and print it
-!>        optionally decorated with a frame of stars as defined by declev. 
+!>        optionally decorated with a frame of stars as defined by declev.
 !> \note
 !>       after      : Number of empty lines after the message.
 !>       before     : Number of empty lines before the message.

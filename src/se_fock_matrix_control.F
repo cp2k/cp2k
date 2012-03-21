@@ -28,7 +28,7 @@ MODULE se_fock_matrix_control
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_control'
-  
+
   PUBLIC :: build_se_fock_matrix_control
 
 CONTAINS

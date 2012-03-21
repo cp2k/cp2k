@@ -63,7 +63,7 @@ CONTAINS
 !>          and the potential energy of the electrons. It is assumed, that
 !>          the core Hamiltonian matrix h and the density matrix p have the
 !>          same sparse matrix structure (same atomic blocks and block
-!>          ordering) 
+!>          ordering)
 !> \author  MK
 !> \date    03.05.2001
 !> \par History

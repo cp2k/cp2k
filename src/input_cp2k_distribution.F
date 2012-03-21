@@ -38,8 +38,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the distribution section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_distribution_section(section,error)
@@ -84,7 +84,7 @@ CONTAINS
             usage="2D_MOLECULAR_DISTRIBUTION TRUE",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SKIP_OPTIMIZATION",&
             description="Do not optimize the distribution, go for something very simple."//&
@@ -92,7 +92,7 @@ CONTAINS
             usage="SKIP_OPTIMIZATION TRUE",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BASIC_OPTIMIZATION",&
             description="Creates a distribution based on a few heuristics using only minimal memory "//&
@@ -100,7 +100,7 @@ CONTAINS
             usage="BASIC_OPTIMIZATION TRUE",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BASIC_SPATIAL_OPTIMIZATION",&
             description="Creates a distribution with spatial info, using only minimal memory "//&
@@ -115,7 +115,7 @@ CONTAINS
             usage="SYMMETRIC TRUE",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL create_2d_mc_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -128,8 +128,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief provides options for the distribute_2d_monte_carlo
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_2d_mc_section(section,error)

@@ -6,13 +6,13 @@
 ! *****************************************************************************
 !> \brief Calculates Bessel functions
 !> \note
-!>      Functions adapted from netlib 
+!>      Functions adapted from netlib
 !> \par History
 !>      March-2006: Bessel Transform (JGH)
-!> \author JGH (10-02-2001) 
+!> \author JGH (10-02-2001)
 ! *****************************************************************************
 MODULE bessel_lib
-  
+
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
@@ -20,11 +20,11 @@ MODULE bessel_lib
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  
+
   PRIVATE
   PUBLIC :: bessi0, bessi1, bessj0, bessj1, bessk0, bessk1
   PUBLIC :: bessel_transform
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -149,7 +149,7 @@ CONTAINS
         ( q3 + y * ( q4 + y * ( q5 + y * ( q6 + y * q7 ) ) ) ) ) )
     END IF
 
-  END FUNCTION bessk1 
+  END FUNCTION bessk1
 
 ! *****************************************************************************
   FUNCTION bessi0 ( x )
@@ -178,7 +178,7 @@ CONTAINS
         ( q8 + y * q9 ) ) ) ) ) ) ) )
     END IF
 
-  END FUNCTION bessi0 
+  END FUNCTION bessi0
 
 ! *****************************************************************************
   FUNCTION bessi1 ( x )

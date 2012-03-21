@@ -14,7 +14,7 @@
 ! *****************************************************************************
 SUBROUTINE fftw2_get_lengths ( DATA, max_length )
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
@@ -273,7 +273,7 @@ SUBROUTINE fftw2_create_plan_1dm ( plan, plan_style )
 
   TYPE(fft_plan_type), INTENT ( INOUT )              :: plan
   INTEGER :: plan_style
-  
+
   INTEGER :: fftw_plan_type
   SELECT CASE(plan_style)
   CASE(1)
@@ -319,7 +319,7 @@ SUBROUTINE fftw21dm ( plan, zin, zout, scale, stat )
 
   IMPLICIT NONE
 
-  TYPE(fft_plan_type), INTENT ( IN )                 :: plan  
+  TYPE(fft_plan_type), INTENT ( IN )                 :: plan
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale

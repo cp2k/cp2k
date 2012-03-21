@@ -140,8 +140,8 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_ppl_grid,&
             calculate_rho_core,&
-            calculate_rho_single_gaussian,& 
-            calculate_rho_metal,& 
+            calculate_rho_single_gaussian,&
+            calculate_rho_metal,&
             calculate_rho_elec,&
             calculate_drho_elec,&
             calculate_scp_charge,&
@@ -936,7 +936,7 @@ CONTAINS
                            alpha_core_charge=alpha,&
                            ccore_charge=pab(1,1))
 
-      IF(my_only_nopaw .AND. paw_atom ) CYCLE                     
+      IF(my_only_nopaw .AND. paw_atom ) CYCLE
       IF (alpha == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
 
       nthread = 1
@@ -1003,7 +1003,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collocate a single gaussian on the grid
 !> \par History
-!>        12.2011 created 
+!>        12.2011 created
 !> \author Dorothea Golze
 ! *****************************************************************************
   SUBROUTINE calculate_rho_single_gaussian(rho_gb,qs_env,iatom_in,error)
@@ -1079,7 +1079,7 @@ CONTAINS
 
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
     CALL rs_grid_release(rs_rho, error=error)
- 
+
     CALL pw_transfer(rhoc_r%pw,rho_gb%pw,error=error)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
@@ -1091,7 +1091,7 @@ END SUBROUTINE calculate_rho_single_gaussian
 ! *****************************************************************************
 !> \brief computes the image charge density on grid (including coeffcients)
 !> \par History
-!>        01.2012 created 
+!>        01.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
 SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
@@ -1142,7 +1142,7 @@ SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
   eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
   pab(1,1)=1.0_dp
 
-  natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list) 
+  natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
 
   CALL reallocate ( cores, 1, natom )
    npme = 0
@@ -1159,7 +1159,7 @@ SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
       cores (npme) = iatom
    ENDIF
   ENDDO
-  
+
   IF(npme.GT.0)THEN
    DO j=1,npme
     iatom = cores(j)
@@ -1183,7 +1183,7 @@ SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
   CALL rs_grid_release(rs_rho, error=error)
 
   IF(PRESENT(total_rho_metal)) &
-  total_rho_metal = pw_integrate_function(rhoc_r%pw,error=error) 
+  total_rho_metal = pw_integrate_function(rhoc_r%pw,error=error)
 
   CALL pw_transfer(rhoc_r%pw,rho_metal%pw,error=error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
@@ -1310,7 +1310,7 @@ END SUBROUTINE calculate_rho_metal
 
 
     SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set) 
+    CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
            atomic_kind_set=atomic_kind_set,&
            cell=cell,&
@@ -1388,7 +1388,7 @@ END SUBROUTINE calculate_rho_metal
     atom_pair_send=>task_list%atom_pair_send
     atom_pair_recv=>task_list%atom_pair_recv
     ntasks=task_list%ntasks
-    
+
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, lgrid=lgrid, error=error)
@@ -1415,7 +1415,7 @@ END SUBROUTINE calculate_rho_metal
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     !   *** Initialize working density matrix ***
-    ! distributed rs grids require a matrix that will be changed 
+    ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
        NULLIFY(deltap)
@@ -1477,7 +1477,7 @@ END SUBROUTINE calculate_rho_metal
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
 
-       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
           IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
 
@@ -1532,7 +1532,7 @@ END SUBROUTINE calculate_rho_metal
                   nset=nsetb,&
                   nsgf_set=nsgfb,&
                   sphi=sphi_b,&
-                  zet=zetb)          
+                  zet=zetb)
           ENDIF
 
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
@@ -1610,7 +1610,7 @@ END SUBROUTINE calculate_rho_metal
           ENDIF
        ELSE
           use_subpatch = .FALSE.
-       ENDIF 
+       ENDIF
 
        IF (nthread > 1) THEN
           IF (iatom <= jatom) THEN
@@ -1674,7 +1674,7 @@ END SUBROUTINE calculate_rho_metal
              *(1 + rs_rho(igrid_level)%rs_grid%ub_local(2) &
                  - rs_rho(igrid_level)%rs_grid%lb_local(2))
 
-        ! Work out the number of tree levels, and start the reduction 
+        ! Work out the number of tree levels, and start the reduction
 
         nrlevel = CEILING(LOG10(1.0_dp*nthread)/LOG10(2.0_dp))
 
@@ -1732,7 +1732,7 @@ END SUBROUTINE calculate_rho_metal
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************
-!> \brief computes the gradient of the density corresponding to a given 
+!> \brief computes the gradient of the density corresponding to a given
 !>        density matrix on the grid
 !> \note  this is an alternative to calculate the gradient through FFTs
 ! *****************************************************************************
@@ -1820,9 +1820,9 @@ END SUBROUTINE calculate_rho_metal
     ELSE
       my_basis_set_id = use_orb_basis_set
     END IF
-   
+
     SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set) 
+    CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
            atomic_kind_set=atomic_kind_set,&
            cell=cell,&
@@ -1899,7 +1899,7 @@ END SUBROUTINE calculate_rho_metal
     atom_pair_send=>task_list%atom_pair_send
     atom_pair_recv=>task_list%atom_pair_recv
     ntasks=task_list%ntasks
-    
+
     ! *** set up the rs multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, error=error)
@@ -1911,7 +1911,7 @@ END SUBROUTINE calculate_rho_metal
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     !   *** Initialize working density matrix ***
-    ! distributed rs grids require a matrix that will be changed 
+    ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
        NULLIFY(deltap)
@@ -1943,7 +1943,7 @@ END SUBROUTINE calculate_rho_metal
          CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
       END DO
 
-      iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
+      iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1
       ikind_old = -1 ; jkind_old = -1
       loop_tasks: DO itask=1,ntasks
 
@@ -1952,7 +1952,7 @@ END SUBROUTINE calculate_rho_metal
         ikind = particle_set(iatom)%atomic_kind%kind_number
         jkind = particle_set(jatom)%atomic_kind%kind_number
 
-        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
           IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
 
@@ -2007,7 +2007,7 @@ END SUBROUTINE calculate_rho_metal
                   nset=nsetb,&
                   nsgf_set=nsgfb,&
                   sphi=sphi_b,&
-                  zet=zetb)          
+                  zet=zetb)
           ENDIF
 
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
@@ -2027,7 +2027,7 @@ END SUBROUTINE calculate_rho_metal
           atom_pair_changed = .FALSE.
 
         ENDIF
- 
+
         IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
 
           ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -2064,7 +2064,7 @@ END SUBROUTINE calculate_rho_metal
         rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
         rb(:) = ra(:) + rab(:)
         zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
- 
+
         na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
         na2 = ipgf*ncoset(la_max(iset))
         nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
@@ -2076,7 +2076,7 @@ END SUBROUTINE calculate_rho_metal
         ELSE
           scale = 2.0_dp
         END IF
- 
+
         ! check whether we need to use fawzi's generalised collocation scheme
         IF(rs_rho(igrid_level)%rs_grid%desc%distributed)THEN
           !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
@@ -2087,7 +2087,7 @@ END SUBROUTINE calculate_rho_metal
           ENDIF
         ELSE
           use_subpatch = .FALSE.
-        ENDIF 
+        ENDIF
         IF (iatom <= jatom) THEN
           CALL collocate_pgf_product_rspace(&
                la_max(iset),zeta(ipgf,iset),la_min(iset),&
@@ -2143,7 +2143,7 @@ END SUBROUTINE calculate_rho_metal
 !> \note
 !>      modified calculate_rho_elec, should write the wavefunction represented by
 !>      it's presumably dominated by the FFT and the rs->pw and back routines
-!> 
+!>
 !>    BUGS ???
 !>      does it take correctly the periodic images of the basis functions into account
 !>      i.e. is only correct if the basis functions are localised enough to be just in 1 cell ?
@@ -2200,7 +2200,7 @@ END SUBROUTINE calculate_rho_metal
     IF( PRESENT( basis_set_id ) ) THEN
       my_basis_set_id = basis_set_id
     ELSE
-      my_basis_set_id = use_orb_basis_set 
+      my_basis_set_id = use_orb_basis_set
     END IF
 
     failure=.FALSE.
@@ -2231,7 +2231,7 @@ END SUBROUTINE calculate_rho_metal
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, pw_pools=pw_pools, &
         cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
-    
+
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                 use_data = COMPLEXDATA1D,&
                 in_space = RECIPROCALSPACE, error=error)
@@ -2324,8 +2324,8 @@ END SUBROUTINE calculate_rho_metal
                         lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) + rs_rho(igrid_level)%rs_grid%desc%border
                         ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) - rs_rho(igrid_level)%rs_grid%desc%border
                      ELSE
-                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) 
-                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) 
+                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir )
+                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir )
                      ENDIF
                      ! distributed grid, only map if it is local to the grid
                      location(dir)=tp(dir)+rs_rho(igrid_level)%rs_grid%desc%lb(dir)
@@ -2339,7 +2339,7 @@ END SUBROUTINE calculate_rho_metal
                ! not distributed, just a round-robin distribution over the full set of CPUs
                IF (MODULO(offset,group_size)==my_pos) map_it_here=.TRUE.
             ENDIF
-            
+
             IF (map_it_here) CALL collocate_pgf_product_rspace(&
                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
                  0,0.0_dp,0,&
@@ -2465,12 +2465,12 @@ END SUBROUTINE calculate_rho_metal
 
     subpatch_collocate = .FALSE.
 
-    IF(PRESENT(use_subpatch)) THEN 
-       IF(use_subpatch)THEN 
+    IF(PRESENT(use_subpatch)) THEN
+       IF(use_subpatch)THEN
          subpatch_collocate = .TRUE.
          CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,error,failure)
        ENDIF
-    ENDIF  
+    ENDIF
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
@@ -2618,7 +2618,7 @@ END SUBROUTINE calculate_rho_metal
         o1_local=0
         o2_local=0
     CASE(FUNC_DX,FUNC_DY,FUNC_DZ)
-        ider1 = ga_gb_function - 500 
+        ider1 = ga_gb_function - 500
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -2650,8 +2650,8 @@ END SUBROUTINE calculate_rho_metal
         o1_local=0
         o2_local=0
     CASE(FUNC_DXDY,FUNC_DYDZ,FUNC_DZDX)
-        ider1 = ga_gb_function - 600 
-        ider2 = ga_gb_function - 600 + 1 
+        ider1 = ga_gb_function - 600
+        ider2 = ga_gb_function - 600 + 1
         IF(ider2>3) ider2 = ider1-2
         la_max_local=la_max+2
         la_min_local=MAX(la_min-2,0)
@@ -2680,7 +2680,7 @@ END SUBROUTINE calculate_rho_metal
         o1_local=0
         o2_local=0
     CASE(FUNC_DXDX,FUNC_DYDY,FUNC_DZDZ)
-        ider1 = ga_gb_function - 603 
+        ider1 = ga_gb_function - 603
         la_max_local=la_max+2
         la_min_local=MAX(la_min-2,0)
         lb_max_local=lb_max+2
@@ -2866,7 +2866,7 @@ END SUBROUTINE calculate_rho_metal
        ENDDO
        DO lyb=0,lb_max_local-lzb
        DO lya=0,la_max_local-lza
-          lxpm=(lb_max_local-lzb-lyb)+(la_max_local-lza-lya) 
+          lxpm=(lb_max_local-lzb-lyb)+(la_max_local-lza-lya)
           coef_xtt(0:lxpm)=0.0_dp
           DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
           DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
@@ -2922,7 +2922,7 @@ END SUBROUTINE calculate_rho_metal
     IF (ga_gb_function /= FUNC_AB) THEN
        DEALLOCATE(pab_local)
     ENDIF
-    ! deallocation needed to pass around a pgi bug.. 
+    ! deallocation needed to pass around a pgi bug..
     DEALLOCATE(alpha)
     DEALLOCATE(coef_xtt)
     DEALLOCATE(coef_xyt)
@@ -2961,7 +2961,7 @@ END SUBROUTINE calculate_rho_metal
     ALLOCATE(map(-cmax:cmax,3))
     CALL compute_cube_center(cubecenter,rsgrid%desc,zeta,zetb,ra,rab)
     roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
-!   *** a mapping so that the ig corresponds to the right grid point 
+!   *** a mapping so that the ig corresponds to the right grid point
     DO i=1,3
       IF ( rsgrid % desc % perd ( i ) == 1 ) THEN
         start=lb_cube(i)
@@ -2991,7 +2991,7 @@ END SUBROUTINE calculate_rho_metal
     ALLOCATE(pol_x(0:lp,-cmax:cmax))
 
     IF(PRESENT(ir).AND.PRESENT(rsgauge)) CALL collocate_ortho_set_to_0()
-    
+
 #include "prep.f90"
 
     IF ( PRESENT ( lgrid ) ) THEN
@@ -3121,17 +3121,17 @@ END SUBROUTINE calculate_rho_metal
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: hmatgridp
 
-! 
+!
 ! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
 ! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
 ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
-! 
+!
 
       ALLOCATE(coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
 
       ! aux mapping array to simplify life
       ALLOCATE(coef_map(0:lp,0:lp,0:lp))
-      coef_map=HUGE(coef_map) 
+      coef_map=HUGE(coef_map)
       lxyz=0
       DO lzp=0,lp
       DO lyp=0,lp-lzp
@@ -3349,7 +3349,7 @@ END SUBROUTINE calculate_rho_metal
             error=error)
         END IF
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-        
+
     END SUBROUTINE
 
     SUBROUTINE collocate_general_wings
@@ -3385,7 +3385,7 @@ END SUBROUTINE calculate_rho_metal
             error=error)
         END IF
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
- 
+
     END SUBROUTINE
 
 !
@@ -3393,7 +3393,7 @@ END SUBROUTINE calculate_rho_metal
 !
 ! *****************************************************************************
     SUBROUTINE collocate_general()
- 
+
     INTEGER                                  :: i, index_max(3), &
                                                 index_min(3), ipoint(3), j, k
     REAL(KIND=dp)                            :: point(3)
@@ -3424,7 +3424,7 @@ END SUBROUTINE calculate_rho_metal
       ENDDO
       ENDDO
       ENDDO
-       
+
     END SUBROUTINE collocate_general
 
 ! *****************************************************************************
@@ -3447,13 +3447,13 @@ END SUBROUTINE calculate_rho_metal
            drbp(2)=1.0_dp
            DO lyb=0,lb_max_local-lxb
               drap(3)=1.0_dp
-              DO lza=1,MAX(la_min_local-lxa-lya,0) 
-                 drap(3)=drap(3)*dra(3) 
+              DO lza=1,MAX(la_min_local-lxa-lya,0)
+                 drap(3)=drap(3)*dra(3)
               ENDDO
               DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
               drbp(3)=1.0_dp
-              DO lzb=1,MAX(lb_min_local-lxb-lyb,0) 
-                 drbp(3)=drbp(3)*drb(3) 
+              DO lzb=1,MAX(lb_min_local-lxb-lyb,0)
+                 drbp(3)=drbp(3)*drb(3)
               ENDDO
               DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
                 ico=coset(lxa,lya,lza)
@@ -3471,7 +3471,7 @@ END SUBROUTINE calculate_rho_metal
         ENDDO
         drap(1)=drap(1)*dra(1)
         ENDDO
-                
+
     END FUNCTION primitive_value
 
   END SUBROUTINE collocate_pgf_product_rspace
@@ -3679,8 +3679,8 @@ END SUBROUTINE calculate_rho_metal
   END SUBROUTINE collocate_pgf_product_gspace
 
 ! *****************************************************************************
-!> \brief given partial densities on the realspace multigrids, 
-!>      computes the full density on the plane wave grids, both in real and 
+!> \brief given partial densities on the realspace multigrids,
+!>      computes the full density on the plane wave grids, both in real and
 !>      gspace
 !> \note
 !>      should contain the all communication in the collocation of the density

@@ -72,7 +72,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Computes the potential and the force for a lattice sum of multipoles
 !>      (up to quadrupole)
-!> \par    Note 
+!> \par    Note
 !>         atomic_kind_set and mm_section are between the arguments only
 !>         for debug purpose (therefore optional) and can be avoided when this
 !>         function is called in other part of the program
@@ -172,7 +172,7 @@ CONTAINS
           CALL debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, radii, charges, dipoles,&
                quadrupoles, task, iw, error)
-          STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!" 
+          STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!"
        END IF
     END IF
 
@@ -250,7 +250,7 @@ CONTAINS
                cell, e_bonded, my_task, do_forces, do_efield, do_stress, &
                charges, dipoles, quadrupoles, forces_glob, pv_glob, &
                efield0_sr, efield1_sr, efield2_sr, error)
-          energy_glob = energy_glob + e_bonded 
+          energy_glob = energy_glob + e_bonded
        END IF
     END IF
 
@@ -284,7 +284,7 @@ CONTAINS
     ! Gather the components of the potential, fields and electrostatic field gradients
     IF (do_efield) THEN
        IF (PRESENT(efield0)) THEN
-          efield0 = efield0_sr + efield0_lr 
+          efield0 = efield0_sr + efield0_lr
           CALL mp_sum(efield0, group)
           DEALLOCATE (efield0_sr, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -292,7 +292,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (PRESENT(efield1)) THEN
-          efield1 = efield1_sr + efield1_lr 
+          efield1 = efield1_sr + efield1_lr
           CALL mp_sum(efield1, group)
           DEALLOCATE (efield1_sr, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -381,7 +381,7 @@ CONTAINS
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)
     do_efield2 = do_efield.AND.ASSOCIATED(efield2)
-    IF (do_stress) THEN 
+    IF (do_stress) THEN
        ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
@@ -498,9 +498,9 @@ CONTAINS
   END SUBROUTINE ewald_multipole_SR
 
 ! *****************************************************************************
-!> \brief computes the bonded correction for the potential and the force for a 
+!> \brief computes the bonded correction for the potential and the force for a
 !>        lattice sum of multipoles up to quadrupole
-!> \author Teodoro Laino [tlaino] - 05.2009 
+!> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_bonded (nonbond_env, particle_set, ewald_env, &
        cell, energy, task, do_forces, do_efield, do_stress, charges, &
@@ -555,7 +555,7 @@ CONTAINS
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)
     do_efield2 = do_efield.AND.ASSOCIATED(efield2)
-    IF (do_stress) THEN 
+    IF (do_stress) THEN
        ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
@@ -608,7 +608,7 @@ CONTAINS
 
     CALL timestop ( handle )
   END SUBROUTINE ewald_multipole_bonded
-  
+
 ! *****************************************************************************
 !> \brief computes the potential and the force for a lattice sum of multipoles
 !>      up to quadrupole - Long Range (Reciprocal Space) Term
@@ -833,7 +833,7 @@ CONTAINS
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 fac       = exp_igr%ex(lp,node)*exp_igr%ey(mp,node)*exp_igr%ez(np,node)
                 cnjg_fac  = CONJG(fac)
-                
+
                 ! Forces
                 IF (do_forces) THEN
                    CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
@@ -844,12 +844,12 @@ CONTAINS
                    forces(2,node) = forces(2,node) + tmp * pw_grid%g(2,gpt)
                    forces(3,node) = forces(3,node) + tmp * pw_grid%g(3,gpt)
                 END IF
-                
+
                 ! Electric field
                 IF (do_efield) THEN
                    ! Potential
                    IF (do_efield0) THEN
-                      efield0(  iparticle) = efield0(  iparticle) + gauss *  REAL(fac*CONJG(summe_ef(gpt)),KIND=dp) 
+                      efield0(  iparticle) = efield0(  iparticle) + gauss *  REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)
                    END IF
                    ! Electric field
                    IF (do_efield1) THEN
@@ -863,7 +863,7 @@ CONTAINS
                       tmp_v(1) = REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)*pw_grid%g(1,gpt)*gauss
                       tmp_v(2) = REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)*pw_grid%g(2,gpt)*gauss
                       tmp_v(3) = REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)*pw_grid%g(3,gpt)*gauss
-                      
+
                       efield2(1,iparticle) = efield2(1,iparticle) + tmp_v(1) * pw_grid%g(1,gpt)
                       efield2(2,iparticle) = efield2(2,iparticle) + tmp_v(1) * pw_grid%g(2,gpt)
                       efield2(3,iparticle) = efield2(3,iparticle) + tmp_v(1) * pw_grid%g(3,gpt)
@@ -915,7 +915,7 @@ CONTAINS
     IF (do_stress) THEN
        pv_tmp = pv_tmp * pref
        ! Symmetrize the tensor
-       pv(1,1) = pv(1,1) +  pv_tmp(1,1) 
+       pv(1,1) = pv(1,1) +  pv_tmp(1,1)
        pv(1,2) = pv(1,2) + (pv_tmp(1,2) + pv_tmp(2,1))*0.5_dp
        pv(1,3) = pv(1,3) + (pv_tmp(1,3) + pv_tmp(3,1))*0.5_dp
        pv(2,1) = pv(1,2)
@@ -947,7 +947,7 @@ CONTAINS
 !> \brief Computes the atom factor including charge, dipole and quadrupole
 !> \par History
 !>      none
-!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich 
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
        dipoles, quadrupoles, error)
@@ -1000,7 +1000,7 @@ CONTAINS
 !> \brief Computes the atom factor including charge, dipole and quadrupole
 !> \par History
 !>      none
-!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich 
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE get_atom_factor_stress(atm_factor, pw_grid, gpt, iparticle, task,&
        dipoles, quadrupoles, error)
@@ -1145,7 +1145,7 @@ CONTAINS
           END IF
           IF (ANY(task(3,:))) THEN
              ! Quadrupole - Quadrupole
-             DO i = 1,3 
+             DO i = 1,3
                 DO j = 1,3
                    qu_qu_self = qu_qu_self + quadrupoles(j,i,iparticle)**2
                 END DO

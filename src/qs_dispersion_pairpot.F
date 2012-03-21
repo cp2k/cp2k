@@ -274,7 +274,7 @@ CONTAINS
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
                         c_vals=tmpstringlist, error=error)
-                      READ(tmpstringlist(1),*) dispersion_env%cnkind(i)%cnum 
+                      READ(tmpstringlist(1),*) dispersion_env%cnkind(i)%cnum
                       READ(tmpstringlist(2),*) dispersion_env%cnkind(i)%kind
                    END DO
                 END IF
@@ -289,7 +289,7 @@ CONTAINS
                       ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                       dispersion_env%cnlist(i)%natom = nl-1
-                      READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum 
+                      READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum
                       DO j=1,nl-1
                          READ(tmpstringlist(j+1),*) dispersion_env%cnlist(i)%atom(j)
                       END DO
@@ -438,13 +438,13 @@ CONTAINS
        s6  = 1.000_dp
        sr6 = 1.287_dp
        s8  = 0.928_dp
-    CASE ("PW6B95") 
+    CASE ("PW6B95")
        ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
        ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
        s6  = 1.000_dp
        sr6 = 1.532_dp
        s8  = 0.862_dp
-    CASE ("PWB6K") 
+    CASE ("PWB6K")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.660_dp
@@ -467,57 +467,57 @@ CONTAINS
        s6  = 1.000_dp
        sr6 = 1.252_dp
        s8  = 1.242_dp
-    CASE ("TPSSh") 
+    CASE ("TPSSh")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.223_dp
        s8  = 1.219_dp
-    CASE ("B3PW91") 
+    CASE ("B3PW91")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.176_dp
        s8  = 1.775_dp
-    CASE ("BMK") 
+    CASE ("BMK")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.931_dp
        s8  = 2.168_dp
-    CASE ("CAMB3LYP") 
+    CASE ("CAMB3LYP")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.378_dp
        s8  = 1.217_dp
-    CASE ("LCWPBE") 
+    CASE ("LCWPBE")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.355_dp
        s8  = 1.279_dp
-    CASE ("M052X") 
+    CASE ("M052X")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.417_dp
        s8  = 0.000_dp
-    CASE ("M05") 
+    CASE ("M05")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.373_dp
        s8  = 0.595_dp
-    CASE ("M062X") 
+    CASE ("M062X")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.619_dp
        s8  = 0.000_dp
-    CASE ("M06HF") 
+    CASE ("M06HF")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.446_dp
        s8  = 0.000_dp
-    CASE ("M06L") 
+    CASE ("M06L")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.581_dp
        s8  = 0.000_dp
-    CASE ("M06N") 
+    CASE ("M06N")
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.325_dp
@@ -563,10 +563,10 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
        ! vdW type specific output
        IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
-          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')") 
+          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')")
           ! Pair potentials
           IF ( TRIM(dispersion_env%pp_type) == "DFTD2" ) THEN
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')") 
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
@@ -584,7 +584,7 @@ CONTAINS
                 END IF
              END DO
           ELSE IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')") 
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s6 Scaling Factor:',T73,F8.4)") dispersion_env%s6
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'sr6 Scaling Factor:',T73,F8.4)") dispersion_env%sr6
@@ -704,7 +704,7 @@ CONTAINS
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
 
        IF(unit_nr>0) THEN
-        WRITE(unit_nr,*) 
+        WRITE(unit_nr,*)
         WRITE(unit_nr,*) " Pair potential vdW calculation"
         WRITE(unit_nr,*) " Dispersion potential type: ",TRIM(dispersion_env%pp_type)
        END IF
@@ -770,7 +770,7 @@ CONTAINS
           e6tot = 0._dp
           e8tot = 0._dp
           e9tot = 0._dp
-          
+
           IF(unit_nr>0) THEN
             WRITE(unit_nr,*) " Scaling parameter (s6) ",s6
             WRITE(unit_nr,*) " Scaling parameter (s8) ",s8
@@ -884,7 +884,7 @@ CONTAINS
               CALL get_atomic_kind(atomic_kind,z=za)
               cnumfix(iatom) = dispersion_env%cn(za)
             END DO
-            ! now check for changes from default 
+            ! now check for changes from default
             IF (ASSOCIATED(dispersion_env%cnkind)) THEN
               DO i=1,SIZE(dispersion_env%cnkind)
                 ikind=dispersion_env%cnkind(i)%kind
@@ -1196,7 +1196,7 @@ CONTAINS
                                          CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
                                        END IF
                                      END DO
-  
+
                                      de91  = 0.5_dp*e9/cc6bc
                                      de921 = de91*dcc6bcb
                                      de922 = de91*dcc6bcc
@@ -1230,7 +1230,7 @@ CONTAINS
                                          CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
                                        END IF
                                      END DO
-  
+
                                      de91  = 0.5_dp*e9/cc6ca
                                      de921 = de91*dcc6cac
                                      de922 = de91*dcc6caa
@@ -1389,9 +1389,9 @@ CONTAINS
          END IF
        END IF
        IF(unit_nr>0) THEN
-         WRITE(unit_nr,*) " Total vdW energy [au]     :",evdw 
+         WRITE(unit_nr,*) " Total vdW energy [au]     :",evdw
          WRITE(unit_nr,*) " Total vdW energy [kcal]   :",evdw * kcalmol
-         WRITE(unit_nr,*) 
+         WRITE(unit_nr,*)
        END IF
        IF(calculate_forces .AND. debugall) THEN
          IF(unit_nr>0) THEN
@@ -1408,18 +1408,18 @@ CONTAINS
            IF(unit_nr>0) WRITE(unit_nr,"(i5,i7,3F20.14)") iatom,ikind,fdij
          END DO
          IF(unit_nr>0) THEN
-           WRITE(unit_nr,*) 
+           WRITE(unit_nr,*)
            WRITE(unit_nr,*) "|G| = ",gnorm
-           WRITE(unit_nr,*) 
+           WRITE(unit_nr,*)
          END IF
          IF ( use_virial ) THEN
            dvirial = virial%pv_virial - dvirial
            CALL mp_sum(dvirial,para_env%group)
            IF(unit_nr>0) THEN
-              WRITE(unit_nr,*) "Stress Tensor (dispersion)" 
+              WRITE(unit_nr,*) "Stress Tensor (dispersion)"
               WRITE(unit_nr,"(3G20.12)") dvirial
               WRITE(unit_nr,*) "  Tr(P)/3 :  ",(dvirial(1,1)+dvirial(2,2)+dvirial(3,3) )/3._dp
-              WRITE(unit_nr,*) 
+              WRITE(unit_nr,*)
            END IF
          END IF
        END IF
@@ -1469,7 +1469,7 @@ CONTAINS
     nx=2*ncell(1)+1
     ny=2*ncell(2)+1
     nz=2*ncell(3)+1
- 
+
     hash = ix*ny*nz + iy*nz + iz + 1
 
   END FUNCTION cellhash
@@ -1575,7 +1575,7 @@ CONTAINS
 
     DEALLOCATE(pars,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
   END SUBROUTINE dftd3_c6_param
 
   SUBROUTINE limit(iat,jat,iadr,jadr)
@@ -2374,7 +2374,7 @@ CONTAINS
       ,  3.9809,  3.9866,  4.3329,  4.1276,  3.9782,  4.5097,  4.6769&
       ,  4.5158,  4.3291,  4.3609,  4.3462,  4.3265,  4.4341&
       /)
-      
+
       k=0
       DO i=1,SIZE(rout,1)
          DO j=1,i
@@ -2453,7 +2453,7 @@ CONTAINS
 
     rco=rcova+rcovb
     rr=rco/rab
-    ! counting function exponential has a better long-range behavior 
+    ! counting function exponential has a better long-range behavior
     ! than MHGs inverse damping
     ! factor k2 already included into rcov
     ee = EXP(-k1*(rr-1.0_dp))
@@ -2491,7 +2491,7 @@ CONTAINS
       fcc = 1._dp+zz*(a+b*z+c*z*z)
       dfcc = zz*dz/z * (3._dp*a+4._dp*b*z+5._dp*c*z*z)
     END IF
-     
+
     rr = 6._dp*(rab/(srn*rcutab))**(-alpn)
     fab = 1._dp/(1._dp + rr)
     dfab = fab*fab*rr*alpn/rab

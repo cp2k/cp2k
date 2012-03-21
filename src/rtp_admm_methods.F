@@ -207,7 +207,7 @@ CONTAINS
   END SUBROUTINE rtp_admm_calculate_dm
 
   SUBROUTINE rtp_admm_fit_mo_coeffs(qs_env, admm_env, admm_control, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                mos, mos_aux_fit,rtp,rtp_coeff_aux_fit, geometry_did_change, error) 
+                                mos, mos_aux_fit,rtp,rtp_coeff_aux_fit, geometry_did_change, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
@@ -263,31 +263,31 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "Purification method not implemented in combination with RTP"//&
             CPSourceFileRef,&
-            only_ionode=.TRUE.)    
+            only_ionode=.TRUE.)
      END SELECT
-    
+
     CALL timestop(handle)
 
   END SUBROUTINE rtp_admm_fit_mo_coeffs
 ! *****************************************************************************
-!> \brief Calculates the MO coefficients for the auxiliary fitting basis set  
+!> \brief Calculates the MO coefficients for the auxiliary fitting basis set
 !>        by minimizing int (psi_i - psi_aux_i)^2 using Lagrangian Multipliers
-!>      
+!>
 !> \param admm_env The ADMM env
-!> \param para_env The parallel env  
+!> \param para_env The parallel env
 !> \param matrix_s_aux_fit the overlap matrix of the auxiliary fitting basis set
 !> \param matrix_s_mixed the mixed overlap matrix of the auxiliary fitting basis
 !>        set and the orbital basis set
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param geometry_did_change flag to indicate if the geomtry changed
-!> \param error 
+!> \param error
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE rtp_fit_mo_coeffs_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                mos, mos_aux_fit,rtp,rtp_coeff_aux_fit, geometry_did_change, error) 
+                                mos, mos_aux_fit,rtp,rtp_coeff_aux_fit, geometry_did_change, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
@@ -339,13 +339,13 @@ CONTAINS
     IF( geometry_did_change ) THEN
       CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%S_inv,error)
       CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
-      CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S, error=error) 
+      CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S, error=error)
 
       CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,admm_env%Q,error)
 
       !! Calculate S'_inverse
       CALL cp_fm_cholesky_decompose(admm_env%S_inv,error=error)
-      CALL cp_fm_cholesky_invert(admm_env%S_inv,error=error) 
+      CALL cp_fm_cholesky_invert(admm_env%S_inv,error=error)
       !! Symmetrize the guy
       CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
       !! Calculate A=S'^(-1)*P
@@ -381,7 +381,7 @@ CONTAINS
 
       CALL cp_fm_to_fm(rtp_coeff_aux_fit(2*ispin-1)%matrix,mo_coeff_aux_fit,error)
     END DO
-    
+
     CALL timestop(handle)
 
   END SUBROUTINE rtp_fit_mo_coeffs_none
@@ -418,7 +418,7 @@ CONTAINS
     CALL calculate_density_matrix(mo_set,tmp_rho_im,error=error)
     CALL cp_fm_to_fm(rtp_coeff_aux_fit(re_part)%matrix,mo_set%mo_coeff,error)
     CALL calculate_density_matrix(mo_set,tmp_rho_re,error=error)
-    
+
     CALL cp_dbcsr_add(density_matrix_aux,tmp_rho_re,&
          alpha_scalar=zero,beta_scalar=one,error=error)
     CALL cp_dbcsr_add(density_matrix_aux,tmp_rho_im,&
@@ -539,7 +539,7 @@ CONTAINS
     CALL cp_dbcsr_set(density_matrix,0.0_dp,error=error)
     nao_aux_fit = admm_env%nao_aux_fit
     nmo = admm_env%nmo(ispin)
-    CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, error=error) 
+    CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, error=error)
     CALL cp_fm_column_scale(admm_env%work_aux_nmo(ispin)%matrix,mo_set%occupation_numbers(1:mo_set%homo))
 
     CALL cp_fm_gemm('N','N',nao_aux_fit,nmo,nmo,&
@@ -574,7 +574,7 @@ CONTAINS
     ELSE
       Heaviside = 1.0_dp
     END IF
-  END FUNCTION Heaviside 
+  END FUNCTION Heaviside
 
 
 
@@ -619,8 +619,8 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE rtp_admm_merge_ks_matrix
-  
-  
+
+
   SUBROUTINE rt_merge_ks_matrix_cauchy(ispin,mos_new, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
                                     matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_p_aux_fit,&
                                     matrix_p, error)
@@ -830,9 +830,9 @@ CONTAINS
     CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.,&
          error=error)
 
-    CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)   
+    CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)
 
-    CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde,error) 
+    CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde,error)
 
     CALL timestop(handle)
 

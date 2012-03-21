@@ -6,12 +6,12 @@
 ! *****************************************************************************
 !> \brief Calculation of general three-center integrals over Cartesian
 !>      Gaussian-type functions and a spherical operator centered at position C
-!> 
+!>
 !>      <a|V(local)|b> = <a|F(|r-C|)|b>
 !> \par Literature
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !> \par History
-!>      - Based in part on code by MK 
+!>      - Based in part on code by MK
 !> \par Parameters
 !>      -  ax,ay,az   : Angular momentum index numbers of orbital a.
 !>      -  bx,by,bz   : Angular momentum index numbers of orbital b.
@@ -52,7 +52,7 @@ CONTAINS
 !> \brief   Calculation of three-center integrals <a|c|b> over
 !           Cartesian Gaussian functions and a spherical potential
 !
-!> \author  Juerg Hutter  
+!> \author  Juerg Hutter
 !> \date    May 2011
 !> \version 1.0
 ! *****************************************************************************
@@ -177,7 +177,7 @@ CONTAINS
       IF (rpgfa(ipgf) + rpgfc < dac) THEN
         na = na + ncoset(la_max_set)
         CYCLE
-      END IF   
+      END IF
 
       nb = 0
 
@@ -369,7 +369,7 @@ CONTAINS
                   s(1,20,m+1) = pbi(3)*s(1,10,m+1) - pci(3)*s(1,10,m+2)  &      ! [fz3 |o|s]
                                 + 2._dp*orho*(s(1,4,m+1)-s(1,4,m+2))
                END DO
-            ELSE 
+            ELSE
                DO irx=0,llr
                  DO iry=0,llr-irx
                    irz=llr-irx-iry

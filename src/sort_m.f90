@@ -51,7 +51,7 @@
                 CALL sort(matrix, kstart, kend, j+1, jsize, INDEX)
              END IF
              item   = work(ind)
-             kstart = i 
+             kstart = i
           END IF
        END DO
        kend = i-1

@@ -41,10 +41,10 @@ MODULE input_cp2k_force_eval
 
   IMPLICIT NONE
   PRIVATE
-  
+
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_force_eval'
-  
+
   PUBLIC :: create_force_eval_section
 
 CONTAINS
@@ -52,8 +52,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the force_eval section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_force_eval_section(section,error)
@@ -127,7 +127,7 @@ CONTAINS
 
     CALL create_mix_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)    
+    CALL section_release(subsection,error=error)
 
     CALL create_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -192,28 +192,28 @@ CONTAINS
             n_keywords=7, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
-      
+
        CALL keyword_create(keyword, name="ATOMS_LIST",&
             description="Specifies the atoms on which the external potential will act",&
             usage="ATOMS_LIST {INT} {INT} ..",required=.FALSE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
             "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE.,&
             type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
             usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of  parameter of the functional form",&
             usage="VALUES ", required=.TRUE., type_of_var=real_t,&
@@ -242,15 +242,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       
+
     END IF
   END SUBROUTINE create_ext_pot_section
 
 ! *****************************************************************************
 !> \brief Creates the section controlling the rescaling of forces
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_rescale_force_section(section,error)
@@ -273,7 +273,7 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="MAX_FORCE",&
             description="Specify the Maximum Values of the force. If the force"//&
             " of one atom exceed this value it's rescaled to the MAX_FORCE"//&
@@ -285,13 +285,13 @@ CONTAINS
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
     END IF
   END SUBROUTINE create_rescale_force_section
 
 ! *****************************************************************************
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_f_env_print_section(section,error)
@@ -323,7 +323,7 @@ CONTAINS
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)        
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"FORCES",&
             description="Controls the printing of the forces after each force evaluation",&

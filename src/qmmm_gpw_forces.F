@@ -166,7 +166,7 @@ CONTAINS
        CASE(do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
-               error=error, error_level=cp_failure_level)             
+               error=error, error_level=cp_failure_level)
        CASE(do_qmmm_none)
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -226,7 +226,7 @@ CONTAINS
           CASE(do_qmmm_coulomb)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-                  error=error, error_level=cp_failure_level)              
+                  error=error, error_level=cp_failure_level)
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "- QM/MM Coupling computed collocating the Gaussian Potential Functions."
@@ -302,8 +302,8 @@ CONTAINS
        WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&
             "QMMM Total Energy (QM + QMMM electronic + QMMM nuclear):",energy%total
        WRITE(iw,'(T2,"QMMM|",1X,A)')"MM energy NOT included in the above term!"//&
-            " Check for:  FORCE_EVAL ( QMMM )" 
-       WRITE(iw,'(T2,"QMMM|",1X,A)')"that includes both QM, QMMM and MM energy terms!" 
+            " Check for:  FORCE_EVAL ( QMMM )"
+       WRITE(iw,'(T2,"QMMM|",1X,A)')"that includes both QM, QMMM and MM energy terms!"
     END IF
     IF (need_f) THEN
        ! Transfer Forces
@@ -311,7 +311,7 @@ CONTAINS
           IndMM = qmmm_env%mm_atom_index(Imm)
 
           !add image forces to Forces
-          IF(qmmm_env%image_charge) THEN  
+          IF(qmmm_env%image_charge) THEN
              DO iatom=1,qmmm_env%num_image_mm_atoms
                image_IndMM=qmmm_env%image_charge_pot%image_mm_list(iatom)
                IF(image_IndMM.eq.IndMM) THEN
@@ -608,7 +608,7 @@ CONTAINS
              W         =   mm_charges(LIndMM) * height
              force     =   0.0_dp
              ! Possible Spherical Cutoff
-             IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+             IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
                 CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
                 W = W * sph_chrg_factor
              END IF
@@ -798,7 +798,7 @@ CONTAINS
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
-          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
              qt = qt * sph_chrg_factor
           END IF
@@ -1178,13 +1178,13 @@ CONTAINS
           IF (par_scheme==do_par_atom) THEN
              myind = myind + 1
              IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE
-          END IF          
+          END IF
           LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
-          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
              qt = qt * sph_chrg_factor
           END IF
@@ -1345,7 +1345,7 @@ CONTAINS
              CASE(do_qmmm_coulomb)
                 CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-                     error=error, error_level=cp_failure_level) 
+                     error=error, error_level=cp_failure_level)
              CASE(do_qmmm_gauss,do_qmmm_swave)
                 CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                                 v_qmmm=v_qmmm_rspace,&
@@ -1381,7 +1381,7 @@ CONTAINS
     CASE(do_qmmm_coulomb)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-            error=error, error_level=cp_failure_level) 
+            error=error, error_level=cp_failure_level)
     CASE(do_qmmm_gauss,do_qmmm_swave)
        IF (iw>0) WRITE(iw,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms

@@ -163,7 +163,7 @@ MODULE cp_control_types
      REAL(KIND=dp)                   :: phase_offset
      REAL(KIND=dp)                   :: wavelength
   END TYPE efield_type
-  
+
   TYPE efield_p_type
      TYPE(efield_type),POINTER       :: efield
   END TYPE efield_p_type
@@ -248,7 +248,7 @@ MODULE cp_control_types
 
 ! *****************************************************************************
 ! \brief Control parameters for a QUICKSTEP and KIM-GORDON calculation ***
-!        eps_pgf_orb: Cutoff value for the interaction of the primitive 
+!        eps_pgf_orb: Cutoff value for the interaction of the primitive
 !                     Gaussian-type functions (primitive basis functions).
 ! *****************************************************************************
   TYPE qs_control_type
@@ -515,7 +515,7 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)
     ALLOCATE(ddapc_restraint_control,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ddapc_restraint_control%density_type=do_full_density
     ddapc_restraint_control%ref_count=1
@@ -775,7 +775,7 @@ CONTAINS
        NULLIFY(dft_control%period_efield)
        NULLIFY(dft_control%admm_control)
        NULLIFY(dft_control%rtp_control)
-       CALL qs_control_create(dft_control%qs_control, error=error)       
+       CALL qs_control_create(dft_control%qs_control, error=error)
     END IF
   END SUBROUTINE dft_control_create
 
@@ -887,7 +887,7 @@ CONTAINS
        NULLIFY(qs_control%se_control)
        NULLIFY(qs_control%dftb_control)
        NULLIFY(qs_control%scptb_control)
-       NULLIFY(qs_control%becke_control)  
+       NULLIFY(qs_control%becke_control)
        NULLIFY(qs_control%ddapc_restraint_control)
 
        CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
@@ -919,7 +919,7 @@ CONTAINS
        CALL dftb_control_release(qs_control%dftb_control,error=error)
        CALL scptb_control_release(qs_control%scptb_control,error=error)
        CALL becke_control_release(qs_control%becke_control,error=error)
-       
+
        IF (ASSOCIATED(qs_control%e_cutoff)) THEN
           DEALLOCATE(qs_control%e_cutoff,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -959,7 +959,7 @@ CONTAINS
        NULLIFY(tddfpt_control%lumos)
        NULLIFY(tddfpt_control%lumos_eigenvalues)
     END IF
-    
+
   END SUBROUTINE tddfpt_control_create
 
 ! *****************************************************************************

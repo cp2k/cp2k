@@ -38,7 +38,7 @@ MODULE cp_ddapc_methods
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_methods'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_methods'
   PUBLIC :: ddapc_eval_gfunc,&
             build_b_vector,&
             build_der_b_vector,&
@@ -147,7 +147,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(my_bvw(s_dim:igmax),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !   
+       !
        DO iparticle = 1, SIZE(particle_set)
           rvec =  particle_set(iparticle)%r
           my_bv = 0.0_dp
@@ -172,7 +172,7 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE build_b_vector
-    
+
 ! *****************************************************************************
 !> \brief Computes the A matrix for the solution of the linear system
 !> \par History
@@ -315,7 +315,7 @@ CONTAINS
           DO ig = s_dim, igmax
              gvec   = rho_tot_g % pw_grid % g (:,ig)
              arg    = DOT_PRODUCT(gvec,rvec)
-             dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp) 
+             dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp)
              my_dbv (:,ig) = w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*dphase,KIND=dp) * gvec(:)
           END DO
           DO igauss = 1, SIZE(radii)
@@ -341,9 +341,9 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE build_der_b_vector
-    
+
 ! *****************************************************************************
-!> \brief Computes the derivative of the A matrix for the evaluation of the 
+!> \brief Computes the derivative of the A matrix for the evaluation of the
 !>      Pulay forces
 !> \par History
 !>      08.2005 created [tlaino]
@@ -537,7 +537,7 @@ CONTAINS
   END SUBROUTINE prep_g_dot_rvec_sin_cos
 
 ! *****************************************************************************
-!> \brief Computes the inverse AmI of the Am matrix 
+!> \brief Computes the inverse AmI of the Am matrix
 !> \par History
 !>      12.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -616,7 +616,7 @@ CONTAINS
        IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error
        END IF
-       c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))       
+       c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))
        DEALLOCATE(Am, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(cv, stat=stat)
@@ -670,7 +670,7 @@ CONTAINS
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
        CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
        sfact = factor
-       rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp 
+       rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
        CALL section_vals_val_get(multipole_section,"EWALD_PRECISION",r_val=eps,error=error)
@@ -687,7 +687,7 @@ CONTAINS
        nmax1  = NINT(0.25_dp + cell%hmat(1,1)*alpha*tol1/pi)
        nmax2  = NINT(0.25_dp + cell%hmat(2,2)*alpha*tol1/pi)
        nmax3  = NINT(0.25_dp + cell%hmat(3,3)*alpha*tol1/pi)
-       
+
        rmax1  = CEILING(rcut/cell%hmat(1,1))
        rmax2  = CEILING(rcut/cell%hmat(2,2))
        rmax3  = CEILING(rcut/cell%hmat(3,3))
@@ -701,14 +701,14 @@ CONTAINS
        ALLOCATE(EwM(ewmdim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(M(ndim, ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        M = 0.0_dp
        !
        idim = 0
        !NB zero EwM so mp_sum(EwM) will give right answer
        EwM = 0.0_dp
        DO iparticle1 = 1, SIZE(particle_set)
-          ip1 = (iparticle1-1)*SIZE(radii)          
+          ip1 = (iparticle1-1)*SIZE(radii)
           DO iparticle2 = 1, iparticle1
              ij_fac = 1.0_dp
              IF (iparticle1==iparticle2) ij_fac=0.5_dp
@@ -724,9 +724,9 @@ CONTAINS
              rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
              r_ewald = 0.0_dp
              IF (iparticle1 /= iparticle2) THEN
-                ra = rvec 
+                ra = rvec
                 r2tmp  = DOT_PRODUCT(ra,ra)
-                IF (r2tmp<=rcut2) THEN 
+                IF (r2tmp<=rcut2) THEN
                    r  = SQRT(r2tmp)
                    t1 = erfc(alpha*r) / r
                    r_ewald = t1
@@ -736,14 +736,14 @@ CONTAINS
                 DO r2 = -rmax2, rmax2
                    DO r3 = -rmax3, rmax3
                       IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
-                      ra(1) = rvec(1) + cell%hmat(1,1)*r1 
-                      ra(2) = rvec(2) + cell%hmat(2,2)*r2 
-                      ra(3) = rvec(3) + cell%hmat(3,3)*r3 
+                      ra(1) = rvec(1) + cell%hmat(1,1)*r1
+                      ra(2) = rvec(2) + cell%hmat(2,2)*r2
+                      ra(3) = rvec(3) + cell%hmat(3,3)*r3
                       r2tmp  = DOT_PRODUCT(ra,ra)
                       IF (r2tmp<=rcut2) THEN
                          r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
-                         r_ewald = r_ewald + t1*ij_fac           
+                         r_ewald = r_ewald + t1*ij_fac
                       END IF
                    END DO
                 END DO
@@ -780,8 +780,8 @@ CONTAINS
                 g_ewald = g_ewald - 2.0_dp * alpha * oorootpi
              END IF
              !
-             IF (iparticle1/=iparticle2) THEN 
-                ra = rvec 
+             IF (iparticle1/=iparticle2) THEN
+                ra = rvec
                 r  = SQRT(DOT_PRODUCT(ra,ra))
                 my_val = sfact / r
              END IF
@@ -802,7 +802,7 @@ CONTAINS
              DO iparticle1 = 1, iparticle2
                 ip1 = (iparticle1-1)*SIZE(radii)
                 idim = idimo + iparticle1
-                istart_g = 1                
+                istart_g = 1
                 IF (iparticle1==iparticle2) istart_g = igauss2
                 DO igauss1 = istart_g, SIZE(radii)
                    idim1  = ip1 + igauss1
@@ -815,7 +815,7 @@ CONTAINS
           END DO ! iparticle2
        END DO ! iparticle1
        DEALLOCATE(EwM, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_pot
@@ -858,7 +858,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        ndim   = SIZE(particle_set) * SIZE(radii)
        ALLOCATE(M(ndim, ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        M      = 0.0_dp
        eps_in = 1.0_dp
        CALL section_vals_val_get(solvation_section,"EPS_OUT",r_val=eps_out,error=error)
@@ -899,12 +899,12 @@ CONTAINS
              center = R0
              CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%FIXED",l_val=fixed_center,&
                   error=error)
-             IF (fixed_center) THEN             
+             IF (fixed_center) THEN
                 CALL section_vals_val_set(solvation_section,"SPHERE%CENTER%XYZ",&
                      r_vals_ptr=R0,error=error)
              ELSE
                 DEALLOCATE(R0, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           END IF
        END IF

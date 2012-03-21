@@ -69,7 +69,7 @@ MODULE neb_types
 CONTAINS
 ! *****************************************************************************
 !> \param  Creates a variable type for BAND calculation
-!> \author Teodoro Laino [tlaino] - University of Zurich 
+!> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2007
 ! *****************************************************************************
   SUBROUTINE neb_var_create(neb_var, neb_env, full_allocation, error)
@@ -117,12 +117,12 @@ CONTAINS
        neb_var%size_wrk(1) = SIZE(neb_var%wrk,1)
        neb_var%size_wrk(2) = SIZE(neb_var%wrk,2)
     END IF
-    
+
   END SUBROUTINE neb_var_create
 
 ! *****************************************************************************
 !> \param  Releases a variable type for BAND calculation
-!> \author Teodoro Laino [tlaino] - University of Zurich 
+!> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2007
 ! *****************************************************************************
   SUBROUTINE neb_var_release(neb_var, error)
@@ -150,7 +150,7 @@ CONTAINS
        DEALLOCATE(neb_var, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
   END SUBROUTINE neb_var_release
 
 END MODULE neb_types

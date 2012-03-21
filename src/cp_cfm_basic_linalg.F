@@ -370,9 +370,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief computs the the solution to A*b=A_general using lu decomposition
-!>        pay attention, both matrices are overwritten, a_general contais the result    
+!>        pay attention, both matrices are overwritten, a_general contais the result
 !> \author Florian Schiffmann
-! *****************************************************************************  
+! *****************************************************************************
   SUBROUTINE cp_cfm_solve(matrix_a,general_a,determinant,error)
     TYPE(cp_cfm_type), POINTER               :: matrix_a, general_a
     COMPLEX(KIND=dp), OPTIONAL               :: determinant
@@ -412,7 +412,7 @@ CPSourceFileRef,&
        counter=0
        DO i=1,nrow_local
           IF(ipivot(i).ne.row_indices(i))counter=counter+1
-       END DO   
+       END DO
        DO i=1,n
           CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
        ENDDO
@@ -422,7 +422,7 @@ CPSourceFileRef,&
        ENDDO
        CALL mp_sum(counter,matrix_a%matrix_struct%para_env%group)
        IF(MOD(counter,2)==1)determinant=-1.0_dp*determinant
-       DEALLOCATE(diag)   
+       DEALLOCATE(diag)
     END IF
     CALL pzgetrs("N" , n , n , a(1,1), 1, 1, desca ,ipivot, a_general(1,1) ,&
                  1, 1, descb, info )

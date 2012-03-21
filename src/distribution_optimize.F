@@ -8,7 +8,7 @@
 !> \note
 !>      currently optimizes a 2D distribution for a 2D grid of CPUs
 !>      see distribute_2d_monte_carlo
-!> 
+!>
 !>      The approach currently is based on Monte Carlo like annealing to find the
 !>      a good approximation of the global minimum [which appears to work well]
 !> \par History
@@ -54,7 +54,7 @@ CONTAINS
 !>      For example, if cost_ele_pair=1 each cpu will have approximately the
 !>      same number of elements, and the maximum number of blocks on a given CPU is minimum.
 !>      it is up to some cost model to define reasonable costs of each element pair
-!> 
+!>
 !>      P x Q : processor grid
 !>      nele : number of elements
 !>      local_rows[1..nele] : to which CPU row [1..P] belongs this ele
@@ -115,10 +115,10 @@ CONTAINS
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-    ! the best possible cost is a perfectly equal load for each cpu 
+    ! the best possible cost is a perfectly equal load for each cpu
     ! POTENTIAL OVERFLOW HERE !
     cost_optimal=(SUM(INT(cost_ele_pair,int_8))+INT(P*Q-1,int_8))/INT(P*Q,int_8)
-    
+
     IF (iw>0) THEN
        WRITE(iw,'(/,T2,A)') "2D_MC| Monte Carlo annealing to optimize the distribution_2d"
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of moves",nmoves
@@ -178,7 +178,7 @@ CONTAINS
 
     CALL CPU_TIME(t_initial)
     DO itries=1,nmoves
-       ! do annealing 
+       ! do annealing
        IF (MOD(itries,nmoves/ncycles)==1) THEN
           T=T_in
        ENDIF
@@ -255,7 +255,7 @@ CONTAINS
 
     ENDDO
 
-    ! now get the best results from all different CPUs  
+    ! now get the best results from all different CPUs
     ALLOCATE(max_cost_para(0:para_env%num_pe-1))
     max_cost_para=0
     max_cost_para(para_env%mepos)=best_max_cost
@@ -265,7 +265,7 @@ CONTAINS
     DO i=1,para_env%num_pe-1
        IF (max_cost_para(i)<best_max_cost) THEN
           best_max_cost=max_cost_para(i)
-          best_cpu=i 
+          best_cpu=i
        ENDIF
     ENDDO
     CALL mp_bcast(local_rows_best,best_cpu,para_env%group)
@@ -332,8 +332,8 @@ CONTAINS
     INTEGER                                  :: i
 
     DO i=1,nele
-       cost_cpu(icpu_old,local_cols(i))=cost_cpu(icpu_old,local_cols(i))-cost_ele_pair(iele,i)     
-       cost_cpu(icpu_new,local_cols(i))=cost_cpu(icpu_new,local_cols(i))+cost_ele_pair(iele,i)     
+       cost_cpu(icpu_old,local_cols(i))=cost_cpu(icpu_old,local_cols(i))-cost_ele_pair(iele,i)
+       cost_cpu(icpu_new,local_cols(i))=cost_cpu(icpu_new,local_cols(i))+cost_ele_pair(iele,i)
     ENDDO
 
   END SUBROUTINE update_cost_cpu_row
@@ -420,7 +420,7 @@ CONTAINS
       END DO
     END DO
     dev=SQRT(dev/rpq)
-    idev=NINT(dev)    
+    idev=NINT(dev)
   END FUNCTION deviance_cost_cpu
 END MODULE distribution_optimize
 

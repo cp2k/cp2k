@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculates the density_scaled BECKE88 long-range functional 
+!> \brief Calculates the density_scaled BECKE88 long-range functional
 !>      when used in adiabatic hybrids.
 !>      The energy is given as
-!> 
+!>
 !>        Ec = 2*lambda*Ex(rho/lambda) + lambda^2*d/dlambda(Ex(rho/lambda)),
-!> 
+!>
 !>      where rho/lambda is the scaled density
 !> \par History
 !>      01.2008 created [mguidon]
@@ -54,8 +54,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -90,8 +90,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -130,8 +130,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xb 88_params: input parameters (scaling)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -468,7 +468,7 @@ CONTAINS
     my_epsilon_rho=epsilon_rho
     epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
- 
+
     IF (.NOT. failure) THEN
       !$omp do
       DO ii=1,npoints
@@ -617,7 +617,7 @@ CONTAINS
             e_0(ii) = e_0(ii) +  (-0.4444444448e0_dp * t43 * t79 + t8 * (-0.3333333336e0_dp * t83 * t141  &
             - 0.2222222224e0_dp * t144 * t46 * t207)) * sx * 2.0_dp
           END IF
-          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN 
+          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN
             t214 = lambda * t42
             t217 = t4 * t41
             t218 = t10 * t16
@@ -2906,8 +2906,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief evaluates the becke 88 longrange exchange functional for lsd
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -2943,7 +2943,7 @@ CONTAINS
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array)
     END DO
-    
+
     CALL section_vals_val_get(xb88_lr_ad_params,"SCALE_X",r_val=sx,error=error)
     CALL section_vals_val_get(xb88_lr_ad_params, "OMEGA",r_val=omega, error=error)
     CALL section_vals_val_get(xb88_lr_ad_params, "LAMBDA",r_val=lambda, error=error)
@@ -3095,7 +3095,7 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle)
-    
+
   END SUBROUTINE xb88_lr_adiabatic_lsd_eval
 
 ! *****************************************************************************
@@ -3106,8 +3106,8 @@ CONTAINS
 !> \param e_ *_spin: derivative of the functional wrt. to the variables
 !>        named where the * is. Everything wrt. to the spin of the arguments.
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -3442,7 +3442,7 @@ CONTAINS
             e_0(ii) = e_0(ii) +  (-0.4444444448e0_dp * t43 * t79 + t8 * (-0.3333333336e0_dp * t83 * t141  &
             - 0.2222222224e0_dp * t144 * t46 * t207)) * sx
           END IF
-          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN 
+          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN
             t214 = lambda * t42
             t217 = t4 * t41
             t218 = t10 * t16
@@ -4337,7 +4337,7 @@ CONTAINS
             - 0.3333333336e0_dp * t83 * t84 * t2061 - t1693 - t1699 - t1708 - t1705  &
             - t1696 - t1702 - 0.2222222224e0_dp * t144 * t46 * t2139
             e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii) +  (-t1406 - t1413 - t1455 - t1451 - t1408 - t1417 -&
-            0.4444444448e0_dp * t43 * t46 * t2046 + t8 * t2143) * sx 
+            0.4444444448e0_dp * t43 * t46 * t2046 + t8 * t2143) * sx
             t2147 = lambda * t48 * omega
             t2160 = t754 * t237
             t2169 = t237 * t804

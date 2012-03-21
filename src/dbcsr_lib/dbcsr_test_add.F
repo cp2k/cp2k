@@ -229,7 +229,7 @@ CONTAINS
        WRITE(io_unit,*) 'limits',limits
        WRITE(io_unit,*) 'retain_sparsity',retain_sparsity
        WRITE(io_unit,*) 'bs_m',bs_m
-       WRITE(io_unit,*) 'bs_n',bs_n 
+       WRITE(io_unit,*) 'bs_n',bs_n
     ENDIF
     !
     !
@@ -353,7 +353,7 @@ CONTAINS
   END SUBROUTINE dbcsr_test_add_low
 
 ! *****************************************************************************
-!> \brief Performs a variety of matrix add 
+!> \brief Performs a variety of matrix add
 !> \param[in] mp_group          MPI communicator
 !> \param[in] group_sizes       array of (sub) communicator
 !>                              sizes to test (2-D)
@@ -490,7 +490,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Performs a check of matrix adds 
+!> \brief Performs a check of matrix adds
 !> \param[in] dense_c_dbcsr             dense result of the dbcsr_add
 !> \param[in] dense_a, dense_b, dense_c input dense matrices
 !> \param[in] transa, transb            transposition status
@@ -498,7 +498,7 @@ CONTAINS
 !> \param[in] limits                    limits for the add
 !> \param[in] io_unit                   io unit for printing
 !> \param[out] success                  if passed the check success=T
-!> \param[inout] error                  dbcsr error 
+!> \param[inout] error                  dbcsr error
 !>
 ! *****************************************************************************
   SUBROUTINE dbcsr_check_add(matrix_a, dense_a_dbcsr, dense_a, dense_b,&

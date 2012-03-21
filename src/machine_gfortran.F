@@ -29,7 +29,7 @@ FUNCTION m_loc_r(a) RESULT(res)
 
     res=LOC(a)
 END FUNCTION m_loc_r
-  
+
 ! *****************************************************************************
 FUNCTION m_loc_c(a) RESULT(res)
     COMPLEX(KIND=dp), DIMENSION(*), &
@@ -85,15 +85,15 @@ INTEGER FUNCTION m_procrun(id) RESULT (run_on)
 
     tmp = "/proc/" // TRIM(id_s) // "/stat"
     filename = TRIM(tmp)
- 
+
     OPEN(87,FILE=filename,ACTION="READ", STATUS="OLD", IOSTAT=ios)
     IF (ios /= 0) THEN
         run_on = 0
     ELSE
        run_on = 1
        CLOSE(87)
-    ENDIF 
-  
+    ENDIF
+
 END FUNCTION m_procrun
 
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
@@ -104,7 +104,7 @@ END FUNCTION m_procrun
       INTEGER(KIND=int_8)                      :: m1,m2,m3
 
       !
-      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize 
+      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS) || defined (__HAS_NO_ISO_C_BINDING)
@@ -211,7 +211,7 @@ END FUNCTION m_procrun
                  READ(meminfo(start:),*,ERR=999,END=999) value
                  ! XXXXXXX convert from Kb to bytes XXXXXXXX
                  get_field_value_in_bytes=value*1024
- 999             CONTINUE           
+ 999             CONTINUE
               ENDIF
            ENDIF
         END FUNCTION
@@ -230,7 +230,7 @@ END FUNCTION m_procrun
     ENDIF
     ! first remove target (needed on windows / mingw)
     CALL unlink(TARGET)
-    ! now move 
+    ! now move
     stat=rename(source,TARGET)
     IF (stat .NE. 0) THEN
       WRITE(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."

@@ -54,7 +54,7 @@ SUBROUTINE clebsch_gordon_test (error)
 
     failure = .FALSE.
     logger=>cp_error_get_logger(error)
-    iw = cp_logger_get_default_io_unit(logger)  
+    iw = cp_logger_get_default_io_unit(logger)
 
     IF ( iw>0 ) THEN
 
@@ -71,7 +71,7 @@ SUBROUTINE clebsch_gordon_test (error)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      ALLOCATE (b1(na),b2(na),b3(na), STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
+
      wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
      tstart = m_walltime ( )

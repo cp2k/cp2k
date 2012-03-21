@@ -571,7 +571,7 @@ CONTAINS
     !
     ! we need to generate two representations of the distribution, one as a straight array with global particles
     ! one ordered wrt to kinds and only listing the local particles
-    ! 
+    !
     ALLOCATE (row_distribution(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "row_distribution",natom*int_size)
@@ -706,7 +706,7 @@ CONTAINS
                       iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                       center = center + &
                         pbc(particle_set(iatom)%r(:)-particle_set(iatom_one)%r(:),cell)+particle_set(iatom_one)%r(:)
-                   ENDDO 
+                   ENDDO
                    center = center / natom_mol
                    CALL real_to_scaled(pbc_scaled_coords(:,imol),pbc(center,cell),cell)
                 ENDDO
@@ -756,7 +756,7 @@ CONTAINS
     ELSE
        !
        ! this could be a lot of memory, even in QS case
-       ! one solution is to turn this into a function, but this would presumably 
+       ! one solution is to turn this into a function, but this would presumably
        ! slow down the distribute_2d_monte_carlo
        ! making this a function might be needed if the cost of a block depends on its
        ! assigned row / col.
@@ -786,12 +786,12 @@ CONTAINS
 
        !
        ! optimize the distribution
-       ! 
+       !
        CALL distribute_2d_monte_carlo(cost_ele_pair,nprow,npcol,nele,row_ele,col_ele, &
                                       mc_section,blacs_env%para_env,error)
 
        DEALLOCATE(cost_ele_pair)
-        
+
        ! prepare to add the distribution to the data, i.e. get the atomic distribution in all cases
 
        IF (.NOT. molecular_distribution) THEN
@@ -805,7 +805,7 @@ CONTAINS
              DO imolecule=1,SIZE(molecule_list)
                 imol = imol + 1
                 DO iatom_mol=1,natom_mol
-                   iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1 
+                   iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                    row_distribution(iatom) = row_ele(imol)
                    col_distribution(iatom) = col_ele(imol)
                 ENDDO
@@ -829,7 +829,7 @@ CONTAINS
        IF (col_distribution(iatom)==mypcol) nparticle_local_col(kind_a)=nparticle_local_col(kind_a)+1
     ENDDO
 
-    ! allocate space 
+    ! allocate space
     DO iparticle_kind=1,nparticle_kind
       n = nparticle_local_row(iparticle_kind)
       ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
@@ -856,8 +856,8 @@ CONTAINS
            local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
        ENDIF
     ENDDO
-        
-!   *** Generate the 2d distribution structure  but take care of the zero offsets required 
+
+!   *** Generate the 2d distribution structure  but take care of the zero offsets required
     row_distribution = row_distribution - 1
     col_distribution = col_distribution - 1
     CALL distribution_2d_create(distribution_2d,&
@@ -990,7 +990,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nscale = 1000 
+    INTEGER, PARAMETER                       :: nscale = 1000
 
     CHARACTER(LEN=20)                        :: cost_model_used
     INTEGER :: cost_block_ab, cost_model, handle, iatom_a, iatom_b, &
@@ -1093,7 +1093,7 @@ CONTAINS
                       END IF
 
                       ! here we estimate the computational cost of the block ab based on the model of choice
-                      IF (include_ab) THEN 
+                      IF (include_ab) THEN
                          SELECT CASE(cost_model)
                          CASE(model_block_count)
                              cost_block_ab = 1
@@ -1233,8 +1233,8 @@ CONTAINS
     CALL spatial_recurse(pbc_scaled_coords, costs, (/(iatom,iatom=1,natoms)/) , bin_costs, distribution,0)
 
     ! WRITE(6,*) "Final bin costs: ",bin_costs
- 
-    ! final row_distribution / col_distribution 
+
+    ! final row_distribution / col_distribution
     DO iatom=1,natoms
        row_distribution (iatom) = (distribution(iatom)-1)*pgrid_gcd / npcols +1
        col_distribution (iatom) = (distribution(iatom)-1)*pgrid_gcd / nprows +1
@@ -1266,10 +1266,10 @@ CONTAINS
 
     IF (natoms<=nbins) THEN
        ! assign the most expensive atom to the least costly bin
-       ALLOCATE(bin_costs_sorted(nbins),permutation(nbins)) 
+       ALLOCATE(bin_costs_sorted(nbins),permutation(nbins))
        bin_costs_sorted=bin_costs
        CALL sort(bin_costs_sorted,nbins,permutation)
-       ALLOCATE(atom_costs_sorted(natoms),atom_permutation(natoms)) 
+       ALLOCATE(atom_costs_sorted(natoms),atom_permutation(natoms))
        atom_costs_sorted=costs
        CALL sort(atom_costs_sorted,natoms,atom_permutation)
        ibin=0

@@ -63,7 +63,7 @@ MODULE xc_xwpbe
                               E  = -0.051955731_dp, &
                               F1 = 0.47965830_dp, &
                               F2 = 6.4753871_dp, &
-                              clda = -0.73855876638202240588423_dp 
+                              clda = -0.73855876638202240588423_dp
   REAL(KIND=dp), PARAMETER :: expcutoff = 700.0_dp, &
                               exei1 = 4.0364_dp, &
                               exei2 = 1.15198_dp, &
@@ -88,7 +88,7 @@ MODULE xc_xwpbe
                               f89 = 8.0_dp/9.0_dp, f2187256 = 2187.0_dp/256.0_dp, &
                               r1 = 1.0_dp, f98 = 9.0_dp/8.0_dp, r15 = 15.0_dp,&
                               r3 = 3.0_dp, r4 = 4.0_dp, r16 = 16.0_dp, r8 = 8.0_dp, &
-                              r6 = 6.0_dp, r2=2.0_dp 
+                              r6 = 6.0_dp, r2=2.0_dp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xwpbe'
 
@@ -140,7 +140,7 @@ MODULE xc_xwpbe
 !> \note
 !>      The current version provides code for derivatives up to second order.
 !>      Using the maple sheet in cp2k/doc it is straightforward to produce routines
-!>      for higher derivatives. 
+!>      for higher derivatives.
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -182,7 +182,7 @@ MODULE xc_xwpbe
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rho=rho,&
@@ -246,7 +246,7 @@ MODULE xc_xwpbe
            e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
            sx=sx,sx0=sx0,omega=omega,error=error)
-      
+
       !$omp end parallel
 
       IF (cp_debug) THEN
@@ -324,7 +324,7 @@ MODULE xc_xwpbe
           ss2 = ss*ss
           sscale = (smax*ss2-sconst)/(ss2*ss)
         END IF
-        
+
         IF(sx0/=0.0_dp) THEN
           !original PBE hole
            IF(ss*sscale>gcutoff) THEN
@@ -352,7 +352,7 @@ MODULE xc_xwpbe
                                   e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
                                   my_ndrho, omega, sscale, sx, order)
           ELSE
-            CALL xwpbe_lda_calc_4(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
+            CALL xwpbe_lda_calc_4(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
                                   e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
                                   my_ndrho, omega, sscale, sx, order)
           END IF
@@ -1470,7 +1470,7 @@ MODULE xc_xwpbe
       + t403 * t1066 + t403 * t1069)
       e_ndrho_ndrho = e_ndrho_ndrho + ( -t76 * t1205 * Clda ) * sx0
     END IF
-  
+
   END SUBROUTINE xwpbe_lda_calc_01
 
 ! *****************************************************************************
@@ -4553,7 +4553,7 @@ MODULE xc_xwpbe
 !> \param rho , ndrho: density and norm of the density gradient
 !> \param sx scaling factor
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
-!> \param omega screening parameter 
+!> \param omega screening parameter
 !> \note
 !>      This routine evaluates the functional for omega!=0 using a simple
 !>      gaussian expansion for large ww and a taylor expansion for the
@@ -5294,7 +5294,7 @@ MODULE xc_xwpbe
 !> \note
 !>      The current version provides code for derivatives up to second order.
 !>      Using the maple sheet in cp2k/doc it is straightforward to produce routines
-!>      for higher derivatives. 
+!>      for higher derivatives.
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -5336,13 +5336,13 @@ MODULE xc_xwpbe
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     IF (.NOT.failure) THEN
       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,norm_drhoa=norm_drhoa,&
            norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho,&
            drho_cutoff=epsilon_norm_drho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-      
+
       ! meaningful default for the arrays we don't need: let us make compiler
       ! and debugger happy...
       IF (cp_debug) THEN
@@ -5363,7 +5363,7 @@ MODULE xc_xwpbe
       e_ndrhob_rhob => dummy
       e_ndrhoa_ndrhoa => dummy
       e_ndrhob_ndrhob => dummy
-      
+
       IF (order>=0) THEN
         deriv => xc_dset_get_derivative(deriv_set,"",&
               allocate_deriv=.TRUE., error=error)
@@ -5408,7 +5408,7 @@ MODULE xc_xwpbe
               message="derivatives bigger than 2 not implemented", &
               error=error, error_level=cp_failure_level)
       END IF
-     
+
       !$omp parallel default(none) &
       !$omp shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa, e_ndrhoa) &
       !$omp shared(e_rhoa_rhoa, e_ndrhoa_rhoa, e_ndrhoa_ndrhoa, epsilon_rho) &
@@ -5430,7 +5430,7 @@ MODULE xc_xwpbe
            sx=sx,sx0=sx0,omega=omega,error=error)
 
       !$omp end parallel
-      
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -5441,9 +5441,9 @@ MODULE xc_xwpbe
     CALL timestop(handle)
 
   END SUBROUTINE xwpbe_lsd_eval
-  
+
 ! *****************************************************************************
-!> \brief evaluates the screened hole averaged PBE exchange functional for lsd. 
+!> \brief evaluates the screened hole averaged PBE exchange functional for lsd.
 !> \param order degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
@@ -5455,9 +5455,9 @@ MODULE xc_xwpbe
 !> \note
 !>      - The lsd part is calculated using the spin-scaling relations for the
 !>        exchange energy:
-!> 
+!>
 !>               Ex[na,nb] = 0.5 * Ex[2*na] + 0.5 * Ex[2*nb].
-!> 
+!>
 !>      - In order to avoid numerical instabilities, this routine calls different
 !>        subroutines. There are 4 routines for the case omega!=0 and 2 routines
 !>        for omega=0.
@@ -5542,7 +5542,7 @@ MODULE xc_xwpbe
                                   e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
                                   my_ndrho, omega, sscale, sx, order)
           ELSE
-            CALL xwpbe_lda_calc_4(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
+            CALL xwpbe_lda_calc_4(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
                                   e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
                                   my_ndrho, omega, sscale, sx, order)
           END IF
@@ -5560,7 +5560,7 @@ MODULE xc_xwpbe
 !> \brief These functions evaluate products exp(x)*Ei(x) and pi*exp(x)*erfc(sqrt(x)),
 !>      as well as their derivatives with respect to various combinations of
 !>      rho and norm_drho.
-!> \param Q , dQrho, dQndrho, d2Qrhondrho.... : 
+!> \param Q , dQrho, dQndrho, d2Qrhondrho.... :
 !>        Argument Q and derivatives with respect to various combinations of
 !>        rho and norm_drho
 !> \note
@@ -5643,7 +5643,7 @@ MODULE xc_xwpbe
     REAL(dp)                                 :: d2exeirhorho
 
    d2exeirhorho = exei(Q)*(d2Qrhorho+dQrho*dQrho) + &
-                  1.0_dp/(Q*Q)*(-Q*dQrho*dQrho-Q*d2Qrhorho+dQrho*dQrho) 
+                  1.0_dp/(Q*Q)*(-Q*dQrho*dQrho-Q*d2Qrhorho+dQrho*dQrho)
   END FUNCTION d2exeirhorho
 
 ! *****************************************************************************
@@ -5655,7 +5655,7 @@ MODULE xc_xwpbe
 
     Q12 = SQRT(Q)
     pi12 = rootpi
-  
+
     d2exerrhorho = exer(Q)*(d2Qrhorho+dQrho*dQrho) - dQrho*dQrho/(pi12*Q12) + &
                    0.5_dp*dQrho*dQrho/(pi12*Q*Q12)-d2Qrhorho/(pi12*Q12)
   END FUNCTION d2exerrhorho
@@ -5665,7 +5665,7 @@ MODULE xc_xwpbe
     REAL(dp), INTENT(IN)                     :: Q, dQrho, dQndrho, d2Qrhondrho
     REAL(dp)                                 :: d2exeirhondrho
 
-    d2exeirhondrho = exei(Q)*(d2Qrhondrho+dQrho*dQndrho) - & 
+    d2exeirhondrho = exei(Q)*(d2Qrhondrho+dQrho*dQndrho) - &
                      1.0_dp/Q*(dQrho*dQndrho+d2Qrhondrho) + 1.0_dp/(Q*Q)*dQrho*dQndrho
   END FUNCTION d2exeirhondrho
 
@@ -5679,7 +5679,7 @@ MODULE xc_xwpbe
     Q12 = SQRT(Q)
     pi12 = rootpi
 
-    d2exerrhondrho = exer(Q)*(d2Qrhondrho+dQrho*dQndrho) - 1.0_dp/(pi12*Q12)*dQrho*dQndrho & 
+    d2exerrhondrho = exer(Q)*(d2Qrhondrho+dQrho*dQndrho) - 1.0_dp/(pi12*Q12)*dQrho*dQndrho &
                      + 0.5_dp/(pi12*Q12*Q)*dQrho*dQndrho - 1.0_dp/(pi12*Q12)*d2Qrhondrho
   END FUNCTION d2exerrhondrho
 
@@ -5688,7 +5688,7 @@ MODULE xc_xwpbe
     REAL(dp), INTENT(IN)                     :: Q, dQndrho, d2Qndrhondrho
     REAL(dp)                                 :: d2exeindrhondrho
 
-    d2exeindrhondrho = exei(Q)*(d2Qndrhondrho+dQndrho*dQndrho) + & 
+    d2exeindrhondrho = exei(Q)*(d2Qndrhondrho+dQndrho*dQndrho) + &
                        1.0_dp/(Q*Q)*(-Q*dQndrho*dQndrho-Q*d2Qndrhondrho+dQndrho*dQndrho)
   END FUNCTION d2exeindrhondrho
 
@@ -5703,7 +5703,7 @@ MODULE xc_xwpbe
     pi12 = rootpi
 
     d2exerndrhondrho = exer(Q)*(d2Qndrhondrho+dQndrho*dQndrho) - dQndrho*dQndrho/(pi12*Q12) &
-                       + 0.5_dp*dQndrho*dQndrho/(pi12*Q*Q12)-d2Qndrhondrho/(pi12*Q12) 
+                       + 0.5_dp*dQndrho*dQndrho/(pi12*Q*Q12)-d2Qndrhondrho/(pi12*Q12)
   END FUNCTION d2exerndrhondrho
 
 END MODULE xc_xwpbe

@@ -763,9 +763,9 @@ ELSE
             ELSE
               WRITE(*,*) 'nra= ',nra
               RETURN
-            ENDIF  
-          ENDIF  
-        ENDIF  
+            ENDIF
+          ENDIF
+        ENDIF
       ENDIF
       IF(nrb == 1)THEN
         fac1=fac1*2.0_dp
@@ -781,9 +781,9 @@ ELSE
             ELSE
               WRITE(*,*) 'nrb= ',nrb
               RETURN
-            ENDIF  
-          ENDIF  
-        ENDIF  
+            ENDIF
+          ENDIF
+        ENDIF
       ENDIF
 
       ct= -v(3)/rr
@@ -1234,9 +1234,9 @@ ELSE
             ELSE
               WRITE(*,*) 'nra= ',nra
               RETURN
-            ENDIF  
-          ENDIF  
-        ENDIF  
+            ENDIF
+          ENDIF
+        ENDIF
       ENDIF
       IF(nrb == 1)THEN
         fac1=fac1*2.0_dp
@@ -1252,9 +1252,9 @@ ELSE
             ELSE
               WRITE(*,*) 'nrb= ',nrb
               RETURN
-            ENDIF  
-          ENDIF  
-        ENDIF  
+            ENDIF
+          ENDIF
+        ENDIF
       ENDIF
 
       ct= -v(3)/rr
@@ -1399,7 +1399,7 @@ ELSE
       DO k1=1,3
         dS(1,k1+1,:)=dS(1,k1+1,:) &
      &          -SQRT(3.0_dp)*Arot(k1,3)*fac1*fac2*dJc*v(:)/rr &
-     &          -SQRT(3.0_dp)*dArot(k1,3,:)*fac1*fac2*Jc 
+     &          -SQRT(3.0_dp)*dArot(k1,3,:)*fac1*fac2*Jc
       ENDDO
 
       za=ZPA

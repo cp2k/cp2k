@@ -67,7 +67,7 @@ CONTAINS
        res=1
     CASE (outer_scf_none) ! just needed to communicate the gradient criterium
        res=1
-    CASE (outer_scf_scp) 
+    CASE (outer_scf_scp)
        res=1
     CASE DEFAULT
        res=0
@@ -141,13 +141,13 @@ CONTAINS
        becke_control=>dft_control%qs_control%becke_control
        scf_env%outer_scf%variables(:,ihistory)=becke_control%strength
        scf_env%outer_scf%gradient(:,ihistory) =becke_control%becke_order_p- &
-            becke_control%target 
+            becke_control%target
     CASE (outer_scf_scp)
        scf_env%outer_scf%variables(1,ihistory)=scf_env%outer_scf%energy(ihistory)
 
        IF ( ihistory == 1 ) THEN
           scf_env%outer_scf%gradient(1,ihistory)=scf_env%outer_scf%energy(ihistory)
-       ELSE 
+       ELSE
           scf_env%outer_scf%gradient(1,ihistory)=scf_env%outer_scf%energy(ihistory)- &
                scf_env%outer_scf%energy(ihistory-1)
        ENDIF
@@ -208,7 +208,7 @@ CONTAINS
              ! if they bracket a zero use them
              IF (scf_env%outer_scf%gradient(1,i) * &
                   scf_env%outer_scf%gradient(1,j) < 0.0_dp) THEN
-                tmp = ABS(scf_env%outer_scf%variables(1,i)-scf_env%outer_scf%variables(1,j)) 
+                tmp = ABS(scf_env%outer_scf%variables(1,i)-scf_env%outer_scf%variables(1,j))
                 IF (tmp < interval) THEN
                    ilow = i
                    ihigh = j
@@ -238,7 +238,7 @@ CONTAINS
        ! set up DIIS matrix
        nb=MIN(ihistory,scf_control%outer_scf%diis_buffer_length)
        IF (nb<2) THEN
-          optimizer_type = outer_scf_optimizer_sd 
+          optimizer_type = outer_scf_optimizer_sd
           GOTO 100
        ELSE
           ALLOCATE(b(nb+1,nb+1),a(nb+1,nb+1),ev(nb+1),ipivot(nb+1))
@@ -329,7 +329,7 @@ CONTAINS
        s2_restraint_control%strength=scf_env%outer_scf%variables(1,ihistory+1)
     CASE (outer_scf_becke_constraint)
        becke_control=>dft_control%qs_control%becke_control
-       becke_control%strength=scf_env%outer_scf%variables(1,ihistory+1)       
+       becke_control%strength=scf_env%outer_scf%variables(1,ihistory+1)
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT

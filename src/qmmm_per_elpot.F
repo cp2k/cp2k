@@ -39,14 +39,14 @@ MODULE qmmm_per_elpot
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_per_elpot'
   PUBLIC :: qmmm_per_potential_init
-  
+
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialize the QMMM potential stored on vector, 
+!> \brief Initialize the QMMM potential stored on vector,
 !>      according the qmmm_coupl_type
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -90,7 +90,7 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
-                mm_cell%hmat(3,3)**2 ) 
+                mm_cell%hmat(3,3)**2 )
     CALL section_vals_val_get(qmmm_periodic,"GMAX",r_val=Gmax,error=error)
     CALL section_vals_val_get(qmmm_periodic,"REPLICA",i_val=n_rep_real_val,error=error)
     fac = 2.0e0_dp*Pi/(/mm_cell%hmat(1,1),mm_cell%hmat(2,2),mm_cell%hmat(3,3)/)
@@ -131,11 +131,11 @@ CONTAINS
        gx = 0.0_dp
        gy = 0.0_dp
        gz = 0.0_dp
-       
+
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
           ! Not yet implemented for this case
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           pgf => pgfs(K)%pgf
           idim = 0
@@ -147,7 +147,7 @@ CONTAINS
                       DO Ig = ig_start, pgf%number_of_gaussians
                          Gk = pgf%Gk(Ig)
                          Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
-                         LG (idim) = LG (idim) - Ak 
+                         LG (idim) = LG (idim) - Ak
                       END DO
                    ELSE
                       fs = 2.0_dp; IF (ix==0) fs = 1.0_dp
@@ -164,9 +164,9 @@ CONTAINS
                       DO Ig = ig_start, pgf%number_of_gaussians
                          Gk = pgf%Gk(Ig)
                          Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
-                         LG (idim) = LG (idim) - Ak * EXP(-(g*Gk)**2.0_dp/4.0_dp) 
+                         LG (idim) = LG (idim) - Ak * EXP(-(g*Gk)**2.0_dp/4.0_dp)
                       END DO
-                   ENDIF 
+                   ENDIF
                    LG (idim) = fs * LG (idim) * 1.0_dp/Vol
                    gx (idim) = fac(1)*REAL(ix,KIND=dp)
                    gy (idim) = fac(2)*REAL(iy,KIND=dp)
@@ -244,8 +244,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the qmmm_pot_type structure
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      09.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -291,7 +291,7 @@ CONTAINS
        NULLIFY(Pot%pw_grid)
        NULLIFY(Pot%pw_pool)
        NULLIFY(Pot%TabLR, ngrids)
-       CALL section_vals_val_get(qmmm_per_section,"ngrids", i_vals=ngrids, error=error)       
+       CALL section_vals_val_get(qmmm_per_section,"ngrids", i_vals=ngrids, error=error)
        npts =  ngrids
        hmat =  mm_cell%hmat
 

@@ -124,7 +124,7 @@ PROGRAM dbcsr_example_1
   !
   ! create the dbcsr matrix, i.e. a double precision non symmetric matrix
   ! with nblkrows_total x nblkcols_total blocks and
-  ! sizes "sum(row_blk_sizes)" x "sum(col_blk_sizes)", distributed as 
+  ! sizes "sum(row_blk_sizes)" x "sum(col_blk_sizes)", distributed as
   ! specified by the dist object
   CALL dbcsr_create (matrix=matrix_a,&
        name="this is my matrix a",&

@@ -1917,7 +1917,7 @@ CONTAINS
     CPPostcondition(.NOT.(ASSOCIATED(charges)),cp_failure_level,routineP,error,failure)
     ALLOCATE(charges(SIZE(particle_set)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     ! Fill with input values
     CALL section_vals_val_get(charges_section,"_DEFAULT_KEYWORD_",n_rep_val=nval,error=error)
     CPPostcondition(nval==SIZE(charges),cp_failure_level,routineP,error,failure)
@@ -1945,7 +1945,7 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)
        charge=-HUGE(0.0_dp)
-           
+
        ! Check if the potential really requires the charge definition..
        IF (ASSOCIATED(inp_info%nonbonded)) THEN
           IF (ASSOCIATED(inp_info%nonbonded%pot)) THEN
@@ -2001,7 +2001,7 @@ CPSourceFileRef,&
   END SUBROUTINE force_field_pack_charges
 
 ! *****************************************************************************
-!> \brief Set up atomic_kind_set()%fist_potentail%[qeff] 
+!> \brief Set up atomic_kind_set()%fist_potentail%[qeff]
 !>      and shell potential parameters
 ! *****************************************************************************
   SUBROUTINE force_field_pack_charge(atomic_kind_set, qmmm_env, fatal, iw, iw4,&
@@ -3082,7 +3082,7 @@ CPSourceFileRef,&
                    IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                         " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
                         TRIM(inp_info%nonbonded%pot(k)%pot%at2)
-                   
+
                    IF( (name_atm_a==inp_info%nonbonded%pot(k)%pot%at1) .OR.&
                        (name_atm_b==inp_info%nonbonded%pot(k)%pot%at2) .OR.&
                        (name_atm_b==inp_info%nonbonded%pot(k)%pot%at1) .OR.&

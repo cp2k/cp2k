@@ -240,7 +240,7 @@ CONTAINS
               cores (npme) = iatom
            ENDIF
        END DO
-       
+
        DO nj=1,npme
 
          iatom = cores(nj)
@@ -444,7 +444,7 @@ CONTAINS
               cores (npme) = iatom
            ENDIF
        END DO
-       
+
        DO j=1,npme
 
          iatom = cores(j)
@@ -652,7 +652,7 @@ CONTAINS
                 cores (npme) = iatom
              ENDIF
          END DO
-         
+
          DO j=1,npme
 
            iatom = cores(j)
@@ -752,22 +752,22 @@ CONTAINS
     IF(ASSOCIATED(qs_env%atprop)) THEN
       atenergy=qs_env%atprop%energy
     END IF
-      
+
     failure = .FALSE.
-    IF(.NOT. skip_fcore) THEN 
+    IF(.NOT. skip_fcore) THEN
         NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
         ALLOCATE (hab(1,1),STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE (pab(1,1),STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-     
+
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
                         auxbas_rs_grid=rs_v,error=error)
         CALL rs_grid_retain(rs_v,error=error)
-     
+
         CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
-     
+
         CALL get_qs_env(qs_env=qs_env,&
              atomic_kind_set=atomic_kind_set,&
              cell=cell,&
@@ -780,34 +780,34 @@ CONTAINS
            natom = SIZE(particle_set)
            CALL atprop_array_init(qs_env%atprop%ateb,natom,error)
         END IF
-     
+
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-     
+
         eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-     
+
         DO ikind=1,SIZE(atomic_kind_set)
-     
+
            atomic_kind => atomic_kind_set(ikind)
-     
+
            CALL get_atomic_kind(atomic_kind=atomic_kind,&
                 natom=natom_of_kind,&
                 paw_atom=paw_atom, &
                 atom_list=atom_list,&
                 alpha_core_charge=alpha_core_charge,&
                 ccore_charge=ccore_charge)
-     
-           IF(paw_atom) THEN 
+
+           IF(paw_atom) THEN
                 force(ikind)%rho_core(:,:) =  0.0_dp
                 CYCLE
            END IF
            pab(1,1) = -ccore_charge
-          
+
            IF (alpha_core_charge == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
-     
+
            CALL reallocate ( cores, 1, natom_of_kind )
            npme = 0
            cores = 0
-     
+
            DO iatom = 1, natom_of_kind
               atom_a = atom_list(iatom)
               ra(:) = pbc(particle_set(atom_a)%r,cell)
@@ -822,9 +822,9 @@ CONTAINS
                   cores (npme) = iatom
                ENDIF
            END DO
-           
+
           DO j=1,npme
-     
+
             iatom = cores(j)
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r,cell)
@@ -835,7 +835,7 @@ CONTAINS
               my_virial_a = 0.0_dp
               my_virial_b = 0.0_dp
             END IF
-     
+
             CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
                  0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
                  rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
@@ -843,10 +843,10 @@ CONTAINS
                  calculate_forces=.TRUE.,force_a=force_a,&
                  force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
                  my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
-     
+
             force(ikind)%rho_core(:,iatom) =&
               force(ikind)%rho_core(:,iatom) + force_a(:)
-     
+
             IF (use_virial) THEN
               virial%pv_virial = virial%pv_virial + my_virial_a
             END IF
@@ -855,11 +855,11 @@ CONTAINS
             END IF
 
          END DO
-     
+
         END DO
-     
+
         CALL rs_grid_release(rs_v, error=error)
-     
+
         DEALLOCATE (hab,pab,cores,STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -986,12 +986,12 @@ CONTAINS
     IF (PRESENT(gapw)) my_gapw = gapw
     IF (PRESENT(basis_set_id)) THEN
       my_basis_set_id = basis_set_id
-    ELSE 
+    ELSE
      my_basis_set_id = use_orb_basis_set
     END IF
-   
+
     SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set) 
+    CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          cell=cell,&
@@ -1190,7 +1190,7 @@ CONTAINS
        pab => pabt(:,:,ithread)
     END IF
 
-    iset_old = -1 ; jset_old = -1 
+    iset_old = -1 ; jset_old = -1
     ikind_old = -1 ; jkind_old = -1
 
 
@@ -1221,7 +1221,7 @@ CONTAINS
        CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
        ! At the start of a block of tasks, get atom data (and kind data, if needed)
-       IF (itask .EQ. task_list%taskstart(ipair,igrid_level) ) THEN 
+       IF (itask .EQ. task_list%taskstart(ipair,igrid_level) ) THEN
 
           ikind = particle_set(iatom)%atomic_kind%kind_number
           jkind = particle_set(jatom)%atomic_kind%kind_number
@@ -1284,7 +1284,7 @@ CONTAINS
                   pgf_radius=rpgfb,&
                   set_radius=set_radius_b,&
                   sphi=sphi_b,&
-                  zet=zetb)          
+                  zet=zetb)
 
           ENDIF
 
@@ -1397,7 +1397,7 @@ CONTAINS
              use_subpatch = .TRUE.
           ELSE
              use_subpatch = .FALSE.
-          ENDIF 
+          ENDIF
        ELSE
           use_subpatch = .FALSE.
        ENDIF
@@ -1573,13 +1573,13 @@ CONTAINS
   END SUBROUTINE integrate_v_rspace
 
 ! *****************************************************************************
-!> \brief transfers a potential from a pw_grid to a vector of 
+!> \brief transfers a potential from a pw_grid to a vector of
 !>      realspace multigrids
 !> \param v_rspace INPUT : the potential on a planewave grid in Rspace
 !> \param rs_v OUTPUT: the potential on the realspace multigrids
 !> \note
 !>      extracted from integrate_v_rspace
-!>      should contain all parallel communication of integrate_v_rspace in the 
+!>      should contain all parallel communication of integrate_v_rspace in the
 !>      case of replicated grids.
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
@@ -1725,7 +1725,7 @@ CONTAINS
       lb_cube_min, lb_max_local, lb_min_local, length, lx, lx_max, lxa, lxb, lxy, &
       lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start, ub_cube_max
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
-                                                ub_cube 
+                                                ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     LOGICAL                                  :: my_collocate_rho0, &
                                                 my_compute_tau, &
@@ -1759,12 +1759,12 @@ CONTAINS
     failure = .FALSE.
     subpatch_integrate = .FALSE.
 
-    IF(PRESENT(use_subpatch)) THEN 
-       IF(use_subpatch)THEN 
+    IF(PRESENT(use_subpatch)) THEN
+       IF(use_subpatch)THEN
          subpatch_integrate = .TRUE.
          CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,error,failure)
        ENDIF
-    ENDIF  
+    ENDIF
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
@@ -1972,8 +1972,8 @@ CONTAINS
 ! *****************************************************************************
    SUBROUTINE integrate_ortho()
 
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)    
-    cmax=MAXVAL(ub_cube) 
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
+    cmax=MAXVAL(ub_cube)
 
     dr(1) = rsgrid%desc%dh(1,1)
     dr(2) = rsgrid%desc%dh(2,2)
@@ -2047,7 +2047,7 @@ CONTAINS
     DEALLOCATE(pol_x)
     DEALLOCATE(map)
 
-    END SUBROUTINE integrate_ortho 
+    END SUBROUTINE integrate_ortho
 
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab
@@ -2163,11 +2163,11 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: hmatgridp
 
-! 
+!
 ! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
 ! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
 ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
-! 
+!
 
       lp=la_max_local+lb_max_local
       ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
@@ -2177,7 +2177,7 @@ CONTAINS
 
       ! aux mapping array to simplify life
       ALLOCATE(coef_map(0:lp,0:lp,0:lp))
-      coef_map=HUGE(coef_map) 
+      coef_map=HUGE(coef_map)
       lxyz=0
       DO lzp=0,lp
       DO lyp=0,lp-lzp
@@ -2382,7 +2382,7 @@ CONTAINS
       la_max_local+lb_max_local+2)*(&
       la_max_local+lb_max_local+3)/6)        :: poly_d3
 
-        periodic=1 ! cell%perd         
+        periodic=1 ! cell%perd
         lp=la_max_local+lb_max_local
         local_b(1,:)=rsgrid%lb_real-rsgrid%desc%lb
         local_b(2,:)=rsgrid%ub_real-rsgrid%desc%lb
@@ -2466,7 +2466,7 @@ CONTAINS
          ipoint=MODULO((/i,j,k/),ng)+1
          ! integrate on the grid
          gridval=grid(ipoint(1),ipoint(2),ipoint(3))
-         CALL primitive_integrate(point,gridval) 
+         CALL primitive_integrate(point,gridval)
       ENDDO
       ENDDO
       ENDDO
@@ -2533,87 +2533,87 @@ CONTAINS
     REAL(KIND=dp)                            :: vab(:,:)
 
     my_virial_a(1,1) = my_virial_a(1,1) &
-        + pab*ftza*vab(coset(ax+2,ay,az),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax+2,ay,az),coset(bx,by,bz)) &
         - pab*REAL(ax,dp)*vab(coset(MAX(0,ax-1)+1,ay,az),coset(bx,by,bz))
     my_virial_a(1,2) = my_virial_a(1,2) &
-        + pab*ftza*vab(coset(ax+1,ay+1,az),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax+1,ay+1,az),coset(bx,by,bz)) &
         - pab*REAL(ax,dp)*vab(coset(MAX(0,ax-1),ay+1,az),coset(bx,by,bz))
     my_virial_a(1,3) = my_virial_a(1,3) &
-        + pab*ftza*vab(coset(ax+1,ay,az+1),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax+1,ay,az+1),coset(bx,by,bz)) &
         - pab*REAL(ax,dp)*vab(coset(MAX(0,ax-1),ay,az+1),coset(bx,by,bz))
     my_virial_a(2,1) = my_virial_a(2,1) &
-        + pab*ftza*vab(coset(ax+1,ay+1,az),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax+1,ay+1,az),coset(bx,by,bz)) &
         - pab*REAL(ay,dp)*vab(coset(ax+1,MAX(0,ay-1),az),coset(bx,by,bz))
     my_virial_a(2,2) = my_virial_a(2,2) &
-        + pab*ftza*vab(coset(ax,ay+2,az),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax,ay+2,az),coset(bx,by,bz)) &
         - pab*REAL(ay,dp)*vab(coset(ax,MAX(0,ay-1)+1,az),coset(bx,by,bz))
     my_virial_a(2,3) = my_virial_a(2,3) &
-        + pab*ftza*vab(coset(ax,ay+1,az+1),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax,ay+1,az+1),coset(bx,by,bz)) &
         - pab*REAL(ay,dp)*vab(coset(ax,MAX(0,ay-1),az+1),coset(bx,by,bz))
     my_virial_a(3,1) = my_virial_a(3,1) &
-        + pab*ftza*vab(coset(ax+1,ay,az+1),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax+1,ay,az+1),coset(bx,by,bz)) &
         - pab*REAL(az,dp)*vab(coset(ax+1,ay,MAX(0,az-1)),coset(bx,by,bz))
     my_virial_a(3,2) = my_virial_a(3,2) &
-        + pab*ftza*vab(coset(ax,ay+1,az+1),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax,ay+1,az+1),coset(bx,by,bz)) &
         - pab*REAL(az,dp)*vab(coset(ax,ay+1,MAX(0,az-1)),coset(bx,by,bz))
     my_virial_a(3,3) = my_virial_a(3,3) &
-        + pab*ftza*vab(coset(ax,ay,az+2),coset(bx,by,bz)) & 
+        + pab*ftza*vab(coset(ax,ay,az+2),coset(bx,by,bz)) &
         - pab*REAL(az,dp)*vab(coset(ax,ay,MAX(0,az-1)+1),coset(bx,by,bz))
 
     my_virial_b(1,1) = my_virial_b(1,1) + pab*ftzb* ( &
           vab(coset(ax+2,ay,az),coset(bx,by,bz)) &
-        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(1) &  
-        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(1) &  
+        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(1) &
+        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(1) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(1)*rab(1) ) &
-        - pab*REAL(bx,dp)*vab(coset(ax,ay,az),coset(MAX(0,bx-1)+1,by,bz))  
+        - pab*REAL(bx,dp)*vab(coset(ax,ay,az),coset(MAX(0,bx-1)+1,by,bz))
     my_virial_b(1,2) = my_virial_b(1,2) + pab*ftzb* ( &
           vab(coset(ax+1,ay+1,az),coset(bx,by,bz)) &
-        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(1) &  
-        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(2) &  
+        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(1) &
+        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(2) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(1)*rab(2) ) &
-        - pab*REAL(bx,dp)*vab(coset(ax,ay,az),coset(MAX(0,bx-1),by+1,bz))  
+        - pab*REAL(bx,dp)*vab(coset(ax,ay,az),coset(MAX(0,bx-1),by+1,bz))
     my_virial_b(1,3) = my_virial_b(1,3) + pab*ftzb* ( &
           vab(coset(ax+1,ay,az+1),coset(bx,by,bz)) &
-        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(1) &  
-        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(3) &  
+        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(1) &
+        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(3) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(1)*rab(3) ) &
-        - pab*REAL(bx,dp)*vab(coset(ax,ay,az),coset(MAX(0,bx-1),by,bz+1))  
+        - pab*REAL(bx,dp)*vab(coset(ax,ay,az),coset(MAX(0,bx-1),by,bz+1))
     my_virial_b(2,1) = my_virial_b(2,1) + pab*ftzb* ( &
           vab(coset(ax+1,ay+1,az),coset(bx,by,bz)) &
-        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(2) &  
-        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(1) &  
+        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(2) &
+        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(1) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(2)*rab(1) ) &
-        - pab*REAL(by,dp)*vab(coset(ax,ay,az),coset(bx+1,MAX(0,by-1),bz))  
+        - pab*REAL(by,dp)*vab(coset(ax,ay,az),coset(bx+1,MAX(0,by-1),bz))
     my_virial_b(2,2) = my_virial_b(2,2) + pab*ftzb* ( &
           vab(coset(ax,ay+2,az),coset(bx,by,bz)) &
-        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(2) &  
-        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(2) &  
+        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(2) &
+        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(2) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(2)*rab(2) ) &
-        - pab*REAL(by,dp)*vab(coset(ax,ay,az),coset(bx,MAX(0,by-1)+1,bz))  
+        - pab*REAL(by,dp)*vab(coset(ax,ay,az),coset(bx,MAX(0,by-1)+1,bz))
     my_virial_b(2,3) = my_virial_b(2,3) + pab*ftzb* ( &
           vab(coset(ax,ay+1,az+1),coset(bx,by,bz)) &
-        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(2) &  
-        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(3) &  
+        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(2) &
+        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(3) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(2)*rab(3) ) &
-        - pab*REAL(by,dp)*vab(coset(ax,ay,az),coset(bx,MAX(0,by-1),bz+1))  
+        - pab*REAL(by,dp)*vab(coset(ax,ay,az),coset(bx,MAX(0,by-1),bz+1))
     my_virial_b(3,1) = my_virial_b(3,1) + pab*ftzb* ( &
           vab(coset(ax+1,ay,az+1),coset(bx,by,bz)) &
-        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(3) &  
-        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(1) &  
+        - vab(coset(ax+1,ay,az),coset(bx,by,bz))*rab(3) &
+        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(1) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(3)*rab(1) ) &
-        - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx+1,by,MAX(0,bz-1)))  
+        - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx+1,by,MAX(0,bz-1)))
     my_virial_b(3,2) = my_virial_b(3,2) + pab*ftzb* ( &
           vab(coset(ax,ay+1,az+1),coset(bx,by,bz)) &
-        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(3) &  
-        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(2) &  
+        - vab(coset(ax,ay+1,az),coset(bx,by,bz))*rab(3) &
+        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(2) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(3)*rab(2) ) &
-        - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx,by+1,MAX(0,bz-1)))  
+        - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx,by+1,MAX(0,bz-1)))
     my_virial_b(3,3) = my_virial_b(3,3) + pab*ftzb* ( &
           vab(coset(ax,ay,az+2),coset(bx,by,bz)) &
-        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(3) &  
-        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(3) &  
+        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(3) &
+        - vab(coset(ax,ay,az+1),coset(bx,by,bz))*rab(3) &
         + vab(coset(ax,ay,az),coset(bx,by,bz))*rab(3)*rab(3) ) &
-        - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx,by,MAX(0,bz-1)+1))  
+        - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx,by,MAX(0,bz-1)+1))
 
   END SUBROUTINE virial_update
 

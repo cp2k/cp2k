@@ -129,7 +129,7 @@ CONTAINS
                                           'centre',dp_size*3*nparts)
       END IF
     END IF
-    
+
     IF( PRESENT(allocate_shell_e)) THEN
       IF(allocate_shell_e) THEN
       ALLOCATE ( exp_igr % shell_ex ( bds ( 1, 1 ):bds ( 2, 1 ) + 1, nshell ), &

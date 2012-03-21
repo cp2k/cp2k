@@ -133,7 +133,7 @@ CONTAINS
 
        IF (ASSOCIATED(grid_atom%cos_theta)) THEN
           DEALLOCATE (grid_atom%cos_theta,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
        IF (ASSOCIATED(grid_atom%sin_theta)) THEN
@@ -230,7 +230,7 @@ CONTAINS
        rad2 => grid_atom%rad2
        wr => grid_atom%wr
 
-       CALL radial_grid(nr,rad,rad2,wr,quadrature) 
+       CALL radial_grid(nr,rad,rad2,wr,quadrature)
 
        grid_atom%rad2l(:,0) = 1._dp
        grid_atom%oorad2l(:,0) = 1._dp

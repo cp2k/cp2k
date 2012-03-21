@@ -47,8 +47,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -83,8 +83,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -123,8 +123,8 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xb 88_params: input parameters (scaling)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -328,7 +328,7 @@ CONTAINS
     my_epsilon_rho=epsilon_rho
     epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
- 
+
     IF (.NOT. failure) THEN
       !$omp do
       DO ii=1,npoints
@@ -383,9 +383,9 @@ CONTAINS
 
             !! Multiply with 2.0 because it code comes from LSD
             e_0(ii) = e_0(ii) -0.2222222224e0_dp * t24 * omega * t60 * sx * 2.0_dp
-       
+
           END IF
-          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN 
+          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN
             t64 = t23 * omega
             t68 = my_rho * t22 * omega
             t69 = t7 * my_rho
@@ -624,7 +624,7 @@ CONTAINS
             t1 * t529 - 0.8333333335e-1_dp * t289 * t118 * t501 + 0.3333333334e0_dp  &
             * t117 * t435 * t172 + 0.1666666667e0_dp * t117 * t118 * t529 + 0.3333333334e0_dp  &
             * t36 * t38 * t586
-          
+
             e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) +  (-0.1666666668e0_dp * t211 * t502 - 0.6666666672e0_dp * t68 * t505  &
             - 0.3333333336e0_dp * t68 * t530 - 0.2222222224e0_dp * t24 * t98 * t590)  &
             * sx
@@ -867,8 +867,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief evaluates the becke 88 longrange exchange functional for lsd
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -904,7 +904,7 @@ CONTAINS
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array)
     END DO
-    
+
     CALL section_vals_val_get(xb88_lr_params,"scale_x",r_val=sx,error=error)
     CALL section_vals_val_get(xb88_lr_params, "omega",r_val=omega, error=error)
 
@@ -1055,7 +1055,7 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle)
-    
+
   END SUBROUTINE xb88_lr_lsd_eval
 
 ! *****************************************************************************
@@ -1066,8 +1066,8 @@ CONTAINS
 !> \param e_ *_spin: derivative of the functional wrt. to the variables
 !>        named where the * is. Everything wrt. to the spin of the arguments.
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      - Derivatives higher than one not tested
 !> \par History
@@ -1125,7 +1125,7 @@ CONTAINS
     my_epsilon_rho=0.5_dp*epsilon_rho
     epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
- 
+
     IF (.NOT. failure) THEN
       !$omp do
       DO ii=1,npoints
@@ -1178,9 +1178,9 @@ CONTAINS
             t60 = t27 * t59
 
             e_0(ii) = e_0(ii) -0.2222222224e0_dp * t24 * omega * t60 * sx
-       
+
           END IF
-          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN 
+          IF( grad_deriv >= 1 .OR. grad_deriv == -1 ) THEN
             t64 = t23 * omega
             t68 = rho * t22 * omega
             t69 = t7 * rho
@@ -1419,7 +1419,7 @@ CONTAINS
             t1 * t529 - 0.8333333335e-1_dp * t289 * t118 * t501 + 0.3333333334e0_dp  &
             * t117 * t435 * t172 + 0.1666666667e0_dp * t117 * t118 * t529 + 0.3333333334e0_dp  &
             * t36 * t38 * t586
-          
+
             e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii) +  (-0.1666666668e0_dp * t211 * t502 - 0.6666666672e0_dp * t68 * t505  &
             - 0.3333333336e0_dp * t68 * t530 - 0.2222222224e0_dp * t24 * t98 * t590)  &
             * sx

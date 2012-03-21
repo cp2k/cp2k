@@ -67,8 +67,8 @@ CONTAINS
        CALL dgemm("N","N",ncoa,nsgfb,ncob,&
                    1.0_dp,cosab(1,1),ldab,&
                    sphi_b(1,sgfb),ldsb,&
-                   0.0_dp,work(1,1),ldwork)       
-   
+                   0.0_dp,work(1,1),ldwork)
+
        IF(iatom<=jatom) THEN
          CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
                     1.0_dp,sphi_a(1,sgfa),ldsa,&
@@ -87,7 +87,7 @@ CONTAINS
        CALL dgemm("N","N",ncoa,nsgfb,ncob,&
                    1.0_dp,sinab(1,1),ldab,&
                    sphi_b(1,sgfb),ldsb,&
-                   0.0_dp,work(1,1),ldwork)       
+                   0.0_dp,work(1,1),ldwork)
 
        IF(iatom<=jatom) THEN
          CALL dgemm("T","N",nsgfa,nsgfb,ncoa,&
@@ -189,7 +189,7 @@ CONTAINS
         f1 = zetb(jpgf)*zetp
         f2 = 0.5_dp*zetp
 
-        kdp = zetp * DOT_PRODUCT ( kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc ) 
+        kdp = zetp * DOT_PRODUCT ( kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc )
 
 !       *** Calculate the basic two-center cos/sin integral [s|cos/sin|s] ***
 
@@ -725,20 +725,20 @@ CONTAINS
            END DO
         END DO
      END DO
-     
+
      IF (PRESENT(dcosab)) THEN
         DO k=1,3
            DO j=1,ncoset(lb_max)
               DO i=1,ncoset(la_max_set)
                  dcosab(na+i,nb+j,k) = dscos(i,j,k)
                  dsinab(na+i,nb+j,k) = dssin(i,j,k)
-                
+
               END DO
            END DO
         END DO
 
      END IF
-     
+
 
         nb = nb + ncoset(lb_max)
 
@@ -848,17 +848,17 @@ CONTAINS
           lx = indco(1,l)
           ly = indco(2,l)
           lz = indco(3,l)
-          IF ( lx > 0 ) THEN 
+          IF ( lx > 0 ) THEN
             lx1 = coset(lx-1,ly,lz)
           ELSE
             lx1 = -1
           END IF
-          IF ( ly > 0 ) THEN 
+          IF ( ly > 0 ) THEN
             ly1 = coset(lx,ly-1,lz)
           ELSE
             ly1 = -1
           END IF
-          IF ( lz > 0 ) THEN 
+          IF ( lz > 0 ) THEN
             lz1 = coset(lx,ly,lz-1)
           ELSE
             lz1 = -1
@@ -923,12 +923,12 @@ CONTAINS
                 DO ay=0,la-ax
                   az = la - ax - ay
                   s(coset(ax,ay,az),1,l) = rap(1)*s(coset(ax-1,ay,az),1,l) +&
-                                          f3*s(coset(ax-2,ay,az),1,l) 
+                                          f3*s(coset(ax-2,ay,az),1,l)
                   IF ( lx1 > 0 ) s(coset(ax,ay,az),1,l) = s(coset(ax,ay,az),1,l) + &
                                  f2x*s(coset(ax-1,ay,az),1,lx1)
                 END DO
               END DO
-  
+
             END DO
 
 !           *** Recurrence steps: [a|M|s] -> [a|M|b] ***
@@ -1302,7 +1302,7 @@ CONTAINS
     lmax = MAX(la_max+1,lb_max+1)
     lds = ncoset(lmax+1)
     ALLOCATE(s(lds,lds,ncoset(1)))
-    sab = 0.0_dp 
+    sab = 0.0_dp
     s = 0.0_dp
     CALL overlap(la_max+1,lda_min,npgfa,rpgfa,zeta,&
                  lb_max+1,ldb_min,npgfb,rpgfb,zetb,&
@@ -1367,7 +1367,7 @@ CONTAINS
     ELSE
       ALLOCATE(mab(npgfa*ncoset(la_max+1), npgfb*ncoset(lb_max+1),&
              ncoset(order)-1),STAT =istat)
-      mab = 0.0_dp 
+      mab = 0.0_dp
 !     *** Calculate the primitive overlap integrals ***
       CALL moment(la_max+1,npgfa,zeta,rpgfa,lda_min,&
                   lb_max+1,npgfb,zetb,rpgfb, &

@@ -670,8 +670,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
 
-    pot_nonbond = 0.0_dp ! Initialization.. 
-    vg_coulomb  = 0.0_dp ! Initialization.. 
+    pot_nonbond = 0.0_dp ! Initialization..
+    vg_coulomb  = 0.0_dp ! Initialization..
     SELECT CASE(ewald_type)
     CASE(do_ewald_ewald)
        CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &

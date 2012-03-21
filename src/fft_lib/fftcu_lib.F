@@ -7,7 +7,7 @@
 !> \par History
 !>      JGH 10-Feb-2006 : initial version
 !> \par
-!>  This file is part of the mkl distribution and can be found in the 
+!>  This file is part of the mkl distribution and can be found in the
 !>  corresponding include directory
 !>  add this to the path to the -I flags of the CPP
 !> \author JGH
@@ -19,7 +19,7 @@
 
 SUBROUTINE fftcu_get_lengths ( DATA, max_length )
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length

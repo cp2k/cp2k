@@ -8,14 +8,14 @@
 !> \note
 !>       sample of a simple runner that uses the f77_interface
 !>       it can beused to connect c programs, communicating through std-in/ std-out
-!> 
+!>
 !>       positions are in angstrom, energies in evolt
-!> 
+!>
 !>       commands:
 !>       load filename:   loads the filename, returns the env_id, or -1 in case of error
 !>       natom [env_id]:  returns the number of atoms in the environement env_id
 !>                        (defaults to the last loaded)
-!>       setpos [env_id]: sets the positions of the atoms, should be followed 
+!>       setpos [env_id]: sets the positions of the atoms, should be followed
 !>                        by natom*3 (on a line) and then all the positions [angstrom]
 !>       getpos [env_id]: gets the positions of the atoms, returns
 !>                        natom*3 (on a line) and then all the positions [angstrom]
@@ -73,9 +73,9 @@ PROGRAM cp2k_shell
 
   LOGICAL, SAVE                            :: did_init = .FALSE.
   INTEGER, SAVE                            :: eof_stat
-  
+
   CHARACTER(len=80), DIMENSION(35) :: helpMsg
-  
+
   helpMsg=(/ &
   ll('Commands'),&
   ll(' '),&
@@ -283,7 +283,7 @@ PROGRAM cp2k_shell
         IF (para_env%mepos==para_env%source) THEN
            WRITE (sout,'(ES22.13)') err*pos_fact
         END IF
-        IF (stat/=0) CALL mp_abort('setpos failed dealloc')      
+        IF (stat/=0) CALL mp_abort('setpos failed dealloc')
      CASE('GETPOS','GET_POS')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -306,7 +306,7 @@ PROGRAM cp2k_shell
            CALL m_flush(sout)
         END IF
         DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')      
+        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
      CASE('GETE','GET_E')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -358,7 +358,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write nforce')
            WRITE (sout,'(3ES22.13)',iostat=iostat) pos
            IF (iostat/=0) CALL mp_abort(cmd//' write force')
-           WRITE (sout,'("* END")',iostat=iostat)         
+           WRITE (sout,'("* END")',iostat=iostat)
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
@@ -390,7 +390,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write nforce')
            WRITE (sout,'(3ES22.13)',iostat=iostat) pos
            IF (iostat/=0) CALL mp_abort(cmd//' write force')
-           WRITE (sout,'("* END")',iostat=iostat)         
+           WRITE (sout,'("* END")',iostat=iostat)
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
@@ -495,7 +495,7 @@ CONTAINS
 
     res=str
   END FUNCTION
- 
+
 ! *****************************************************************************
  SUBROUTINE print_v_info(unit)
     INTEGER, INTENT(in)                      :: unit
@@ -548,7 +548,7 @@ CONTAINS
 
     IF (.NOT.did_init) THEN
        unit=get_unit_number()
-       OPEN (UNIT=unit, FILE='.tmp_eof_code',FORM='FORMATTED', STATUS='NEW') 
+       OPEN (UNIT=unit, FILE='.tmp_eof_code',FORM='FORMATTED', STATUS='NEW')
 
        WRITE(unit,fmt=*)'z'
        REWIND(unit)

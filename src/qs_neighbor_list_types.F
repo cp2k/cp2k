@@ -170,7 +170,7 @@ CONTAINS
                                         "neighbor_list_iterator",0)
 
        iterator => iterator_set(il)%neighbor_list_iterator
-       
+
        iterator%nl => nl
 
        iterator%ikind = 0
@@ -726,7 +726,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and initialize a set of neighbor lists.
-!> \author MK 
+!> \author MK
 !> \date    23.06.2000
 !> \version 1.0
 ! *****************************************************************************
@@ -859,7 +859,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION first_node(neighbor_list) RESULT(first_neighbor_node)
- 
+
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: first_neighbor_node
 
@@ -964,9 +964,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize a neighbor list set. Nothing is (de)allocated here.
 !>         This routine is also used to prepare a neighbor list set for
-!>         overwriting.  
+!>         overwriting.
 !> \author  MK
-!> \date  20.09.2002  
+!> \date  20.09.2002
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_neighbor_list_set(neighbor_list_set,r_max,symmetric,mic,molecular)

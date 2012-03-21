@@ -61,26 +61,26 @@ CONTAINS
 !  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 
 ! --------------------------------------------------------------
-!   3-dimensional complex-complex FFT routine: 
-!   When compared to the best vendor implementations on RISC architectures 
+!   3-dimensional complex-complex FFT routine:
+!   When compared to the best vendor implementations on RISC architectures
 !   it gives close to optimal performance (perhaps loosing 20 percent in speed)
-!   and it is significanly faster than many not so good vendor implementations 
-!   as well as other portable FFT's. 
-!   On all vector machines tested so far (Cray, NEC, Fujitsu) is 
+!   and it is significanly faster than many not so good vendor implementations
+!   as well as other portable FFT's.
+!   On all vector machines tested so far (Cray, NEC, Fujitsu) is
 !   was significantly faster than the vendor routines
 ! The theoretical background is described in :
 ! 1) S. Goedecker: Rotating a three-dimensional array in optimal
 ! positions for vector processing: Case study for a three-dimensional Fast
 ! Fourier Transform, Comp. Phys. Commun. \underline{76}, 294 (1993)
-! Citing of this reference is greatly appreciated if the routines are used 
+! Citing of this reference is greatly appreciated if the routines are used
 ! for scientific work.
 
 ! Presumably good compiler flags:
 ! IBM, serial power 2: xlf -qarch=pwr2 -O2 -qmaxmem=-1
-! with OpenMP: IBM: xlf_r -qfree -O4 -qarch=pwr3 -qtune=pwr3 -qsmp=omp -qmaxmem=-1 ; 
+! with OpenMP: IBM: xlf_r -qfree -O4 -qarch=pwr3 -qtune=pwr3 -qsmp=omp -qmaxmem=-1 ;
 !                   a.out
 ! DEC: f90 -O3 -arch ev67 -pipeline
-! with OpenMP: DEC: f90 -O3 -arch ev67 -pipeline -omp -lelan ; 
+! with OpenMP: DEC: f90 -O3 -arch ev67 -pipeline -omp -lelan ;
 !                   prun -N1 -c4 a.out
 
 !-----------------------------------------------------------
@@ -101,7 +101,7 @@ CONTAINS
           IMPLICIT REAL(KIND=dp) (a-h,o-z)
           INTEGER after,before
           DIMENSION now(7),after(7),before(7),trig(2,8192)
-          INTEGER, DIMENSION(7,149) :: idata 
+          INTEGER, DIMENSION(7,149) :: idata
 ! The factor 6 is only allowed in the first place!
         DATA ((idata(i,j),i=1,7),j=1,76) /                        &
             3,   3, 1, 1, 1, 1, 1,       4,   4, 1, 1, 1, 1, 1,   &
@@ -180,7 +180,7 @@ CONTAINS
          7200,   6, 5, 5, 4, 4, 3,    7500,   5, 5, 5, 5, 4, 3,   &
          7680,   6, 8, 8, 5, 4, 1,    8000,   8, 8, 5, 5, 5, 1,   &
          8192,   8, 8, 8, 4, 4, 1 /
-        
+
         DO 111,i=1,149
         IF (n.eq.idata(1,i)) THEN
         ic=0
@@ -426,7 +426,7 @@ CONTAINS
         ENDIF
 2000        CONTINUE
         ELSE IF (now.eq.4) THEN
-        IF (isign.eq.1) THEN 
+        IF (isign.eq.1) THEN
                 ia=1
                 nin1=ia-after
                 nout1=ia-atn
@@ -454,15 +454,15 @@ CONTAINS
                 zout(1,j,nout3) = r - s
                 r=r1 - r3
                 s=s2 - s4
-                zout(1,j,nout2) = r - s 
+                zout(1,j,nout2) = r - s
                 zout(1,j,nout4) = r + s
                 r=s1 + s3
                 s=s2 + s4
-                zout(2,j,nout1) = r + s 
+                zout(2,j,nout1) = r + s
                 zout(2,j,nout3) = r - s
                 r=s1 - s3
                 s=r2 - r4
-                zout(2,j,nout2) = r + s 
+                zout(2,j,nout2) = r + s
                 zout(2,j,nout4) = r - s
 4001                CONTINUE
                 DO 4000,ia=2,after
@@ -498,15 +498,15 @@ CONTAINS
                         zout(1,j,nout3) = r - s
                         r=r1 + r3
                         s=s2 - s4
-                        zout(1,j,nout2) = r - s 
+                        zout(1,j,nout2) = r - s
                         zout(1,j,nout4) = r + s
                         r=s1 + s3
                         s=s2 + s4
-                        zout(2,j,nout1) = r + s 
+                        zout(2,j,nout1) = r + s
                         zout(2,j,nout3) = r - s
                         r=s1 - s3
                         s=r2 + r4
-                        zout(2,j,nout2) = r + s 
+                        zout(2,j,nout2) = r + s
                         zout(2,j,nout4) = r - s
 4010                        CONTINUE
                 ELSE
@@ -552,15 +552,15 @@ CONTAINS
                         zout(1,j,nout3) = r - s
                         r=r1 - r3
                         s=s2 - s4
-                        zout(1,j,nout2) = r - s 
+                        zout(1,j,nout2) = r - s
                         zout(1,j,nout4) = r + s
                         r=s1 + s3
                         s=s2 + s4
-                        zout(2,j,nout1) = r + s 
+                        zout(2,j,nout1) = r + s
                         zout(2,j,nout3) = r - s
                         r=s1 - s3
                         s=r2 - r4
-                        zout(2,j,nout2) = r + s 
+                        zout(2,j,nout2) = r + s
                         zout(2,j,nout4) = r - s
 4020                        CONTINUE
                 ENDIF
@@ -706,7 +706,7 @@ CONTAINS
 4100                CONTINUE
         ENDIF
         ELSE IF (now.eq.8) THEN
-        IF (isign.eq.-1) THEN 
+        IF (isign.eq.-1) THEN
                 ia=1
                         nin1=ia-after
                         nout1=ia-atn
@@ -1144,12 +1144,12 @@ CONTAINS
                         zout(1,j,nout4) = am + cp
                         zout(2,j,nout4) = bp + dpp
                         zout(1,j,nout8) = am - cp
-                        zout(2,j,nout8) = bp - dpp 
+                        zout(2,j,nout8) = bp - dpp
 8021                        CONTINUE
 8001                CONTINUE
 
         ENDIF
-        ELSE IF (now.eq.3) THEN 
+        ELSE IF (now.eq.3) THEN
 !         .5_dp*sqrt(3._dp)
         bb=isign*0.8660254037844387_dp
         ia=1
@@ -1177,9 +1177,9 @@ CONTAINS
         s1=s1 - .5_dp*s
         r2=bb*(r2-r3)
         s2=bb*(s2-s3)
-        zout(1,j,nout2) = r1 - s2 
+        zout(1,j,nout2) = r1 - s2
         zout(2,j,nout2) = s1 + r2
-        zout(1,j,nout3) = r1 + s2 
+        zout(1,j,nout3) = r1 + s2
         zout(2,j,nout3) = s1 - r2
 3001        CONTINUE
         DO 3000,ia=2,after
@@ -1207,12 +1207,12 @@ CONTAINS
                 zout(1,j,nout1) = r1 - r
                 zout(2,j,nout1) = s + s1
                 r1=r1 + .5_dp*r
-                s1=s1 - .5_dp*s        
-                r2=bb*(r2-r3)        
+                s1=s1 - .5_dp*s
+                r2=bb*(r2-r3)
                 s2=bb*(s2+s3)
-                zout(1,j,nout2) = r1 - s2 
+                zout(1,j,nout2) = r1 - s2
                 zout(2,j,nout2) = s1 - r2
-                zout(1,j,nout3) = r1 + s2 
+                zout(1,j,nout3) = r1 + s2
                 zout(2,j,nout3) = s1 + r2
 3010                CONTINUE
         ELSE
@@ -1237,12 +1237,12 @@ CONTAINS
                 zout(1,j,nout1) = r + r1
                 zout(2,j,nout1) = s1 - s
                 r1=r1 - .5_dp*r
-                s1=s1 + .5_dp*s        
-                r2=bb*(r2+r3)        
+                s1=s1 + .5_dp*s
+                r2=bb*(r2+r3)
                 s2=bb*(s2-s3)
-                zout(1,j,nout2) = r1 + s2 
+                zout(1,j,nout2) = r1 + s2
                 zout(2,j,nout2) = s1 + r2
-                zout(1,j,nout3) = r1 - s2 
+                zout(1,j,nout3) = r1 - s2
                 zout(2,j,nout3) = s1 - r2
 3020                CONTINUE
         ENDIF
@@ -1265,18 +1265,18 @@ CONTAINS
                 r2=(r - s)*rt2i
                 s2=(r + s)*rt2i
                 r3=zin(2,j,nin3)
-                s3=zin(1,j,nin3) 
+                s3=zin(1,j,nin3)
                 r=r2 - r3
                 s=s2 + s3
                 zout(1,j,nout1) = r + r1
                 zout(2,j,nout1) = s + s1
                 r1=r1 - .5_dp*r
-                s1=s1 - .5_dp*s        
-                r2=bb*(r2+r3)        
+                s1=s1 - .5_dp*s
+                r2=bb*(r2+r3)
                 s2=bb*(s2-s3)
-                zout(1,j,nout2) = r1 - s2 
+                zout(1,j,nout2) = r1 - s2
                 zout(2,j,nout2) = s1 + r2
-                zout(1,j,nout3) = r1 + s2 
+                zout(1,j,nout3) = r1 + s2
                 zout(2,j,nout3) = s1 - r2
 3030                CONTINUE
         ELSE
@@ -1303,12 +1303,12 @@ CONTAINS
                 zout(1,j,nout1) = r + r1
                 zout(2,j,nout1) = s + s1
                 r1=r1 - .5_dp*r
-                s1=s1 - .5_dp*s        
-                r2=bb*(r2-r3)        
+                s1=s1 - .5_dp*s
+                r2=bb*(r2-r3)
                 s2=bb*(s2+s3)
-                zout(1,j,nout2) = r1 - s2 
+                zout(1,j,nout2) = r1 - s2
                 zout(2,j,nout2) = s1 + r2
-                zout(1,j,nout3) = r1 + s2 
+                zout(1,j,nout3) = r1 + s2
                 zout(2,j,nout3) = s1 - r2
 3040                CONTINUE
         ENDIF
@@ -1348,9 +1348,9 @@ CONTAINS
         s1=s1 - .5_dp*s
         r2=bb*(r2-r3)
         s2=bb*(s2-s3)
-        zout(1,j,nout2) = r1 - s2 
+        zout(1,j,nout2) = r1 - s2
         zout(2,j,nout2) = s1 + r2
-        zout(1,j,nout3) = r1 + s2 
+        zout(1,j,nout3) = r1 + s2
         zout(2,j,nout3) = s1 - r2
 3090        CONTINUE
         ENDIF
@@ -1427,7 +1427,7 @@ CONTAINS
                         nin2=nin1+atb
                         nin3=nin2+atb
                         nin4=nin3+atb
-                        nin5=nin4+atb        
+                        nin5=nin4+atb
                         nout1=nout1+atn
                         nout2=nout1+after
                         nout3=nout2+after
@@ -1441,7 +1441,7 @@ CONTAINS
                         r2=(r - s)*rt2i
                         s2=(r + s)*rt2i
                         r3=zin(2,j,nin3)
-                        s3=zin(1,j,nin3) 
+                        s3=zin(1,j,nin3)
                         r=zin(1,j,nin4)
                         s=zin(2,j,nin4)
                         r4=(r + s)*rt2i
@@ -1453,11 +1453,11 @@ CONTAINS
                         s25 = s2 + s5
                         s34 = s3 - s4
                         zout(1,j,nout1) = r1 + r25 - r34
-                        r = r1 + cos2*r25 - cos4*r34 
+                        r = r1 + cos2*r25 - cos4*r34
                         s = sin2*s25 + sin4*s34
                         zout(1,j,nout2) = r - s
                         zout(1,j,nout5) = r + s
-                        r = r1 + cos4*r25 - cos2*r34 
+                        r = r1 + cos4*r25 - cos2*r34
                         s = sin4*s25 - sin2*s34
                         zout(1,j,nout3) = r - s
                         zout(1,j,nout4) = r + s
@@ -1483,7 +1483,7 @@ CONTAINS
                         nin2=nin1+atb
                         nin3=nin2+atb
                         nin4=nin3+atb
-                        nin5=nin4+atb        
+                        nin5=nin4+atb
                         nout1=nout1+atn
                         nout2=nout1+after
                         nout3=nout2+after
@@ -1681,11 +1681,11 @@ CONTAINS
         zout(2,j,nout6)=ui3-vi3
 6120        CONTINUE
 
-     ELSE 
+     ELSE
         WRITE(*,*)'error here'
         STOP 'error fftstp'
      ENDIF
 
    END SUBROUTINE fftstp
-   
+
 END MODULE ps_wavelet_fft3d

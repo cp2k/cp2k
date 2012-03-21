@@ -3,7 +3,7 @@
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
-!> \brief Calculation of the non-local pseudopotential contribution to the core Hamiltonian 
+!> \brief Calculation of the non-local pseudopotential contribution to the core Hamiltonian
 !>         <a|V(non-local)|b> = <a|p(l,i)>*h(i,j)*<p(l,j)|b>
 !> \par History
 !>      - refactered from qs_core_hamiltian [Joost VandeVondele, 2008-11-01]
@@ -128,12 +128,12 @@ CONTAINS
     ENDIF
 
     ppnl_present = ASSOCIATED(sap_ppnl)
-   
+
     IF ( ppnl_present ) THEN
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
-    
+
       ALLOCATE (atom_of_kind(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
@@ -146,7 +146,7 @@ CONTAINS
                            alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
          END IF
       END IF
-    
+
       maxder = ncoset(nder)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -236,7 +236,7 @@ CONTAINS
          END IF
          IF (.NOT.ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
             sap_int(iac)%alist(ilist)%aatom  = iatom
-            sap_int(iac)%alist(ilist)%nclist = nneighbor 
+            sap_int(iac)%alist(ilist)%nclist = nneighbor
             ALLOCATE(sap_int(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             DO i=1,nneighbor
@@ -435,9 +435,9 @@ CONTAINS
     END IF !ppnl_present
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE build_core_ppnl
 
 !==========================================================================================================
-  
+
 END MODULE core_ppnl

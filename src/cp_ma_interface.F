@@ -44,10 +44,10 @@ MODULE cp_ma_interface
 
   ! Interface to libma
   PUBLIC :: cp_ma_config, cp_ma_init_lib, cp_ma_finalize_lib
-  PUBLIC :: cp_ma_run_on, cp_ma_thread_run_on 
+  PUBLIC :: cp_ma_run_on, cp_ma_thread_run_on
   PUBLIC :: cp_ma_current_thread_run
   PUBLIC :: cp_ma_set_neighbors, cp_ma_get_neighbors
-  PUBLIC :: cp_ma_thread_sched, cp_ma_verify_place 
+  PUBLIC :: cp_ma_thread_sched, cp_ma_verify_place
   PUBLIC :: cp_ma_mpi_sched
   PUBLIC :: cp_ma_mempol
   PUBLIC :: cp_ma_print_machine
@@ -57,7 +57,7 @@ MODULE cp_ma_interface
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Configures options for Machine Architecture  
+!> \brief Configures options for Machine Architecture
 ! *****************************************************************************
   SUBROUTINE cp_ma_config(root_section, error)
     TYPE(section_vals_type), POINTER         :: root_section
@@ -91,9 +91,9 @@ CONTAINS
     CALL section_vals_val_get(ma_section,&
          "SCHED_MPI", c_val=mpi_sched, error=error)
     CALL section_vals_val_get(ma_section,&
-         "SCHED_THREAD", c_val=use_sched, error=error)    
+         "SCHED_THREAD", c_val=use_sched, error=error)
     CALL section_vals_val_get(ma_section,&
-         "MEM_POL", c_val=use_mempol, error=error)   
+         "MEM_POL", c_val=use_mempol, error=error)
     CALL section_vals_val_get(ma_section,"PROCESS",&
             i_vals=proc, error=error)
     CALL section_vals_val_get(ma_section,"MEMORY",&
@@ -126,8 +126,8 @@ SUBROUTINE cp_ma_net_affinity(proc,id)
     INTEGER                                  :: proc, id
 
    CALL ma_set_net_affinity (proc,id)
-    
-END SUBROUTINE cp_ma_net_affinity 
+
+END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Get the cuda devices for the MPIs
@@ -149,20 +149,20 @@ END SUBROUTINE cp_ma_net_affinity
             cuDev = ma_set_gpu_affinity(myRank)
 
             IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-              IF (ma_MPI_nGpus()) THEN 
-                WRITE(unit_num,"(T2,A)")"WARNING: Number of MPI greater than GPUs"          
+              IF (ma_MPI_nGpus()) THEN
+                WRITE(unit_num,"(T2,A)")"WARNING: Number of MPI greater than GPUs"
               ENDIF
             ENDIF
     ELSE
         CALL cp_assert (.FALSE.,&
         cp_warning_level, cp_unimplemented_error_nr, routineP,&
-        "Need hwloc/libnuma library to query machine architecture.")    
+        "Need hwloc/libnuma library to query machine architecture.")
     ENDIF
 
   END SUBROUTINE  cp_ma_get_cuDev
 
 ! *****************************************************************************
-!> \brief Print the configuration options for Machine Architecture  
+!> \brief Print the configuration options for Machine Architecture
 ! *****************************************************************************
   SUBROUTINE cp_ma_print_config(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
@@ -175,14 +175,14 @@ END SUBROUTINE cp_ma_net_affinity
     INTEGER                                  :: pol_sched, unit_num
     TYPE(cp_logger_type), POINTER            :: logger
 
-    sched_thread = ma_get_conf_sched() 
+    sched_thread = ma_get_conf_sched()
 
     logger => cp_error_get_logger(error)
 
-    IF (has_ma) THEN 
+    IF (has_ma) THEN
       IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l') THEN
            pol_sched = linear
-      ELSE IF (sched_thread .EQ. 'S' .OR. sched_thread .EQ. 's') THEN     
+      ELSE IF (sched_thread .EQ. 'S' .OR. sched_thread .EQ. 's') THEN
            pol_sched = scatter
       ELSE IF (sched_thread .EQ. 'G' .OR. sched_thread .EQ. 'g') THEN
            pol_sched = group
@@ -191,7 +191,7 @@ END SUBROUTINE cp_ma_net_affinity
       ELSE
            pol_sched = nosched
       ENDIF
-  
+
     IF(PRESENT (unit_nr)) THEN
       unit_num = unit_nr
     ELSE
@@ -213,7 +213,7 @@ END SUBROUTINE cp_ma_net_affinity
           WRITE(unit_num,'(T2,A)') "SCHED | Applying group scheduling"
       CASE DEFAULT
           WRITE(unit_num,'()')
-          WRITE(unit_num,'(T2,A)') "SCHED | No valid scheduling"    
+          WRITE(unit_num,'(T2,A)') "SCHED | No valid scheduling"
       END SELECT
      ENDIF
    ELSE
@@ -224,7 +224,7 @@ END SUBROUTINE cp_ma_net_affinity
    END SUBROUTINE cp_ma_print_config
 
 ! *****************************************************************************
-!> \brief Prints the Machine Architecture  
+!> \brief Prints the Machine Architecture
 ! *****************************************************************************
   SUBROUTINE cp_ma_print_machine(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
@@ -238,10 +238,10 @@ END SUBROUTINE cp_ma_net_affinity
                                                 print_resume
     TYPE(cp_logger_type), POINTER            :: logger
 
-    print_resume = ma_get_conf_print_resume() 
-    print_full = ma_get_conf_print_full() 
-    print_branch = ma_get_conf_print_branch() 
- 
+    print_resume = ma_get_conf_print_resume()
+    print_full = ma_get_conf_print_full()
+    print_branch = ma_get_conf_print_branch()
+
    logger => cp_error_get_logger(error)
 
    IF(PRESENT (unit_nr)) THEN
@@ -250,7 +250,7 @@ END SUBROUTINE cp_ma_net_affinity
      unit_num = cp_logger_get_default_io_unit(logger)
    ENDIF
    IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-   
+
         SELECT CASE (ma_interface)
         CASE (ma_int_hwloc)
           IF (print_resume) CALL ma_show_topology(unit_num)
@@ -259,7 +259,7 @@ END SUBROUTINE cp_ma_net_affinity
         CASE (ma_int_libnuma)
           IF (print_resume) CALL ma_show_topology(unit_num)
         CASE (ma_int_none)
-          IF (print_resume .OR. print_branch .OR. print_full) THEN 
+          IF (print_resume .OR. print_branch .OR. print_full) THEN
            CALL cp_assert (.FALSE.,cp_warning_level, cp_unimplemented_error_nr,&
                 routineP, "Need hwloc/libNuma library to query machine architecture.")
           ENDIF
@@ -269,7 +269,7 @@ END SUBROUTINE cp_ma_net_affinity
 
 
 ! *****************************************************************************
-!> \brief Prints where the process is running - Also print the memory policy 
+!> \brief Prints where the process is running - Also print the memory policy
 !> \brief associated with the process
 ! *****************************************************************************
   SUBROUTINE cp_ma_run_on(para_env, error, unit_nr)
@@ -284,7 +284,7 @@ END SUBROUTINE cp_ma_net_affinity
     LOGICAL                                  :: print_mem, print_proc
     TYPE(cp_logger_type), POINTER            :: logger
 
-    print_proc = ma_get_conf_print_proc() 
+    print_proc = ma_get_conf_print_proc()
     print_mem = (ma_get_nnodes() .GT. 0 .AND. ma_get_conf_mempol() .NE. 'N')
 
     logger => cp_error_get_logger(error)
@@ -295,7 +295,7 @@ END SUBROUTINE cp_ma_net_affinity
      unit_num = cp_logger_get_default_io_unit(logger)
     ENDIF
 
-    IF ( has_ma ) THEN 
+    IF ( has_ma ) THEN
       CALL ma_print_proc_affinity(print_proc, print_mem, unit_num)
     ELSE
      CALL cp_assert (.NOT. print_proc,&
@@ -332,7 +332,7 @@ END SUBROUTINE cp_ma_net_affinity
 
     TYPE(ma_mp_type)                         :: ma_env
 
-    ma_env%numproc = para_env%num_pe 
+    ma_env%numproc = para_env%num_pe
     ma_env%mp_group = para_env%group
     ma_env%myid = r_pid
     ma_env%myproc = para_env%mepos
@@ -343,7 +343,7 @@ END SUBROUTINE cp_ma_net_affinity
        CALL cp_assert (.FALSE.,&
         cp_warning_level, cp_unimplemented_error_nr, routineP,&
         "Need hwloc/libnuma library to query machine architecture.")
-     ENDIF 
+     ENDIF
   END SUBROUTINE cp_ma_set_neighbors
 
 ! *****************************************************************************
@@ -362,9 +362,9 @@ END SUBROUTINE cp_ma_net_affinity
     LOGICAL                                  :: print_thread
     TYPE(cp_logger_type), POINTER            :: logger
 
-    print_thread = ma_get_conf_print_thread() 
+    print_thread = ma_get_conf_print_thread()
     sched_thread = ma_get_conf_sched()
- 
+
     logger => cp_error_get_logger(error)
 
    IF(PRESENT (unit_nr)) THEN
@@ -385,7 +385,7 @@ END SUBROUTINE cp_ma_net_affinity
   END SUBROUTINE cp_ma_thread_run_on
 
 ! *****************************************************************************
-!> \brief Prints where the threads are running 
+!> \brief Prints where the threads are running
 ! Note: must be used within a parallel OMP region
 ! *****************************************************************************
   SUBROUTINE cp_ma_current_thread_run(id, unit_nr, error)
@@ -400,8 +400,8 @@ END SUBROUTINE cp_ma_net_affinity
     LOGICAL                                  :: print_thread_cur
     TYPE(cp_logger_type), POINTER            :: logger
 
-    print_thread_cur = ma_get_conf_print_thread_cur() 
- 
+    print_thread_cur = ma_get_conf_print_thread_cur()
+
     logger => cp_error_get_logger(error)
 
    IF(PRESENT (unit_nr)) THEN
@@ -438,7 +438,7 @@ END SUBROUTINE cp_ma_net_affinity
     INTEGER                                  :: mem_pol
 
     mempol = ma_get_conf_mempol()
-    
+
     IF (ma_interface .NE. ma_int_none) THEN
       IF (mempol .EQ. 'D' .OR. mempol .EQ. 'd') THEN
            mem_pol = os
@@ -446,10 +446,10 @@ END SUBROUTINE cp_ma_net_affinity
            mem_pol = local
       ELSE IF (mempol .EQ. 'I' .OR. mempol .EQ. 'i') THEN
            mem_pol = interleave
-      ELSE IF (mempol .EQ. 'M' .OR. mempol .EQ. 'm') THEN     
+      ELSE IF (mempol .EQ. 'M' .OR. mempol .EQ. 'm') THEN
            mem_pol = manual
-      ELSE 
-           mem_pol = none_pol        
+      ELSE
+           mem_pol = none_pol
       ENDIF
 
     IF (mem_pol .NE. none_pol) THEN
@@ -457,7 +457,7 @@ END SUBROUTINE cp_ma_net_affinity
 
        CALL ma_set_mempol(mem_pol)
     ENDIF
-    
+
     ELSE
       CALL cp_assert (.FALSE.,&
        cp_warning_level, cp_unimplemented_error_nr, routineP,&
@@ -483,13 +483,13 @@ END SUBROUTINE cp_ma_net_affinity
     comm_thread = ma_get_conf_comm_thread()
     sched_mpi = ma_get_conf_mpiSched()
 
-    IF (ma_interface .NE. ma_int_none) THEN    
+    IF (ma_interface .NE. ma_int_none) THEN
       IF (sched_mpi .EQ. 'L' .OR. sched_mpi .EQ. 'l') THEN
            pol_sched = linear
       ELSE IF (sched_mpi .EQ. 'S' .OR. sched_mpi .EQ. 's') THEN
            pol_sched = scatter
       ELSE IF (sched_mpi .EQ. 'G' .OR. sched_mpi .EQ. 'g') THEN
-           pol_sched = group                 
+           pol_sched = group
       ELSE IF (sched_mpi .EQ. 'M' .OR. sched_mpi .EQ. 'm') THEN
            pol_sched = manual
       ELSE IF (sched_mpi .EQ. 'D' ) THEN
@@ -499,9 +499,9 @@ END SUBROUTINE cp_ma_net_affinity
       ENDIF
       ! confirm the inputs for manual mapping
       IF (pol_sched .EQ. manual .AND. &
-         .NOT. ma_valid_inputs(ma_get_neighbors())) THEN 
+         .NOT. ma_valid_inputs(ma_get_neighbors())) THEN
          CALL stop_program(routineN,moduleN,__LINE__,&
-              "Need to specify Processors and memory for all MPI")              
+              "Need to specify Processors and memory for all MPI")
       ELSE
         IF (pol_sched .NE. def )  CALL ma_sched_mpi(pol_sched)
       END IF
@@ -515,7 +515,7 @@ END SUBROUTINE cp_ma_net_affinity
 
 
 ! *****************************************************************************
-!> \brief Get or apply a thread scheduling strategy 
+!> \brief Get or apply a thread scheduling strategy
 ! Note: set the configuration keywords in the input file
 ! *****************************************************************************
   SUBROUTINE cp_ma_thread_sched(id, error)
@@ -529,7 +529,7 @@ END SUBROUTINE cp_ma_net_affinity
     CHARACTER(len=1)                         :: sched_thread
     INTEGER                                  :: pol_sched
 
-    sched_thread = ma_get_conf_sched() 
+    sched_thread = ma_get_conf_sched()
 
     IF (ma_interface .NE. ma_int_none) THEN
       IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l') THEN
@@ -555,7 +555,7 @@ END SUBROUTINE cp_ma_net_affinity
   END SUBROUTINE cp_ma_thread_sched
 
 ! *****************************************************************************
-!> \brief Verify the thread scheduling 
+!> \brief Verify the thread scheduling
 ! *****************************************************************************
   SUBROUTINE cp_ma_verify_place(id, unit_nr, error)
     INTEGER, INTENT(IN)                      :: id
@@ -570,7 +570,7 @@ END SUBROUTINE cp_ma_net_affinity
     LOGICAL                                  :: print_thread
     TYPE(cp_logger_type), POINTER            :: logger
 
-    print_thread = ma_get_conf_print_thread() 
+    print_thread = ma_get_conf_print_thread()
     sched_thread = ma_get_conf_sched()
 
     logger => cp_error_get_logger(error)
@@ -581,12 +581,12 @@ END SUBROUTINE cp_ma_net_affinity
       unit_num = cp_logger_get_default_io_unit(logger)
     ENDIF
     IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-    IF (ma_interface .NE. ma_int_none) THEN     
+    IF (ma_interface .NE. ma_int_none) THEN
        IF (sched_thread .EQ. 'L' .OR. sched_thread .EQ. 'l' .OR. &
            sched_thread .EQ. 'S' .OR. sched_thread .EQ. 's' .OR. &
            sched_thread .EQ. 'G' .OR. sched_thread .EQ. 'g' .OR. &
            sched_thread .EQ. 'N' .OR. sched_thread .EQ. 'n') THEN
-         IF (print_thread) THEN 
+         IF (print_thread) THEN
            CALL ma_verify_place(id, unit_num)
          ENDIF
        ENDIF
@@ -617,7 +617,7 @@ END SUBROUTINE cp_ma_net_affinity
 
     logger => cp_error_get_logger(error)
 
-    IF ( isconfigured ) RETURN 
+    IF ( isconfigured ) RETURN
     IF ( has_ma ) THEN
         ma_interface = ma_int_none
         IF (ma_hwloc) THEN
@@ -642,7 +642,7 @@ END SUBROUTINE cp_ma_net_affinity
         ma_env%all_proc = .TRUE.
       ELSE ! the communicator is not usefull
         ma_env%numproc = numnode
-        ma_env%mp_group = group 
+        ma_env%mp_group = group
         ma_env%myid = r_pid
         ma_env%myproc = mynode
         ma_env%all_proc = .FALSE.
@@ -650,28 +650,28 @@ END SUBROUTINE cp_ma_net_affinity
        istat = ma_init_machine(core,node)
        IF (istat /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
-               "Initialization of HWLOC/LIBNUMA failed!")             
+               "Initialization of HWLOC/LIBNUMA failed!")
        ENDIF
 
        istat = ma_init_affinity(ma_env, num_threads,core,node)
        IF (istat /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
-               "Initialization of AFFINITY failed!")             
+               "Initialization of AFFINITY failed!")
        ENDIF
-      
+
        unit_num = cp_logger_get_default_io_unit(logger)
 
-       !check the number of MPI and GPUs   
-        IF (ma_MPI_nGpus()) THEN 
+       !check the number of MPI and GPUs
+        IF (ma_MPI_nGpus()) THEN
           IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-             WRITE(unit_num,'(A)') "WARNING: Number of MPI greater than GPUs" 
+             WRITE(unit_num,'(A)') "WARNING: Number of MPI greater than GPUs"
              WRITE(unit_num,'()')
-           ENDIF 
+           ENDIF
         ENDIF
         isconfigured = .TRUE.
     ENDIF
 
-    
+
   END SUBROUTINE cp_ma_init_lib
 
 ! *****************************************************************************
@@ -685,7 +685,7 @@ END SUBROUTINE cp_ma_net_affinity
       isdefault = isallproc
    ENDIF
   END SUBROUTINE cp_ma_default_affinity
- 
+
 ! *****************************************************************************
 !> \brief Finalizes Machine Architecture
 ! *****************************************************************************

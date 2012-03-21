@@ -88,8 +88,8 @@ end subroutine write_string
 },
 
 {
- 'nametype1':'pw', 
- 'type1':'type(pw_type),pointer', 
+ 'nametype1':'pw',
+ 'type1':'type(pw_type),pointer',
  'type1in':'type(pw_type), pointer',
  'type1out':'type(pw_type), pointer',
  'USE':
@@ -112,8 +112,8 @@ USE pw_methods, ONLY: pw_write""",
 }
 ,
 {
- 'nametype1':'fm', 
- 'type1':'type(cp_fm_type),pointer', 
+ 'nametype1':'fm',
+ 'type1':'type(cp_fm_type),pointer',
  'type1in':'type(cp_fm_type), pointer',
  'type1out':'type(cp_fm_type), pointer',
  'USE':
@@ -135,8 +135,8 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type""",
 }
 ,
 {
- 'nametype1':'rs', 
- 'type1':'type(realspace_grid_type),pointer', 
+ 'nametype1':'rs',
+ 'type1':'type(realspace_grid_type),pointer',
  'type1in':'type(realspace_grid_type), pointer',
  'type1out':'type(realspace_grid_type), pointer',
  'USE':
@@ -157,8 +157,8 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type""",
  'private_routines':''
 },
 {
- 'nametype1':'3d_r', 
- 'type1':'real(kind=dp),dimension(:,:,:),pointer', 
+ 'nametype1':'3d_r',
+ 'type1':'real(kind=dp),dimension(:,:,:),pointer',
  'type1in':'real(kind=dp),dimension(:,:,:), pointer',
  'type1out':'real(kind=dp),dimension(:,:,:), pointer',
  'USE':
@@ -179,8 +179,8 @@ USE cp_array_r_utils, only: cp_3d_r_p_type""",
  'private_routines':''
 },
 {
- 'nametype1':'xc_deriv', 
- 'type1':'type(xc_derivative_type),pointer', 
+ 'nametype1':'xc_deriv',
+ 'type1':'type(xc_derivative_type),pointer',
  'type1in':'type(xc_derivative_type),pointer',
  'type1out':'type(xc_derivative_type),pointer',
  'USE':
@@ -216,8 +216,8 @@ end function
 """
 },
 {
- 'nametype1':'val', 
- 'type1':'type(val_type),pointer', 
+ 'nametype1':'val',
+ 'type1':'type(val_type),pointer',
  'type1in':'type(val_type),pointer',
  'type1out':'type(val_type),pointer',
  'USE':

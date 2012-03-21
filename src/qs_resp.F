@@ -104,13 +104,13 @@ CONTAINS
 
        CALL section_vals_get(cons_section, explicit=explicit, error=error)
        IF (explicit) THEN
-          CALL section_vals_get(cons_section,n_repetition=ncons_sec,error=error) 
+          CALL section_vals_get(cons_section,n_repetition=ncons_sec,error=error)
        ELSE
           ncons_sec=0
        ENDIF
        CALL section_vals_get(rest_section, explicit=explicit, error=error)
        IF (explicit) THEN
-          CALL section_vals_get(rest_section,n_repetition=nrest_sec,error=error) 
+          CALL section_vals_get(rest_section,n_repetition=nrest_sec,error=error)
        ELSE
           nrest_sec=0
        ENDIF
@@ -125,8 +125,8 @@ CONTAINS
           CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_STRENGTH",r_val=rheavies_strength,error=error)
        ENDIF
 
-       CALL section_vals_val_get(resp_section,"RMIN",r_val=rmin,error=error) 
-       CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error) 
+       CALL section_vals_val_get(resp_section,"RMIN",r_val=rmin,error=error)
+       CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error)
 
        ! Redefine the box used to sample the potential..
        box_hi=(/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
@@ -148,11 +148,11 @@ CONTAINS
        box_low=box_low-box_mid
        box_hi=box_hi-box_mid
 
-       CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride,error=error) 
+       CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride,error=error)
        CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
             "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
 CPSourceFileRef,&
-            only_ionode=.TRUE.)       
+            only_ionode=.TRUE.)
        IF (SIZE(my_stride)==1) THEN
           DO i = 1,3
              stride(i) = my_stride(1)
@@ -164,8 +164,8 @@ CPSourceFileRef,&
           WRITE(output_unit,'(2X,A)')        "Starting RESP fit"
           WRITE(output_unit,'(2X,A,I0)')     "Number of explicit constraints: ",ncons_sec
           WRITE(output_unit,'(2X,A,I0)')     "Number of explicit restraints: ",nrest_sec
-          WRITE(output_unit,'(2X,A,A)')      "Constrain total charge ",MERGE("T","F",itc) 
-          WRITE(output_unit,'(2X,A,A)')      "Restrain heavy atoms ",MERGE("T","F",rheavies) 
+          WRITE(output_unit,'(2X,A,A)')      "Constrain total charge ",MERGE("T","F",itc)
+          WRITE(output_unit,'(2X,A,A)')      "Restrain heavy atoms ",MERGE("T","F",rheavies)
           IF (rheavies) THEN
              WRITE(output_unit,'(2X,A,F10.5)') "Heavy atom restraint strength: ",rheavies_strength
           ENDIF
@@ -181,7 +181,7 @@ CPSourceFileRef,&
        nvar=natom+ncons
 
        ALLOCATE(matrix(nvar,nvar))
-       matrix = 0.0_dp 
+       matrix = 0.0_dp
        ALLOCATE(rhs(nvar))
        rhs = 0.0_dp
        ALLOCATE(ipiv(nvar))
@@ -200,7 +200,7 @@ CPSourceFileRef,&
        npoints = 0
        DO jz=bo(1,3),bo(2,3)
        DO jy=bo(1,2),bo(2,2)
-       DO jx=bo(1,1),bo(2,1)  
+       DO jx=bo(1,1),bo(2,1)
           IF (.NOT.(MODULO(jz,stride(3))==0)) CYCLE
           IF (.NOT.(MODULO(jy,stride(2))==0)) CYCLE
           IF (.NOT.(MODULO(jx,stride(1))==0)) CYCLE
@@ -214,7 +214,7 @@ CPSourceFileRef,&
           IF (r(1)<box_low(1).OR.r(1)>box_hi(1)) CYCLE
           DO i=1,natom
              vec=r-particles%els(i)%r
-             ! always wrap this 
+             ! always wrap this
              vec_pbc(3)=MODULO(vec(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
              vec_pbc(2)=MODULO(vec(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
              vec_pbc(1)=MODULO(vec(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
@@ -252,7 +252,7 @@ CPSourceFileRef,&
 
        IF (output_unit>0) THEN
           WRITE(output_unit,'(2X,A,I0)') "Number of potential fitting points found: ",npoints
-          WRITE(output_unit,'()') 
+          WRITE(output_unit,'()')
        ENDIF
 
        ! add the restraints
@@ -284,7 +284,7 @@ CPSourceFileRef,&
        ! add the constraints
        ncons_i=0
        IF (itc) THEN
-          ncons_i=ncons_i+1        
+          ncons_i=ncons_i+1
           ncons_v=natom+ncons_i
           matrix(1:natom,ncons_v)=1.0_dp
           matrix(ncons_v,1:natom)=1.0_dp
@@ -308,7 +308,7 @@ CPSourceFileRef,&
        ! solve system for the values of the charges and the lagrangian multipliers
        CALL DGETRF(nvar,nvar,matrix,nvar,ipiv,info)
        CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
-       
+
        CALL DGETRS('N',nvar,1,matrix,nvar,ipiv,rhs,nvar,info)
        CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
 

@@ -113,7 +113,7 @@ CONTAINS
          rho_scp=rho_scp, &
          energy=scp_energy, error=error)
 
-    IF ( my_calculate_forces ) THEN 
+    IF ( my_calculate_forces ) THEN
        CALL get_scp_env ( scp_env=scp_env,&
             force=scp_force, error=error)
        ! Zeroing forces if needed
@@ -141,7 +141,7 @@ CONTAINS
     ! Compute the contribution of the kernel (c^2/2a) to energy and coefficient forces
     ecoeff = 0._dp
     nkind = SIZE ( atomic_kind_set )
-    DO ikind = 1, nkind 
+    DO ikind = 1, nkind
        atomic_kind => atomic_kind_set ( ikind )
        CALL get_atomic_kind ( atomic_kind = atomic_kind, alpha_scp = alpha_pol )
        local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs

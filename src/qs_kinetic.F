@@ -4,9 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of kinetic energy matrix, its derivatives and forces 
+!> \brief Calculation of kinetic energy matrix, its derivatives and forces
 !> \par History
-!>      JGH: from core_hamiltonian     
+!>      JGH: from core_hamiltonian
 !> \author Juerg Hutter
 ! *****************************************************************************
 MODULE qs_kinetic
@@ -162,23 +162,23 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
      failure = .FALSE.
- 
+
      CALL timeset(routineN,handle)
 
      CPPrecondition(PRESENT(basis_set_id),cp_failure_level,routineP,error,failure)
- 
+
      NULLIFY (atomic_kind_set, particle_set, para_env, p_block)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
                      neighbor_list_id=neighbor_list_id,dbcsr_dist=dbcsr_dist,&
                      para_env=para_env,error=error)
- 
+
      nkind = SIZE(atomic_kind_set)
      natom = SIZE(particle_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
- 
+
      IF (PRESENT(matrix_name)) THEN
        mname = matrix_name
      ELSE
@@ -221,7 +221,7 @@ CONTAINS
         CPPrecondition(PRESENT(matrix_t),cp_failure_level,routineP,error,failure)
         ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
- 
+
         CALL get_particle_set(particle_set=particle_set,nsgf=rbs,&
                               basis_set_id=basis_set_id,error=error)
         CALL get_particle_set(particle_set=particle_set,nsgf=cbs,&
@@ -238,7 +238,7 @@ CONTAINS
         ELSE
            symmetry_string = dbcsr_type_no_symmetry
         END IF
- 
+
         ALLOCATE(matrix_t(1)%matrix, STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         CALL cp_dbcsr_init(matrix_t(1)%matrix,error=error)
@@ -280,7 +280,7 @@ CONTAINS
         CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      END IF
- 
+
      ! *** Allocate work storage ***
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               maxco=maxco,&
@@ -293,7 +293,7 @@ CONTAINS
                               maxco=maxdco,&
                               maxder=MAX(1,nder),&
                               basis_set_id=basis_set_id)
- 
+
      IF (do_forces) THEN
         ! we need density matrix for forces
         CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
@@ -304,7 +304,7 @@ CONTAINS
      maxblock = MAX(maxder,4)
      ldai = MAX(ncoset(maxlgto+nder+1),ldsab)
      CALL init_orbital_pointers(ldai)
- 
+
      ALLOCATE (sab(ldsab,ldsab*maxblock),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      sab=0._dp
@@ -329,7 +329,7 @@ CONTAINS
         ALLOCATE(pab(maxco,maxco),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
- 
+
      ALLOCATE (basis_set_list(nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      DO ikind=1,nkind
@@ -420,22 +420,22 @@ CONTAINS
                   block=p_block,found=found)
           END IF
         END IF
- 
+
         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
         dab = SQRT(rab2)
- 
+
         DO iset=1,nseta
- 
+
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)
- 
+
           DO jset=1,nsetb
- 
+
             IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
- 
+
             ncob = npgfb(jset)*ncoset(lb_max(jset))
             sgfb = first_sgfb(1,jset)
- 
+
             IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom/=jatom) .OR. use_virial)) THEN
                ! *** Decontract P matrix block ***
                IF( do_symmetric ) THEN
@@ -520,7 +520,7 @@ CONTAINS
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 !
- 
+
      IF(allocate_matrix) THEN
         DO i = 1,SIZE(matrix_t)
            CALL cp_dbcsr_finalize(matrix_t(i)%matrix, error=error)
@@ -528,7 +528,7 @@ CONTAINS
                 qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
         ENDDO
      END IF
- 
+
      ! *** Release work storage ***
      DEALLOCATE (atom_of_kind,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -545,7 +545,7 @@ CONTAINS
      END IF
      DEALLOCATE (basis_set_list,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
- 
+
      CALL timestop(handle)
 
   END SUBROUTINE build_kinetic_matrix

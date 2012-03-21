@@ -113,7 +113,7 @@ CONTAINS
           ENDIF
 
           ! *** Calculate some prefactors ***
-          
+
           zetab=  zeta(ipgf)*zetb(jpgf)
           zet  =  zeta(ipgf)+zetb(jpgf)
           xhi  =  zetab/zet

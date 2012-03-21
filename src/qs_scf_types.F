@@ -357,12 +357,12 @@ CONTAINS
     NULLIFY(scf_env)
 
   END SUBROUTINE scf_env_release
-  
+
 ! *****************************************************************************
 !> \brief  creates krylov space
 !> \par History
 !>      05.2009 created [MI]
-!> \author [MI] 
+!> \author [MI]
 ! *****************************************************************************
  SUBROUTINE krylov_space_create(krylov_space,scf_section, error)
 
@@ -390,7 +390,7 @@ CONTAINS
         NULLIFY(krylov_space%mo_conv, krylov_space%mo_refine)
         NULLIFY(krylov_space%chc_mat, krylov_space%c_vec)
         NULLIFY(krylov_space%tmp_mat)
-        NULLIFY(krylov_space%block1_mat, krylov_space%block2_mat) 
+        NULLIFY(krylov_space%block1_mat, krylov_space%block2_mat)
         NULLIFY(krylov_space%block3_mat, krylov_space%block4_mat, krylov_space%block5_mat)
 
         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
@@ -416,7 +416,7 @@ CONTAINS
 !> \brief releases krylov space
 !> \par History
 !>      05.2009 created [MI]
-!> \author [MI] 
+!> \author [MI]
 ! *****************************************************************************
  SUBROUTINE krylov_space_release(krylov_space,error)
     TYPE(krylov_space_type), POINTER         :: krylov_space
@@ -482,7 +482,7 @@ CONTAINS
 !> \brief creates subspace-rotation environment
 !> \par History
 !>      09.2009 created [MI]
-!> \author [MI] 
+!> \author [MI]
 ! *****************************************************************************
  SUBROUTINE diag_subspace_env_create(subspace_env,scf_section,ecut,error)
 
@@ -537,7 +537,7 @@ CONTAINS
              CALL mixing_storage_create(subspace_env%mixing_store, mixing_section, &
                   subspace_env%mixing_method, ecut=ecut, error=error)
         END IF
-        
+
       END IF
     END IF
 
@@ -547,7 +547,7 @@ CONTAINS
 !> \brief releases subspace-rotation environment
 !> \par History
 !>      09.2009 created [MI]
-!> \author [MI] 
+!> \author [MI]
 ! *****************************************************************************
  SUBROUTINE diag_subspace_env_release(subspace_env,error)
     TYPE(subspace_env_type), POINTER         :: subspace_env
@@ -562,9 +562,9 @@ CONTAINS
     failure = .FALSE.
 
     IF(ASSOCIATED(subspace_env)) THEN
- 
+
        IF (ASSOCIATED(subspace_env%p_matrix_store)) THEN
-           
+
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! should be given back using the pools
            CALL cp_dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store,error=error)
        ENDIF

@@ -84,7 +84,7 @@ CONTAINS
     failure = .FALSE.
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
-    
+
     IF(PRESENT(adiabatic_rescale_factor)) THEN
       my_adiabatic_rescale_factor = adiabatic_rescale_factor
     ELSE

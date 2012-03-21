@@ -251,7 +251,7 @@ CONTAINS
        !derivativs of the overlap needed for EMD
        CALL calc_S_derivs(qs_env,error)
        ! a bit hidden, but computs SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
-       ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE 
+       ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE
        CALL init_propagators(qs_env,error)
 
    END SUBROUTINE init_emd_propagators

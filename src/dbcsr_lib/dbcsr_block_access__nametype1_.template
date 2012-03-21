@@ -27,7 +27,7 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_[nametype1]', &
       routineP = moduleN//':'//routineN
-    
+
     [type1], DIMENSION(:), POINTER           :: block_1d
     INTEGER                                  :: rsize, csize,&
                                                 blk, nze, offset,&
@@ -130,7 +130,7 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_p_[nametype1]', &
       routineP = moduleN//':'//routineN
-    
+
     [type1], DIMENSION(:), POINTER           :: block_1d
     INTEGER                                  :: rsize, csize,&
                                                 blk, nze, offset,&
@@ -552,7 +552,7 @@
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: tr, do_sum
-    
+
     IF (PRESENT (transposed)) THEN
        tr = transposed
     ELSE
@@ -760,7 +760,7 @@
 !> \param[in] row, col         Row and column of block to point to
 !> \param[in] rsize, csize     Row and column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
-!> \param[in] base_offset      The block pointer              
+!> \param[in] base_offset      The block pointer
 !> \param[in] buffer_tr        Whether buffer should be transposed
 !> \param[in] contiguous_pointers  (optional) Whether pointers should be made
 !>                                 contiguous
@@ -830,7 +830,7 @@
 !> \param[in] row, col         Row and column of block to point to
 !> \param[in] rsize, csize     Row and column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
-!> \param[in] base_offset      The block pointer              
+!> \param[in] base_offset      The block pointer
 !> \param[in] buffer_tr        Whether buffer should be transposed
 !> \param[in] contiguous_pointers  (optional) Whether pointers should be made
 !>                                 contiguous

@@ -4,11 +4,11 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Different diagonalization schemes that can be used 
+!> \brief Different diagonalization schemes that can be used
 !>        for the iterative solution of the eigenvalue problem
 !> \par History
 !>      started from routines previously located in the qs_scf module
-!>      05.2009 
+!>      05.2009
 ! *****************************************************************************
 MODULE qs_scf_diagonalization
 
@@ -107,7 +107,7 @@ MODULE qs_scf_diagonalization
   PUBLIC :: do_general_diag, do_roks_diag, &
             do_special_diag, do_ot_diag, do_block_davidson_diag, &
             do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate
-            
+
 
 CONTAINS
 
@@ -413,7 +413,7 @@ CONTAINS
               error=error)
       ELSE
           CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,&
-               subspace_env%p_matrix_mix,delta=iter_delta,error=error) 
+               subspace_env%p_matrix_mix,delta=iter_delta,error=error)
       END IF
 
       DO ispin=1,nspin
@@ -454,9 +454,9 @@ CONTAINS
     DEALLOCATE(eval_first,occ_first)
 
     CALL timestop(handle)
-    
+
 END SUBROUTINE  do_scf_diag_subspace
- 
+
 
 SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
 
@@ -480,7 +480,7 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
       DIMENSION(:), POINTER                  :: sab_orb
 
     failure = .FALSE.
-   
+
     CALL timeset(routineN,handle)
 
     NULLIFY(sab_orb, matrix_s)
@@ -741,7 +741,7 @@ END SUBROUTINE diag_subspace_allocate
 ! *****************************************************************************
 !> \brief Solve a set restricted open Kohn-Sham (ROKS) equations based on the
 !>         alpha and beta Kohn-Sham matrices from unrestricted Kohn-Sham.
-!> \note  
+!> \note
 !>         this is only a high-spin ROKS.
 !> \par History
 !>      04.2006 created [MK]
@@ -981,7 +981,7 @@ END SUBROUTINE diag_subspace_allocate
           CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE",error=error)
         CASE(cholesky_inverse)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"MULTIPLY",error=error)
-        CASE(cholesky_off) 
+        CASE(cholesky_off)
           CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
         END SELECT
       END IF
@@ -1016,7 +1016,7 @@ END SUBROUTINE diag_subspace_allocate
 
 ! *****************************************************************************
 !> \brief iterative diagonalization using the block Krylov-space approach
-!> \param 
+!> \param
 !> \par History
 !>      05.2009 created [MI]
 ! *****************************************************************************
@@ -1081,7 +1081,7 @@ END SUBROUTINE diag_subspace_allocate
     END IF
 
     DO ispin=1,SIZE(matrix_ks)
- 
+
       ks => scf_env%scf_work1(ispin)%matrix
       CALL cp_fm_upper_to_full(ks,work,error=error)
 
@@ -1130,7 +1130,7 @@ END SUBROUTINE diag_subspace_allocate
       !Check convergence of MOS
       IF(my_check_moconv_only) THEN
 
-         CALL lanczos_refinement(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,& 
+         CALL lanczos_refinement(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,&
               nao,  eps_iter, ispin, check_moconv_only=my_check_moconv_only, error=error)
          t2 = m_walltime()
          IF(output_unit > 0)&
@@ -1142,7 +1142,7 @@ END SUBROUTINE diag_subspace_allocate
       ELSE
          !Block Lanczos refinement
          DO iter = 1,scf_env%krylov_space%max_iter
-           CALL lanczos_refinement_2v(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,& 
+           CALL lanczos_refinement_2v(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,&
                  nao, eps_iter, ispin,  error=error)
             t2 = m_walltime()
             IF (output_unit > 0) THEN
@@ -1158,15 +1158,15 @@ END SUBROUTINE diag_subspace_allocate
               EXIT
             END IF
          END DO
-    
+
          IF(.NOT. converged .AND. output_unit > 0) THEN
            WRITE(output_unit,"(T4, A)") " WARNING Lanczos refinement could "//&
                 "not converge all the mos:"
            WRITE(output_unit,"(T40,A,T70,I10)")    " number of not converged mos ",&
-                 scf_env%krylov_space%nmo_nc 
+                 scf_env%krylov_space%nmo_nc
            WRITE(output_unit,"(T40,A,T70,E10.2)")  " max norm of the residual " , &
                  scf_env%krylov_space%max_res_norm
-    
+
          END IF
 
          ! For the moment skip the re-orthogonalization
@@ -1177,19 +1177,19 @@ END SUBROUTINE diag_subspace_allocate
            evec => scf_env%krylov_space%c_vec(ispin)%matrix
            CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
            CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
-           !Diagonalize  (C^t)HC 
+           !Diagonalize  (C^t)HC
            CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
            !Rotate the C vectors
            CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
            c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
          END IF
-    
+
          IF(scf_env%cholesky_method==cholesky_inverse) THEN
            CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
          ELSE
            CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"SOLVE",error=error)
          END IF
-    
+
          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
                                 smear=scf_control%smear,&
                                 error=error)
@@ -1213,7 +1213,7 @@ END SUBROUTINE diag_subspace_allocate
 
 ! *****************************************************************************
 !> \brief iterative diagonalization using the block davidson space approach
-!> \param 
+!> \param
 !> \par History
 !>      05.2011 created [MI]
 ! *****************************************************************************
@@ -1276,7 +1276,7 @@ END SUBROUTINE diag_subspace_allocate
     END IF
 
     nspins = SIZE(matrix_ks)
- 
+
     IF( do_prec .AND. (scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
           MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0)) THEN
 !dbg
@@ -1330,7 +1330,7 @@ END SUBROUTINE diag_subspace_allocate
 !         write(*,*) ispin, mos(1)%mo_set%mo_coeff%local_data(ispin,1:5)
 !      end do
 !      CALL get_mo_set(mo_set= mos(1)%mo_set,nao=nao,nmo=nmo)
-!      
+!
 !      CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo,ncol_global=nmo, &
 !                             context=mos(1)%mo_set%mo_coeff%matrix_struct%context, &
 !                             para_env=mos(1)%mo_set%mo_coeff%matrix_struct%para_env,error=error)
@@ -1344,7 +1344,7 @@ END SUBROUTINE diag_subspace_allocate
 !      write(*,*) ' diag CHC'
 !!      do i=1,nmo
 !         write(*,*)  (matrix_tmp%local_data(i,i), i=1,nmo)
-!!      end do 
+!!      end do
 !      CALL cp_fm_release(matrix_tmp,error=error)
 !      CALL cp_fm_release(matrix_sc,error=error)
 !

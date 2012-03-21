@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief contains the structure 
+!> \brief contains the structure
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -37,7 +37,7 @@ MODULE xc_rho_cflags_types
 !>        gradient of the two spin densities)
 !> \param rho_ 1_3: flag for rho**(1.0_dp/3.0_dp)
 !> \param rho_spin_ 1_3: flag for rhoa**(1.0_dp/3.0_dp) and rhob**(1.0_dp/3.0_dp)
-!> \param tau flags for the kinetic (KS) part of rho 
+!> \param tau flags for the kinetic (KS) part of rho
 !> \param tau_spin flags for the kinetic (KS) part of rhoa and rhob
 !> \note
 !>      low_level type without retain/release
@@ -58,8 +58,8 @@ CONTAINS
 !> \brief sets all the flags to the given value
 !> \param cflags the flags to set
 !> \param value the value to set
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_rho_cflags_setall(cflags, value, error)
     TYPE(xc_rho_cflags_type), INTENT(out)    :: cflags
@@ -91,8 +91,8 @@ CONTAINS
 !> \brief performs an OR on all the flags (cflags1=cflag1.or.cflags2)
 !> \param cflags 1: the flags to change
 !> \param cflags 2: the flags to OR with
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_rho_cflags_or(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
@@ -127,8 +127,8 @@ CONTAINS
 !> \brief performs an AND on all the flags (cflags1=cflag1.and.cflags2)
 !> \param cflags 1: the flags to change
 !> \param cflags 2: the flags to and with
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_rho_cflags_and(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
@@ -161,8 +161,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief return true if the two cflags are equal
 !> \param cflags 1, cflags2: the flags to compare
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   FUNCTION xc_rho_cflags_equal(cflags1, cflags2, error) RESULT(equal)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
@@ -196,8 +196,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief return true if all the true flags in cflags2 are also true in cflags1
 !> \param cflags 1, cflags2: the flags to compare
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      defines a partial ordering on the cflags (cflags1>cflags2)
 ! *****************************************************************************
@@ -234,8 +234,8 @@ CONTAINS
 !> \brief writes out the values of the cflags
 !> \param cflags the flags to be written out
 !> \param unit_nr the unit to write to
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi

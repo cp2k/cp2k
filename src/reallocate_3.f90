@@ -25,7 +25,7 @@
        DEALLOCATE (p,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
- 
+
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -34,7 +34,7 @@
                                    (ub3_new-lb3_new+1))
     END IF
     p(:,:,:) = zero
- 
+
     IF (ASSOCIATED(p).AND.ALLOCATED(work)) THEN
        p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
        DEALLOCATE (work,STAT=istat)

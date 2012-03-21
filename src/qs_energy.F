@@ -102,7 +102,7 @@ CONTAINS
 !> \date    29.10.2002
 !> \par History
 !>          - consistent_energies option added (25.08.2005, TdK)
-!>          - introduced driver for energy in order to properly decide between 
+!>          - introduced driver for energy in order to properly decide between
 !>            SCF or RTP (fschiff 02.09)
 !> \version 1.0
 ! *****************************************************************************
@@ -127,7 +127,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_energies
-    
+
 
 ! *****************************************************************************
 !> \brief   QUICKSTEP single point wavefunction optimization.
@@ -171,7 +171,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
                      error=error)
-    
+
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
     qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
 
@@ -351,7 +351,7 @@ CONTAINS
        CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
                                 qs_env=qs_env, &
                                 calculate_forces=.FALSE., &
-                                just_energy=.TRUE.,error=error) 
+                                just_energy=.TRUE.,error=error)
        CALL calc_et_coupling(qs_env,error)
        IF(qs_env%dft_control%qs_control%becke_restraint)THEN
           CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
@@ -360,7 +360,7 @@ CONTAINS
           qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
        END IF
     END IF
-    
+
     !Properties
     IF(dft_control%do_xas_calculation) THEN
       CALL xas(qs_env, dft_control, error=error)
@@ -378,7 +378,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies_mulliken(qs_env,error)
-    
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -415,7 +415,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies_rtp(qs_env,error)
-    
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -457,9 +457,9 @@ CONTAINS
                  mos_old=mos_old,&
                  mos_new=mos_new,&
                  error=error)
-       
+
        eps_ener=qs_env%dft_control%rtp_control%eps_ener
-       
+
        CALL propagation_step(qs_env,delta_iter, error)
        rtp%energy_new=qs_env%energy%total
        rtp%converged=(delta_iter.LT.eps_ener)
@@ -476,7 +476,7 @@ CONTAINS
                CALL  put_data_to_history(qs_env,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter=delta_iter,error=error)
-       rtp%energy_old=rtp%energy_new       
+       rtp%energy_old=rtp%energy_new
     END IF
     CALL timestop(handle)
   END SUBROUTINE qs_energies_rtp

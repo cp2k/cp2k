@@ -80,7 +80,7 @@ MODULE replica_types
 !>        different replicas
 !> \param force_dim which dimension of cart works on forces together
 !>        used to be hardcoded to 1. Default is still 1, will
-!>        be 2 if row_force is true in the rep_env_create call. 
+!>        be 2 if row_force is true in the rep_env_create call.
 !> \param para_env the global para env that contains all the replicas,
 !>        this is just the cart as para_env
 !> \param para_env_f parallel environment of the underlying force
@@ -122,7 +122,7 @@ MODULE replica_types
 
 ! *****************************************************************************
 !> \brief ****s* replica_types/replica_env_p_type *
-!> 
+!>
 !>      to build arrays of pointers to a replica_env_type
 !> \param rep_env the pointer to the replica_env
 !> \author fawzi
@@ -254,7 +254,7 @@ CONTAINS
        rep_env%force_rank=0
        rep_env%force_rank(cart%mepos(forcedim))=para_env_f%mepos
        CALL mp_sum(rep_env%force_rank,para_env_f%group)
- 
+
 
        CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
             c_val=input_file_path,error=error)
@@ -273,7 +273,7 @@ CONTAINS
        output_file_path=input_file_path(1:lp)//".out"
        CALL section_vals_val_set(input,"GLOBAL%OUTPUT_FILE_NAME",&
             c_val=TRIM(output_file_path),error=error)
-       
+
        ! Dump an input file to warm-up new force_eval structures and
        ! delete them immediately afterwards..
        input_file_path(lp+1:LEN(input_file_path))=".inp"
@@ -288,7 +288,7 @@ CONTAINS
             para_env_f%group,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
-       ! Delete input files.. 
+       ! Delete input files..
        IF (para_env_f%source==para_env_f%mepos) THEN
           CALL open_file(file_name=TRIM(input_file_path),file_status="OLD",&
                file_form="FORMATTED",file_action="READ",unit_number=unit_nr)

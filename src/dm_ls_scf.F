@@ -67,8 +67,8 @@ MODULE dm_ls_scf
 CONTAINS
 
 ! *****************************************************************************
-!> \brief perform an linear scaling scf procedure: entry point 
-!>       
+!> \brief perform an linear scaling scf procedure: entry point
+!>
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -157,7 +157,7 @@ CONTAINS
     CALL ls_scf_init_qs(qs_env,error)
 
     ! create the matrix template for use in the ls procedures
-    CALL matrix_ls_create(matrix_ls=ls_scf_env%matrix_s,matrix_qs=matrix_s(1)%matrix,& 
+    CALL matrix_ls_create(matrix_ls=ls_scf_env%matrix_s,matrix_qs=matrix_s(1)%matrix,&
                           ls_mstruct=ls_scf_env%ls_mstruct,error=error)
 
     nspin=ls_scf_env%nspins
@@ -247,22 +247,22 @@ CONTAINS
         CALL cp_dbcsr_init(ls_scf_env%matrix_s_sqrt,error=error)
         CALL cp_dbcsr_init(ls_scf_env%matrix_s_sqrt_inv,error=error)
         CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt,template=ls_scf_env%matrix_s,&
-                             matrix_type=dbcsr_type_no_symmetry,error=error) 
+                             matrix_type=dbcsr_type_no_symmetry,error=error)
         CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt_inv,template=ls_scf_env%matrix_s,&
-                             matrix_type=dbcsr_type_no_symmetry,error=error) 
+                             matrix_type=dbcsr_type_no_symmetry,error=error)
 
 
         CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt,ls_scf_env%matrix_s_sqrt_inv,&
                                        ls_scf_env%matrix_s,ls_scf_env%eps_filter,error)
 
-        
+
         IF (.TRUE.) THEN
            CALL cp_dbcsr_init(matrix_tmp1,error=error)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
-                                matrix_type=dbcsr_type_no_symmetry,error=error) 
+                                matrix_type=dbcsr_type_no_symmetry,error=error)
            CALL cp_dbcsr_init(matrix_tmp2,error=error)
            CALL cp_dbcsr_create(matrix_tmp2,template=ls_scf_env%matrix_s,&
-                                matrix_type=dbcsr_type_no_symmetry,error=error) 
+                                matrix_type=dbcsr_type_no_symmetry,error=error)
 
            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s,&
                                         0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
@@ -277,8 +277,8 @@ CONTAINS
               WRITE(unit_nr,*) "Error for (inv(sqrt(S))*S*inv(sqrt(S))-I)",frob_matrix/frob_matrix_base
            ENDIF
 
-           CALL cp_dbcsr_release(matrix_tmp1,error=error) 
-           CALL cp_dbcsr_release(matrix_tmp2,error=error) 
+           CALL cp_dbcsr_release(matrix_tmp1,error=error)
+           CALL cp_dbcsr_release(matrix_tmp2,error=error)
         ENDIF
     ENDIF
 
@@ -286,7 +286,7 @@ CONTAINS
     IF (ls_scf_env%needs_s_inv) THEN
         CALL cp_dbcsr_init(ls_scf_env%matrix_s_inv,error=error)
         CALL cp_dbcsr_create(ls_scf_env%matrix_s_inv,template=ls_scf_env%matrix_s,&
-                             matrix_type=dbcsr_type_no_symmetry,error=error) 
+                             matrix_type=dbcsr_type_no_symmetry,error=error)
         IF (.NOT.ls_scf_env%use_s_sqrt) THEN
            CALL invert_Hotelling(ls_scf_env%matrix_s_inv,ls_scf_env%matrix_s,ls_scf_env%eps_filter,error)
         ELSE
@@ -296,7 +296,7 @@ CONTAINS
         IF (.TRUE.) THEN
            CALL cp_dbcsr_init(matrix_tmp1,error=error)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
-                                matrix_type=dbcsr_type_no_symmetry,error=error) 
+                                matrix_type=dbcsr_type_no_symmetry,error=error)
            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_inv, ls_scf_env%matrix_s,&
                                         0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
            frob_matrix_base=cp_dbcsr_frobenius_norm(matrix_tmp1)
@@ -352,7 +352,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities,error=error)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
 
-    SELECT CASE(ls_scf_env%s_inversion_type) 
+    SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
         ls_scf_env%needs_s_inv=.TRUE.
         ls_scf_env%use_s_sqrt=.TRUE.
@@ -465,7 +465,7 @@ CONTAINS
     iscf=0
 
     ! the real SCF loop
-    DO 
+    DO
 
       ! check on max SCF or timing/exit
       CALL external_control(should_stop,"SCF",start_time=qs_env%start_time,target_time=qs_env%target_time,error=error)
@@ -663,7 +663,7 @@ CONTAINS
     ENDIF
 
     nspin=ls_scf_env%nspins
-    
+
     CALL cp_dbcsr_init(matrix_p,error=error)
     CALL cp_dbcsr_create(matrix_p,template=ls_scf_env%matrix_p(1),error=error)
 
@@ -700,7 +700,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Report on the sparsities of various interesting matrices.
-!>  
+!>
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -730,9 +730,9 @@ CONTAINS
     nspin=ls_scf_env%nspins
 
     IF (unit_nr>0) THEN
-       WRITE(unit_nr,'()') 
+       WRITE(unit_nr,'()')
        WRITE(unit_nr,'(T2,A,E17.3)') "Sparsity reports for eps_filter: ", ls_scf_env%eps_filter
-       WRITE(unit_nr,'()') 
+       WRITE(unit_nr,'()')
     ENDIF
 
     CALL report_matrix_sparsity(ls_scf_env%matrix_s,unit_nr,"overlap matrix (S)", &

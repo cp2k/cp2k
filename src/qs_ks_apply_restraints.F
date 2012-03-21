@@ -69,7 +69,7 @@ CONTAINS
        becke => qs_env%dft_control%qs_control%becke_control
        IF(becke%need_pot.OR.calculate_forces)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
-               in_space=REALSPACE,error=error) 
+               in_space=REALSPACE,error=error)
           CALL becke_restraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
                calculate_forces=calculate_forces,error=error)
           CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
@@ -85,7 +85,7 @@ CONTAINS
        IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN
           IF(qs_env%et_coupling%keep_matrix)THEN
              IF(qs_env%et_coupling%first_run)THEN
-                NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
+                NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)
                 ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
                 CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix, error=error)
                 CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, &
@@ -102,7 +102,7 @@ CONTAINS
                 qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
                 qs_env%et_coupling%keep_matrix=.FALSE.
              ELSE
-                NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
+                NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)
                 ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
                 CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix, error=error)
                 CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, &

@@ -93,7 +93,7 @@ CONTAINS
        NULLIFY(md_ener%nfree_shell_kind)
     END IF
   END SUBROUTINE create_md_ener
-  
+
 ! *****************************************************************************
 !> \brief retains the given md_ener structure
 !> \param md_ener :
@@ -178,7 +178,7 @@ CONTAINS
   END SUBROUTINE release_md_ener
 
 ! *****************************************************************************
-!> \brief initialize to zero energies and temperatures  
+!> \brief initialize to zero energies and temperatures
 !> \param md_ener :
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -199,7 +199,7 @@ CONTAINS
     md_ener%ekin_qm     = 0.0_dp
     md_ener%temp_qm     = 0.0_dp
     md_ener%ekin_shell  = 0.0_dp
-    md_ener%temp_shell  = 0.0_dp    
+    md_ener%temp_shell  = 0.0_dp
     md_ener%constant    = 0.0_dp
     md_ener%delta_cons  = 0.0_dp
     md_ener%delta_epot  = 0.0_dp
@@ -223,7 +223,7 @@ CONTAINS
 
        IF(tshell) THEN
           md_ener%temp_shell_kind  = 0.0_dp
-          md_ener%ekin_shell_kind  = 0.0_dp 
+          md_ener%ekin_shell_kind  = 0.0_dp
        END IF
     END IF
     md_ener%vcom(:) = 0.0_dp

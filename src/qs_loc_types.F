@@ -80,7 +80,7 @@ MODULE qs_loc_types
 !>                 when the functional has to be defined directly using the products of MOS
 !>                 as in the case of the Pipek-Mezek definition.
 !> \param weights for a spread defined as extension of the orbitral in the box, these
-!>               factors renormilize with respect to the box size 
+!>               factors renormilize with respect to the box size
 !> \note
 !>      this type should replace the previous set up for the localization of the wfn
 !> \par History
@@ -105,7 +105,7 @@ MODULE qs_loc_types
           POINTER                                :: particle_set
      TYPE (cp_dbcsr_p_type), DIMENSION(:,:),&
           POINTER                                :: op_sm_set
-     
+
      REAL (KIND = dp)                            :: start_time,target_time
      REAL (KIND = dp)                            :: weights ( 6 )
      INTEGER                                     :: dim_op

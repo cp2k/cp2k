@@ -184,7 +184,7 @@ CONTAINS
           ! free stuff
           CALL mp_comm_free(subgroup)
        ENDIF
- 
+
        ! finally, also the eigenvalues need to end up on the non-group member tasks
        CALL mp_bcast(eig,0,para_env%group)
 
@@ -226,7 +226,7 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 #endif
-   
+
     nmo = SIZE(eigenvalues,1)
     IF (SIZE(eigenvalues,1) > n) THEN
       eigenvalues(1:n) = eig(1:n)
@@ -561,10 +561,10 @@ CONTAINS
   END SUBROUTINE cp_fm_syevx
 
 ! *****************************************************************************
-!> \brief  computes selected eigenvalues and, optionally, eigenvectors of 
-!>        a real symmetric matrix A distributed in 2D blockcyclic format by 
-!>       calling the recommended sequence of ScaLAPACK routines. 
-!>          
+!> \brief  computes selected eigenvalues and, optionally, eigenvectors of
+!>        a real symmetric matrix A distributed in 2D blockcyclic format by
+!>       calling the recommended sequence of ScaLAPACK routines.
+!>
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          subsets of eigenvalues/vectors can be selected by
 !>          specifying a range of values or a range of indices for the desired eigenvalues.
@@ -690,7 +690,7 @@ CONTAINS
 #endif
 
     IF(info>0) THEN
-      WRITE(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO 
+      WRITE(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO
     END IF
     CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
 

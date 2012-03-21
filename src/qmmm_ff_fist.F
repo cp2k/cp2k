@@ -18,13 +18,13 @@ MODULE qmmm_ff_fist
   PUBLIC :: qmmm_ff_precond_only_qm
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \brief This function handles the atom names and modifies
 !>      the "_QM_" prefix, in order to find the parameters
 !>      and return .TRUE. if all input labels belong to QM atoms
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -53,7 +53,7 @@ CONTAINS
        END DO clean_string_1
        id1 = TRIM(tmp)
     END DO
-    
+
     IF (PRESENT(id2)) THEN
        IF (INDEX(id2,"_QM_") == 0 ) only_qm = .FALSE.
        DO WHILE (INDEX(id2,"_QM_") /= 0 )

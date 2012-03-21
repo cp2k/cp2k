@@ -203,30 +203,30 @@ CONTAINS
       NULLIFY (vxc_h,vxc_s,vxg_h,vxg_s)
       NULLIFY (tau_h,tau_s)
       NULLIFY (vtau_h,vtau_s)
-  
+
       ! Here starts the loop over all the atoms
-  
+
       DO ikind = 1,nkind
-  
+
         atom_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
                              natom=natom,paw_atom=paw_atom,&
                              harmonics=harmonics,grid_atom=grid_atom)
-  
+
         IF (.NOT.paw_atom) CYCLE
-  
+
         nr = grid_atom%nr
         na = grid_atom%ng_sphere
-  
+
         ! Prepare the structures needed to calculate and store the xc derivatives
-  
+
         ! Array dimension: here anly one dimensional arrays are used,
         ! i.e. only the first column of deriv_data is read.
         ! The other to dimensions  are set to size equal 1
         bounds(1:2,1:3) = 1
         bounds(2,1) = na
         bounds(2,2) = nr
-  
+
         ! create a place where to put the derivatives
         CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
         ! create the place where to store the argument for the functionals
@@ -339,7 +339,7 @@ CONTAINS
           END IF
 
           ! Add contributions to the exc energy
-  
+
           energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
 
           ! Integration to get the matrix elements relative to the vxc_atom
@@ -880,7 +880,7 @@ CONTAINS
     IF (failure) RETURN
 
     na = grid_atom%ng_sphere
-    tau_h = 0.0_dp 
+    tau_h = 0.0_dp
     tau_s = 0.0_dp
 
     DO ispin = 1,nspins
@@ -1466,7 +1466,7 @@ CONTAINS
               g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
               lmin12 = lmin(iset1)+lmin(iset2)
               lmax12 = lmax(iset1)+lmax(iset2)
- 
+
               matso_h = 0.0_dp
               matso_s = 0.0_dp
               IF(lmin12 .LE. lmax_expansion) THEN
@@ -1545,7 +1545,7 @@ CONTAINS
         m1 = m1 + maxso
       END DO  ! iset1
     END DO ! ispin
- 
+
     DEALLOCATE(matso_h,matso_s,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(g1,g2,gg,dd,gr,ww,STAT=istat)

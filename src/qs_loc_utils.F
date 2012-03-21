@@ -133,14 +133,14 @@ CONTAINS
     ENDDO
 
     CALL timestop(handle)
- 
+
   END SUBROUTINE retain_history
 
 ! *****************************************************************************
 !> \brief rotate the mo_new, so that the orbitals are as similar
 !>        as possible to ones in mo_ref.
 ! *****************************************************************************
-  SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S, error) 
+  SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S, error)
 
     TYPE(cp_fm_type), POINTER                :: mo_new, mo_ref
     TYPE(cp_dbcsr_type), POINTER             :: matrix_S
@@ -180,7 +180,7 @@ CONTAINS
 
     ! o2 = (o1^T o1)
     CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp, o1,o1,0.0_dp,o2,error=error)
-  
+
     ! o2 = (o1^T o1)^-1/2
     ALLOCATE(eigenvalues(ncol))
     CALL cp_fm_syevd(o2,o3,eigenvalues,error)
@@ -196,7 +196,7 @@ CONTAINS
     CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,mo_new,o3,0.0_dp,smo,error=error)
     CALL cp_fm_to_fm(smo,mo_new,error=error)
 
-    ! XXXXXXX testing 
+    ! XXXXXXX testing
     ! CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
     ! WRITE(6,*) o1%local_data
     ! CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
@@ -575,12 +575,12 @@ CONTAINS
           END IF
 
           ! we have the mo's to be localized now, see if we can rotate them according to the history
-          ! only do that if we have a history of course. The history is filled 
+          ! only do that if we have a history of course. The history is filled
           IF (PRESENT(mo_loc_history)) THEN
             IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
                CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, mo_loc_history(ispin)%matrix, matrix_s(1)%matrix, error)
             ENDIF
-          ENDIF 
+          ENDIF
 
        END DO
 
@@ -948,42 +948,42 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                 section,"LOC_RESTART",error=error),&
                 cp_p_file)) THEN
-   
+
          ! Open file
          rst_unit = -1
-   
+
          IF(do_homo) THEN
             my_middle="LOC_HOMO"
          ELSE
             my_middle="LOC_LUMO"
          END IF
-   
+
          rst_unit = cp_print_key_unit_nr(logger,section,"LOC_RESTART",&
                     extension=".wfn", file_status="REPLACE", file_action="WRITE",&
                     file_form="UNFORMATTED",middle_name=TRIM(my_middle), error=error)
-   
+
          IF(rst_unit>0) filename = cp_print_key_generate_filename(logger,print_key,&
                     middle_name=TRIM(my_middle),extension=".wfn",&
                     my_local=.FALSE.,error=error)
-   
+
          IF(output_unit>0) THEN
             WRITE (UNIT=output_unit,FMT="(/,T2,A, A/)")&
                  "LOCALIZATION| Write restart file for the localized MOS : ",&
                   TRIM(filename)
          END IF
-   
+
          IF(rst_unit>0) THEN
            WRITE(rst_unit) qs_loc_env%localized_wfn_control%set_of_states
            WRITE(rst_unit) qs_loc_env%localized_wfn_control%lu_bound_states
            WRITE(rst_unit) qs_loc_env%localized_wfn_control%nloc_states
          END IF
-   
+
          DO ispin = 1,SIZE(coeff_localized)
            mo_coeff => coeff_localized(ispin)%matrix
            CALL cp_fm_get_info(mo_coeff, nrow_global=nao,ncol_global=nmo,ncol_block=max_block,error=error)
            nloc=qs_loc_env%localized_wfn_control%nloc_states(ispin)
            IF(rst_unit>0) THEN
-             WRITE(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin) 
+             WRITE(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin)
              IF(do_homo) THEN
                WRITE (rst_unit) nmo,&
                      mo_array(ispin)%mo_set%homo,&
@@ -996,11 +996,11 @@ CONTAINS
                WRITE (rst_unit) evals(ispin)%array(1:nmo)
              END IF
            END IF
-   
+
            CALL cp_fm_write_unformatted(mo_coeff,rst_unit,error)
-   
+
          END DO
-   
+
          CALL cp_print_key_finished_output(rst_unit,logger,section,&
                     "LOC_RESTART", error=error)
       END IF
@@ -1059,7 +1059,7 @@ CONTAINS
       fname_key="LOCLUMO_RESTART_FILE_NAME"
     END IF
 
-    exist = .FALSE. 
+    exist = .FALSE.
     CALL section_vals_val_get(section,fname_key,n_rep_val=n_rep_val,error=error)
     IF (n_rep_val>0) THEN
       CALL section_vals_val_get(section,fname_key,c_val=filename,error=error)
@@ -1105,7 +1105,7 @@ CONTAINS
     ALLOCATE(qs_loc_env%localized_wfn_control%loc_states(max_nloc,2),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     qs_loc_env%localized_wfn_control%loc_states = 0
-   
+
     DO ispin=1,nspin
        IF(do_homo) THEN
          nmo=mos(ispin)%mo_set%nmo
@@ -1114,7 +1114,7 @@ CONTAINS
        END IF
        IF (para_env%ionode.AND.(nmo > 0)) THEN
          nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
-         READ(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin) 
+         READ(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin)
          IF(do_homo) THEN
            READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
            ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)

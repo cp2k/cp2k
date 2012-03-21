@@ -16,7 +16,7 @@ MODULE mltfftsg_tools
   PUBLIC :: matmov, zgetmo, get_cache_size, scaled
 
 CONTAINS
-  
+
 ! *****************************************************************************
   SUBROUTINE matmov ( n, m, a, lda, b, ldb )
     INTEGER                                  :: n, m, lda
@@ -26,7 +26,7 @@ CONTAINS
 
     b ( 1:n , 1:m ) = a ( 1:n, 1:m )
   END SUBROUTINE matmov
-  
+
 ! *****************************************************************************
   SUBROUTINE zgetmo ( a, lda, m, n, b, ldb )
     INTEGER                                  :: lda, m, n
@@ -36,7 +36,7 @@ CONTAINS
 
     b ( 1:n, 1:m ) = TRANSPOSE ( a ( 1:m, 1:n ) )
   END SUBROUTINE zgetmo
-  
+
 ! *****************************************************************************
   SUBROUTINE scaled ( n, sc, a )
     IMPLICIT NONE
@@ -51,7 +51,7 @@ CONTAINS
 #endif
 
   END SUBROUTINE scaled
-  
+
 ! *****************************************************************************
   FUNCTION get_cache_size ( )
 
@@ -73,7 +73,7 @@ CONTAINS
 #else
     get_cache_size = 1024*2
 #endif
-    
+
   END FUNCTION get_cache_size
 
 END MODULE mltfftsg_tools

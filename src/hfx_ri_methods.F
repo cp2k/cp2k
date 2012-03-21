@@ -4,8 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief contains the master routines for the Hartree-Fock RI Method   
-!> \author JGH July 2009    
+!> \brief contains the master routines for the Hartree-Fock RI Method
+!> \author JGH July 2009
 ! *****************************************************************************
 MODULE hfx_ri_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -169,7 +169,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate energy and potential for the HFX RI approximation
-!> 
+!>
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE hfx_ri_energy_potential (qs_env,calculate_force,error)

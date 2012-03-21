@@ -80,7 +80,7 @@ CONTAINS
 
     NULLIFY(cell, particles)
     CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
-    v_efield_rspace%pw%cr3d=0.0_dp 
+    v_efield_rspace%pw%cr3d=0.0_dp
 
     CALL get_qs_env(qs_env,cell=cell,energy=energy,rho=rho,error=error)
 
@@ -94,7 +94,7 @@ CONTAINS
 
     DO k=bo_local(1,3),bo_local(2,3)
        DO j=bo_local(1,2),bo_local(2,2)
-          DO i=bo_local(1,1),bo_local(2,1)        
+          DO i=bo_local(1,1),bo_local(2,1)
              grid_p(1)=(i-bo_global(1,1))*dr(1)
              grid_p(2)=(j-bo_global(1,2))*dr(2)
              grid_p(3)=(k-bo_global(1,3))*dr(3)
@@ -199,7 +199,7 @@ CONTAINS
     IF(qs_env%dft_control%apply_efield_field)THEN
 
        failure=.FALSE.
-       
+
        my_force=.FALSE.
        IF(PRESENT(calculate_forces))my_force=calculate_forces
 
@@ -211,17 +211,17 @@ CONTAINS
             error=error)
        efield_ener=0.0_dp
        nkind = SIZE(atomic_kind_set)
-       CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error) 
+       CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
        DO ikind=1,SIZE(atomic_kind_set)
-          
+
           atomic_kind => atomic_kind_set(ikind)
-          
+
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                atom_list=list,&
                natom=natom,&
                zeff=zeff)
-          
+
           natom = SIZE(list)
           DO iatom=1,natom
 
@@ -233,7 +233,7 @@ CONTAINS
                 force(ikind)%efield(:,iatom)=force(ikind)%efield(:,iatom)+field*zeff
              END IF
           END DO
-          
+
        END DO
        energy%efield_core=efield_ener
     END IF

@@ -54,8 +54,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains a diis buffer (see doc/ReferenceCounting.html)
 !> \param diis_buffer the buffer to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
@@ -70,7 +70,7 @@ SUBROUTINE qs_diis_b_retain(diis_buffer,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(diis_buffer%ref_count>0,cp_failure_level,routineP,error)
@@ -81,8 +81,8 @@ END SUBROUTINE qs_diis_b_retain
 ! *****************************************************************************
 !> \brief releases the given diis buffer (see doc/ReferenceCounting.html)
 !> \param diis_buffer the buffer to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
@@ -98,7 +98,7 @@ SUBROUTINE qs_diis_b_release(diis_buffer,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(diis_buffer)) THEN
      CPPreconditionNoFail(diis_buffer%ref_count>0,cp_failure_level,routineP,error)
      diis_buffer%ref_count=diis_buffer%ref_count-1

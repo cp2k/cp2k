@@ -132,10 +132,10 @@ CONTAINS
 !> \note
 !>      para_env should be a valid communicator
 !>      output_unit should be writeable by at least the lowest rank of the mpi group
-!> 
+!>
 !>      recursive because a given run_type might need to be able to perform
 !>      another cp2k_run as part of its job (e.g. farming, classical equilibration, ...)
-!> 
+!>
 !>      the idea is that a cp2k instance should be able to run with just three
 !>      arguments, i.e. a given input file, output unit, mpi communicator.
 !>      giving these three to cp2k_run should produce a valid run.
@@ -277,7 +277,7 @@ CONTAINS
              CALL cp2k_read(root_section,para_env,globenv,error=error)
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
-        
+
 ! if CUDA is enabled we need to allocate memory on the graphics card
           CALL cuda_device_mem_init(root_section, error)
 
@@ -338,7 +338,7 @@ CONTAINS
              sublogger => cp_error_get_logger(error)
              CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
                   n_rlevel_new=iter_level,&
-                  error=suberror)             
+                  error=suberror)
              SELECT CASE(globenv%run_type_id)
              CASE (energy_run)
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
@@ -444,7 +444,7 @@ CONTAINS
     CALL cuda_device_mem_release()
 
     CALL cp_dbcsr_finalize_lib (error=error)
- 
+
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)
     cp2k_run_OK = .NOT. failure
@@ -466,7 +466,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: slave_status_done = -3, &
-                                                slave_status_wait = -4 
+                                                slave_status_wait = -4
 
     CHARACTER(len=7)                         :: label
     CHARACTER(LEN=default_path_length)       :: output_file
@@ -543,7 +543,7 @@ CONTAINS
        CALL mp_environ(num_slaves,slave_rank,slave_group)
     ENDIF
     IF (output_unit>0) WRITE(output_unit,FMT="(T2,A,I0)") "FARMING| number of slaves ",num_slaves
-    
+
     ! keep track of which para_env rank is which slave/master
     ALLOCATE(slave_distribution(0:para_env%num_pe-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -617,14 +617,14 @@ CONTAINS
 
     ! and write the restart now, that's the point where the next job starts, even if this one is running
     iunit=cp_print_key_unit_nr(logger,root_section,"FARMING%RESTART",&
-         extension=".restart",error=error)    
+         extension=".restart",error=error)
     IF (iunit>0) THEN
        WRITE(iunit,*) i_job_to_restart
     ENDIF
     CALL cp_print_key_finished_output(iunit,logger,root_section,"FARMING%RESTART",error=error)
 
 
-    ! this is the job range to be executed. 
+    ! this is the job range to be executed.
     ijob_start=farming_env%restart_n
     ijob_end=ijob_start+n_jobs_to_run-1
     IF (output_unit>0 .AND. ijob_end-ijob_start<0) THEN
@@ -657,13 +657,13 @@ CONTAINS
              ELSE
                 CALL mp_bcast(todo,0,new_group)
              ENDIF
-            
+
              ! if the todo is do_nothing we are flagged to quit. Otherwise it is the job number
              SELECT CASE(todo)
              CASE(do_wait,do_deadlock)
                 ! go for a next round, but we first wait a bit
                 t1=m_walltime()
-                DO 
+                DO
                   t2=m_walltime()
                   IF (t2-t1>farming_env%wait_time) EXIT
                 ENDDO
@@ -677,9 +677,9 @@ CONTAINS
           ALLOCATE(slave_status(0:ngroups-1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           slave_status=slave_status_wait
-          ijob_current=ijob_start-1 
+          ijob_current=ijob_start-1
 
-          DO 
+          DO
              IF (ALL(slave_status==slave_status_done)) EXIT
 
              ! who's the next slave waiting for work
@@ -697,7 +697,7 @@ CONTAINS
              ! get the next job in line, this could be do_nothing, if we're finished
              CALL get_next_job(farming_env,ijob_start,ijob_end,ijob_current,todo)
              dest=source
-             tag =2 
+             tag =2
              CALL mp_send(todo,dest,tag,para_env%group)
 
              IF (todo>0) THEN
@@ -733,7 +733,7 @@ CONTAINS
 
        ENDIF
     ELSE
-       ! this is the non-master-slave mode way of executing the jobs  
+       ! this is the non-master-slave mode way of executing the jobs
        ! the i-th job in the input is always executed by the MODULO(i-1,ngroups)-th group
        ! (needed for cyclic runs, we don't want two groups working on the same job)
        IF (output_unit>0) THEN
@@ -846,7 +846,7 @@ CONTAINS
                  file_position="APPEND",&
                  unit_number=new_output_unit)
        ELSE
-         ! this unit should be negative, otherwise all processors that get a default unit 
+         ! this unit should be negative, otherwise all processors that get a default unit
          ! start writing output (to the same file, adding to confusion).
          ! error handling should be careful, asking for a local output unit if required
          new_output_unit=-1
@@ -902,7 +902,7 @@ CONTAINS
 
        WRITE(unit_nr,FMT='(A)') '<H2>Search the online input reference manual</H2>'
        WRITE(unit_nr,FMT='(A)') '<TABLE><TR><TD>'
-       ! Yahoo seems to actually search our pages 
+       ! Yahoo seems to actually search our pages
        WRITE(unit_nr,FMT='(A)') ' <!-- START CODE --> '
        WRITE(unit_nr,FMT='(A)') '         <div id="ysrchForm" style="border:1px solid #7E9DB9;'
        WRITE(unit_nr,FMT='(A)') '                                background:#FFFFFF;'
@@ -924,7 +924,7 @@ CONTAINS
             '''#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif) 3px center  no-repeat''"'
        WRITE(unit_nr,FMT='(A)') &
             ' name="p" style=" margin:1px 0; width:100%; border:1px solid #7E9DB9; color:#666666; height:18px; '//&
-            'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'//& 
+            'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'//&
             ' 3px center no-repeat; position:relative;">'
        WRITE(unit_nr,FMT='(A)') ' <input type="submit" id="btn_undefined" value="Search" '
        WRITE(unit_nr,FMT='(A)') &
@@ -984,7 +984,7 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') "<DD>Conditional block. The text from the @IF line up to the next line with a valid "
        WRITE(unit_nr,FMT='(A)') "@ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. "
        WRITE(unit_nr,FMT='(A)') "Available expressions are lexical comparisons for equality '==' or inequality '/='."
-       WRITE(unit_nr,FMT='(A)') "If none of the two operators are found, a '0' or whitespace resolves to <I>false</I> " 
+       WRITE(unit_nr,FMT='(A)') "If none of the two operators are found, a '0' or whitespace resolves to <I>false</I> "
        WRITE(unit_nr,FMT='(A)') "while any text resolves to <I>true</I>. @IF/@ENDIF blocks cannot be nested and "
        WRITE(unit_nr,FMT='(A)') "cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>"
        WRITE(unit_nr,FMT='(A)') "</DL><P>"
@@ -1058,7 +1058,7 @@ CONTAINS
 
       DO i=1,root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section,1,unit_number,error)
-      END DO      
+      END DO
       WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section,error=error)

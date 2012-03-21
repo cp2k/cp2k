@@ -1,10 +1,10 @@
-!-----------------------------------------------------------------------------!  
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief The Harris energy type, which contains all the informations 
+!> \brief The Harris energy type, which contains all the informations
 !>      needed to perform and analyse the Harris functional energy correction.
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -88,9 +88,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Retains a harris force type (see doc/ReferenceCounting.html)
 !> \param harris_energy The harris energy type to retain
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_energy_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -109,7 +109,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -120,9 +120,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases the given harris energy type (see doc/ReferenceCounting.html)
 !> \param harris_energy The harris energy type to release
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_energy_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -142,7 +142,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     IF (ASSOCIATED(harris_energy)) THEN
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
       harris_energy%ref_count = harris_energy%ref_count-1
@@ -158,7 +158,7 @@ CONTAINS
 !> \brief Returns various attributes of the harris type
 !> \param harris_energy The enquired harris energy type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param Ehartree_elec The electronic hartree energy
 !> \param Ehartree_core The hartree energy computed with rho_core
@@ -171,7 +171,7 @@ CONTAINS
 !> \param Eharris_correction The energy correction due to the harris functional
 !> \param sum_of_eigenvalues The sum of the eigenvalues
 !> \param Eharris The actual harris functional energy
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_energy_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -198,7 +198,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -228,7 +228,7 @@ CONTAINS
 !> \brief Sets various attributes of the harris energy type
 !> \param harris_energy The enquired harris energy type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param Ehartree_elec The electronic hartree energy
 !> \param Ehartree_core The hartree energy computed with rho_core
@@ -241,7 +241,7 @@ CONTAINS
 !> \param Eharris_correction The energy correction due to the harris functional
 !> \param sum_of_eigenvalues The sum of the eigenvalues
 !> \param Eharris The actual harris functional energy
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_energy_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -268,7 +268,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -297,9 +297,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Reinitializes the harris energy type
 !> \param harris_energy The harris energy type to be reinitialized
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_energy_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -318,9 +318,9 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
       harris_energy%Ehartree_elec      = 0.0_dp
       harris_energy%Ehartree_core      = 0.0_dp
@@ -341,9 +341,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a harris energy type instance
 !> \param harris_energy The harris energy type to be created
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_energy_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -363,10 +363,10 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     ALLOCATE(harris_energy, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
-   
+
     IF (.NOT. failure) THEN
       harris_energy%ref_count = 1
       last_harris_id=last_harris_id+1

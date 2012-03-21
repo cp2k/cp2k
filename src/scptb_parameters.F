@@ -243,7 +243,7 @@ CONTAINS
       i = param%z
       param%atomname = ptable(i)%symbol
     END IF
-    
+
   END SUBROUTINE scptb_default_parameter
 
 END MODULE scptb_parameters

@@ -205,12 +205,12 @@ CONTAINS
     NULLIFY(sep%w_mpole)
     NULLIFY(sep%expns3_int)
     CALL zero_se_param(sep,error)
-    
+
   END SUBROUTINE semi_empirical_create
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_release(sep, error)
 
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -257,7 +257,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Zero the whole semi-empirical type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE zero_se_param(sep, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -347,7 +347,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get info from the semi-empirical type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE get_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
        acoul,nr,de,ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
@@ -417,7 +417,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set info from the semi-empirical type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE set_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
        acoul,nr,de,ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
@@ -487,7 +487,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates rotmat type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE rotmat_create(rotmat, error)
     TYPE(rotmat_type), POINTER               :: rotmat
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -507,7 +507,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases rotmat type
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE rotmat_release(rotmat, error)
     TYPE(rotmat_type), POINTER               :: rotmat
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -523,13 +523,13 @@ CONTAINS
        DEALLOCATE (rotmat,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-   
+
   END SUBROUTINE rotmat_release
 
 ! *****************************************************************************
 !> \brief Setup the Semiempirical integral control type
 !> \author Teodoro Laino [tlaino] - 12.2008
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE setup_se_int_control_type(se_int_control, shortrange, do_ewald_r3,&
        do_ewald_gks, integral_screening, max_multipole, pc_coulomb_int)
     TYPE(se_int_control_type)                :: se_int_control
@@ -563,7 +563,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the taper type used in SE calculations
 !> \author Teodoro Laino [tlaino] - 03.2009
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE se_taper_create(se_taper, integral_screening, do_ewald, &
        taper_cou, range_cou, taper_exc, range_exc, taper_scr, range_scr,&
        taper_lrc, range_lrc, error)
@@ -605,7 +605,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases the taper type used in SE calculations
 !> \author Teodoro Laino [tlaino] - 03.2009
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE se_taper_release(se_taper, error)
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -622,7 +622,7 @@ CONTAINS
        CALL taper_release(se_taper%taper_exc, error=error)
        CALL taper_release(se_taper%taper_lrc, error=error)
        CALL taper_release(se_taper%taper_add, error=error)
-       
+
        DEALLOCATE(se_taper, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -633,7 +633,7 @@ CONTAINS
 !> \par History
 !>        04.2008 Teodoro Laino [tlaino] - University of Zurich: rewriting with
 !>                support for the whole set of parameters
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE write_se_param(sep, subsys_section, error)
 
     TYPE(semi_empirical_type), POINTER       :: sep

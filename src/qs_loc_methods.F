@@ -11,7 +11,7 @@
 !>      The localized functions are copied in the standard mos array
 !>      for the next use
 !> \par History
-!>      01.2008 Teodoro Laino [tlaino] - University of Zurich 
+!>      01.2008 Teodoro Laino [tlaino] - University of Zurich
 !>        - Merging the two localization codes and updating to new structures
 !> \author MI (04.2005)
 ! *****************************************************************************
@@ -468,7 +468,7 @@ CONTAINS
        END DO
        cpbc = pbc(c,cell)
        centers (1:3, istate ) = cpbc(1:3)
-       centers (4, istate ) = spread_i 
+       centers (4, istate ) = spread_i
        centers (5, istate ) = spread_ii
        sum_spread_i = sum_spread_i +  centers (4, istate )
        sum_spread_ii = sum_spread_ii +  centers (5, istate )
@@ -480,7 +480,7 @@ CONTAINS
     IF (.NOT. my_only_init)  CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
 
     IF (output_unit>0) THEN
-        WRITE(output_unit,'(T10, A, 2x, A26, A26)') " Spread Functional ","sum_in -w_i ln(|z_in|^2)",& 
+        WRITE(output_unit,'(T10, A, 2x, A26, A26)') " Spread Functional ","sum_in -w_i ln(|z_in|^2)",&
                              "sum_in w_i(1-|z_in|^2)"
         IF(my_only_init) THEN
           WRITE(output_unit,'(T4,A,10x,2F20.10)') " Initial Spread (Berry) : ", sum_spread_i, sum_spread_ii
@@ -657,7 +657,7 @@ CONTAINS
          localized_wfn_control=localized_wfn_control,&
          moloc_coeff=moloc_coeff,op_sm_set=op_sm_set, op_fm_set=op_fm_set,cell=cell,&
          weights=weights, dim_op=dim_op, error=error)
- 
+
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,&
          para_env=para_env, mos=mos, error=error)
 
@@ -700,7 +700,7 @@ CONTAINS
              END DO
           END DO
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
-           
+
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
                op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section,  error=error)
 
@@ -771,9 +771,9 @@ CONTAINS
        IF(localized_wfn_control%print_cubes) THEN
           list_cubes_setup = .FALSE.
           NULLIFY(bounds, list, list_cubes)
- 
+
          ! Provides boundaries of MOs
-          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LU_BOUNDS",i_vals=bounds,error=error) 
+          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LU_BOUNDS",i_vals=bounds,error=error)
           ncubes = bounds(2) - bounds(1)  + 1
           IF(ncubes > 0) THEN
              list_cubes_setup =.TRUE.
@@ -1087,7 +1087,7 @@ CONTAINS
          name="X",element_symbol="X",mass=0.0_dp)
     ! Particles
     DO i = 1, natom
-       particle_set(i)%atomic_kind => qs_loc_env%particle_set(i)%atomic_kind 
+       particle_set(i)%atomic_kind => qs_loc_env%particle_set(i)%atomic_kind
        particle_set(i)%r = pbc(qs_loc_env%particle_set(i)%r,qs_loc_env%cell)
     END DO
     ! Wannier Centers
@@ -1118,7 +1118,7 @@ CONTAINS
           CALL m_flush(iunit)
        ENDIF
     ELSEIF(outformat==dump_xmol) THEN
-       iter = cp_iter_string(logger%iter_info,error=error) 
+       iter = cp_iter_string(logger%iter_info,error=error)
        WRITE (UNIT=title,FMT="(A)")" Particles+Wannier centers. Iteration:"//TRIM(iter)
     ELSE
        title = ""

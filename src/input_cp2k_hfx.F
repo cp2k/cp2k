@@ -41,8 +41,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the hf part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_hfx_section(section,error)
@@ -98,7 +98,7 @@ CONTAINS
             usage="PW_HFX_BLOCKSIZE 20", default_i_val=20,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-      
+
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"HF_INFO",&
             description="Controls the printing basic info about hf method", &
@@ -106,7 +106,7 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
        CALL create_hf_pbc_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -122,7 +122,7 @@ CONTAINS
        CALL create_hf_load_balance_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-      
+
        CALL create_hf_memory_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -132,16 +132,16 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
     END IF
- 
+
   END SUBROUTINE create_hfx_section
 
 ! *****************************************************************************
 !> \brief !****f* input_cp2k_dft/create_hf_load_balance_section [1.0] *
-!> 
+!>
 !>      creates the input section for the hf potential part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_hf_load_balance_section(section,error)
@@ -221,16 +221,16 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
     END IF
- 
+
   END SUBROUTINE create_hf_load_balance_section
 
 ! *****************************************************************************
 !> \brief !****f* input_cp2k_dft/create_hf_potential_section [1.0] *
-!> 
+!>
 !>      creates the input section for the hf potential part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_hf_potential_section(section,error)
@@ -330,7 +330,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
     END IF
- 
+
   END SUBROUTINE create_hf_potential_section
 
 !****f* input_cp2k_dft/create_hf_screening_section [1.0] *
@@ -338,8 +338,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the hf screening part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_hf_screening_section(section,error)
@@ -368,13 +368,13 @@ CONTAINS
             name="EPS_SCHWARZ",&
             description="Screens the near field part of the electronic repulsion "//&
                         "integrals using the Schwarz inequality for the given "//&
-                        "threshold.",&  
+                        "threshold.",&
             usage="EPS_SCHWARZ 1.0E-6",&
             default_r_val=1.0E-10_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&
@@ -382,13 +382,13 @@ CONTAINS
             description="Screens the near field part of the electronic repulsion "//&
                         "integrals using the Schwarz inequality for the given "//&
                         "threshold. This will be approximately the accuracy of the forces, "//&
-                        " and should normally be similar to EPS_SCF",&  
+                        " and should normally be similar to EPS_SCF",&
             usage="EPS_SCHWARZ_FORCES 1.0E-5",&
             default_r_val=1.0E-6_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&
@@ -420,14 +420,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
- 
+
   END SUBROUTINE create_hf_screening_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the hf-pbc part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_hf_pbc_section(section,error)
@@ -464,14 +464,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
     END IF
- 
+
   END SUBROUTINE create_hf_pbc_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the hf-memory part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_hf_memory_section(section,error)
@@ -520,7 +520,7 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(&
             keyword=keyword,&
             name="STORAGE_LOCATION",&
@@ -552,7 +552,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
     END IF
- 
+
   END SUBROUTINE create_hf_memory_section
 
 ! *****************************************************************************

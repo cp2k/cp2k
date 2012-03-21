@@ -336,7 +336,7 @@ CONTAINS
        ENDDO
        !
        !
-       linres_control%lr_triplet = .TRUE. ! we do triplet response  
+       linres_control%lr_triplet = .TRUE. ! we do triplet response
        linres_control%do_kernel  = .TRUE. ! we do coupled response
        linres_control%converged  = .FALSE.
        CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
@@ -849,7 +849,7 @@ CONTAINS
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          &                             extension=".linresLog",error=error)
-    
+
     IF(issc_env%ref_count /= 0) THEN
        CALL issc_env_cleanup(issc_env,error=error)
     ENDIF

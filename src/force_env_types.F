@@ -161,12 +161,12 @@ MODULE force_env_types
      TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
      TYPE ( virial_type  ), POINTER                      :: virial
      TYPE ( ep_env_type ), POINTER                       :: ep_env
-     TYPE ( mixed_environment_type ), POINTER            :: mixed_env     
+     TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( cpot_type), POINTER                          :: cpot_env
      TYPE ( atprop_type), POINTER                        :: atprop_env
-     TYPE ( cp_result_type), POINTER                     :: results 
+     TYPE ( cp_result_type), POINTER                     :: results
   END TYPE force_env_type
 
 ! *****************************************************************************
@@ -364,11 +364,11 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
     failure=.FALSE.
-   
+
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-   
+
        SELECT CASE(force_env%in_use)
        CASE(use_ep_force)
           CPPrecondition(ASSOCIATED(force_env%ep_env),cp_failure_level,routineP,error,failure)
@@ -469,7 +469,7 @@ CONTAINS
                CPSourceFileRef,&
                error,failure)
        END SELECT
-   
+
        IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
        IF (PRESENT(in_use)) in_use=force_env%in_use
        IF (PRESENT(method_name_id))method_name_id=force_env%method_name_id
@@ -482,7 +482,7 @@ CONTAINS
        IF (PRESENT(eip_env)) THEN
           eip_env => force_env%eip_env
        END IF
-       IF (PRESENT(results)) results => force_env%results     
+       IF (PRESENT(results)) results => force_env%results
        IF (PRESENT(subsys)) subsys => force_env%subsys
        IF (PRESENT(para_env)) para_env => force_env%para_env
        ! adjust the total energy for the metadynamics
@@ -533,7 +533,7 @@ CONTAINS
 !> \date   22.11.2010 updated (MK)
 ! *****************************************************************************
   FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
-  
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: n_atom
@@ -822,8 +822,8 @@ CONTAINS
              CALL scp_qs_rspw_rebuild (force_env%qs_env%scp_env%rspw,  &
                                        qs_env = force_env % qs_env, &
                                        error = error)
-             ! update the ks_scp_environment 
-             CALL qs_ks_scp_create (new_ks_scp_env, force_env % qs_env, error ) 
+             ! update the ks_scp_environment
+             CALL qs_ks_scp_create (new_ks_scp_env, force_env % qs_env, error )
              CALL set_scp_env (force_env % qs_env % scp_env,  &
                                ks_scp_env = new_ks_scp_env,   &
                                error = error )
@@ -851,7 +851,7 @@ CONTAINS
           DO iforce_eval = 1, nforce_eval
              IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
                 CALL force_env_set_cell(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                     cell=cell, error=error) 
+                     cell=cell, error=error)
              END IF
           END DO
        CASE default
@@ -912,6 +912,6 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE multiple_fe_list
-  
+
 END MODULE force_env_types
 

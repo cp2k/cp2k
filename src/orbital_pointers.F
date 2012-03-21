@@ -66,9 +66,9 @@ MODULE orbital_pointers
 CONTAINS
 
 ! *****************************************************************************
-!> \brief  Allocate and initialize the orbital pointers. 
+!> \brief  Allocate and initialize the orbital pointers.
 !> \author MK
-!> \date   20.05.2004 
+!> \date   20.05.2004
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_orbital_pointers(maxl)

@@ -54,8 +54,8 @@ MODULE md_environment_types
 
 ! *****************************************************************************
   TYPE md_environment_type
-     ! para_env is the parallel enviroment of the MD,  i.e. the systems 
-     ! that are dealt with by the integrator e.g in the PIMD this could 
+     ! para_env is the parallel enviroment of the MD,  i.e. the systems
+     ! that are dealt with by the integrator e.g in the PIMD this could
      ! be parent of every bead.
      PRIVATE
      INTEGER                                    :: id_nr, ref_count
@@ -325,8 +325,8 @@ CONTAINS
     IF (PRESENT(para_env)) para_env => md_env%para_env
     IF (PRESENT(reftraj)) reftraj => md_env%reftraj
     IF (PRESENT(md_ener)) md_ener => md_env%md_ener
-    IF (PRESENT(init)) init=md_env%init 
-    IF (PRESENT(first_time)) first_time=md_env%first_time 
+    IF (PRESENT(init)) init=md_env%init
+    IF (PRESENT(first_time)) first_time=md_env%first_time
     IF (PRESENT(ehrenfest_md)) ehrenfest_md=md_env%ehrenfest_md
     IF (PRESENT(thermal_regions)) thermal_regions => md_env%thermal_regions
 
@@ -377,7 +377,7 @@ CONTAINS
     IF(PRESENT (first_time)) md_env%first_time = first_time
     IF (PRESENT(ehrenfest_md)) md_env%ehrenfest_md=ehrenfest_md
     IF(PRESENT(cell)) md_env%cell => cell
-    IF(PRESENT(barostat)) THEN 
+    IF(PRESENT(barostat)) THEN
        CALL release_barostat_type(md_env%barostat, error=error)
        CALL retain_barostat_type(barostat, error=error)
        md_env%barostat => barostat

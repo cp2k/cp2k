@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Distribution of the electric field gradient integral matrix. 
+!> \brief Distribution of the electric field gradient integral matrix.
 !> \par History
 !> \author VW (27.02.2009)
 ! *****************************************************************************

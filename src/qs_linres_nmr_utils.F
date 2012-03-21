@@ -119,7 +119,7 @@ CONTAINS
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          &                             extension=".linresLog",error=error)
-    
+
     IF(nmr_env%ref_count /= 0) THEN
       CALL nmr_env_cleanup(nmr_env,error=error)
     END IF

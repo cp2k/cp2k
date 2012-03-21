@@ -88,7 +88,7 @@
                    tij         = f(0)*fac_ij
                                                  force_eval = do_forces .OR.do_efield1
                 END IF
-                IF (task(2,2))                   force_eval = force_eval.OR.do_efield0  
+                IF (task(2,2))                   force_eval = force_eval.OR.do_efield0
                 IF (task(1,2).OR.force_eval) THEN
                    force_eval = do_stress
                    tij_a    = - rab*f(1)*fac_ij
@@ -139,7 +139,7 @@
                                             tij_abcd(a,b,c,d) = tij_abcd(a,b,c,d) - tmp1*rab(c)*rab(d)
                                   IF (c==d) tij_abcd(a,b,c,d) = tij_abcd(a,b,c,d) + tmp2
                                END IF
-                               IF (a==c) THEN 
+                               IF (a==c) THEN
                                             tij_abcd(a,b,c,d) = tij_abcd(a,b,c,d) - tmp1*rab(b)*rab(d)
                                   IF (b==d) tij_abcd(a,b,c,d) = tij_abcd(a,b,c,d) + tmp2
                                END IF
@@ -357,7 +357,7 @@
                    IF (do_efield) THEN
                       ! Potential
                       IF (do_efield0) THEN
-                         ef0_i = ef0_i + tij * ch_j 
+                         ef0_i = ef0_i + tij * ch_j
 
                          ef0_j = ef0_j + tij * ch_i
                       END IF
@@ -458,7 +458,7 @@
 
                          ef1_j(1) = ef1_j(1) + (tij_ab(1,1)*dp_i(1)+&
                                                 tij_ab(2,1)*dp_i(2)+&
-                                                tij_ab(3,1)*dp_i(3)) 
+                                                tij_ab(3,1)*dp_i(3))
                          ef1_j(2) = ef1_j(2) + (tij_ab(1,2)*dp_i(1)+&
                                                 tij_ab(2,2)*dp_i(2)+&
                                                 tij_ab(3,2)*dp_i(3))
@@ -470,56 +470,56 @@
                       IF (do_efield2) THEN
                          ef2_i(1,1) = ef2_i(1,1) + (tij_abc(1,1,1)*dp_j(1)+&
                                                     tij_abc(2,1,1)*dp_j(2)+&
-                                                    tij_abc(3,1,1)*dp_j(3)) 
+                                                    tij_abc(3,1,1)*dp_j(3))
                          ef2_i(1,2) = ef2_i(1,2) + (tij_abc(1,1,2)*dp_j(1)+&
                                                     tij_abc(2,1,2)*dp_j(2)+&
-                                                    tij_abc(3,1,2)*dp_j(3)) 
+                                                    tij_abc(3,1,2)*dp_j(3))
                          ef2_i(1,3) = ef2_i(1,3) + (tij_abc(1,1,3)*dp_j(1)+&
                                                     tij_abc(2,1,3)*dp_j(2)+&
-                                                    tij_abc(3,1,3)*dp_j(3)) 
+                                                    tij_abc(3,1,3)*dp_j(3))
                          ef2_i(2,1) = ef2_i(2,1) + (tij_abc(1,2,1)*dp_j(1)+&
                                                     tij_abc(2,2,1)*dp_j(2)+&
-                                                    tij_abc(3,2,1)*dp_j(3)) 
+                                                    tij_abc(3,2,1)*dp_j(3))
                          ef2_i(2,2) = ef2_i(2,2) + (tij_abc(1,2,2)*dp_j(1)+&
                                                     tij_abc(2,2,2)*dp_j(2)+&
-                                                    tij_abc(3,2,2)*dp_j(3)) 
+                                                    tij_abc(3,2,2)*dp_j(3))
                          ef2_i(2,3) = ef2_i(2,3) + (tij_abc(1,2,3)*dp_j(1)+&
                                                     tij_abc(2,2,3)*dp_j(2)+&
-                                                    tij_abc(3,2,3)*dp_j(3)) 
+                                                    tij_abc(3,2,3)*dp_j(3))
                          ef2_i(3,1) = ef2_i(3,1) + (tij_abc(1,3,1)*dp_j(1)+&
                                                     tij_abc(2,3,1)*dp_j(2)+&
-                                                    tij_abc(3,3,1)*dp_j(3)) 
+                                                    tij_abc(3,3,1)*dp_j(3))
                          ef2_i(3,2) = ef2_i(3,2) + (tij_abc(1,3,2)*dp_j(1)+&
                                                     tij_abc(2,3,2)*dp_j(2)+&
-                                                    tij_abc(3,3,2)*dp_j(3)) 
+                                                    tij_abc(3,3,2)*dp_j(3))
                          ef2_i(3,3) = ef2_i(3,3) + (tij_abc(1,3,3)*dp_j(1)+&
                                                     tij_abc(2,3,3)*dp_j(2)+&
                                                     tij_abc(3,3,3)*dp_j(3))
 
                          ef2_j(1,1) = ef2_j(1,1) - (tij_abc(1,1,1)*dp_i(1)+&
                                                     tij_abc(2,1,1)*dp_i(2)+&
-                                                    tij_abc(3,1,1)*dp_i(3)) 
+                                                    tij_abc(3,1,1)*dp_i(3))
                          ef2_j(1,2) = ef2_j(1,2) - (tij_abc(1,1,2)*dp_i(1)+&
                                                     tij_abc(2,1,2)*dp_i(2)+&
-                                                    tij_abc(3,1,2)*dp_i(3)) 
+                                                    tij_abc(3,1,2)*dp_i(3))
                          ef2_j(1,3) = ef2_j(1,3) - (tij_abc(1,1,3)*dp_i(1)+&
                                                     tij_abc(2,1,3)*dp_i(2)+&
-                                                    tij_abc(3,1,3)*dp_i(3)) 
+                                                    tij_abc(3,1,3)*dp_i(3))
                          ef2_j(2,1) = ef2_j(2,1) - (tij_abc(1,2,1)*dp_i(1)+&
                                                     tij_abc(2,2,1)*dp_i(2)+&
-                                                    tij_abc(3,2,1)*dp_i(3)) 
+                                                    tij_abc(3,2,1)*dp_i(3))
                          ef2_j(2,2) = ef2_j(2,2) - (tij_abc(1,2,2)*dp_i(1)+&
                                                     tij_abc(2,2,2)*dp_i(2)+&
-                                                    tij_abc(3,2,2)*dp_i(3)) 
+                                                    tij_abc(3,2,2)*dp_i(3))
                          ef2_j(2,3) = ef2_j(2,3) - (tij_abc(1,2,3)*dp_i(1)+&
                                                     tij_abc(2,2,3)*dp_i(2)+&
-                                                    tij_abc(3,2,3)*dp_i(3)) 
+                                                    tij_abc(3,2,3)*dp_i(3))
                          ef2_j(3,1) = ef2_j(3,1) - (tij_abc(1,3,1)*dp_i(1)+&
                                                     tij_abc(2,3,1)*dp_i(2)+&
-                                                    tij_abc(3,3,1)*dp_i(3)) 
+                                                    tij_abc(3,3,1)*dp_i(3))
                          ef2_j(3,2) = ef2_j(3,2) - (tij_abc(1,3,2)*dp_i(1)+&
                                                     tij_abc(2,3,2)*dp_i(2)+&
-                                                    tij_abc(3,3,2)*dp_i(3)) 
+                                                    tij_abc(3,3,2)*dp_i(3))
                          ef2_j(3,3) = ef2_j(3,3) - (tij_abc(1,3,3)*dp_i(1)+&
                                                     tij_abc(2,3,3)*dp_i(2)+&
                                                     tij_abc(3,3,3)*dp_i(3))
@@ -560,7 +560,7 @@
                                                  damptji_ab(2,k)*dp_j(2)+&
                                                  damptji_ab(3,k)*dp_j(3))
 #endif
-                      END DO                      
+                      END DO
                    END IF
                 END IF
                 IF (task(3,3)) THEN
@@ -574,7 +574,7 @@
                                       tij_abcd(3,2,1,1)*qp_j(3,2)+&
                                       tij_abcd(1,3,1,1)*qp_j(1,3)+&
                                       tij_abcd(2,3,1,1)*qp_j(2,3)+&
-                                      tij_abcd(3,3,1,1)*qp_j(3,3)) 
+                                      tij_abcd(3,3,1,1)*qp_j(3,3))
                    tmp21 = qp_i(2,1)*(tij_abcd(1,1,1,2)*qp_j(1,1)+&
                                       tij_abcd(2,1,1,2)*qp_j(2,1)+&
                                       tij_abcd(3,1,1,2)*qp_j(3,1)+&
@@ -706,7 +706,7 @@
                                               tij_ab(3,2)*qp_j(3,2)+&
                                               tij_ab(1,3)*qp_j(1,3)+&
                                               tij_ab(2,3)*qp_j(2,3)+&
-                                              tij_ab(3,3)*qp_j(3,3)) 
+                                              tij_ab(3,3)*qp_j(3,3))
 
                          ef0_j = ef0_j + fac*(tij_ab(1,1)*qp_i(1,1)+&
                                               tij_ab(2,1)*qp_i(2,1)+&
@@ -728,7 +728,7 @@
                                                     tij_abc(3,2,1)*qp_j(3,2)+&
                                                     tij_abc(1,3,1)*qp_j(1,3)+&
                                                     tij_abc(2,3,1)*qp_j(2,3)+&
-                                                    tij_abc(3,3,1)*qp_j(3,3)) 
+                                                    tij_abc(3,3,1)*qp_j(3,3))
                          ef1_i(2) = ef1_i(2) - fac*(tij_abc(1,1,2)*qp_j(1,1)+&
                                                     tij_abc(2,1,2)*qp_j(2,1)+&
                                                     tij_abc(3,1,2)*qp_j(3,1)+&
@@ -737,7 +737,7 @@
                                                     tij_abc(3,2,2)*qp_j(3,2)+&
                                                     tij_abc(1,3,2)*qp_j(1,3)+&
                                                     tij_abc(2,3,2)*qp_j(2,3)+&
-                                                    tij_abc(3,3,2)*qp_j(3,3)) 
+                                                    tij_abc(3,3,2)*qp_j(3,3))
                          ef1_i(3) = ef1_i(3) - fac*(tij_abc(1,1,3)*qp_j(1,1)+&
                                                     tij_abc(2,1,3)*qp_j(2,1)+&
                                                     tij_abc(3,1,3)*qp_j(3,1)+&
@@ -756,7 +756,7 @@
                                                     tij_abc(3,2,1)*qp_i(3,2)+&
                                                     tij_abc(1,3,1)*qp_i(1,3)+&
                                                     tij_abc(2,3,1)*qp_i(2,3)+&
-                                                    tij_abc(3,3,1)*qp_i(3,3)) 
+                                                    tij_abc(3,3,1)*qp_i(3,3))
                          ef1_j(2) = ef1_j(2) + fac*(tij_abc(1,1,2)*qp_i(1,1)+&
                                                     tij_abc(2,1,2)*qp_i(2,1)+&
                                                     tij_abc(3,1,2)*qp_i(3,1)+&
@@ -765,7 +765,7 @@
                                                     tij_abc(3,2,2)*qp_i(3,2)+&
                                                     tij_abc(1,3,2)*qp_i(1,3)+&
                                                     tij_abc(2,3,2)*qp_i(2,3)+&
-                                                    tij_abc(3,3,2)*qp_i(3,3)) 
+                                                    tij_abc(3,3,2)*qp_i(3,3))
                          ef1_j(3) = ef1_j(3) + fac*(tij_abc(1,1,3)*qp_i(1,1)+&
                                                     tij_abc(2,1,3)*qp_i(2,1)+&
                                                     tij_abc(3,1,3)*qp_i(3,1)+&
@@ -774,7 +774,7 @@
                                                     tij_abc(3,2,3)*qp_i(3,2)+&
                                                     tij_abc(1,3,3)*qp_i(1,3)+&
                                                     tij_abc(2,3,3)*qp_i(2,3)+&
-                                                    tij_abc(3,3,3)*qp_i(3,3)) 
+                                                    tij_abc(3,3,3)*qp_i(3,3))
                       END IF
                       ! Electric field gradient
                       IF (do_efield2) THEN
@@ -786,7 +786,7 @@
                                          tij_abcd(3,2,1,1)*qp_j(3,2)+&
                                          tij_abcd(1,3,1,1)*qp_j(1,3)+&
                                          tij_abcd(2,3,1,1)*qp_j(2,3)+&
-                                         tij_abcd(3,3,1,1)*qp_j(3,3)) 
+                                         tij_abcd(3,3,1,1)*qp_j(3,3))
                          tmp12 =   fac *(tij_abcd(1,1,1,2)*qp_j(1,1)+&
                                          tij_abcd(2,1,1,2)*qp_j(2,1)+&
                                          tij_abcd(3,1,1,2)*qp_j(3,1)+&
@@ -795,7 +795,7 @@
                                          tij_abcd(3,2,1,2)*qp_j(3,2)+&
                                          tij_abcd(1,3,1,2)*qp_j(1,3)+&
                                          tij_abcd(2,3,1,2)*qp_j(2,3)+&
-                                         tij_abcd(3,3,1,2)*qp_j(3,3)) 
+                                         tij_abcd(3,3,1,2)*qp_j(3,3))
                          tmp13 =   fac *(tij_abcd(1,1,1,3)*qp_j(1,1)+&
                                          tij_abcd(2,1,1,3)*qp_j(2,1)+&
                                          tij_abcd(3,1,1,3)*qp_j(3,1)+&
@@ -804,7 +804,7 @@
                                          tij_abcd(3,2,1,3)*qp_j(3,2)+&
                                          tij_abcd(1,3,1,3)*qp_j(1,3)+&
                                          tij_abcd(2,3,1,3)*qp_j(2,3)+&
-                                         tij_abcd(3,3,1,3)*qp_j(3,3)) 
+                                         tij_abcd(3,3,1,3)*qp_j(3,3))
                          tmp22 =   fac *(tij_abcd(1,1,2,2)*qp_j(1,1)+&
                                          tij_abcd(2,1,2,2)*qp_j(2,1)+&
                                          tij_abcd(3,1,2,2)*qp_j(3,1)+&
@@ -813,7 +813,7 @@
                                          tij_abcd(3,2,2,2)*qp_j(3,2)+&
                                          tij_abcd(1,3,2,2)*qp_j(1,3)+&
                                          tij_abcd(2,3,2,2)*qp_j(2,3)+&
-                                         tij_abcd(3,3,2,2)*qp_j(3,3)) 
+                                         tij_abcd(3,3,2,2)*qp_j(3,3))
                          tmp23 =   fac *(tij_abcd(1,1,2,3)*qp_j(1,1)+&
                                          tij_abcd(2,1,2,3)*qp_j(2,1)+&
                                          tij_abcd(3,1,2,3)*qp_j(3,1)+&
@@ -822,7 +822,7 @@
                                          tij_abcd(3,2,2,3)*qp_j(3,2)+&
                                          tij_abcd(1,3,2,3)*qp_j(1,3)+&
                                          tij_abcd(2,3,2,3)*qp_j(2,3)+&
-                                         tij_abcd(3,3,2,3)*qp_j(3,3)) 
+                                         tij_abcd(3,3,2,3)*qp_j(3,3))
                          tmp33 =   fac *(tij_abcd(1,1,3,3)*qp_j(1,1)+&
                                          tij_abcd(2,1,3,3)*qp_j(2,1)+&
                                          tij_abcd(3,1,3,3)*qp_j(3,1)+&
@@ -831,7 +831,7 @@
                                          tij_abcd(3,2,3,3)*qp_j(3,2)+&
                                          tij_abcd(1,3,3,3)*qp_j(1,3)+&
                                          tij_abcd(2,3,3,3)*qp_j(2,3)+&
-                                         tij_abcd(3,3,3,3)*qp_j(3,3)) 
+                                         tij_abcd(3,3,3,3)*qp_j(3,3))
 
                          ef2_i(1,1) = ef2_i(1,1) - tmp11
                          ef2_i(1,2) = ef2_i(1,2) - tmp12
@@ -851,7 +851,7 @@
                                          tij_abcd(3,2,1,1)*qp_i(3,2)+&
                                          tij_abcd(1,3,1,1)*qp_i(1,3)+&
                                          tij_abcd(2,3,1,1)*qp_i(2,3)+&
-                                         tij_abcd(3,3,1,1)*qp_i(3,3)) 
+                                         tij_abcd(3,3,1,1)*qp_i(3,3))
                          tmp12 =   fac *(tij_abcd(1,1,1,2)*qp_i(1,1)+&
                                          tij_abcd(2,1,1,2)*qp_i(2,1)+&
                                          tij_abcd(3,1,1,2)*qp_i(3,1)+&
@@ -860,7 +860,7 @@
                                          tij_abcd(3,2,1,2)*qp_i(3,2)+&
                                          tij_abcd(1,3,1,2)*qp_i(1,3)+&
                                          tij_abcd(2,3,1,2)*qp_i(2,3)+&
-                                         tij_abcd(3,3,1,2)*qp_i(3,3)) 
+                                         tij_abcd(3,3,1,2)*qp_i(3,3))
                          tmp13 =   fac *(tij_abcd(1,1,1,3)*qp_i(1,1)+&
                                          tij_abcd(2,1,1,3)*qp_i(2,1)+&
                                          tij_abcd(3,1,1,3)*qp_i(3,1)+&
@@ -869,7 +869,7 @@
                                          tij_abcd(3,2,1,3)*qp_i(3,2)+&
                                          tij_abcd(1,3,1,3)*qp_i(1,3)+&
                                          tij_abcd(2,3,1,3)*qp_i(2,3)+&
-                                         tij_abcd(3,3,1,3)*qp_i(3,3)) 
+                                         tij_abcd(3,3,1,3)*qp_i(3,3))
                          tmp22 =   fac *(tij_abcd(1,1,2,2)*qp_i(1,1)+&
                                          tij_abcd(2,1,2,2)*qp_i(2,1)+&
                                          tij_abcd(3,1,2,2)*qp_i(3,1)+&
@@ -878,7 +878,7 @@
                                          tij_abcd(3,2,2,2)*qp_i(3,2)+&
                                          tij_abcd(1,3,2,2)*qp_i(1,3)+&
                                          tij_abcd(2,3,2,2)*qp_i(2,3)+&
-                                         tij_abcd(3,3,2,2)*qp_i(3,3)) 
+                                         tij_abcd(3,3,2,2)*qp_i(3,3))
                          tmp23 =   fac *(tij_abcd(1,1,2,3)*qp_i(1,1)+&
                                          tij_abcd(2,1,2,3)*qp_i(2,1)+&
                                          tij_abcd(3,1,2,3)*qp_i(3,1)+&
@@ -887,7 +887,7 @@
                                          tij_abcd(3,2,2,3)*qp_i(3,2)+&
                                          tij_abcd(1,3,2,3)*qp_i(1,3)+&
                                          tij_abcd(2,3,2,3)*qp_i(2,3)+&
-                                         tij_abcd(3,3,2,3)*qp_i(3,3)) 
+                                         tij_abcd(3,3,2,3)*qp_i(3,3))
                          tmp33 =   fac *(tij_abcd(1,1,3,3)*qp_i(1,1)+&
                                          tij_abcd(2,1,3,3)*qp_i(2,1)+&
                                          tij_abcd(3,1,3,3)*qp_i(3,1)+&
@@ -896,7 +896,7 @@
                                          tij_abcd(3,2,3,3)*qp_i(3,2)+&
                                          tij_abcd(1,3,3,3)*qp_i(1,3)+&
                                          tij_abcd(2,3,3,3)*qp_i(2,3)+&
-                                         tij_abcd(3,3,3,3)*qp_i(3,3)) 
+                                         tij_abcd(3,3,3,3)*qp_i(3,3))
 
                          ef2_j(1,1) = ef2_j(1,1) - tmp11
                          ef2_j(1,2) = ef2_j(1,2) - tmp12
@@ -976,61 +976,61 @@
                    IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
                          ! Dipole i (locally B) - Quadrupole j (locally A)
-                         tmp_ij = dp_i(1)*(tij_abcd(1,1,1,k)*qp_j(1,1)+& 
-                                           tij_abcd(2,1,1,k)*qp_j(2,1)+& 
-                                           tij_abcd(3,1,1,k)*qp_j(3,1)+& 
-                                           tij_abcd(1,2,1,k)*qp_j(1,2)+& 
-                                           tij_abcd(2,2,1,k)*qp_j(2,2)+& 
-                                           tij_abcd(3,2,1,k)*qp_j(3,2)+& 
-                                           tij_abcd(1,3,1,k)*qp_j(1,3)+& 
-                                           tij_abcd(2,3,1,k)*qp_j(2,3)+& 
+                         tmp_ij = dp_i(1)*(tij_abcd(1,1,1,k)*qp_j(1,1)+&
+                                           tij_abcd(2,1,1,k)*qp_j(2,1)+&
+                                           tij_abcd(3,1,1,k)*qp_j(3,1)+&
+                                           tij_abcd(1,2,1,k)*qp_j(1,2)+&
+                                           tij_abcd(2,2,1,k)*qp_j(2,2)+&
+                                           tij_abcd(3,2,1,k)*qp_j(3,2)+&
+                                           tij_abcd(1,3,1,k)*qp_j(1,3)+&
+                                           tij_abcd(2,3,1,k)*qp_j(2,3)+&
                                            tij_abcd(3,3,1,k)*qp_j(3,3))+&
-                                  dp_i(2)*(tij_abcd(1,1,2,k)*qp_j(1,1)+& 
-                                           tij_abcd(2,1,2,k)*qp_j(2,1)+& 
-                                           tij_abcd(3,1,2,k)*qp_j(3,1)+& 
-                                           tij_abcd(1,2,2,k)*qp_j(1,2)+& 
-                                           tij_abcd(2,2,2,k)*qp_j(2,2)+& 
-                                           tij_abcd(3,2,2,k)*qp_j(3,2)+& 
-                                           tij_abcd(1,3,2,k)*qp_j(1,3)+& 
-                                           tij_abcd(2,3,2,k)*qp_j(2,3)+& 
+                                  dp_i(2)*(tij_abcd(1,1,2,k)*qp_j(1,1)+&
+                                           tij_abcd(2,1,2,k)*qp_j(2,1)+&
+                                           tij_abcd(3,1,2,k)*qp_j(3,1)+&
+                                           tij_abcd(1,2,2,k)*qp_j(1,2)+&
+                                           tij_abcd(2,2,2,k)*qp_j(2,2)+&
+                                           tij_abcd(3,2,2,k)*qp_j(3,2)+&
+                                           tij_abcd(1,3,2,k)*qp_j(1,3)+&
+                                           tij_abcd(2,3,2,k)*qp_j(2,3)+&
                                            tij_abcd(3,3,2,k)*qp_j(3,3))+&
-                                  dp_i(3)*(tij_abcd(1,1,3,k)*qp_j(1,1)+& 
-                                           tij_abcd(2,1,3,k)*qp_j(2,1)+& 
-                                           tij_abcd(3,1,3,k)*qp_j(3,1)+& 
-                                           tij_abcd(1,2,3,k)*qp_j(1,2)+& 
-                                           tij_abcd(2,2,3,k)*qp_j(2,2)+& 
-                                           tij_abcd(3,2,3,k)*qp_j(3,2)+& 
-                                           tij_abcd(1,3,3,k)*qp_j(1,3)+& 
-                                           tij_abcd(2,3,3,k)*qp_j(2,3)+& 
+                                  dp_i(3)*(tij_abcd(1,1,3,k)*qp_j(1,1)+&
+                                           tij_abcd(2,1,3,k)*qp_j(2,1)+&
+                                           tij_abcd(3,1,3,k)*qp_j(3,1)+&
+                                           tij_abcd(1,2,3,k)*qp_j(1,2)+&
+                                           tij_abcd(2,2,3,k)*qp_j(2,2)+&
+                                           tij_abcd(3,2,3,k)*qp_j(3,2)+&
+                                           tij_abcd(1,3,3,k)*qp_j(1,3)+&
+                                           tij_abcd(2,3,3,k)*qp_j(2,3)+&
                                            tij_abcd(3,3,3,k)*qp_j(3,3))
 
                          ! Dipole j (locally A) - Quadrupole i (locally B)
-                         tmp_ji = dp_j(1)*(tij_abcd(1,1,1,k)*qp_i(1,1)+& 
-                                           tij_abcd(2,1,1,k)*qp_i(2,1)+& 
-                                           tij_abcd(3,1,1,k)*qp_i(3,1)+& 
-                                           tij_abcd(1,2,1,k)*qp_i(1,2)+& 
-                                           tij_abcd(2,2,1,k)*qp_i(2,2)+& 
-                                           tij_abcd(3,2,1,k)*qp_i(3,2)+& 
-                                           tij_abcd(1,3,1,k)*qp_i(1,3)+& 
-                                           tij_abcd(2,3,1,k)*qp_i(2,3)+& 
+                         tmp_ji = dp_j(1)*(tij_abcd(1,1,1,k)*qp_i(1,1)+&
+                                           tij_abcd(2,1,1,k)*qp_i(2,1)+&
+                                           tij_abcd(3,1,1,k)*qp_i(3,1)+&
+                                           tij_abcd(1,2,1,k)*qp_i(1,2)+&
+                                           tij_abcd(2,2,1,k)*qp_i(2,2)+&
+                                           tij_abcd(3,2,1,k)*qp_i(3,2)+&
+                                           tij_abcd(1,3,1,k)*qp_i(1,3)+&
+                                           tij_abcd(2,3,1,k)*qp_i(2,3)+&
                                            tij_abcd(3,3,1,k)*qp_i(3,3))+&
-                                  dp_j(2)*(tij_abcd(1,1,2,k)*qp_i(1,1)+& 
-                                           tij_abcd(2,1,2,k)*qp_i(2,1)+& 
-                                           tij_abcd(3,1,2,k)*qp_i(3,1)+& 
-                                           tij_abcd(1,2,2,k)*qp_i(1,2)+& 
-                                           tij_abcd(2,2,2,k)*qp_i(2,2)+& 
-                                           tij_abcd(3,2,2,k)*qp_i(3,2)+& 
-                                           tij_abcd(1,3,2,k)*qp_i(1,3)+& 
-                                           tij_abcd(2,3,2,k)*qp_i(2,3)+& 
+                                  dp_j(2)*(tij_abcd(1,1,2,k)*qp_i(1,1)+&
+                                           tij_abcd(2,1,2,k)*qp_i(2,1)+&
+                                           tij_abcd(3,1,2,k)*qp_i(3,1)+&
+                                           tij_abcd(1,2,2,k)*qp_i(1,2)+&
+                                           tij_abcd(2,2,2,k)*qp_i(2,2)+&
+                                           tij_abcd(3,2,2,k)*qp_i(3,2)+&
+                                           tij_abcd(1,3,2,k)*qp_i(1,3)+&
+                                           tij_abcd(2,3,2,k)*qp_i(2,3)+&
                                            tij_abcd(3,3,2,k)*qp_i(3,3))+&
-                                  dp_j(3)*(tij_abcd(1,1,3,k)*qp_i(1,1)+& 
-                                           tij_abcd(2,1,3,k)*qp_i(2,1)+& 
-                                           tij_abcd(3,1,3,k)*qp_i(3,1)+& 
-                                           tij_abcd(1,2,3,k)*qp_i(1,2)+& 
-                                           tij_abcd(2,2,3,k)*qp_i(2,2)+& 
-                                           tij_abcd(3,2,3,k)*qp_i(3,2)+& 
-                                           tij_abcd(1,3,3,k)*qp_i(1,3)+& 
-                                           tij_abcd(2,3,3,k)*qp_i(2,3)+& 
+                                  dp_j(3)*(tij_abcd(1,1,3,k)*qp_i(1,1)+&
+                                           tij_abcd(2,1,3,k)*qp_i(2,1)+&
+                                           tij_abcd(3,1,3,k)*qp_i(3,1)+&
+                                           tij_abcd(1,2,3,k)*qp_i(1,2)+&
+                                           tij_abcd(2,2,3,k)*qp_i(2,2)+&
+                                           tij_abcd(3,2,3,k)*qp_i(3,2)+&
+                                           tij_abcd(1,3,3,k)*qp_i(1,3)+&
+                                           tij_abcd(2,3,3,k)*qp_i(2,3)+&
                                            tij_abcd(3,3,3,k)*qp_i(3,3))
 
                          fr(k) = fr(k) - fac * (tmp_ij - tmp_ji)
@@ -1050,9 +1050,9 @@
                                     tij_ab(3,2)*qp_j(3,2)+&
                                     tij_ab(1,3)*qp_j(1,3)+&
                                     tij_ab(2,3)*qp_j(2,3)+&
-                                    tij_ab(3,3)*qp_j(3,3)) 
+                                    tij_ab(3,3)*qp_j(3,3))
 
-                   ! Quadrupole i (locally B) - Charge j (locally A) 
+                   ! Quadrupole i (locally B) - Charge j (locally A)
                    tmp_ji = ch_j * (tij_ab(1,1)*qp_i(1,1)+&
                                     tij_ab(2,1)*qp_i(2,1)+&
                                     tij_ab(3,1)*qp_i(3,1)+&
@@ -1061,31 +1061,31 @@
                                     tij_ab(3,2)*qp_i(3,2)+&
                                     tij_ab(1,3)*qp_i(1,3)+&
                                     tij_ab(2,3)*qp_i(2,3)+&
-                                    tij_ab(3,3)*qp_i(3,3))  
+                                    tij_ab(3,3)*qp_i(3,3))
 
                    eloc = eloc + fac*(tmp_ij+tmp_ji)
                    IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
-                         ! Quadrupole j (locally A) - Charge i (locally B)  
-                         tmp_ij = ch_i * (tij_abc(1,1,k)*qp_j(1,1)+&    
-                                          tij_abc(2,1,k)*qp_j(2,1)+&    
-                                          tij_abc(3,1,k)*qp_j(3,1)+&    
-                                          tij_abc(1,2,k)*qp_j(1,2)+&    
-                                          tij_abc(2,2,k)*qp_j(2,2)+&    
-                                          tij_abc(3,2,k)*qp_j(3,2)+&    
-                                          tij_abc(1,3,k)*qp_j(1,3)+&    
-                                          tij_abc(2,3,k)*qp_j(2,3)+&    
+                         ! Quadrupole j (locally A) - Charge i (locally B)
+                         tmp_ij = ch_i * (tij_abc(1,1,k)*qp_j(1,1)+&
+                                          tij_abc(2,1,k)*qp_j(2,1)+&
+                                          tij_abc(3,1,k)*qp_j(3,1)+&
+                                          tij_abc(1,2,k)*qp_j(1,2)+&
+                                          tij_abc(2,2,k)*qp_j(2,2)+&
+                                          tij_abc(3,2,k)*qp_j(3,2)+&
+                                          tij_abc(1,3,k)*qp_j(1,3)+&
+                                          tij_abc(2,3,k)*qp_j(2,3)+&
                                           tij_abc(3,3,k)*qp_j(3,3))
 
-                         ! Quadrupole i (locally B) - Charge j (locally A) 
-                         tmp_ji = ch_j * (tij_abc(1,1,k)*qp_i(1,1)+&    
-                                          tij_abc(2,1,k)*qp_i(2,1)+&    
-                                          tij_abc(3,1,k)*qp_i(3,1)+&    
-                                          tij_abc(1,2,k)*qp_i(1,2)+&    
-                                          tij_abc(2,2,k)*qp_i(2,2)+&    
-                                          tij_abc(3,2,k)*qp_i(3,2)+&    
-                                          tij_abc(1,3,k)*qp_i(1,3)+&    
-                                          tij_abc(2,3,k)*qp_i(2,3)+&    
+                         ! Quadrupole i (locally B) - Charge j (locally A)
+                         tmp_ji = ch_j * (tij_abc(1,1,k)*qp_i(1,1)+&
+                                          tij_abc(2,1,k)*qp_i(2,1)+&
+                                          tij_abc(3,1,k)*qp_i(3,1)+&
+                                          tij_abc(1,2,k)*qp_i(1,2)+&
+                                          tij_abc(2,2,k)*qp_i(2,2)+&
+                                          tij_abc(3,2,k)*qp_i(3,2)+&
+                                          tij_abc(1,3,k)*qp_i(1,3)+&
+                                          tij_abc(2,3,k)*qp_i(2,3)+&
                                           tij_abc(3,3,k)*qp_i(3,3))
 
                          fr(k) = fr(k) - fac *(tmp_ij + tmp_ji)
@@ -1109,9 +1109,9 @@
                 IF (do_efield) THEN
                    ! Potential
                    IF (do_efield0) THEN
-                      efield0(  atom_a) = efield0(  atom_a) + ef0_j 
+                      efield0(  atom_a) = efield0(  atom_a) + ef0_j
 
-                      efield0(  atom_b) = efield0(  atom_b) + ef0_i 
+                      efield0(  atom_b) = efield0(  atom_b) + ef0_i
                    END IF
                    ! Electric field
                    IF (do_efield1) THEN

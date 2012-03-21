@@ -8,7 +8,7 @@
 !> \par History
 !>      JGH (02-Jan-2001): New error handling
 !>                         Performance tools
-!>      JGH (14-Jan-2001): New routines mp_comm_compare, mp_cart_coords, 
+!>      JGH (14-Jan-2001): New routines mp_comm_compare, mp_cart_coords,
 !>                                      mp_rank_compare, mp_alltoall
 !>      JGH (06-Feb-2001): New routines mp_comm_free
 !>      JGH (22-Mar-2001): New routines mp_comm_dup
@@ -82,7 +82,7 @@ MODULE message_passing
 #endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
-  
+
   ! parameters that might be needed
 
   ! init and error
@@ -165,7 +165,7 @@ MODULE message_passing
                       mp_shift_cm, mp_shift_c,&
                       mp_shift_zm, mp_shift_z
   END INTERFACE
-  
+
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i, mp_bcast_iv, mp_bcast_im, mp_bcast_i3,&
                       mp_bcast_l, mp_bcast_lv, mp_bcast_lm, mp_bcast_l3,&
@@ -435,11 +435,11 @@ MODULE message_passing
   TYPE mp_perf_env_p_type
      TYPE(mp_perf_env_type), POINTER         :: mp_perf_env
   END TYPE mp_perf_env_p_type
-     
+
   ! introduce a stack of mp_perfs, first index is the stack pointer, for convience is replacing
   INTEGER, PARAMETER :: max_stack_size = 10
   INTEGER            :: stack_pointer = 0
-  ! target attribute needed as a hack around ifc 7.1 bug 
+  ! target attribute needed as a hack around ifc 7.1 bug
   TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), TARGET :: mp_perf_stack
 
   CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) =  &
@@ -467,7 +467,7 @@ CONTAINS
 !> \brief initializes the system default communicator
 !> \param mp_comm [output] : handle of the default communicator
 !> \note
-!>      should only be called once 
+!>      should only be called once
 !> \par History
 !>      2.2004 created [Joost VandeVondele ]
 ! *****************************************************************************
@@ -537,7 +537,7 @@ CONTAINS
 !> \param mp_comm the mpi communicator
 !> \param scr output unit
 !> \note
-!>      can be used to measure performance of a sub-part of a program. 
+!>      can be used to measure performance of a sub-part of a program.
 !>      timings measured here will not show up in the outer start/stops
 !>      Doesn't need a fresh communicator
 !> \par History
@@ -549,7 +549,7 @@ CONTAINS
 
     stack_pointer = stack_pointer + 1
     IF (stack_pointer > max_stack_size) THEN
-       CALL mp_abort ( "stack_pointer too large : message_passing @ add_mp_perf_env" )   
+       CALL mp_abort ( "stack_pointer too large : message_passing @ add_mp_perf_env" )
     ENDIF
     NULLIFY(mp_perf_stack(stack_pointer)%mp_perf_env)
     IF (PRESENT(perf_env)) THEN
@@ -630,10 +630,10 @@ CONTAINS
     REAL(KIND=dp)                            :: per, vol
 
     IF (.NOT.ASSOCIATED(perf_env)) THEN
-       CALL mp_abort ("unassociated perf_env : message_passing @ mp_perf_env_describe" )   
+       CALL mp_abort ("unassociated perf_env : message_passing @ mp_perf_env_describe" )
     ENDIF
     IF (perf_env%ref_count<1) THEN
-       CALL mp_abort ("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
+       CALL mp_abort ("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )
     ENDIF
 #if defined(__parallel)
     IF ( iw > 0 ) THEN
@@ -673,7 +673,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rm_mp_perf_env ()
     IF (stack_pointer<1) THEN
-       CALL mp_abort ( "no perf_env in the stack : message_passing @ rm_mp_perf_env" )   
+       CALL mp_abort ( "no perf_env in the stack : message_passing @ rm_mp_perf_env" )
     ENDIF
     CALL mp_perf_env_release(mp_perf_stack(stack_pointer)%mp_perf_env)
     stack_pointer = stack_pointer - 1
@@ -684,7 +684,7 @@ CONTAINS
     TYPE(mp_perf_env_type), POINTER          :: res
 
     IF (stack_pointer<1) THEN
-       CALL mp_abort ( "no perf_env in the stack : message_passing @ get_mp_perf_env" )   
+       CALL mp_abort ( "no perf_env in the stack : message_passing @ get_mp_perf_env" )
     ENDIF
     res => mp_perf_stack(stack_pointer)%mp_perf_env
   END FUNCTION get_mp_perf_env
@@ -701,8 +701,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief adds the performance informations of one call
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE add_perf(perf_id,count,time,msg_size)
@@ -974,7 +974,7 @@ CONTAINS
 
   END SUBROUTINE mp_cart_create
 
-!..mp_cart_coords 
+!..mp_cart_coords
 ! *****************************************************************************
   SUBROUTINE mp_cart_coords ( comm, rank, coords)
 
@@ -1386,7 +1386,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief waits for completion of any of the given requests
 !> \par History
-!>      09.2008 created 
+!>      09.2008 created
 !> \author Iain Bethune (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE mp_waitany(requests, completed)
@@ -1423,7 +1423,7 @@ CONTAINS
   END SUBROUTINE mp_waitany
 
 ! *****************************************************************************
-!> \brief the direct way to split a communicator each color is a sub_comm, 
+!> \brief the direct way to split a communicator each color is a sub_comm,
 !>        the rank order is accoring to the order in the orig comm
 !> \author Joost VandeVondele
 ! *****************************************************************************
@@ -1451,7 +1451,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=10,count=1,time=t_end-t_start)
 #else
-    CALL mp_comm_dup(comm,sub_comm) 
+    CALL mp_comm_dup(comm,sub_comm)
 #endif
 #if defined(__mp_timeset__)
     CALL timestop_mp(handle)
@@ -1533,14 +1533,14 @@ CONTAINS
           CALL mp_abort(routineP//" n_subgroups too small")
        ENDIF
        IF (nnodes/n_subgroups > 0) THEN ! we have a least one cpu per group
-          ngroups = n_subgroups 
+          ngroups = n_subgroups
        ELSE ! well, only one group then
           ngroups = 1
        ENDIF
        my_subgroup_min_size = nnodes / ngroups
     ENDIF
     DO i=0,nnodes-1
-       group_distribution(i)=i / my_subgroup_min_size 
+       group_distribution(i)=i / my_subgroup_min_size
        ! if part of the rest, join the last group
        IF ( group_distribution(i) >= ngroups ) group_distribution(i)=ngroups-1
     ENDDO
@@ -1556,7 +1556,7 @@ CONTAINS
                 ENDDO
              ENDDO
           ELSE
-             ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad         
+             ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad
           ENDIF
        ENDIF
     ENDIF
@@ -1567,7 +1567,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=10,count=1,time=t_end-t_start)
 #else
-    CALL mp_comm_dup(comm,sub_comm) 
+    CALL mp_comm_dup(comm,sub_comm)
     group_distribution(0)=0
     ngroups=1
 #endif

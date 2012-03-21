@@ -5,10 +5,10 @@
 
 ! *****************************************************************************
 !> \brief Handles pdb files
-!> 
+!>
 !> PDB Format Description Version 2.2 from http://www.rcsb.org
 !> COLUMNS       DATA TYPE       FIELD         DEFINITION
-!> 
+!>
 !>  1 -  6       Record name     "ATOM  "
 !>  7 - 11       Integer         serial        Atom serial number.
 !> 13 - 16       Atom            name          Atom name.
@@ -61,7 +61,7 @@ MODULE topology_pdb
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -99,7 +99,7 @@ CONTAINS
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
 
     pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
@@ -135,7 +135,7 @@ CONTAINS
        line   = parser%input_line(1:default_path_length)
        record = line(1:6)
        record = TRIM(record)
-       
+
        IF ((record == "ATOM").OR.(record == "HETATM")) THEN
           natom = natom + 1
           topology%natoms = natom
@@ -153,9 +153,9 @@ CONTAINS
              CALL reallocate(atom_info%id_element,1,newsize)
           END IF
        END IF
-       
+
        SELECT CASE (record)
-       CASE ("ATOM","HETATM") 
+       CASE ("ATOM","HETATM")
           READ(line(13:16),*) strtmp
           atom_info%id_atmname(natom) = str2id(s2s(strtmp))
           READ(line(18:20),*,IOSTAT=istat) strtmp
@@ -223,7 +223,7 @@ CONTAINS
        END SELECT
     END DO
     CALL parser_release(parser,error=error)
-    
+
     CALL reallocate(atom_info%id_molname,1,natom)
     CALL reallocate(atom_info%id_resname,1,natom)
     CALL reallocate(atom_info%resid,1,natom)
@@ -238,7 +238,7 @@ CONTAINS
     IF (topology%conn_type /= do_conn_user) THEN
        IF (.NOT.topology%para_res) atom_info%resid(:) = 1
     END IF
-    
+
     IF (iw > 0) THEN
        WRITE (UNIT=iw,FMT="(T2,A)")&
          "END of PDB data read from file "//TRIM(topology%coord_file_name)
@@ -253,7 +253,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE write_coordinate_pdb (file_unit,topology,subsys_section,error)
-  
+
     INTEGER, INTENT(IN)                      :: file_unit
     TYPE(topology_parameters_type)           :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -274,8 +274,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
-         extension=".subsysLog",error=error)    
-    print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PDB",error=error) 
+         extension=".subsysLog",error=error)
+    print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PDB",error=error)
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info

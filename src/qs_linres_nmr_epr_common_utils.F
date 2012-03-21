@@ -50,7 +50,7 @@ CONTAINS
 !> \note
 !>      The G=0 component is not comnputed here, but can be evaluated
 !>      through the susceptibility and added to the shift in a second time
-!> 
+!>
 !>      This method would not work for a non periodic system
 !>      It should be generalized like the calculation of Hartree
 !> \author MI

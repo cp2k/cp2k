@@ -92,7 +92,7 @@ CONTAINS
     CALL get_md_env(md_env, force_env=force_env, fe_env=fe_env, simpar=simpar,&
          itimes=istep, error=error)
     ! Metadynamics is also a free energy calculation but is handled in a different
-    ! module. 
+    ! module.
     IF (.NOT.ASSOCIATED(force_env%meta_env).AND.ASSOCIATED(fe_env)) THEN
        SELECT CASE(fe_env%type)
        CASE(do_fe_ui)
@@ -192,7 +192,7 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_trend(fe_env, trend_free, nr_points, output_unit, error)        
+  SUBROUTINE ui_check_trend(fe_env, trend_free, nr_points, output_unit, error)
     TYPE(free_energy_type), POINTER          :: fe_env
     LOGICAL, INTENT(OUT)                     :: trend_free
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
@@ -230,7 +230,7 @@ CONTAINS
           ii = ii + 1
        END DO
        DO i = my_reject+1, ng_points
-          IF ((ng_points-my_reject).LT.min_sample_size) THEN 
+          IF ((ng_points-my_reject).LT.min_sample_size) THEN
              my_reject = MAX(0,my_reject-1)
              test_avg = .FALSE.
              EXIT
@@ -258,7 +258,7 @@ CONTAINS
              ii = ii + 1
           END DO
           DO i = my_reject+1, ng_points
-             IF ((ng_points-my_reject).LT.min_sample_size) THEN 
+             IF ((ng_points-my_reject).LT.min_sample_size) THEN
                 my_reject = MAX(0,my_reject-1)
                 test_std  = .FALSE.
                 EXIT
@@ -373,7 +373,7 @@ CONTAINS
 
     DO i = 1, ng_points
        istart = fe_env%nr_points -    (i)*fe_env%conv_par%cg_width + 1
-       iend   = fe_env%nr_points -  (i-1)*fe_env%conv_par%cg_width 
+       iend   = fe_env%nr_points -  (i-1)*fe_env%conv_par%cg_width
        WRITE(*,*)istart, iend
        CALL eval_cov_matrix(fe_env,cg_index=i,istart=istart,iend=iend,error=error)
     END DO
@@ -386,7 +386,7 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_norm_sc(fe_env,test_passed,nr_points,output_unit,error)        
+  SUBROUTINE ui_check_norm_sc(fe_env,test_passed,nr_points,output_unit,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     LOGICAL, INTENT(OUT)                     :: test_passed
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
@@ -424,7 +424,7 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_norm_sc_low(fe_env,nr_points,output_unit,error)        
+  SUBROUTINE ui_check_norm_sc_low(fe_env,nr_points,output_unit,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -443,8 +443,8 @@ CONTAINS
     failure     = .FALSE.
     ncolvar     = fe_env%ncolvar
     ! Compute the Coarse Grained data set using a reverse cumulative strategy
-    fe_env%conv_par%test_sw = .FALSE. 
-    fe_env%conv_par%test_vn = .FALSE. 
+    fe_env%conv_par%test_sw = .FALSE.
+    fe_env%conv_par%test_vn = .FALSE.
     ! Number of coarse grained points
     avg_test_passed = .TRUE.
     sdv_test_passed = .TRUE.
@@ -511,12 +511,12 @@ CONTAINS
   END SUBROUTINE ui_check_norm_sc_low
 
 ! *****************************************************************************
-!> \brief Convergence criteria (Error on average and covariance matrix) 
+!> \brief Convergence criteria (Error on average and covariance matrix)
 !>      for free energy method
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_convergence(fe_env,converged,nr_points,output_unit,error)        
+  SUBROUTINE ui_check_convergence(fe_env,converged,nr_points,output_unit,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     LOGICAL, INTENT(OUT)                     :: converged
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
@@ -607,7 +607,7 @@ CONTAINS
   END SUBROUTINE ui_check_convergence
 
 ! *****************************************************************************
-!> \brief Computes the errors on averages and standard deviations for a 
+!> \brief Computes the errors on averages and standard deviations for a
 !>      correlation-independent coarse grained data set
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
@@ -662,7 +662,7 @@ CONTAINS
     DEALLOCATE(wrk,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(eig,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! Standard Deviations
     nvar = ncolvar*(ncolvar+1)/2
     ALLOCATE(wrk(nvar,nvar),stat=stat)
@@ -708,7 +708,7 @@ CONTAINS
     ind = 0
     DO i = 1, ncolvar
        DO j = i, ncolvar
-          ind = ind + 1 
+          ind = ind + 1
           cov_std(i,j) = eig(ind)
           cov_std(j,i) = cov_std(i,j)
        END DO
@@ -716,20 +716,20 @@ CONTAINS
     DEALLOCATE(wrk,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(eig,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(awrk,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(tmp,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE compute_avg_std_errors
-  
+
 ! *****************************************************************************
 !> \brief Computes the covariance matrix
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE eval_cov_matrix(fe_env,cg_index,istart,iend,covmx,avgs,error)        
+  SUBROUTINE eval_cov_matrix(fe_env,cg_index,istart,iend,covmx,avgs,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     INTEGER, INTENT(IN)                      :: cg_index, istart, iend
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -842,12 +842,12 @@ CONTAINS
             TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
     END IF
 
-    ! We must print now the energy of the biased system, the weigthing energy 
+    ! We must print now the energy of the biased system, the weigthing energy
     ! and the derivative w.r.t.the coupling parameter of the biased energy
     ! Retrieve the expression of the weighting function:
     CALL section_vals_val_get(alch_section,"WEIGHTING_FUNCTION",c_val=coupling_function,error=error)
     CALL compress(coupling_function, full=.TRUE.)
-    CALL parsef(2,TRIM(coupling_function),my_par)       
+    CALL parsef(2,TRIM(coupling_function),my_par)
     ene_w   = evalf(2,my_val)
     d_ene_w = evalfd(2,ipar,my_val,dx,err)
     IF (ABS(err)>lerr) THEN
@@ -881,7 +881,7 @@ CONTAINS
        avg_DUE = 0.0_dp
        std_DUE = 0.0_dp
        DO j = 1, isize
-          tmp = cum_res(2,j) 
+          tmp = cum_res(2,j)
           tmp2= EXP(beta*(cum_res(3,j)-avg_BP))/wfac
           avg_DUE = avg_DUE + tmp    * tmp2
           std_DUE = std_DUE + tmp**2 * tmp2

@@ -1,11 +1,11 @@
-!-----------------------------------------------------------------------------! 
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief The Harris environment, which contains beside the harris energy and force 
-!>      types all the informations needed to perform and analyse the Harris 
+!> \brief The Harris environment, which contains beside the harris energy and force
+!>      types all the informations needed to perform and analyse the Harris
 !>      functional energy and force corrections.
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -48,7 +48,7 @@ MODULE harris_env_types
 !> \param ref_count reference counter (see doc/ReferenceCounting.html)
 !> \param harris_energy The harris energy type
 !> \param harris_force The harris force type
-!> \param rho The rho data structure in which diverse representations of 
+!> \param rho The rho data structure in which diverse representations of
 !>             the density are stored
 !> \param rho_diff rho_out - rho_in
 !> \param natom The number of involved atoms
@@ -85,9 +85,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Retains an harris environment (see doc/ReferenceCounting.html)
 !> \param harris_env The harris environment to retain
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_env_type
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -106,7 +106,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -117,9 +117,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases the given harris environment (see doc/ReferenceCounting.html)
 !> \param harris_env The harris environment to release
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_env_type
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -139,7 +139,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     IF (ASSOCIATED(harris_env)) THEN
       CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
       harris_env%ref_count = harris_env%ref_count-1
@@ -170,11 +170,11 @@ CONTAINS
 !> \param harris_energy The harris energy type
 !> \param harris_force The harris force type
 !>        see module cp_error_handling
-!> \param rho The rho data structure in which diverse representations of 
+!> \param rho The rho data structure in which diverse representations of
 !>             the density are stored
 !> \param rho_diff rho_out - rho_in
-!> \param error variable to control error logging, stopping,... 
-!> 
+!> \param error variable to control error logging, stopping,...
+!>
 !>      For possible missing arguments see the attributes of harris_env_type
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -220,12 +220,12 @@ CONTAINS
 !> \param id_nr unique identifier
 !> \param harris_energy The harris energy type
 !> \param harris_force The harris force type
-!> \param rho The rho data structure in which diverse representations of 
+!> \param rho The rho data structure in which diverse representations of
 !>             the density are stored
 !> \param rho_diff rho_out - rho_in
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_env_type
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -251,7 +251,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_env%ref_count>0, cp_failure_level, routineP, error, failure)
 
@@ -269,9 +269,9 @@ CONTAINS
 !> \param harris_env The harris energy environment to be reinitialized
 !> \param natom Number of atoms
 !> \param nspins Number of spins
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_env_type
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -291,9 +291,9 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
       harris_env%natom  = natom
       harris_env%nspins = nspins
@@ -302,7 +302,7 @@ CONTAINS
       CALL harris_force_clear(harris_env%harris_force, natom, error=error)
 
       !CALL coeff_zero(harris_env%rho_core)
-      
+
       IF (ASSOCIATED(harris_env%rho)) THEN
         CALL qs_rho_release(harris_env%rho, error=error)
       END IF
@@ -319,9 +319,9 @@ CONTAINS
 !> \param harris_env The harris environment to be created
 !> \param natom Number of atoms
 !> \param nspins Number of spins
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_env_type
 !> \par History
 !>      07.2005 initial create [tdk]
@@ -342,7 +342,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     ALLOCATE(harris_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
@@ -360,7 +360,7 @@ CONTAINS
     !  ALLOCATE(harris_env%rho, stat=stat)
     !  CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     !END IF
-   
+
     IF (.NOT. failure) THEN
       harris_env%ref_count = 1
       last_harris_id=last_harris_id+1

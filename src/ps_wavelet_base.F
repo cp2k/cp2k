@@ -53,9 +53,9 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: zmpi1
 
-    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1' 
-    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2' 
-    IF (nd3.LT.n3/2+1) STOP 'Parallel convolution:ERROR:nd3' 
+    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1'
+    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2'
+    IF (nd3.LT.n3/2+1) STOP 'Parallel convolution:ERROR:nd3'
     IF (md1.LT.n1) STOP 'Parallel convolution:ERROR:md1'
     IF (md2.LT.n2) STOP 'Parallel convolution:ERROR:md2'
     IF (md3.LT.n3) STOP 'Parallel convolution:ERROR:md3'
@@ -131,10 +131,10 @@ CONTAINS
 
     ! transform along z axis
     lot=ncache/(4*n3)
-    IF (lot.LT.1) THEN  
-       WRITE(6,*) & 
-            'convolxc_off:ncache has to be enlarged to be able to hold at' // &  
-            'least one 1-d FFT of this size even though this will' // & 
+    IF (lot.LT.1) THEN
+       WRITE(6,*) &
+            'convolxc_off:ncache has to be enlarged to be able to hold at' // &
+            'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths'
        STOP
     ENDIF
@@ -185,10 +185,10 @@ CONTAINS
 
           ! transform along x axis
           lot=ncache/(4*n1)
-          IF (lot.LT.1) THEN  
-             WRITE(6,*) & 
-                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &  
-                  'least one 1-d FFT of this size even though this will' // & 
+          IF (lot.LT.1) THEN
+             WRITE(6,*) &
+                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &
+                  'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
              STOP
           ENDIF
@@ -218,17 +218,17 @@ CONTAINS
 
              !storing the last step into zt array
              i=ic1
-             CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), & 
-                  btrig1,after1(i),now1(i),before1(i),1)           
+             CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), &
+                  btrig1,after1(i),now1(i),before1(i),1)
              !output: I2,i1,j3,(jp3)
           END DO
 
           !transform along y axis
           lot=ncache/(4*n2)
-          IF (lot.LT.1) THEN  
-             WRITE(6,*) & 
-                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &  
-                  'least one 1-d FFT of this size even though this will' // & 
+          IF (lot.LT.1) THEN
+             WRITE(6,*) &
+                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &
+                  'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
              STOP
           ENDIF
@@ -238,7 +238,7 @@ CONTAINS
              mb=MIN(j+(lot-1),n1)
              nfft=mb-ma+1
 
-             !reverse ordering 
+             !reverse ordering
              !input: I2,i1,j3,(jp3)
              CALL P_switch_upcorn(nfft,n2,lot,n1,lzt,zt(1,1,j),zw(1,1,1))
              !output: i1,I2,j3,(jp3)
@@ -330,7 +330,7 @@ CONTAINS
              !output: I1,i3,J2,(Jp2)
 
              !performing FFT
-             !input: I1,i3,J2,(Jp2)           
+             !input: I1,i3,J2,(Jp2)
              inzee=1
              DO i=1,ic3
                 CALL fftstp(lot,nfft,n3,lot,n3,zw(1,1,inzee),zw(1,1,3-inzee), &
@@ -346,7 +346,7 @@ CONTAINS
        ENDIF
     END DO
 
-    !De-allocations  
+    !De-allocations
     DEALLOCATE(btrig1,stat=i_all)
     DEALLOCATE(ftrig1,stat=i_stat)
     i_all=i_all+i_stat
@@ -499,9 +499,9 @@ CONTAINS
 !> \param md 1,md3:     Dimensions of the undistributed part of the real grid
 !> \param nfft number of planes
 !> \param scal Needed to achieve unitarity and correct dimensions
-!> \warning Assuming that high frequencies are in the corners 
-!>      and that n3 is multiple of 4   
-!> 
+!> \warning Assuming that high frequencies are in the corners
+!>      and that n3 is multiple of 4
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -525,7 +525,7 @@ CONTAINS
     DO i3=1,n3
        DO i1=1,nfft
           pot1 = scal*zw(1,i1,i3)
-          zf(i1,i3)= pot1 
+          zf(i1,i3)= pot1
        END DO
     END DO
 
@@ -559,7 +559,7 @@ CONTAINS
 !> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
 !> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
 !> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -598,7 +598,7 @@ CONTAINS
 !> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
 !> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
 !> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -645,7 +645,7 @@ CONTAINS
 !>      n1,n2:      logical dimension of the FFT transform, reference for zw
 !>      nd1,nd2:    Dimensions of POT
 !>      jS,j3,nfft: starting point of the plane and number of remaining lines
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -697,7 +697,7 @@ CONTAINS
 !>      n1,n2:    logical dimension of the FFT transform, reference for zw
 !>      nd1,nd2:  Dimensions of POT
 !>      jS, nfft: starting point of the plane and number of remaining lines
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -757,23 +757,23 @@ CONTAINS
 !>      Does NOT calculate the LDA exchange-correlation terms
 !> \param zf Density (input/output)
 !>                   ZF(i1,i3,i2)
-!>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
+!>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3
 !> \param pot Kernel, only the distributed part (REAL)
 !>                   POT(i1,i2,i3)
-!>                   i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc 
+!>                   i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc
 !> \param nproc number of processors used as returned by MPI_COMM_SIZE
 !> \param iproc [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!>      n1,n2,n3/2:  logical dimension of the transform. As transform lengths 
+!>      n1,n2,n3/2:  logical dimension of the transform. As transform lengths
 !>                     most products of the prime factors 2,3,5 are allowed.
-!>                   The detailed table with allowed transform lengths can 
+!>                   The detailed table with allowed transform lengths can
 !>                   be found in subroutine CTRIG
 !>      md1,md2,md3: Dimension of ZF
 !>      nd1,nd2,nd3/nproc: Dimension of POT
-!> \param scal factor of renormalization of the FFT in order to acheve unitarity 
+!> \param scal factor of renormalization of the FFT in order to acheve unitarity
 !>                   and the correct dimension
 !>      hx,hy,hz:    grid spacing, used for integrating eharthree
 !> \param ehartree hartree energy of the potential
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -822,8 +822,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     ! check input
     IF (MOD(n3,2).NE.0) STOP 'Parallel convolution:ERROR:n3'
-    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1' 
-    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2' 
+    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1'
+    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2'
     IF (nd3.LT.n3/2+1) STOP 'Parallel convolution:ERROR:nd3'
     IF (md1.LT.n1) STOP 'Parallel convolution:ERROR:md1'
     IF (md2.LT.n2) STOP 'Parallel convolution:ERROR:md2'
@@ -920,10 +920,10 @@ CONTAINS
 
     ! transform along z axis
     lot=ncache/(2*n3)
-    IF (lot.LT.1) THEN  
-       WRITE(6,*) & 
-            'convolxc_off:ncache has to be enlarged to be able to hold at' // &  
-            'least one 1-d FFT of this size even though this will' // & 
+    IF (lot.LT.1) THEN
+       WRITE(6,*) &
+            'convolxc_off:ncache has to be enlarged to be able to hold at' // &
+            'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths',n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc
        STOP
     ENDIF
@@ -948,7 +948,7 @@ CONTAINS
                 inzee=3-inzee
              ENDDO
              !output: I1,i3,J2,(Jp2)
-             !unpacking FFT in order to restore correct result, 
+             !unpacking FFT in order to restore correct result,
              !while exchanging components
              !input: I1,i3,J2,(Jp2)
              CALL scramble_unpack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw(1,1,inzee),zmpi2,cosinarr)
@@ -974,10 +974,10 @@ CONTAINS
 
           ! transform along x axis
           lot=ncache/(4*n1)
-          IF (lot.LT.1) THEN  
-             WRITE(6,*) & 
-                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &  
-                  'least one 1-d FFT of this size even though this will' // & 
+          IF (lot.LT.1) THEN
+             WRITE(6,*) &
+                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &
+                  'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
              STOP
           ENDIF
@@ -1007,17 +1007,17 @@ CONTAINS
 
              !storing the last step into zt array
              i=ic1
-             CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), & 
-                  btrig1,after1(i),now1(i),before1(i),1)           
+             CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), &
+                  btrig1,after1(i),now1(i),before1(i),1)
              !output: I2,i1,j3,(jp3)
           END DO
 
           !transform along y axis
           lot=ncache/(4*n2)
-          IF (lot.LT.1) THEN  
-             WRITE(6,*) & 
-                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &  
-                  'least one 1-d FFT of this size even though this will' // & 
+          IF (lot.LT.1) THEN
+             WRITE(6,*) &
+                  'convolxc_off:ncache has to be enlarged to be able to hold at' // &
+                  'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
              STOP
           ENDIF
@@ -1027,7 +1027,7 @@ CONTAINS
              mb=MIN(j+(lot-1),n1)
              nfft=mb-ma+1
 
-             !reverse ordering 
+             !reverse ordering
              !input: I2,i1,j3,(jp3)
              CALL S_switch_upcorn(nfft,n2,lot,n1,lzt,zt(1,1,j),zw(1,1,1))
              !output: i1,I2,j3,(jp3)
@@ -1120,7 +1120,7 @@ CONTAINS
              !output: I1,i3,J2,(Jp2)
 
              !performing FFT
-             !input: I1,i3,J2,(Jp2)           
+             !input: I1,i3,J2,(Jp2)
              inzee=1
              DO i=1,ic3
                 CALL fftstp(lot,nfft,n3/2,lot,n3/2,zw(1,1,inzee),zw(1,1,3-inzee), &
@@ -1139,7 +1139,7 @@ CONTAINS
        ENDIF
     END DO
 
-    !De-allocations  
+    !De-allocations
     DEALLOCATE(btrig1,stat=i_all)
     DEALLOCATE(ftrig1,stat=i_stat)
     i_all=i_all+i_stat
@@ -1287,7 +1287,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief (Based on suitable modifications of S.Goedecker routines)
 !>      Restore data into output array, calculating in the meanwhile
-!>      Hartree energy of the potential 
+!>      Hartree energy of the potential
 !> \param zf Original distributed density as well as
 !>                   Distributed solution of the poisson equation (inout)
 !> \param zw FFT work array
@@ -1296,9 +1296,9 @@ CONTAINS
 !> \param nfft number of planes
 !> \param scal Needed to achieve unitarity and correct dimensions
 !> \param ehartreetmp Hartree energy
-!> \warning Assuming that high frequencies are in the corners 
-!>      and that n3 is multiple of 4   
-!> 
+!> \warning Assuming that high frequencies are in the corners
+!>      and that n3 is multiple of 4
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -1323,10 +1323,10 @@ CONTAINS
        DO i1=1,nfft
           pot1 = scal*zw(1,i1,i3)
           !ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3-1)
-          zf(i1,2*i3-1)= pot1 
+          zf(i1,2*i3-1)= pot1
           pot1 = scal*zw(2,i1,i3)
           !ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3)
-          zf(i1,2*i3)= pot1 
+          zf(i1,2*i3)= pot1
        ENDDO
     END DO
   END SUBROUTINE unfill_downcorn
@@ -1339,7 +1339,7 @@ CONTAINS
     INTEGER                                  :: i1, i3
 
     DO i3=1,n3/4
-       ! WARNING: Assuming that high frequencies are in the corners 
+       ! WARNING: Assuming that high frequencies are in the corners
        !          and that n3 is multiple of 4
        !in principle we can relax this condition
        DO i1=1,nfft
@@ -1368,7 +1368,7 @@ CONTAINS
 !> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
 !> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
 !> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -1417,7 +1417,7 @@ CONTAINS
           feR=.5_dp*(a+c)
           feI=.5_dp*(b-d)
           foR=.5_dp*(a-c)
-          foI=.5_dp*(b+d) 
+          foI=.5_dp*(b+d)
           fR=feR+cp*foI-sp*foR
           fI=feI-cp*foR-sp*foI
           zmpi2(1,i1+i,j2,ind1)=fR
@@ -1431,7 +1431,7 @@ CONTAINS
 !> \brief (Based on suitable modifications of S.Goedecker routines)
 !>      Insert the correct planes of the work array zmpi2
 !>      in order to prepare for backward FFT transform
-!>      In the meanwhile, it packs the data in order to be transformed with the HalFFT 
+!>      In the meanwhile, it packs the data in order to be transformed with the HalFFT
 !>      procedure
 !> \param zmpi 2:          Work array for multiprocessor manipulation (input)
 !> \param zw Work array (output)
@@ -1439,7 +1439,7 @@ CONTAINS
 !> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
 !> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
 !> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!> 
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -1478,7 +1478,7 @@ CONTAINS
           ie=(b+d)
           ro=(a-c)*cp-(b-d)*sp
           io=(a-c)*sp+(b-d)*cp
-          rh=re-io 
+          rh=re-io
           ih=ie+ro
           zw(1,i+1,indA)=rh
           zw(2,i+1,indA)=ih
@@ -1493,25 +1493,25 @@ CONTAINS
 !>      Calculates also the LDA exchange-correlation terms
 !> \param zf Density (input/output)
 !>                   ZF(i1,i3,i2)
-!>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
+!>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3
 !> \param pot Kernel, only the distributed part (REAL)
 !>                   POT(i1,i2,i3)
 !>                   i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc
-!> \param zfpot_ion Distributed array of the ionization potential 
+!> \param zfpot_ion Distributed array of the ionization potential
 !> \param nproc number of processors used as returned by MPI_COMM_SIZE
 !> \param iproc [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!>      n1,n2,n3:    logical dimension of the transform. As transform lengths 
+!>      n1,n2,n3:    logical dimension of the transform. As transform lengths
 !>                     most products of the prime factors 2,3,5 are allowed.
-!>                   The detailed table with allowed transform lengths can 
+!>                   The detailed table with allowed transform lengths can
 !>                   be found in subroutine CTRIG
 !>      md1,md2,md3: Dimension of ZF
 !>      nd1,nd2,nd3: Dimension of POT
-!> \param scal factor of renormalization of the FFT in order to acheve unitarity 
+!> \param scal factor of renormalization of the FFT in order to acheve unitarity
 !>                   and the correct dimension
 !> \param hgrid grid spacing, used for integrating quantities
 !> \param ehartree hartree energy of the potential
-!>      eexcu,vexcu: LDA exchange correlation terms   
-!> 
+!>      eexcu,vexcu: LDA exchange correlation terms
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -1645,10 +1645,10 @@ CONTAINS
 
     ! transform along z axis
     lot=ncache/(2*n3)
-    IF (lot.LT.1) THEN  
-       WRITE(6,*) & 
-            'convolxc_on:ncache has to be enlarged to be able to hold at' // &  
-            'least one 1-d FFT of this size even though this will' // & 
+    IF (lot.LT.1) THEN
+       WRITE(6,*) &
+            'convolxc_on:ncache has to be enlarged to be able to hold at' // &
+            'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths'
        STOP
     ENDIF
@@ -1674,7 +1674,7 @@ CONTAINS
              ENDDO
              !output: I1,i3,J2,(Jp2)
 
-             !unpacking FFT in order to restore correct result, 
+             !unpacking FFT in order to restore correct result,
              !while exchanging components
              !input: I1,i3,J2,(Jp2)
              CALL scramble_unpack(i1,j2,lot,nfft,n1/2,n3,md2,nproc,nd3,zw(1,1,inzee),zmpi2,cosinarr)
@@ -1702,10 +1702,10 @@ CONTAINS
 
           ! transform along x axis
           lot=ncache/(4*n1)
-          IF (lot.LT.1) THEN  
-             WRITE(6,*) & 
-                  'convolxc_on:ncache has to be enlarged to be able to hold at' // &  
-                  'least one 1-d FFT of this size even though this will' // & 
+          IF (lot.LT.1) THEN
+             WRITE(6,*) &
+                  'convolxc_on:ncache has to be enlarged to be able to hold at' // &
+                  'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
              STOP
           ENDIF
@@ -1735,17 +1735,17 @@ CONTAINS
 
              !storing the last step into zt array
              i=ic1
-             CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), & 
-                  btrig1,after1(i),now1(i),before1(i),1)           
+             CALL fftstp(lot,nfft,n1,lzt,n1,zw(1,1,inzee),zt(1,j,1), &
+                  btrig1,after1(i),now1(i),before1(i),1)
              !output: I2,i1,j3,(jp3)
           END DO
 
           !transform along y axis
           lot=ncache/(4*n2)
-          IF (lot.LT.1) THEN  
-             WRITE(6,*) & 
-                  'convolxc_on:ncache has to be enlarged to be able to hold at' // &  
-                  'least one 1-d FFT of this size even though this will' // & 
+          IF (lot.LT.1) THEN
+             WRITE(6,*) &
+                  'convolxc_on:ncache has to be enlarged to be able to hold at' // &
+                  'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
              STOP
           ENDIF
@@ -1755,7 +1755,7 @@ CONTAINS
              mb=MIN(j+(lot-1),n1)
              nfft=mb-ma+1
 
-             !reverse ordering 
+             !reverse ordering
              !input: I2,i1,j3,(jp3)
              CALL switch_upcorn(nfft,n2,lot,n1,lzt,zt(1,1,j),zw(1,1,1))
              !output: i1,I2,j3,(jp3)
@@ -1847,7 +1847,7 @@ CONTAINS
              !output: I1,i3,J2,(Jp2)
 
              !performing FFT
-             !input: I1,i3,J2,(Jp2)           
+             !input: I1,i3,J2,(Jp2)
              inzee=1
              DO i=1,ic3
                 CALL fftstp(lot,nfft,n3/2,lot,n3/2,zw(1,1,inzee),zw(1,1,3-inzee), &
@@ -1866,7 +1866,7 @@ CONTAINS
        ENDIF
     END DO
 
-    !De-allocations  
+    !De-allocations
     DEALLOCATE(btrig1,stat=i_all)
     DEALLOCATE(ftrig1,stat=i_stat)
     i_all=i_all+i_stat
@@ -1919,9 +1919,9 @@ CONTAINS
 
     INTEGER                                  :: i, j
 
-! WARNING: Assuming that high frequencies are in the corners 
+! WARNING: Assuming that high frequencies are in the corners
 !          and that n2 is multiple of 2
-! Low frequencies 
+! Low frequencies
 
     DO j=1,nfft
        DO i=n2/2+1,n2
@@ -1929,7 +1929,7 @@ CONTAINS
           zw(2,j,i)=zt(2,i-n2/2,j)
        END DO
     END DO
-    ! High frequencies 
+    ! High frequencies
     DO i=1,n2/2
        DO j=1,nfft
           zw(1,j,i)=0._dp
@@ -1946,7 +1946,7 @@ CONTAINS
 
     INTEGER                                  :: i1, j2, jp2, mfft
 
-! WARNING: Assuming that high frequencies are in the corners 
+! WARNING: Assuming that high frequencies are in the corners
 !          and that n1 is multiple of 2
 
     mfft=0
@@ -1978,7 +1978,7 @@ CONTAINS
 
     INTEGER                                  :: i, j
 
-! WARNING: Assuming that high frequencies are in the corners 
+! WARNING: Assuming that high frequencies are in the corners
 !          and that n2 is multiple of 2
 ! Low frequencies
 
@@ -1999,7 +1999,7 @@ CONTAINS
 
     INTEGER                                  :: i1, j2, jp2, mfft
 
-! WARNING: Assuming that high frequencies are in the corners 
+! WARNING: Assuming that high frequencies are in the corners
 !          and that n1 is multiple of 2
 
     mfft=0
@@ -2023,7 +2023,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief (Based on suitable modifications of S.Goedecker routines)
 !>      Restore data into output array, calculating in the meanwhile
-!>      Hartree energy of the potential 
+!>      Hartree energy of the potential
 !> \param zf Original distributed density as well as
 !>                   Distributed solution of the poisson equation (inout)
 !> \param zw FFT work array
@@ -2032,9 +2032,9 @@ CONTAINS
 !> \param nfft number of planes
 !> \param scal Needed to achieve unitarity and correct dimensions
 !> \param ehartreetmp Hartree energy
-!> \warning Assuming that high frequencies are in the corners 
-!>      and that n3 is multiple of 4   
-!> 
+!> \warning Assuming that high frequencies are in the corners
+!>      and that n3 is multiple of 4
+!>
 !>  RESTRICTIONS on USAGE
 !>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
@@ -2061,10 +2061,10 @@ CONTAINS
        DO i1=1,nfft
           pot1 = scal*zw(1,i1,i3)
           ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3-1)
-          zf(i1,2*i3-1)= pot1 
+          zf(i1,2*i3-1)= pot1
           pot1 = scal*zw(2,i1,i3)
           ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3)
-          zf(i1,2*i3)= pot1 
+          zf(i1,2*i3)= pot1
        ENDDO
     END DO
   END SUBROUTINE F_unfill_downcorn

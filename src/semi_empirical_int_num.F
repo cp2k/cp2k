@@ -65,11 +65,11 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!> 
+!>
 !>    on output     w      = Array of two-electron repulsion integrals.
-!> 
+!>
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
@@ -105,10 +105,10 @@ CONTAINS
        ! rapidly.  (anti-normal computer storage)
        rij = SQRT(rij)
 
-       ! Create the rotation matrix 
+       ! Create the rotation matrix
        CALL rotmat_create(ij_matrix, error)
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
-       
+
        ! Compute Integrals in Diatomic Frame
        CALL terep_num(sepi,sepj,rij,rep,se_taper=se_taper,se_int_control=se_int_control,error=error)
 
@@ -119,7 +119,7 @@ CONTAINS
           limij = sepi%atm_int_size
           limkl = sepj%atm_int_size
           istep = limkl * limij
-          DO i1 = 1, istep 
+          DO i1 = 1, istep
              ww(i1) = 0.0_dp
           END DO
 
@@ -207,7 +207,7 @@ CONTAINS
           END DO
        END IF
        CALL rotmat_release(ij_matrix, error)
-    
+
        ! Store two electron integrals in the triangular format
        CALL store_2el_2c_diag(limij, limkl, ww, w, error=error)
     ENDIF
@@ -219,7 +219,7 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output ri      = array of two-electron repulsion integrals
@@ -267,9 +267,9 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened 
+!>      se_int_screen    = contains information for computing the screened
 !>                         integrals KDSO-D
 !>
 !>     on output rep     = array of two-electron repulsion integrals
@@ -336,9 +336,9 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened 
+!>      se_int_screen    = contains information for computing the screened
 !>                         integrals KDSO-D
 !>
 !>     on output rep     = array of two-electron repulsion integrals
@@ -407,7 +407,7 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
 !>
 !>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
@@ -447,14 +447,14 @@ CONTAINS
 
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
-       ! Create the rotation matrix 
+       ! Create the rotation matrix
        CALL rotmat_create(ij_matrix, error)
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
        CALL core_nucint_num(sepi,sepj,rij,core=core,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control,error=error)
-       
+
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
        last_orbital(2)  = sepj%natorb
@@ -500,12 +500,12 @@ CONTAINS
                 END IF
              END DO
           END DO
-          IF (n==1) THEN 
+          IF (n==1) THEN
              DO i = 1, sepi%atm_int_size
                 e1b(i) = -tmp(i)
              END DO
           END IF
-          IF (n==2) THEN 
+          IF (n==2) THEN
              DO i = 1, sepj%atm_int_size
                 e2a(i) = -tmp(i)
              END DO
@@ -520,7 +520,7 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
 !>
 !>    on output     enuc= nuclear-nuclear repulsion term.
@@ -639,7 +639,7 @@ CONTAINS
              END DO
           ENDIF
           IF(itype == do_method_pdg) THEN
-             ! PDDG function 
+             ! PDDG function
              zaf=sepi%zeff/nt
              zbf=sepj%zeff/nt
              pai=sepi%pre(1)
@@ -681,7 +681,7 @@ CONTAINS
              scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
           ELSE
              ! General Case
-             ! Factor of 2 found by experiment 
+             ! Factor of 2 found by experiment
              scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
           END IF
           ! General correction term a*exp(-b*(rij-c)^2)
@@ -700,12 +700,12 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE 
+!>        se_int_control   = input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
 !>
 !>    on output     enuc= nuclear-nuclear repulsion term.
 !>
-!> \author Teodoro Laino [tlaino] - 05.2009 
+!> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE corecore_el_num(sepi,sepj,rijv,enuc,itype,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -751,7 +751,7 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>       se_int_control   = input parameters that control the calculation of SE 
+!>       se_int_control   = input parameters that control the calculation of SE
 !>                          integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output ssss    = derivative of (ssss) integral
@@ -780,14 +780,14 @@ CONTAINS
 
     ! Computing Tapering function
     ft               = 1.0_dp
-    IF (itype /=do_method_pchg) THEN 
+    IF (itype /=do_method_pchg) THEN
        ft = taper_eval(se_taper%taper, rij, error)
     END IF
 
     ! In case of dumped integrals compute an additional taper term
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
        se_int_screen%ft = 1.0_dp
-       IF (itype /=do_method_pchg) THEN 
+       IF (itype /=do_method_pchg) THEN
           se_int_screen%ft  = taper_eval(se_taper%taper_add, rij, error)
        END IF
     END IF
@@ -809,7 +809,7 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>       se_int_control   = input parameters that control the calculation of SE 
+!>       se_int_control   = input parameters that control the calculation of SE
 !>                          integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
@@ -838,14 +838,14 @@ CONTAINS
     failure   = .FALSE.
     ! Computing the Tapering function
     ft               = 1.0_dp
-    IF (itype /=do_method_pchg) THEN 
+    IF (itype /=do_method_pchg) THEN
        ft = taper_eval(se_taper%taper, rij, error)
     END IF
 
     ! In case of dumped integrals compute an additional taper term
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
        se_int_screen%ft = 1.0_dp
-       IF (itype /=do_method_pchg) THEN 
+       IF (itype /=do_method_pchg) THEN
           se_int_screen%ft  = taper_eval(se_taper%taper_add, rij, error)
        END IF
     END IF
@@ -869,7 +869,7 @@ CONTAINS
     END DO
 
   END SUBROUTINE core_nucint_num
-  
+
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals for sp basis
 !> \param on input rij   = interatomic distance
@@ -877,9 +877,9 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened 
+!>      se_int_screen    = contains information for computing the screened
 !>                         integrals KDSO-D
 !>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
@@ -969,9 +969,9 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>      se_int_control   = input parameters that control the calculation of SE 
+!>      se_int_control   = input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened 
+!>      se_int_screen    = contains information for computing the screened
 !>                         integrals KDSO-D
 !>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
@@ -982,7 +982,7 @@ CONTAINS
 !>
 !>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
 !> \author
-!>      Teodoro Laino (03.2008) [tlaino] - University of Zurich 
+!>      Teodoro Laino (03.2008) [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, se_int_control, &
        se_int_screen, error)

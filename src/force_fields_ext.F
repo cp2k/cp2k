@@ -243,7 +243,7 @@ CONTAINS
           CALL parser_get_object(parser,cosphi0,error=error)
           CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
           gro_info%torsion_phi0(itype) = ACOS(cosphi0)
-          gro_info%torsion_k(itype) = cp_unit_to_cp2k(gro_info%torsion_k(itype),"kjmol",error=error) 
+          gro_info%torsion_k(itype) = cp_unit_to_cp2k(gro_info%torsion_k(itype),"kjmol",error=error)
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
        END DO
     END IF
@@ -251,7 +251,7 @@ CONTAINS
     CALL parser_release(parser,error=error)
 
     ! LJPARAMETERS SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'
     CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
     label = TRIM(avail_section(19))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
@@ -289,7 +289,7 @@ CONTAINS
           gro_info%nonbond_c12(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12(iatom,jatom),"kjmol*nm^12",error=error)
           gro_info%nonbond_c6_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6_14(iatom,jatom),"kjmol*nm^6",error=error)
           gro_info%nonbond_c12_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12_14(iatom,jatom),"kjmol*nm^12",error=error)
-          
+
           gro_info%nonbond_c6_14(jatom,iatom)= gro_info%nonbond_c6_14(iatom,jatom)
           gro_info%nonbond_c12_14(jatom,iatom)= gro_info%nonbond_c12_14(iatom,jatom)
           gro_info%nonbond_c6(jatom,iatom)= gro_info%nonbond_c6(iatom,jatom)
@@ -764,7 +764,7 @@ CONTAINS
             amb_info%torsion_k(i),&
             amb_info%torsion_m(i),&
             amb_info%torsion_phi0(i)
-       
+
        ! Do some units conversion into internal atomic units
        amb_info%torsion_phi0(i) = cp_unit_to_cp2k(amb_info%torsion_phi0(i),"rad",error=error)
        amb_info%torsion_k(i) = cp_unit_to_cp2k(amb_info%torsion_k(i),"kcalmol",error=error)

@@ -137,7 +137,7 @@ CONTAINS
           DO iparticle2 = 1, iparticle1
              ij_fac = 1.0_dp
              IF (iparticle1==iparticle2) ij_fac=0.5_dp
-             
+
              ip2 = (iparticle2-1)*SIZE(radii)
              q2t   = SUM(charges(ip2+1:ip2+SIZE(radii)))
              !
@@ -334,7 +334,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes energy and derivatives given a set of charges
 !> \param charges current value of the charges (one number for each gaussian used)
-!> 
+!>
 !> \param order_p value of the restraint (i.e. charge of the group)
 !> \param energy energy due to the restraint
 !> \param uv derivate of energy wrt the corresponding charge entry

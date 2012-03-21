@@ -260,7 +260,7 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
-    
+
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -408,7 +408,7 @@ CONTAINS
                 CALL retain_history(mo_loc_history,homo_localized,error)
                 CALL set_qs_env(qs_env,mo_loc_history=mo_loc_history,error=error)
              ENDIF
-               
+
              !write restart for localization of occupied orbitals
              CALL loc_write_restart(qs_env,qs_loc_env_homo,localization_section,mos,&
                   homo_localized, do_homo, error=error)
@@ -435,9 +435,9 @@ CONTAINS
              do_homo=.FALSE.
              CALL qs_loc_env_create(qs_loc_env_lumo,error=error)
              CALL qs_loc_control_init(qs_loc_env_lumo,dft_section,do_homo=do_homo,error=error)
-             min_lumos=MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:,:)),nlumo)         
+             min_lumos=MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:,:)),nlumo)
           END IF
- 
+
           ALLOCATE(unoccupied_orbs(dft_control%nspins),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
@@ -471,12 +471,12 @@ CONTAINS
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              DO ispin=1,dft_control%nspins
                 CALL cp_fm_create(lumo_localized(ispin)%matrix,unoccupied_orbs(ispin)%matrix%matrix_struct,error=error)
-                CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix,lumo_localized(ispin)%matrix,error=error) 
+                CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix,lumo_localized(ispin)%matrix,error=error)
              END DO
              CALL qs_loc_init(qs_env,qs_loc_env_lumo,dft_section,lumo_localized,do_homo,do_mo_cubes,&
-                  evals=unoccupied_evals, error=error)          
+                  evals=unoccupied_evals, error=error)
              CALL qs_loc_env_init(qs_loc_env_lumo,qs_loc_env_lumo%localized_wfn_control,qs_env,&
-                  loc_coeff=unoccupied_orbs,error=error) 
+                  loc_coeff=unoccupied_orbs,error=error)
              CALL get_localization_info(qs_env,qs_loc_env_lumo,dft_section, lumo_localized, wf_r, wf_g,particles,&
                   unoccupied_orbs,unoccupied_evals,marked_states,error=error)
              CALL loc_write_restart(qs_env,qs_loc_env_lumo,localization_section,mos,homo_localized, do_homo,&
@@ -488,7 +488,7 @@ CONTAINS
        IF (has_homo .AND. has_lumo) THEN
          IF (output_unit>0) WRITE(output_unit,*) " "
          DO ispin=1,dft_control%nspins
-             IF(.NOT. scf_control%smear%do_smear) THEN 
+             IF(.NOT. scf_control%smear%do_smear) THEN
                 gap = homo_lumo(ispin,2)-homo_lumo(ispin,1)
                 IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)')&
                                    "HOMO - LUMO gap [eV] :",gap*evolt
@@ -505,7 +505,7 @@ CONTAINS
        ! Destroy the localization environment
        IF (p_loc_homo)  CALL qs_loc_env_destroy(qs_loc_env_homo, error=error)
        IF (p_loc_lumo)  CALL qs_loc_env_destroy(qs_loc_env_lumo, error=error)
-         
+
 
        !stm images
        IF(do_stm)THEN
@@ -518,7 +518,7 @@ CONTAINS
                     lumo_ptr, scf_env, matrix_s, output_unit, marked_states,error)
        IF(p_loc_lumo)CALL cp_fm_vect_dealloc(lumo_localized,error)
        IF(ASSOCIATED(marked_states))THEN
-          DEALLOCATE(marked_states,stat=istat)   
+          DEALLOCATE(marked_states,stat=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
 
@@ -541,16 +541,16 @@ CONTAINS
             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
        ENDIF
-       
+
        ! Print coherent X-ray diffraction spectrum
        CALL qs_scf_post_xray(input, dft_section, logger, qs_env, output_unit, error)
-       
+
        ! Calculation of Electric Field Gradients
        CALL qs_scf_post_efg(input, logger, qs_env, error)
 
        ! Calculation of ET
        CALL qs_scf_post_et(input, qs_env, dft_control, error)
-       
+
        ! Calculation of EPR Hyperfine Coupling Tensors
        CALL qs_scf_post_epr(input, logger, qs_env, error)
 
@@ -612,10 +612,10 @@ CONTAINS
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,molecule_set=molecule_set,&
          dft_control=dft_control,matrix_s=matrix_s,error=error)
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger) 
+    output_unit= cp_logger_get_default_io_unit(logger)
     localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
     localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
-    do_homo=qs_loc_env%localized_wfn_control%do_homo    
+    do_homo=qs_loc_env%localized_wfn_control%do_homo
     IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                "WANNIER_STATES",error=error),cp_p_file)) THEN
         CALL get_qs_env(qs_env=qs_env,WannierCentres=wc,error=error)
@@ -686,7 +686,7 @@ CONTAINS
           ! Compute the molecular states
           IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                "MOLECULAR_STATES",error=error),cp_p_file)) THEN
-             CALL construct_molecular_states(molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix,& 
+             CALL construct_molecular_states(molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix,&
                   evals(ispin)%array,ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                   localization_section=localization_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo),&
                   marked_states=marked_states_spin,error=error)
@@ -717,7 +717,7 @@ CONTAINS
   !> \brief Gets the lumos, and eigenvalues for the lumos
   ! *****************************************************************************
   SUBROUTINE make_lumo(qs_env,scf_env,unoccupied_orbs,unoccupied_evals,nlumo,nlumos,error)
-    
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -754,7 +754,7 @@ CONTAINS
                     dft_control=dft_control,matrix_s=matrix_s,admm_env=admm_env,&
                     matrix_ks_aux_fit=ks_rmpv_aux_fit, error=error)
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger) 
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     DO ispin=1,dft_control%nspins
        NULLIFY(unoccupied_orbs(ispin)%matrix)
@@ -774,7 +774,7 @@ CONTAINS
        CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
        CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix,nlumos,error=error)
-       
+
        ! the full_all preconditioner makes not much sense for lumos search
        NULLIFY(local_preconditioner)
        IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
@@ -784,7 +784,7 @@ CONTAINS
              NULLIFY(local_preconditioner)
           ENDIF
        ENDIF
-      
+
        ! ** If we do ADMM, we add have to modify the kohn-sham matrix
        IF( dft_control%do_admm ) THEN
          CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
@@ -798,7 +798,7 @@ CONTAINS
             preconditioner=local_preconditioner, &
             iter_max=scf_control%max_iter_lumos,&
             size_ortho_space=nmo,error=error)
-       
+
        CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
             unoccupied_evals(ispin)%array, scr=output_unit, &
             ionode=output_unit>0,error=error)
@@ -809,9 +809,9 @@ CONTAINS
          CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
                                              ks_rmpv_aux_fit(ispin)%matrix, error)
        END IF
-      
+
     END DO
-    
+
     CALL timestop(handle)
 
   END SUBROUTINE make_lumo
@@ -846,19 +846,19 @@ CONTAINS
     NULLIFY(mos,ks_rmpv,scf_control,dft_control,admm_env,ks_rmpv_aux_fit)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,scf_control=scf_control,dft_control=dft_control,&
                     admm_env=admm_env, matrix_ks_aux_fit=ks_rmpv_aux_fit, error=error)
-    
+
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger)   
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     IF (qs_env%dft_control%restricted) THEN
        !
-       ! The issue is that one state is different from the others, 
+       ! The issue is that one state is different from the others,
        ! so we certainly can't rotate all N+1 alpha states among themselves
-       ! furthermore, alpha and beta orbitals do have the same shape, 
+       ! furthermore, alpha and beta orbitals do have the same shape,
        ! but not the same v_xc, therefore these seems to be no reason that
        ! they should have the same eigenvalues.
        ! So it looks like I need a convincing definition of an eigenstate in this case :-)
-       ! 
+       !
        IF (output_unit>0) WRITE(output_unit,*) &
             " Unclear how we define MOs in the restricted case ... skipping"
     ELSE
@@ -890,13 +890,13 @@ CONTAINS
                scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
                co_rotate_dbcsr=mo_coeff_deriv,error=error)
 
-          
+
           ! ** If we do ADMM, we restore the original kohn-sham matrix
           IF( dft_control%do_admm ) THEN
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
                                                 ks_rmpv_aux_fit(ispin)%matrix, error)
           END IF
-         
+
 
           CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &
@@ -992,7 +992,7 @@ CONTAINS
                   IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I4,A,I6,A,F12.6,A,F12.6,A)") "LOCALIZATION| Spin ", &
                        ispin ," The first ",&
                        ilast_intocc," occupied orbitals are localized, corresponding to energies from ",&
-                       mo_eigenvalues(1), " to ",  mo_eigenvalues(ilast_intocc) , " [a.u.]." 
+                       mo_eigenvalues(1), " to ",  mo_eigenvalues(ilast_intocc) , " [a.u.]."
                END IF
             ELSE IF(qs_loc_env%localized_wfn_control%set_of_states == energy_loc_range.AND.do_homo) THEN
                ilow = 0
@@ -1012,7 +1012,7 @@ CONTAINS
                qs_loc_env%localized_wfn_control%lu_bound_states(1,ispin) = ilow
                qs_loc_env%localized_wfn_control%lu_bound_states(2,ispin) = iup
                qs_loc_env%localized_wfn_control%nloc_states(ispin) = iup-ilow +1
-               nmoloc(ispin) = qs_loc_env%localized_wfn_control%nloc_states(ispin) 
+               nmoloc(ispin) = qs_loc_env%localized_wfn_control%nloc_states(ispin)
                IF(occupation(ilow)-occupation(iup) > qs_loc_env%localized_wfn_control%eps_occ) THEN
                   CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                        "The selected energy range includes orbitals with different occupation number. "//&
@@ -1116,7 +1116,7 @@ CONTAINS
     IF (explicit) THEN
 
        IF (output_unit>0) THEN
-          WRITE(output_unit,'()') 
+          WRITE(output_unit,'()')
           WRITE(output_unit,'(T2,A)') "Performing wfn mixing"
           WRITE(output_unit,'(T2,A)') "====================="
        ENDIF
@@ -1155,7 +1155,7 @@ CONTAINS
           CALL section_vals_val_get(update_section,"ORIG_SCALE",i_rep_section=i_rep,r_val=orig_scale,error=error)
           CALL section_vals_val_get(update_section,"ORIG_IS_VIRTUAL",i_rep_section=i_rep,l_val=orig_is_virtual,error=error)
 
-          IF(orig_is_virtual)mark_ind=2         
+          IF(orig_is_virtual)mark_ind=2
           IF(mark_number.GT.0)orig_mo_index=marked_states(mark_number,orig_spin_index,mark_ind)
 
           CALL section_vals_val_get(wfn_mix_section,"OVERWRITE_MOS",l_val=overwrite_mos,error=error)
@@ -1171,7 +1171,7 @@ CONTAINS
           CALL cp_fm_to_fm(mos_new(result_spin_index)%mo_set%mo_coeff,matrix_y, &
                            1,mos_new(result_spin_index)%mo_set%nmo-result_mo_index+1,1)
 
-          ! properly mix 
+          ! properly mix
           CALL cp_fm_scale_and_add(result_scale,matrix_y,orig_scale,matrix_x,error)
 
           ! and copy back in the result mos
@@ -1190,12 +1190,12 @@ CONTAINS
        END IF
 
        IF (output_unit>0) THEN
-          WRITE(output_unit,'()') 
+          WRITE(output_unit,'()')
           WRITE(output_unit,'(T2,A,T61,E20.4)')  &
                  "Maximum deviation from MO S-orthonormality",orthonormality
           WRITE(output_unit,'(T2,A)') "Writing new MOs to file"
        ENDIF
-   
+
        ! *** Write WaveFunction restart file ***
        CALL write_mo_set(mos_new,particle_set,dft_section=dft_section,scp=.FALSE., &
                          atomic_kind_set=atomic_kind_set,error=error)
@@ -1209,7 +1209,7 @@ CONTAINS
           CALL deallocate_mo_set(mos_new(ispin)%mo_set,error)
        ENDDO
        DEALLOCATE(mos_new)
-   
+
     ENDIF
 
     CALL timestop(handle)
@@ -1339,7 +1339,7 @@ CONTAINS
                        cell=cell,&
                        particle_set=particle_set,&
                        error=error)
-      
+
        reference = section_get_ival(print_key,keyword_name="REFERENCE",error=error)
        CALL section_vals_val_get(print_key,"REF_POINT",r_vals=ref_point,error=error)
        CALL section_vals_val_get(print_key,"PERIODIC",l_val=do_berry,error=error)
@@ -1373,7 +1373,7 @@ CONTAINS
           ! Charges of the wfc involved
           ! Warning, this assumes the same occupation for all states
           zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
-          
+
           DO ispins=1,dft_control%nspins
              DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,2)
                 ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
@@ -1402,14 +1402,14 @@ CONTAINS
           ! Charges of the wfc involved
           ! Warning, this assumes the same occupation for all states
           zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
-          
+
           DO ispins=1,dft_control%nspins
              DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,2)
                 ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
                 dipole=dipole - zwfc * (ria-rcc)
              ENDDO
           ENDDO
-       END IF 
+       END IF
 
        ! Print and possibly store results
        unit_nr=cp_print_key_unit_nr(logger,print_key,extension=".Dipole",&
@@ -1862,7 +1862,7 @@ CONTAINS
           NULLIFY(my_mos)
           ALLOCATE(my_mos(dft_control%nspins),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=stat)          
+          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ispin =1,dft_control%nspins
              NULLIFY(my_mos(ispin)%matrix)
@@ -1876,14 +1876,14 @@ CONTAINS
           CALL set_et_coupling_type(qs_env%et_coupling,et_mo_coeff=my_mos,error=error)
           DEALLOCATE(my_mos)
        END IF
-    END IF    
+    END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_et
 
 ! *****************************************************************************
-!> \brief computes the condition number of the overlap matrix and 
+!> \brief computes the condition number of the overlap matrix and
 !>      prints the value of the total energy. This is needed
 !>      for BASIS_MOLOPT optimizations
 !> \param qs_env the qs_env in which the qs_env lives
@@ -1922,7 +1922,7 @@ CONTAINS
               cp_p_file)) THEN
 
        CALL get_qs_env(qs_env,energy=energy,matrix_s=matrix_s,mos=mos,error=error)
-     
+
        ! set up the two needed full matrices, using mo_coeff as a template
        CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=mo_coeff,nao=nao)
        CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct,&
@@ -1946,7 +1946,7 @@ CONTAINS
           extension=".molopt",error=error)
 
        IF (unit_nr>0) THEN
-           ! please keep this format fixed, needs to be grepable for molopt 
+           ! please keep this format fixed, needs to be grepable for molopt
            ! optimizations
            WRITE(unit_nr,'(T2,A28,2A25)') "","Tot. Ener.","S Cond. Numb."
            WRITE(unit_nr,'(T2,A28,2E25.17)') "BASIS_MOLOPT_QUANTITIES",energy%total,S_cond_number
@@ -1962,7 +1962,7 @@ CONTAINS
   END SUBROUTINE qs_scf_post_molopt
 
 ! *****************************************************************************
-!> \brief Dumps EPR 
+!> \brief Dumps EPR
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -2030,7 +2030,7 @@ CONTAINS
          !
          CALL geminal_optimize(qs_env,print_key,unit_nr,error)
          !
-         IF (unit_nr>0) WRITE(unit_nr,"(T2,79('-'))") 
+         IF (unit_nr>0) WRITE(unit_nr,"(T2,79('-'))")
       END IF
     END IF
 
@@ -2148,12 +2148,12 @@ CONTAINS
                    ELSE
                       mo_coeff_deriv=>NULL()
                    ENDIF
-                   
+
                    CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                         do_rotation=.TRUE.,&
                         co_rotate_dbcsr=mo_coeff_deriv,error=error)
                    CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
-                   
+
                 END IF
                 IF(dft_control%nspins==2) THEN
                    CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&

@@ -83,7 +83,7 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE allocate_scp_force 
+  END SUBROUTINE allocate_scp_force
 
 ! *****************************************************************************
 !> \brief   Deallocate a scp force data structure.
@@ -139,7 +139,7 @@ CONTAINS
   END SUBROUTINE deallocate_scp_force
 
 ! *****************************************************************************
-!> \brief   Initialize a scp force data structure. 
+!> \brief   Initialize a scp force data structure.
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_scp_force(scp_forces)

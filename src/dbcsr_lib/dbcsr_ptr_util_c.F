@@ -190,7 +190,7 @@
       routineP = moduleN//':'//routineN
     INTEGER                               :: stat, error_handle
 !   ---------------------------------------------------------------------------
-    
+
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
     !
@@ -230,7 +230,7 @@
       routineP = moduleN//':'//routineN
     INTEGER                               :: stat, error_handle
 !   ---------------------------------------------------------------------------
-    
+
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
     !

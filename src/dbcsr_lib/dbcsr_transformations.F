@@ -477,7 +477,7 @@ CONTAINS
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
              stored_row = row ; stored_col = col; tr = .FALSE.
-          ELSE                                                
+          ELSE
              IF (row .EQ. col) CYCLE
              stored_row = col ; stored_col = row; tr = .TRUE.
           ENDIF
@@ -1194,7 +1194,7 @@ CONTAINS
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
              stored_row = row ; stored_col = col; tr = blk_p .LT. 0
-          ELSE                                                
+          ELSE
              IF (row .EQ. col) CYCLE
              stored_row = col ; stored_col = row; tr = blk_p .GT. 0
           ENDIF
@@ -1224,19 +1224,19 @@ CONTAINS
           IF (.NOT. same_dst_p ) THEN
            nze = row_blk_size(stored_row) * col_blk_size(stored_col)
            sd_pos = lsdp(dst_p)
-           lsdp(dst_p) = lsdp(dst_p) + nze          
+           lsdp(dst_p) = lsdp(dst_p) + nze
            IF ( symmetry_i .GT. 1 ) THEN
               ! transpose variant
              SELECT CASE (send_data_area%d%data_type)
               CASE (dbcsr_type_real_4)
                 CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%r_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size) 
+                sm%data_area%d%r_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
               CASE (dbcsr_type_real_8)
                 CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
                 sm%data_area%d%r_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
               CASE (dbcsr_type_complex_4)
                 CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%c_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)                
+                sm%data_area%d%c_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
               CASE (dbcsr_type_complex_8)
                 CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
                 sm%data_area%d%c_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
@@ -1294,7 +1294,7 @@ CONTAINS
                     = sm%data_area%d%c_dp(bp+irow+icol*row_size)
                   ENDDO ; ENDDO
                 END IF
-               CASE DEFAULT  
+               CASE DEFAULT
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
                    routineN, "Invalid data type.",__LINE__,error)
               END SELECT
@@ -1332,7 +1332,7 @@ CONTAINS
     DEALLOCATE (lsmp, lsdp)
 
 !$omp end parallel
-    ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same), 
+    ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same),
     ! there are only very few processors that need to exchange data.
     ! The hybrid_alltoall deals with this by doing point to point communication
     SELECT CASE (data_type)
@@ -1458,7 +1458,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes dense matrices for the image matrices.
-!> \param[in,out] images          current (undense) matrix images, output is 
+!> \param[in,out] images          current (undense) matrix images, output is
 !>                                the dense matrix images
 !> \param[in] new_rdist           the new image distribution for dense matrices
 !> \param[in] row_map             mapping of current (undense) rows to dense rows
@@ -1734,7 +1734,7 @@ CONTAINS
          col_internal_offsets)
     !
     und_data = und_matrix%m%data_area
-    CALL dbcsr_data_hold (und_data) 
+    CALL dbcsr_data_hold (und_data)
     CALL dbcsr_data_init (dense_data)
     CALL dbcsr_data_new (dense_data, dbcsr_data_get_type (und_data),&
          data_size = nfullrows * nfullcols,&

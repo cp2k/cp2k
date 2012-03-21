@@ -73,7 +73,7 @@ CONTAINS
 
     CALL pw_fft_wrap_fg_cu(dir, csp3, csp, fscale, n, &
       mapl, mapm, mapn, ngpts, ghat, l1, l2, l3)
-    
+
     pw2%cc(:)=csp(:)
 
     DEALLOCATE( csp3, STAT = ierr )
@@ -128,7 +128,7 @@ CONTAINS
 
     CALL pw_fft_wrap_sf_cu(dir, csp, csp3, fscale, n, &
       mapl, mapm, mapn, ngpts, ghat, l1, l2, l3)
-    
+
     pw2%cr3d(l1:,l2:,l3:)=csp3(1:,1:,1:)
 
     DEALLOCATE( csp3, STAT = ierr )

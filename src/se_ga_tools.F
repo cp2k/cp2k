@@ -4,11 +4,11 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Module that collects GA functionality for semi-empirical 
-!>        
-!> \author CJM and Bruce Palmer (05.2011) 
+!> \brief Module that collects GA functionality for semi-empirical
+!>
+!> \author CJM and Bruce Palmer (05.2011)
 !> \par History
-!>      
+!>
 ! *****************************************************************************
 MODULE se_ga_tools
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -44,9 +44,9 @@ MODULE se_ga_tools
 
 
 ! *****************************************************************************
-  
+
 ! Public subroutine
-           
+
   PUBLIC :: se_deallocate_local_ga, se_ga_ks_accumulate, &
             se_allocate_local_ga, se_ga_initialize, &
             se_ga_allocate_local_info, se_ga_deallocate_local_info, &
@@ -64,7 +64,7 @@ MODULE se_ga_tools
   INTERFACE se_ga_ks_accumulate
      MODULE PROCEDURE se_ga_ks_accumulate_1, se_ga_ks_accumulate_2
   END INTERFACE
-  
+
 
 #ifdef _USE_GA
 #include "mafdecls.fh"
@@ -74,10 +74,10 @@ MODULE se_ga_tools
 CONTAINS
 ! *****************************************************************************
 !> \brief Module that collects GA functionality
-!>        
-!> \author CJM and Bruce Palmer (05.2011) 
+!>
+!> \author CJM and Bruce Palmer (05.2011)
 !> \par History
-!>      
+!>
 ! *****************************************************************************
   SUBROUTINE se_ga_release ( qs_env, error )
     IMPLICIT NONE
@@ -125,7 +125,7 @@ CONTAINS
    status=ga_destroy( ga_env % g_cnt )
 
 #endif
-  END SUBROUTINE se_ga_release 
+  END SUBROUTINE se_ga_release
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
 !> \author CJM
@@ -170,7 +170,7 @@ CONTAINS
     ybox=cell%hmat(2,2)
     zbox=cell%hmat(3,3)
 
-    IF ( ga_env % ncells == 0 ) THEN 
+    IF ( ga_env % ncells == 0 ) THEN
 ! use cut-off
       pdx=INT ( xbox/ga_env%rcoul )
       IF ( ( xbox/REAL ( pdx, dp ) < ga_env % rcoul ) .AND. ( pdx > 1 ) ) THEN
@@ -192,7 +192,7 @@ CONTAINS
       END IF
       ga_env % ncells = pdx*pdy*pdz
       WRITE ( *, * ) 'pds ', pdx,pdy,pdz
-    ELSE  
+    ELSE
 ! use input driven number and compute pdx, pdy, pdz
       number = ga_env % ncells
       CALL grid_factor ( number, cell%hmat(1,1), cell%hmat(2,2), cell%hmat(3,3), pdx, pdy, pdz )
@@ -263,7 +263,7 @@ CONTAINS
 !
 !  Initialize system
 !
-  me = ga_nodeid() 
+  me = ga_nodeid()
   nproc = ga_nnodes()
 !
   rcut2 = ga_env % rcoul**2
@@ -375,14 +375,14 @@ CONTAINS
   ndim = 1
   dims(1) = 1
   g_cnt = ga_create_handle()
-  CALL ga_set_data(g_cnt, ndim, dims, MT_INT) 
+  CALL ga_set_data(g_cnt, ndim, dims, MT_INT)
   status = ga_allocate(g_cnt)
 !
   ndim = 2
   dims(1) = 2
   dims(2) = ga_env % npairs
   chunk(1) = 2
-  chunk(2) = -1 
+  chunk(2) = -1
 ! hold on g_pair_list
   ga_env % g_pair_list = ga_create_handle()
   CALL ga_set_data(ga_env % g_pair_list, ndim, dims, MT_INT)
@@ -453,7 +453,7 @@ CONTAINS
         IF (rc<rcut2) CYCLE
       ENDIF
       idx = nga_read_inc(g_cnt, one, one)
-!     
+!
       lo(2) = idx+1
       hi(2) = idx+1
       pair(2) = j
@@ -466,7 +466,7 @@ CONTAINS
 !
   status = ga_destroy(g_cnt)
 #endif
-  END SUBROUTINE se_ga_pair_list_init 
+  END SUBROUTINE se_ga_pair_list_init
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
 !> \author CJM
@@ -522,14 +522,14 @@ CONTAINS
 
     CPPrecondition ( ASSOCIATED ( ga_env ), cp_failure_level,routineP,error,failure)
 
-      
+
     number = ga_env % ncells
     nx = ga_env % pdx
     ny = ga_env % pdy
     nz = ga_env % pdz
 
 !    CALL grid_factor ( number, cell%hmat(1,1), cell%hmat(2,2), cell%hmat(3,3), nx, ny, nz )
- 
+
     dx=cell%hmat(1,1)/REAL ( nx, dp )
     dy=cell%hmat(2,2)/REAL ( ny, dp )
     dz=cell%hmat(3,3)/REAL ( nz, dp )
@@ -543,7 +543,7 @@ CONTAINS
     CALL ga_set_data ( ga_env % g_cellnum, one, number, MT_F_INT )
     status=ga_allocate ( ga_env % g_cellnum )
     CALL ga_zero ( ga_env % g_cellnum )
-       
+
     ga_env % g_count=ga_create_handle ( )
     CALL ga_set_data ( ga_env % g_count, one, number, MT_F_INT )
     status=ga_allocate ( ga_env % g_count )
@@ -554,9 +554,9 @@ CONTAINS
     status=ga_allocate ( ga_env % g_offset )
     CALL ga_zero ( ga_env % g_offset )
 
-    IF ( para_env%mepos == 0 ) & 
-    CALL nga_put ( ga_env % g_count, one, one, one, one )  
-    
+    IF ( para_env%mepos == 0 ) &
+    CALL nga_put ( ga_env % g_count, one, one, one, one )
+
     ga_env % g_atoms=ga_create_handle ( )
     CALL ga_set_data ( ga_env % g_atoms, 1, natoms, MT_F_INT )
     status=ga_allocate ( ga_env % g_atoms )
@@ -574,7 +574,7 @@ CONTAINS
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
         IF ( first_time ) &
         max_rows = MAX ( natorb, max_rows )
-        r_pbc ( : )  = pbc ( particle_set ( iparticle ) % r ( : ), cell ) 
+        r_pbc ( : )  = pbc ( particle_set ( iparticle ) % r ( : ), cell )
 ! should be between 0 -> L
         CALL pbc_wrap ( r_pbc, cell%hmat(1,1), cell%hmat(2,2), cell%hmat (3,3) )
         xbin = INT ( r_pbc  ( 1 ) / dx )
@@ -584,10 +584,10 @@ CONTAINS
         IF ( ( nbin > ga_env % ncells ) .OR. ( nbin < 1 ) ) THEN
            WRITE ( *, * ) "WARNING", iparticle, nbin, ga_env % ncells
         END IF
-        CALL nga_acc ( ga_env % g_cellnum, nbin, nbin, one, one, one ) 
+        CALL nga_acc ( ga_env % g_cellnum, nbin, nbin, one, one, one )
       END DO
     END DO
-    
+
     IF ( first_time ) THEN
 !      CALL mp_max ( max_rows, para_env%group )
       first_time = .FALSE.
@@ -605,8 +605,8 @@ CONTAINS
     CALL ga_scan_add(ga_env % g_cellnum, ga_env % g_offset, ga_env % g_count, 1, number, 1)
     CALL ga_zero ( ga_env % g_count )
 
-    dims(1) = ga_env % se_dims(1)*ga_env % se_dims(1) + 5 
-    dims(2) = ga_env % se_dims(3) 
+    dims(1) = ga_env % se_dims(1)*ga_env % se_dims(1) + 5
+    dims(2) = ga_env % se_dims(3)
     chunk(1) = dims(1)
     chunk(2) = -1
     ALLOCATE(tmp_info(dims(1)))
@@ -640,7 +640,7 @@ CONTAINS
       nparticle_local = local_particles%n_el(iparticle_kind)
       DO iparticle_local=1,nparticle_local
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        r_pbc ( : )  = pbc ( particle_set ( iparticle ) % r ( : ), cell ) 
+        r_pbc ( : )  = pbc ( particle_set ( iparticle ) % r ( : ), cell )
 ! should be between 0 -> L
         CALL pbc_wrap ( r_pbc, cell%hmat(1,1), cell%hmat(2,2), cell%hmat (3,3) )
         xbin = INT ( r_pbc  ( 1 ) / dx )
@@ -662,8 +662,8 @@ CONTAINS
           DO j = 1, natorb
             icnt = icnt + 1
             tmp_info(5+icnt) = 0.0_dp
-          END DO 
-        END DO 
+          END DO
+        END DO
         lo(1) = 1
         lo(2) = ioff+iloc+1
         hi(1) = ga_env%se_dims ( 1 )**2 + 5
@@ -678,10 +678,10 @@ CONTAINS
   END SUBROUTINE se_ga_initialize
 ! *****************************************************************************
 !> \brief Module that collects GA functionality
-!>        
-!> \author CJM and Bruce Palmer (05.2011) 
+!>
+!> \author CJM and Bruce Palmer (05.2011)
 !> \par History
-!>      
+!>
 ! *****************************************************************************
   SUBROUTINE se_allocate_local_ga ( buff, max_rows, error )
     REAL ( dp ), POINTER :: buff ( :, : )
@@ -698,10 +698,10 @@ CONTAINS
   END SUBROUTINE se_allocate_local_ga
 ! *****************************************************************************
 !> \brief Module that collects GA functionality
-!>        
-!> \author CJM and Bruce Palmer (05.2011) 
+!>
+!> \author CJM and Bruce Palmer (05.2011)
 !> \par History
-!>      
+!>
 ! *****************************************************************************
   SUBROUTINE se_deallocate_local_ga ( buff, error )
     REAL ( dp ), POINTER :: buff ( :, : )
@@ -727,7 +727,7 @@ CONTAINS
    LOGICAL :: failure
    INTEGER :: handle, stat
    INTEGER :: iblock_row, iblock_col, rows_block
-   INTEGER ::  lo ( 2 ), hi ( 2 ), ld 
+   INTEGER ::  lo ( 2 ), hi ( 2 ), ld
    INTEGER :: blk, idx
    INTEGER, PARAMETER :: one = 1
    REAL(kind=dp), DIMENSION(:, :), POINTER  ::   block
@@ -748,7 +748,7 @@ CONTAINS
          hi(2) = idx
          ld = 1
          CALL nga_put(ga_env % g_d_info, lo, hi, block, ld)
-      END IF 
+      END IF
    END DO
    CALL cp_dbcsr_iterator_stop ( iter )
    CALL timestop(handle)
@@ -794,12 +794,12 @@ CONTAINS
          block = block + dum
          DEALLOCATE ( dum , STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF 
+      END IF
    END DO
    CALL cp_dbcsr_iterator_stop ( iter )
    CALL timestop(handle)
 #endif
-  END SUBROUTINE se_ga_diag_add 
+  END SUBROUTINE se_ga_diag_add
 ! *****************************************************************************
     SUBROUTINE se_ga_ks_accumulate_2 ( ga_env, ks_i, ks_j, ioff, joff, isize, jsize )
       TYPE ( ga_environment_type ), POINTER :: ga_env
@@ -851,7 +851,7 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN = 'se_ga_deallocate_local_2', &
        routineP = moduleN//':'//routineN
      LOGICAL :: failure
-    
+
      IF ( ASSOCIATED ( dens_i_info ) )  DEALLOCATE ( dens_i_info, STAT=stat )
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      IF ( ASSOCIATED ( dens_j_info ) )  DEALLOCATE ( dens_j_info, STAT=stat )
@@ -876,7 +876,7 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN = 'se_ga_deallocate_local_1', &
        routineP = moduleN//':'//routineN
      LOGICAL :: failure
-    
+
      IF ( PRESENT ( dens_i_info ) ) THEN
        IF ( ASSOCIATED ( dens_i_info ) )  DEALLOCATE ( dens_i_info, STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -951,7 +951,7 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
      CALL nga_get(ga_env%g_offset,ibin,ibin,myioff,one)
      CALL nga_get(ga_env%g_cellnum,ibin,ibin,isize,one)
      IF ( isize == 0 ) RETURN
-     IF ( PRESENT ( ioff ) )   ioff =  myioff 
+     IF ( PRESENT ( ioff ) )   ioff =  myioff
      ilo(1) = 1
      ilo(2) = myioff + 1
      ihi(1) = ga_env % se_dims(1) * ga_env % se_dims(1) + 5
@@ -980,7 +980,7 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
      IF ( my_lzero ) CALL ga_zero ( ga_handle )
      nbin = nga_read_inc ( ga_handle, one, one )
 #endif
-    END SUBROUTINE se_ga_get_nbin 
+    END SUBROUTINE se_ga_get_nbin
 
 ! *****************************************************************************
     SUBROUTINE grid_factor(p,xdim,ydim,zdim,idx,idy,idz)
@@ -999,7 +999,7 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
        i = 1
 !
 !    factor p completely
-!    first, find all prime numbers, besides 1, less than or equal to 
+!    first, find all prime numbers, besides 1, less than or equal to
 !    the square root of p
 !
       ip = INT(SQRT(DBLE(p)))+1
@@ -1056,22 +1056,22 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
 
       DO WHILE ( r ( 1 ) > x )
         r ( 1 ) = r ( 1 ) - x
-      END DO 
+      END DO
       DO WHILE ( r ( 2 ) > y )
         r ( 2 ) = r ( 2 ) - y
-      END DO 
+      END DO
       DO WHILE ( r ( 3 ) > z )
         r ( 3 ) = r ( 3 ) - z
-      END DO 
+      END DO
       DO WHILE ( r ( 1 ) < 0.0_dp )
         r ( 1 ) = r ( 1 ) + x
-      END DO 
+      END DO
       DO WHILE ( r ( 2 ) < 0.0_dp )
         r ( 2 ) = r ( 2 ) + y
-      END DO 
+      END DO
       DO WHILE ( r ( 3 ) < 0.0_dp )
         r ( 3 ) = r ( 3 ) + z
-      END DO 
+      END DO
     END SUBROUTINE pbc_wrap
 ! *****************************************************************************
 END MODULE se_ga_tools

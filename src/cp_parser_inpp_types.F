@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
- 
+
 ! *****************************************************************************
 !> \brief a module to allow simple internal preprocessing in input files.
 !> \par History
@@ -41,7 +41,7 @@ MODULE cp_parser_inpp_types
 
   PUBLIC :: inpp_type, create_inpp_type, release_inpp_type
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_types'
-  
+
 CONTAINS
 
 ! ****************************************************************************
@@ -81,7 +81,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        inpp%variable_name=initial_variables(1,:)
        ALLOCATE(inpp%variable_value(inpp%num_variables),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        inpp%variable_value=initial_variables(2,:)
     ENDIF
 

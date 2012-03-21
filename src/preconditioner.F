@@ -183,7 +183,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
                             "This precond with mixed precision is not supported yet")
        END SELECT
     ENDIF
- 
+
     needs_full_spectrum=.FALSE.
     needs_homo=.FALSE.
 
@@ -201,7 +201,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "The preconditioner is unknown ...")
     END SELECT
-   
+
     energy_homo=0.0_dp
     IF (needs_full_spectrum) THEN
        ALLOCATE(eigenvalues_ot(k),STAT=istat)
@@ -223,7 +223,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        ENDIF
        IF (k>0) energy_homo=eigenvalues_ot(k)
     ELSE
-       IF (needs_homo) THEN 
+       IF (needs_homo) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Not yet implemented")
        ENDIF
@@ -775,7 +775,7 @@ SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
   CALL cp_fm_release(work,error=error)
 
   CALL timestop(handle)
-    
+
 END SUBROUTINE apply_full_direct
 
 
@@ -802,7 +802,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_single_inverse', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: eval_shift = 5.0_dp , &
-                                                fudge_factor = 2.0_dp 
+                                                fudge_factor = 2.0_dp
 
     INTEGER                                  :: handle, k, n
     REAL(KIND=dp)                            :: error_estimate, &
@@ -841,7 +841,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CALL cp_dbcsr_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
     CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
     CALL cp_dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
-    
+
     IF(mixed_precision) THEN
        CALL cp_fm_create(matrix_sc0_sp,matrix_c0%matrix_struct,name="sc0_sp",&
                          use_sp=mixed_precision,error=error)
@@ -850,7 +850,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        CALL cp_fm_to_fm(matrix_sc0,matrix_sc0_sp,error=error)
        CALL cp_fm_to_fm(matrix_hc0,matrix_hc0_sp,error=error)
        matrix_ptr => matrix_sc0; matrix_sc0 => matrix_sc0_sp; matrix_sc0_sp => matrix_ptr
-       CALL cp_fm_release(matrix_sc0_sp,error=error)       
+       CALL cp_fm_release(matrix_sc0_sp,error=error)
        matrix_ptr => matrix_hc0; matrix_hc0 => matrix_hc0_sp; matrix_hc0_sp => matrix_ptr
        CALL cp_fm_release(matrix_hc0_sp,error=error)
     ENDIF
@@ -909,7 +909,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
 END SUBROUTINE make_full_single_inverse
 
 ! *****************************************************************************
-!> \brief generates a state by state preconditioner based on the full hamiltonian matrix 
+!> \brief generates a state by state preconditioner based on the full hamiltonian matrix
 !> \param energy_gap should be a slight underestimate of the physical energy gap for almost all systems
 !>      the c0 are already ritz states of (h,s)
 !> \note
@@ -991,7 +991,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
        CALL cp_fm_release(matrix_s1,error=error)
        CALL cp_fm_release(matrix_shc0,error=error)
        ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
-       ! is small enough. A large error combined with a small energy gap would otherwise lead to 
+       ! is small enough. A large error combined with a small energy gap would otherwise lead to
        ! an aggressive but bad preconditioner. Only when the error is small (MD), we can precondition
        ! aggressively
        preconditioner_env%energy_gap= MAX(energy_gap,error_estimate*fudge_factor)
@@ -1043,7 +1043,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     ! 3) replace the lowest k evals and evecs with what they should be
     preconditioner_env%occ_evals=c0_evals
     ! notice, this choice causes the preconditioner to be constant when applied to sc0 (see apply_full_all)
-    preconditioner_env%full_evals(1:k)=c0_evals 
+    preconditioner_env%full_evals(1:k)=c0_evals
     CALL cp_fm_to_fm(matrix_c0,matrix_pre,k,1,1)
 
     CALL cp_fm_release(matrix_sc0,error=error)
@@ -1294,7 +1294,7 @@ END SUBROUTINE make_full_kinetic
 
   SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, matrix_s, mixed_precision, &
        error)
-    
+
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
@@ -1388,7 +1388,7 @@ END SUBROUTINE make_full_kinetic
     ENDIF
 
     CALL timestop(handle)
- 
+
   END SUBROUTINE make_full_fact_cholesky
 
 ! *****************************************************************************
@@ -1522,7 +1522,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
       routineN = 'make_full_single_inverse_ortho', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: eval_shift = 5.0_dp , &
-                                                fudge_factor = 2.0_dp 
+                                                fudge_factor = 2.0_dp
 
     INTEGER                                  :: handle, k, n
     REAL(KIND=dp)                            :: error_estimate, &
@@ -1665,7 +1665,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
        DEALLOCATE(diag)
        CALL cp_fm_release(matrix_s1,error=error)
        ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
-       ! is small enough. A large error combined with a small energy gap would otherwise lead to 
+       ! is small enough. A large error combined with a small energy gap would otherwise lead to
        ! an aggressive but bad preconditioner. Only when the error is small (MD), we can precondition
        ! aggressively
        preconditioner_env%energy_gap= MAX(energy_gap,error_estimate*fudge_factor)
@@ -1716,7 +1716,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
     ! 3) replace the lowest k evals and evecs with what they should be
     preconditioner_env%occ_evals=c0_evals
     ! notice, this choice causes the preconditioner to be constant when applied to sc0 (see apply_full_all)
-    preconditioner_env%full_evals(1:k)=c0_evals 
+    preconditioner_env%full_evals(1:k)=c0_evals
     CALL cp_fm_to_fm(matrix_c0,matrix_pre,k,1,1)
 
     CALL cp_fm_release(matrix_sc0,error=error)
@@ -2059,8 +2059,8 @@ END SUBROUTINE make_full_all_ortho
 ! *****************************************************************************
 !> \brief DBCSR BIF based Inverse with
 !> \param[in,out] preconditioner_env    The preconditioner environment
-!> \param         fm                    in input contains the matrix to 
-!>                                      approximatly inverse 
+!> \param         fm                    in input contains the matrix to
+!>                                      approximatly inverse
 !> \param         matrix_s              The overlap matrix
 !> \param[in,out] error       cp2k error
 !> \author Valery Weber
@@ -2249,7 +2249,7 @@ END SUBROUTINE make_full_all_ortho
 
        CALL cpu_time(t(3))
        !------------------------------------------------------------------------
-       ! set v and u 
+       ! set v and u
        !
        !v(k,1:n)=A(k,1:n);
        CALL cp_dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)
@@ -2277,11 +2277,11 @@ END SUBROUTINE make_full_all_ortho
        !
        !------------------------------------------------------------------------
        ! build the factor inv(d)*u*A
-       ! 
+       !
        CALL cpu_time(t(5))
        t(51) = t(51) + t(5)-t(4)
        ! compute u(1:k-1,1:n) * A(1:n,k);
-       CALL cp_dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
+       CALL cp_dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by
        !                                                                        !PARA the same procs as A(1:n,k)
        !write(*,*) 'pkd_v_fac:',pkd_v_fac(1:int(pkd_v_fac(nblkrows_total+1))-1)
        !chksum = sum(abs(   pkd_v_fac  ( nblkrows_total+2: int(pkd_v_fac (nblkrows_total+1))-1) ))
@@ -2301,7 +2301,7 @@ END SUBROUTINE make_full_all_ortho
        t(53) = t(53) + t(7)-t(6)
        !------------------------------------------------------------------------
        ! build the factor inv(d)*v
-       ! 
+       !
        ! pack v(:,k)
        !old CALL cp_dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
        !
@@ -2747,7 +2747,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
            END DO
         CASE(ot_precond_full_all,ot_precond_full_single_inverse)
            do_co_rotate = ASSOCIATED(qs_env%mo_derivs)
-           
+
            DO ispin=1,nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b,mo_coeff=mo_coeff)
              use_mo_coeff_b =mos(ispin)%mo_set%use_mo_coeff_b

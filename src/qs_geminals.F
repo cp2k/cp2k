@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Rountines to calculate Geminal integrals
 !> \par History
-!>      07.2009 created 
+!>      07.2009 created
 !> \author J. Hutter
 ! *****************************************************************************
 MODULE qs_geminals
@@ -62,11 +62,11 @@ MODULE qs_geminals
   PRIVATE
   PUBLIC :: geminal_coulomb, geminal_gto_coulomb, geminal_coulomb_diaginv, &
             geminal_charge
-   
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_geminals'
 
 ! *****************************************************************************
-  
+
   CONTAINS
 
 ! *****************************************************************************
@@ -195,7 +195,7 @@ MODULE qs_geminals
                 ELSE
                   IF (MODULO(iatom + jatom,2) /= 0) CYCLE
                 END IF
- 
+
                 CALL gemgem_integral_atom(nga,ngb,nd,intab,atomic_kind_a,ri,atomic_kind_b,rj,nder,&
                                           store_int,eps_screening,error)
 
@@ -262,7 +262,7 @@ MODULE qs_geminals
   END SUBROUTINE geminal_coulomb
 
 ! *****************************************************************************
-!> \brief Computes Coulomb integrals between geminals and products of 
+!> \brief Computes Coulomb integrals between geminals and products of
 !>        Gaussian orbitals
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -666,7 +666,7 @@ MODULE qs_geminals
   END SUBROUTINE geminal_coulomb_diaginv
 
 ! *****************************************************************************
-!> \brief Computes the total charge from the geminal expansion of the density matrix 
+!> \brief Computes the total charge from the geminal expansion of the density matrix
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -781,7 +781,7 @@ MODULE qs_geminals
 !> \brief Computes two center geminal integrals for full basis set
 !> \param intab : list of integrals (output)
 !> \param atomic_kind_a, atomic_kind_b : info on type of basis
-!> \param ra, rb : positions of atoms                         
+!> \param ra, rb : positions of atoms
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1047,7 +1047,7 @@ MODULE qs_geminals
 !> \brief Computes three center geminal integrals for full basis set
 !> \param intabc : list of integrals (output)
 !> \param atomic_kind_a, atomic_kind_b, atomic_kind_c : info on type of basis
-!> \param ra, rb, rc : positions of atoms                         
+!> \param ra, rb, rc : positions of atoms
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

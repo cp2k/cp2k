@@ -1581,7 +1581,7 @@
     t_end = m_walltime ( )
 #else
     send_request=0
-    recv_request=0 
+    recv_request=0
     msgout = msgin
 #endif
   END SUBROUTINE mp_isendrecv_im2

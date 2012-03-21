@@ -5,9 +5,9 @@
 
 ! *****************************************************************************
 !> \brief Calculation and writing of projected density of  states
-!>         The DOS is computed per angular momentum and per kind 
+!>         The DOS is computed per angular momentum and per kind
 !> \par History
-!>      - 
+!>      -
 !> \author Marcella (29.02.2008,MK)
 ! *****************************************************************************
 MODULE qs_pdos
@@ -90,11 +90,11 @@ CONTAINS
 !> \brief   Compute and write projected density of states
 !> \author  MI
 !> \date    26.02.2008
-!> \par History: 
-!>       - 
+!> \par History:
+!>       -
 !> \par Variables
-!>       - 
-!>       - 
+!>       -
+!>       -
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_projected_dos(mo_set,atomic_kind_set,particle_set,qs_env,&
@@ -168,7 +168,7 @@ CONTAINS
     NULLIFY (occupation_numbers, ldos_p)
 
     CALL timeset(routineN,handle)
-    iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel) 
+    iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
 
     CALL get_qs_env(qs_env=qs_env,&
          matrix_s=s_matrix,error=error)
@@ -176,20 +176,20 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
            natom=natom, nsgf=nsgf, maxlgto=maxlgto)
     nkind = SIZE(atomic_kind_set)
-    
+
     CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo,&
                     mu=e_fermi)
     CALL cp_fm_get_info(mo_coeff,&
          context=context, para_env=para_env,&
          nrow_global=nrow_global,&
          ncol_global=ncol_global,error=error)
-    
+
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%NLUMO",i_val=nlumo,error=error)
     IF (nlumo == -1) nlumo = nao - homo
     do_virt = (nlumo>(nmo-homo))
     nvirt = nlumo - (nmo-homo)
     ! Generate virtual orbitals
-    IF(do_virt) THEN 
+    IF(do_virt) THEN
        IF(PRESENT(ispin)) THEN
          my_spin = ispin
        ELSE
@@ -202,7 +202,7 @@ CONTAINS
        nvirt = 0
     END IF
 
-    ! Create S^1/2 : from sparse to full matrix 
+    ! Create S^1/2 : from sparse to full matrix
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
                   nrow_global=nrow_global,ncol_global=nrow_global,error=error)
     CALL cp_fm_create(matrix_shalf, fm_struct_tmp,name="matrix_shalf",error=error)
@@ -249,7 +249,7 @@ CONTAINS
         NULLIFY(ldos_p(ildos)%ldos%list_index)
 
         CALL section_vals_val_get(ldos_section,"LIST",i_rep_section=ildos, n_rep_val=n_rep,&
-             error=error)  
+             error=error)
         IF(n_rep>0) THEN
           ldos_p(ildos)%ldos%nlist = 0
           DO ir = 1,n_rep
@@ -286,10 +286,10 @@ CONTAINS
          error=error)
     IF (separate_components) THEN
       ALLOCATE(pdos_array(nsoset(maxlgto),nkind,nmo+nvirt),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
       ALLOCATE(pdos_array(0:maxlgto,nkind,nmo+nvirt),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(do_virt) THEN
        ALLOCATE(eigenvalues(nmo+nvirt),STAT=stat)
@@ -315,7 +315,7 @@ CONTAINS
     firstrow=0
 
     DO imo =  1,nmo+nvirt
-      
+
       ! Extract the eigenvector from the distributed full matrix
       IF(imo>nmo) THEN
         CALL cp_fm_get_submatrix(matrix_work,vecbuffer,1,imo-nmo,&
@@ -347,7 +347,7 @@ CONTAINS
                    lcomponent = nsoset(lshell-1)+iso
                    pdos_array(lcomponent,kind_number,imo) = &
                         pdos_array(lcomponent,kind_number,imo) +&
-                        vecbuffer(1,irow) * vecbuffer(1,irow) 
+                        vecbuffer(1,irow) * vecbuffer(1,irow)
                    irow = irow + 1
                  END DO  ! iso
               END DO  ! ishell
@@ -360,7 +360,7 @@ CONTAINS
                  DO iso=1,nso(lshell)
                    pdos_array(lshell,kind_number,imo) = &
                         pdos_array(lshell,kind_number,imo) +&
-                        vecbuffer(1,irow) * vecbuffer(1,irow) 
+                        vecbuffer(1,irow) * vecbuffer(1,irow)
                    irow = irow + 1
                  END DO  ! iso
               END DO  ! ishell
@@ -430,13 +430,13 @@ CONTAINS
     END IF
     my_act = "WRITE"
     DO kind_number = 1,nkind
-    
+
       NULLIFY(atomic_kind, orb_basis_set)
       atomic_kind => atomic_kind_set(kind_number)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
            orb_basis_set=orb_basis_set,name=kind_name)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-           maxl=maxl) 
+           maxl=maxl)
 
       ! basis none has no associated maxl, and no pdos
       IF (maxl<0) CYCLE
@@ -448,7 +448,7 @@ CONTAINS
         my_mittle ="k"//TRIM(ADJUSTL(cp_to_string(kind_number)))
         my_spin = 1
       END IF
-      
+
       iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PDOS",&
            extension=".pdos", file_position=my_pos, file_action=my_act,&
            file_form="FORMATTED", middle_name=TRIM(my_mittle), &
@@ -464,7 +464,7 @@ CONTAINS
           WRITE (UNIT=fmtstr1(15:16),FMT="(I2)") maxl+1
           WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") maxl+1
         END IF
- 
+
         WRITE (UNIT=iw,FMT="(A,I0,A,F12.6,A)")&
           "# Projected DOS for atomic kind "//TRIM(kind_name)//" at iteration step i = ",&
           iterstep,", E(Fermi) = ",e_fermi," a.u."
@@ -503,7 +503,7 @@ CONTAINS
     END DO  ! ikind
 
 
-    ! write the pdos for the lists, each ona different file, 
+    ! write the pdos for the lists, each ona different file,
     ! the filenames are indexed with the list number
     DO ildos=1,nldos
      ! basis none has no associated maxl, and no pdos
@@ -516,7 +516,7 @@ CONTAINS
           my_mittle ="list"//TRIM(ldos_index(ildos))
           my_spin = 1
         END IF
-      
+
         iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PDOS",&
              extension=".pdos", file_position=my_pos, file_action=my_act,&
              file_form="FORMATTED", middle_name=TRIM(my_mittle), &
@@ -532,7 +532,7 @@ CONTAINS
             WRITE (UNIT=fmtstr1(15:16),FMT="(I2)") ldos_p(ildos)%ldos%maxl+1
             WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") ldos_p(ildos)%ldos%maxl+1
           END IF
- 
+
           WRITE (UNIT=iw,FMT="(A,I0,A,I0,A,I0,A,F12.6,A)")&
             "# Projected DOS for list ", ildos, " of ",ldos_p(ildos)%ldos%nlist," atoms, at iteration step i = ",iterstep,&
              ", E(Fermi) = ",e_fermi," a.u."
@@ -572,9 +572,9 @@ CONTAINS
 
     ! deallocate local variables
     DEALLOCATE(pdos_array, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(firstrow, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(do_ldos) THEN
        DO ildos = 1,nldos
          DEALLOCATE(ldos_p(ildos)%ldos%pdos_array, STAT=stat)
@@ -591,11 +591,11 @@ CONTAINS
     END IF
     IF(do_virt) THEN
       DEALLOCATE(evals_virt,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL cp_fm_release(mo_virt,error=error)
       CALL cp_fm_release(matrix_work,error=error)
       DEALLOCATE(eigenvalues,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(occupation_numbers,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -608,14 +608,14 @@ CONTAINS
 !> \brief   Compute additional virtual states  starting from the available MOS
 !> \author  MI
 !> \date    08.03.2008
-!> \par History: 
-!>       - 
+!> \par History:
+!>       -
 !> \par Variables
-!>       - 
-!>       - 
+!>       -
+!>       -
 !> \version 1.0
 ! *****************************************************************************
-  
+
   SUBROUTINE generate_virtual_mo (qs_env, mo_set, evals_virt, mo_virt, &
              nvirt, ispin, error )
 
@@ -643,7 +643,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(evals_virt,mo_virt)
     ALLOCATE(evals_virt(nvirt),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env,matrix_ks=ks_matrix, matrix_s=s_matrix, &
          scf_control=scf_control, error=error)

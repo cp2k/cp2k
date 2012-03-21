@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Some auxiliary functions and subroutines needed for HFX calculations 
+!> \brief Some auxiliary functions and subroutines needed for HFX calculations
 !> \par History
 !>      04.2008 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
-MODULE hfx_helpers 
+MODULE hfx_helpers
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_data_size,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_get_matrix_type,&
@@ -26,21 +26,21 @@ MODULE hfx_helpers
 
   IMPLICIT NONE
   PRIVATE
-   
+
   PUBLIC FNV64, count_cells, next_image_cell, count_cells_perd, &
                 next_image_cell_perd, get_occupation
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_helpers'
 
 !***
-  
+
   CONTAINS
 
 ! *****************************************************************************
-!> \brief Calculates random number using hash-table 
+!> \brief Calculates random number using hash-table
 !> \note
 !>      - FNV-1a hash from
-!>          http://www.isthe.com/chongo/tech/comp/fnv/ 
+!>          http://www.isthe.com/chongo/tech/comp/fnv/
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -57,7 +57,7 @@ MODULE hfx_helpers
     DO i=1,8
       hash=IOR(IAND(hash,NOT(255_int_8)),IAND(IEOR(IAND(tmp,255_int_8),hash),255_int_8))
       tmp=ISHFT(tmp,-8)
-      hash = hash + ISHFT(hash,1) + ISHFT(hash,4)+ISHFT(hash,5)+ISHFT(hash,7)+ISHFT(hash,8)+ISHFT(hash,40)      
+      hash = hash + ISHFT(hash,1) + ISHFT(hash,4)+ISHFT(hash,5)+ISHFT(hash,7)+ISHFT(hash,8)+ISHFT(hash,40)
     ENDDO
   END FUNCTION FNV64
 

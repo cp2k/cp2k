@@ -7,7 +7,7 @@
 !> \brief Calculation of three-center overlap integrals over Cartesian
 !>      Gaussian-type functions for the second term V(ppl) of the local
 !>      part of the Goedecker pseudopotential (GTH):
-!> 
+!>
 !>      <a|V(local)|b> = <a|V(erf) + V(ppl)|b>
 !>                     = <a|V(erf)|b> + <a|V(ppl)|b>
 !>                     = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
@@ -52,7 +52,7 @@ CONTAINS
 !                               C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
 !           zetc = alpha**2/2
 !
-!> \author  Juerg Hutter  
+!> \author  Juerg Hutter
 !> \date    May 2011
 !> \version 1.0
 ! *****************************************************************************

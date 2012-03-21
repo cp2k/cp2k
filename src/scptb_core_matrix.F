@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of the Hamiltonian integral and Overlap matrices 
+!> \brief Calculation of the Hamiltonian integral and Overlap matrices
 !> <a|b> and <a|T+V|b> for SCP-TB methods
 !> \author JGH
 ! *****************************************************************************

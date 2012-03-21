@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief  Output Utilities for MOTION_SECTION
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   02.2008 
+!> \date   02.2008
 ! *****************************************************************************
 MODULE motion_utils
 
@@ -211,7 +211,7 @@ CONTAINS
     IF (iw>0) THEN
        WRITE(iw,'(T2,A,I6)')"ROT| Numer of Rotovibrational vectors:",dof
        IF (dof==5) WRITE(iw,'(T2,A)')"ROT| Linear Molecule detected.."
-       IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.." 
+       IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.."
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
     IF (present_mat) THEN
@@ -221,14 +221,14 @@ CONTAINS
        iseq = 0
        DO i = 1, 3
           mat(:,i)=Tr(:,i)
-          IF (lrot(i)==1) THEN 
+          IF (lrot(i)==1) THEN
              iseq = iseq + 1
-             mat(:,3+iseq) = Rot(:,i) 
+             mat(:,3+iseq) = Rot(:,i)
           END IF
        END DO
     END IF
     DEALLOCATE(Tr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Rot,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
@@ -289,7 +289,7 @@ CONTAINS
     IF (PRESENT(pos))          my_pos     = pos
     IF (PRESENT(act))          my_act     = act
     IF (PRESENT(pk_name))      my_pk_name = pk_name
-    
+
     SELECT CASE(TRIM(my_pk_name))
     CASE("TRAJECTORY","SHELL_TRAJECTORY","CORE_TRAJECTORY")
        id_dcd = "CORD"
@@ -492,7 +492,7 @@ CONTAINS
 
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
-    
+
     my_pos = "APPEND"
     my_act = "WRITE"
     IF (PRESENT(pos)) my_pos = pos

@@ -41,7 +41,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_coordinate_control(topology, qmmm_env, subsys_section, error)
-    
+
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
@@ -59,7 +59,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)    
+    logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     IF (iw>0) WRITE(iw,*) "  Entering qmmm_coordinate_control"
@@ -77,7 +77,7 @@ CONTAINS
             TRIM(id2str(topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm))))))
     END DO
     !
-    ! Modify type for MM link atoms 
+    ! Modify type for MM link atoms
     !
     IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
        DO iatm = 1, SIZE(qmmm_env%mm_link_atoms)
@@ -87,16 +87,16 @@ CONTAINS
           topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm)) = str2id(s2s(TRIM(prefix_lnk)//&
                TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm))))))
           topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm)) = str2id(s2s(TRIM(prefix_lnk)//&
-               TRIM(id2str(topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm)))))) 
+               TRIM(id2str(topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm))))))
        END DO
     END IF
     !
     IF (iw>0) WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)    
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(handle)
   END SUBROUTINE qmmm_coordinate_control
-  
+
 ! *****************************************************************************
 !> \brief Set up the connectivity for QM/MM calculations
 !> \par History
@@ -105,7 +105,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qmmm_connectivity_control(molecule_set,&
        qmmm_env, subsys_section, error)
-    
+
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
@@ -167,13 +167,13 @@ CONTAINS
              END DO
              IF (detected_link) THEN
                 IF (iw>0) WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
-                IF (.NOT.qmmm_env%qmmm_link) THEN 
+                IF (.NOT.qmmm_env%qmmm_link) THEN
                    IF (iw>0) WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
                    WRITE(output_unit,'(T2,"QMMM_CONNECTIVITY|",A)')&
                         " ERROR in the QM/MM connectivity. A QM/MM LINK was detected but",&
                         " no LINK section was provided in the Input file!",&
                         " This very probably can be identified as an error in the specified QM",&
-                        " indexes or in a missing LINK section. Check your structure!"  
+                        " indexes or in a missing LINK section. Check your structure!"
                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
              END IF

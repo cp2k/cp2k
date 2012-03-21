@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Setup and Methods for semi-empirical multipole types 
+!> \brief Setup and Methods for semi-empirical multipole types
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
 MODULE semi_empirical_mpole_methods
@@ -84,7 +84,7 @@ CONTAINS
 
        ! Select method for multipolar expansion
 
-       ! Fill in information on multipole expansion due to atomic orbitals charge 
+       ! Fill in information on multipole expansion due to atomic orbitals charge
        ! distribution
        NULLIFY(mpole)
        CALL amn_l(se_parameter, amn, error)
@@ -94,7 +94,7 @@ CONTAINS
              ind2 = indexb(i,j)
              ! the order in the mpoles structure is like the standard one for the
              ! integrals: s px py pz dx2-y2 dzx dz2 dzy dxy (lower triangular)
-             ! which differs from the order of the Hamiltonian in CP2K. But I 
+             ! which differs from the order of the Hamiltonian in CP2K. But I
              ! preferred to keep this order for consistency with the integrals
              mpole => mpoles(ind2)%mpole
              mpole%indi = i
@@ -131,9 +131,9 @@ CONTAINS
 
                 ! Spherical components
                 mpole%qs(1)   = tmp * alm(ind1,2, 0) ! d3z2-r2
-                mpole%qs(2)   = tmp * alm(ind1,2, 1) ! dzx 
-                mpole%qs(3)   = tmp * alm(ind1,2,-1) ! dzy 
-                mpole%qs(4)   = tmp * alm(ind1,2, 2) ! dx2-y2 
+                mpole%qs(2)   = tmp * alm(ind1,2, 1) ! dzx
+                mpole%qs(3)   = tmp * alm(ind1,2,-1) ! dzy
+                mpole%qs(4)   = tmp * alm(ind1,2, 2) ! dx2-y2
                 mpole%qs(5)   = tmp * alm(ind1,2,-2) ! dxy
 
                 ! Convert into cartesian components
@@ -245,9 +245,9 @@ CONTAINS
     failure = .FALSE.
     ! Notation
     !          qs(1) - d3z2-r2
-    !          qs(2) - dzx 
-    !          qs(3) - dzy 
-    !          qs(4) - dx2-y2 
+    !          qs(2) - dzx
+    !          qs(3) - dzy
+    !          qs(4) - dx2-y2
     !          qs(5) - dxy
     ! Cartesian components
     qcart(1,1) =   (qsph(4) - qsph(1) / SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
@@ -304,5 +304,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE nddo_mpole_setup
-  
+
 END MODULE semi_empirical_mpole_methods

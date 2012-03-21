@@ -132,7 +132,7 @@ CONTAINS
 !> \param lreject set to .true. if there is an overlap
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp_error type
-!> 
+!>
 !>      This subroutine is designed to run in parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -205,7 +205,7 @@ CONTAINS
          start_mol=start_mol+SUM(nchains(:,jbox))
       ENDDO
       end_mol=start_mol+SUM(nchains(:,box_number))-1
-      
+
 ! figure out which molecule number we are
       end_atom=start_atom+nunits_mol-1
       molecule_number=0
@@ -219,7 +219,7 @@ CONTAINS
       ENDDO
       IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
            'Cannot find the molecule number')
-      
+
 ! are we biasing this move?
       IF(lbias) THEN
 
@@ -254,7 +254,7 @@ CONTAINS
 
       IF(.NOT. ASSOCIATED(molecule_kind)) CALL &
            stop_program(routineN,moduleN,__LINE__,&
-           'Cannot find the molecule type')      
+           'Cannot find the molecule type')
 ! do the move
       IF (move_type == 'bond') THEN
 
@@ -447,7 +447,7 @@ END SUBROUTINE mc_conformation_change
 !> \param lreject set to .true. if there is an overlap
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp_error type
-!> 
+!>
 !>      This subroutine designed to be parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -528,7 +528,7 @@ END SUBROUTINE mc_conformation_change
       ENDDO
       IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
            'Cannot find the molecule number')
-      
+
 ! are we biasing this move?
       IF(lbias) THEN
 
@@ -682,7 +682,7 @@ END SUBROUTINE mc_conformation_change
 !> \param lreject set to .true. if there is an overlap
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp_error type
-!> 
+!>
 !>      This subroutine has been designed for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -758,7 +758,7 @@ END SUBROUTINE mc_conformation_change
       lx =.FALSE.
       ly =.FALSE.
 
-! determine what the final atom in the molecule is numbered, and which 
+! determine what the final atom in the molecule is numbered, and which
 ! molecule number this is
       end_atom=start_atom+nunits_mol-1
       molecule_number=0
@@ -772,7 +772,7 @@ END SUBROUTINE mc_conformation_change
       ENDDO
       IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
                'Cannot find the molecule number')
-      
+
 ! are we biasing this move?
       IF(lbias) THEN
 
@@ -997,7 +997,7 @@ END SUBROUTINE mc_conformation_change
 !>            case
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp error type
-!> 
+!>
 !>      Designed for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -1363,7 +1363,7 @@ END SUBROUTINE mc_conformation_change
 !> \param particles the particle_list_type for all particles in the force_env..
 !>             used to grab the mass of each atom
 !> \param rng_stream the random number stream that we draw from
-!> 
+!>
 !>    This subroutine is written to be parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -1403,7 +1403,7 @@ END SUBROUTINE mc_conformation_change
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
-      
+
       NULLIFY(rmbond,mc_molecule_info)
 
 ! get some stuff from mc_par
@@ -2083,7 +2083,7 @@ END SUBROUTINE mc_conformation_change
 !> \param move_type dictates if we're moving to an "in" or "out" region
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp_error type
-!> 
+!>
 !>      Designed for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -2499,7 +2499,7 @@ END SUBROUTINE mc_conformation_change
 !> \param iw the unit number that writes to the screen
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp error type
-!> 
+!>
 !>      Designed for parallel use.
 !> \author MJM
 ! *****************************************************************************

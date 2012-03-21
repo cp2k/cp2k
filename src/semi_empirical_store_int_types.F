@@ -107,7 +107,7 @@ CPSourceFileRef,&
          only_ionode=.TRUE.)
 
     ! Allocate containers/caches for integral storage if requested
-    IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN 
+    IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN
        ALLOCATE(store_int_env%integral_containers(64), STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(store_int_env%integral_caches(64), STAT=stat)
@@ -131,7 +131,7 @@ CPSourceFileRef,&
 !> \brief Deallocate the semi-empirical store integrals type
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_si_release(store_int_env, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -145,10 +145,10 @@ CPSourceFileRef,&
     failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        ! Deallocate containers/caches
-       IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN 
-          IF (store_int_env%compress) THEN 
+       IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
+          IF (store_int_env%compress) THEN
              ! Deallocate containers/caches
-             DO i=1,64   
+             DO i=1,64
                 CALL hfx_init_container(store_int_env%integral_containers(i),&
                      store_int_env%memory_parameter%actual_memory_usage,&
                      .FALSE., error)
@@ -181,7 +181,7 @@ CPSourceFileRef,&
 !> \brief Deallocate the semi-empirical store integrals type
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_si_initialize(store_int_env, geometry_did_change, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     LOGICAL, INTENT(IN)                      :: geometry_did_change
@@ -195,7 +195,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
-       IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN 
+       IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
           IF (geometry_did_change) THEN
              store_int_env%filling_containers = .TRUE.
              store_int_env%nbuffer            = 0
@@ -204,7 +204,7 @@ CPSourceFileRef,&
                 ! Compress integrals
                 CALL reallocate(store_int_env%max_val_buffer, 1, store_int_env%nbuffer)
                 ! Clean containers
-                DO i=1,64   
+                DO i=1,64
                    CALL hfx_init_container(store_int_env%integral_containers(i),&
                         store_int_env%memory_parameter%actual_memory_usage,&
                         .FALSE., error)
@@ -237,7 +237,7 @@ CPSourceFileRef,&
 !> \brief Deallocate the semi-empirical store integrals type
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_si_finalize(store_int_env, geometry_did_change, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     LOGICAL, INTENT(IN)                      :: geometry_did_change
@@ -251,8 +251,8 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
-       IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN 
-          IF (geometry_did_change) THEN 
+       IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
+          IF (geometry_did_change) THEN
              IF (store_int_env%compress) THEN
                 ! Flush last cache
                 DO i=1,64

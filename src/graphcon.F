@@ -29,7 +29,7 @@ MODULE graphcon
     PUBLIC :: vertex, graph_type, reorder_graph, hash_molecule
 
     ! a molecule is an array of vertices, each vertex has a kind
-    ! and a list of edges (bonds). 
+    ! and a list of edges (bonds).
     ! (the number is the index of the other vertex in the array that builds the molecule)
 ! *****************************************************************************
     TYPE graph_type
@@ -95,7 +95,7 @@ CONTAINS
            kind_ref=kind_new
            ! find the number of equivalent atoms
            CALL sort(kind_new,N,index)
-           Nclasses=1 
+           Nclasses=1
            old_class=kind_new(1)
            DO i=2,N
               IF (kind_new(I).NE.old_class) THEN
@@ -114,9 +114,9 @@ CONTAINS
     END SUBROUTINE hash_molecule
 
 ! *****************************************************************************
-!> \brief If two molecules are topologically the same, finds the ordering that maps 
+!> \brief If two molecules are topologically the same, finds the ordering that maps
 !>      the unordered one on the ordered one.
-!> \param reference, unordered : molecular description (see type definition) 
+!> \param reference, unordered : molecular description (see type definition)
 !> \param order the mapping reference=order(unordred) if matches=.TRUE.
 !>                             undefined if matches=.FALSE.
 !> \param matches .TRUE. = the ordering was found
@@ -146,7 +146,7 @@ CONTAINS
 ! allows for worst case matching of two benzenes ... (6!)*(6!)/6=86400
 ! with some margin for other molecules
 ! molecules with no symmetry e.g. JAC need less than 500 tries
-! catch the cases where the molecules are trivially different 
+! catch the cases where the molecules are trivially different
 
         IF (SIZE(reference).NE.SIZE(unordered)) THEN
            matches=.FALSE.
@@ -163,7 +163,7 @@ CONTAINS
 
         ! determine the kind of each atom, and the hash of the whole molecule
         ALLOCATE(kind_ref(N),kind_un(N),index_ref(N),index_un(N), &
-                 kind_ref_ordered(N),kind_un_ordered(N), & 
+                 kind_ref_ordered(N),kind_un_ordered(N), &
                  class_of_atom(N),superclass_of_atom(N))
         CALL hash_molecule(reference,kind_ref,hash_re)
         CALL hash_molecule(unordered,kind_un,hash_un)
@@ -183,7 +183,7 @@ CONTAINS
         ENDIF
 
         ! count different classes, assign their kinds, and the number of elements
-        Nclasses=1 
+        Nclasses=1
         old_class=kind_ref_ordered(1)
         DO i=2,N
            IF (kind_ref_ordered(I).NE.old_class) THEN
@@ -200,7 +200,7 @@ CONTAINS
               Nclasses=Nclasses+1
               classes(Nclasses)%kind=kind_ref_ordered(I)
               classes(Nclasses)%Nele=1
-           ELSE 
+           ELSE
               classes(Nclasses)%Nele=classes(Nclasses)%Nele+1
            ENDIF
         ENDDO
@@ -218,12 +218,12 @@ CONTAINS
            ENDDO
            class_of_atom(classes(I)%reference)=I
            ALLOCATE(classes(I)%order(Nele))
-           ALLOCATE(classes(I)%q(Nele)) 
+           ALLOCATE(classes(I)%q(Nele))
            classes(I)%order=(/(J,J=1,Nele)/)
            classes(I)%first=.TRUE.
         ENDDO
 
-        ! find which groups of classes (superclasses) that can be solved independently. 
+        ! find which groups of classes (superclasses) that can be solved independently.
         ! only classes with more than one element that are connected need to be reordered simultaniously
 
         ! find these connected components in a recursive way
@@ -240,7 +240,7 @@ CONTAINS
         ! put classes into superclasses
         ALLOCATE(superclasses(isuperclass))
         superclasses%Nele=0
-        DO I=1,Nclasses 
+        DO I=1,Nclasses
            J=superclass_of_atom(classes(I)%reference(1))
            IF (J>0) superclasses(J)%Nele=superclasses(J)%Nele+1
         ENDDO
@@ -265,8 +265,8 @@ CONTAINS
            order(classes(Iclass)%unordered)=classes(Iclass)%reference(classes(Iclass)%order)
         ENDDO
 
-        ! reorder the atoms superclass after superclass 
-        itries=0 
+        ! reorder the atoms superclass after superclass
+        itries=0
         DO I=1,isuperclass
           DO
             itries=itries+1
@@ -378,7 +378,7 @@ loop:   DO iclass=1,super%Nele
            ELSE
               EXIT loop
            ENDIF
-         ENDDO 
+         ENDDO
         ENDDO loop
     END FUNCTION matrix_superclass_equal
 

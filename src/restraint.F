@@ -123,11 +123,11 @@ CONTAINS
        ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
        force = 0.0_dp
-       
+
        ! Create the list of locally fixed atoms
        CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles,&
             error)
-       
+
        DO ifixd = 1, SIZE(lfixd_list)
           ikind = lfixd_list(ifixd)%ikind
           ii    = lfixd_list(ifixd)%ifixd_index
@@ -335,7 +335,7 @@ CONTAINS
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    NULLIFY(fixd_list)    
+    NULLIFY(fixd_list)
 
     failure = .FALSE.
     molecule_kind => molecule % molecule_kind

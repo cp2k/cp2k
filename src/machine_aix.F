@@ -34,7 +34,7 @@ MODULE machine_aix
      MODULE PROCEDURE m_loc_c1,m_loc_c2,m_loc_c3,m_loc_c4
   END INTERFACE
 
-  TYPE, BIND(C) :: timeval 
+  TYPE, BIND(C) :: timeval
      INTEGER(C_LONG) :: tv_sec, tv_usec
   END TYPE
 
@@ -42,7 +42,7 @@ MODULE machine_aix
      TYPE(timeval) :: ru_utime, ru_stime
      INTEGER(C_LONG) :: ru_maxrss, ru_ixrss, ru_idrss, ru_isrss, ru_minflt, ru_majflt, &
                      ru_nswap, ru_inblock, ru_oublock, ru_msgsnd, ru_msgrcv, &
-                     ru_nsignals, ru_nvcsw, ru_nivcsw 
+                     ru_nsignals, ru_nvcsw, ru_nivcsw
   END TYPE
 
   INTERFACE
@@ -51,7 +51,7 @@ MODULE machine_aix
       INTEGER(C_INT), VALUE :: who
       TYPE(C_PTR),    VALUE :: rusage
     END FUNCTION getrusage
-  END INTERFACE 
+  END INTERFACE
 
 CONTAINS
 ! *** get more detailed memory info, all units are bytes.

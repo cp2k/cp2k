@@ -46,7 +46,7 @@ MODULE input_cp2k_qmmm
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_qmmm'
-  
+
   PUBLIC :: create_qmmm_section
 
 !***
@@ -55,8 +55,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the QM/MM section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_qmmm_section(section,error)
@@ -82,7 +82,7 @@ CONTAINS
 
        NULLIFY(keyword, subsection )
        CALL keyword_create(keyword, name="E_COUPL",&
-            variants=s2a("QMMM_COUPLING","ECOUPL"),& 
+            variants=s2a("QMMM_COUPLING","ECOUPL"),&
             description="Specifies the type of the QM - MM electrostatic coupling.",&
             usage="E_COUPL GAUSS",&
             enum_c_vals=s2a( "NONE","COULOMB","GAUSS","S-WAVE"),&
@@ -93,7 +93,7 @@ CONTAINS
                           "Using fast gaussian expansion of the s-wave electrostatic potential"),&
             default_i_val=do_qmmm_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME",&
             description="Name of the file containing the potential expansion in gaussians. See the "//&
@@ -112,7 +112,7 @@ CONTAINS
             default_i_val=0, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="nocompatibility",&
             description="This keyword disables the compatibility of QM/MM "//&
             "potential between CPMD and CP2K implementations. The compatibility"//&
@@ -129,7 +129,7 @@ CONTAINS
             usage="eps_mm_rspace real",&
             default_r_val=1.0E-10_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SPHERICAL_CUTOFF",&
             description="Set the spherical cutoff for the QMMM electrostatic interaction. "//&
@@ -180,26 +180,26 @@ CONTAINS
             enum_i_vals=(/ do_center_none, do_center_grid /),&
             default_i_val=do_center_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="initial_translation_vector",&
             description="This keyword specify the initial translation vector to be applied to the system.",&
             usage="initial_translation_vector <REAL> <REAL> <REAL>",&
             n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL create_qmmm_qm_kinds(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)    
+       CALL section_release(subsection,error=error)
 
        CALL create_qmmm_mm_kinds(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)    
+       CALL section_release(subsection,error=error)
 
        CALL create_cell_section(subsection,periodic=use_perd_none,error=error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_qmmm_periodic_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -215,15 +215,15 @@ CONTAINS
 
        CALL create_qmmm_forcefield_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_qmmm_walls_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_qmmm_image_charge_section(subsection, error=error) 
-       CALL section_add_subsection(section,subsection,error=error)    
-       CALL section_release(subsection,error=error)                   
+       CALL create_qmmm_image_charge_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
        CALL create_print_qmmm_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -234,8 +234,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create MM kinds sections
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_mm_kinds(section,error)
@@ -260,7 +260,7 @@ CONTAINS
          description="The MM  kind",usage="O",n_var=1,type_of_var=char_t,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL keyword_create(keyword, name="RADIUS",&
          description="Specifies the radius of the atomic kinds",&
          usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom",&
@@ -280,8 +280,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create QM kinds sections
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_qm_kinds(section,error)
@@ -301,12 +301,12 @@ CONTAINS
          description="Information about the qm kind in the qm/mm scheme",&
          n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
          error=error)
-    
+
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="The qm kind",usage="O",n_var=1,type_of_var=char_t,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL keyword_create(keyword, name="MM_INDEX",&
          description="The indexes of the mm atoms that have this kind. This keyword can be"//&
          " repeated several times (useful if you have to specify many indexes).",&
@@ -314,13 +314,13 @@ CONTAINS
          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
   END SUBROUTINE create_qmmm_qm_kinds
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_walls_section(section,error)
@@ -334,7 +334,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -342,7 +342,7 @@ CONTAINS
             description="Enables Walls for the QM box. This can be used to avoid that QM "//&
             " atoms move out of the QM box.",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)    
+            error=error)
 
        CALL keyword_create(keyword, name="WALL_SKIN",&
             description="Specify the value of the skin of the Wall in each dimension. "//&
@@ -355,7 +355,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="TYPE",& 
+       CALL keyword_create(keyword, name="TYPE",&
             description="Specifies the type of wall",&
             usage="TYPE REFLECTIVE",&
             enum_c_vals=s2a( "NONE","REFLECTIVE","QUADRATIC"),&
@@ -378,9 +378,9 @@ CONTAINS
   END SUBROUTINE create_qmmm_walls_section
 
 ! ****************************************************************************
-!> \brief Input section for QM/MM image charge calculations 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief Input section for QM/MM image charge calculations
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Dorothea Golze
 ! ****************************************************************************
   SUBROUTINE create_qmmm_image_charge_section (section,error)
@@ -440,15 +440,15 @@ CONTAINS
                           "Uses an iterative scheme to calculate the coefficients"),&
             default_i_val=do_qmmm_image_calcmatrix, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_qmmm_image_charge_section
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_periodic_section(section,error)
@@ -463,7 +463,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     NULLIFY(keyword, subsection)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -471,7 +471,7 @@ CONTAINS
             description="Specify parameters for QM/MM periodic boundary conditions calculations",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             citations=(/Laino2006/),&
-            error=error)    
+            error=error)
 
        CALL keyword_create(keyword, name="GMAX",&
             description="Specifies the maximum value of G in the reciprocal space over which perform the Ewald sum.",&
@@ -486,29 +486,29 @@ CONTAINS
             usage="REPLICA <integer>",n_var=1,default_i_val=-1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="NGRIDS",&
             description="Specifies the number of grid points used for the Interpolation of the G-space term",&
             usage="NGRIDS <integer> <iteger> <integer> ",n_var=3,default_i_vals=(/50,50,50/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL create_multipole_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_gspace_interp_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL cp_print_key_section_create(subsection,"check_spline",&
             description="Controls the checking of the G-space term Spline Interpolation.",&
             print_level=medium_print_level,filename="GSpace-SplInterp",&
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_qmmm_periodic_section
@@ -516,8 +516,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the qm/mm forcefield section to override to the FF specification
 !>      given in the FIST input
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_forcefield_section(section,error)
@@ -533,14 +533,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     NULLIFY(subsection,keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
             description="Specify information on the QM/MM forcefield",&
             n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
-            error=error)    
+            error=error)
 
        CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL",&
             description="Enables the possibility to define NONBONDED and NONBONDED14 as a"//&
@@ -564,8 +564,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the qm/mm forcefield section to override to the FF specification
 !>      given in the FIST input - NONBONDED PART
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_ff_nb_section(section,error)
@@ -579,19 +579,19 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     NULLIFY(subsection )
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="NONBONDED",&
             description="Specify information on the QM/MM non-bonded forcefield",&
             n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
-            error=error)    
+            error=error)
 
        CALL create_LJ_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_Williams_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -609,8 +609,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the qm/mm link section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_link_section(section,error)
@@ -625,15 +625,15 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     NULLIFY(keyword, subsection )
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LINK",&
             description="Specify information on the QM/MM link treatment",&
             n_keywords=7, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
-            error=error)    
-       
+            error=error)
+
        CALL keyword_create(keyword, name="QM_INDEX",&
             variants=(/ "QM" /),&
             description="Specifies the index of the QM atom involved in the QM/MM link",&
@@ -679,7 +679,7 @@ CONTAINS
             enum_i_vals=(/ do_qmmm_link_imomm, do_qmmm_link_gho, do_qmmm_link_pseudo/),&
             default_i_val=do_qmmm_link_imomm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ALPHA_IMOMM",&
             variants=s2a("ALPHA"),&
@@ -690,7 +690,7 @@ CONTAINS
             usage="ALPHA_IMOMM real",n_var=1,type_of_var=real_t,&
             default_r_val=ALPHA_IMOMM_DEFAULT,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="QMMM_SCALE_FACTOR",&
             variants=(/ "QMMM_CHARGE_SCALE ",&
@@ -716,13 +716,13 @@ CONTAINS
             usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
             default_r_val=CHARGE_SCALE_FACTOR,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="MOVE_MM_CHARGE",&
             description="Specify information to move a classical charge before the"//&
             " QM/MM energies and forces evaluation",&
             n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)      
+            error=error)
 
        CALL keyword_create(keyword, name="ATOM_INDEX_1",&
             variants=(/ "MM1" /),&
@@ -745,7 +745,7 @@ CONTAINS
             description="Specifies the scaling factor that defines the movement along the defined direction",&
             usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RADIUS",&
             description="Specifies the radius used for the QM/MM electrostatic coupling after movement",&
@@ -767,7 +767,7 @@ CONTAINS
             description="Specify information to add a classical charge before the"//&
             " QM/MM energies and forces evaluation",&
             n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)      
+            error=error)
 
        CALL keyword_create(keyword, name="ATOM_INDEX_1",&
             variants=(/ "MM1" /),&
@@ -791,7 +791,7 @@ CONTAINS
             description="Specifies the scaling factor that defines the movement along the defined direction",&
             usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RADIUS",&
             description="Specifies the radius used for the QM/MM electrostatic coupling for the added source",&
@@ -820,8 +820,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the interpolation section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_qmmm_interp_section(section,error)
@@ -836,7 +836,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
@@ -932,8 +932,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print qmmm section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_print_qmmm_section(section,error)
@@ -948,7 +948,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(keyword, print_key)
@@ -1025,8 +1025,8 @@ CONTAINS
             print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
-       
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"derivatives",&
             description="Print all derivatives after QM/MM calculation", &
             print_level=high_print_level,filename="__STD_OUT__",&
@@ -1047,7 +1047,7 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
- 
+
        CALL cp_print_key_section_create(print_key,"qs_derivatives",&
             description="Print QM derivatives after QS calculation", &
             print_level=medium_print_level,filename="__STD_OUT__",&
@@ -1055,12 +1055,12 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"image_charge_info",&              
+       CALL cp_print_key_section_create(print_key,"image_charge_info",&
             description="Prints image charge coefficients and detailed energy info", &
-            print_level=high_print_level,filename="__STD_OUT__",& 
-            error=error)                                          
-       CALL section_add_subsection(section,print_key,error=error) 
-       CALL section_release(print_key,error=error)                
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
   END SUBROUTINE create_print_qmmm_section

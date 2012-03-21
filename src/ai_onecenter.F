@@ -96,9 +96,9 @@ CONTAINS
 
     n = SIZE ( pa )
     m = SIZE ( pb )
-   
+
     IF ( n > SIZE ( kmat, 1 ) .OR. m > SIZE ( kmat, 2 ) ) STOP
-   
+
     spi = dfac(2*l+3)*SQRT(pi)/2.0_dp**(l+2)
     DO iq = 1, m
       DO ip = 1, n
@@ -905,20 +905,20 @@ CONTAINS
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
-   
+
     IF ( n > SIZE ( vpmat, 1 ) .OR. m > SIZE ( vpmat, 2 ) ) STOP
-   
+
     ALLOCATE(op(n),STAT=ierr)
     IF ( ierr /= 0 ) STOP
-   
+
     op(:) = (r(:)/rc)**(2*k) * EXP(-0.5_dp*(r(:)/rc)**2)
-   
+
     DO iq = 1, m
       DO ip = 1, n
         vpmat ( ip, iq ) = SUM(wr(:)*ra(:,ip)*rb(:,iq)*op(:))
       END DO
     END DO
-   
+
     DEALLOCATE(op,STAT=ierr)
     IF ( ierr /= 0 ) STOP
 

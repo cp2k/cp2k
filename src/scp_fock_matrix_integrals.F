@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Provides the low level routines to build  Coulomb Fock matrices
 !>        for SCP
-!> \author CJM [tlaino] (12.2010) 
+!> \author CJM [tlaino] (12.2010)
 !> \par History
 ! *****************************************************************************
 MODULE scp_fock_matrix_integrals
@@ -28,7 +28,7 @@ MODULE scp_fock_matrix_integrals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_fock_matrix_integrals'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
-  
+
   PUBLIC :: scp_1el, dscp_1el, scp_1el_ew, scp2C_ew, scp2C, dscp2C
 
 CONTAINS
@@ -157,7 +157,7 @@ CONTAINS
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
           tmp= 2.0_dp * pi_block(i1,j1)
-          force(1) = force(1) + de1b(1,i2) * tmp 
+          force(1) = force(1) + de1b(1,i2) * tmp
           force(2) = force(2) + de1b(2,i2) * tmp
           force(3) = force(3) + de1b(3,i2) * tmp
        END DO
@@ -187,7 +187,7 @@ CONTAINS
        force(2) = force(2) + de2a(2,i2) * pj_block(i1,j1)
        force(3) = force(3) + de2a(3,i2) * pj_block(i1,j1)
     END DO
-    
+
   END SUBROUTINE dscp_1el
 
 ! *****************************************************************************

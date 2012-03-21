@@ -133,22 +133,22 @@ CPSourceFileRef,&
              ! Compute the analytical stress tensor
              CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
                   error=error)
-             
+
              ! Retrieve the analytical virial
              CALL force_env_get(force_env, virial=virial, error=error)
              CALL virial_create(virial_analytical, error=error)
              CALL zero_virial(virial_analytical)
              CALL cp_virial(virial, virial_analytical)
-             
+
              ! Debug Stress Tensor (numerical Vs Analytical)
              CALL force_env_calc_num_pressure(force_env,dx=dx,error=error)
-             
+
              ! Retrieve the numerical virial
              CALL force_env_get(force_env, virial=virial, error=error)
              CALL virial_create(virial_numerical, error=error)
              CALL zero_virial(virial_numerical)
              CALL cp_virial(virial, virial_numerical)
-             
+
              ! Print results
              IF (iw>0) THEN
                 WRITE (UNIT=iw,FMT="(/,' *** DEBUG PV_VIRIAL - START ***',/)")
@@ -163,7 +163,7 @@ CPSourceFileRef,&
                   SUM(ABS(virial_numerical%pv_virial(:,:)-virial_analytical%pv_virial(:,:)))
                 WRITE (UNIT=iw,FMT="(/,' *** DEBUG PV_VIRIAL - END   ***',/)")
              END IF
-             
+
              ! Checkd and abort (in case..)
              DO i = 1,3
                 Err = 0.0_dp
@@ -181,7 +181,7 @@ CPSourceFileRef,&
              CALL virial_release(virial_numerical, error=error)
           END IF
        END IF
-       
+
        IF (debug_forces) THEN
           ! Debug Forces (numerical Vs Analytical)
           CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
@@ -273,7 +273,7 @@ CPSourceFileRef,&
              CPPostcondition(ABS(Err(2))<=my_MaxErr(2),cp_failure_level,routineP,error,failure)
              CPPostcondition(ABS(Err(3))<=my_MaxErr(3),cp_failure_level,routineP,error,failure)
           END DO
-          
+
           IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
           IF (ASSOCIATED( numer_forces)) DEALLOCATE( numer_forces)
        END IF

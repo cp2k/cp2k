@@ -4,11 +4,11 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Module that collects GA functionality for semi-empirical 
-!>        
-!> \author CJM and Bruce Palmer (05.2011) 
+!> \brief Module that collects GA functionality for semi-empirical
+!>
+!> \author CJM and Bruce Palmer (05.2011)
 !> \par History
-!>      
+!>
 ! *****************************************************************************
 MODULE ga_environment_types
   USE kinds,                           ONLY: dp
@@ -30,7 +30,7 @@ MODULE ga_environment_types
     INTEGER ::  g_cnt, g_cellnum, g_offset, g_atoms, g_ks, g_d_info, g_pair_list
     INTEGER ::  g_count, pdx, pdy, pdz
     REAL ( dp ) :: rcoul
-    REAL ( dp ) :: time_put, time_get, time_acc 
+    REAL ( dp ) :: time_put, time_get, time_acc
     INTEGER :: iput, iget, iacc, ielm_get, ielm_acc, ielm_put
   END TYPE  ga_environment_type
 
@@ -39,7 +39,7 @@ MODULE ga_environment_types
   PUBLIC :: ga_environment_type
 
 ! Public subroutine
-           
+
   PUBLIC :: ga_env_release, ga_env_retain, init_ga_env, get_ga_env
 
 CONTAINS
@@ -56,7 +56,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_ga_env', &
       routineP = moduleN//':'//routineN
 
-  
+
     IF (.NOT. ASSOCIATED ( ga_env ) ) THEN
       ALLOCATE (ga_env,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -67,11 +67,11 @@ CONTAINS
       ga_env%npairs = 0
       ga_env%ncells = 0
       ga_env%rcoul = 0.0_dp
-      ga_env%g_cnt =0 
-      ga_env%g_cellnum=0 
-      ga_env%g_offset=0 
-      ga_env%g_atoms=0 
-      ga_env%g_ks=0 
+      ga_env%g_cnt =0
+      ga_env%g_cellnum=0
+      ga_env%g_offset=0
+      ga_env%g_atoms=0
+      ga_env%g_ks=0
       ga_env%g_d_info=0
       ga_env%se_dims = 0
       ga_env%ref_count=1
@@ -106,7 +106,7 @@ CONTAINS
   END IF
   NULLIFY(ga_env)
 #endif
-  END SUBROUTINE ga_env_release 
+  END SUBROUTINE ga_env_release
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
 !> \author CJM
@@ -131,7 +131,7 @@ CONTAINS
    END IF
 #endif
 
-  END SUBROUTINE ga_env_retain 
+  END SUBROUTINE ga_env_retain
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
 !> \author CJM
@@ -169,6 +169,6 @@ CONTAINS
     IF (PRESENT(pdy)) pdy = ga_env % pdy
     IF (PRESENT(rcoul)) pdz = ga_env % pdz
 #endif
-  END SUBROUTINE get_ga_env 
+  END SUBROUTINE get_ga_env
 
 END MODULE ga_environment_types

@@ -127,7 +127,7 @@ CONTAINS
     CALL m_hostnm(r_host_name)
     CALL m_datum(r_datx)
     CALL m_getcwd(r_cwd)
-    
+
   END SUBROUTINE get_runtime_info
 
 END MODULE cp2k_info

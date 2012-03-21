@@ -47,7 +47,7 @@ MODULE mp2_types
   TYPE mp2_map_type_1
      INTEGER :: iatom,iset,nsgpf
   END TYPE
- 
+
   TYPE mp2_map_type
      INTEGER :: iatom,jatom,iset,jset,nsgpf
   END TYPE
@@ -81,7 +81,7 @@ MODULE mp2_types
 
   TYPE mp2_gpw_type
        REAL(KIND=dp)            :: eps_grid, eps_filter
-       INTEGER                  :: print_level 
+       INTEGER                  :: print_level
        REAL(KIND=dp)            :: cutoff
        REAL(KIND=dp)            :: relative_cutoff
   END TYPE mp2_gpw_type
@@ -93,7 +93,7 @@ MODULE mp2_types
 !      TYPE(mp2_laplace_type)   :: laplace
        TYPE(mp2_direct_type)    :: direct_canonical
        TYPE(mp2_potential_type) :: potential_parameter
-       TYPE(mp2_gpw_type)       :: mp2_gpw 
+       TYPE(mp2_gpw_type)       :: mp2_gpw
        REAL(dp) :: mp2_memory
        INTEGER  :: mp2_num_proc
   END TYPE

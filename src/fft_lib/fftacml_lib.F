@@ -6,12 +6,12 @@
 ! *****************************************************************************
 !> \par History
 !>      JGH 3-Feb-2006 : initial version
-!>      Adapted for new interface 
+!>      Adapted for new interface
 !> \author JGH
 ! *****************************************************************************
 SUBROUTINE fftacml_get_lengths ( DATA, max_length )
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
 
   INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
@@ -120,7 +120,7 @@ SUBROUTINE fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
   IF ( info /= 0 ) fsign = 0
 
   DEALLOCATE ( comm )
-  
+
 #else
 
   fsign = 0
@@ -172,7 +172,7 @@ SUBROUTINE fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
 #endif
 
   IF ( info /= 0 ) fsign=0
-  
+
   DEALLOCATE ( comm )
 
 #else

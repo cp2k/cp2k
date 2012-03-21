@@ -82,7 +82,7 @@ MODULE c_mpi_calls
   ! Technically MPI memory is not needed anymore.
   !ERROR "Unable to do MPI memory allocation.  Use -D__NO_MPI_MEMORY"
 #endif
-                              
+
 
 ! Real code starts here
 
@@ -260,7 +260,7 @@ CONTAINS
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
      CALL array_to_fp_i(dynmem(1), len, DATA)
-#endif 
+#endif
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_i
 
@@ -299,7 +299,7 @@ CONTAINS
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
      CALL array_to_fp_l(dynmem(1), len, DATA)
-#endif 
+#endif
      IF (PRESENT (stat)) stat = mp_res
   END SUBROUTINE mp_alloc_mem_l
 
@@ -317,7 +317,7 @@ CONTAINS
      INTEGER, INTENT(IN)                   :: len
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
 
-#ifdef __c_bindings     
+#ifdef __c_bindings
      TYPE(C_PTR)                           :: mp_baseptr
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
@@ -356,7 +356,7 @@ CONTAINS
      INTEGER, INTENT(IN)                     :: len
      INTEGER, INTENT(OUT), OPTIONAL          :: stat
 
-#ifdef __c_bindings     
+#ifdef __c_bindings
      TYPE(C_PTR)                             :: mp_baseptr
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res
@@ -395,7 +395,7 @@ CONTAINS
      INTEGER, INTENT(IN)                   :: len
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
 
-#ifdef __c_bindings     
+#ifdef __c_bindings
      TYPE(C_PTR)                           :: mp_baseptr
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
@@ -434,7 +434,7 @@ CONTAINS
      INTEGER, INTENT(IN)                     :: len
      INTEGER, INTENT(OUT), OPTIONAL          :: stat
 
-#ifdef __c_bindings     
+#ifdef __c_bindings
      TYPE(C_PTR)                             :: mp_baseptr
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res

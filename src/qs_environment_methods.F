@@ -170,7 +170,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
        ! set up pw_env
        CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
-       ! rebuilds fm_pools 
+       ! rebuilds fm_pools
 
        ! XXXX should get rid of the mpools
        IF (ASSOCIATED(qs_env%mos)) THEN
@@ -180,7 +180,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
                   ncol_block=scf_control%ncol_block,&
                   error=error)
        ENDIF
-       
+
        ! If we use auxiliary density matrix methods rebuild fm_pools
        IF( qs_env%dft_control%do_admm ) THEN
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -228,8 +228,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
           ! Specific to scp_nddo
           IF ( scp_nddo ) THEN
             CALL scp_nddo_init ( scp_env, qs_env, error )
-          ENDIF 
-          CALL set_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error ) 
+          ENDIF
+          CALL set_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
           ! keeping only one copy
           CALL scp_env_release ( scp_env, error )
        END IF
@@ -285,13 +285,13 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
     CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
 
-    
+
     IF( dft_control%do_admm) THEN
       ! *** deallocate matrices that will have the wrong structure ***
       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)
       CALL set_qs_env(qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
     END IF
-    
+
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
       IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -303,7 +303,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
            CALL calculate_rho_core(qs_env%rho_core, &
                 qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
         END IF
-      ELSE        
+      ELSE
         IF (ASSOCIATED(qs_env%rho_core)) THEN
           CALL pw_release(qs_env%rho_core%pw,error=error)
           DEALLOCATE(qs_env%rho_core)

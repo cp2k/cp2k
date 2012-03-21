@@ -46,7 +46,7 @@ MODULE qs_density_mixing_types
                  reg_par, sigma_max, wc, wmax
      REAL(dp), DIMENSION(:), POINTER :: p_metric
      REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
-     REAL(KIND=dp), DIMENSION(:), POINTER :: special_metric 
+     REAL(KIND=dp), DIMENSION(:), POINTER :: special_metric
      REAL(dp), DIMENSION(:,:), POINTER :: weight
      REAL(KIND = dp) , DIMENSION(:,:), POINTER :: norm_res_buffer,pulay_matrix
      REAL(dp), DIMENSION(:,:,:), POINTER :: fmat, gmat, smat
@@ -63,10 +63,10 @@ MODULE qs_density_mixing_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief creates a mixing_storage 
+!> \brief creates a mixing_storage
 !> \par History
 !>      05.2009 created [MI]
-!> \author [MI] 
+!> \author [MI]
 ! *****************************************************************************
   SUBROUTINE mixing_storage_create(mixing_store,  mixing_section, mixing_method, ecut, error)
     TYPE(mixing_storage_type), POINTER       :: mixing_store
@@ -99,7 +99,7 @@ CONTAINS
         mixing_store%beta=1.0_dp
         mixing_store%iter_method = "NoMix"
         mixing_store%max_g2 = 2._dp*ecut
-     
+
         NULLIFY(mixing_store%p_metric)
         NULLIFY(mixing_store%kerker_factor)
         NULLIFY(mixing_store%special_metric)
@@ -136,7 +136,7 @@ CONTAINS
         CALL section_vals_val_get(mixing_section,"NSKIP",i_val=mixing_store%nskip_mixing,error=error)
         CALL section_vals_val_get(mixing_section,"MAX_GVEC_EXP",r_val=mixing_store%max_gvec_exp,error=error)
 
-        IF(mixing_store%max_gvec_exp > 0._dp) THEN 
+        IF(mixing_store%max_gvec_exp > 0._dp) THEN
           alpha = 0.25_dp/mixing_store%max_gvec_exp
           eps = 1.e-4_dp
           gcut = exp_radius(3,alpha,eps,1.0_dp)
@@ -168,10 +168,10 @@ CONTAINS
  END SUBROUTINE mixing_storage_create
 
 ! *****************************************************************************
-!> \brief releases a mixing_storage 
+!> \brief releases a mixing_storage
 !> \par History
 !>      05.2009 created [MI]
-!> \author [MI] 
+!> \author [MI]
 ! *****************************************************************************
  SUBROUTINE mixing_storage_release(mixing_store,error)
     TYPE(mixing_storage_type), POINTER       :: mixing_store

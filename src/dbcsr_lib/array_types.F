@@ -10,7 +10,7 @@
 !> \version 1.0
 !>
 !> <b>Modification history:</b>
-!> - Created 
+!> - Created
 ! *****************************************************************************
 MODULE array_types
 
@@ -79,7 +79,7 @@ MODULE array_types
      MODULE PROCEDURE array_get_i1d,&
                       array_get_d1d
   END INTERFACE
-     
+
 
   TYPE array_i1d_type
      INTEGER, DIMENSION(:), POINTER     :: DATA
@@ -520,7 +520,7 @@ CONTAINS
   END FUNCTION array_equality_d2d
 
   !
-  
+
   PURE FUNCTION array_get_i1d(array, index1) RESULT (value)
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER, INTENT(IN)                      :: index1

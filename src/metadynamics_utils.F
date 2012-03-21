@@ -53,7 +53,7 @@ MODULE metadynamics_utils
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  PRIVATE 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_utils'
 
@@ -65,12 +65,12 @@ MODULE metadynamics_utils
             meta_walls
 
 CONTAINS
- 
+
 ! *****************************************************************************
 !> \brief reads metadynamics section
 !> \par History
 !>      04.2004 created
-!> \author Teodoro Laino [tlaino] - University of Zurich. 11.2007 
+!> \author Teodoro Laino [tlaino] - University of Zurich. 11.2007
 ! *****************************************************************************
   SUBROUTINE metadyn_read(meta_env,force_env,root_section,para_env,fe_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
@@ -95,7 +95,7 @@ CONTAINS
                                                 metavar_section, &
                                                 walkers_section
 
-    CALL timeset(routineN,handle)  
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit,error=error)
@@ -110,7 +110,7 @@ CONTAINS
           RETURN
        ENDIF
        metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN",error=error)
-       CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
+       CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)
 
        md_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
@@ -157,7 +157,7 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
             i_val=meta_env%hills_env%n_hills,error=error)
        CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
-       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=meta_env%langevin,error=error)      
+       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=meta_env%langevin,error=error)
        CALL section_vals_val_get(metadyn_section,"TEMP_TOL",explicit=meta_env%tempcontrol,&
             r_val=meta_env%toll_temp,error=error)
        CALL section_vals_val_get(metadyn_section,"WELL_TEMPERED",l_val=meta_env%well_tempered,error=error)
@@ -192,7 +192,7 @@ CONTAINS
                "is larger than the maximum number of COLVARS defined in the SUBSYS ("//&
                TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !"//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)                       
+               only_ionode=.TRUE.)
        END DO
 
        ! Parsing the Multiple Walkers Info
@@ -207,7 +207,7 @@ CPSourceFileRef,&
                i_val=meta_env%multiple_walkers%walkers_tot_nr,error=error)
           CALL section_vals_val_get(walkers_section,"WALKER_COMM_FREQUENCY",&
                i_val=meta_env%multiple_walkers%walkers_freq_comm,error=error)
-          
+
           ! Handle status and file names
           ALLOCATE(meta_env%multiple_walkers%walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -278,7 +278,7 @@ CPSourceFileRef,&
     TYPE(section_type), POINTER              :: section, wall_section, &
                                                 work_section
 
-    CALL timeset(routineN,handle)  
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,metadyn_section,&
@@ -297,14 +297,14 @@ CPSourceFileRef,&
           IF (meta_env%tempcontrol) WRITE (iw,'( A,T71,F10.2)')&
                ' METADYN| Collective Variables Temperature control',meta_env%toll_temp
           IF (meta_env%langevin) THEN
-               WRITE( iw, '(A,T71)') ' METADYN| Langevin Thermostat in use for COLVAR '  
+               WRITE( iw, '(A,T71)') ' METADYN| Langevin Thermostat in use for COLVAR '
                WRITE( iw, '(A,T71,F10.4)') ' METADYN| Langevin Thermostat. Target Temperature = ',&
                     meta_env%temp_wanted*kelvin
           ENDIF
           WRITE( iw, '(A,T71,F10.4)') ' METADYN| COLVARS restarted average temperature ',&
                meta_env%avg_temp
        END IF
-       IF (meta_env%do_hills) THEN 
+       IF (meta_env%do_hills) THEN
           WRITE (iw,'( A )')' METADYN| Spawning the Hills '
           WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Height of the Spawned Gaussian',meta_env%hills_env%ww
           !RG Adaptive hills
@@ -316,7 +316,7 @@ CPSourceFileRef,&
           !RG Adaptive hills
        END IF
 
-       IF (meta_env%well_tempered) THEN 
+       IF (meta_env%well_tempered) THEN
           WRITE (iw,'( A )')' METADYN| Well-Tempered metadynamics '
           IF (meta_env%delta_t>EPSILON(1._dp)) THEN
              WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Temperature parameter (Delta T) [K]',meta_env%delta_t*kelvin
@@ -425,7 +425,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: wall_section, work_section
 
-    CALL timeset(routineN,handle)  
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar,error=error)
@@ -534,7 +534,7 @@ CPSourceFileRef,&
        CALL close_file(unit_nr)
        CALL m_mov(tmpname, filename)
     END IF
-    
+
     IF (MODULO(multiple_walkers%n_hills_local,multiple_walkers%walkers_freq_comm)==0) THEN
        ! Store colvars information
        ALLOCATE(ss0_save(n_colvar),stat=stat)
@@ -556,7 +556,7 @@ CPSourceFileRef,&
              multiple_walkers%walkers_status(i) = multiple_walkers%n_hills_local
              CYCLE
           END IF
-          
+
           i_hills  = multiple_walkers%walkers_status(i) + 1
           filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"//&
                      TRIM(ADJUSTL(cp_to_string(i_hills)))
@@ -714,7 +714,7 @@ CPSourceFileRef,&
   END SUBROUTINE add_hill_single
 
 ! *****************************************************************************
-!> \brief Restart Hills Information 
+!> \brief Restart Hills Information
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
   SUBROUTINE restart_hills(ss_history, delta_s_history, ww_history, ww,&
@@ -861,7 +861,7 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE restart_hills
-  
+
 ! *****************************************************************************
 !> \brief Retrieves the iteration level for the metadynamics loop
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
@@ -905,7 +905,7 @@ CPSourceFileRef,&
     colvars => meta_env%metavar
     ! Forces from the Walls
     DO ih=1,SIZE(colvars)
-       IF (colvars(ih)%do_wall) THEN 
+       IF (colvars(ih)%do_wall) THEN
           colvars(ih)%epot_walls=0.0_dp
           colvars(ih)%ff_walls=0.0_dp
           DO iwall = 1, SIZE(colvars(ih)%walls)
@@ -943,7 +943,7 @@ CPSourceFileRef,&
                 dfunc = 4.0_dp*colvars(ih)%walls(iwall)%k_quartic*diff_ss**3
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
-                   IF (diff_ss>0.0_dp) THEN 
+                   IF (diff_ss>0.0_dp) THEN
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
                      colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF

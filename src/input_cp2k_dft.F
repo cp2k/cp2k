@@ -462,7 +462,7 @@ CONTAINS
     CALL create_localize_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
-    
+
     CALL create_rtp_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -870,7 +870,7 @@ CONTAINS
          usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
          variants=(/"CUBES_LU"/),&
          description="The lower and upper index of the states to be printed as cube",&
@@ -878,7 +878,7 @@ CONTAINS
          n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL keyword_create(keyword,name="CUBES_LIST",&
          description="Indexes of the states to be printed as cube files"//&
          "This keyword can be repeated several times"//&
@@ -895,26 +895,26 @@ CONTAINS
 
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
-    
+
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"WANNIER_CENTERS",&
          description="Controls the printing of the wannier functions", &
          print_level=high_print_level,add_last=add_last_numeric,filename="",&
          unit_str="angstrom",error=error)
-    
+
     CALL keyword_create(keyword, name="IONS+CENTERS",&
          description="prints out the wannier centers together with the particles",&
          usage="IONS+CENTERS", default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE., error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    
+
     CALL add_format_keyword(keyword, print_key, &
          description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
-    
+
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"WANNIER_SPREADS",&
          description="Controls the printing of the wannier functions", &
@@ -1813,7 +1813,7 @@ CONTAINS
          "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
          error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error) 
+    CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_mo_cubes_section
 
@@ -2708,7 +2708,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
     END IF
-  END SUBROUTINE create_admm_section 
+  END SUBROUTINE create_admm_section
 
 ! *****************************************************************************
   SUBROUTINE create_admm_block_section(section,error)
@@ -2752,7 +2752,7 @@ CONTAINS
             enum_c_vals=s2a("OFF","FULL","BLOCKED"),&
             enum_i_vals=(/do_admm_block_purify_off, do_admm_block_purify_full, do_admm_block_purify_blocked/),&
             enum_desc=s2a("Do not apply any purification", &
-                          "Apply full McWeeny purification via general Cauchy representation",&  
+                          "Apply full McWeeny purification via general Cauchy representation",&
                           "Apply blocked McWeeny purification via general Cauchy representation"), &
             default_i_val=do_admm_block_purify_full, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2776,7 +2776,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
     END IF
-  END SUBROUTINE create_admm_block_section 
+  END SUBROUTINE create_admm_block_section
 
 ! *****************************************************************************
   SUBROUTINE create_dftb_parameter_section(section, error)
@@ -2952,7 +2952,7 @@ CONTAINS
        CALL create_se_memory_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_se_print_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -2967,8 +2967,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the COULOMB se section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino]
 !> \date  03.2009
 ! *****************************************************************************
@@ -3011,7 +3011,7 @@ CONTAINS
             "where r0=2.0*RC_TAPER-20.0*RC_RANGE.",&
             usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_lr_corr_section
@@ -3019,8 +3019,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the COULOMB se section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino]
 !> \date  03.2009
 ! *****************************************************************************
@@ -3065,7 +3065,7 @@ CONTAINS
             "where r0=2.0*RC_TAPER-20.0*RC_RANGE.",&
             usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_coulomb_section
@@ -3073,8 +3073,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the EXCHANGE se section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino]
 !> \date  03.2009
 ! *****************************************************************************
@@ -3129,8 +3129,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the SCREENING se section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino]
 !> \date  03.2009
 ! *****************************************************************************
@@ -3166,7 +3166,7 @@ CONTAINS
             "where r0=2*RC_TAPER-20*RC_RANGE.",&
             usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_screening_section
@@ -3174,8 +3174,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print se section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_se_print_section(section,error)
@@ -3265,8 +3265,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the se-memory part integral storage
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
   SUBROUTINE create_se_memory_section(section,error)
@@ -3316,7 +3316,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
- 
+
   END SUBROUTINE create_se_memory_section
 
 
@@ -3804,7 +3804,7 @@ CONTAINS
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author jens 
+!> \author jens
 ! *****************************************************************************
   SUBROUTINE create_relativistic_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -5149,21 +5149,21 @@ CONTAINS
             n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
-      
+
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
             "coordinates (X,Y,Z) of the grid.",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE.,&
             type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
             usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of parameter of the functional form",&
             usage="VALUES ", required=.TRUE., type_of_var=real_t,&
@@ -5227,7 +5227,7 @@ CONTAINS
             " with OT. Can not be used in combination with RTP or EMD.",&
             n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="INTENSITY",&
@@ -5248,7 +5248,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE create_per_efield_section 
+  END SUBROUTINE create_per_efield_section
 ! *****************************************************************************
 !> \brief creates the section for time dependent nonperiodic fields
 !> \param error variable to control error logging, stopping,...
@@ -5316,7 +5316,7 @@ CONTAINS
             enum_desc=s2a("No envelop function is applied to the strength",&
                           "A Gaussian function is used as envelop ",&
                           "Linear tune in/out of the field"),&
-            enum_i_vals=(/constant_env,gaussian_env,ramp_env/),& 
+            enum_i_vals=(/constant_env,gaussian_env,ramp_env/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5383,7 +5383,7 @@ CONTAINS
             enum_desc=s2a("Strict orthogonality: Taylor or diagonalization based algorithm.",&
                           "Orbital Transformation based Iterative Refinement "//&
                           "of the Approximative Congruence transformation (OT/IR)."),&
-            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_irac/),& 
+            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_irac/),&
             citations=(/VandeVondele2003,VandeVondele2005a,Weber2008/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -5777,7 +5777,7 @@ CONTAINS
                           "Iterative diagonalization using OT method",&
                           "Block Krylov-space approach to self-consistent diagonalisation",&
                           "Preconditioned blocked Davidson"),&
-            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov, diag_block_davidson/),& 
+            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov, diag_block_davidson/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5867,7 +5867,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE. 
+    failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"DAVIDSON",&
@@ -5922,27 +5922,27 @@ CONTAINS
 
        CALL keyword_create(keyword, name="NEW_PREC_EACH",&
             description="Number of SCF iterations after which a new Preconditioner is computed",&
-            usage="NEW_PREC_EACH 10", default_i_val=20,error=error) 
+            usage="NEW_PREC_EACH 10", default_i_val=20,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="FIRST_PREC",&
             description="First SCF iteration at which a Preconditioner is employed",&
-            usage="FIRST_PREC 1", default_i_val=1,error=error) 
+            usage="FIRST_PREC 1", default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CONV_MOS_PERCENT",&
             description="Minimal percent of MOS that have to converge within the Davidson loop"//&
             " before the SCF iteration is completed and a new Hamiltonian is computed",&
-            usage="CONV_MOS_PERCENT 0.8", default_r_val=0.5_dp,error=error) 
+            usage="CONV_MOS_PERCENT 0.8", default_r_val=0.5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SPARSE_MOS",&
             description="Use MOS as sparse matrix and avoid as much as possible multiplications with full matrices",&
             usage="SPARSE_MOS",default_l_val=.TRUE.,&
-            lone_keyword_l_val=.TRUE.,error=error) 
+            lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5960,7 +5960,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE. 
+    failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"KRYLOV",&
@@ -6030,7 +6030,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure = .FALSE. 
+    failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"DIAG_SUB_SCF",&
@@ -6220,7 +6220,7 @@ CONTAINS
             default_i_val=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword,name="ATOMS_LIST",&
             variants=(/"AT_LIST"/),&
             description="Indexes of the atoms to be excited"//&
@@ -7213,7 +7213,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,TRIM(ADJUSTL(section_name)),&
             description="Use DDAPC charges in a restraint (check code for details),"//&
-            " section can be repeated, but only one constraint is possible at the moment.",& 
+            " section can be repeated, but only one constraint is possible at the moment.",&
             n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -7222,7 +7222,7 @@ CONTAINS
             usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="TYPE_OF_DENSITY",&
             description="Specifies the type of density used for the fitting",&
             usage="TYPE_OF_DENSITY (FULL|SPIN)",&
@@ -7764,10 +7764,10 @@ CONTAINS
        CALL keyword_create(keyword, name="EXP_ACCURACY",&
             description="Accuracy for the taylor and pade approximation. "//&
             "This is only an upper bound bound since the norm used for the guess "//&
-            "is an upper bound for the needed one.",&      
+            "is an upper bound for the needed one.",&
             usage="EXP_ACCURACY 1.0E-6",&
             default_r_val=1.0E-9_dp,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7782,7 +7782,7 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="INITIAL_WFN",&
             description="Controls the initial WFN used for propagation.",&
             usage="INITIAL_WFN SCF_WFN",default_i_val=use_scf_wfn, &
@@ -7919,7 +7919,7 @@ CONTAINS
             description="First step the field is applied ",&
             usage="START_STEP 0",&
             default_i_val=0,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7927,7 +7927,7 @@ CONTAINS
             description="Last step the field is applied",&
             usage="END_STEP 2",&
             default_i_val=-1,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
@@ -7959,7 +7959,7 @@ CONTAINS
             description="Center of the gaussian envelop (maximum of the gaussian)",&
             usage="T0 2.0E0",&
             default_r_val=0.0E0_dp,&
-            unit_str="fs",error=error)    
+            unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7967,7 +7967,7 @@ CONTAINS
             description="Width of the gaussian ",&
             usage="SIGMA 2.0E0",&
             default_r_val=-1.0E0_dp,&
-            unit_str="fs",error=error)    
+            unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
@@ -7999,7 +7999,7 @@ CONTAINS
             description="Step when the electric field starts to be applied ",&
             usage="START_STEP_IN 0",&
             default_i_val=0,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -8007,7 +8007,7 @@ CONTAINS
             description="Step when the field reaches the full strength",&
             usage="END_STEP_IN 2",&
             default_i_val=-1,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -8015,7 +8015,7 @@ CONTAINS
             description="Step when the field starts to vanish ",&
             usage="START_STEP 0",&
             default_i_val=0,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -8023,7 +8023,7 @@ CONTAINS
             description="Step when the field disappears",&
             usage="END_TIME 2",&
             default_i_val=-1,&
-            error=error)    
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF

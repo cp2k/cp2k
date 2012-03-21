@@ -424,7 +424,7 @@ CONTAINS
     INTEGER                                  :: io_comm, io_source, io_tag
 
     io_source = source ; io_comm = comm; io_tag = tag
-    
+
     SELECT CASE (dbcsr_data_get_type (msgin))
     CASE (dbcsr_type_real_4)
        CALL mp_recv (msgin%d%r_sp, io_source, io_tag, io_comm)

@@ -81,7 +81,7 @@ MODULE scp_coeff_types
             get_aux_coeff_set, aux_coeff_create, setup_aux_coeff, &
             aux_coeff_release, get_aux_coeff, aux_coeff_zero_fc, create_replicated_coeff, &
             deallocate_replicated_coeff
-            
+
 CONTAINS
 
 ! *****************************************************************************
@@ -392,7 +392,7 @@ CONTAINS
   IF ( ASSOCIATED ( rep_coeff ) ) THEN
    CALL deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
                                       aux_coeff_set, copy_type_id, .FALSE., error )
- 
+
   END IF
 
 ! Getting dimensions of the replicated coeff array
@@ -434,7 +434,7 @@ CONTAINS
    END DO
  END IF
  CALL mp_sum ( rep_coeff, para_env%group )
- 
+
  END SUBROUTINE create_replicated_coeff
 ! *****************************************************************************
   SUBROUTINE deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
@@ -460,11 +460,11 @@ CONTAINS
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
 
   NULLIFY ( c, fc )
-  IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out 
+  IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out
 
   CPPrecondition(ASSOCIATED(rep_coeff),cp_failure_level,routineN,error,failure)
   IF ( .NOT. failure ) THEN
-    IF ( my_copy_out ) THEN 
+    IF ( my_copy_out ) THEN
       DO ikind = 1, SIZE ( atomic_kind_set )
         local_coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
         IF (.NOT. ASSOCIATED ( local_coeffs ) ) CYCLE

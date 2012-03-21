@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculate the Perdew-Zunger correlation potential and 
+!> \brief Calculate the Perdew-Zunger correlation potential and
 !>      energy density and ist derivatives with respect to
 !>      the spin-up and spin-down densities up to 3rd order.
 !> \par History
@@ -41,7 +41,7 @@ MODULE xc_perdew_zunger
 
   IMPLICIT NONE
   PRIVATE
-  
+
   LOGICAL :: initialized = .FALSE.
   REAL(KIND=dp), DIMENSION(0:1) :: A = (0,0), B = (0,0), C = (0,0), D = (0,0), &
                                b1 = (0,0), b2 = (0,0), ga = (0,0)
@@ -85,7 +85,7 @@ CONTAINS
     CASE (pz_dmc)
        p_string='DMC'
     CASE (pz_vmc)
-       p_string='VMC' 
+       p_string='VMC'
     END SELECT
 
     IF ( PRESENT ( reference ) ) THEN
@@ -133,7 +133,7 @@ CONTAINS
 !>     01.2007 added scaling [Manuel Guidon]
 ! *****************************************************************************
   SUBROUTINE pz_lda_eval ( method, rho_set, deriv_set, order, pz_params, error )
-    
+
     INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -156,9 +156,9 @@ CONTAINS
     CALL timeset(routineN,timer_handle)
     failure=.FALSE.
     NULLIFY(bo,rho, e_0,e_rho,e_rho_rho,e_rho_rho_rho, dummy)
-   
+
     CALL section_vals_val_get(pz_params,"scale_c",r_val=sc,error=error)
-   
+
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
@@ -169,7 +169,7 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        CALL pz_init(method, rho_cutoff)
-       
+
        ! meaningful default for the arrays we don't need: let us make compiler
        ! and debugger happy...
        IF (cp_debug) THEN
@@ -221,7 +221,7 @@ CONTAINS
     END IF
 
     CALL timestop(timer_handle)
-    
+
   END SUBROUTINE pz_lda_eval
 
 ! *****************************************************************************
@@ -239,11 +239,11 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
 !$omp parallel do private ( k, ed )
     DO k=1, npoints
-       
+
        IF ( rho(k) > eps_rho ) THEN
 
          CALL pz_lda_ed_loc(rho(k), ed, ABS(order), sc)
-       
+
          IF (order>=0) THEN
             e_0(k) = e_0(k) + rho(k)*ed(0)
          END IF
@@ -302,9 +302,9 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     CALL timeset(routineN,timer_handle)
     failure=.FALSE.
     NULLIFY(bo,a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
- 
+
     CALL section_vals_val_get(pz_params,"scale_c",r_val=sc,error=error)
- 
+
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
@@ -315,7 +315,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        CALL pz_init(method, rho_cutoff)
-       
+
        ! meaningful default for the arrays we don't need: let us make compiler
        ! and debugger happy...
        IF (cp_debug) THEN
@@ -373,7 +373,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
                message="derivatives bigger than 3 not implemented", &
                error=error, error_level=cp_failure_level)
        END IF
-       
+
        CALL pz_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order, sc)
 
@@ -423,13 +423,13 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
              ea(k) = ea(k) + ed(0) + rho*ed(1)
              ea(k) = ea(k) + ed(0) + rho*ed(2)
           END IF
-       
+
           IF (order>=2.OR.order==-2) THEN
              eaa(k)   = eaa(k) + 2.0_dp*ed(1) + rho*ed(3)
              eab(k) = eab(k) + ed(1) + ed(2) + rho*ed(4)
              ebb(k) = ebb(k) + 2.0_dp*ed(2) + rho*ed(5)
           END IF
-       
+
           IF (order>=3.OR.order==-3) THEN
              eaaa(k)   = eaaa(k) + 3.0_dp*ed(3) + rho*ed(6)
              eaab(k) = eaab(k) + 2.0_dp*ed(4) + ed(3) + rho*ed(7)
@@ -441,7 +441,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
     END DO
 !$omp end parallel do
-       
+
   END SUBROUTINE pz_lsd_calc
 
 ! *****************************************************************************
@@ -453,7 +453,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 !> \see functionals_utilities
 ! *****************************************************************************
   SUBROUTINE pz_init ( method, cutoff )
-    
+
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
@@ -463,14 +463,14 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     CALL set_util(cutoff)
 
     eps_rho = cutoff
-    
+
     initialized = .FALSE.
 
     SELECT CASE (method)
 
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"Unknown method")
-       
+
     CASE (pz_orig)
        CALL cite_reference(Perdew1981)
        ga(0)  = -0.1423_dp;  ga(1)  = -0.0843_dp
@@ -490,8 +490,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        B(0)  = -0.046644_dp; B(1)  = -0.025599_dp
        C(0)  = -0.00419_dp;  C(1)  = -0.00329_dp
        D(0)  = -0.00983_dp;  D(1)  = -0.00300_dp
-       
-    CASE (pz_vmc) 
+
+    CASE (pz_vmc)
        CALL cite_reference(Ortiz1994)
        ga(0)  = -0.093662_dp; ga(1)  = -0.055331_dp
        b1(0) = 0.49453_dp;   b1(1) = 0.93766_dp
@@ -500,11 +500,11 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        B(0)  = -0.046644_dp; B(1)  = -0.025599_dp
        C(0)  = -0.00884_dp;  C(1)  = -0.00677_dp
        D(0)  = -0.00688_dp;  D(1)  = -0.00093_dp
-       
+
     END SELECT
-          
+
     initialized = .TRUE.
-    
+
   END SUBROUTINE pz_init
 
 ! *****************************************************************************
@@ -559,14 +559,14 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        IF (order >= 3) THEN
           g(3) = 2.0_dp*A(z)/(rr*r) - C(z)/rr
        END IF
-       
+
     END IF
 
   END SUBROUTINE calc_g
 
 ! *****************************************************************************
   SUBROUTINE pz_lda_ed_loc ( rho, ed, order, sc )
-    
+
     REAL(KIND=dp), INTENT(IN)                :: rho
     REAL(KIND=dp), DIMENSION(0:), &
       INTENT(OUT)                            :: ed
@@ -615,7 +615,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
 ! *****************************************************************************
   SUBROUTINE pz_lsd_ed_loc ( a, b, ed, order, sc )
-    
+
     REAL(KIND=dp), INTENT(IN)                :: a, b
     REAL(KIND=dp), DIMENSION(0:), &
       INTENT(OUT)                            :: ed
@@ -655,7 +655,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        tr = e0(1) + (e1(1)-e0(1))*f(0)
        tz = (e1(0)-e0(0))*f(1)
     END IF
-    
+
 !! calculate second partial derivatives
     IF (order_ >= 2) THEN
        r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
@@ -663,7 +663,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        trz = (e1(1)-e0(1))*f(1)
        tzz = (e1(0)-e0(0))*f(2)
     END IF
-    
+
 !! calculate third derivatives
     IF (order_ >= 3) THEN
        r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
@@ -672,14 +672,14 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        trzz = (e1(1)-e0(1))*f(2)
        tzzz = (e1(0)-e0(0))*f(3)
     END IF
-    
+
     m=0
     IF (calc(0)) THEN
        ed(m) = e0(0) + (e1(0)-e0(0))*f(0)
        ed(m) = ed(m) * sc
        m = m + 1
     END IF
-    
+
     IF (calc(1)) THEN
        ed(m)   = tr*r(1) + tz*z(1,0)
        ed(m)   = ed(m) * sc
@@ -687,7 +687,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        ed(m+1) = ed(m+1) * sc
        m = m + 2
     END IF
-    
+
     IF (calc(2)) THEN
        ed(m)   = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(1,0) &
             + tr*r(2) + tzz*z(1,0)**2 + tz*z(2,0)
@@ -700,7 +700,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        ed(m+2) = ed(m+2) * sc
        m = m + 3
     END IF
-       
+
     IF (calc(3)) THEN
        ed(m)   = trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(1,0) &
             + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(1,0) &
@@ -731,7 +731,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
             + 3.0_dp*tzz*z(0,1)*z(0,2) + tz*z(0,3)
        ed(m+3) = ed(m+3) * sc
     END IF
-    
+
   END SUBROUTINE pz_lsd_ed_loc
 
 END MODULE xc_perdew_zunger

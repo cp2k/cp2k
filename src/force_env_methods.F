@@ -171,7 +171,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: ateps = 1.e-6_dp 
+    REAL(kind=dp), PARAMETER                 :: ateps = 1.e-6_dp
 
     INTEGER                                  :: nat, ndigits, output_unit, &
                                                 print_forces, stat
@@ -226,7 +226,7 @@ CONTAINS
           CASE (use_ep_force)
              CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
           CASE ( use_qs_force )
-             CALL set_qs_env(qs_env=force_env%qs_env,atprop=atprop_env,error=error)         
+             CALL set_qs_env(qs_env=force_env%qs_env,atprop=atprop_env,error=error)
              IF (.NOT.calculate_forces) THEN
                 CALL qs_energies(qs_env=force_env%qs_env, consistent_energies=energy_consistency, &
                      calc_forces=calculate_forces, error=error)
@@ -235,7 +235,7 @@ CONTAINS
              END IF
 ! GA option
              CALL se_ga_release ( force_env%qs_env, error )
-             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)         
+             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)
           CASE (use_eip_force)
              IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                 CALL eip_lenosky(force_env, error=error)
@@ -363,7 +363,7 @@ CONTAINS
        CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL force_env_get(force_env, potential_energy=e_pot, error=error)
        IF (output_unit > 0) THEN
-          WRITE(output_unit,*) 
+          WRITE(output_unit,*)
           WRITE(output_unit,*) "ENERGY (ATOMIC) :",SUM(atprop_env%atener(:))
           WRITE(output_unit,*) "ENERGY (TOTAL)  :",e_pot
           CPPostcondition(ABS(e_pot-SUM(atprop_env%atener))<ateps*ABS(e_pot),cp_fatal_level,routineP,error,failure)
@@ -373,7 +373,7 @@ CONTAINS
        CALL mp_sum(atprop_env%atstress, force_env%para_env%group)
        pvtot = SUM(virial%pv_virial(:,:))
        IF (output_unit > 0) THEN
-          WRITE(output_unit,*) 
+          WRITE(output_unit,*)
           WRITE(output_unit,*) "STRESS (ATOMIC) :",SUM(atprop_env%atstress(:,:,:))
           WRITE(output_unit,*) "STRESS (TOTAL)  :",pvtot
           CPPostcondition(ABS(pvtot-SUM(atprop_env%atstress(:,:,:)))<ateps,cp_fatal_level,routineP,error,failure)

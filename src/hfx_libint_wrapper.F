@@ -4,11 +4,11 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Interface to the Libint-Library or a c++ wrapper. 
+!> \brief Interface to the Libint-Library or a c++ wrapper.
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !>      10.2009 refactored [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_libint_wrapper
 
@@ -23,7 +23,7 @@ MODULE hfx_libint_wrapper
 #if defined (__HAS_ISO_C_BINDING)
   USE, INTRINSIC :: ISO_C_BINDING
 #endif
-#endif 
+#endif
 
   USE kinds,                           ONLY: dp
   USE mathconstants
@@ -32,7 +32,7 @@ MODULE hfx_libint_wrapper
 
   USE f77_blas
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC initialize_libint, terminate_libint,&

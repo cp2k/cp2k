@@ -95,7 +95,7 @@ CONTAINS
   SUBROUTINE initialize_csvr_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, csvr, csvr_section,&
        gci, error)
- 
+
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -160,7 +160,7 @@ CONTAINS
     ! Possibly restart the random number generators for the different thermostats
     work_section => section_vals_get_subs_vals(section_vals=csvr_section,&
          subsection_name="RNG_INIT", error=error)
-    
+
     CALL section_vals_get(work_section,explicit=explicit,error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&

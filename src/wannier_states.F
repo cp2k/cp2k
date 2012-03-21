@@ -173,5 +173,5 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE construct_wannier_states
 
-END MODULE wannier_states 
+END MODULE wannier_states
 

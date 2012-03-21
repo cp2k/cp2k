@@ -7,7 +7,7 @@
 !> \brief Working with the DFTB parameter types.
 !> \author JGH (24.02.2007)
 ! *****************************************************************************
-MODULE qs_dftb_utils 
+MODULE qs_dftb_utils
 
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&

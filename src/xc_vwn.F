@@ -52,7 +52,7 @@ MODULE xc_vwn
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn'
 
-  REAL(KIND=dp) :: eps_rho, b, c, x0, bf, cf, x0f, ba, ca, x0a 
+  REAL(KIND=dp) :: eps_rho, b, c, x0, bf, cf, x0f, ba, ca, x0a
 
 CONTAINS
 
@@ -90,7 +90,7 @@ CONTAINS
           b  = 13.0720_dp
           c  = 42.7198_dp
           x0 = -0.409286_dp
-          bf  = 20.1231_dp 
+          bf  = 20.1231_dp
           cf  = 101.578_dp
           x0f = -0.743294_dp
           ba  = 1.13107_dp
@@ -100,7 +100,7 @@ CONTAINS
          failure = .FALSE.
          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                         " Only functionals VWN3 and VWN5 are supported" ,error,failure)
- 
+
     END SELECT
 
   END SUBROUTINE vwn_init
@@ -182,7 +182,7 @@ CONTAINS
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-          
+
           CALL vwn_lda_0 ( rho, x, e_0, npoints, sc, error )
        ELSEIF ( order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
@@ -239,7 +239,7 @@ CONTAINS
 
     !$omp parallel do default(none) &
     !$omp             shared (npoints, rho, eps_rho, x, c, b, e_0, sc) &
-    !$omp             shared (q, x0, px0, xb) & 
+    !$omp             shared (q, x0, px0, xb) &
     !$omp             private(ip,px,dpx,at,ln1,ln2)
 
     DO ip = 1, npoints
@@ -296,7 +296,7 @@ CONTAINS
          ln2 = LOG((x(ip)-x0)**2/px)
          dln2 = (b*x(ip)+2.0_dp*c+2.0_dp*x0*x(ip)+x0*b)/((x(ip)-x0)*px)
          ex = a * ( ln1 + b*at - b*x0/px0* ( ln2 + xb * at ) )
-         dex = a * ( dln1 + b*dat  - b*x0/px0* ( dln2 + xb * dat )) 
+         dex = a * ( dln1 + b*dat  - b*x0/px0* ( dln2 + xb * dat ))
          e_rho(ip) = e_rho(ip) +( ex - x(ip)*dex/6.0_dp ) * sc
       END IF
 
@@ -462,7 +462,7 @@ CONTAINS
          d3ln2 = -cx*d2dx/(dx*dx) - 2.0_dp*d2ln2*ddx/dx
          dex = a * ( dln1 + b*dat + fp * ( dln2 + xb * dat ) )
          d2ex= a * ( d2ln1 + b*d2at + fp * ( d2ln2 + xb * d2at ) )
-         d3ex= a * ( d3ln1 + b*d3at + fp * ( d3ln2 + xb * d3at ) ) 
+         d3ex= a * ( d3ln1 + b*d3at + fp * ( d3ln2 + xb * d3at ) )
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
               - ( 7.0_dp*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) + &
               x(ip)*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d3ex-4.0_dp*d2ex) ) * sc
@@ -510,7 +510,7 @@ CONTAINS
            error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
       CALL vwn_init(epsilon_rho, vwn_params, error)
-      
+
       IF (cp_debug) THEN
         ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -579,7 +579,7 @@ CONTAINS
              message="derivatives bigger than 3 not implemented", &
              error=error, error_level=cp_failure_level)
       END IF
-      
+
       CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE,error=error)
       SELECT CASE(TYPE)
         CASE(do_vwn3)
@@ -684,7 +684,7 @@ CONTAINS
     x0p = x0
     Qp = SQRT(4.0_dp*cp-bp*bp)
     Qf = SQRT(4.0_dp*cf-bf*bf)
-    
+
     !$omp do
     DO ip = 1, npoints
       myrhoa = MAX(rhoa(ip),0.0_dp)
@@ -693,7 +693,7 @@ CONTAINS
       IF (myrho > eps_rho ) THEN
         IF (order>=0) THEN
           t1 = 0.1e1_dp / 0.3141592654e1_dp
-          t2 = myrho 
+          t2 = myrho
           t3 = 0.1e1_dp / t2
           t4 = t1 * t3
           t5 = t4 ** 0.3333333332e0_dp
@@ -987,7 +987,7 @@ CONTAINS
           t490 = 0.2e1_dp * t472
 
           e_bb(ip) = e_bb(ip) + ( (t332 + t489 + t490 + t452) * t2 + t455 + 0.2e1_dp * t213 + t457 ) * sc
-          
+
         END IF
         IF (order>=3.OR.order==-3) THEN
           t494 = t4 ** (-0.2666666667e1_dp)
@@ -1135,7 +1135,7 @@ CONTAINS
           t950 = t51 * (af * t947 - t720)
           t953 = 0.3e1_dp * t332
           t956 = 0.3e1_dp * t452
-          
+
           e_aaa(ip) = e_aaa(ip) + ( (t720 + (-0.5699736440e0_dp * t721 * t334 * t147 + 0.2564881396e1_dp  &
                       * t458 * t339 + 0.2564881399e1_dp * t145 * t729 - 0.5699736440e0_dp *  &
                       t732 * t343 * t151 + 0.2564881396e1_dp * t464 * t346 - 0.2564881399e1_dp  &
@@ -1278,7 +1278,7 @@ CONTAINS
       IF ( myrho > eps_rho ) THEN
         IF (order>=0) THEN
           t1 = myrhoa - myrhob
-          t2 = myrho 
+          t2 = myrho
           t3 = 0.1e1_dp / t2
           t4 = t1 * t3
           t5 = 0.10e1_dp + t4
@@ -1380,7 +1380,7 @@ CONTAINS
           t160 = t17 ** (-0.8333333334e0_dp)
           t161 = bp * t160
           t164 = -t159 - 0.1588640488e0_dp * t161 * t151
-          t167 = -0.3028534320e0_dp * t150 * t151 - 0.9085602964e0_dp * t156 * t164 
+          t167 = -0.3028534320e0_dp * t150 * t151 - 0.9085602964e0_dp * t156 * t164
           t168 = t17 ** (-0.3333333332e0_dp)
           t169 = t167 * t168
           t172 = t29 ** 2
@@ -1414,7 +1414,7 @@ CONTAINS
           t213 = t18 * t212
           t214 = ba * t160
           t217 = -t159 - 0.1588640488e0_dp * t214 * t151
-          t220 = -0.3028534320e0_dp * t208 * t151 - 0.9085602964e0_dp * t213 * t217 
+          t220 = -0.3028534320e0_dp * t208 * t151 - 0.9085602964e0_dp * t213 * t217
           t221 = t220 * t168
           t224 = t65 ** 2
           t225 = 0.1e1_dp / t224
@@ -1447,7 +1447,7 @@ CONTAINS
           t265 = t18 * t264
           t266 = bf * t160
           t269 = -t159 - 0.1588640488e0_dp * t266 * t151
-          t272 = -0.3028534320e0_dp * t260 * t151 - 0.9085602964e0_dp * t265 * t269 
+          t272 = -0.3028534320e0_dp * t260 * t151 - 0.9085602964e0_dp * t265 * t269
           t273 = t272 * t168
           t276 = t101 ** 2
           t277 = 0.1e1_dp / t276
@@ -1756,7 +1756,7 @@ CONTAINS
           t759 = t755 * t758
           t762 = t322 * t254
           t763 = t742 + t364 + t743 + t480 + t745 - 0.40e1_dp * t746 + t485 - 0.40e1_dp  &
-                 * t748 - 0.1200e2_dp * t753 - 0.80e1_dp * t759 - 0.40e1_dp * t491 + t762 
+                 * t748 - 0.1200e2_dp * t753 - 0.80e1_dp * t759 - 0.40e1_dp * t491 + t762
           t764 = t317 * t254
           t766 = t729 * t126
           t767 = t352 * t327
@@ -1990,7 +1990,7 @@ CONTAINS
                   * t1120 * t92 + 0.120e2_dp * t1110 * t257 - 0.120e2_dp * t1116 * t92  &
                   + 0.3e1_dp * t1137 + 0.3600e2_dp * t771 * t772 * t340 + 0.240e2_dp * t1142  &
                   + t1346 - 0.120e2_dp * t1111 * t92 - 0.3600e2_dp * t1114 * t92 - 0.3600e2_dp  &
-                  * t750 * t90 * t91 * t340 - 0.40e1_dp * t1125 * t92 + 0.3600e2_dp * t1358 
+                  * t750 * t90 * t91 * t340 - 0.40e1_dp * t1125 * t92 + 0.3600e2_dp * t1358
           t1361 = t362 * t202
           t1363 = t353 * t254
           t1365 = t144 * t591
@@ -2147,7 +2147,7 @@ CONTAINS
 
           t1795 = -t1602 + t826 + t812 + t824 + t834 + t1603 - t1604 + t1605  &
                   + 0.4e1_dp * t762 - t1606 + 0.4e1_dp * t782 + t830 + 0.160e2_dp * t784 + 0.4e1_dp  &
-                  * t743 - 0.160e2_dp * t764 - t492 + t365 
+                  * t743 - 0.160e2_dp * t764 - t492 + t365
           t1797 = t143 * t305 * t793
           t1804 = t337 * t309
           t1826 = -0.5699736440e0_dp * t1088 * t133 * t789 + 0.3419841862e1_dp * t332  &

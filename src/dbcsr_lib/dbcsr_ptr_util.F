@@ -32,7 +32,7 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
-                                             dbcsr_type_real_8 
+                                             dbcsr_type_real_8
 
   !$ USE OMP_LIB
 

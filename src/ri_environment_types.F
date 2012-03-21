@@ -5,8 +5,8 @@
 
 ! *****************************************************************************
 !> \brief contains the types and subroutines for dealing with the ri_env
-!>        ri : resolution of the identity 
-!> \author JGH July 2009    
+!>        ri : resolution of the identity
+!> \author JGH July 2009
 ! *****************************************************************************
 MODULE ri_environment_types
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -71,7 +71,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates and initializes an ri_env
 !> \param ri_env the ri_environment you want to create
-!> 
+!>
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE ri_env_create ( ri_env, error )
@@ -176,9 +176,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given ri env
 !> \param ri_env the force environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
 !> \author JGH
 ! *****************************************************************************
 SUBROUTINE ri_env_retain(ri_env, error)
@@ -191,7 +191,7 @@ SUBROUTINE ri_env_retain(ri_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(ri_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(ri_env%ref_count>0,cp_failure_level,routineP,error)
@@ -203,9 +203,9 @@ END SUBROUTINE ri_env_retain
 ! *****************************************************************************
 !> \brief releases the given mc env
 !> \param ri_env the mc environment to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
 !> \author JGH
 ! *****************************************************************************
 SUBROUTINE ri_env_release(ri_env, error)
@@ -219,7 +219,7 @@ SUBROUTINE ri_env_release(ri_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(ri_env)) THEN
      CPPreconditionNoFail(ri_env%ref_count>0,cp_failure_level,routineP,error)
      ri_env%ref_count=ri_env%ref_count-1
@@ -332,7 +332,7 @@ SUBROUTINE ri_vector_add(alpha, vecx, vecy, error)
    END DO
 
 END SUBROUTINE ri_vector_add
- 
+
 SUBROUTINE ri_vector_copy(vec_in, vec_out, error)
     TYPE(ri_vector_type)                     :: vec_in, vec_out
     TYPE(cp_error_type), INTENT(inout)       :: error

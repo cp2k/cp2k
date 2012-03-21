@@ -36,7 +36,7 @@
       flib = 8
   END SELECT
 
-END FUNCTION fft_library 
+END FUNCTION fft_library
 
 ! *****************************************************************************
 SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
@@ -89,7 +89,7 @@ IMPLICIT NONE
 
   plan % fft_type = fft_type
   plan % fsign = fsign
-  plan % fft_in_place = fft_in_place 
+  plan % fft_in_place = fft_in_place
   plan % n_3d = n
 !$ plan % need_alt_plan = .FALSE.
 
@@ -106,7 +106,7 @@ END SUBROUTINE fft_create_plan_3d
 
 !
 ! really ugly, plan is intent out, because plan%fsign is also a status flag
-! if something goes wrong, plan%fsign is set to zero, and the plan becomes invalid 
+! if something goes wrong, plan%fsign is set to zero, and the plan becomes invalid
 !
 SUBROUTINE fft_3d ( plan, scale, zin, zout, stat )
 
@@ -190,7 +190,7 @@ IMPLICIT NONE
 
   plan % valid = .TRUE.
 
-END SUBROUTINE fft_create_plan_1dm 
+END SUBROUTINE fft_create_plan_1dm
 
 SUBROUTINE fft_destroy_plan ( plan )
 
@@ -218,14 +218,14 @@ SUBROUTINE fft_1dm ( plan, zin, zout, scale, stat)
 
   USE fft_plan,                           ONLY: fft_plan_type
   USE fft_kinds,                          ONLY: dp
-  
+
   IMPLICIT NONE
 
 ! Arguments
   TYPE (fft_plan_type) , INTENT (IN)              :: plan
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zout
-  REAL (KIND=dp), INTENT(IN)                      :: scale  
+  REAL (KIND=dp), INTENT(IN)                      :: scale
   INTEGER, INTENT(OUT)                            :: stat
 
   stat=plan%fsign
@@ -242,9 +242,9 @@ SUBROUTINE fft_1dm ( plan, zin, zout, scale, stat)
       CASE ( 4 )
         CALL fftessl1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 5 )
-        CALL fftacml1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale ) 
+        CALL fftacml1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 6 )
-        CALL fftmkl1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale ) 
+        CALL fftmkl1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 7 )
         CALL fftsci1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 8 )

@@ -91,7 +91,7 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    
+
     ! Molecular Dipoles availables only for nspin == 1
     IF( BTEST(cp_print_key_should_output(logger%iter_info,loc_print_key,&
                "MOLECULAR_DIPOLES",error=error),cp_p_file))THEN
@@ -104,7 +104,7 @@ CONTAINS
        ! Setup reference point and some warning..
        reference = section_get_ival(loc_print_key,keyword_name="MOLECULAR_DIPOLES%REFERENCE",error=error)
        CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%REF_POINT",r_vals=ref_point,error=error)
-       CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%PERIODIC",l_val=do_berry,error=error)    
+       CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%PERIODIC",l_val=do_berry,error=error)
     END IF
     particle_set => qs_loc_env%particle_set
     para_env     => qs_loc_env%para_env
@@ -162,7 +162,7 @@ CONTAINS
           molecule_kind => molecule_set(i)%molecule_kind
           first_atom = molecule_set(i)%first_atom
           CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom)
-               
+
           DO iatom=1,natom
              counter = counter + 1
              r ( :, counter ) = particle_set(first_atom+iatom-1)%r ( : )
@@ -223,7 +223,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    
+
     !---------------------------------------------------------------------------
     ! Figure out dipole of the molecule.
     !---------------------------------------------------------------------------
@@ -277,7 +277,7 @@ CONTAINS
              ria        = twopi * MATMUL(cell%h_inv, rcc)
              zphase     = CMPLX(COS(ria), SIN(ria), KIND=dp)**charge_tot
              ggamma     = CMPLX(1.0_dp,0.0_dp,KIND=dp)
-             
+
              ! Nuclear charges
              DO iatom=1,natom
                 i=first_atom+iatom-1
@@ -306,7 +306,7 @@ CONTAINS
                    ggamma(j)  = ggamma(j) * zeta
                 END DO
              ENDDO
-             
+
              ggamma = ggamma * zphase
              ci = AIMAG(LOG(ggamma))/twopi
              dipole = MATMUL(cell%hmat, ci)
@@ -336,7 +336,7 @@ CONTAINS
     ENDDO
     CALL mp_sum(dipole_set,para_env%group)
     CALL mp_sum(charge_set,para_env%group)
-    
+
     output_unit=cp_print_key_unit_nr(logger,loc_print_key,"MOLECULAR_DIPOLES",&
          extension=".MolDip",middle_name="MOLECULAR_DIPOLES",error=error)
     IF (output_unit>0) THEN

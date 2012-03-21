@@ -7,7 +7,7 @@
 !> \brief Provides types that are used to interface with the libint library
 !> \par History
 !>      10.2009 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_libint_wrapper_types
 
@@ -23,10 +23,10 @@ MODULE hfx_libint_wrapper_types
   USE, INTRINSIC :: ISO_C_BINDING
 #endif
 
-#endif 
+#endif
 
   USE kinds,                           ONLY: dp, int_8
- 
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC lib_int,&
@@ -60,7 +60,7 @@ MODULE hfx_libint_wrapper_types
   INTEGER, PARAMETER :: libint_vrr_classes_size = 2 * (libint_max_am - 1) + 1
   INTEGER, PARAMETER :: libint_dvrr_classes_size = 2 * (libderiv_max_am1 - 1) + 1
   INTEGER, PARAMETER :: build_eri_size = libint_max_am - 1
-  INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1 - 1 
+  INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1 - 1
 
 #if defined (__LIBINT)
 
@@ -80,7 +80,7 @@ MODULE hfx_libint_wrapper_types
     REAL(C_DOUBLE) :: oo2p
     REAL(C_DOUBLE) :: ss_r12_ss
   END TYPE prim_data
-        
+
   TYPE, BIND(C) :: lib_int
     TYPE(C_PTR)     :: int_stack
     TYPE(C_PTR)     :: PrimQuartet

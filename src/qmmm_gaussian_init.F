@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Initialize the use of the gaussians to treat the QMMM 
+!> \brief Initialize the use of the gaussians to treat the QMMM
 !>      coupling potential
 !> \par History
 !>      6.2004 created [tlaino]
@@ -48,8 +48,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the Gaussian QMMM Environment
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -100,7 +100,7 @@ CONTAINS
        ELSE
           use_geep_lib = .TRUE.
           CPPostcondition(num_geep_gauss>=min_geep_lib_gauss,cp_failure_level,routineP,error,failure)
-          CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,error,failure)
        END IF
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_gauss,do_qmmm_swave)
@@ -139,11 +139,11 @@ CONTAINS
              DEALLOCATE(c_radius,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           ELSE
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)      
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)
           END IF
           !
           ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)       
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           DO I = 1, Ndim-1
              NULLIFY(qmmm_gaussian_fns(I)%pgf)
              ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
@@ -151,19 +151,19 @@ CONTAINS
              NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
              NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
              NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
-             ! 
+             !
              ! Default Values
              !
              qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
              qmmm_gaussian_fns(I)%pgf%Elp_Radius_corr     = c_radius(I)
           END DO
-          IF (ASSOCIATED(radius)) THEN 
+          IF (ASSOCIATED(radius)) THEN
              DEALLOCATE(radius,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           END IF
-          IF (ASSOCIATED(c_radius)) THEN 
+          IF (ASSOCIATED(c_radius)) THEN
              DEALLOCATE(c_radius,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
           END IF
           !
           IF (use_geep_lib) THEN

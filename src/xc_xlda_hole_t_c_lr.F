@@ -166,7 +166,7 @@ MODULE xc_xlda_hole_t_c_lr
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rho=rho,&
@@ -211,7 +211,7 @@ MODULE xc_xlda_hole_t_c_lr
                                 e_0=e_0,e_rho=e_rho,&
                                 epsilon_rho=epsilon_rho,&
                                 sx=sx,R=R,error=error)
-      
+
       IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -380,7 +380,7 @@ MODULE xc_xlda_hole_t_c_lr
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rhoa=rhoa, rhob=rhob,&

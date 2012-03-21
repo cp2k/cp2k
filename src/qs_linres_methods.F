@@ -263,7 +263,7 @@ CONTAINS
     failure = .FALSE.
     !
     CALL timeset(routineN,handle)
-   
+
     NULLIFY(dft_control,linres_control,matrix_s,matrix_t,matrix_ks,para_env)
     NULLIFY(Ap,r,p,z,lr_section,logger,buf,mos,tmp_fm_struct,mo_coeff)
     NULLIFY(Sc,chc)
@@ -481,7 +481,7 @@ CONTAINS
              CALL stop_program(routineN,moduleN,__LINE__,&
                                "tr(Ap_j*p_j) < 0")
           END IF
-          !          
+          !
           ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
           IF(tr_pAp(ispin).LT.1.0e-10_dp) THEN
              alpha(ispin) = 1.0_dp
@@ -1134,7 +1134,7 @@ CONTAINS
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
 
           END IF
-         
+
           CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,p_env%kpp1_env%v_ao(ispin)%matrix,&
                error=error)
        END DO
@@ -1436,7 +1436,7 @@ CONTAINS
        ! buf = v' * psi0
        CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
        ! v = v - S_psi0 * buf'
-       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)    
+       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
        !
     ENDDO
     !

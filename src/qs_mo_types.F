@@ -153,9 +153,9 @@ MODULE qs_mo_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief  Occupation for smeared spin polirized electronic structures 
-!>         with relaxed multiplicity 
-!>          
+!> \brief  Occupation for smeared spin polirized electronic structures
+!>         with relaxed multiplicity
+!>
 !> \author  MI
 !> \date    10.03.2011 (MI)
 !> \version 1.0
@@ -463,7 +463,7 @@ CONTAINS
 !> \author Joost VandeVondele
 !> \date 2009-7-19
 ! *****************************************************************************
-  SUBROUTINE duplicate_mo_set(mo_set_new,mo_set_old,error) 
+  SUBROUTINE duplicate_mo_set(mo_set_new,mo_set_old,error)
     TYPE(mo_set_type), POINTER               :: mo_set_new, mo_set_old
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -550,7 +550,7 @@ CONTAINS
     IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set,error)
 
     ALLOCATE (mo_set,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
@@ -611,11 +611,11 @@ CONTAINS
     CPPostcondition((nmo >= mo_set%nmo),cp_failure_level,routineP,error,failure)
 
     ALLOCATE (mo_set%eigenvalues(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure) 
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
     mo_set%eigenvalues(:) = 0.0_dp
 
     ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure) 
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
     CALL set_mo_occupation_1(mo_set=mo_set,error=error)
 
   END SUBROUTINE init_mo_set
@@ -712,11 +712,11 @@ CONTAINS
     IF (ASSOCIATED(mo_set)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
         DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
         DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
       CALL cp_fm_release(mo_set%mo_coeff,error=error)
       IF(ASSOCIATED(mo_set%mo_coeff_b)) CALL cp_dbcsr_release_p(mo_set%mo_coeff_b, error=error)
@@ -778,7 +778,7 @@ CONTAINS
 !> \param   mo_set MO dataset structure
 !> \param   smear optional smearing information
 !> \param   eval_deriv on entry the derivative of the KS energy wrt to the occupation number
-!>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue 
+!>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue
 ! *****************************************************************************
   SUBROUTINE set_mo_occupation_1(mo_set,smear,eval_deriv,xas_env, error)
 
@@ -817,7 +817,7 @@ CONTAINS
       RETURN
     END IF
 
-    IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN 
+    IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN
       nomo = NINT(mo_set%nelectron/mo_set%maxocc)
       ! Initialize MO occupations
       mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
@@ -847,7 +847,7 @@ CONTAINS
                (el_count-xas_nelectron)
           EXIT
         END IF
-      END DO 
+      END DO
       IF((xas_nelectron - el_count) > EPSILON(0.0_dp) ) THEN
         nomo = nomo + 1
         mo_set%occupation_numbers(nomo) = xas_nelectron -  el_count
@@ -933,7 +933,7 @@ CONTAINS
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the first MO",&
                        error,failure)
- 
+
         ! Find the highest (fractional) occupied MO which will be now the HOMO
         DO imo=nmo,mo_set%lfomo,-1
           IF (mo_set%occupation_numbers(imo) > smear%eps_fermi_dirac) THEN
@@ -1269,15 +1269,15 @@ CPSourceFileRef,&
        END DO
 
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nso_info(:,:,:) = 0
 
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nshell_info(:,:) = 0
 
        ALLOCATE (nset_info(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nset_info(:) = 0
 
        DO iatom=1,natom
@@ -1319,13 +1319,13 @@ CPSourceFileRef,&
        WRITE (ires) nso_info
 
        DEALLOCATE (nset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        DEALLOCATE (nshell_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        DEALLOCATE (nso_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     ! use the scalapack block size as a default for buffering columns
@@ -1350,7 +1350,7 @@ CPSourceFileRef,&
           CALL cp_fm_write_unformatted(mo_array(ispin)%mo_set%mo_coeff,ires,error)
        END IF
     END DO
-       
+
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_low
@@ -1374,7 +1374,7 @@ CPSourceFileRef,&
     IF(PRESENT(xas)) my_xas = xas
     IF(PRESENT(rtp)) my_rtp = rtp
 
-    exist = .FALSE. 
+    exist = .FALSE.
     CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
     IF (n_rep_val>0) THEN
       CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
@@ -1610,14 +1610,14 @@ CPSourceFileRef,&
                  only_ionode=.TRUE.)
          ENDIF
       END IF
-      
+
       IF (natom_read /= natom) THEN
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
               "Incorrect number of atoms in restart file. "//&
               CPSourceFileRef,&
               only_ionode=.TRUE.)
       END IF
-      
+
       ! Let's make it possible to change the basis set
       ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1627,7 +1627,7 @@ CPSourceFileRef,&
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      
+
       IF (nao_read /= nao) THEN
          WRITE(cp_logger_get_default_unit_nr(logger),*) &
               " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
@@ -1635,13 +1635,13 @@ CPSourceFileRef,&
               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                  "To change basis is not possible. "//&
                  CPSourceFileRef,&
-                 only_ionode=.TRUE.)    
+                 only_ionode=.TRUE.)
       END IF
-      
+
       READ (rst_unit) nset_info
       READ (rst_unit) nshell_info
       READ (rst_unit) nso_info
-      
+
       i=1
       DO iatom=1,natom
          DO iset=1,nset_info(iatom)
@@ -1651,31 +1651,31 @@ CPSourceFileRef,&
             END DO
          END DO
       END DO
-      
+
       ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
    END IF
-   
+
    CALL mp_bcast(nspin_read,source,group)
-   
+
    ALLOCATE (vecbuffer(1,nao),STAT=istat)
    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   
+
    DO ispin=1,nspin
-      
+
       nmo=mos(ispin)%mo_set%nmo
       homo=mos(ispin)%mo_set%homo
       mos(ispin)%mo_set%eigenvalues(:) = 0.0_dp
       mos(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
       CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
-      
+
       IF (para_env%ionode.AND.(nmo > 0)) THEN
          READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
          ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          eig_read = 0.0_dp
          occ_read = 0.0_dp
-         
+
          nmo = MIN(nmo,nmo_read)
          CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
               "The number of MOs on the restart unit is smaller than the number of "//&
@@ -1687,13 +1687,13 @@ CPSourceFileRef,&
              "the allocated MOs. The read MO set will be truncated!"//&
              CPSourceFileRef,&
              only_ionode=.TRUE.)
-        
+
         READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
         mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
         DEALLOCATE(eig_read, occ_read, STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        
+
         mos(ispin)%mo_set%homo = homo_read
         mos(ispin)%mo_set%lfomo = lfomo_read
         IF (homo_read > nmo) THEN
@@ -1761,7 +1761,7 @@ CPSourceFileRef,&
                           CPSourceFileRef,&
                           only_ionode=.TRUE.)
                   END IF
-                  
+
                   use_this = .TRUE.
                   iset_read = 1
                   DO iset=1,nset
@@ -1806,11 +1806,11 @@ CPSourceFileRef,&
                      END DO
                   END DO
                END DO
-               
+
             ELSE
-               
+
                vecbuffer(1,:) = 0.0_dp
-               
+
             END IF
 
             CALL mp_bcast(vecbuffer,source,group)
@@ -1821,7 +1821,7 @@ CPSourceFileRef,&
       ! Skip extra MOs if there any
       IF (para_env%ionode) THEN
         !ignore nmo = 0
-        IF(nmo>0) THEN 
+        IF(nmo>0) THEN
           DO i=nmo+1,nmo_read
             READ (rst_unit) vecbuffer_read
           END DO
@@ -1878,7 +1878,7 @@ CPSourceFileRef,&
 !>          MO mo_coeff.
 !> \author  MK
 !> \date    15.05.2001
-!> \par History: 
+!> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005,MK)
 !> \par Variables
 !>       - after : Number of digits after point.
@@ -1961,11 +1961,11 @@ CPSourceFileRef,&
             nrow_global=nrow_global,&
             ncol_global=ncol_global,error=error)
        ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix,error=error)
        IF (.NOT.ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
 
@@ -2018,7 +2018,7 @@ CPSourceFileRef,&
              END IF
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
              cmatrix = 0.0_dp
 
@@ -2238,10 +2238,10 @@ CPSourceFileRef,&
           ! Release work storage
 
           DEALLOCATE (smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           IF (p_cart) THEN
              DEALLOCATE (cmatrix,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
 
        ELSE IF (p_occ.OR.p_eval) THEN

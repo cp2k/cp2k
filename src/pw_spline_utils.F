@@ -9,7 +9,7 @@
 !> \par History
 !>      05.2003 created [fawzi]
 !>      08.2004 removed spline evaluation method using more than 2 read streams
-!>              (pw_compose_stripe_rs3), added linear solver based spline 
+!>              (pw_compose_stripe_rs3), added linear solver based spline
 !>              inversion [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
@@ -81,7 +81,7 @@ MODULE pw_spline_utils
          (/ 64._dp/3._dp,-8._dp/3._dp,-1._dp/3._dp, -1._dp/24._dp /),&
          spl3_1d_transf_coeffs=&
          (/ 2._dp/3._dp,23._dp/48._dp,1._dp/6._dp,1._dp/48._dp /)
-    
+
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
          (/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),&
          spline2_deriv_coeffs=&
@@ -94,7 +94,7 @@ MODULE pw_spline_utils
          (/ 1._dp/6_dp,2._dp/3._dp,1._dp/6._dp /),&
          spl3_1d_transf_border1=&
          (/ 0.517977704_dp, 0.464044595_dp, 0.17977701e-1_dp /)
-    
+
     INTEGER, SAVE, PRIVATE :: last_precond_id=0
 
   PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
@@ -116,7 +116,7 @@ MODULE pw_spline_utils
 !***
 
 ! *****************************************************************************
-!> \brief stores information for the preconditioner used to calculate the 
+!> \brief stores information for the preconditioner used to calculate the
 !>      coeffs of splines
 !> \author fawzi
 ! *****************************************************************************
@@ -135,8 +135,8 @@ CONTAINS
 !>      interpolates the given values
 !> \param spline_g on entry the FFT of the values to interpolate as cc,
 !>        will contain the FFT of the coefficents of the spline
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      does not work with spherical cutoff
 !> \par History
@@ -201,9 +201,9 @@ CONTAINS
             (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*3.0_dp+&
             (cosIVals(i)+cosJVals(j)+cosKVals(k))*9.0_dp+&
             27.0_dp)
-       
+
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
-       
+
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -216,8 +216,8 @@ CONTAINS
 !>      interpolates the given values
 !> \param spline_g on entry the FFT of the values to interpolate as cc,
 !>        will contain the FFT of the coefficents of the spline
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      does not work with spherical cutoff
 !>      stupid distribution for cos calculation, it should calculate only the
@@ -291,9 +291,9 @@ CONTAINS
             (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*2.0_dp+&
             (cosIVals(i)+cosJVals(j)+cosKVals(k))*4.0_dp+&
             8.0_dp)
-       
+
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
-       
+
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -303,12 +303,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the FFT of the values of the quadratic spline given by the
-!>      FFT of the coefficents of the spline (inverse of 
+!>      FFT of the coefficents of the spline (inverse of
 !>      pw_spline_interpolate_values_g)
 !> \param spline_g on entry the FFT of the coefficents of the spline as cr3d,
 !>        will contain the FFT of the values of the spline
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -372,7 +372,7 @@ CONTAINS
             (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*3.0_dp+&
             (cosIVals(i)+cosJVals(j)+cosKVals(k))*9.0_dp+&
             27.0_dp)*inv64
-       
+
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
@@ -385,13 +385,13 @@ CONTAINS
 !> \brief calculates the FFT of the values of a nearest neighbor smearing
 !> \param spline_g on entry the FFT of the values to interpolate as cc3d,
 !>        will contain the FFT of the smeared values
-!> \param coeffs array with the coefficent of the smearing, ordered with 
+!> \param coeffs array with the coefficent of the smearing, ordered with
 !>        the distance from the center: coeffs(1) the coeff of the central
 !>        element, coeffs(2) the coeff of the 6 element with distance 1,
 !>        coeff(3) the coeff of the 12 elements at distance sqrt(2),
 !>        coeff(4) the coeff of the 8 elements at distance sqrt(3).
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      does not normalize the smear to 1.
 !>      with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
@@ -466,7 +466,7 @@ CONTAINS
             (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*r_coeffs(3)+&
             (cosIVals(i)+cosJVals(j)+cosKVals(k))*r_coeffs(2)+&
             r_coeffs(1))
-       
+
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
@@ -477,12 +477,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the FFT of the values of the cubic spline given by the
-!>      FFT of the coefficents of the spline (inverse of 
+!>      FFT of the coefficents of the spline (inverse of
 !>      pw_spline_interpolate_values_g)
 !> \param spline_g on entry the FFT of the values to interpolate as cc3d,
 !>        will contain the FFT of the coefficents of the spline
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -553,7 +553,7 @@ CONTAINS
             (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*2.0_dp+&
             (cosIVals(i)+cosJVals(j)+cosKVals(k))*4.0_dp+&
             8.0_dp)*inv27
-       
+
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
@@ -566,11 +566,11 @@ CONTAINS
 !> \brief rescales the derivatives from gridspacing=1 to the real derivatives
 !> \param deriv_vals_r an array of x,y,z derivatives
 !> \param cell the mapping to the real cell
-!> \param transpose if true applies the transpose of the map (defaults to 
+!> \param transpose if true applies the transpose of the map (defaults to
 !>        false)
 !> \param scale a scaling factor (defaults to 1.0)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -621,7 +621,7 @@ CONTAINS
     ELSE
        DO j=1,3
           DO i=1,3
-             h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)      
+             h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
              IF (i/=j.AND.h_grid(i,j)/=0.0_dp) diag=.FALSE.
           END DO
        END DO
@@ -677,8 +677,8 @@ CONTAINS
 !> \param spline_g on entry the FFT of the coefficents of the spline
 !>        will contain the FFT of the derivative
 !> \param idir direction of the derivative
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      the distance between gridpoints is assumed to be 1
 !> \par History
@@ -773,7 +773,7 @@ CONTAINS
           coeff=(tmp*csKVals(k)+&
                (tmp+csIVals(i)*csKVals(k))*2.0_dp+&
                csIVals(i)*4.0_dp)*inv9
-          
+
           spline_g%cc(ii)=spline_g%cc(ii)*&
                CMPLX(0.0_dp,coeff,dp)
        END DO
@@ -789,7 +789,7 @@ CONTAINS
           coeff=(tmp*csKVals(k)+&
                (tmp+csJVals(j)*csKVals(k))*2.0_dp+&
                csJVals(j)*4.0_dp)*inv9
-          
+
           spline_g%cc(ii)=spline_g%cc(ii)*&
                CMPLX(0.0_dp,coeff,dp)
        END DO
@@ -805,7 +805,7 @@ CONTAINS
           coeff=(tmp*csJVals(j)+&
                (tmp+csJVals(j)*csKVals(k))*2.0_dp+&
                csKVals(k)*4.0_dp)*inv9
-          
+
           spline_g%cc(ii)=spline_g%cc(ii)*&
                CMPLX(0.0_dp,coeff,dp)
        END DO
@@ -823,8 +823,8 @@ CONTAINS
 !> \param spline_g on entry the FFT of the coefficents of the spline
 !>        will contain the FFT of the derivative
 !> \param idir direction of the derivative
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      the distance between gridpoints is assumed to be 1
 !> \par History
@@ -917,7 +917,7 @@ CONTAINS
           coeff=(tmp*csKVals(k)+&
                (tmp+csIVals(i)*csKVals(k))*3.0_dp+&
                csIVals(i)*9.0_dp)*inv16
-          
+
           spline_g%cc(ii)=spline_g%cc(ii)*&
                CMPLX(0.0_dp,coeff,dp)
        END DO
@@ -933,7 +933,7 @@ CONTAINS
           coeff=(tmp*csKVals(k)+&
                (tmp+csJVals(j)*csKVals(k))*3.0_dp+&
                csJVals(j)*9.0_dp)*inv16
-          
+
           spline_g%cc(ii)=spline_g%cc(ii)*&
                CMPLX(0.0_dp,coeff,dp)
        END DO
@@ -949,7 +949,7 @@ CONTAINS
           coeff=(tmp*csJVals(j)+&
                (tmp+csJVals(j)*csKVals(k))*3.0_dp+&
                csKVals(k)*9.0_dp)*inv16
-          
+
           spline_g%cc(ii)=spline_g%cc(ii)*&
                CMPLX(0.0_dp,coeff,dp)
        END DO
@@ -970,8 +970,8 @@ CONTAINS
 !> \param in_val_last the last argument (needed to calculate out_val(n_el))
 !> \param out_val the place where the result is accumulated
 !> \param n_el the number of elements in in_v and out_v
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      uses 2 read streams and 1 write stream
 !> \par History
@@ -1073,7 +1073,7 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
           weights(1)*v0+&
           weights(2)*v1
   END SELECT
-  
+
 END SUBROUTINE pw_compose_stripe
 ! *****************************************************************************
 SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
@@ -1171,22 +1171,22 @@ SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
           weights(1)*v0+&
           weights(2)*v1
   END SELECT
-  
+
 END SUBROUTINE pw_compose_stripe2
 !**********
 
 ! *****************************************************************************
-!> \brief private routine that computes pw_nn_compose_r (it seems that without 
+!> \brief private routine that computes pw_nn_compose_r (it seems that without
 !>      passing arrays in this way either some compiler do a copyin/out (xlf)
 !>      or by inlining suboptimal code is produced (nag))
 !> \param weights a 3x3x3 array with the linear operator
 !> \param in_val the argument for the linear operator
 !> \param out_val place where the value of the linear oprator should be added
-!> \param pw_in pw to be able to get the needed meta data about in_val and 
+!> \param pw_in pw to be able to get the needed meta data about in_val and
 !>        out_val
 !> \param bo boundaries of in_val and out_val
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
@@ -1265,7 +1265,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
               CALL pw_compose_stripe(weights=weights(:,jw,kw),&
                    in_val=in_val(:,myj,myk),&
                    in_val_first=in_val_f,in_val_last=in_val_l,&
-                   out_val=out_val(:,bo(1,2)+j,bo(1,3)+k),n_el=s(1)) 
+                   out_val=out_val(:,bo(1,2)+j,bo(1,3)+k),n_el=s(1))
            END DO
         END DO
      END DO
@@ -1281,8 +1281,8 @@ END SUBROUTINE pw_nn_compose_r_work
 !> \param weights a 3x3x3 array with the linear operator
 !> \param pw_in the argument for the linear operator
 !> \param pw_out place where the value of the linear oprator should be added
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      has specialized versions for derivative operator (with central values==0)
 !> \author fawzi
@@ -1323,13 +1323,13 @@ END SUBROUTINE pw_nn_compose_r
 !> \brief calculates the values of a nearest neighbor smearing
 !> \param pw_in the argument for the linear operator
 !> \param pw_out place where the smeared values should be added
-!> \param coeffs array with the coefficent of the smearing, ordered with 
+!> \param coeffs array with the coefficent of the smearing, ordered with
 !>        the distance from the center: coeffs(1) the coeff of the central
 !>        element, coeffs(2) the coeff of the 6 element with distance 1,
 !>        coeff(3) the coeff of the 12 elements at distance sqrt(2),
 !>        coeff(4) the coeff of the 8 elements at distance sqrt(3).
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      does not normalize the smear to 1.
 !>      with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
@@ -1375,12 +1375,12 @@ END SUBROUTINE pw_nn_compose_r
 !> \param spline_g on entry the FFT of the values to interpolate as cc3d,
 !>        will contain the FFT of the smeared values
 !> \param coeffs array with the coefficent of the front (positive) plane
-!>        of the central derivative, ordered with 
+!>        of the central derivative, ordered with
 !>        the distance from the center: coeffs(1) the coeff of the central
 !>        element, coeffs(2) the coeff of the 4 element with distance 1,
 !>        coeff(3) the coeff of the 4 elements at distance sqrt(2)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      with coeff=(/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /)
 !>      is equivalent to pw_spline3_deriv_r, with
@@ -1427,7 +1427,7 @@ END SUBROUTINE pw_nn_compose_r
           END DO
        END DO
     END DO
-    
+
     IF (.NOT.failure) THEN
        CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
             error=error)
@@ -1438,22 +1438,22 @@ END SUBROUTINE pw_nn_compose_r
 !> \brief low level function that adds a coarse grid
 !>      to a fine grid.
 !>      If pbc is true periodic boundary conditions are applied
-!> 
+!>
 !>      It will add to
-!> 
+!>
 !>        fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
 !>                    2*coarse_bounds(1,2):2*coarse_bounds(2,2),
 !>                    2*coarse_bounds(1,3):2*coarse_bounds(2,3))
-!> 
+!>
 !>      using
-!> 
+!>
 !>        coarse_coeffs(coarse_bounds(1,1):coarse_bounds(2,1),
 !>                      coarse_bounds(1,2):coarse_bounds(2,2),
 !>                      coarse_bounds(1,3):coarse_bounds(2,3))
-!> 
+!>
 !>      composed with the weights obtained by the direct product of the
 !>      1d coefficents weights:
-!> 
+!>
 !>      for i,j,k in -3..3
 !>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
 !>                  weights_1d(abs(k)+1)
@@ -1466,8 +1466,8 @@ END SUBROUTINE pw_nn_compose_r
 !>        (w_border1(1) is the weight of the coefficent at the border)
 !>        (used if pbc is false)
 !> \param pbc if periodic boundary conditions should be applied
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      coarse looping is continuos, I did not check if keeping the fine looping
 !>      contiguos is better.
@@ -1475,7 +1475,7 @@ END SUBROUTINE pw_nn_compose_r
 !>      z-slice distribution would be much better performancewise
 !>      (and would semplify this code enormously).
 !>      fine2coarse has much more understandable parallel part (build up of
-!>      send/rcv sizes,... but worse if you have really a lot of processors, 
+!>      send/rcv sizes,... but worse if you have really a lot of processors,
 !>      probabily irrelevant because it is not critical) [fawzi].
 !> \author fawzi
 ! *****************************************************************************
@@ -1604,10 +1604,10 @@ END SUBROUTINE pw_nn_compose_r
              p=pos_of_x(fine_gbo(1,1)+MODULO(x-fine_gbo(1,1),sf))
              IF (p/=p_old) THEN
                 p_ub=FLOOR((x-1+3-f_shift(1))/2.)
-                
+
                 send_size(p_old)=send_size(p_old)+(MIN(p_ub,my_coarse_bo(2,1)) &
                      -MAX(p_lb,my_coarse_bo(1,1))+1)*coarse_slice_size
-                
+
                 IF (pbc) THEN
                    DO xx=p_lb,coarse_gbo(1,1)-1
                       x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
@@ -1628,10 +1628,10 @@ END SUBROUTINE pw_nn_compose_r
              END IF
           END DO
           p_ub=FLOOR((fi_ub+3-f_shift(1))/2.)
-          
+
           send_size(p_old)=send_size(p_old)+(MIN(p_ub,my_coarse_bo(2,1)) &
                -MAX(p_lb,my_coarse_bo(1,1))+1)*coarse_slice_size
-          
+
           IF (pbc) THEN
              DO xx=p_lb,coarse_gbo(1,1)-1
                 x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
@@ -1670,7 +1670,7 @@ CPSourceFileRef,&
           END IF
           ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          
+
           ! ** fill send buffer
 
           p_old=pos_of_x(fine_gbo(1,1)+MODULO(fi_lb-fine_gbo(1,1),sf))
@@ -1706,7 +1706,7 @@ CPSourceFileRef,&
                    END DO
                 END DO
                 sent_size(p_old)=ii
-                
+
                 IF (pbc) THEN
                    DO xx=coarse_gbo(2,1)+1,p_ub+shift
                       x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
@@ -1727,7 +1727,7 @@ CPSourceFileRef,&
           shift=FLOOR((fine_gbo(1,1)+MODULO(x-1-fine_gbo(1,1),sf)-f_shift(1))/2._dp)-&
                FLOOR((x-1-f_shift(1))/2._dp)
           p_ub=FLOOR((fi_ub+3-f_shift(1))/2.)
-          
+
           IF (pbc) THEN
              DO xx=p_lb+shift,coarse_gbo(1,1)-1
                 x_att=coarse_gbo(1,1)+MODULO(xx-coarse_gbo(1,1),s(1))
@@ -1840,7 +1840,7 @@ CPSourceFileRef,&
 
           CPPostcondition(ALL(sent_size(0:n_procs-2)==rcv_offset(1:)),cp_failure_level,routineP,error,failure)
           CPPostcondition(sent_size(n_procs-1)==rcv_tot_size,cp_failure_level,routineP,error,failure)
-          
+
           ! dealloc
           DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -2254,7 +2254,7 @@ CPSourceFileRef,&
              END DO
           END DO
        END DO
-              
+
        IF (is_split) THEN
           DEALLOCATE(coarse_coeffs,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -2266,22 +2266,22 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief low level function that adds a coarse grid (without boundary)
 !>      to a fine grid.
-!> 
+!>
 !>      It will add to
-!> 
+!>
 !>        coarse_coeffs(coarse_bounds(1,1):coarse_bounds(2,1),
 !>                      coarse_bounds(1,2):coarse_bounds(2,2),
 !>                      coarse_bounds(1,3):coarse_bounds(2,3))
-!> 
+!>
 !>      using
-!> 
+!>
 !>        fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
 !>                    2*coarse_bounds(1,2):2*coarse_bounds(2,2),
 !>                    2*coarse_bounds(1,3):2*coarse_bounds(2,3))
-!> 
+!>
 !>      composed with the weights obtained by the direct product of the
 !>      1d coefficents weights:
-!> 
+!>
 !>      for i,j,k in -3..3
 !>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
 !>                  weights_1d(abs(k)+1)
@@ -2294,8 +2294,8 @@ CPSourceFileRef,&
 !> \param w_border 0: the 1d weight at the border
 !> \param w_border 1: the 1d weights for a point one off the border
 !>        (w_border1(1) is the weight of the coefficent at the border)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      see coarse2fine for some relevant notes
 !> \author fawzi
@@ -2549,13 +2549,13 @@ CPSourceFileRef,&
                             fi=fi+1
                             vv0=fine_values(fi,fj,fk)
                             coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)+&
-                                 
+
                                  vv0*ww0(3)
                             coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)+&
-                                 
+
                                  vv0*ww0(2)
                             coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)+&
-                                 
+
                                  vv0*ww0(1)
                          END IF
                       ELSE
@@ -2859,7 +2859,7 @@ CPSourceFileRef,&
              END IF
           END DO
           pp_ub(p_old)=fine_gbo(2,1)
-          
+
           DO ip=0,n_procs-1
              IF (pp_lb(ip)<=pp_ub(ip)) THEN
                 pp_lb(ip)=FLOOR(REAL(pp_lb(ip)-f_shift(1),dp)/2._dp)-1
@@ -2942,7 +2942,7 @@ CPSourceFileRef,&
                "error 2 filling send buffer "//&
 CPSourceFileRef,&
                error,failure)
-          
+
        IF (local_data) THEN
           DEALLOCATE(coarse_coeffs,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -3017,7 +3017,7 @@ CPSourceFileRef,&
                "error 2 handling the rcv buffer "//&
 CPSourceFileRef,&
                error,failure)
-          
+
           ! dealloc
           DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -3030,18 +3030,18 @@ CPSourceFileRef,&
           CPPostcondition(.NOT.local_data,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    
+
     CALL timestop(handle)
   END SUBROUTINE add_fine2coarse
 
 ! *****************************************************************************
 !> \param preconditioner the preconditioner to create
 !> \param precond_kind the kind of preconditioner to use
-!> \param pool a pool with grids of the same type as the elements to 
+!> \param pool a pool with grids of the same type as the elements to
 !>        precondition
 !> \param pbc if periodic boundary conditions should be applied
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
@@ -3079,8 +3079,8 @@ CPSourceFileRef,&
 !> \brief switches the types of precoditioner to use
 !> \param precoditioner the preconditioner to be changed
 !> \param precond_kind the new kind of preconditioner to use
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,&
@@ -3175,8 +3175,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief retains the preconditioner
 !> \param preconditioner the preconditioner to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_retain(preconditioner,error)
@@ -3200,8 +3200,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief releases the preconditioner
 !> \param preconditioner the preconditioner to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_release(preconditioner,error)
@@ -3233,8 +3233,8 @@ CPSourceFileRef,&
 !> \param preconditioner the preconditioner to apply
 !> \param v_in the grid on which the preconditioner should be applied
 !> \param v_out place to store the preconditioner applied on v_out
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
@@ -3298,8 +3298,8 @@ CPSourceFileRef,&
 !> \param eps_x the requested precision on the solution
 !> \param max_iter maximum number of iteration allowed
 !> \param print_section information about when to print information
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
@@ -3410,8 +3410,8 @@ CPSourceFileRef,&
 !> \brief restricts the function from a fine grid to a coarse one
 !> \param pw_fine_in the fine grid
 !> \param pw_coarse_out the coarse grid
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      extremely slow (but correct) version
 !> \author fawzi
@@ -3455,7 +3455,7 @@ CPSourceFileRef,&
             r_val=eps_x, error=error)
        CALL section_vals_val_get(param_section,"kind",&
             i_val=interp_kind, error=error)
-       
+
        pbc=(interp_kind==spline3_pbc_interp)
        CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,error,failure)
        bo=pw_coarse_out%pw_grid%bounds_local
@@ -3515,8 +3515,8 @@ CPSourceFileRef,&
 !> \brief prolongates a function from a coarse grid into a fine one
 !> \param pw_fine_in the fine grid
 !> \param pw_coarse_out the coarse grid
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      extremely slow (but correct) version
 !> \author fawzi
@@ -3622,8 +3622,8 @@ CPSourceFileRef,&
 !>      pw_out%cr3d(i,j,k)=pw_out%cr3d(i,j,k)+sum(pw_in%cr3d(i+l,j+m,k+n)*
 !>         weights_1d(abs(l)+1)*weights_1d(abs(m)+1)*weights_1d(abs(n)+1),
 !>         l=-1..1,m=-1..1,n=-1..1)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d,pw_in,pw_out,&
@@ -3719,7 +3719,7 @@ CPSourceFileRef,&
                 IF (k==gbo(2,3).OR.k==gbo(1,3)) THEN
                    IF (myk<gbo(2,3).AND.myk>gbo(1,3)) THEN
                       w_k=weights_1d(kw)
-                      IF (my_smooth_boundary) THEN 
+                      IF (my_smooth_boundary) THEN
                          w_k=weights_1d(kw)/weights_1d(0)
                       END IF
                    ELSE IF (kw==0) THEN
@@ -4004,10 +4004,10 @@ CPSourceFileRef,&
   END SUBROUTINE spl3_pbc
 
 ! *****************************************************************************
-!> \brief Evaluates the PBC interpolated Spline (pw) function on the generic 
+!> \brief Evaluates the PBC interpolated Spline (pw) function on the generic
 !>      input vector (vec)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      Requires the Spline coefficients to be computed with PBC
 !> \par History
@@ -4061,7 +4061,7 @@ CPSourceFileRef,&
        ij(2) = MODULO(ivec(2)  ,npts(2)) + bo(1,2)
        ij(3) = MODULO(ivec(2)+1,npts(2)) + bo(1,2)
        ij(4) = MODULO(ivec(2)+2,npts(2)) + bo(1,2)
-       
+
        ii(1) = MODULO(ivec(1)-1,npts(1)) + bo(1,1)
        ii(2) = MODULO(ivec(1)  ,npts(1)) + bo(1,1)
        ii(3) = MODULO(ivec(1)+1,npts(1)) + bo(1,1)
@@ -4087,7 +4087,7 @@ CPSourceFileRef,&
              END DO
           END DO
        END DO
-              
+
        a1  = 3.0_dp + xd1
        a2  = a1*a1
        a3  = a2*a1
@@ -4124,7 +4124,7 @@ CPSourceFileRef,&
        u1  = xd3
        u2  = u1*u1
        u3  = u2*u1
-       
+
        t1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
        t2 = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
        t3 =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
@@ -4161,10 +4161,10 @@ CPSourceFileRef,&
   END FUNCTION Eval_Interp_Spl3_pbc
 
 ! *****************************************************************************
-!> \brief Evaluates the derivatives of the PBC interpolated Spline (pw) 
+!> \brief Evaluates the derivatives of the PBC interpolated Spline (pw)
 !>      function on the generic input vector (vec)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      Requires the Spline coefficients to be computed with PBC
 !> \par History
@@ -4209,7 +4209,7 @@ CPSourceFileRef,&
        xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
        xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
        xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
-       grid => pw%cr3d(:,:,:)       
+       grid => pw%cr3d(:,:,:)
        bo = pw%pw_grid%bounds
        bo_l = pw%pw_grid%bounds_local
 
@@ -4222,7 +4222,7 @@ CPSourceFileRef,&
        ij(2) = MODULO(ivec(2)  ,npts(2)) + bo(1,2)
        ij(3) = MODULO(ivec(2)+1,npts(2)) + bo(1,2)
        ij(4) = MODULO(ivec(2)+2,npts(2)) + bo(1,2)
-       
+
        ii(1) = MODULO(ivec(1)-1,npts(1)) + bo(1,1)
        ii(2) = MODULO(ivec(1)  ,npts(1)) + bo(1,1)
        ii(3) = MODULO(ivec(1)+1,npts(1)) + bo(1,1)
@@ -4285,7 +4285,7 @@ CPSourceFileRef,&
        u1  = xd3
        u2  = u1*u1
        u3  = u2*u1
-       
+
        t1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
        t2o = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
        t3o =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
@@ -4298,7 +4298,7 @@ CPSourceFileRef,&
        v2o = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
        v3o =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
        v4o =   1.0_dp/6.0_dp*u3
-       
+
        t1d =  -8.0_dp + 4.0_dp*a1 - 0.5_dp*a2
        t2d =  10.0_dp - 8.0_dp*b1 + 1.5_dp*b2
        t3d =  -2.0_dp + 4.0_dp*c1 - 1.5_dp*c2
@@ -4398,7 +4398,7 @@ CPSourceFileRef,&
                  ( box(1,2,4) * t1 + box(2,2,4) * t2 + box(3,2,4) * t3 + box(4,2,4) * t4 ) * s2  +&
                  ( box(1,3,4) * t1 + box(2,3,4) * t2 + box(3,3,4) * t3 + box(4,3,4) * t4 ) * s3  +&
                  ( box(1,4,4) * t1 + box(2,4,4) * t2 + box(3,4,4) * t3 + box(4,4,4) * t4 ) * s4  ) * v4
-          
+
        IF (my_mpsum) CALL mp_sum ( val, pw%pw_grid%para%group )
 
     END IF

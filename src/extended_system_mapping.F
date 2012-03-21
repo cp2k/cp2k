@@ -90,9 +90,9 @@ CONTAINS
        ELSE
           number = 1
        ENDIF
-       
+
        CALL init_baro_map_info(map_info, number, nhc%loc_num_nhc, error)
- 
+
        ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%loc_num_nhc), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Now that we know how many there are stick this into nhc % nkt
@@ -111,8 +111,8 @@ CONTAINS
        END DO
 
        ! Let's clean the arrays
-       map_info%s_kin   = 0.0_dp 
-       map_info%v_scale = 0.0_dp 
+       map_info%s_kin   = 0.0_dp
+       map_info%v_scale = 0.0_dp
     END SELECT
 
     CALL timestop(handle)
@@ -180,7 +180,7 @@ CONTAINS
              map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
           END DO
        END DO
-       
+
        ! if thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
@@ -188,7 +188,7 @@ CONTAINS
        ! We know the total number of system thermostats.
        IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
-          IF ( fac == 0.0_dp ) THEN 
+          IF ( fac == 0.0_dp ) THEN
              CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
           END IF
           nhc%nvt(1,1)%nkt = simpar%temp_ext*fac
@@ -197,11 +197,11 @@ CONTAINS
           DO i = 1, nhc%loc_num_nhc
              imap = map_info%map_index(i)
              fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
-             nhc%nvt(1,i)%nkt = simpar%temp_ext * fac 
+             nhc%nvt(1,i)%nkt = simpar%temp_ext * fac
              nhc % nvt ( 1, i ) % degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
-       
+
        ! Getting the number of degrees of freedom times k_B T for the rest
        ! of the chain
        DO i = 2, nhc % nhc_len
@@ -214,8 +214,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Let's clean the arrays
-       map_info%s_kin   = 0.0_dp 
-       map_info%v_scale = 0.0_dp 
+       map_info%s_kin   = 0.0_dp
+       map_info%v_scale = 0.0_dp
     END SELECT
 
     CALL timestop(handle)
@@ -259,7 +259,7 @@ CONTAINS
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => nhc%map_info
-    
+
     nkind = SIZE(molecule_kind_set)
     sum_of_thermostats = thermostat_info%sum_of_thermostats
     map_info%dis_type  = thermostat_info%dis_type
@@ -332,11 +332,11 @@ CONTAINS
        map_info%s_kin = 0.0_dp
        DO i = 1, 3
           DO j = 1, natoms_local
-             IF ( ASSOCIATED ( map_info%p_kin(i,j)%point ) )& 
+             IF ( ASSOCIATED ( map_info%p_kin(i,j)%point ) )&
              map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
           END DO
        END DO
-       
+
        ! if thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
@@ -344,7 +344,7 @@ CONTAINS
        ! We know the total number of system thermostats.
        IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
-          IF ( fac == 0.0_dp ) THEN 
+          IF ( fac == 0.0_dp ) THEN
              CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
           END IF
           nhc%nvt(1,1)%nkt = simpar%temp_slow*fac
@@ -353,11 +353,11 @@ CONTAINS
           DO i = 1, nhc%loc_num_nhc
              imap = map_info%map_index(i)
              fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
-             nhc%nvt(1,i)%nkt = simpar%temp_slow * fac 
+             nhc%nvt(1,i)%nkt = simpar%temp_slow * fac
              nhc % nvt ( 1, i ) % degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
-       
+
        ! Getting the number of degrees of freedom times k_B T for the rest
        ! of the chain
        DO i = 2, nhc % nhc_len
@@ -370,8 +370,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Let's clean the arrays
-       map_info%s_kin   = 0.0_dp 
-       map_info%v_scale = 0.0_dp 
+       map_info%s_kin   = 0.0_dp
+       map_info%v_scale = 0.0_dp
     END SELECT
 
     CALL timestop(handle)
@@ -427,11 +427,11 @@ CONTAINS
        map_info%s_kin = 0.0_dp
        DO i = 1, 3
           DO j = 1, natoms_local
-             IF ( ASSOCIATED ( map_info%p_kin(i,j)%point ) )& 
+             IF ( ASSOCIATED ( map_info%p_kin(i,j)%point ) )&
              map_info%p_kin(i,j)%point = map_info%p_kin(i,j)%point + 1
           END DO
        END DO
-       
+
        ! if thermostats are replicated but molecules distributed, we have to
        ! sum s_kin over all processors
        IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
@@ -439,7 +439,7 @@ CONTAINS
        ! We know the total number of system thermostats.
        IF ( ( sum_of_thermostats == 1 ) .AND. ( map_info%dis_type /= do_thermo_no_communication ) ) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
-          IF ( fac == 0.0_dp ) THEN 
+          IF ( fac == 0.0_dp ) THEN
              CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
           END IF
           nhc%nvt(1,1)%nkt = simpar%temp_fast*fac
@@ -448,11 +448,11 @@ CONTAINS
           DO i = 1, nhc%loc_num_nhc
              imap = map_info%map_index(i)
              fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
-             nhc%nvt(1,i)%nkt = simpar%temp_fast * fac 
+             nhc%nvt(1,i)%nkt = simpar%temp_fast * fac
              nhc % nvt ( 1, i ) % degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
-       
+
        ! Getting the number of degrees of freedom times k_B T for the rest
        ! of the chain
        DO i = 2, nhc % nhc_len
@@ -465,8 +465,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Let's clean the arrays
-       map_info%s_kin   = 0.0_dp 
-       map_info%v_scale = 0.0_dp 
+       map_info%s_kin   = 0.0_dp
+       map_info%v_scale = 0.0_dp
     END SELECT
 
     CALL timestop(handle)
@@ -510,7 +510,7 @@ CONTAINS
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => nhc%map_info
-    
+
     nkind = SIZE(molecule_kind_set)
     sum_of_thermostats = thermostat_info%sum_of_thermostats
     map_info%dis_type  = thermostat_info%dis_type
@@ -610,8 +610,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Let's clean the arrays
-       map_info%s_kin   = 0.0_dp 
-       map_info%v_scale = 0.0_dp 
+       map_info%s_kin   = 0.0_dp
+       map_info%v_scale = 0.0_dp
     END SELECT
 
     CALL timestop(handle)

@@ -65,7 +65,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Analytic calculation of the 1 center integrals that make up the self-terms
-!>      for SCP.   
+!>      for SCP.
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat, just_energy, error, debug)
@@ -290,7 +290,7 @@ CONTAINS
              hab = 0.0_dp
           END IF
           !    Build the CPC coefficients that should then multiplied by the
-          !    3-center integrals of primitives to get the energy 
+          !    3-center integrals of primitives to get the energy
 
           !    Loop over the mu and nu ( iseta and isetb ) of the orbital basis
           m1 = 0
@@ -393,13 +393,13 @@ CONTAINS
              Int_abc = 0.0_dp
              ! Loop over the primitive exponents of the SCP-basis (AUXILLARY BASIS)
              DO ipgf_scp = 1, npgf_scp ( iset_scp )
-                zetc = zet_scp ( ipgf_scp, iset_scp ) 
+                zetc = zet_scp ( ipgf_scp, iset_scp )
                 rpgfc = rpgf_scp ( ipgf_scp, iset_scp )
                 ! Loop over the mu and nu ( iseta and isetb ) of the orbital basis
                 m1 = 0
                 DO iseta = 1, nset
                    ifs1 = first_sgf ( 1, iseta )
-                   nz1 = npgf ( iseta ) 
+                   nz1 = npgf ( iseta )
                    nco1 = npgf ( iseta ) * ncoset ( l_max ( iseta ) )
                    ns1 = nsgf_set ( iseta )
                    rpgfa => rpgf ( 1:nz1, iseta )
@@ -407,7 +407,7 @@ CONTAINS
                    m2 = 0
                    DO isetb = 1, nset
                       ifs2 = first_sgf ( 1, isetb )
-                      nz2 = npgf ( isetb ) 
+                      nz2 = npgf ( isetb )
                       nco2 = npgf ( isetb ) * ncoset ( l_max ( isetb ) )
                       ns2 = nsgf_set ( isetb )
                       rpgfb => rpgf ( 1:nz2, isetb )
@@ -417,9 +417,9 @@ CONTAINS
                       CALL coulomb3 ( l_max ( iseta ), nz1, zeta , rpgfa, l_min ( iseta ),       &
                            l_max ( isetb ), nz2, zetb,  rpgfb, l_min ( isetb ),       &
                            lscp_max ( iset_scp ), zetc, rpgfc, 0, &
-                           gccc(:,1), (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &   
-                           (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &   
-                           0.0_dp, &   
+                           gccc(:,1), (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &
+                           (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &
+                           0.0_dp, &
                            Int_ab_sum, int_tmp, vv, ff )
                       ! update KS-matrix
                       IF ( .NOT. just_energy ) THEN
@@ -475,7 +475,7 @@ CONTAINS
                            ldcpc1, ldcpc1, ldcpc2 )
                    END DO
                 END DO
-                ! multiply work_scp by the contraction coeff (sphi_scp) to get the correct fcoeffs 
+                ! multiply work_scp by the contraction coeff (sphi_scp) to get the correct fcoeffs
                 CALL dgemm("T","N",nsgf_scp_set ( iset_scp ),1,nco_scp,&
                      1.0_dp,sphi_scp(1,sgf_scp),SIZE(sphi_scp,1),&
                      work_scp(1,1),SIZE(work_scp,1),&
@@ -548,7 +548,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Analytic calculation of the 1 center integrals that make up the self-terms
-!>      for SCP.   
+!>      for SCP.
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE integrate_vhscp_gscp ( scp_env, atomic_kind_set, local_particles, just_energy, error, debug )
@@ -593,7 +593,7 @@ CONTAINS
     NULLIFY( atomic_kind, aux_basis, aux_coeff_set)
     NULLIFY( energy, local_coeffs, para_env )
 
-    CALL get_scp_env(scp_env=scp_env, para_env=para_env, & 
+    CALL get_scp_env(scp_env=scp_env, para_env=para_env, &
          energy=energy, aux_coeff_set=aux_coeff_set, &
          error=error)
 
@@ -687,7 +687,7 @@ CONTAINS
                    ldvab1 = ncoa
                    ldvab2 = ncob
                 ELSE
-                   vab = 0._dp 
+                   vab = 0._dp
                 ENDIF
                 ! Assigning the coefficients
                 DO i = 1, nsgf_set ( isetb )
@@ -701,8 +701,8 @@ CONTAINS
                      l_max ( isetb ), npgf ( isetb ), zetb, rpgfb, l_min ( isetb ), &
                      (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, vab, vv, ff ( 0: ) )
                 work = 0.0_dp
-                DO icoa = 1,  ncoa 
-                   DO icob = 1, ncob 
+                DO icoa = 1,  ncoa
+                   DO icob = 1, ncob
                       work ( icoa, 1 )  = work ( icoa, 1 ) + gccb ( icob, 1 ) * vab ( icoa, icob )
                    END DO
                    e_scp = e_scp - gcca ( icoa , 1) * work ( icoa, 1 )
@@ -744,7 +744,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Analytic calculation of the 1 center integrals that make up the self-terms
-!>      for SCP.   
+!>      for SCP.
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE integrate_vhscp_gcore ( scp_env, atomic_kind_set, local_particles, just_energy, error, debug )
@@ -872,7 +872,7 @@ CONTAINS
                 CALL reallocate ( vab, 1, ncoa, 1, 1 )
                 ldvab1 = ncoa
              ELSE
-                vab = 0._dp 
+                vab = 0._dp
              ENDIF
              DO i=1, nsgf_set ( iseta )
                 work ( i, 1 ) = local_coeffs % c ( iparticle_local, offseta+i )
@@ -886,11 +886,11 @@ CONTAINS
              rpgfcore ( 1 ) = 0._dp ! rpgf is only used for screening. Not applicable for self-terms
 
              CALL coulomb2( l_max(iseta),npgf(iseta),zeta,rpgfa,l_min(iseta), &
-                  0, 1, zetcore, rpgfa, 0, & 
+                  0, 1, zetcore, rpgfa, 0, &
                   (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,vab,vv,ff (0:))
 
              work = 0._dp
-             DO icoa = 1,  ncoa 
+             DO icoa = 1,  ncoa
                 e_scp = e_scp - gcca (icoa, 1 ) * (-1._dp ) * gccore * vab ( icoa, 1 )
                 work ( icoa, 1 )  =  work ( icoa, 1 ) + ( -1._dp ) * gccore * vab ( icoa, 1 )
              END DO

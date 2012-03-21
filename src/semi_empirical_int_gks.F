@@ -350,7 +350,7 @@ CONTAINS
   END SUBROUTINE makeCoul
 
 ! *****************************************************************************
-!> \brief Computes the derivatives of the primitives of the integrals 
+!> \brief Computes the derivatives of the primitives of the integrals
 !>        (non-periodic case)
 ! *****************************************************************************
   SUBROUTINE makedCoul(RAB,sepi,sepj,dCoul,se_int_control,error)
@@ -416,12 +416,12 @@ CONTAINS
     DO iA = 1, sepi%natorb
        DO jA = 1, iA
           imA = imA + 1
-          
+
           imB = 0
           DO iB = 1, sepj%natorb
              DO jB = 1, iB
                 imB = imB + 1
-                
+
                 tmp  = M0A(imA)*M0B(imB)
                 wv(1)= tmp*d1f(1)
                 wv(2)= tmp*d1f(2)
@@ -450,7 +450,7 @@ CONTAINS
                       ENDDO
                    ENDDO
                 ENDDO
-                
+
                 DO k4=1,3
                    DO k3=1,3
                       DO k2=1,3
@@ -779,7 +779,7 @@ CONTAINS
   END SUBROUTINE makeCoulE
 
 ! *****************************************************************************
-!> \brief Computes the derivatives of the primitives of the integrals 
+!> \brief Computes the derivatives of the primitives of the integrals
 !>        (periodic case)
 ! *****************************************************************************
   SUBROUTINE makedCoulE(RAB,sepi,sepj,dCoul,se_int_control,error)
@@ -863,7 +863,7 @@ CONTAINS
     d2=d2+  (w2*(3.0_dp+kr2*2.0_dp)-3.0_dp*w0)*r5
     d3=d3+  (-w2*(15.0_dp+kr2*(10.0_dp+kr2*4.0_dp))+15.0_dp*w0)*r7
     d4=d4+  (w2*(105.0_dp+kr2*(70.0_dp+kr2*(28.0_dp+kr2*8.0_dp)))-105.0_dp*w0)*r9
-    d5=d5+  (-w2*(945.0_dp+kr2*(630.0_dp+kr2*(252.0_dp+kr2*(72.0_dp+kr2*16.0_dp))))+945.0_dp*w0)*r11 
+    d5=d5+  (-w2*(945.0_dp+kr2*(630.0_dp+kr2*(252.0_dp+kr2*(72.0_dp+kr2*16.0_dp))))+945.0_dp*w0)*r11
 
     CALL build_d_tensor_gks(d1f, d2f, d3f, d4f, d5f, v, d1, d2, d3, d4, d5)
 
@@ -912,7 +912,7 @@ CONTAINS
                 ENDDO
              ENDDO
           ENDDO
-          
+
           dCoul(1,imA,imB)=wv(1)
           dCoul(2,imA,imB)=wv(2)
           dCoul(3,imA,imB)=wv(3)
@@ -1068,14 +1068,14 @@ CONTAINS
     ENDDO
     DO k1=1,3
        DO k2=1,3
-          d2f(k2,k1)=d2f(k2,k1)+v(k1)*v(k2)*d2 
+          d2f(k2,k1)=d2f(k2,k1)+v(k1)*v(k2)*d2
        ENDDO
-       d2f(k1,k1)=d2f(k1,k1)+ d1 
+       d2f(k1,k1)=d2f(k1,k1)+ d1
     ENDDO
     DO k1=1,3
        DO k2=1,3
           DO k3=1,3
-             d3f(k3,k2,k1)=d3f(k3,k2,k1)+v(k1)*v(k2)*v(k3)*d3 
+             d3f(k3,k2,k1)=d3f(k3,k2,k1)+v(k1)*v(k2)*v(k3)*d3
           ENDDO
           w=v(k1)*d2
           d3f(k1,k2,k2)=d3f(k1,k2,k2)+w
@@ -1087,7 +1087,7 @@ CONTAINS
        DO k2=1,3
           DO k3=1,3
              DO k4=1,3
-                d4f(k4,k3,k2,k1)=d4f(k4,k3,k2,k1)+v(k1)*v(k2)*v(k3)*v(k4)*d4 
+                d4f(k4,k3,k2,k1)=d4f(k4,k3,k2,k1)+v(k1)*v(k2)*v(k3)*v(k4)*d4
              ENDDO
              w=v(k1)*v(k2)*d3
              d4f(k1,k2,k3,k3)=d4f(k1,k2,k3,k3)+w
@@ -1110,7 +1110,7 @@ CONTAINS
              DO k3=1,3
                 DO k4=1,3
                    DO k5=1,3
-                      d5f(k5,k4,k3,k2,k1)=d5f(k5,k4,k3,k2,k1)+v(k1)*v(k2)*v(k3)*v(k4)*v(k5)*d5 
+                      d5f(k5,k4,k3,k2,k1)=d5f(k5,k4,k3,k2,k1)+v(k1)*v(k2)*v(k3)*v(k4)*v(k5)*d5
                    ENDDO
                    w=v(k1)*v(k2)*v(k3)*d4
                    d5f(k1,k2,k3,k4,k4)=d5f(k1,k2,k3,k4,k4)+w

@@ -1534,7 +1534,7 @@ CONTAINS
                DATA=zero_len_array, error=error)
        ENDIF
     ENDIF
-    
+
     DEALLOCATE (blki)
     !
     CALL dbcsr_error_stop (error_handle, error)

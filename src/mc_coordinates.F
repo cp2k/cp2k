@@ -60,7 +60,7 @@ CONTAINS
 !>                     it uses the cell found in the force_env
 !> \param molecule_number if present, just look for overlaps with this
 !>            molecule
-!> 
+!>
 !>      Suitable for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -191,7 +191,7 @@ END SUBROUTINE check_for_overlap
 !> \param natom the number of atoms in the molecule
 !> \param center_of_mass the coordinates of the center of mass
 !> \param mass the mass of the atoms in the molecule
-!> 
+!>
 !>    Designed for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -241,7 +241,7 @@ END SUBROUTINE get_center_of_mass
 !> \param mass the mass of every atom for all molecule types
 !> \param nunits the number of interaction sites for each molecule type
 !> \param box_length an array for the lengths of the simulation box sides
-!> 
+!>
 !>      Designed for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -669,7 +669,7 @@ END SUBROUTINE generate_cbmc_swap_config
 !> \param mass the mass of all the atoms in the molecule
 !> \param natoms the number of atoms in the molecule
 !> \param rng_stream the stream we pull random numbers from
-!> 
+!>
 !>    Use only in serial.
 !> \author MJM
 ! *****************************************************************************
@@ -765,7 +765,7 @@ END SUBROUTINE rotate_molecule
 !> \param box if present, tells the routine which box to grab a molecule from
 !> \param molecule_type_old if present, tells the routine which molecule type to select from
 !> \param error the optional cp_error_type
-!> 
+!>
 !>    Designed only for serial use.
 !> \author MJM
 ! *****************************************************************************
@@ -798,7 +798,7 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
       NULLIFY(nunits,mol_type,nchains)
       CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,nunits=nunits,&
            mol_type=mol_type)
-      
+
 ! initialize the outgoing variables
       start_atom=0
       box_number=0
@@ -825,7 +825,7 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
          ENDDO
 
       ELSEIF(PRESENT(box))THEN
-! any molecule in box...need to find molecule type and start atom         
+! any molecule in box...need to find molecule type and start atom
          rand=next_random_number(rng_stream,error=error)
          molecule_number=CEILING(rand*REAL(SUM(nchains(:,box))))
 
@@ -843,7 +843,7 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
          ENDDO
 
       ELSEIF(PRESENT(molecule_type_old))THEN
-! any molecule of type molecule_type_old...need to find box number and start atom         
+! any molecule of type molecule_type_old...need to find box number and start atom
          rand=next_random_number(rng_stream,error=error)
          molecule_number=CEILING(rand*REAL(SUM(nchains(molecule_type_old,:))))
 
@@ -856,7 +856,7 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
             ENDIF
             molecule_number=molecule_number-nchains(molecule_type_old,ibox)
          ENDDO
-         
+
          start_mol=1
          DO jbox=1,box_number-1
             start_mol=start_mol+SUM(nchains(:,jbox))
@@ -922,7 +922,7 @@ END SUBROUTINE find_mc_test_molecule
 !> \param cell the lengths of the sides of the cell
 !> \param discrete_array the array that indicates which sides we can move
 !> \param step_size the size of the discrete volume move
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -988,7 +988,7 @@ END SUBROUTINE create_discrete_array
 !> \param r_insert the output insertion site
 !> \param abc the lengths of the sides of the simulation box
 !> \param rng_stream the random number stream that we draw from
-!> 
+!>
 !>      Use only in serial.
 !> \author MJM
 ! *****************************************************************************

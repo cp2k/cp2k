@@ -278,13 +278,13 @@ CONTAINS
     atomic_kind_set => subsys % atomic_kinds % els
     molecule_set => subsys % molecules_new % els
     molecule_kind_set => subsys % molecule_kinds_new % els
-    
+
     ! Create the fist_energy_type
     CALL allocate_fist_energy( thermo )
-    
+
     ! Print the molecule kind set
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
-    
+
     ! Print the atomic coordinates
     CALL write_fist_particle_coordinates(particle_set,subsys_section, &
                                          fist_nonbond_env%charges, error)
@@ -293,7 +293,7 @@ CONTAINS
 
     ! Print symmetry information
     CALL write_symmetry(particle_set,cell,subsys_section,error)
-    
+
     ! Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
                                    particle_set=particle_set,&
@@ -303,15 +303,15 @@ CONTAINS
                                    local_molecules=local_molecules,&
                                    force_env_section=force_env_section,&
                                    error=error )
-    
+
     ! Create ewald grids
     grid_print_section => section_vals_get_subs_vals(force_env_section,&
          "PRINT%GRID_INFORMATION",error=error)
     CALL ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, grid_print_section, error )
-       
+
     ! Initialize ewald grids
     CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-    
+
     ! Possibly Initialize the multipole environment
     CALL create_multipole_type(multipoles, particle_set, subsys_section, ewald_env, error)
     CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
@@ -325,12 +325,12 @@ CONTAINS
                         ewald_env=ewald_env, ewald_pw=ewald_pw, &
                         fist_nonbond_env=fist_nonbond_env,&
                         thermo=thermo ,error=error)
-    
+
     CALL distribution_1d_release(local_particles, error=error)
     CALL distribution_1d_release(local_molecules, error=error)
     CALL ewald_pw_release(ewald_pw, error)
     CALL release_multipole_type(multipoles, error)
     CALL timestop(handle)
-    
+
   END SUBROUTINE fist_init_subsys
 END MODULE fist_environment

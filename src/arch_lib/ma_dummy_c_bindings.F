@@ -16,7 +16,7 @@
 !>      preprocessor commands.
 !>
 !> <b>Modification history:</b>
-!> - Modified 11-21-2011 - Christiane Pousa 
+!> - Modified 11-21-2011 - Christiane Pousa
 ! *****************************************************************************
 MODULE ma_dummy_c_bindings
 
@@ -27,11 +27,11 @@ MODULE ma_dummy_c_bindings
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_dummy_c_bindings'
 
 #if defined (__HAS_NO_ISO_C_BINDING)
-#if defined (__HWLOC) || defined (__LIBNUMA) 
+#if defined (__HWLOC) || defined (__LIBNUMA)
   ! Compile-time error.  These two flags are incompatible.
   STOP "Arch Lib needs ISO_C_BINDING.  Compile without __HAS_NO_ISO_C_BINDING"
 #else
-  PUBLIC :: c_int 
+  PUBLIC :: c_int
   PUBLIC :: c_char
 
   TYPE c_char

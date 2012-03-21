@@ -50,8 +50,8 @@ CONTAINS
 !> \param matrix the matrix to replace with its cholesky decomposition
 !> \param n the number of row (and columns) of the matrix &
 !>        (defaults to the min(size(matrix)))
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [JVdV]
 !>      12.2002 updated, added n optional parm [fawzi]
@@ -129,13 +129,13 @@ CONTAINS
     CALL timestop(handle)
 
   END  SUBROUTINE cp_dbcsr_cholesky_decompose
-  
+
 ! *****************************************************************************
 !> \brief used to replace the cholesky decomposition by the inverse
 !> \param matrix the matrix to invert (must be an upper triangular matrix)
 !> \param n size of the matrix to invert (defaults to the min(size(matrix)))
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
@@ -228,8 +228,8 @@ CONTAINS
 !>      (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
 !> \param matrix the symmetric matrix A
 !> \param matrixb the cholesky decomposition of matrix B
-!> \param error variable to control error logging, stopping,... 
-!>              see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>              see module cp_error_handling
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
@@ -382,7 +382,7 @@ CPSourceFileRef,&
 CPSourceFileRef,&
          error,failure)
 
-    IF (PRESENT(pos)) THEN 
+    IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
        CASE("LEFT")
          chol_pos='L'

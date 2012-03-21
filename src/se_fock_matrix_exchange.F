@@ -60,7 +60,7 @@ MODULE se_fock_matrix_exchange
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_exchange'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
-  
+
   PUBLIC :: build_fock_matrix_exchange, build_fock_matrix_ph
 
 CONTAINS
@@ -195,7 +195,7 @@ CONTAINS
         size_p_block_a(1) = SIZE(p_block_a,1)
         size_p_block_a(2) = SIZE(p_block_a,2)
         p_block_tot(1:size_p_block_a(1),1:size_p_block_a(2)) = 2.0_dp * p_block_a
-        
+
         ! Handle more configurations
         IF ( nspins == 2 ) THEN
            CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
@@ -228,7 +228,7 @@ CONTAINS
               CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
                    factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
                    store_int_env=store_int_env, error=error)
-              
+
               CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b, ks_block_b,&
                    factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
                    store_int_env=store_int_env, error=error)
@@ -245,7 +245,7 @@ CONTAINS
                  CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
                       factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                       delta=delta, error=error)
-                 
+
                  CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b,&
                       factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                       delta=delta, error=error)
@@ -274,8 +274,8 @@ CONTAINS
 
      DEALLOCATE(se_kind_list,se_defined,stat=stat)
      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-     IF (calculate_forces) THEN 
+
+     IF (calculate_forces) THEN
         DEALLOCATE(atom_of_kind,stat=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
@@ -283,7 +283,7 @@ CONTAINS
     CALL finalize_se_taper(se_taper,error=error)
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE build_fock_matrix_exchange
 
   SUBROUTINE build_fock_matrix_ph(qs_env, ks_matrix, error)
@@ -412,7 +412,7 @@ CONTAINS
                        ENDDO
                      ENDIF
                    ENDIF
-        
+
         ! Handle more configurations
         IF ( nspins == 2 ) THEN
            CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
@@ -425,12 +425,12 @@ CONTAINS
 
      DEALLOCATE(se_kind_list,se_defined,stat=stat)
      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
     END IF
 
     CALL timestop(handle)
-    
+
   END SUBROUTINE build_fock_matrix_ph
-  
+
 END MODULE se_fock_matrix_exchange
 

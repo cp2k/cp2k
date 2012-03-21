@@ -5,23 +5,23 @@
 
 ! *****************************************************************************
 !> \brief Module that contains the routines for error handling
-!>      The idea is that in general routines have an optional 
+!>      The idea is that in general routines have an optional
 !>      parameter that can be used to change the error behaviour.
 !> \note
 !>      In general 0 means no error, a negative error code means an internal
-!>      error (in the routine, postcondition failure), and a positive error 
+!>      error (in the routine, postcondition failure), and a positive error
 !>      an error on the side of the caller (precondition failure).
 !>      Error numbers in the dange -1000..1000 are reserved for generic error
 !>      codes.
 !>      Inspired from the nag nl90 library.
 !>      Some help on this is also available in the high level dev notes on pao.
-!> 
+!>
 !>      The following error levels are defined:
 !>      0 - note    : CP_NOTE_LEVEL
 !>      1 - warning : CP_WARNING_LEVEL
 !>      2 - failure : CP_FAILURE_LEVEL
 !>      3 - fatal   : CP_FATAL_LEVEL
-!>      You shouldn't use the numbers but the constants defined in 
+!>      You shouldn't use the numbers but the constants defined in
 !>      cp_log_handling
 !> \par History
 !>      none
@@ -64,7 +64,7 @@ MODULE cp_error_handling
        cp_error_check, cp_error_synchronize_error
 
 #ifdef FD_DEBUG
-  !! global variable to turn on/off the debugging, as i am lazy I use the 
+  !! global variable to turn on/off the debugging, as i am lazy I use the
   !! preprocessor variable FD_DEBUG to decide if it should be on or off.
   !! this way it is always right (on in debug builds, off in optimized ones)
   LOGICAL, PARAMETER :: cp_debug=.TRUE.
@@ -96,11 +96,11 @@ MODULE cp_error_handling
 !>      the functions to change their error behaviour.
 !>      It should always be initialized with cp_error_init before use
 !> \param initialized true if initialized (just for bug catching)
-!> \param logger a pointer to the logger where error logs should go 
+!> \param logger a pointer to the logger where error logs should go
 !>          (if null they go to cp_default_logger)
 !> \param stop_level the level at which the execution stops
 !> \param print_level starting at which level something gets printed
-!> \param level level of the error (0 = cp_note_level=no error, 
+!> \param level level of the error (0 = cp_note_level=no error,
 !>           cp_warning_level, cp_failure_level or cp_fatal_level=3).
 !>           Definition of these constants is in cp_log_handling.
 !> \param error_nr the number of the error (0 = no error)
@@ -138,7 +138,7 @@ CONTAINS
 !>            to cp_note_level)
 !> \param logger the logger where errors are written (defaults to
 !>             the default logger)
-!> \param template_error an error that gives the default values for 
+!> \param template_error an error that gives the default values for
 !>             the previous variables (useful to initialize an internal error)
 !> \par History
 !>      none
@@ -184,8 +184,8 @@ CONTAINS
   END SUBROUTINE cp_error_init
 
 ! *****************************************************************************
-!> \brief if the optional parameter error is present resets its level and 
-!>      error_nr to 0 (is tipically called when you want to discard the 
+!> \brief if the optional parameter error is present resets its level and
+!>      error_nr to 0 (is tipically called when you want to discard the
 !>      previous errors stored in error, i.e. not often)
 !> \param error the error you want to reset
 !> \par History
@@ -253,11 +253,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocates the memory allocated by the error
 !> \param err_to_free the error that gets deallocated
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
-!>      actually the error allocates no memory, and it is better if it 
-!>      stays so even in the future, but I have written this routine 
+!>      actually the error allocates no memory, and it is better if it
+!>      stays so even in the future, but I have written this routine
 !>      to remain consistent with the generic types
 !> \par History
 !>      none
@@ -289,8 +289,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the various attributes of the given error
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -335,7 +335,7 @@ CONTAINS
   END FUNCTION cp_error_get_level
 
 ! *****************************************************************************
-!> \brief gets the print level (starting with which errorlevel something 
+!> \brief gets the print level (starting with which errorlevel something
 !>      gets printed) from the given error
 !>      if the error is not present returns cp_note_level
 !> \param error the error you take the info from (optional)
@@ -444,12 +444,12 @@ CONTAINS
     CALL print_message("ERROR in "//TRIM(ADJUSTL(fromWhere))//&
                        TRIM(ADJUSTL(message)),unit_nr,2,2,2)
     CALL mp_abort()
-    
+
   END SUBROUTINE cp_error_common_stop
 
 ! *****************************************************************************
 !> \brief all the error situations at the end should call this routine
-!> 
+!>
 !>      main function for error logging, most error reporting ends up calling
 !>      this function, great place to put a breakpoint if you want to catch
 !>      errors that do not stop the program.
@@ -520,7 +520,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief routine that checks an assertion, if it fails set the optional
 !>      argument failure is given sets it to true.
-!>      This can be used to do many assertion one fater the other and 
+!>      This can be used to do many assertion one fater the other and
 !>      check at the end if one failed.
 !> \param condition the condition to check, if true does nothing
 !> \param level the level of the error (cp_note_level, cp_warning_level,
@@ -585,7 +585,7 @@ CONTAINS
   END SUBROUTINE cp_assert
 
 ! *****************************************************************************
-!> \brief if the internal error iError of a subroutine has an error levele 
+!> \brief if the internal error iError of a subroutine has an error levele
 !>      that is at least failure_level(i.e. if there was a serious error
 !>      in the subroutine) propagates the error to the actual error
 !>      (i.e. sets error to the same error than iError) and sets failure
@@ -593,7 +593,7 @@ CONTAINS
 !> \param iError the error object that comes from the subroutine
 !> \param error the error object in the actual routine
 !> \param failure if iError has an error it is set to true
-!> \param failure_level starting with which error level propagation happens 
+!> \param failure_level starting with which error level propagation happens
 !>            (defaults to cp_warning_level)
 !> \par History
 !>      none
@@ -644,10 +644,10 @@ CONTAINS
 !> \brief comodity call to signat that something is not implemented
 !> \param fromWhere routine where the error happened
 !> \param message the message to write out (UNIMPLEMENTED is added to it)
-!> \param error_level the error level of this error, defaults to 
+!> \param error_level the error level of this error, defaults to
 !>        cp_failure_level
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -723,8 +723,8 @@ CONTAINS
 !> \brief assert with linenumber (to be used with the assertion macros
 !>      to keep the line short)
 !> \param from _
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
@@ -772,7 +772,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief simple assert
 !> \note
-!>      you should use the CPAssert and similar macros defined in 
+!>      you should use the CPAssert and similar macros defined in
 !>      cp_prep_globals.h that call cp_a_l
 !> \par History
 !>      , TCH, created

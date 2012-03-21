@@ -31,10 +31,10 @@ MODULE input_cp2k_mixed
 
   IMPLICIT NONE
   PRIVATE
-  
+
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mixed'
-  
+
   PUBLIC :: create_mix_section
 
 CONTAINS
@@ -42,8 +42,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the input section for MIXED.
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_mix_section(section,error)
@@ -105,7 +105,7 @@ CONTAINS
             usage="ngroups 4", type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        ! Double force_eval
        CALL section_create(subsection,name="LINEAR",&
             description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2",&
@@ -153,7 +153,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-       
+
        ! Multiple force_eval
        CALL section_create(subsection,name="GENERIC",&
             description="User driven coupling between two or more force_eval.",&
@@ -240,7 +240,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Starting and ending atomic index defining one fragment must be provided",& 
+            description="Starting and ending atomic index defining one fragment must be provided",&
             usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
@@ -286,7 +286,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Starting and ending atomic index defining one fragment must be provided",& 
+            description="Starting and ending atomic index defining one fragment must be provided",&
             usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
@@ -294,7 +294,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="MAP",&
             description="Provides the index of the fragment of the MIXED force_eval mapped on the"//&
-            " locally defined fragment.",& 
+            " locally defined fragment.",&
             usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
@@ -317,8 +317,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print section for mixed
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_print_mix_section(section,error)
@@ -348,7 +348,7 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
        CALL cp_print_key_section_create(print_key,"DIPOLE",&
             description="Controls the printing of dipole information. "//&
             "Requires the DIPOLE calculation be active for all subforce_eval.", &

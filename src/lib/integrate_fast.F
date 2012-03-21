@@ -16,7 +16,7 @@
 #define __GRID_CORE 5
 #elif defined(__AIX)
 #define __GRID_CORE 6
-#else 
+#else
 !if nothing else is known, use this one
 #define __GRID_CORE 2
 #endif

@@ -47,7 +47,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="RS_GRID",&
             description="Set options that influence how the realspace grids are being distributed in parallel runs.",&
             n_keywords=5, n_subsections=0, repeats=.TRUE., required=.FALSE.,error=error)
@@ -63,7 +63,7 @@ CONTAINS
                           "Force a replicated setup"),&
             default_i_val=rsgrid_automatic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DISTRIBUTION_LAYOUT",&
             description="Specifies the number of slices in the x, y and z directions."//&
@@ -78,12 +78,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DISTRIBUTED_LEVEL",&
-            description="If the multigrid-level of a grid is larger than the parameter,"//& 
+            description="If the multigrid-level of a grid is larger than the parameter,"//&
                         " it will not be distributed in the automatic scheme.",&
             usage="MAX_DISTRIBUTED_LEVEL 1",&
             default_i_val=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LOCK_DISTRIBUTION",&
             description="Expert use only, only basic QS deals correctly with a non-default value."//&
@@ -93,22 +93,22 @@ CONTAINS
             usage="LOCK_DISTRIBUTION TRUE",&
             default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MEMORY_FACTOR",&
-            description="A grid will only be distributed if the memory usage for that grid (including halo) "//& 
+            description="A grid will only be distributed if the memory usage for that grid (including halo) "//&
                         "is smaller than a replicated grid by this parameter.",&
             usage="MEMORY_FACTOR 4.0",&
             default_r_val=2.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="HALO_REDUCTION_FACTOR",&
             description="Can be used to reduce the halo of the distributed grid (experimental features).",&
             usage="HALO_REDUCTION_FACTOR 0.5",&
             default_r_val=1.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)        
+       CALL keyword_release(keyword,error=error)
     END IF
   END SUBROUTINE create_rsgrid_section
 

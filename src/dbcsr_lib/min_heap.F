@@ -601,7 +601,7 @@ END MODULE min_heap
 PROGRAM test_min_heap
 
   USE min_heap
-  
+
   LOGICAL :: error
   CALL test_heap (20, error=error)
 END PROGRAM test_min_heap

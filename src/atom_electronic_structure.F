@@ -131,7 +131,7 @@ CONTAINS
 
     method   = atom%method_type
     max_iter = atom%optimization%max_iter
-    eps_scf  = atom%optimization%eps_scf 
+    eps_scf  = atom%optimization%eps_scf
 
     SELECT CASE (method)
       CASE DEFAULT
@@ -238,7 +238,7 @@ CONTAINS
           atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat,error)
       END SELECT
       atom%energy%epseudo = atom%energy%eploc + atom%energy%epnl
-  
+
       ! Core energy
       atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat,error)
 
@@ -405,7 +405,7 @@ CONTAINS
 
     method   = atom%method_type
     max_iter = atom%optimization%max_iter
-    eps_scf  = atom%optimization%eps_scf 
+    eps_scf  = atom%optimization%eps_scf
 
     SELECT CASE (method)
       CASE DEFAULT
@@ -561,7 +561,7 @@ CONTAINS
           atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat,error)
       END SELECT
       atom%energy%epseudo = atom%energy%eploc + atom%energy%epnl
-  
+
       ! Core energy
       atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat,error)
 
@@ -636,7 +636,7 @@ CONTAINS
       ELSE
          atom%energy%elsd=0._dp
       END IF
-     
+
       ! Total energy
       atom%energy%etot = atom%energy%ecore + atom%energy%ecoulomb + atom%energy%eexchange + atom%energy%exc
 

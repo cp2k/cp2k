@@ -13,7 +13,7 @@
 !>      Clebsch-Gordon Coefficients
 !>          Tested up to l=7 (i.e. L=14)
 !> \todo
-!>      1) Check if this definition is consistent with the 
+!>      1) Check if this definition is consistent with the
 !>         Slater-Koster module
 !> \par History
 !>      JGH 28-Feb-2002 : Change of sign convention (-1^m)
@@ -94,7 +94,7 @@ CONTAINS
        lm = lp/2+1
        clm(lm) = cg_table(ind,lm,icase)
      END DO
-     
+
   END SUBROUTINE clebsch_gordon_complex
 
 ! *****************************************************************************
@@ -270,7 +270,7 @@ CONTAINS
      END DO
 
      CALL timestop(handle)
-     
+
   END SUBROUTINE clebsch_gordon_init
 
 ! *****************************************************************************
@@ -1151,7 +1151,7 @@ CONTAINS
     CASE ( 2 )
       dplm = 15.0_dp * ( 1.0_dp - x * x ) - 30.0_dp * x * x
     CASE ( 1 )
-      dplm = 15.0_dp * x * SQRT ( 1.0_dp - x * x ) - (x *  ( 7.5_dp * x * x - 1.5_dp ))/ SQRT ( 1.0_dp - x * x ) 
+      dplm = 15.0_dp * x * SQRT ( 1.0_dp - x * x ) - (x *  ( 7.5_dp * x * x - 1.5_dp ))/ SQRT ( 1.0_dp - x * x )
     CASE ( 0 )
       dplm = 7.5_dp * x * x - 1.5_dp
     END SELECT
@@ -1173,7 +1173,7 @@ CONTAINS
                x * ( 17.5_dp * x ** 3 - 7.5_dp * x ) / SQRT ( 1.0_dp - x * x )
       END IF
     CASE ( 0 )
-      dplm = 4.375_dp * 4.0_dp *  x ** 3 - 3.75_dp * 2.0_dp * x 
+      dplm = 4.375_dp * 4.0_dp *  x ** 3 - 3.75_dp * 2.0_dp * x
     END SELECT
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
@@ -1182,7 +1182,7 @@ CONTAINS
     CASE ( 5 )
       dplm = -945.0_dp * 5.0_dp * x * ( 1.0_dp - x * x ) ** 1.5_dp
     CASE ( 4 )
-      dplm = 945.0_dp * (( 1.0_dp - x * x ) ** 2 - 2.0_dp * x * x * ( 1.0_dp - x * x )) 
+      dplm = 945.0_dp * (( 1.0_dp - x * x ) ** 2 - 2.0_dp * x * x * ( 1.0_dp - x * x ))
     CASE ( 3 )
       dplm = 945.0_dp * x * ( 1.0_dp - x * x ) ** 1.5_dp - &
                3.0_dp * x * ( 472.5_dp * x * x - 52.5_dp ) * ( 1.0_dp - x * x ) ** 0.5_dp
@@ -1215,17 +1215,17 @@ CONTAINS
                ( - 1732.5_dp * x ** 3 + 472.5_dp * x ) * 3.0_dp * x * ( 1.0_dp - x * x ) ** 0.5_dp
     CASE ( 2 )
       dplm = (433.125_dp * 4.0_dp * x ** 3 -2.0_dp * 236.25_dp *x) * ( 1.0_dp - x * x ) - &
-              2.0_dp * x * ( 433.125_dp * x ** 4 - 236.25_dp * x ** 2 + 13.125_dp ) 
+              2.0_dp * x * ( 433.125_dp * x ** 4 - 236.25_dp * x ** 2 + 13.125_dp )
     CASE ( 1 )
       IF( ABS(x) - 1.0_dp < EPSILON(1.0_dp)) THEN
         dplm = 0.0_dp
       ELSE
-        dplm = -(-5.0_dp * 86.625_dp * x ** 4 + 3.0_dp *78.75_dp ** 2 - 13.125_dp ) * SQRT(1.0_dp-x*x) + & 
+        dplm = -(-5.0_dp * 86.625_dp * x ** 4 + 3.0_dp *78.75_dp ** 2 - 13.125_dp ) * SQRT(1.0_dp-x*x) + &
             x * ( -86.625_dp * x ** 5 + 78.75_dp * x ** 3 - 13.125_dp * x ) / SQRT ( 1.0_dp - x * x )
       END IF
     CASE ( 0 )
       dplm = 14.4375_dp * 6.0_dp * x ** 5 - 19.6875_dp * 4.0_dp * x ** 3 + &
-            6.5625_dp * 2.0_dp * x 
+            6.5625_dp * 2.0_dp * x
     END SELECT
   CASE DEFAULT
 !    CALL stop_program(routineN,moduleN,__LINE__,"l > 6 dplm not implemented")
@@ -1274,7 +1274,7 @@ CONTAINS
   END FUNCTION dlegendre
 
 ! *****************************************************************************
-  FUNCTION dPof1(x, l) 
+  FUNCTION dPof1(x, l)
 
     REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l
@@ -1298,11 +1298,11 @@ CONTAINS
         dPof1 = 3.0_dp
       CASE ( 3 )
         dPof1 = 6.0_dp
-      CASE ( 4 ) 
+      CASE ( 4 )
         dPof1 = 10.0_dp
-      CASE ( 5 ) 
+      CASE ( 5 )
         dPof1 = 15.0_dp
-      CASE ( 6 ) 
+      CASE ( 6 )
         dPof1 = 21.0_dp
       CASE ( 7 :  )
         CALL stop_program(routineN,moduleN,__LINE__,"Not implemented")
@@ -1319,11 +1319,11 @@ CONTAINS
         dPof1 = -3.0_dp
       CASE ( 3 )
         dPof1 = 6.0_dp
-      CASE ( 4 ) 
+      CASE ( 4 )
         dPof1 = -10.0_dp
-      CASE ( 5 ) 
+      CASE ( 5 )
         dPof1 = 15.0_dp
-      CASE ( 6 ) 
+      CASE ( 6 )
         dPof1 = -21.0_dp
       CASE ( 7 :  )
         CALL stop_program(routineN,moduleN,__LINE__,"Not implemented")
@@ -1365,9 +1365,9 @@ CONTAINS
   ELSE
     DO i = n, 0, -2
       IF (i==0) THEN
-        j = n 
+        j = n
         IF (j==0) THEN
-          cosn = cosn + choose ( n, j ) 
+          cosn = cosn + choose ( n, j )
         ELSE IF ( MOD(j/2,2) == 0 ) THEN
           cosn = cosn + choose ( n, j ) *  s**j
         ELSE
@@ -1469,7 +1469,7 @@ CONTAINS
   ELSE
     DO i = n-1, 0, -2
       IF (i==0) THEN
-        j = n 
+        j = n
         IF ( MOD(j/2,2) == 0 ) THEN
           sinn = sinn + choose ( n, j ) *  s**j
         ELSE
@@ -1587,17 +1587,17 @@ CONTAINS
       CALL stop_program(routineN,moduleN,__LINE__,"l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
-      dy (1, : ) = pf 
+      dy (1, : ) = pf
       dy (2, : ) = 0.0_dp
       dy (3, : ) = 0.0_dp
     CASE ( 0 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
-      dy (1, : ) = 0.0_dp 
+      dy (1, : ) = 0.0_dp
       dy (2, : ) = 0.0_dp
       dy (3, : ) = pf
     CASE ( -1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
-      dy (1, : ) = 0.0_dp 
+      dy (1, : ) = 0.0_dp
       dy (2, : ) = pf
       dy (3, : ) = 0.0_dp
     END SELECT
@@ -1607,27 +1607,27 @@ CONTAINS
       CALL stop_program(routineN,moduleN,__LINE__,"l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
-      dy (1, : ) =  pf * 2.0_dp * r ( 1, : ) 
+      dy (1, : ) =  pf * 2.0_dp * r ( 1, : )
       dy (2, : ) = -pf * 2.0_dp * r ( 2, : )
       dy (3, : ) =  0.0_dp
     CASE ( 1 )
       pf = SQRT ( 15.0_dp / ( 4.0_dp * pi ) )
-      dy (1, : ) = pf * r ( 3, : ) 
+      dy (1, : ) = pf * r ( 3, : )
       dy (2, : ) = 0.0_dp
-      dy (3, : ) = pf * r ( 1, : )  
+      dy (3, : ) = pf * r ( 1, : )
     CASE ( 0 )
       pf = SQRT ( 5.0_dp / ( 16.0_dp * pi ) )
       dy (1, : ) = 0.0_dp
       dy (2, : ) = 0.0_dp
-      dy (3, : ) = pf * 6.0_dp * r ( 3, : )  
+      dy (3, : ) = pf * 6.0_dp * r ( 3, : )
     CASE ( -1 )
       pf = SQRT ( 15.0_dp / ( 4.0_dp * pi ) )
       dy (1, : ) = 0.0_dp
-      dy (2, : ) = pf * r ( 3, : )  
-      dy (3, : ) = pf * r ( 2, : )  
+      dy (2, : ) = pf * r ( 3, : )
+      dy (3, : ) = pf * r ( 2, : )
     CASE ( -2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
-      dy (1, : ) = pf * 2.0_dp * r ( 2, : ) 
+      dy (1, : ) = pf * 2.0_dp * r ( 2, : )
       dy (2, : ) = pf * 2.0_dp * r ( 1, : )
       dy (3, : ) = 0.0_dp
     END SELECT
@@ -1642,7 +1642,7 @@ CONTAINS
       dy (3, : ) =  0.0_dp
     CASE ( 2 )
       pf = SQRT ( 105.0_dp / ( 16.0_dp * pi ) )
-      dy (1, : ) =  pf * 2.0_dp * r ( 3, : ) * r ( 1, : ) 
+      dy (1, : ) =  pf * 2.0_dp * r ( 3, : ) * r ( 1, : )
       dy (2, : ) = -pf * 2.0_dp * r ( 3, : ) * r ( 2, : )
       dy (3, : ) =  pf * ( r ( 1, : )**2 - r ( 2, : )**2 )
     CASE ( 1 )

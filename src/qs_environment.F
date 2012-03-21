@@ -208,7 +208,7 @@ CONTAINS
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init(qs_env,root_section,subsys,cell,cell_ref,qmmm,&
-       qmmm_periodic,qmmm_env_qm,force_env_section,subsys_section,& 
+       qmmm_periodic,qmmm_env_qm,force_env_section,subsys_section,&
        use_motion_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -263,9 +263,9 @@ CONTAINS
     IF (PRESENT(qmmm)) my_qmmm=qmmm
     my_qmmm_periodic = .FALSE.
     IF (PRESENT(qmmm_periodic)) my_qmmm_periodic=qmmm_periodic
-    IF(PRESENT(qmmm_env_qm)) THEN               
-     qs_env%qmmm_env_qm => qmmm_env_qm          
-    END IF                                      
+    IF(PRESENT(qmmm_env_qm)) THEN
+     qs_env%qmmm_env_qm => qmmm_env_qm
+    END IF
 
     harris_flag = .FALSE.
     CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag, error=error)
@@ -280,7 +280,7 @@ CONTAINS
     CASE DEFAULT
        ! Do nothing
     END SELECT
-    
+
     IF (PRESENT(cell)) THEN
        my_cell => cell
        IF (PRESENT(cell_ref)) THEN
@@ -366,7 +366,7 @@ CONTAINS
     END IF
 
     mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%MP2",error=error)
-    CALL section_vals_get(mp2_section,explicit=mp2_present,error=error) 
+    CALL section_vals_get(mp2_section,explicit=mp2_present,error=error)
     IF (mp2_present) THEN
        CALL mp2_env_create(qs_env%mp2_env,error)
        CALL read_mp2_section(qs_env%input,qs_env%mp2_env,error)
@@ -381,7 +381,7 @@ CONTAINS
     CALL init_ga_env ( ga_env, error )
     CALL set_qs_env ( qs_env, ga_env=ga_env, error=error )
     CALL se_ga_pair_list_init ( qs_env, error )
-    
+
   END SUBROUTINE qs_init
 
 ! *****************************************************************************
@@ -533,8 +533,8 @@ CONTAINS
 
     IF (my_ival==do_et_becke)THEN
        dft_control%qs_control%becke_restraint=.TRUE.
-       dft_control%qs_control%et_coupling_calc=.TRUE.       
-       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_RESTRAINT_A",error=error)      
+       dft_control%qs_control%et_coupling_calc=.TRUE.
+       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_RESTRAINT_A",error=error)
        CALL  read_becke_section(dft_control%qs_control,et_becke_section,error)
     END IF
     CALL read_mgrid_section(dft_control%qs_control,dft_section,para_env=para_env,error=error)
@@ -544,7 +544,7 @@ CONTAINS
     CALL rel_c_read_parameters(rel_control,dft_section,error=error)
     CALL set_qs_env(qs_env,rel_control=rel_control,error=error)
     CALL rel_c_release(rel_control,error=error)
-  
+
     !   *** Read DFTB parameter files ***
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
        NULLIFY (ewald_env,ewald_pw,dftb_potential)
@@ -782,7 +782,7 @@ CONTAINS
                print_section=print_section,error=error)
           ! Initialize ewald grids
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-          ! Setup the nonbond environment (real space part of Ewald) 
+          ! Setup the nonbond environment (real space part of Ewald)
           CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
           ! Setup the maximum level of multipoles to be treated in the periodic SE scheme
           IF (se_control%do_ewald) THEN
@@ -884,7 +884,7 @@ CONTAINS
         CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
-    ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN 
+    ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN
       ALLOCATE(dispersion_env,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ! set general defaults
@@ -1014,10 +1014,10 @@ CONTAINS
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "LSD: too few electrons for this multiplicity.")
           END IF
-   
+
           n_mo(1) = nelectron_spin(1)
           n_mo(2) = nelectron_spin(2)
-   
+
        END IF
 
     END IF

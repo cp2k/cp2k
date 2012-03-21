@@ -132,7 +132,7 @@ CONTAINS
           rbp  = -za*rab/zet
           rcp  = -(za*rac+zb*rbc)/zet
           f0 = 2.0_dp*SQRT(zet/pi)*(pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
-          
+
           ! *** Calculate the reccurence relation
 
           CALL os_rr_coul(rap,la_max+2,rbp,lb_max+2,rcp,zet,ldrr1,ldrr2,rr,error)

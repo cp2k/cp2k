@@ -30,10 +30,10 @@ MODULE input_optimize_input
 
   IMPLICIT NONE
   PRIVATE
-  
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_optimize_input'
   PUBLIC :: create_optimize_input_section
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -107,7 +107,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    ! 
+    !
     ! variables section
     !
 
@@ -171,7 +171,7 @@ CONTAINS
          CALL keyword_release(keyword,error=error)
 
          CALL keyword_create(keyword,name="REF_FORCE_FILE_NAME",&
-              description="the filename of the reference forces, should also contain the energy",& 
+              description="the filename of the reference forces, should also contain the energy",&
               usage="REF_FORCE_FILE_NAME frc.xyz",&
               default_lc_val="",&
               error=error)
@@ -179,7 +179,7 @@ CONTAINS
          CALL keyword_release(keyword,error=error)
 
          CALL keyword_create(keyword,name="REF_CELL_FILE_NAME",&
-              description="the filename of the reference cell",& 
+              description="the filename of the reference cell",&
               usage="REF_CELL_FILE_NAME project.cell",&
               default_lc_val="",&
               error=error)
@@ -211,14 +211,14 @@ CONTAINS
               usage="FRAME_STRIDE 1", default_i_val=1, error=error)
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
-       
+
          CALL keyword_create(keyword, name="FRAME_COUNT",&
               description="Use at most FRAME_COUNT frames from the reference trajectory, "//&
                           "adjusting the stride to have them as fas apart as possible (all=-1).",&
               usage="FRAME_COUNT 100", default_i_val=-1, error=error)
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
-       
+
          CALL keyword_create(keyword, name="ENERGY_WEIGHT",&
               description="Relative weight of the energy RMSD vs the force RMSD",&
               usage="ENERGY_WEIGHT 0.1", default_r_val=0.1_dp, error=error)
@@ -258,7 +258,7 @@ CONTAINS
               error=error)
          CALL section_add_subsection(sub_section,subsubsection,error=error)
          CALL section_release(subsubsection,error=error)
-     
+
     CALL section_add_subsection(section, sub_section, error=error)
     CALL section_release(sub_section,error=error)
 

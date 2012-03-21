@@ -121,7 +121,7 @@ CONTAINS
           needs%rho = .TRUE.
        END IF
     END IF
-    
+
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE pade_info
@@ -149,13 +149,13 @@ CONTAINS
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program(routineN,moduleN,__LINE__,& 
+    IF ( mt > mp ) CALL stop_program(routineN,moduleN,__LINE__,&
                                      "Size of POT array too small.")
 
     n = SIZE ( rho )
     ALLOCATE ( rs(n), STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     CALL calc_rs ( rho, rs )
     IF ( calc(0) .AND. calc(1) ) THEN
        m1=mx(0,1)
@@ -207,7 +207,7 @@ CONTAINS
     n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
     ALLOCATE ( rs(n), STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     CALL calc_rs_pw ( rho_set%rho, rs, n )
     IF ( calc(0) .AND. calc(1) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
@@ -275,14 +275,14 @@ CONTAINS
                                      "Size of POT array too small.")
     IF ( n > SIZE(pot,1) ) CALL stop_program(routineN,moduleN,__LINE__,&
                                              "Size of POT array too small.")
- 
+
 !$omp parallel do private(i,fx,rs,m1,m2)
     DO i=1, n
        fx(1) = rhoa(i) + rhob(i)
-   
+
        CALL calc_rs ( fx(1), rs )
        CALL calc_fx ( rhoa(i), rhob(i), fx, m )
-   
+
        IF ( calc(0) .AND. calc(1) ) THEN
           m1=mx(0,1)
           m2=mx(1,2)
@@ -377,14 +377,14 @@ CONTAINS
     DO i=rho_set%local_bounds(1,1), rho_set%local_bounds(2,1)
        DO j=rho_set%local_bounds(1,2), rho_set%local_bounds(2,2)
           DO k=rho_set%local_bounds(1,3), rho_set%local_bounds(2,3)
-       
+
              rhoa = rho_set%rhoa(i,j,k)
              rhob = rho_set%rhob(i,j,k)
              fx(1) = rhoa + rhob
-   
+
              CALL calc_rs ( fx(1), rs )
              CALL calc_fx ( rhoa, rhob, fx, ABS(order) )
-   
+
              IF ( calc(0) .AND. calc(1) ) THEN
                 CALL pade_lsd_01 ( rhoa, rhob, rs, fx, &
                                    e_0(i,j,k), e_ra(i,j,k), e_rb(i,j,k) )
@@ -405,7 +405,7 @@ CONTAINS
           END DO
        END DO
     END DO
-       
+
   END SUBROUTINE pade_lsd_pw_eval
 
 ! *****************************************************************************
@@ -841,7 +841,7 @@ CONTAINS
          potaaa = potaaa + 8.0_dp/27.0_dp*dr*rs*or*or + &
                      1.0_dp/9.0_dp*drr*rs*rs*or*or + &
                      1.0_dp/27.0_dp*drrr*rs**3*or*or + &
-                     dxr*or*or*yt*rs*(-8.0_dp/3.0_dp*fx(2)+4.0_dp*fx(3)*yt) 
+                     dxr*or*or*yt*rs*(-8.0_dp/3.0_dp*fx(2)+4.0_dp*fx(3)*yt)
          potaab = potaab + 0.0_dp
          potabb = potabb + 0.0_dp
          potbbb = potbbb + 0.0_dp

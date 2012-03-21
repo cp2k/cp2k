@@ -199,7 +199,7 @@ MODULE qs_rho0_ggrid
       CALL reallocate ( cores, 1, nat )
       npme = 0
       cores = 0
-                  
+
       DO iat=1,nat
          iatom = atom_list(iat)
          ra(:) = pbc(particle_set(iatom)%r,cell)

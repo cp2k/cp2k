@@ -160,7 +160,7 @@ CONTAINS
     norm_ls_vec = SQRT(DOT_PRODUCT(ls_vec,ls_vec))
     my_use_only_grad = .FALSE.
     IF (PRESENT(use_only_grad)) my_use_only_grad = use_only_grad
-    IF (norm_ls_vec/=0.0_dp) THEN 
+    IF (norm_ls_vec/=0.0_dp) THEN
        ALLOCATE(ls_norm(SIZE(ls_vec)),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(gradient2(SIZE(ls_vec)),stat=stat)
@@ -255,13 +255,13 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec,tls_vec))
-    IF (norm_tls_vec/=0.0_dp) THEN 
+    IF (norm_tls_vec/=0.0_dp) THEN
        ALLOCATE(tls_norm(SIZE(tls_vec)),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        tls_norm = tls_vec / norm_tls_vec
        dimer_env%tsl%tls_vec => tls_norm
-    
+
        dx      = norm_tls_vec
        dx_thrs = gopt_param%cg_ls%max_step
        ! If curvature is positive let's make the largest step allowed
@@ -342,7 +342,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     curvature0 =  dimer_env%rot%curvature
     dCdp       =  dimer_env%rot%dCdp
-    b1         =  0.5_dp*dCdp 
+    b1         =  0.5_dp*dCdp
     angle      = -0.5_dp*ATAN(dCdp/(2.0_dp*ABS(curvature0)))
     dimer_env%rot%angle1 = angle
     dimer_env%cg_rot%nvec_old = dimer_env%nvec
@@ -358,7 +358,7 @@ CONTAINS
        a0         = 2.0_dp*(curvature0-a1)
        angle      = 0.5_dp*ATAN(b1/a1)
        curvature2 = a0/2.0_dp + a1 * COS(2.0_dp*angle)+b1 * SIN(2.0_dp*angle)
-       IF (curvature2>curvature0) THEN 
+       IF (curvature2>curvature0) THEN
           angle = angle + pi/2.0_dp
           curvature2 = a0/2.0_dp + a1 * COS(2.0_dp*angle)+b1 * SIN(2.0_dp*angle)
        END IF

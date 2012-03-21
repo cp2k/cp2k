@@ -83,7 +83,7 @@ CONTAINS
     results%result_value(isize+1)%value%real_type = values
 
   END SUBROUTINE put_result_r1
-  
+
 ! *****************************************************************************
 !> \brief Store a 2D array of reals in result_list
 !> \par History
@@ -122,7 +122,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief gets the required part out of the result_list
-!> \param nval      : if more than one entry for a given description is given you may choose 
+!> \param nval      : if more than one entry for a given description is given you may choose
 !>                    which entry you want
 !> \param n_rep     : integer indicating how many times the section exists in result_list
 !> \param n_entries : gets the number of lines used for a given description
@@ -158,7 +158,7 @@ CONTAINS
     IF(PRESENT(n_rep))THEN
        n_rep=nrep
     END IF
-    
+
     CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
          " Trying to access result ("//TRIM(description)//") which was never stored! "//&
 CPSourceFileRef,&
@@ -202,7 +202,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief gets the required part out of the result_list
-!> \param nval      : if more than one entry for a given description is given you may choose 
+!> \param nval      : if more than one entry for a given description is given you may choose
 !>                    which entry you want
 !> \param n_rep     : integer indicating how many times the section exists in result_list
 !> \param n_entries : gets the number of lines used for a given description
@@ -238,7 +238,7 @@ CPSourceFileRef,&
     IF(PRESENT(n_rep))THEN
        n_rep=nrep
     END IF
-    
+
     CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
          " Trying to access result ("//TRIM(description)//") which was never stored! "//&
 CPSourceFileRef,&
@@ -278,7 +278,7 @@ CPSourceFileRef,&
           END IF
        END IF
     END DO
-    
+
   END SUBROUTINE get_result_r2
 
 ! *****************************************************************************
@@ -344,7 +344,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief erase a part of  result_list
-!> \param nval : if more than one entry for a given description is given you may choose 
+!> \param nval : if more than one entry for a given description is given you may choose
 !>               which entry you want to delete
 !> \par History
 !>      12.2007 created
@@ -383,7 +383,7 @@ CPSourceFileRef,&
              IF(TRIM(results%result_label(i))==TRIM(description))THEN
                 k = k + 1
                 IF (PRESENT(nval)) THEN
-                   IF (nval==k) THEN 
+                   IF (nval==k) THEN
                       entry_deleted = entry_deleted + 1
                       EXIT
                    END IF
@@ -448,7 +448,7 @@ CPSourceFileRef,&
     nlist = 0
     IF (para_env%mepos==source) nlist = SIZE(results%result_value)
     CALL mp_bcast(nlist, source, para_env%group)
-    
+
     ALLOCATE(size_value(nlist), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(type_in_use(nlist), stat=stat)

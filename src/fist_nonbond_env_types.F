@@ -65,8 +65,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief sets a fist_nonbond_env
 !> \param fist_nonbond_env the object to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -123,7 +123,7 @@ CONTAINS
          rcore_last_update_pbc => fist_nonbond_env%rcore_last_update_pbc
     IF ( PRESENT ( cell_last_update ) ) &
          cell_last_update => fist_nonbond_env%cell_last_update
-    IF ( PRESENT ( lup ) ) lup = fist_nonbond_env%lup 
+    IF ( PRESENT ( lup ) ) lup = fist_nonbond_env%lup
     IF ( PRESENT ( aup ) ) aup = fist_nonbond_env%aup
     IF ( PRESENT ( ei_scale14 ) ) ei_scale14 = fist_nonbond_env%ei_scale14
     IF ( PRESENT ( vdw_scale14 ) ) vdw_scale14 = fist_nonbond_env%vdw_scale14
@@ -134,14 +134,14 @@ CONTAINS
     IF ( PRESENT ( last_update ) ) last_update = fist_nonbond_env%last_update
     IF ( PRESENT ( num_update ) ) num_update = fist_nonbond_env%num_update
     IF ( PRESENT ( long_range_correction ) ) &
-         long_range_correction = fist_nonbond_env%long_range_correction 
+         long_range_correction = fist_nonbond_env%long_range_correction
   END SUBROUTINE fist_nonbond_env_get
 
 ! *****************************************************************************
 !> \brief sets a fist_nonbond_env
 !> \param fist_nonbond_env the object to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -211,8 +211,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates and intitializes a fist_nonbond_env
 !> \param fist_nonbond_env the object to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -261,8 +261,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Purpose: Initialise the FIST nonbond environment.
 !> \param fist_nonbond_env the object to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, &
        potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
@@ -389,8 +389,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given fist_nonbond_env (see doc/ReferenceCounting.html)
 !> \param fist_nonbond_env the object to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -415,8 +415,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given fist_nonbond_env (see doc/ReferenceCounting.html)
 !> \param fist_nonbond_env the object to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed

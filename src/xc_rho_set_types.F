@@ -338,7 +338,7 @@ CONTAINS
 !>        component is not associated
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      for the other components see the attributes of xc_rho_set
 ! *****************************************************************************
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&

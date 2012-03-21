@@ -37,7 +37,7 @@ MODULE xc_tpss
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tpss'
-  
+
   PUBLIC :: tpss_lda_info, tpss_lda_eval, tpss_lsd_info, tpss_lsd_eval
 
 !***
@@ -50,8 +50,8 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv the highest derivative available
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE tpss_lda_info(tpss_params,reference,shortform, needs, max_deriv, error)
@@ -104,8 +104,8 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv the highest derivative available
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE tpss_lsd_info(tpss_params,reference,shortform, needs, max_deriv, error)
@@ -160,8 +160,8 @@ CONTAINS
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE tpss_lda_eval(rho_set,deriv_set,grad_deriv,tpss_params,error)
@@ -190,7 +190,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
- 
+
     CALL cite_reference(tao2003)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -289,8 +289,8 @@ CONTAINS
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE tpss_lsd_eval(rho_set,deriv_set,grad_deriv,tpss_params,error)
@@ -434,8 +434,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief low level calculation routine for the unpolarized (lda) tpss
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      maple is nice, but if you want the uman readable version of the code
 !>      look in doc/tpss.mw
@@ -968,8 +968,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief low level routine that calculates the tpss functional in the
 !>      polarized (lsd) case
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      maple is nice, but if you want the uman readable version of the code
 !>      look in doc/tpss.mw

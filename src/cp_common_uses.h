@@ -7,7 +7,7 @@
 #ifndef CP_PREP_GLOBALS_H
 #define CP_PREP_GLOBALS_H
 
-! The following macros are here to facilitate the use of error handling 
+! The following macros are here to facilitate the use of error handling
 ! proposed in cp_error_handling.
 ! they assume at least
 ! 'use cp_error_handling, only: cp_assert, cp_a_l, cp_error_type'
@@ -28,7 +28,7 @@
 #define CPSourceFileRef __FILE__//' line '//cp_to_string(__LINE__)
 #endif
 
-! if the following macro is defined the longest form of macro 
+! if the following macro is defined the longest form of macro
 ! expansions is used (and the error messages are more meaningful)
 
 #ifdef FD_LONG_EXPANSIONS

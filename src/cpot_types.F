@@ -33,7 +33,7 @@ MODULE cpot_types
   PUBLIC :: cpot_type, cpot_release, cpot_retain, cpot_calc
 
 ! *****************************************************************************
-!> \brief type for the chemical potential difference 
+!> \brief type for the chemical potential difference
 !> \author fawzi
 ! *****************************************************************************
 TYPE cpot_type
@@ -51,8 +51,8 @@ CONTAINS
 !> \brief create a cpot_env
 !> \param cpot_env the cpot_env to create
 !> \param cpot_section the cpot_input_section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cpot_create(cpot_env,cpot_section,para_env,error)
@@ -111,8 +111,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the cpot
 !> \param cpot_env the object to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cpot_retain(cpot_env,error)
@@ -135,8 +135,8 @@ END SUBROUTINE cpot_retain
 ! *****************************************************************************
 !> \brief releases the cpot
 !> \param cpot_env the object to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cpot_release(cpot_env,error)
@@ -163,14 +163,14 @@ SUBROUTINE cpot_release(cpot_env,error)
 END SUBROUTINE cpot_release
 
 ! *****************************************************************************
-!> \brief calculates the chemical potential 
+!> \brief calculates the chemical potential
 !> \param cpot_env the environment in which to calculate the chemical
 !>        potential
 !> \param e_s_ 1_1: potential energy of the first box of the first system
 !>        (the driving system)
 !> \param pos_s_ 1_1: positions of the first box
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)

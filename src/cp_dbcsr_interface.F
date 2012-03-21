@@ -518,7 +518,7 @@ CONTAINS
     mm_ss = dbcsr_get_conf_mm_stacksize ()
     use_comm_thread = dbcsr_get_conf_use_comm_thread()
     comm_thread_load = dbcsr_get_conf_comm_thread_load()
-    
+
     SELECT CASE (mm_driver)
     CASE(mm_driver_blas)   ; mm_name = mm_name_blas
     CASE(mm_driver_matmul) ; mm_name = mm_name_matmul
@@ -526,9 +526,9 @@ CONTAINS
     CASE(mm_driver_plasma) ; mm_name = mm_name_plasma
     CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
     END SELECT
-    
+
     mm_name = ADJUSTR(mm_name(:info_len))
-    
+
     mm_ss_str = int2str_r(mm_ss,info_len)
     use_subcomms_str = l2str_r(use_subcomms,info_len)
     use_combtypes_str = l2str_r(use_combtypes,info_len)
@@ -544,7 +544,7 @@ CONTAINS
     use_m_stacks = int2str_r (n_mnk_stacks(1), info_len)
     use_n_stacks = int2str_r (n_mnk_stacks(2), info_len)
     use_k_stacks = int2str_r (n_mnk_stacks(3), info_len)
-    
+
     logger => cp_error_get_logger(error)
     IF (PRESENT (unit_nr)) THEN
        unit_num = unit_nr
@@ -612,7 +612,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.
 !>     The cp2k error is passed as an argument.
-!>     Those procedure can de timed with the cp2k timer.    
+!>     Those procedure can de timed with the cp2k timer.
 !> \author vw
 ! *****************************************************************************
 
@@ -802,7 +802,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     valid_index = dbcsr_valid_index(matrix%matrix)
-  
+
   END FUNCTION cp_dbcsr_valid_index
 
   SUBROUTINE cp_dbcsr_get_stored_coordinates(matrix, row, column, transpose, processor)
@@ -829,7 +829,7 @@ CONTAINS
     num_blocks = dbcsr_get_num_blocks (matrix%matrix)
 
   END FUNCTION cp_dbcsr_get_num_blocks
-  
+
   FUNCTION cp_dbcsr_get_data_size (matrix) RESULT (data_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER                                  :: data_size
@@ -1334,7 +1334,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL dbcsr_iterator_stop (iterator)
     CALL timestop(handle)
-    
+
   END SUBROUTINE cp_dbcsr_iterator_stop
 
   SUBROUTINE cp_dbcsr_iterator_start (iterator, matrix, shared, dynamic,&
@@ -2643,7 +2643,7 @@ CONTAINS
        WRITE(*,*)routineN//" multiply type",&
             trans_a//shape_a//'_'&
             //trans_b//shape_b
-       
+
        IF (ABS(cs_c-cs_b) .GT. 0.00001) STOP "Bad multiply"
     ENDIF
   END SUBROUTINE cp_dbcsr_multiply_d
@@ -3396,7 +3396,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Matches a 1-D distribution
-!> 
+!>
 !> Forms a new distribution new_dist of size template_dist.  As much data as
 !> possible is taken from old_dist.
 ! *****************************************************************************

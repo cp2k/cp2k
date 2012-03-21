@@ -142,7 +142,7 @@ CONTAINS
     IF (PRESENT (card_num)) THEN
        icard = card_num
     ELSE
-       
+
     ENDIF
     istat = cuda_set_device_cu (icard)
 #else

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief 
+!> \brief
 !> \par History
 !> \author  MI 07.2009
 ! *****************************************************************************
@@ -48,8 +48,8 @@ MODULE gle_system_types
      INTEGER                                 :: glob_num_gle, loc_num_gle, region
      INTEGER, DIMENSION(:), POINTER          :: mal
      REAL(dp)                                :: temp, dt, dt_fact
-     REAL(dp), POINTER                       :: gle_s(:,:), gle_t(:,:) 
-     REAL(dp), POINTER                       :: a_mat(:,:), c_mat(:,:) 
+     REAL(dp), POINTER                       :: gle_s(:,:), gle_t(:,:)
+     REAL(dp), POINTER                       :: a_mat(:,:), c_mat(:,:)
      TYPE(gle_thermo_type), POINTER          :: nvt(:)
      TYPE(map_info_type), POINTER            :: map_info
   END TYPE gle_type
@@ -59,8 +59,8 @@ MODULE gle_system_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief 
-!> \param 
+!> \brief
+!> \param
 ! *****************************************************************************
   SUBROUTINE gle_init(gle, dt,temp, section, error)
     TYPE(gle_type), POINTER                  :: gle
@@ -86,8 +86,8 @@ CONTAINS
     gle%temp = temp
     gle%dt = dt*0.5_dp
 
-    CALL cite_reference(Ceriotti2009)   
-    CALL cite_reference(Ceriotti2009b)   
+    CALL cite_reference(Ceriotti2009)
+    CALL cite_reference(Ceriotti2009b)
     CALL section_vals_val_get(section,"NDIM",i_val=gle%ndim,error=error)
     CALL section_vals_val_get(section,"A_SCALE",r_val=a_scale,error=error)
 
@@ -164,8 +164,8 @@ CONTAINS
   END SUBROUTINE gle_init
 
 ! *****************************************************************************
-!> \brief 
-!> \param 
+!> \brief
+!> \param
 ! *****************************************************************************
   SUBROUTINE gle_thermo_create(gle, mal_size, error)
     TYPE(gle_type), POINTER                  :: gle
@@ -185,7 +185,7 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(gle),cp_fatal_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(gle%nvt),cp_fatal_level,routineP,error,failure)
-    
+
     ALLOCATE ( gle%nvt(gle%loc_num_gle),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i = 1, gle%loc_num_gle
@@ -225,7 +225,7 @@ CONTAINS
 
     DEALLOCATE (seed,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
- 
+
   END SUBROUTINE gle_thermo_create
 
 ! *****************************************************************************
@@ -265,7 +265,7 @@ CONTAINS
        IF (ASSOCIATED (gle%nvt)) THEN
           DO i = 1,SIZE(gle%nvt)
             DEALLOCATE (gle%nvt(i)%s, STAT=stat)
-            IF (ASSOCIATED(gle%nvt(i)%gaussian_rng_stream)) THEN    
+            IF (ASSOCIATED(gle%nvt(i)%gaussian_rng_stream)) THEN
               CALL delete_rng_stream(gle%nvt(i)%gaussian_rng_stream,error=error)
             END IF
             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)

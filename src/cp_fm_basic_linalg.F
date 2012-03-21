@@ -36,7 +36,7 @@ MODULE cp_fm_basic_linalg
             cp_fm_scale_and_add, &         ! scale and add two matrices
             cp_fm_column_scale, &          ! scale colummns of a matrix
             cp_fm_trace, &                 ! trace of the transpose(A)*B
-            cp_fm_schur_product, &         ! schur product 
+            cp_fm_schur_product, &         ! schur product
             cp_fm_transpose, &             ! transpose a matrix
             cp_fm_upper_to_full, &         ! symmetrise an upper symmetric matrix
             cp_fm_syrk, &                  ! rank k update
@@ -44,7 +44,7 @@ MODULE cp_fm_basic_linalg
             cp_fm_symm, &                  ! multiply a symmetric with a non-symmetric matrix
             cp_fm_gemm, &                  ! multiply two matrices
             cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
-            cp_fm_invert,&                 ! computes the inverse and determinant 
+            cp_fm_invert,&                 ! computes the inverse and determinant
             cp_fm_frobenius_norm,&         ! frobenius norm
             cp_fm_ger, &                   ! rank 1 operation
             cp_fm_triangular_invert,&      ! compute the reciprocal of a tirangular matrix
@@ -200,8 +200,8 @@ CPSourceFileRef,&
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
-    
-    
+
+
     ALLOCATE(diag(n))
     diag(:)=0.0_dp
     DO i=1,n
@@ -241,9 +241,9 @@ CPSourceFileRef,&
 !> \brief computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
 !> \param matrix_a : m x k matrix ( ! for transa = 'N')
 !> \param matrix_b : k x n matrix ( ! for transb = 'N')
-!> \param matrix_c : m x n matrix 
+!> \param matrix_c : m x n matrix
 !> \param transa : 'N' -> normal   'T' -> transpose
-!>      alpha,beta :: can be 0.0_dp and 1.0_dp  
+!>      alpha,beta :: can be 0.0_dp and 1.0_dp
 !> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
 !> \note
 !>      matrix_c should have no overlap with matrix_a, matrix_b
@@ -357,11 +357,11 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_gemm
 
 ! *****************************************************************************
-!> \brief computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b 
-!>      computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a 
+!> \brief computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b
+!>      computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a
 !>      where matrix_a is symmetric
-!> \param matrix_a : m x m matrix 
-!> \param matrix_b : m x n matrix 
+!> \param matrix_a : m x m matrix
+!> \param matrix_b : m x n matrix
 !> \param matrix_c : m x n matrix
 !> \param side : 'L' -> matrix_a is on the left 'R' -> matrix_a is on the right
 !>      alpha,beta :: can be 0.0_dp and 1.0_dp
@@ -420,8 +420,8 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_symm
 
 ! *****************************************************************************
-!> \brief computes the Frobenius norm of matrix_a 
-!> \param matrix_a : m x n matrix 
+!> \brief computes the Frobenius norm of matrix_a
+!> \param matrix_a : m x n matrix
 !> \author VW
 ! *****************************************************************************
   SUBROUTINE cp_fm_frobenius_norm(matrix_a,norm,error)
@@ -611,12 +611,12 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_schur_product
 
 ! *****************************************************************************
-!> \brief returns the trace of matrix_a^T matrix_b, i.e 
+!> \brief returns the trace of matrix_a^T matrix_b, i.e
 !>      sum_{i,j}(matrix_a(i,j)*matrix_b(i,j))
 !> \param matrix_a a matrix
 !> \param matrix_b another matrix
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      note the transposition of matrix_a!
 !> \par History
@@ -702,12 +702,12 @@ CPSourceFileRef,&
 !>        lower ('L') triangle (defaults to 'U')
 !> \param unit_diag_tr if the diagonal elements of triangular_matrix should
 !>        be assumed to be 1 (defaults to false)
-!> \param n_rows the number of rows of the result (defaults to 
+!> \param n_rows the number of rows of the result (defaults to
 !>        size(matrix_b,1))
 !> \param n_cols the number of columns of the result (defaults to
 !>        size(matrix_b,2))
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      needs an mpi env
 !> \par History
@@ -736,7 +736,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     REAL(KIND=dp)                            :: al
 
   failure=.FALSE.
-  
+
   CALL timeset(routineN,handle)
   side_char='L'
   unit_diag='N'
@@ -774,7 +774,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
           triangular_matrix%matrix_struct%descriptor,&
           matrix_b%local_data(1,1),1,1,&
           matrix_b%matrix_struct%descriptor(1))
-#else     
+#else
      CALL dtrsm(side_char,uplo,transa,unit_diag,m,n,al,&
           triangular_matrix%local_data(1,1),&
           SIZE(triangular_matrix%local_data,1),&
@@ -789,7 +789,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
           triangular_matrix%matrix_struct%descriptor,&
           matrix_b%local_data(1,1),1,1,&
           matrix_b%matrix_struct%descriptor(1))
-#else     
+#else
      CALL dtrmm(side_char,uplo,transa,unit_diag,m,n,al,&
           triangular_matrix%local_data(1,1),&
           SIZE(triangular_matrix%local_data,1),&
@@ -798,7 +798,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END IF
 
-  CALL timestop(handle)     
+  CALL timestop(handle)
   END SUBROUTINE cp_fm_triangular_multiply
 
 ! *****************************************************************************
@@ -910,7 +910,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp,c_sp
     TYPE(cp_blacs_env_type), POINTER :: context
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_upper_to_full',&
-         routineP=moduleN//':'//routineN 
+         routineP=moduleN//':'//routineN
     LOGICAL :: failure
 
 #if defined(__SCALAPACK)
@@ -975,7 +975,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
         END IF
       END DO
     END DO
-     
+
     DO icol_local=1,ncol_local
     DO irow_local=1,nrow_local
        IF(matrix%use_sp) THEN
@@ -1080,7 +1080,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !> \author Florian Schiffmann(02.2007)
 ! *****************************************************************************
   SUBROUTINE cp_fm_invert(matrix_a,matrix_inverse,det_a,error)
-  
+
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_inverse
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: det_a
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1109,7 +1109,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CALL cp_fm_create(matrix=matrix_B,&
          matrix_struct=matrix_a%matrix_struct,&
          name="B_mat"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX",&
-         error=error)    
+         error=error)
     a => matrix_lu%local_data
     n = matrix_lu%matrix_struct%nrow_global
     ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
@@ -1117,7 +1117,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ALLOCATE(ferr(n))
     ALLOCATE(berr(n))
     ALLOCATE(work(3*n))
-    ALLOCATE(iwork(3*N))        
+    ALLOCATE(iwork(3*N))
     lwork=3*n
     liwork=3*n
     desca(:) = matrix_lu%matrix_struct%descriptor(:)
@@ -1136,13 +1136,13 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
        END IF
     ENDDO
     DEALLOCATE(diag)
-  
+
     alpha=0.0_dp
     beta=1.0_dp
    CALL cp_fm_set_all(matrix_inverse,alpha,beta,error)
    CALL pdgetrs('N',n,n,matrix_lu%local_data,1,1,desca,ipivot,matrix_inverse%local_data,1,1,desca,info)
-!   CALL cp_fm_set_all(matrix_B,alpha,beta,error)    
-!    DO iter=1,10 
+!   CALL cp_fm_set_all(matrix_B,alpha,beta,error)
+!    DO iter=1,10
 !       CALL pdgerfs('N',n,n,matrix_a%local_data,1,1,desca,matrix_lu%local_data,&
 !                      1,1,desca,ipivot,matrix_B%local_data,&
 !                     1,1,desca,matrix_inverse%local_data,1,1,&
@@ -1150,7 +1150,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !       eps1=eps2
 !       eps2=MAXVAL(ferr)
 !       IF (ABS( eps2 - eps1) <= EPSILON(1.0_dp))THEN
-!          EXIT    
+!          EXIT
 !       END IF
 !    END DO
     DEALLOCATE(ferr)
@@ -1169,7 +1169,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     DEALLOCATE(ipivot)
     IF(PRESENT(det_a)) det_a = determinant
   END SUBROUTINE cp_fm_invert
-   
+
 ! *****************************************************************************
 !> \brief inverts a triangular matrix
 !> \author MI
@@ -1219,7 +1219,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 ! *****************************************************************************
 ! *****************************************************************************
 !> \brief  perfoms a QR factorization of the input rectangular matrix A or of a submatrix of A
-!>         the computed upper triangular matrix R is in output in the submatrix sub(A) of size NxN 
+!>         the computed upper triangular matrix R is in output in the submatrix sub(A) of size NxN
 !>         M and M give the dimention of the submatrix that has to be factorized (MxN) with M>N
 !> \author MI
 ! *****************************************************************************
@@ -1259,7 +1259,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     icol = 1
     IF(PRESENT(first_col)) icol = first_col
 
-    
+
     CPPrecondition(nrow>=ncol,cp_failure_level,routineP,error,failure)
     ndim = SIZE(a,2)
 !    ALLOCATE(ipiv(ndim),istat=STAT)
@@ -1306,9 +1306,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 ! *****************************************************************************
 !> \brief computs the the solution to A*b=A_general using lu decomposition
-!>        pay attention, both matrices are overwritten, a_general contais the result    
+!>        pay attention, both matrices are overwritten, a_general contais the result
 !> \author Florian Schiffmann
-! *****************************************************************************  
+! *****************************************************************************
   SUBROUTINE cp_fm_solve(matrix_a,general_a,error)
     TYPE(cp_fm_type), POINTER                :: matrix_a, general_a
     TYPE(cp_error_type), INTENT(inout)       :: error

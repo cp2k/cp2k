@@ -95,7 +95,7 @@ CONTAINS
           i = local_molecules%list ( ikind )%array ( imol )
           molecule => molecule_set ( i )
           molecule_kind => molecule%molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ng3x3=n3x3con, ng4x6=n4x6con, & 
+          CALL get_molecule_kind ( molecule_kind, ng3x3=n3x3con, ng4x6=n4x6con, &
                colv_list=colv_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list,&
                fixd_list=fixd_list )
           CALL get_molecule ( molecule, first_atom=first_atom, &
@@ -106,7 +106,7 @@ CONTAINS
     END DO MOL
     ! Intermolecular constraints
     IF (gci%ntot>0) THEN
-       n3x3con= gci%ng3x3 
+       n3x3con= gci%ng3x3
        n4x6con= gci%ng4x6
        colv_list=> gci%colv_list
        g3x3_list=> gci%g3x3_list
@@ -160,22 +160,22 @@ CONTAINS
     ! 3x3 constraints
     DO iconst = 1, n3x3con
        index = g3x3_list ( iconst )%a + first_atom - 1
-       lg3x3 ( iconst )%ra_old = particle_set ( index )%r 
+       lg3x3 ( iconst )%ra_old = particle_set ( index )%r
        index = g3x3_list ( iconst )%b + first_atom - 1
-       lg3x3 ( iconst )%rb_old = particle_set ( index )%r 
+       lg3x3 ( iconst )%rb_old = particle_set ( index )%r
        index = g3x3_list ( iconst )%c + first_atom - 1
-       lg3x3 ( iconst )%rc_old = particle_set ( index )%r 
+       lg3x3 ( iconst )%rc_old = particle_set ( index )%r
     ENDDO
     ! 4x6 constraints
     DO iconst = 1, n4x6con
        index = g4x6_list ( iconst )%a + first_atom - 1
-       lg4x6 ( iconst )%ra_old = particle_set ( index )%r 
+       lg4x6 ( iconst )%ra_old = particle_set ( index )%r
        index = g4x6_list ( iconst )%b + first_atom - 1
-       lg4x6 ( iconst )%rb_old = particle_set ( index )%r 
+       lg4x6 ( iconst )%rb_old = particle_set ( index )%r
        index = g4x6_list ( iconst )%c + first_atom - 1
-       lg4x6 ( iconst )%rc_old = particle_set ( index )%r 
+       lg4x6 ( iconst )%rc_old = particle_set ( index )%r
        index = g4x6_list ( iconst )%d + first_atom - 1
-       lg4x6 ( iconst )%rd_old = particle_set ( index )%r 
+       lg4x6 ( iconst )%rd_old = particle_set ( index )%r
     ENDDO
 
   END SUBROUTINE getold_low
@@ -186,7 +186,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pv_constraint ( gci, local_molecules, molecule_set, molecule_kind_set, &
        particle_set, virial, group )
-    
+
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -221,7 +221,7 @@ CONTAINS
        nmol_per_kind = local_molecules%n_el ( ikind )
        DO imol = 1, nmol_per_kind
           i = local_molecules%list ( ikind )%array ( imol )
-          molecule => molecule_set ( i ) 
+          molecule => molecule_set ( i )
           molecule_kind => molecule%molecule_kind
           CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, &
                ng4x6 = ng4x6, g3x3_list=g3x3_list, g4x6_list=g4x6_list, &
@@ -234,7 +234,7 @@ CONTAINS
     END DO MOL
     ! Intermolecular constraints
     IF (gci%ntot>0) THEN
-       ng3x3= gci%ng3x3 
+       ng3x3= gci%ng3x3
        ng4x6= gci%ng4x6
        colv_list=> gci%colv_list
        g3x3_list=> gci%g3x3_list
@@ -438,7 +438,7 @@ CONTAINS
     DO iatm = 1, SIZE( lcolv%colvar_old%i_atom )
        ind =   lcolv%colvar_old%i_atom (iatm)
        f   = - lcolv%colvar_old%dsdr(:,iatm)
-       !  pv gets updated with FULL multiplier                      
+       !  pv gets updated with FULL multiplier
        lambda = lcolv%lambda
        DO i = 1,3
           tmp = lambda * particle_set(ind)%r(i)
@@ -597,14 +597,14 @@ CONTAINS
           wrk(iparticle) = .FALSE.
        END DO
     END DO
-    IF (PRESENT(vel)) THEN    
+    IF (PRESENT(vel)) THEN
        DO iparticle=1,SIZE(particle_set)
           IF (wrk(iparticle)) THEN
              vel (:,iparticle) =  0.0_dp
           END IF
        END DO
     END IF
-    IF (PRESENT(pos)) THEN    
+    IF (PRESENT(pos)) THEN
        DO iparticle=1,SIZE(particle_set)
           IF (wrk(iparticle)) THEN
              pos (:,iparticle) =  0.0_dp

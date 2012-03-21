@@ -293,9 +293,9 @@ CONTAINS
                  localized_wfn_control%loc_states = 0
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
-                 localized_wfn_control%nloc_states(1) = n_list 
+                 localized_wfn_control%nloc_states(1) = n_list
                  IF(my_do_xas) THEN
-                   localized_wfn_control%nloc_states(2) = 0 
+                   localized_wfn_control%nloc_states(2) = 0
                    localized_wfn_control%loc_states(:,2) = 0
                  END IF
                  DEALLOCATE(loc_list, STAT=stat)
@@ -326,7 +326,7 @@ CONTAINS
                  localized_wfn_control%loc_states = 0
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
-                 localized_wfn_control%nloc_states(1) = n_list 
+                 localized_wfn_control%nloc_states(1) = n_list
                  DEALLOCATE(loc_list, STAT=stat)
                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               END IF
@@ -517,7 +517,7 @@ CONTAINS
     max_nmoloc = MAX(nmoloc(1),nmoloc(2))
 
     SELECT CASE(localized_wfn_control%set_of_states )
-    CASE(state_loc_list) 
+    CASE(state_loc_list)
        ! List
        CPPrecondition(ASSOCIATED(localized_wfn_control%loc_states),cp_failure_level,routineP,error,failure)
        DO ispin = 1,nspins

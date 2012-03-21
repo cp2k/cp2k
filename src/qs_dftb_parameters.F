@@ -163,7 +163,7 @@ CONTAINS
           name_b=TRIM(dftb_control%sk_pair_list(2,k))
           CALL uppercase(name_a)
           CALL uppercase(name_b)
-          IF ( (iname==name_a .AND. jname==name_b) ) THEN 
+          IF ( (iname==name_a .AND. jname==name_b) ) THEN
             sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
                                     TRIM(dftb_control%sk_pair_list(3,k))
             found = .TRUE.
@@ -182,7 +182,7 @@ CONTAINS
             CALL parser_get_object(parser,name_a,lower_to_upper=.TRUE.,error=error)
             CALL parser_get_object(parser,name_b,lower_to_upper=.TRUE.,error=error)
             !Checking Names
-            IF ( (iname==name_a .AND. jname==name_b) ) THEN 
+            IF ( (iname==name_a .AND. jname==name_b) ) THEN
               CALL parser_get_object(parser,skfn,string_length=8,error=error)
               sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
                                       TRIM(skfn)
@@ -190,7 +190,7 @@ CONTAINS
               EXIT
             END IF
             !Checking Element
-            IF ( (iel==name_a .AND. jel==name_b) ) THEN 
+            IF ( (iel==name_a .AND. jel==name_b) ) THEN
               CALL parser_get_object(parser,skfn,string_length=8,error=error)
               sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
                                       TRIM(skfn)
@@ -267,7 +267,7 @@ CPSourceFileRef,&
       CALL mp_bcast(energy,para_env%source,para_env%group)
       CALL mp_bcast(eta,para_env%source,para_env%group)
       CALL mp_bcast(occupation,para_env%source,para_env%group)
-  
+
       CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,&
            z=z,zeff=SUM(occupation),defined=.TRUE.,&
            skself=skself,energy=energy,eta=eta,occupation=occupation,&
@@ -290,11 +290,11 @@ CPSourceFileRef,&
 
       !
       ! Determine lmax for atom type.
-      ! An atomic orbital is 'active' if either its onsite energy is different from zero, 
+      ! An atomic orbital is 'active' if either its onsite energy is different from zero,
       ! or
-      ! if this matrix element contains non-zero elements. 
+      ! if this matrix element contains non-zero elements.
       ! The sigma interactions are sufficient for that.
-      ! In the DFTB-Slako convention they are on orbital 10 (s-s-sigma), 
+      ! In the DFTB-Slako convention they are on orbital 10 (s-s-sigma),
       ! 7 (p-p-sigma) and 3 (d-d-sigma).
       !
       lmax=0
@@ -309,9 +309,9 @@ CPSourceFileRef,&
           CASE (2)
             lp = 3
           CASE (3)
-            lp = 3 ! this is wrong but we don't allow f anyway 
+            lp = 3 ! this is wrong but we don't allow f anyway
         END SELECT
-        ! Technical note: In some slako files dummies are included in the 
+        ! Technical note: In some slako files dummies are included in the
         ! first matrix elements, so remove them.
         IF ( (ABS(skself(l)) > 0._dp) .OR. &
              (SUM(ABS(fmat(ngrd/10:ngrd,lp))) > 0._dp) ) lmax=l
@@ -693,7 +693,7 @@ CPSourceFileRef,&
         CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,rcdisp=rcdisp,error=error)
       END DO
     END IF
-    
+
     RETURN
 
 1   CONTINUE
@@ -706,9 +706,9 @@ CPSourceFileRef,&
 !> \par Notes
 !>         Slako tables from Dresden/Paderborn/Heidelberg groups are
 !>         stored in the following native format:
-!>        
+!>
 !>         Convention: Higher angular momenta are always on the right-hand side
-!>        
+!>
 !>         1: d - d - delta
 !>         2: d - d - pi
 !>         3: d - d - sigma

@@ -27,7 +27,7 @@ MODULE dm_ls_scf_types
   PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular
 
   TYPE ls_mstruct_type
-     INTEGER :: cluster_type       
+     INTEGER :: cluster_type
      LOGICAL :: single_precision
      INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
   END TYPE

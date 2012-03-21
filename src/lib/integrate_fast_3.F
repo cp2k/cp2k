@@ -1,5 +1,5 @@
   SUBROUTINE integrate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), lp
     REAL(wp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
     INTEGER, INTENT(IN)                      :: cmax
@@ -85,10 +85,10 @@
        ENDDO
 
     END DO
-  
+
   END SUBROUTINE integrate_core_default
   SUBROUTINE integrate_core_0(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -159,10 +159,10 @@
           ENDDO
        ENDDO
     END DO
-  
+
   END SUBROUTINE integrate_core_0
   SUBROUTINE integrate_core_1(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -244,10 +244,10 @@
           ENDDO
        ENDDO
     END DO
-  
+
   END SUBROUTINE integrate_core_1
   SUBROUTINE integrate_core_2(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -324,10 +324,10 @@
                 coef_xyz(9)=coef_xyz(9)+SUM(coef_xy(:,4)*pol_z(:,1,kg))
                 coef_xyz(10)=coef_xyz(10)+SUM(coef_xy(:,1)*pol_z(:,2,kg))
     END DO
-  
+
   END SUBROUTINE integrate_core_2
   SUBROUTINE integrate_core_3(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -415,10 +415,10 @@
                 coef_xyz(19)=coef_xyz(19)+SUM(coef_xy(:,5)*pol_z(:,2,kg))
                 coef_xyz(20)=coef_xyz(20)+SUM(coef_xy(:,1)*pol_z(:,3,kg))
     END DO
-  
+
   END SUBROUTINE integrate_core_3
   SUBROUTINE integrate_core_4(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -540,10 +540,10 @@
                 coef_xyz(34)=coef_xyz(34)+SUM(coef_xy(:,6)*pol_z(:,3,kg))
                 coef_xyz(35)=coef_xyz(35)+SUM(coef_xy(:,1)*pol_z(:,4,kg))
     END DO
-  
+
   END SUBROUTINE integrate_core_4
   SUBROUTINE integrate_core_5(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -797,10 +797,10 @@
                 coef_xyz(56)=coef_xyz(56)+coef_xy(1,1)*pol_z(1,5,kg)
                 coef_xyz(56)=coef_xyz(56)+coef_xy(2,1)*pol_z(2,5,kg)
     END DO
-  
+
   END SUBROUTINE integrate_core_5
   SUBROUTINE integrate_core_6(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -1139,10 +1139,10 @@
                 coef_xyz(84)=coef_xyz(84)+coef_xy(1,1)*pol_z(1,6,kg)
                 coef_xyz(84)=coef_xyz(84)+coef_xy(2,1)*pol_z(2,6,kg)
     END DO
-  
+
   END SUBROUTINE integrate_core_6
   SUBROUTINE integrate_core_7(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -1514,10 +1514,10 @@
                 coef_xyz(120)=coef_xyz(120)+coef_xy(1,1)*pol_z(1,7,kg)
                 coef_xyz(120)=coef_xyz(120)+coef_xy(2,1)*pol_z(2,7,kg)
     END DO
-  
+
   END SUBROUTINE integrate_core_7
   SUBROUTINE integrate_core_8(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -1998,10 +1998,10 @@
                 coef_xyz(165)=coef_xyz(165)+coef_xy(1,1)*pol_z(1,8,kg)
                 coef_xyz(165)=coef_xyz(165)+coef_xy(2,1)*pol_z(2,8,kg)
     END DO
-  
+
   END SUBROUTINE integrate_core_8
   SUBROUTINE integrate_core_9(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp 
+    USE lib_kinds,                        ONLY: wp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
@@ -2613,5 +2613,5 @@
                 coef_xyz(220)=coef_xyz(220)+coef_xy(1,1)*pol_z(1,9,kg)
                 coef_xyz(220)=coef_xyz(220)+coef_xy(2,1)*pol_z(2,9,kg)
     END DO
-  
+
   END SUBROUTINE integrate_core_9

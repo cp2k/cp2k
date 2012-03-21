@@ -148,7 +148,7 @@ CONTAINS
     ! Check for the total number of method types to be calculated
     method_section => section_vals_get_subs_vals(atom_section,"METHOD",error=error)
     CALL section_vals_get(method_section,n_repetition=n_meth,error=error)
- 
+
     ! integrals
     ALLOCATE(ae_int, pp_int,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -162,7 +162,7 @@ CONTAINS
         NULLIFY(atom_info(in,im)%atom)
         CALL create_atom_type(atom_info(in,im)%atom,error)
 
-        atom_info(in,im)%atom%optimization = optimization 
+        atom_info(in,im)%atom%optimization = optimization
 
         atom_info(in,im)%atom%z = zval
         xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=im,error=error)
@@ -175,7 +175,7 @@ CONTAINS
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
                                   c_vals=tmpstringlist, error=error)
 
-        ! set occupations 
+        ! set occupations
         CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity,error)
         state%maxl_occ = get_maxl_occ(state%occ)
         state%maxn_occ = get_maxn_occ(state%occ)
@@ -191,7 +191,7 @@ CONTAINS
         ! is there a pseudo potential
         pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
         IF ( pp_calc ) THEN
-          ! get and set the core occupations 
+          ! get and set the core occupations
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
           CALL atom_set_occupation(tmpstringlist,state%core,pocc,error=error)
           zcore = zval - SUM(state%core)

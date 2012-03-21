@@ -44,8 +44,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the colvar section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   RECURSIVE SUBROUTINE create_colvar_section(section,skip_recursive_colvar,error)
@@ -96,11 +96,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Create the restart section for colvar restraints
-!>      This section will be only used for restraint restarts. 
+!>      This section will be only used for restraint restarts.
 !>      Constraints are handled automatically
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE create_clv_info_section(section, error)
@@ -130,7 +130,7 @@ CONTAINS
             usage="<REAL> <REAL> <REAL> ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
     END IF
 
   END SUBROUTINE create_clv_info_section
@@ -138,8 +138,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the collective variables for the colvar section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   RECURSIVE SUBROUTINE create_colvar_var_section(subsection, section, skip_recursive_colvar, error)
@@ -159,15 +159,15 @@ CONTAINS
 
        CALL create_colvar_dist_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)      
+       CALL section_release(subsection,error=error)
 
        CALL create_colvar_angle_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)      
+       CALL section_release(subsection,error=error)
 
        CALL create_colvar_torsion_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)      
+       CALL section_release(subsection,error=error)
 
        CALL create_colvar_coord_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -219,7 +219,7 @@ CONTAINS
 
        CALL create_colvar_u_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)      
+       CALL section_release(subsection,error=error)
 
        CALL create_colvar_wc_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -249,8 +249,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying coordination
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_coord_section(section,error)
@@ -265,14 +265,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="coordination",&
             description="Section to define the coordination number as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(subsection, keyword)
 
        CALL keyword_create(keyword, name="ATOMS_FROM",&
@@ -388,8 +388,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying population of a specie based on coordination
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Fabio Sterpone
 !> \date  01.2009
 ! *****************************************************************************
@@ -405,14 +405,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="population",&
             description="Section to define the population of specie as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(subsection, keyword)
 
        CALL keyword_create(keyword, name="ATOMS_FROM",&
@@ -476,7 +476,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
- 
+
        CALL keyword_create(keyword, name="n0",&
             variants=(/"n_0"/),&
             description="Specify the n0 parameter that sets the coordination of the species.",&
@@ -508,14 +508,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL section_create(section,name="GYRATION_RADIUS",&
             description="Section to define the gyration radius as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(subsection, keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
@@ -545,8 +545,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying torsion
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_dfunct_section(section,error)
@@ -569,7 +569,7 @@ CONTAINS
             " The function is defined as d1+coeff*d2",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
@@ -608,8 +608,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying torsion
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_torsion_section(section,error)
@@ -632,7 +632,7 @@ CONTAINS
             description="Section to define the torsion as a collective variables.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
@@ -655,8 +655,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying torsion
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_rot_section(section,error)
@@ -679,7 +679,7 @@ CONTAINS
                  "another bond/line",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="P1_BOND1",&
@@ -726,8 +726,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying angles
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_angle_section(section,error)
@@ -742,7 +742,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="angle",&
@@ -771,8 +771,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the colvar section regarded to the collective variables dist
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_dist_section(section,error)
@@ -787,7 +787,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="distance",&
@@ -824,8 +824,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the colvar section regarded to the collective variables dist
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_xyz_d_section(section,error)
@@ -840,7 +840,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="XYZ_DIAG",&
@@ -888,8 +888,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the colvar section regarded to the collective variables dist
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_xyz_od_section(section,error)
@@ -904,7 +904,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="XYZ_OUTERDIAG",&
@@ -963,8 +963,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief energy as collective variable
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Sebastiano Caravati
 ! *****************************************************************************
   SUBROUTINE create_colvar_u_section(section,error)
@@ -979,7 +979,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="u",&
@@ -1052,11 +1052,11 @@ CONTAINS
   END SUBROUTINE create_colvar_u_section
 
 ! *****************************************************************************
-!> \brief creates the colvar section regarded to the collective variables distance 
+!> \brief creates the colvar section regarded to the collective variables distance
 !>      of a point from a plane
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_d_pl_section(section,error)
@@ -1071,7 +1071,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="distance_point_plane",&
@@ -1107,11 +1107,11 @@ CONTAINS
   END SUBROUTINE create_colvar_d_pl_section
 
 ! *****************************************************************************
-!> \brief creates the colvar section regarded to the collective variables 
+!> \brief creates the colvar section regarded to the collective variables
 !>      angles betweem two planes
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_a_pl_section(section,error)
@@ -1126,7 +1126,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="angle_plane_plane",&
@@ -1182,8 +1182,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create a geometrical point as a function of several atom coordinates
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_point_section(section,error)
@@ -1205,7 +1205,7 @@ CONTAINS
             " to define colvars",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword)
 
       CALL keyword_create(keyword, name="TYPE",&
@@ -1239,8 +1239,8 @@ CONTAINS
             n_var=3, type_of_var=real_t, unit_str="bohr",&
             repeats=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
-   
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_point_section
@@ -1248,8 +1248,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collective variables specifying torsion
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_colvar_qparm_section(section,error)
@@ -1271,7 +1271,7 @@ CONTAINS
             description="Section to define the Q parameter (crystalline order parameter) as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS_FROM",&
@@ -1320,10 +1320,10 @@ CONTAINS
   END SUBROUTINE create_colvar_qparm_section
 
 ! *****************************************************************************
-!> \brief collective variables specifying hydronium solvation 
+!> \brief collective variables specifying hydronium solvation
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Marcel Baer
 ! *****************************************************************************
   SUBROUTINE create_colvar_hydronium_section(section,error)
@@ -1340,14 +1340,14 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="hydronium",&
             description="Section to define the formation of a hydronium as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="OXYGENS",&
@@ -1473,7 +1473,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection, subsubsection
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="rmsd",&
@@ -1481,7 +1481,7 @@ CONTAINS
             " given reference configurations",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection, subsubsection)
        CALL keyword_create(keyword, name="SUBSET_TYPE",&
             description="Define the subsytem used to compute the RMSD",&
@@ -1491,7 +1491,7 @@ CONTAINS
             default_i_val=rmsd_all, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-    
+
        CALL keyword_create(keyword, name="ALIGN_FRAMES",&
             description="Whether the reference frames should be aligned to minimize the RMSD",&
             usage="ALIGN_FRAME",&
@@ -1529,7 +1529,7 @@ CONTAINS
        CALL section_release(subsubsection,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -1539,8 +1539,8 @@ CONTAINS
 !> \brief collective variables specifying the space orthogonal to the reaction path
 !>        in the space spanned by the involved collective coordinates
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_colvar_rpath_section(section,error)
@@ -1572,8 +1572,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Distance from reaction path
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author 01.2010
 ! *****************************************************************************
   SUBROUTINE create_colvar_dpath_section(section,error)
@@ -1605,8 +1605,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Section describinf keywords for both reaction path and distance from reaction path
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author 01.2010
 ! *****************************************************************************
   SUBROUTINE keywords_colvar_path(section,error)
@@ -1649,7 +1649,7 @@ CONTAINS
             default_i_val=rmsd_all, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-    
+
        CALL keyword_create(keyword, name="ALIGN_FRAMES",&
             description="Whether the reference frames should be aligned to minimize the RMSD",&
             usage="ALIGN_FRAME",&
@@ -1680,7 +1680,7 @@ CONTAINS
        CALL section_release(subsubsection,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error) 
+       CALL section_release(subsection,error=error)
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the ith element of the vector valued function that defines the reaction path. "//&
@@ -1755,8 +1755,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Colvar allowing a combination of COLVARS
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
   SUBROUTINE create_colvar_comb_section(section,error)
@@ -1779,7 +1779,7 @@ CONTAINS
             "with a generic function.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-        
+
        NULLIFY(keyword, subsection)
        CALL create_colvar_section(subsection,skip_recursive_colvar=.TRUE.,error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -1834,8 +1834,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the coord section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_coord_section_cv(section,name,error)

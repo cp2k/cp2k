@@ -53,8 +53,8 @@ MODULE paw_proj_set_types
      INTEGER, DIMENSION(:), POINTER           :: nprj       ! 0:maxl
      INTEGER, DIMENSION(:), POINTER           :: lx,ly,lz   ! ncgauprj
      INTEGER, DIMENSION(:), POINTER           :: ll, m      ! nsgauprj
-     INTEGER, DIMENSION(:), POINTER           :: first_prj,last_prj ! 0:maxl 
-     INTEGER, DIMENSION(:), POINTER           :: first_prjs ! 0:maxl 
+     INTEGER, DIMENSION(:), POINTER           :: first_prj,last_prj ! 0:maxl
+     INTEGER, DIMENSION(:), POINTER           :: first_prjs ! 0:maxl
      REAL(dp)                                 :: rcprj
      REAL(dp), DIMENSION(:), POINTER          :: zisomin,zprjisomin
      REAL(dp), DIMENSION(:,:), POINTER        :: zetprj     ! maxnprj,0:maxl
@@ -80,7 +80,7 @@ MODULE paw_proj_set_types
              get_paw_proj_set,&
              projectors,&
              set_paw_proj_set
-  
+
   ! *** Public data types ***
 
   PUBLIC ::  paw_proj_set_type
@@ -88,7 +88,7 @@ MODULE paw_proj_set_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   Allocate projector type for GAPW 
+!> \brief   Allocate projector type for GAPW
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_paw_proj_set(paw_proj_set,error)
@@ -118,7 +118,7 @@ CONTAINS
     NULLIFY (paw_proj_set%last_prj)
     NULLIFY (paw_proj_set%first_prjs)
 
-    NULLIFY (paw_proj_set%zisomin) 
+    NULLIFY (paw_proj_set%zisomin)
     NULLIFY (paw_proj_set%zprjisomin)
     NULLIFY (paw_proj_set%zetprj)
     NULLIFY (paw_proj_set%cprj)
@@ -243,7 +243,7 @@ CONTAINS
     END IF
     eps_orb =  qs_control%eps_pgf_orb
 
-    CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &  
+    CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &
          rc,eps_orb,max_rad_local,force_env_section,error)
 
   END SUBROUTINE  projectors
@@ -368,7 +368,7 @@ CONTAINS
              ENDIF
           ENDDO
           maxnprj = MAX(maxnprj,np)
-          paw_proj%nprj(lshell) = np 
+          paw_proj%nprj(lshell) = np
        ENDDO                  ! lshell
 
        !   *** Allocate exponents and coefficients ***
@@ -394,7 +394,7 @@ CONTAINS
        !   *** Generate the projetor basis for each ang. mom. q.n. ***
        DO lshell = 0,maxl    ! lshell
 
-          np = paw_proj%nprj(lshell) 
+          np = paw_proj%nprj(lshell)
 
           ALLOCATE(isoprj(np),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -633,18 +633,18 @@ CONTAINS
 
        ms = 0
        DO iset=1,orb_basis%nset
-          ns = nsoset(lmax(iset)) 
+          ns = nsoset(lmax(iset))
           DO lshell = lmin(iset),lmax(iset)
              iprjfirst =  paw_proj%first_prjs(lshell)
              np = paw_proj%nprj(lshell)
              DO ipgf = 1,npgf(iset)
                 DO ip = 1, np
-                   DO il = 1, nso(lshell) 
-                      iprjs =  iprjfirst - 1 + il + (ip-1)* nso(lshell)    
+                   DO il = 1, nso(lshell)
+                      iprjs =  iprjfirst - 1 + il + (ip-1)* nso(lshell)
                       iso =  nsoset(lshell-1)+1+(lshell+paw_proj%m(iprjs))
 
                       iso = iso + (ipgf-1)*ns + ms
-                      paw_proj%cprj_s(iprjs,iso) = & 
+                      paw_proj%cprj_s(iprjs,iso) = &
                            paw_proj%gccprj(ip,ipgf,lshell,iset)
                    ENDDO        ! iprjs
                 ENDDO          ! ip
@@ -657,7 +657,7 @@ CONTAINS
        DO iset=1,orb_basis%nset
           ns = nsoset(lmax(iset))
           DO ipgf = 1,npgf(iset)
-             DO iso = nsoset(lmin(iset)-1)+1+ns*(ipgf-1)+ms,ns*ipgf+ms 
+             DO iso = nsoset(lmin(iset)-1)+1+ns*(ipgf-1)+ms,ns*ipgf+ms
                 DO lshell = 0,maxl
                    np = paw_proj%nprj(lshell)
                    DO ip = 1, np
@@ -673,7 +673,7 @@ CONTAINS
                             paw_proj%cprj(iprj,iso) = paw_proj%cprj(iprj,iso) +&
                                  orbtramat(lshell)%s2c(ic,il)*paw_proj%cprj_s(iprjs,iso)*&
                                  SQRT(dfac(2*lshell+1)/(4.0_dp*pi)/&
-                                 dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)) 
+                                 dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
                          ENDDO ! ic
                       ENDDO ! il
                    ENDDO ! ip
@@ -717,7 +717,7 @@ CONTAINS
                 icgfmax = last_cgf(ishell,iset)
                 radius = exp_radius(lshell,orb_basis%zet(ipgf,iset),&
                      eps_fit,1.0_dp)
-                DO icgf = icgfmin,icgfmax 
+                DO icgf = icgfmin,icgfmax
                    paw_proj%local_oce_cphi_h(icomin:icomax,icgf) = &
                         cphi(icomin:icomax,icgf)
                    IF (radius < rc ) THEN
@@ -728,7 +728,7 @@ CONTAINS
                    ENDIF
                 END DO
              ENDDO        ! ishell
-          ENDDO          ! ipgf 
+          ENDDO          ! ipgf
        ENDDO            ! iset
 
        DO iset = 1,nset
@@ -742,7 +742,7 @@ CONTAINS
                 isgfmax = last_sgf(ishell,iset)
                 radius = exp_radius(lshell,orb_basis%zet(ipgf,iset),&
                      eps_fit,1.0_dp)
-                DO isgf = isgfmin,isgfmax 
+                DO isgf = isgfmin,isgfmax
                    paw_proj%sphi_h(icomin:icomax,isgf) = &
                         sphi(icomin:icomax,isgf)
                    IF (radius < rc ) THEN
@@ -753,7 +753,7 @@ CONTAINS
                    ENDIF
                 END DO
              ENDDO        ! ishell
-          ENDDO          ! ipgf 
+          ENDDO          ! ipgf
        ENDDO            ! iset
 
        DO iset = 1,nset
@@ -812,10 +812,10 @@ CONTAINS
                paw_proj%o2nindex(iso) = ico
                iso = iso + 1
                ico = ico + 1
-             END DO 
-           END DO 
-         END DO 
-       END DO 
+             END DO
+           END DO
+         END DO
+       END DO
        mp = ico-1
        paw_proj%nsatbas = mp
        ALLOCATE(paw_proj%csprj(nsgauprj,mp),STAT=stat)
@@ -834,7 +834,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,csprj,&
-       first_prj,first_prjs,last_prj, & 
+       first_prj,first_prjs,last_prj, &
        local_oce_sphi_h,local_oce_sphi_s,&
        maxl,ncgauprj,nsgauprj,nsatbas,nprj,&
        o2nindex,n2oindex,&
@@ -874,10 +874,10 @@ CONTAINS
        IF (PRESENT(maxl)) maxl = paw_proj_set%maxl
        IF (PRESENT(ncgauprj )) ncgauprj  = paw_proj_set%ncgauprj
        IF (PRESENT(nsgauprj )) nsgauprj  = paw_proj_set%nsgauprj
-       IF (PRESENT(nsatbas  )) nsatbas   = paw_proj_set%nsatbas 
+       IF (PRESENT(nsatbas  )) nsatbas   = paw_proj_set%nsatbas
        IF (PRESENT(nprj))   nprj => paw_proj_set%nprj
        IF (PRESENT(rcprj))  rcprj = paw_proj_set%rcprj
-       IF (PRESENT(rzetprj)) rzetprj => paw_proj_set%rzetprj 
+       IF (PRESENT(rzetprj)) rzetprj => paw_proj_set%rzetprj
        IF (PRESENT(zisomin)) zisomin => paw_proj_set%zisomin
        IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
        IF (PRESENT(o2nindex)) o2nindex => paw_proj_set%o2nindex

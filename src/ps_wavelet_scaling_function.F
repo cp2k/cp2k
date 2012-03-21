@@ -46,7 +46,7 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
      WRITE(*,*)' scaling_function: problem of memory allocation'
      STOP
   END IF
-  
+
   ! plot scaling function
   CALL zero(nd+1,x)
   CALL zero(nd+1,y)
@@ -61,7 +61,7 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
         EXIT loop1
      END IF
   END DO loop1
-  
+
   !open (unit=1,file='scfunction',status='unknown')
   DO i=0,nd
      a(i) = 1._dp*i*ni/nd-(.5_dp*ni-1._dp)
@@ -80,7 +80,7 @@ END SUBROUTINE scaling_function
 !> \brief Calculate the values of the wavelet function in a real uniform mesh.
 ! *****************************************************************************
 SUBROUTINE wavelet_function(itype,nd,a,x)
-  
+
   !Type of the interpolating scaling function
     INTEGER, INTENT(in)                      :: itype, nd
     REAL(KIND=dp), DIMENSION(0:nd), &
@@ -102,8 +102,8 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
      WRITE(*,*)' wavelet_function: problem of memory allocation'
      STOP
   END IF
-  
-  ! plot wavelet 
+
+  ! plot wavelet
   CALL zero(nd+1,x)
   CALL zero(nd+1,y)
   nt=ni
@@ -117,20 +117,20 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
         EXIT loop3
      END IF
   END DO loop3
-  
+
   !open (unit=1,file='wavelet',status='unknown')
   DO i=0,nd-1
      a(i) = 1._dp*i*ni/nd-(.5_dp*ni-.5_dp)
      !write(1,*) 1._dp*i*ni/nd-(.5_dp*ni-.5_dp),x(i)
   END DO
   !close(1)
-  DEALLOCATE(ch,cg,cgt,cht)  
+  DEALLOCATE(ch,cg,cgt,cht)
   DEALLOCATE(y,stat=i_all)
   IF (i_all /= 0) THEN
      WRITE(*,*)' wavelet_function: problem of memory deallocation'
      STOP
   END IF
-  
+
 END SUBROUTINE wavelet_function
 
 ! *****************************************************************************
@@ -149,7 +149,7 @@ SUBROUTINE scf_recursion(itype,n_iter,n_range,kernel_scf,kern_1_scf)
   m=itype+2
   CALL lazy_arrays(itype,m,ch,cg,cgt,cht)
   CALL scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
-  DEALLOCATE(ch,cg,cgt,cht)  
+  DEALLOCATE(ch,cg,cgt,cht)
 
 END SUBROUTINE scf_recursion
 
@@ -187,17 +187,17 @@ SUBROUTINE for_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
   DO i=0,nt/2-1
      y(     i)=0._dp
      y(nt/2+i)=0._dp
-     
+
      DO j=-m+1,m
-        
+
         ! periodically wrap index if necessary
         ind=j+2*i
         loop99: DO
-           IF (ind.lt.0) THEN 
+           IF (ind.lt.0) THEN
               ind=ind+nt
               CYCLE loop99
            END IF
-           IF (ind.ge.nt) THEN 
+           IF (ind.ge.nt) THEN
               ind=ind-nt
               CYCLE loop99
            END IF
@@ -207,7 +207,7 @@ SUBROUTINE for_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
         y(     i)=y(     i)+cht(j)*x(ind)
         y(nt/2+i)=y(nt/2+i)+cgt(j)*x(ind)
      END DO
-     
+
   END DO
 
 END SUBROUTINE for_trans
@@ -228,21 +228,21 @@ SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
     INTEGER                                  :: i, ind, j
 
   y = 0.0_dp
-  
+
   DO i=0,nt/2-1
      y(2*i+0)=0._dp
      y(2*i+1)=0._dp
-     
+
      DO j=-m/2,m/2-1
-        
+
         ! periodically wrap index if necessary
         ind=i-j
         loop99: DO
-           IF (ind.lt.0) THEN 
+           IF (ind.lt.0) THEN
               ind=ind+nt/2
               CYCLE loop99
            END IF
-           IF (ind.ge.nt/2) THEN 
+           IF (ind.ge.nt/2) THEN
               ind=ind-nt/2
               CYCLE loop99
            END IF
@@ -252,9 +252,9 @@ SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
         y(2*i+0)=y(2*i+0) + ch(2*j-0)*x(ind)+cg(2*j-0)*x(ind+nt/2)
         y(2*i+1)=y(2*i+1) + ch(2*j+1)*x(ind)+cg(2*j+1)*x(ind+nt/2)
      END DO
-        
+
   END DO
-        
+
 END SUBROUTINE back_trans
 
 ! *****************************************************************************
@@ -291,7 +291,7 @@ SUBROUTINE ftest(m,ch,cg,cgt,cht)
         eps=1.e-10_dp
         IF (i.eq.j) THEN
            IF (ABS(t1-1._dp).gt.eps .OR. ABS(t2-1._dp).gt.eps .OR. &
-             & ABS(t3).gt.eps  .OR. ABS(t4).gt.eps ) THEN 
+             & ABS(t3).gt.eps  .OR. ABS(t4).gt.eps ) THEN
               WRITE(6,fmt22) 'Orthogonality ERROR', i,j,t1,t2,t3,t4
            END IF
         ELSE
@@ -302,9 +302,9 @@ SUBROUTINE ftest(m,ch,cg,cgt,cht)
         END IF
      END DO
   END DO
-  
+
   WRITE(6,*) 'FILTER TEST PASSED'
-  
+
 END SUBROUTINE ftest
 
 ! *****************************************************************************

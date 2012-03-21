@@ -348,7 +348,7 @@ CONTAINS
             natom=nat,grid_atom=grid_atom,&
             harmonics=harmonics,ngrid_rad=nr,&
             max_iso_not0=max_iso_not0,paw_atom=paw_atom)
-! MI get rid of full gapw 
+! MI get rid of full gapw
       IF(paw_atom) THEN
 !===========    PAW   ===============
          CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
@@ -394,12 +394,12 @@ CONTAINS
          g0_h_w=0.0_dp
          gexp=0.0_dp
          gsph=0.0_dp
-   
+
          sqrtwr(1:nr) = SQRT(grid_atom%wr(1:nr))
          DO l_ang = 0,lmax0
             g0_h_w(1:nr,l_ang) = g0_h(1:nr,l_ang)*grid_atom%wr(1:nr)
          END DO
-   
+
          m1 = 0
          DO iset1 = 1,nset
             n1 = nsoset(lmax(iset1))
@@ -413,15 +413,15 @@ CONTAINS
             END DO  ! ipgf1
             m1 = m1 + maxso
          END DO  ! iset1
-   
+
          !     Distribute the atoms of this kind
          num_pe = para_env%num_pe
          mepos  = para_env%mepos
          bo = get_limit( nat, num_pe, mepos )
-   
+
          DO iat = bo(1), bo(2) !1,nat
             iatom = atom_list(iat)
-   
+
             NULLIFY(rho_atom,r_h,r_s,vr_h,vr_s,cpc_h,cpc_s)
             NULLIFY(int_local_h,int_local_s)
             rho_atom => rho_atom_set(iatom)
@@ -431,23 +431,23 @@ CONTAINS
                  cpc_h=cpc_h,cpc_s=cpc_s,&
                  ga_Vlocal_gb_h=int_local_h,&
                  ga_Vlocal_gb_s=int_local_s)
-   
+
             NULLIFY(rrad_0,vrrad_0)
             rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
             vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
             Vh1_h = 0.0_dp
             Vh1_s = 0.0_dp
-   
+
             IF (.NOT.my_tddft) THEN
                rrad_z  => rhoz_set(ikind)%r_coef
                vrrad_z => rhoz_set(ikind)%vr_coef
                Vh1_h(:,1) = vrrad_z(:)
             END IF
-   
+
             DO iso = 1,nchan_0
                Vh1_s(:,iso) = vrrad_0(:,iso)
             END DO
-   
+
             DO ispin = 1,nspins
                IF(my_periodic .AND. back_ch .GT. 1.E-3_dp .AND. ispin==1) THEN
                   factor = -2.0_dp*pi/3.0_dp*SQRT(fourpi)*qs_charges%background
@@ -468,9 +468,9 @@ CONTAINS
                   END DO
                END IF
             END DO
-   
+
             !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz
-   
+
             ecoul_1_z = 0.0_dp
             IF(.NOT. my_tddft) THEN
                DO ir = 1,nr
@@ -478,7 +478,7 @@ CONTAINS
                END DO
                ecoul_1_z = 0.5_dp*ecoul_1_z
             END IF
-   
+
             !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
             ecoul_1_0 = 0.0_dp
             DO iso = 1,nchan_0
@@ -490,20 +490,20 @@ CONTAINS
                ecoul_1_0 = ecoul_1_0 + ec_tmp
             END DO  ! iso
             ecoul_1_0 = 0.5_dp*ecoul_1_0
-   
+
             CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
-   
+
             energy_hartree_1c = energy_hartree_1c +  ecoul_1_z -  ecoul_1_0
             ! atomic energy contribution
             IF (atenergy) THEN
                qs_env%atprop%ate1c(iatom) = qs_env%atprop%ate1c(iatom) + ecoul_1_z - ecoul_1_0
             END IF
-   
+
             !       Calculate the integrals of the potential with 2 primitives
             aVh1b_hh = 0.0_dp
             aVh1b_ss = 0.0_dp
             aVh1b_00 = 0.0_dp
-   
+
             m1 = 0
             DO iset1 = 1,nset
                m2 = 0
@@ -528,7 +528,7 @@ CONTAINS
                               gVg_h = 0.0_dp
                               gVg_s = 0.0_dp
                               gVg_0 = 0.0_dp
-   
+
                               DO ir = 1,nr
                                  gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
                                       Vh1_h(ir,iso)
@@ -536,14 +536,14 @@ CONTAINS
                                       Vh1_s(ir,iso)
                                  gVg_0 = gVg_0 + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
                               END DO  ! ir
-   
+
                               aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + &
                                    gVg_h*my_CG(is1,is2,iso)
                               aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + &
                                    gVg_s*my_CG(is1,is2,iso)
                               aVh1b_00(iso1,iso2) = aVh1b_00(iso1,iso2) + &
                                    Qlm_gg(iso1,iso2,iso)*gVg_0
-   
+
                            END DO  !icg
                         END DO  ! iso
                         !               without contributions to  V1_s*rho0
@@ -558,19 +558,19 @@ CONTAINS
                               iso2    = is2 + n2*(ipgf2-1) + m2
                               gVg_h = 0.0_dp
                               gVg_s = 0.0_dp
-   
+
                               DO ir = 1,nr
                                  gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
                                       Vh1_h(ir,iso)
                                  gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
                                       Vh1_s(ir,iso)
                               END DO  ! ir
-   
+
                               aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + &
                                    gVg_h*my_CG(is1,is2,iso)
                               aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + &
                                    gVg_s*my_CG(is1,is2,iso)
-   
+
                            END DO  !icg
                         END DO  ! iso
                      END DO  ! ipgf2
@@ -579,50 +579,50 @@ CONTAINS
                END DO  ! iset2
                m1 = m1 + maxso
             END DO  !iset1
-   
+
             !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
 
             ALLOCATE(cpc_atom(nsotot,nsotot),STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   
+
             ecoul_1_h = 0.0_dp
             ecoul_1_s = 0.0_dp
             DO ispin = 1,nspins
                cpc_atom=0._dp
                CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_atom,atom_kind,error)
                ecoul_1_h  = ecoul_1_h + trace_r_AxB(aVh1b_hh,nsotot,cpc_atom,nsotot,nsotot,nsotot)
-   
+
                cpc_atom=0._dp
                CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_atom,atom_kind,error)
                ecoul_1_s  =  ecoul_1_s + trace_r_AxB(aVh1b_ss,nsotot,cpc_atom,nsotot,nsotot,nsotot)
-   
+
                CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_hh,1,int_local_h(ispin)%r_coef,1)
                CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_ss,1,int_local_s(ispin)%r_coef,1)
                CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_h(ispin)%r_coef,1)
                CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_s(ispin)%r_coef,1)
-   
+
             END DO  ! ispin
 
             DEALLOCATE(cpc_atom,STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   
+
             ecoul_1_h = 0.5_dp*ecoul_1_h
             ecoul_1_s = 0.5_dp*ecoul_1_s
-   
+
             CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,&
                  ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
-   
+
             energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s
-   
+
          END DO  ! iat
-   
+
          DEALLOCATE(aVh1b_hh,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(aVh1b_ss,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(aVh1b_00,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DEALLOCATE(Vh1_h,Vh1_s, STAT=istat) 
+         DEALLOCATE(Vh1_h,Vh1_s, STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(cg_list,cg_n_list,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

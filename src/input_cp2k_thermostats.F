@@ -53,9 +53,9 @@ PUBLIC :: create_thermostat_section,&
 CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
   SUBROUTINE create_thermo_slow_section(section, coupled_thermostat, error)
@@ -71,18 +71,18 @@ CONTAINS
     TYPE(section_type), POINTER              :: nose_section, region_section
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
        NULLIFY(nose_section, region_section)
-       
+
        CALL section_create(section,name="THERMOSTAT_SLOW",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
             error=error)
-       NULLIFY(keyword)       
+       NULLIFY(keyword)
 
        IF (.NOT.my_coupled_thermostat) THEN
           CALL keyword_create(keyword, name="TYPE",&
@@ -127,20 +127,20 @@ CONTAINS
        CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
-       
+
        ! Print Section
 !       CALL create_print_section(subsection, error=error)
 !       CALL section_add_subsection(section, subsection, error=error)
 !       CALL section_release(subsection,error=error)
-                                             
+
     END IF
   END SUBROUTINE create_thermo_slow_section
 
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
   SUBROUTINE create_thermo_fast_section(section, coupled_thermostat, error)
@@ -156,18 +156,18 @@ CONTAINS
     TYPE(section_type), POINTER              :: nose_section, region_section
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
        NULLIFY(nose_section, region_section)
-       
+
        CALL section_create(section,name="THERMOSTAT_FAST",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
             error=error)
-       NULLIFY(keyword)       
+       NULLIFY(keyword)
 
        IF (.NOT.my_coupled_thermostat) THEN
           CALL keyword_create(keyword, name="TYPE",&
@@ -212,21 +212,21 @@ CONTAINS
        CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
-       
+
        ! Print Section
 !       CALL create_print_section(subsection, error=error)
 !       CALL section_add_subsection(section, subsection, error=error)
 !       CALL section_release(subsection,error=error)
-                                             
+
     END IF
   END SUBROUTINE create_thermo_fast_section
 
 
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
   SUBROUTINE create_thermostat_section(section, coupled_thermostat, error)
@@ -244,18 +244,18 @@ CONTAINS
                                                 subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
        NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
-       
+
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
             error=error)
-       NULLIFY(keyword)       
+       NULLIFY(keyword)
 
        IF (.NOT.my_coupled_thermostat) THEN
           CALL keyword_create(keyword, name="TYPE",&
@@ -303,7 +303,7 @@ CONTAINS
        CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
-       
+
        CALL create_csvr_section(csvr_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
@@ -316,7 +316,7 @@ CONTAINS
        CALL create_print_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-                                             
+
     END IF
   END SUBROUTINE create_thermostat_section
 
@@ -370,9 +370,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates a section to arbitrary define a region to thermostat
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the coeff section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_region_section(section, label, error)
@@ -387,16 +387,16 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
 
        CALL section_create(section,name="DEFINE_REGION",&
             description="This section provides the possibility to define arbitrary region "//&
             " for the "//TRIM(label)//".",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
-       
+
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms to thermostat.",&
@@ -437,14 +437,14 @@ CONTAINS
             default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
     END IF
   END SUBROUTINE create_region_section
 
 ! *****************************************************************************
-!> \param section will contain the ewald section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the ewald section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author gloria
 ! *****************************************************************************
   SUBROUTINE create_nose_section(section, coupled_thermostat, error)
@@ -462,7 +462,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
             citations=(/Nose1984a,Nose1984b/),required=.NOT.coupled_thermostat,error=error)
@@ -522,8 +522,8 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \param 
-!> \author 
+!> \param
+!> \author
 ! *****************************************************************************
   SUBROUTINE create_gle_section(section, error)
     TYPE(section_type), POINTER              :: section
@@ -578,7 +578,7 @@ CONTAINS
 
        CALL keyword_create(keyword,name="C_LIST",&
             description="C matrix", usage="C_LIST real real real", &
-            unit_str="K_e",& 
+            unit_str="K_e",&
             type_of_var=real_t, n_var=-1, repeats=.TRUE., required=.FALSE., &
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -637,9 +637,9 @@ CONTAINS
   END SUBROUTINE create_gles_section
 
 ! *****************************************************************************
-!> \param section will contain the ewald section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param section will contain the ewald section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
   SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
@@ -657,7 +657,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="csvr",&
             description="Parameters of the canonical sampling through velocity rescaling thermostat.",&
             citations=(/Bussi2007/),required=.NOT.coupled_thermostat,error=error)
@@ -689,8 +689,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the thermostat energy restarting section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_thermo_energy_section(section,error)
@@ -725,8 +725,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the mass section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_force_section(section,name,error)
@@ -762,8 +762,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the mass section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_mass_section(section,name,error)
@@ -799,8 +799,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the velocity section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_velocity_section(section,name,error)
@@ -836,8 +836,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the coord section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_coord_section(section,name,error)

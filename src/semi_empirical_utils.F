@@ -51,7 +51,7 @@ MODULE semi_empirical_utils
 CONTAINS
 ! *****************************************************************************
 !> \brief  Reset cutoffs trying to be somehow a bit smarter
-!> \author Teodoro Laino [tlaino] - 03.2009 
+!> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE se_cutoff_compatible(se_control, se_section, cell, output_unit, error)
     TYPE(semi_empirical_control_type), &
@@ -159,7 +159,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Initializes the semi-empirical taper for a chunk calculation
-!> \author Teodoro Laino [tlaino] - 03.2009 
+!> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, lr_corr, error)
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -181,17 +181,17 @@ CONTAINS
     IF (PRESENT(coulomb))  l_coulomb  = coulomb
     IF (PRESENT(exchange)) l_exchange = exchange
     IF (PRESENT(lr_corr))  l_lrc      = lr_corr
-    IF (l_coulomb)  THEN 
+    IF (l_coulomb)  THEN
        check = (.NOT.l_exchange).AND.(.NOT.l_lrc)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        se_taper%taper => se_taper%taper_cou
     END IF
-    IF (l_exchange) THEN 
+    IF (l_exchange) THEN
        check = (.NOT.l_coulomb).AND.(.NOT.l_lrc)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        se_taper%taper => se_taper%taper_exc
     END IF
-    IF (l_lrc)      THEN 
+    IF (l_lrc)      THEN
        check = (.NOT.l_coulomb).AND.(.NOT.l_exchange)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        se_taper%taper => se_taper%taper_lrc
@@ -200,7 +200,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Finalizes the semi-empirical taper for a chunk calculation
-!> \author Teodoro Laino [tlaino] - 03.2009 
+!> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE finalize_se_taper(se_taper, error)
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -331,16 +331,16 @@ CONTAINS
             "The pointer sep is not associated")
     END IF
 
-    ! Check if the element has been defined.. 
+    ! Check if the element has been defined..
     CALL cp_assert(sep%defined,cp_fatal_level,cp_assertion_failed,routineP,&
          "Semiempirical type ("//TRIM(sep%name)//") cannot be defined for "//&
          "the requested parameterization."//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
-   
-    ! Fill 1 center - 2 electron integrals 
+
+    ! Fill 1 center - 2 electron integrals
     CALL setup_1c_2el_int(sep, error)
-    
+
     ! Fill multipolar expansion of atomic orbitals charge distributions
     CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, method, error)
 
@@ -349,7 +349,7 @@ CPSourceFileRef,&
     IF (sep%natorb>0) sep%core_size = 1
     IF (sep%natorb>1) sep%core_size = 4
     IF (sep%dorb)     sep%core_size =10
-    
+
     ! Get size of the all possible combinations of atomic orbitals
     sep%atm_int_size = (sep%natorb+1)*sep%natorb/2
 

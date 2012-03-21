@@ -135,7 +135,7 @@ CONTAINS
                error=error, failure=failure)
           restart=explicit.AND.restart
        END IF
-       
+
        IF ( restart ) THEN
           CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
           ind = 0
@@ -406,7 +406,7 @@ CONTAINS
   SUBROUTINE initialize_nhc_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
        gci, save_mem, binary_restart_file_name, error)
- 
+
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -443,7 +443,7 @@ CONTAINS
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
                       para_env,error)
-    
+
     IF (.NOT.restart) THEN
        ! Initialize thermostat forces and velocities
        ! Chain variables
@@ -457,7 +457,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE  initialize_nhc_shell
-  
+
 ! *****************************************************************************
 !> \brief This lists the coefficients for the Yoshida method (higher
 !>      order integrator used in NVT)
@@ -535,7 +535,7 @@ CONTAINS
 !> \brief read coordinate, velocities, forces and masses of the
 !>      thermostat from restart file
 !> \par History
-!>     24-07-07 created 
+!>     24-07-07 created
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE restart_nose(nhc,nose_section,save_mem,restart,&
@@ -713,7 +713,7 @@ CONTAINS
              nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
           END DO
        END DO
-       
+
        akin = 0.0_dp
        DO i = 1, nhc%loc_num_nhc
           DO j = 1, nhc % nhc_len
@@ -723,7 +723,7 @@ CONTAINS
           END DO
        END DO
        number = nhc%loc_num_nhc
-       
+
        ! scale velocities to get the correct initial temperature
        temp = 2.0_dp*akin/REAL(number)
        temp = SQRT(temp_ext/temp)
@@ -733,7 +733,7 @@ CONTAINS
              nhc % nvt(j,i) % eta = 0.0_dp
           END DO
        END DO
-       
+
        ! initializing all of the forces on the thermostats
        DO i = 1, nhc%loc_num_nhc
           DO j = 2, nhc % nhc_len
@@ -742,7 +742,7 @@ CONTAINS
              nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
           END DO
        END DO
-       
+
     CASE DEFAULT
        DO i=1,tot_rn
           array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream,error=error)
@@ -772,7 +772,7 @@ CONTAINS
              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
           END DO
        END DO
-       
+
        ! initializing all of the forces on the thermostats
        DO i = 1, nhc%loc_num_nhc
           DO j = 2, nhc % nhc_len
@@ -796,7 +796,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, nfree, ensemble, &
        cmass, globenv, error )
-    
+
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
     REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext
@@ -818,9 +818,9 @@ CONTAINS
 
     ! first initializing the mass of the nhc variables
 
-    npt(:,:)%eps = 0.0_dp 
-    npt(:,:)%v = 0.0_dp 
-    npt(:,:)%f = 0.0_dp 
+    npt(:,:)%eps = 0.0_dp
+    npt(:,:)%v = 0.0_dp
+    npt(:,:)%f = 0.0_dp
     SELECT CASE ( ensemble )
     CASE ( npt_i_ensemble )
        npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2
@@ -843,16 +843,16 @@ CONTAINS
           npt(i,j) % v = v
        END DO
     END DO
-    
+
     akin = 0.0_dp
     DO i = 1, SIZE( npt,1 )
        DO j = 1, SIZE( npt,2 )
           akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i)%v * npt(j,i)%v)
        END DO
     END DO
-    
+
     number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
-    
+
     ! scale velocities to get the correct initial temperature
     IF ( number /= 0 ) THEN
        temp = 2.0_dp * akin / REAL ( number,KIND=dp)
@@ -869,14 +869,14 @@ CONTAINS
           END IF
        END DO
     END DO
-    
+
     ! Zero barostat velocities for nph_uniaxial
     SELECT CASE ( ensemble )
     ! Zero barostat velocities for nph_uniaxial
     CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
        npt(:,:) % v = 0.0_dp
     END SELECT
-    
+
     CALL timestop(handle)
 
   END SUBROUTINE init_barostat_variables

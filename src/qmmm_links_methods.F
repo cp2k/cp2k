@@ -24,7 +24,7 @@ MODULE qmmm_links_methods
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_links_methods'
-  PUBLIC ::  qmmm_link_Imomm_coord,  & 
+  PUBLIC ::  qmmm_link_Imomm_coord,  &
              qmmm_link_Imomm_forces, &
              qmmm_added_chrg_coord,  &
              qmmm_added_chrg_forces
@@ -33,8 +33,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief correct the position for qm/mm IMOMM link type
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -82,7 +82,7 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
           ip_mm = ip
-          particles(ip_mm)%r = alpha *  particles(ip_mm)%r + (1.0_dp-alpha) * particles(ip_qm)%r 
+          particles(ip_mm)%r = alpha *  particles(ip_mm)%r + (1.0_dp-alpha) * particles(ip_qm)%r
        END DO
     END IF
 
@@ -90,8 +90,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief correct the forces for qm/mm IMOMM link type
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -140,7 +140,7 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
           ip_mm = ip
           particles_qm(ip_qm)%f = particles_qm(ip_qm)%f + particles_qm(ip_mm)%f * (1.0_dp-alpha)
-          particles_qm(ip_mm)%f = particles_qm(ip_mm)%f * alpha          
+          particles_qm(ip_mm)%f = particles_qm(ip_mm)%f * alpha
        END DO
     END IF
 
@@ -148,8 +148,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief correct the position for added charges in qm/mm link scheme
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -182,8 +182,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief correct the forces due to the  added charges in qm/mm link scheme
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino

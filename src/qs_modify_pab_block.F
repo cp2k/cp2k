@@ -76,7 +76,7 @@ CONTAINS
      jco_l=coset(   (lxb+1  ),lyb,lzb)
      pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
 
-     ! y 
+     ! y
 
      ico_l=coset(lxa,MAX(lya-1,0),lza)
      jco_l=coset(lxb,MAX(lyb-1,0),lzb)
@@ -91,7 +91,7 @@ CONTAINS
      jco_l=coset(lxb,   (lyb+1  ),lzb)
      pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
 
-     ! z 
+     ! z
 
      ico_l=coset(lxa,lya,MAX(lza-1,0))
      jco_l=coset(lxb,lyb,MAX(lzb-1,0))
@@ -144,7 +144,7 @@ CONTAINS
      pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
 
      ELSEIF(ider==2) THEN
-     ! y 
+     ! y
 
      ico_l=coset(lxa,MAX(lya-1,0),lza)
      jco_l=coset(lxb,MAX(lyb-1,0),lzb)
@@ -159,7 +159,7 @@ CONTAINS
      jco_l=coset(lxb,   (lyb+1  ),lzb)
      pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
      ELSEIF(ider==3) THEN
-     ! z 
+     ! z
      ico_l=coset(lxa,lya,MAX(lza-1,0))
      jco_l=coset(lxb,lyb,MAX(lzb-1,0))
      pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lza* lzb*pab(o1+ico,o2+jco)
@@ -179,7 +179,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  (ddidj pgf_a) . (ddidj pgf_b)
-!>      (ddxdy pgf_a ) (ddxdy pgf_b) = 
+!>      (ddxdy pgf_a ) (ddxdy pgf_b) =
 ! *****************************************************************************
   SUBROUTINE prepare_dijadijb(pab_local,pab,ider1,ider2,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
@@ -291,7 +291,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  (ddidj pgf_a) . (ddidj pgf_b)
-!>      (ddxdx pgf_a ) (ddxdx pgf_b) = 
+!>      (ddxdx pgf_a ) (ddxdx pgf_b) =
 ! *****************************************************************************
   SUBROUTINE prepare_diiadiib(pab_local,pab,ider,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
@@ -384,7 +384,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
-!>      ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) = 
+!>      ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) =
 !>              pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) - (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
 ! *****************************************************************************
   SUBROUTINE prepare_adb_m_dab(pab_local,pab,idir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
@@ -449,7 +449,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      is equivalent to mapping pab with  pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
-!>      ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) = 
+!>      ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) =
 !>              pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) - (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
 ! *****************************************************************************
   SUBROUTINE prepare_dab_p_adb(pab_local,pab,idir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
@@ -515,8 +515,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
 !>      pgf_a (r-Rb)_{ir} (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) (r-Rb)_{ir}  pgf_b
-!>       ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) = 
-!>                     pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) - 
+!>       ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) =
+!>                     pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) -
 !>                              (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_{b+1ir}
 ! *****************************************************************************
   SUBROUTINE prepare_ardb_m_darb(pab_local,pab,idir,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)

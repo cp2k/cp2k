@@ -8,7 +8,7 @@
 !>      all functionality needed in the code should actually be provide by cp_blacs_env
 !>      these functions should be private members of that module
 !> \note
-!>      http://www.netlib.org/blacs/BLACS/QRef.html 
+!>      http://www.netlib.org/blacs/BLACS/QRef.html
 !> \par History
 !>      12.2003 created [Joost]
 !> \author Joost VandeVondele
@@ -30,23 +30,23 @@ MODULE cp_blacs_calls
 
   INTERFACE cp_blacs_zgebs2d
      MODULE PROCEDURE cp_blacs_zgebs2d_array, cp_blacs_zgebs2d_scalar
-  END INTERFACE 
+  END INTERFACE
 
   INTERFACE cp_blacs_zgebr2d
      MODULE PROCEDURE cp_blacs_zgebr2d_array, cp_blacs_zgebr2d_scalar
-  END INTERFACE 
+  END INTERFACE
 
   INTERFACE cp_blacs_dgebs2d
      MODULE PROCEDURE cp_blacs_dgebs2d_array, cp_blacs_dgebs2d_scalar
-  END INTERFACE 
+  END INTERFACE
 
   INTERFACE cp_blacs_dgebr2d
      MODULE PROCEDURE cp_blacs_dgebr2d_array, cp_blacs_dgebr2d_scalar
-  END INTERFACE 
+  END INTERFACE
 
   INTERFACE cp_blacs_igsum2d
      MODULE PROCEDURE cp_blacs_igsum2d_array, cp_blacs_igsum2d_scalar
-  END INTERFACE 
+  END INTERFACE
 !***
 CONTAINS
 
@@ -90,11 +90,11 @@ FUNCTION cp_blacs_pnum(context,myprow,mypcol) RESULT(pnum)
 END FUNCTION cp_blacs_pnum
 
 ! WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
-! WHAT = 1 : The BLACS message ID range; 
-! WHAT = 2 : The BLACS debug level the library was compiled with; 
-! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT; 
-! WHAT = 11: Number of rings multiring topology is presently using; 
-! WHAT = 12: Number of branches general tree topology is presently using. 
+! WHAT = 1 : The BLACS message ID range;
+! WHAT = 2 : The BLACS debug level the library was compiled with;
+! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT;
+! WHAT = 11: Number of rings multiring topology is presently using;
+! WHAT = 12: Number of branches general tree topology is presently using.
 ! *****************************************************************************
 SUBROUTINE cp_blacs_get(context,what,val)
    INTEGER, INTENT(IN)  :: context,what
@@ -105,11 +105,11 @@ SUBROUTINE cp_blacs_get(context,what,val)
 END SUBROUTINE cp_blacs_get
 
 ! WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
-! WHAT = 1 : The BLACS message ID range; 
-! WHAT = 2 : The BLACS debug level the library was compiled with; 
-! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT; 
-! WHAT = 11: Number of rings multiring topology is presently using; 
-! WHAT = 12: Number of branches general tree topology is presently using. 
+! WHAT = 1 : The BLACS message ID range;
+! WHAT = 2 : The BLACS debug level the library was compiled with;
+! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT;
+! WHAT = 11: Number of rings multiring topology is presently using;
+! WHAT = 12: Number of branches general tree topology is presently using.
 ! WHAT = 15: If non-zero, makes topology choice for repeatable collectives
 ! *****************************************************************************
 SUBROUTINE cp_blacs_set(context,what,val)

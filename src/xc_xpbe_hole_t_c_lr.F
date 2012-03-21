@@ -54,7 +54,7 @@ MODULE xc_xpbe_hole_t_c_lr
                               E  = -0.051955731_dp, &
                               F2 = 0.47965830_dp, &
                               F1 = 6.4753871_dp, &
-                              clda = -0.73855876638202240588423_dp 
+                              clda = -0.73855876638202240588423_dp
   REAL(KIND=dp), PARAMETER :: expcutoff = 700.0_dp
   REAL(KIND=dp), PARAMETER :: smax = 8.572844_dp, &
                               sconst = 18.79622316_dp, &
@@ -191,7 +191,7 @@ MODULE xc_xpbe_hole_t_c_lr
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rho=rho,&
@@ -246,7 +246,7 @@ MODULE xc_xpbe_hole_t_c_lr
            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
            epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
            sx=sx,R=R,error=error)
-      
+
       !$omp end parallel
 
       IF (cp_debug) THEN
@@ -272,7 +272,7 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note For numerical reasons there are two different branches
-!>      
+!>
 !> \par History
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -385,7 +385,7 @@ MODULE xc_xpbe_hole_t_c_lr
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    
+
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
@@ -535,7 +535,7 @@ MODULE xc_xpbe_hole_t_c_lr
                                            my_ndrho, sscale, sx, R, order)
         END IF
         e_0(ip) = e_0(ip) + 0.5_dp * e_tmp
-     
+
       END IF
     END DO
 
@@ -708,7 +708,7 @@ MODULE xc_xpbe_hole_t_c_lr
     IF( order>=1 .OR. order>=-1) THEN
       t209 = rho ** 2
       srho = -t3 / t164 * t8 * t4 / 0.18e2_dp - t3 * t7 / t209 / 0.6e1_dp
-     
+
       t214 = t2 * t7
       sndrho = t214 * t8 / 0.6e1_dp
       t216 = t11 * t13
@@ -1232,7 +1232,7 @@ MODULE xc_xpbe_hole_t_c_lr
       tmp = tmp / P
       Q4 = Q3 * Q
       exei = exei + (24.0_dp + 4.0_dp * Q3 + Q4 + 12.0_dp * Q2 + 24.0_dp * Q) * tmp
-      
+
       ! *** scaling factor
       exei = EXP(-Q) * exei
     END IF
@@ -1258,7 +1258,7 @@ MODULE xc_xpbe_hole_t_c_lr
 
     red = 1.0_dp/6.0_dp*ndrho*3.0_dp**(2.0_dp/3.0_dp)
     red = red /(pi**(2.0_dp/3.0_dp))
-    red = red *MAX(1.0_dp/rho**(4.0_dp/3.0_dp),EPS_RHO) 
+    red = red *MAX(1.0_dp/rho**(4.0_dp/3.0_dp),EPS_RHO)
   END FUNCTION red
 
   FUNCTION dsdrho(rho,ndrho)

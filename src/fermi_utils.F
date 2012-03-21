@@ -77,7 +77,7 @@ CONTAINS
          term2= tmp3 * tmplog
          kTS = kTS + T*occupation*(term1 + term2)
       ELSE
-         arg  = (e(i)-mu)/T 
+         arg  = (e(i)-mu)/T
          ! tmp is smaller than 1
          tmp  = EXP(arg)
          tmp4 = tmp + 1.0_dp
@@ -112,7 +112,7 @@ CONTAINS
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
 ! *****************************************************************************
- SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate) 
+ SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
     REAL(KIND=dp), INTENT(OUT)               :: f(:), mu, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
     INTEGER, INTENT(IN)                      :: estate
@@ -207,7 +207,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    Nstate=SIZE(e) 
+    Nstate=SIZE(e)
     ALLOCATE(ex(Nstate),fx(Nstate))
 
     DO I=1,Nstate
@@ -219,9 +219,9 @@ CONTAINS
        h=2.0_dp**EXPONENT(h)
        ! this should write three times the same number
        ! write(6,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
-       ! and the symmetric finite difference 
+       ! and the symmetric finite difference
        ex=e
-       ex(i)=e(i)+h 
+       ex(i)=e(i)+h
        CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc,estate,festate)
        dfde(:,I)=fx
        ex(i)=e(i)-h
@@ -233,7 +233,7 @@ CONTAINS
     CALL FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
 
     CALL timestop(handle)
-   
+
  END SUBROUTINE FermiFixedDeriv
 
 END MODULE fermi_utils

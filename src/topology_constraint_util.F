@@ -239,7 +239,7 @@ CONTAINS
                    molecule_kind => molecule_kind_set(k)
                    name = molecule_kind%name
                    ldummy = qmmm_ff_precond_only_qm(id1=name)
-                   IF (cnds(i) == name) THEN 
+                   IF (cnds(i) == name) THEN
                       constr_x_mol(k)%constr(1) = 1
                       found_molname = .TRUE.
                    END IF
@@ -418,7 +418,7 @@ CONTAINS
           ncolv_mol = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(colv_list(ncolv_mol),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ! Starting index of the first molecule of this kind. 
+          ! Starting index of the first molecule of this kind.
           ! We need the index if no target is provided in the input file
           ! for the collective variable.. The target will be computed on the
           ! first molecule of the kind...
@@ -447,7 +447,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Intermolecular constraints
        ncolv_glob = 0
-       IF (ASSOCIATED(constr_x_glob)) THEN 
+       IF (ASSOCIATED(constr_x_glob)) THEN
           ncolv_glob = SIZE(constr_x_glob)
           ALLOCATE(colv_list(ncolv_glob),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -588,7 +588,7 @@ CONTAINS
           ! Total number of Intermolecular constraints
           gci%ntot = 6*gci%ng4x6 + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
 
@@ -638,7 +638,7 @@ CONTAINS
           ! Total number of Intermolecular constraints
           gci%ntot = gci%nvsite + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
     CALL timestop(handle2)
@@ -734,13 +734,13 @@ CONTAINS
                    IF (PRESENT(qmmm_env)) THEN
                       SELECT CASE(cons_info%freeze_qm)
                       CASE(do_constr_atomic)
-                         IF (ANY(qmmm_env%qm_atom_index==k)) THEN 
+                         IF (ANY(qmmm_env%qm_atom_index==k)) THEN
                             fix_atom_qmmm = .TRUE.
                             fix_atom_qm   = .TRUE.
                             itype         = cons_info%freeze_qm_type
                          END IF
                       CASE(do_constr_molec)
-                         IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) THEN 
+                         IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) THEN
                             fix_atom_qmmm = .TRUE.
                             fix_atom_qm   = .TRUE.
                             itype         = cons_info%freeze_qm_type
@@ -748,13 +748,13 @@ CONTAINS
                       END SELECT
                       SELECT CASE(cons_info%freeze_mm)
                       CASE(do_constr_atomic)
-                         IF (ALL(qmmm_env%qm_atom_index/=k)) THEN 
+                         IF (ALL(qmmm_env%qm_atom_index/=k)) THEN
                             fix_atom_qmmm = .TRUE.
                             fix_atom_mm   = .TRUE.
                             itype         = cons_info%freeze_mm_type
                          END IF
                       CASE(do_constr_molec)
-                         IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) THEN 
+                         IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) THEN
                             fix_atom_qmmm = .TRUE.
                             fix_atom_mm   = .TRUE.
                             itype         = cons_info%freeze_mm_type
@@ -769,7 +769,7 @@ CONTAINS
                    END IF
                    ! Check that the fixed atom constraint/restraint is unique
                    IF ((fix_fixed_atom.AND.fix_atom_qmmm).OR.(fix_fixed_atom.AND.fix_atom_molname)&
-                        .OR.(fix_atom_qmmm.AND.fix_atom_molname)) THEN 
+                        .OR.(fix_atom_qmmm.AND.fix_atom_molname)) THEN
                       CALL stop_program(routineN,moduleN,__LINE__,&
                                         "Atom number: "//cp_to_string(k)//&
                                         " has been constrained/restrained to be fixed in more than one"//&
@@ -798,7 +798,7 @@ CONTAINS
                          ! Should never reach this point
                          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       END IF
-                      IF (fixd_list(kk)%restraint%active) THEN 
+                      IF (fixd_list(kk)%restraint%active) THEN
                          nfixd_restraint = nfixd_restraint+ 1
                          nfixd_restart   = nfixd_restart  + 1
                          ! Check that we use the components that we really want..
@@ -885,14 +885,14 @@ CONTAINS
                                r(1:3) = fixd_list(kk)%coord(1:3)
                             END SELECT
                             CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
-                                 i_rep_val=nfixd_restart, r_vals_ptr=r, error=error)                         
+                                 i_rep_val=nfixd_restart, r_vals_ptr=r, error=error)
                          END IF
                       END IF
                    END IF
                 END DO
              END DO
           END IF
-          IF (iw>0) THEN 
+          IF (iw>0) THEN
              WRITE(iw,*)"MOLECULE KIND:",i," NR. FIXED ATOMS:",SIZE(fixd_list(:)%fixd)," LIST::",fixd_list(:)%fixd
           END IF
           CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, nfixd_restraint=nfixd_restraint,&
@@ -1166,7 +1166,7 @@ CONTAINS
        CALL colvar_clone(lcolv(kk)%colvar, cons_info%colvar_set(k)%colvar,&
             i_atom_offset=first_atom-1,error=error)
 
-       ! Some COLVARS may need additional information for evaluating the 
+       ! Some COLVARS may need additional information for evaluating the
        ! functional form: this is the case for COLVARS which depend on the
        ! initial position of the atoms: This information is stored in a proper
        ! container in the COLVAR_RESTART section..
@@ -1207,7 +1207,7 @@ CONTAINS
                   i_rep_val=cind, r_vals_ptr=r_vals, error=error)
           END IF
        END IF
-       
+
        ! Setup Colvar_old
        CALL colvar_clone(lcolv(kk)%colvar_old,lcolv(kk)%colvar,error=error)
 
@@ -1246,7 +1246,7 @@ CONTAINS
     INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
-    failure = .FALSE.  
+    failure = .FALSE.
     DO kk = 1, SIZE(lg3x3)
        lg3x3(kk)%init      = .FALSE.
        lg3x3(kk)%scale     = 0.0_dp
@@ -1300,7 +1300,7 @@ CONTAINS
     INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
-    failure = .FALSE.  
+    failure = .FALSE.
     DO kk = 1, SIZE(lg4x6)
        lg4x6(kk)%init      = .FALSE.
        lg4x6(kk)%scale     = 0.0_dp
@@ -1353,7 +1353,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE give_constraint_array(const_mol, const_molname, const_intermolecular,&
        constr_x_mol, constr_x_glob, molecule_kind_set, exclude_qm, exclude_mm, error)
-    
+
     INTEGER, DIMENSION(:), POINTER           :: const_mol
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: const_molname
@@ -1396,7 +1396,7 @@ CONTAINS
              constr_x_glob(iglob) = i
           ELSE
              ! Intramolecular constraint
-             IF (const_mol(i)/=0) THEN 
+             IF (const_mol(i)/=0) THEN
                 k = const_mol(i)
                 CALL cp_assert(k<=SIZE(molecule_kind_set),&
                      cp_failure_level,cp_assertion_failed,routineP,&
@@ -1455,7 +1455,7 @@ CPSourceFileRef,&
          "the print_key MOLECULES specific of the SUBSYS%PRINT section. "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
-    
+
   END SUBROUTINE print_warning_molname
 
 END MODULE topology_constraint_util

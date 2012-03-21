@@ -1017,7 +1017,7 @@ CONTAINS
       IF (ASSOCIATED(molecule_kind)) THEN
         natom = SIZE(molecule_kind%atom_list)
         nmolecule = SIZE(molecule_kind%molecule_list)
-      
+
         IF ( natom == 1 ) THEN
           atomic_kind => molecule_kind%atom_list(1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)

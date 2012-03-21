@@ -29,10 +29,10 @@ MODULE farming_types
 
 ! *****************************************************************************
   TYPE farming_env_type
-     INTEGER :: group_size_wish      
-     LOGICAL :: group_size_wish_set  
-     INTEGER :: ngroup_wish          
-     LOGICAL :: ngroup_wish_set      
+     INTEGER :: group_size_wish
+     LOGICAL :: group_size_wish_set
+     INTEGER :: ngroup_wish
+     LOGICAL :: ngroup_wish_set
      LOGICAL :: restart
      LOGICAL :: CYCLE
      LOGICAL :: master_slave
@@ -41,7 +41,7 @@ MODULE farming_types
      CHARACTER(LEN=default_path_length)                          :: cwd        ! directory we started from
      INTEGER                                                     :: Njobs      ! how many jobs to run
      INTEGER                                                     :: restart_n  ! where to start
-     INTEGER                                                     :: max_steps  ! max number of steps, 
+     INTEGER                                                     :: max_steps  ! max number of steps,
                                                                                ! results in max_steps*Ngroup jobs being run
      TYPE(job_type), DIMENSION(:), POINTER                       :: job        ! a list of jobs
      REAL(KIND=dp) :: wait_time
@@ -60,7 +60,7 @@ SUBROUTINE init_farming_env(farming_env)
     TYPE(farming_env_type), POINTER          :: farming_env
 
     IF (ASSOCIATED(farming_env)) THEN
-       farming_env%group_size_wish     = 0 
+       farming_env%group_size_wish     = 0
        farming_env%group_size_wish_set = .FALSE.
        farming_env%ngroup_wish         = 0
        farming_env%ngroup_wish_set     = .FALSE.
@@ -72,7 +72,7 @@ SUBROUTINE init_farming_env(farming_env)
        farming_env%cwd                 = "."
        farming_env%Njobs               = 0
           ! so that maxsteps*ngroup is not overflowing
-       farming_env%max_steps           = HUGE(0)/32768 
+       farming_env%max_steps           = HUGE(0)/32768
        NULLIFY(farming_env%Job)
     ENDIF
 END SUBROUTINE
@@ -126,6 +126,6 @@ END SUBROUTINE deallocate_job_type
        ENDIF
        IF (ASSOCIATED(farming_env%group_partition)) DEALLOCATE(farming_env%group_partition)
        DEALLOCATE(farming_env) ! and the type itself
-    ENDIF 
+    ENDIF
   END SUBROUTINE deallocate_farming_env
 END MODULE farming_types

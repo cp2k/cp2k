@@ -44,7 +44,7 @@ MODULE k290
 !>       R ...... List of the 3 x 3 rotation matrices
 !>
 ! *****************************************************************************
-  TYPE csym_type 
+  TYPE csym_type
       INTEGER                                     :: plevel
       INTEGER                                     :: istriz = -1
       INTEGER                                     :: punit
@@ -59,7 +59,7 @@ MODULE k290
       INTEGER, DIMENSION(48)                      :: ib
       REAL(KIND=dp), DIMENSION(3,48)              :: v
       REAL(KIND=dp), DIMENSION(3,3,48)            :: r
-  END TYPE csym_type 
+  END TYPE csym_type
 
 !------------------------------------------------------------------------------!
 !     Constants
@@ -1661,7 +1661,7 @@ CONTAINS
 !>           AI(I,J) ARE THE RECIPROCAL LATTICE VECTORS,
 !>                   B(I) = AI(I,J),J=1,2,3
 !>         DELTA     REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
-!> 
+!>
 !>         OUTPUT:
 !>           ORIGIN(1:3) Give standard origin (cartesian coordinates)
 !>                    Give the standard origin with smallest coordinates
@@ -2411,10 +2411,10 @@ CONTAINS
 ! *****************************************************************************
 !> \par Original Header
 !>         MESH MAINTAINS A LIST OF VECTORS FOR PLACEMENT AND/OR LOOKUP
-!> 
+!>
 !>         ADDITIONAL ENTRY POINTS: REMOVE .... REMOVE VECTOR FROM LIST
 !>                                  GARBAG .... WAS VECTOR REMOVED ?
-!> 
+!>
 !>         WVK ....... VECTOR
 !>         IPLACE .... ON INPUT: -2 MEANS: INITIALIZE  THE LIST
 !>                                         (AND RETURN)
@@ -2537,7 +2537,7 @@ CONTAINS
 ! *****************************************************************************
 !> \par Original Header
 !>         ENTRY POINT FOR REMOVING A WAVEVECTOR
-!> 
+!>
 !>         INPUT:
 !>           WVK(3)
 !>           DELTA   REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
@@ -2612,7 +2612,7 @@ CONTAINS
 !>         INPUT:
 !>           WVK(3)
 !>           DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
-!> 
+!>
 !>         OUTPUT:
 !>           IPLACE  ..... I > 0 IS THE PLACE IN THE GARBAGE LIST
 !>                             0 IF WVK NOT AMONG THE GARBAGE

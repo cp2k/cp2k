@@ -923,7 +923,7 @@ CONTAINS
 
       IF (tmp.NE."NONE") THEN
         search_loop: DO
- 
+
            IF (read_from_input) THEN
               NULLIFY(list,val)
               found = .TRUE.
@@ -966,7 +966,7 @@ CONTAINS
                        irep = irep + 1
                        WRITE(line_att,'(1X,I0)')nset
                        CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                            c_val=TRIM(line_att), error=error) 
+                            c_val=TRIM(line_att), error=error)
                     END IF
                  END IF
 
@@ -1061,7 +1061,7 @@ CONTAINS
                              irep = irep + 1
                              WRITE(line_att,'(100E24.16)')zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
                              CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                  c_val=TRIM(line_att), error=error) 
+                                  c_val=TRIM(line_att), error=error)
                           END IF
                        END IF
                     END DO
@@ -1744,7 +1744,7 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     ncgf = 0
     nsgf = 0
 
@@ -2072,7 +2072,7 @@ CONTAINS
     CALL reallocate(geminal_basis_set%last_cgf,1,maxshell,1,nset)
 
     search_loop: DO
- 
+
          IF (read_from_input) THEN
             NULLIFY(list,val)
             found = .TRUE.
@@ -2115,7 +2115,7 @@ CONTAINS
                      irep = irep + 1
                      WRITE(line_att,'(1X,I0)')nset
                      CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                          c_val=TRIM(line_att), error=error) 
+                          c_val=TRIM(line_att), error=error)
                   END IF
                END IF
 
@@ -2218,7 +2218,7 @@ CONTAINS
                            WRITE(line_att,'(100E24.16)')zet(1,1,ipgf,iset),zet(2,2,ipgf,iset),zet(1,2,ipgf,iset),&
                                 (gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
                            CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                c_val=TRIM(line_att), error=error) 
+                                c_val=TRIM(line_att), error=error)
                         END IF
                      END IF
                   END DO
@@ -2351,7 +2351,7 @@ CONTAINS
           ! Dump the read basis set in the basis section
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Geminal basis set name: "//bsname2(:strlen2)//&
-               &" for symbol: "//symbol2(:strlen1)             
+               &" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
           irep = irep + 1

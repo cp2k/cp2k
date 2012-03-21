@@ -57,7 +57,7 @@ MODULE rt_make_propagators
             make_cn_propagator,&
             make_em_propagator,&
             propagate_arnoldi
-  
+
 
 CONTAINS
 ! *****************************************************************************
@@ -92,7 +92,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)  
+    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
     IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
     CALL cp_fm_create(H_fm,&
@@ -103,24 +103,24 @@ CONTAINS
          matrix_struct=exp_H(1)%matrix%matrix_struct,&
          name="TMP_H",&
          error=error)
- 
-    ndim=H_fm%matrix_struct%nrow_global   
+
+    ndim=H_fm%matrix_struct%nrow_global
 
     t=-t/2.0_dp
     DO ispin=1,SIZE(matrix_ks)
-       
+
        lb=(ispin-1)*2+1
        ub=(ispin-1)*2+2
- 
+
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
 
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
 
-    
+
        SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
 
        CASE(do_taylor,do_pade)
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error) 
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error)
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
              CALL cp_fm_scale(t,tmp_mat_H,error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
@@ -158,7 +158,7 @@ CONTAINS
                error,failure)
           CALL exp_diag(rtp,exp_H(lb:ub),H_fm,error)
        END SELECT
-          
+
     END DO
 
     IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)CALL cp_fm_release(tmp_mat_B,error)
@@ -206,7 +206,7 @@ CONTAINS
     CALL cp_cfm_create(M_inverse,&
                       matrix_struct=propagator(1)%matrix%matrix_struct,&
                       name="M_inverse",&
-                      error=error)   
+                      error=error)
 
 
     a=> M_inverse%local_data
@@ -231,17 +231,17 @@ CONTAINS
                CMPLX(0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i),&
                0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i),KIND=dp)
        END DO
-       
+
        CALL cp_cfm_add(one,M1,-one,M_inverse,error)
        CALL cp_cfm_add(one,M2,one,M_inverse,error)
-       
+
        CALL cp_cfm_solve(M2,M1,error=error)
-       
+
        !now M2 is temporary
-       
+
        U_re%local_data=REAL(M1%local_data,KIND=dp)
        U_im%local_data=AIMAG(M1%local_data)
-       
+
 
     END DO
 
@@ -363,7 +363,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)  
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,dt=t,mos_new=mos_new,mos_old=mos_old,&
          mos_next=mos_next,exp_H_old=old_Ham,exp_H_new=new_Ham,error=error)
 
@@ -382,21 +382,21 @@ CONTAINS
        IF(rtp%iter==1.AND.rtp%istep==1)THEN
           dt=-t/2.0_dp
           DO ispin=1,nspin
-             
+
              lb=ispin*2-1
              ub=ispin*2
-             CALL cp_fm_to_fm(old_ham(ub)%matrix,tmp_mat_H,error) 
+             CALL cp_fm_to_fm(old_ham(ub)%matrix,tmp_mat_H,error)
              CALL cp_fm_scale(dt,tmp_mat_H,error)
-             
+
              IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
                 CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                     eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)             
+                     eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)
              ELSE
-                CALL cp_fm_to_fm(old_ham(lb)%matrix,tmp_mat_B,error) 
+                CALL cp_fm_to_fm(old_ham(lb)%matrix,tmp_mat_B,error)
                 CALL cp_fm_scale(dt,tmp_mat_B,error)
 
                 CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)             
+                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)
              END IF
           END DO
           DO i=1,SIZE(mos_new)
@@ -404,7 +404,7 @@ CONTAINS
              CALL cp_fm_to_fm(mos_next(i)%matrix,mos_new(i)%matrix,error)
 
           END DO
-       ELSE 
+       ELSE
           IF(rtp%iter==1)THEN
              DO i=1,SIZE(mos_new)
                 CALL cp_fm_to_fm(mos_next(i)%matrix,mos_old(i)%matrix,error)
@@ -413,22 +413,22 @@ CONTAINS
        dt=-t/2.0_dp
 
        DO ispin=1,nspin
-          
+
           lb=ispin*2-1
           ub=ispin*2
-          CALL cp_fm_to_fm(new_ham(ub)%matrix,tmp_mat_H,error) 
+          CALL cp_fm_to_fm(new_ham(ub)%matrix,tmp_mat_H,error)
           CALL cp_fm_scale(dt,tmp_mat_H,error)
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
              CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                  eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)             
+                  eps_arnoldi,Him=tmp_mat_H,mos_next=mos_next(lb:ub),error=error)
           ELSE
-             CALL cp_fm_to_fm(new_ham(lb)%matrix,tmp_mat_B,error) 
+             CALL cp_fm_to_fm(new_ham(lb)%matrix,tmp_mat_B,error)
              CALL cp_fm_scale(dt,tmp_mat_B,error)
              CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
                   eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,&
-                  mos_next=mos_next(lb:ub),error=error)             
+                  mos_next=mos_next(lb:ub),error=error)
           END IF
-          
+
        END DO
        END IF
        CASE(do_em)
@@ -447,12 +447,12 @@ CONTAINS
                         0.5_dp*dt*new_ham(lb)%matrix%local_data(:,i)
                 END DO
                 CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)
              ELSE
                 CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
-                     eps_arnoldi,Him=tmp_mat_H,error=error)             
+                     eps_arnoldi,Him=tmp_mat_H,error=error)
              END IF
-             
+
 
           END DO
        END SELECT
@@ -461,5 +461,5 @@ CONTAINS
        CALL timestop(handle)
 
      END SUBROUTINE propagate_arnoldi
-     
+
 END MODULE rt_make_propagators

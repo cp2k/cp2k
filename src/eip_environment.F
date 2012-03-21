@@ -76,7 +76,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize the eip environment
 !> \param eip_env The eip environment to retain
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -118,9 +118,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
       ! nullifying  pointers
       NULLIFY( cell_section, colvar_section, eip_section, &
@@ -185,7 +185,7 @@ CONTAINS
 !> \param cell Pointer to the actual simulation cell
 !> \param cell_ref Pointer to the reference cell, used e.g. in NPT simulations
 !> \param use_ref_cell Logical which indicates if cell_ref is in use
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
@@ -237,7 +237,7 @@ CONTAINS
     CALL write_molecule_kind_set(molecule_kind_set, subsys_section, &
                                  error=error)
 
-!   *** Print the atomic coordinates 
+!   *** Print the atomic coordinates
     CALL write_qs_particle_coordinates(particle_set, &
                                        subsys_section=subsys_section, &
                                        label="EIP",error=error)
@@ -280,9 +280,9 @@ CONTAINS
   END SUBROUTINE eip_init_subsys
 
 ! *****************************************************************************
-!> \brief Initialize the empirical interatomic potnetial (force field) model 
+!> \brief Initialize the empirical interatomic potnetial (force field) model
 !> \param eip_env The eip environment to retain
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]

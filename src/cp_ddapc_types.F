@@ -307,11 +307,11 @@ CONTAINS
     printC_section    => section_vals_get_subs_vals(force_env_section,"PROPERTIES%FIT_CHARGE",error=error)
     restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT",error=error)
     restraint_sectionB => section_vals_get_subs_vals(force_env_section,&
-                          "PROPERTIES%ET_COUPLING%DDAPC_RESTRAINT_A",error=error)    
+                          "PROPERTIES%ET_COUPLING%DDAPC_RESTRAINT_A",error=error)
     CALL section_vals_get(solvation_section,explicit=do_solvation, error=error)
     CALL section_vals_get(poisson_section,explicit=decoupling, error=error)
     CALL section_vals_get(restraint_section,explicit=do_restraint, error=error)
-    CALL section_vals_get(restraint_sectionB,explicit=do_restraintB, error=error)    
+    CALL section_vals_get(restraint_sectionB,explicit=do_restraintB, error=error)
     do_qmmm_periodic                = qmmm_periodic.AND.qmmm
     cp_ddapc_ewald%do_solvation     = do_solvation
     cp_ddapc_ewald%do_qmmm_periodic = do_qmmm_periodic

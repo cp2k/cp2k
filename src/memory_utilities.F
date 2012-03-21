@@ -42,7 +42,7 @@ MODULE memory_utilities
 CONTAINS
 
 ! *****************************************************************************
-!> \brief (Re)Allocate a complex vector with a new dimension 
+!> \brief (Re)Allocate a complex vector with a new dimension
 !> \par History
 !>      none
 !> \author Matthias Krack (28.11.2005,MK)
@@ -64,7 +64,7 @@ CONTAINS
   END SUBROUTINE reallocate_c1
 
 ! *****************************************************************************
-!> \brief (Re)Allocate a complex array 2D with a new dimension 
+!> \brief (Re)Allocate a complex array 2D with a new dimension
 !> \par History
 !>      none
 !> \author Matthias Krack (28.11.2005,MK)
@@ -88,7 +88,7 @@ CONTAINS
   END SUBROUTINE reallocate_c2
 
 ! *****************************************************************************
-!> \brief (Re)Allocate a complex array 3D with a new dimension 
+!> \brief (Re)Allocate a complex array 3D with a new dimension
 !> \par History
 !>      none
 !> \author Matthias Krack (28.11.2005,MK)
@@ -112,7 +112,7 @@ CONTAINS
   END SUBROUTINE reallocate_c3
 
 ! *****************************************************************************
-!> \brief (Re)Allocate a complex array 4D with a new dimension 
+!> \brief (Re)Allocate a complex array 4D with a new dimension
 !> \par History
 !>      none
 !> \author Matthias Krack (28.11.2005,MK)
@@ -376,7 +376,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE reallocate_r5(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
                              lb4_new,ub4_new,lb5_new,ub5_new)
- 
+
    REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
@@ -419,7 +419,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief (Re)Allocate a vector of string variables
 !> \note
-!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
+!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!!
 !>                       It should probably not be used. (Thomas Chassaing)
 !> \par History
 !>      none
@@ -444,13 +444,13 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "At least one of the two optional arguments is required")
     END IF
-   
+
   END SUBROUTINE reallocate_s1
 
 ! *****************************************************************************
 !> \brief (Re)Allocate a vector of string variables of default string length.
 !> \note
-!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
+!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!!
 !>                       It should probably not be used. (Thomas Chassaing)
 !> \par History
 !>      none
@@ -478,7 +478,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief (Re)Allocate a vector of string variables of default path length.
 !> \note
-!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
+!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!!
 !>                       It should probably not be used. (Thomas Chassaing)
 !> \par History
 !>      none

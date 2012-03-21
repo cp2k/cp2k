@@ -259,8 +259,8 @@ CONTAINS
     LOGICAL                                  :: failure, non_white_found, &
                                                 this_line_is_white_or_comment
 
-    CALL timeset(routineN,handle) 
-   
+    CALL timeset(routineN,handle)
+
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -335,7 +335,7 @@ CONTAINS
              ELSE
                 non_white_found=.TRUE.
              END IF
-             IF (.NOT. non_white_found) THEN 
+             IF (.NOT. non_white_found) THEN
                 iline                      = iline -1
                 last_buffered_line_number  = last_buffered_line_number - 1
              END IF
@@ -344,7 +344,7 @@ CONTAINS
        ! Broadcast buffer informations
        CALL broadcast_input_information(parser,error)
     END IF
- 
+
     CALL timestop(handle)
 
   END SUBROUTINE parser_read_line_low
@@ -487,19 +487,19 @@ CONTAINS
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        !     *** Variable input string length (automatic search) ***
-  
+
        ! check for EOF
        IF (parser%icol==-1) THEN
           parser%icol1 = 1
           parser%icol2 = -1
           RETURN
        END IF
-  
+
        !     *** Search for the beginning of the next input string ***
        DO
           !       *** Increment the column counter ***
           parser%icol = parser%icol + 1
-  
+
           !       *** Quick return, if the end of line is found ***
           IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
                is_comment(parser,parser%input_line(parser%icol:parser%icol))) THEN
@@ -507,12 +507,12 @@ CONTAINS
              parser%icol2 = -1
              RETURN
           END IF
-  
+
           !       *** Check for input line continuation ***
           !       *** Ignore all white space and accept only one     ***
           !       *** separator token or a string in quotation marks ***
           IF (.NOT.is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
-             
+
              IF (parser%input_line(parser%icol:parser%icol) == parser%continuation_character) THEN
                 DO i=LEN(parser%input_line),1,-1
                    IF (.NOT.is_whitespace(parser%input_line(i:i))) EXIT
@@ -542,7 +542,7 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE parser_skip_space
-  
+
 ! *****************************************************************************
 !> \brief   Get the next input string from the input line.
 !> \author  MK
@@ -571,7 +571,7 @@ CONTAINS
        ELSE
           length = 0
        END IF
-  
+
        IF (length > 0) THEN
           !     *** Fixed input string length ***
           CALL cp_assert(parser%icol/=-1,cp_failure_level,cp_assertion_failed,&
@@ -585,7 +585,7 @@ CONTAINS
              parser%icol = parser%icol2
           END IF
        ELSE
-  
+
           !     *** Variable input string length (automatic search) ***
           ! check for EOF
           IF (parser%icol==-1) THEN
@@ -593,17 +593,17 @@ CONTAINS
              parser%icol2 = -1
              RETURN
           END IF
-  
+
           !     *** Search for the beginning of the next input string ***
           ! we precompute those, they are expensive to get
           len_inputline =      LEN(parser%input_line)
           len_trim_inputline = LEN_TRIM(parser%input_line)
-  
+
           DO
-  
+
              !       *** Increment the column counter ***
              parser%icol = parser%icol + 1
-  
+
              !       *** Quick return, if the end of line is found ***
              IF ((parser%icol > len_trim_inputline).OR.&
                   is_comment(parser,parser%input_line(parser%icol:parser%icol))) THEN
@@ -611,7 +611,7 @@ CONTAINS
                 parser%icol2 = -1
                 RETURN
              END IF
-  
+
              !       *** Check for input line continuation ***
              IF (parser%input_line(parser%icol:parser%icol) == &
                   parser%continuation_character) THEN
@@ -671,9 +671,9 @@ CONTAINS
                 parser%icol1 = parser%icol
                 EXIT
              END IF
-  
+
           END DO
-  
+
           !     *** Search for the end of the next input string ***
           IF(.NOT.failure) THEN
              DO
@@ -689,12 +689,12 @@ CONTAINS
                    EXIT
                 END IF
              END DO
-  
+
              parser%icol2 = parser%icol - 1
-  
+
              IF (parser%input_line(parser%icol:parser%icol) == &
                   parser%continuation_character) parser%icol = parser%icol2
-  
+
           END IF
        END IF
     END IF
@@ -752,7 +752,7 @@ CONTAINS
           CALL parser_retrieve_status(parser, error)
           RETURN
        END IF
-       
+
        islash = parser%icol1 + INDEX(parser%input_line(parser%icol1:parser%icol2),"/") - 1
        IF (islash > parser%icol1) THEN
           nz = 2
@@ -762,16 +762,16 @@ CONTAINS
           nz = 1
           string(1) = parser%input_line(parser%icol1:parser%icol2)
        END IF
-       
+
        DO iz=1,nz
           IF (LEN_TRIM(string(iz)) == 0) THEN
              test_result = "STR"
              EXIT
           END IF
-          
+
           idot_first = INDEX(string(iz),".")
           idot2_first= INDEX(string(iz),"..")
-          
+
           IF ((idot_first>0).AND.(idot2_first==0)) THEN
              idot_last = INDEX(string(iz),".",.TRUE.)
              istat = 0
@@ -863,7 +863,7 @@ CONTAINS
           current_line = parser%input_line
           IF (ignore_case) CALL uppercase(current_line)
           ipattern = INDEX(current_line,TRIM(pattern))
-          
+
           IF (ipattern > 0) THEN
              found = .TRUE.
              parser%icol = ipattern - 1
@@ -879,7 +879,7 @@ CONTAINS
              END IF
              EXIT
           END IF
-          
+
        END DO
 
        IF (found) THEN
@@ -922,12 +922,12 @@ CONTAINS
           contains_integer_object = .FALSE.
           RETURN
        END IF
-       
+
        IF (INDEX("+-0123456789",string(1:1)) == 0) THEN
           contains_integer_object = .FALSE.
           RETURN
        END IF
-       
+
        DO i=2,length
           IF (INDEX("0123456789",string(i:i)) == 0) THEN
              contains_integer_object = .FALSE.
@@ -990,7 +990,7 @@ CONTAINS
        IF (parser%ilist%in_use) THEN
           CALL ilist_update(parser%ilist, error)
        END IF
-       
+
        IF (.NOT.parser%ilist%in_use) THEN
           CALL parser_next_token(parser,string_length=string_length,error=error)
 
@@ -1003,7 +1003,7 @@ CONTAINS
                   error,failure)
           END IF
           ! Checks for possible lists of integers
-          
+
           IF (INDEX(parser%input_line(parser%icol1:parser%icol2),"..")/=0) THEN
              CALL ilist_setup(parser%ilist, parser%input_line(parser%icol1:parser%icol2), error)
           END IF
@@ -1252,7 +1252,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Returns a floating point number read from a string.
-!> \author  Matthias Krack 
+!> \author  Matthias Krack
 !> \date    11.01.2011 (MK)
 !> \version 1.0
 ! *****************************************************************************

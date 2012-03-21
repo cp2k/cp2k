@@ -51,7 +51,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Optimize shell-core positions along an MD run
-!> \author 
+!> \author
 ! *****************************************************************************
 
   SUBROUTINE optimize_shell_core(force_env,particle_set,shell_particle_set,core_particle_set,globenv,tmp,check,error)
@@ -105,7 +105,7 @@ CONTAINS
     IF(PRESENT(check)) my_check = check
     IF(my_check) THEN
         NULLIFY(subsys, para_env, atomic_kinds, local_particles)
-        CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env, error=error) 
+        CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env, error=error)
         CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
         CALL check_shell_core_distance(atomic_kinds,local_particles,particle_set,shell_particle_set,&
              core_particle_set,para_env,optimize,error=error)

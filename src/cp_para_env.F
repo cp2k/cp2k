@@ -41,8 +41,8 @@ CONTAINS
 !> \param mepos the id of the actual processor
 !> \param num_pe the number of processors in the group
 !> \param owns_group if the group is owned by this object (defaults to true)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -89,7 +89,7 @@ CONTAINS
 !> \param para_env the new group
 !> \param template the environment to copy
 !> \param source the source of the new para_env, defaults to template%source
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
@@ -131,7 +131,7 @@ CONTAINS
 !> \brief retains the para object (to be called when you want to keep a
 !>      shared copy of this object)
 !> \param para_env the new group
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
@@ -159,7 +159,7 @@ CONTAINS
 !> \brief releases the para object (to be called when you don't want anymore
 !>      the shared copy of this object)
 !> \param para_env the new group
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
 !>      to avoid circular dependencies cp_log_handling has a private copy
@@ -197,7 +197,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief gets again the position and size of the group from the mpi_group
 !> \param para_env the new group
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
@@ -229,8 +229,8 @@ CONTAINS
 !> \brief writes a description of the parallel environment to the given unit
 !> \param para_env the parallel environment to output
 !> \param unit_nr the unit where to output
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -247,7 +247,7 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(para_env)) THEN
      WRITE (unit=unit_nr,&
           fmt="(' <cp_para_env>:{ owns_group=',l1,',')",&
@@ -279,8 +279,8 @@ END SUBROUTINE cp_para_env_write
 !> \param ndims the number of dimensions of the cart
 !> \param owns_group if this object owns the underlying cart (and should
 !>        free it)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
@@ -305,11 +305,11 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
        IF (PRESENT(owns_group)) cart%owns_group=owns_group
        cart%ndims=ndims
        cart%group=group
-       
+
        ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),&
             cart%num_pe(ndims),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-       
+
        cart%source=0
        cart%mepos=0
        cart%periodic=.FALSE.
@@ -322,8 +322,8 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
 ! *****************************************************************************
 !> \brief updates the information about the given cart
 !> \param cart the cart to update
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cp_cart_update(cart,error)
@@ -336,7 +336,7 @@ SUBROUTINE cp_cart_update(cart,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
   CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -349,8 +349,8 @@ END SUBROUTINE cp_cart_update
 ! *****************************************************************************
 !> \brief releases the given cart
 !> \param cart the cart to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cp_cart_release(cart,error)
@@ -364,7 +364,7 @@ SUBROUTINE cp_cart_release(cart,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(cart)) THEN
      CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
      cart%ref_count=cart%ref_count-1
@@ -384,8 +384,8 @@ END SUBROUTINE cp_cart_release
 ! *****************************************************************************
 !> \brief retains the given cart
 !> \param cart the cart to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE cp_cart_retain(cart,error)
@@ -398,7 +398,7 @@ SUBROUTINE cp_cart_retain(cart,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -410,8 +410,8 @@ END SUBROUTINE cp_cart_retain
 !> \brief writes out the informations about the cart
 !> \param cart the parallel environment to output
 !> \param unit_nr the unit where to output
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE cp_cart_write(cart,unit_nr,error)
@@ -426,7 +426,7 @@ SUBROUTINE cp_cart_write(cart,unit_nr,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(cart)) THEN
      WRITE (unit=unit_nr,&
           fmt="(' <cp_cart>:{ owns_group=',l1,',')",&

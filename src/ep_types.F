@@ -271,7 +271,7 @@ CONTAINS
 !> \param ep_env the ep_env to get the info from
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For the other arguments see the attributes of ep_env_type
 !> \par History
 !>      12.2002 created [fawzi]

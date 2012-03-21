@@ -385,7 +385,7 @@ CONTAINS
          IF (pint_env%pimd_thermostat==thermostat_none .AND. pint_env%gle%ndim .GT. 0) THEN
             pint_env%pimd_thermostat=thermostat_gle
 
-            ! initialize a GLE with ALL degrees of freedom on node 0, 
+            ! initialize a GLE with ALL degrees of freedom on node 0,
             ! as it seems to me that here everything but force eval is replicated
             pint_env%gle%loc_num_gle=pint_env%p*pint_env%ndim
             pint_env%gle%glob_num_gle=pint_env%gle%loc_num_gle
@@ -396,7 +396,7 @@ CONTAINS
             ENDDO
             CALL gle_thermo_create(pint_env%gle,pint_env%gle%loc_num_gle,error)
 
-            ! here we should have read a_mat and c_mat; 
+            ! here we should have read a_mat and c_mat;
             !we can therefore compute the matrices needed for the propagator
             ! deterministic part of the propagator
             CALL gle_matrix_exp((-pint_env%dt/pint_env%nrespa*0.5_dp)*pint_env%gle%a_mat, &

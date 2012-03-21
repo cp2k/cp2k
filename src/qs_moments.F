@@ -789,7 +789,7 @@ CONTAINS
                 zdet = CMPLX ( 1._dp, 0._dp, dp )
                 DO ispin = 1, dft_control%nspins
                   CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
-                  DO idim=1,tmp_dim 
+                  DO idim=1,tmp_dim
                      eigrmat(ispin)%matrix%local_data(:,idim) = &
                           CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
                                  -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
@@ -995,7 +995,7 @@ CONTAINS
        CALL cp_fm_create(work1,matrix_struct=newstruct,error=error)
        CALL cp_fm_create(work2,matrix_struct=newstruct,error=error)
        CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
-     
+
        CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
        DO icol=1,lcol
           work%local_data(:,icol)=mos_new(2*i-1)%matrix%local_data(:,icol)
@@ -1021,7 +1021,7 @@ CONTAINS
                                 error)
 
        CALL cp_fm_create(work1,matrix_struct=newstruct1,error=error)
-       
+
        CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
             work,0.0_dp,work1,error=error)
 
@@ -1029,8 +1029,8 @@ CONTAINS
           op_fm_set(1,i)%matrix%local_data(:,icol)=work1%local_data(:,icol)
           op_fm_set(2,i)%matrix%local_data(:,icol)=work1%local_data(:,icol+lcol)
        END DO
-       
-       
+
+
        CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
             work,0.0_dp,work1,error=error)
 
@@ -1039,13 +1039,13 @@ CONTAINS
                op_fm_set(1,i)%matrix%local_data(:,icol)+work1%local_data(:,icol+lcol)
           op_fm_set(2,i)%matrix%local_data(:,icol)=&
                op_fm_set(2,i)%matrix%local_data(:,icol)-work1%local_data(:,icol)
-       END DO       
+       END DO
 
        CALL cp_fm_release(work,error)
        CALL cp_fm_release(work1,error)
        CALL cp_fm_struct_release(newstruct,error=error)
        CALL cp_fm_struct_release(newstruct1,error=error)
-      
+
     ENDDO
 
   END SUBROUTINE op_orbbas_rtp
@@ -1089,7 +1089,7 @@ CONTAINS
     IF (.NOT.failure) THEN
 
        CALL timeset(routineN,handle)
-       
+
        ! reference point
        CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
 
@@ -1193,7 +1193,7 @@ CONTAINS
     DO i=ix+iy+1,ix+iy+iz
       WRITE(label(i:),"(A1)") "Z"
     END DO
-    
+
   END SUBROUTINE set_label
 
 ! *****************************************************************************

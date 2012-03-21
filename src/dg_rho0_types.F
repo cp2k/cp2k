@@ -80,7 +80,7 @@ CONTAINS
   END SUBROUTINE dg_rho0_set
 
 ! *****************************************************************************
-!> \brief  Get the dg_rho0_type 
+!> \brief  Get the dg_rho0_type
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density )

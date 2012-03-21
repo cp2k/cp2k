@@ -4,10 +4,10 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Types and set/get functions for auxiliary denisty matrix methods 
+!> \brief Types and set/get functions for auxiliary denisty matrix methods
 !> \par History
 !>      05.2008 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE admm_types
   USE bibliography,                    ONLY: Guidon2010,&
@@ -37,7 +37,7 @@ MODULE admm_types
   PRIVATE
   PUBLIC  admm_env_create, admm_env_release, admm_type, eigvals_p_type, eigvals_type,&
           admm_create_block_list, admm_block
-        
+
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
@@ -70,7 +70,7 @@ MODULE admm_types
 !> \param work_aux_nmo temporary matrix
 !> \param H contains KS_matrix * mo_coeff for auxiliary basis set
 !> \param K contains KS matrix for auxiliary basis set
-!> \param M contains matrix holding the 2nd order residues 
+!> \param M contains matrix holding the 2nd order residues
 !> \param nao_orb number of atomic orbitals in orb basis set
 !> \param nao_aux_fit number of atomic orbitals in aux basis set
 !> \param nmo number of molecular orbitals per spin
@@ -133,7 +133,7 @@ MODULE admm_types
   END TYPE
 
 
-  
+
   CONTAINS
 
 ! *****************************************************************************
@@ -332,7 +332,7 @@ MODULE admm_types
     CALL cp_fm_struct_release(fm_struct_aux_aux,error=error)
     CALL cp_fm_struct_release(fm_struct_aux_orb,error=error)
     CALL cp_fm_struct_release(fm_struct_orb_aux,error=error)
-    CALL cp_fm_struct_release(fm_struct_orb_orb,error=error) 
+    CALL cp_fm_struct_release(fm_struct_orb_orb,error=error)
   END SUBROUTINE admm_env_create
 
 
@@ -480,7 +480,7 @@ MODULE admm_types
     TYPE(section_vals_type), POINTER         :: list_section
 
     NULLIFY(list_section)
-    list_section => section_vals_get_subs_vals(admm_block_section,"BLOCK",error=error) 
+    list_section => section_vals_get_subs_vals(admm_block_section,"BLOCK",error=error)
     CALL section_vals_get(list_section,n_repetition=n_rep,error=error)
 
     ALLOCATE(admm_env%blocks(n_rep), STAT=stat)
@@ -515,7 +515,7 @@ MODULE admm_types
     END DO
     DEALLOCATE(admm_env%blocks, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
 
   END SUBROUTINE admm_create_block_list
 

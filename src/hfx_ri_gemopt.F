@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief optimizer for geminal basis sets
-!> \author JGH October 2009    
+!> \author JGH October 2009
 ! *****************************************************************************
 MODULE hfx_ri_gemopt
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -395,5 +395,5 @@ CONTAINS
   END SUBROUTINE write_gemprog
 ! *****************************************************************************
 
-END MODULE hfx_ri_gemopt 
+END MODULE hfx_ri_gemopt
 

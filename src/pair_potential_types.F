@@ -39,7 +39,7 @@ MODULE pair_potential_types
                                 wl_type= 4,&
                                 gw_type= 5,&
                                 ip_type= 6,&
-                                ea_type= 7,& 
+                                ea_type= 7,&
                                 b4_type= 8,&
                                 bm_type= 9,&
                                 gp_type=10,&
@@ -569,7 +569,7 @@ CONTAINS
                      (ASSOCIATED(potparm_dest%set(1)%buckmo)).OR.&
                      (ASSOCIATED(potparm_dest%set(1)%gp)).OR.&
                      (ASSOCIATED(potparm_dest%set(1)%tersoff))
-             IF (.NOT.check) THEN 
+             IF (.NOT.check) THEN
                 allocate_new = .TRUE.
                 CALL pair_potential_single_release(potparm_dest, error)
              END IF
@@ -591,7 +591,7 @@ CONTAINS
           CALL pair_potential_single_copy(potparm_dest,potparm_tmp,error)
           CALL pair_potential_single_release(potparm_dest, error)
           CALL pair_potential_single_create(potparm_dest,size_dest+size_source,error)
-          ! Copy back original informations.. 
+          ! Copy back original informations..
           potparm_dest % shell_type = potparm_tmp % shell_type
           potparm_dest % undef      = potparm_tmp % undef
           potparm_dest % no_mb      = potparm_tmp % no_mb
@@ -665,7 +665,7 @@ CONTAINS
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_dest%pot)) THEN 
+       IF (.NOT.ASSOCIATED(potparm_dest%pot)) THEN
           CALL pair_potential_single_create(potparm_dest%pot, SIZE(potparm_source%pot%type), error)
        END IF
        CALL pair_potential_single_copy(potparm_source%pot, potparm_dest%pot, error=error)
@@ -1539,7 +1539,7 @@ CONTAINS
        CALL reallocate(eam_dest%frho,  1, eam_dest%npoints)
        CALL reallocate(eam_dest%frhop, 1, eam_dest%npoints)
        CALL reallocate(eam_dest%rval,  1, eam_dest%npoints)
-       CALL reallocate(eam_dest%rhoval,1, eam_dest%npoints)       
+       CALL reallocate(eam_dest%rhoval,1, eam_dest%npoints)
        eam_dest%rho           = eam_source%rho
        eam_dest%phi           = eam_source%phi
        eam_dest%frho          = eam_source%frho
@@ -2141,7 +2141,7 @@ CONTAINS
   END SUBROUTINE pair_potential_buckmo_release
 
 ! *****************************************************************************
-!> \brief Creates the Tersoff potential type 
+!> \brief Creates the Tersoff potential type
 !>      (Tersoff, J. PRB 39(8), 5566, 1989)
 ! *****************************************************************************
   SUBROUTINE pair_potential_tersoff_create(tersoff, error)

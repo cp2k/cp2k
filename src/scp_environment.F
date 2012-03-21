@@ -237,7 +237,7 @@ CONTAINS
           ! No special cases for other elements..
        END SELECT
        ! Set default parameters
-       CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)          
+       CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)
        CALL se_param_set_default(atomic_kind%scp_se_parameter,z,do_method_pnnl,error)
        CALL init_se_param(atomic_kind%scp_se_parameter,atomic_kind%scp_basis_set,ngauss,error=error)
 !       CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
@@ -317,11 +317,11 @@ CONTAINS
                                     BLOCK=BLOCK,error=error)
           DO ii=1,SIZE(block,1)
              DO jj=1,SIZE(block,2)
-                block(ii,jj) = a_scp (ii,jj) 
+                block(ii,jj) = a_scp (ii,jj)
              END DO
           END DO
        END DO ! ilist
-    END DO ! ikind 
+    END DO ! ikind
 
     CALL cp_dbcsr_finalize(pscp,error=error)
 
@@ -333,7 +333,7 @@ CONTAINS
     CALL cp_dbcsr_get_diag( pscp, tmp, error=error )
     ascp_diag=tmp
     CALL set_scp_env ( scp_env=scp_env, ascp_diag=ascp_diag, error = error )
-     
+
 
     CALL cp_dbcsr_set(pscp,0.0_dp,error=error)
     ALLOCATE(ks_scp)

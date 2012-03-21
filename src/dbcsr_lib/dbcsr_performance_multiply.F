@@ -266,7 +266,7 @@ CONTAINS
        WRITE(io_unit,*) 'retain_sparsity',retain_sparsity
        WRITE(io_unit,*) 'nrep',nrep
        WRITE(io_unit,*) 'bs_m',bs_m
-       WRITE(io_unit,*) 'bs_n',bs_n 
+       WRITE(io_unit,*) 'bs_n',bs_n
        WRITE(io_unit,*) 'bs_k',bs_k
     ENDIF
     !
@@ -651,7 +651,7 @@ CONTAINS
     flop_sum = SUM(flops, DIM=1)
     t_max = MAX (t_max, 0.001_real_8)
     flops_all = REAL(flop_sum, KIND=real_8) / t_max !* 1.0e-9_real_8
-    flops_node = flops_all / REAL(numnodes, real_8) 
+    flops_node = flops_all / REAL(numnodes, real_8)
     flops_thread = flops_node / REAL(nthreads, real_8)
     load_imb = t_max - t / REAL(numnodes, real_8)
 

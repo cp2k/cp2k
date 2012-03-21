@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Handles all functions related to the CELL 
+!> \brief Handles all functions related to the CELL
 !> \par History
 !>      11.2008 Teodoro Laino [tlaino] - deeply cleaning cell_type from units
 !> \author MK (16.01.2002, based on a earlier version of CJM and JGH)
@@ -79,7 +79,7 @@ MODULE cell_types
   INTERFACE pbc
      MODULE PROCEDURE pbc1,pbc2,pbc3
   END INTERFACE
-  
+
 CONTAINS
 
 ! *****************************************************************************
@@ -202,7 +202,7 @@ CONTAINS
     !   *** Angles between the cell vectors a, b, and c   ***
     !   *** alpha = <(b,c) ***
     IF (PRESENT(alpha)) alpha = angle(cell%hmat(:,2),cell%hmat(:,3))*degree
-    !   *** beta = <(a,c) ***    
+    !   *** beta = <(a,c) ***
     IF (PRESENT(beta))   beta = angle(cell%hmat(:,1),cell%hmat(:,3))*degree
     !   *** gamma = <(a,b) ***
     IF (PRESENT(gamma)) gamma = angle(cell%hmat(:,1),cell%hmat(:,2))*degree
@@ -268,7 +268,7 @@ CONTAINS
     sin_gamma = SIN(cell_angle(3)); IF (ABS(sin_gamma)<EPSILON(0.0_dp)) sin_gamma = 0.0_dp
     cos_beta  = COS(cell_angle(2)); IF (ABS(cos_beta )<EPSILON(0.0_dp)) cos_beta  = 0.0_dp
     cos_alpha = COS(cell_angle(1)); IF (ABS(cos_alpha)<EPSILON(0.0_dp)) cos_alpha = 0.0_dp
-    
+
     cell%hmat(:,1)=(/   1.0_dp,                                   0.0_dp,  0.0_dp/)
     cell%hmat(:,2)=(/cos_gamma,                                sin_gamma,  0.0_dp/)
     cell%hmat(:,3)=(/ cos_beta, (cos_alpha-cos_gamma*cos_beta)/sin_gamma,  0.0_dp/)
@@ -543,7 +543,7 @@ CONTAINS
        ! Trying to read cell info from file
        CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",explicit=cell_read_file,error=error)
        IF (cell_read_file) CALL read_cell_from_external_file(cell_section, para_env, error)
-       
+
        ! Trying to read cell info from the separate A, B, C vectors
        ! If cell information is provided through file A,B,C contain the file information..
        ! a print warning is shown on screen..
@@ -583,7 +583,7 @@ CPSourceFileRef,&
           CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles,error=error)
           CALL set_cell_param(cell,cell_par,cell_angles,do_init_cell=.FALSE.,error=error)
        END IF
-     
+
        ! Multiple unit cell
        CALL section_vals_val_get(cell_section,"MULTIPLE_UNIT_CELL",i_vals=multiple_unit_cell,error=error)
        IF (ANY(multiple_unit_cell/=1)) CALL set_multiple_unit_cell(cell, multiple_unit_cell, error)
@@ -681,7 +681,7 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE. 
+    failure = .FALSE.
     NULLIFY(parser)
     CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",c_val=cell_file_name,error=error)
     CALL section_vals_val_get(cell_section,"CELL_FILE_FORMAT",i_val=my_format, error=error)
@@ -794,7 +794,7 @@ CPSourceFileRef,&
 !> \author  MK
 !> \date    02.06.2000
 !> \version 1.0
-!> \par     History 
+!> \par     History
 !>    - 11.2008 Teodoro Laino [tlaino] - rewrite and enabling user driven units
 ! *****************************************************************************
   RECURSIVE SUBROUTINE write_cell(cell,subsys_section,cell_ref,label,error)

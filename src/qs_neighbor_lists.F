@@ -110,7 +110,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   free the internals of atom2d
-!> \param   
+!> \param
 ! *****************************************************************************
   SUBROUTINE atom2d_cleanup(atom2d,error)
     TYPE(local_atoms_type), DIMENSION(:)     :: atom2d
@@ -210,7 +210,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             atom_list=atom2d(ikind)%list,&
                             orb_basis_set=orb_basis_set)
-       
+
        natom_a = SIZE(atom2d(ikind)%list)
 
        IF ( molecule_only ) THEN
@@ -325,7 +325,7 @@ CONTAINS
 !> \author  MK
 !> \date    28.08.2000
 !> \par History
-!>          - Major refactoring (25.07.2010,jhu) 
+!>          - Major refactoring (25.07.2010,jhu)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_qs_neighbor_lists(qs_env,para_env,molecular,force_env_section,error)
@@ -438,7 +438,7 @@ CONTAINS
                     sab_tbe=sab_tbe,&
                     sab_core=sab_core,&
                     sab_all=sab_all, &
-                    sab_scp=sab_scp, & 
+                    sab_scp=sab_scp, &
                     error=error)
 
     nddo = qs_env%dft_control%qs_control%semi_empirical
@@ -514,7 +514,7 @@ CONTAINS
                             aux_fit_basis_set=aux_fit_basis_set,&
                             paw_proj_set=paw_proj,&
                             paw_atom=paw_atom)
-       
+
        ! SCP
        IF (ASSOCIATED(aux_basis_set)) THEN
           aux_present(ikind) = .TRUE.
@@ -611,7 +611,7 @@ CONTAINS
        CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_CORE","sab_core","CORE CORE",error)
     ENDIF
-       
+
 
     IF( qs_env%dft_control%do_admm ) THEN
        CALL pair_radius_setup(aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,pair_radius,error)
@@ -699,7 +699,7 @@ CONTAINS
        CALL write_neighbor_lists(sab_se,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_SE","sab_se","HARTREE INTERACTIONS",error)
 
-       ! If requested build the SE long-range correction neighbor list 
+       ! If requested build the SE long-range correction neighbor list
        IF ((qs_env%dft_control%qs_control%se_control%do_ewald).AND.&
            (qs_env%dft_control%qs_control%se_control%integral_screening/=do_se_IS_slater)) THEN
           c_radius = qs_env%dft_control%qs_control%se_control%cutoff_lrc
@@ -708,7 +708,7 @@ CONTAINS
                subcells=subcells,name="sab_lrc",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_lrc=sab_lrc,error=error)
           CALL write_neighbor_lists(sab_lrc,particle_set,cell,para_env,neighbor_list_section,&
-               "/SAB_LRC","sab_lrc","SE LONG-RANGE CORRECTION",error)       
+               "/SAB_LRC","sab_lrc","SE LONG-RANGE CORRECTION",error)
        END IF
 
     ELSEIF (dftb) THEN
@@ -858,11 +858,11 @@ CONTAINS
   END SUBROUTINE build_qs_neighbor_lists
 
 ! *****************************************************************************
-!> \brief   Build simple pair neighbor lists. 
+!> \brief   Build simple pair neighbor lists.
 !> \author  MK
 !> \date    20.03.2002
 !> \par History
-!>          - Major refactoring (25.07.2010,jhu) 
+!>          - Major refactoring (25.07.2010,jhu)
 !> \version 2.0
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab_list,particle_set,atom,cell,pair_radius,subcells,&
@@ -885,7 +885,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    TYPE local_lists 
+    TYPE local_lists
       INTEGER,DIMENSION(:),POINTER           :: list
     END TYPE local_lists
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
@@ -1059,7 +1059,7 @@ CONTAINS
         pd(1) = plane_distance(1,0,0,cell)
         pd(2) = plane_distance(0,1,0,cell)
         pd(3) = plane_distance(0,0,1,cell)
-        
+
         sab_max = rabm / pd
         sab_max_guard = 15.0_dp / pd
 
@@ -1067,7 +1067,7 @@ CONTAINS
         subcell_scale=((125.0_dp**3)/deth)**(1.0_dp/6.0_dp)
 
         ! guess the number of subcells for optimal performance, guard against crazy stuff triggered by very small rabm
-        nsubcell(:) = MAX(1.0_dp,MIN(0.5_dp*subcells*subcell_scale/sab_max(:),0.5_dp*subcells*subcell_scale/sab_max_guard(:))) 
+        nsubcell(:) = MAX(1.0_dp,MIN(0.5_dp*subcells*subcell_scale/sab_max(:),0.5_dp*subcells*subcell_scale/sab_max_guard(:)))
 
         ! number of image cells to be considered
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
@@ -1155,7 +1155,7 @@ CONTAINS
                     loop_i: DO i=1,nsubcell(1)
 
                       ! FIXME for non-periodic systems, the whole subcell trick is skipped
-                      ! yielding a Natom**2 pair list build. 
+                      ! yielding a Natom**2 pair list build.
                       IF (periodic(3) /= 0) THEN
                         IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
                         IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
@@ -1451,7 +1451,7 @@ CONTAINS
 !> \date    04.03.2002
 !> \par History
 !>       - Adapted to the new parallelized neighbor list version
-!>         (26.06.2003,MK) 
+!>         (26.06.2003,MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,neighbor_list_section,&

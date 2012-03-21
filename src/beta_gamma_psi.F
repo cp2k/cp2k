@@ -2087,7 +2087,7 @@ DO n = 2, num, 2
   np1 = n + 1
   s = s + hn
   a0(np1) = 2.0e0_dp*r1*s/(n + 3.0e0_dp)
-  
+
   DO i = n, np1
     r = -0.5e0_dp*(i + 1.0e0_dp)
     b0(1) = r*a0(1)
@@ -2101,7 +2101,7 @@ DO n = 2, num, 2
       b0(m) = r*a0(m) + bsum/m
     END DO
     c(i) = b0(i)/(i + 1.0e0_dp)
-    
+
     dsum = 0.0e0_dp
     im1 = i - 1
     DO j = 1, im1
@@ -2110,7 +2110,7 @@ DO n = 2, num, 2
     END DO
     d(i) = -(dsum + c(i))
   END DO
-  
+
   j0 = e1*znm1 + (n - 1.0e0_dp)*j0
   j1 = e1*zn + n*j1
   znm1 = z2*znm1

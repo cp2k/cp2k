@@ -56,8 +56,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pbe_lda_info(pbe_params,reference,shortform, needs, max_deriv,&
@@ -148,8 +148,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
@@ -241,8 +241,8 @@ END SUBROUTINE pbe_lsd_info
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
@@ -290,7 +290,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
      ELSE
         dummy=> rho
      END IF
-     
+
      e_0 => dummy
      e_rho => dummy
      e_ndrho => dummy
@@ -388,8 +388,8 @@ END SUBROUTINE pbe_lda_eval
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param pbe_params parameters for the pbe functional
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
@@ -525,7 +525,7 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
            t22 = beta_1_1 * t14 + beta_2_1 * rs + beta_3_1 * t17 + t21
            t26 = 0.1e1_dp + t13 / t22 / 0.2e1_dp
            t27 = LOG(t26)
-           e_c_u_0 = -0.2e1_dp * A_1 * t11 * t27 
+           e_c_u_0 = -0.2e1_dp * A_1 * t11 * t27
            t65 = 2 ** (0.1e1_dp / 0.3e1_dp)
            t70 = t69 * my_rho
            t71 = t70 ** (0.1e1_dp / 0.3e1_dp)
@@ -1316,8 +1316,8 @@ END SUBROUTINE pbe_lda_calc
 
 ! *****************************************************************************
 !> \brief evaluates the becke 88 exchange functional for lsd
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
@@ -1472,7 +1472,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE pbe_lsd_eval
- 
+
 ! *****************************************************************************
 !> \brief low level calculation of the pbe exchange-correlation functional for lsd
 !> \param rhoa ,rhob: alpha or beta spin density
@@ -1481,8 +1481,8 @@ END SUBROUTINE pbe_lsd_eval
 !> \param e_ 0: adds to it the local value of the functional
 !> \param e_ *: derivative of the functional wrt. to the variables
 !>        named where the * is.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&

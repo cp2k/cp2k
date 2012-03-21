@@ -88,7 +88,7 @@ CONTAINS
     CALL qs_env_create(qs_env,para_env,globenv,error=error)
     CALL qs_init( qs_env, root_section, subsys=subsys, cell=cell, cell_ref=cell_ref,&
          qmmm=qmmm, qmmm_periodic=qmmm_periodic,qmmm_env_qm=qmmm_env_qm,&
-         force_env_section=force_env_section,& 
+         force_env_section=force_env_section,&
          subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
     CALL force_env_create(force_env,root_section, qs_env=qs_env, para_env=para_env, globenv=globenv,&
          sub_force_env=sub_force_env, force_env_section=force_env_section,error=error)

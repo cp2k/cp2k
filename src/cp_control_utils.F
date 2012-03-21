@@ -92,7 +92,7 @@ CONTAINS
     was_present = .FALSE.
     NULLIFY(tmp_section,xc_fun_section,xc_section)
     CALL dft_control_create(dft_control, error=error)
-    ! determine wheather this is a semiempirical or DFTB run 
+    ! determine wheather this is a semiempirical or DFTB run
     ! --> (no XC section needs to be provided)
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
@@ -293,7 +293,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(tmp_section,"_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
        IF (dft_control%do_xas_calculation) THEN
-          CALL xas_control_create(dft_control%xas_control,error=error)       
+          CALL xas_control_create(dft_control%xas_control,error=error)
           CALL read_xas_control(dft_control%xas_control,dft_section,error=error)
        END IF
     END IF
@@ -314,7 +314,7 @@ CPSourceFileRef,&
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_period_efield,error=error)
     IF (dft_control%apply_period_efield) THEN
        ALLOCATE(dft_control%period_efield,stat=stat)
-       ALLOCATE(dft_control%period_efield%polarisation(3),stat=stat) 
+       ALLOCATE(dft_control%period_efield%polarisation(3),stat=stat)
        CALL section_vals_val_get(tmp_section,"POLARISATION", &
             r_vals=pol,error=error)
             dft_control%period_efield%polarisation=pol
@@ -369,7 +369,7 @@ CPSourceFileRef,&
        IF (para_env%num_pe>1024) qs_control%skip_load_balance_distributed=.TRUE.
     ENDIF
 
-    ! For SE and DFTB possibly override with new defaults 
+    ! For SE and DFTB possibly override with new defaults
     IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN
        ngrid_level   = 1
        multigrid_set = .FALSE.
@@ -482,7 +482,7 @@ CPSourceFileRef,&
     tmpsqrt=SQRT(value) ! a trick to work around a NAG 5.1 optimizer bug
 
     ! random choice ?
-    qs_control%eps_core_charge = value/100.0_dp 
+    qs_control%eps_core_charge = value/100.0_dp
     ! correct if all Gaussians would have the same radius (overlap will be smaller than eps_pgf_orb**2).
     ! Can be significantly in error if not... requires fully new screening/pairlist procedures
     qs_control%eps_pgf_orb     = tmpsqrt
@@ -490,9 +490,9 @@ CPSourceFileRef,&
     qs_control%eps_ppnl        = qs_control%eps_pgf_orb/100.0_dp
     ! accuracy is basically set by the overlap, this sets an empirical shift
     qs_control%eps_ppl         = 1.0E-2_dp
-    ! 
+    !
     qs_control%gapw_control%eps_cpc   = value
-    ! expexted error in the density 
+    ! expexted error in the density
     qs_control%eps_rho_gspace  = value
     qs_control%eps_rho_rspace  = value
     ! error in the gradient, can be the sqrt of the error in the energy, ignored if map_consistent
@@ -652,7 +652,7 @@ CPSourceFileRef,&
        CALL cite_reference(Thiel1992)
        qs_control%semi_empirical = .TRUE.
     END SELECT
-    
+
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
 
     IF (qs_control%mulliken_restraint) THEN
@@ -721,7 +721,7 @@ CPSourceFileRef,&
                cp_warning_level,cp_assertion_failed,routineP,&
                "PNNL semi-empirical parameterization supports only the Slater type "//&
                "integral scheme. Revert to Slater and continue the calculation.",&
-               error=error,failure=failure)          
+               error=error,failure=failure)
           qs_control%se_control%integral_screening = do_se_IS_slater
        END IF
        ! Global Arrays variable
@@ -856,7 +856,7 @@ CPSourceFileRef,&
        END DO
        CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
             c_val=qs_control%dftb_control%uff_force_field,error=error)
-       
+
        IF (qs_control%dftb_control%dispersion)      CALL cite_reference(Zhechkov2005)
        IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
        IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
@@ -929,7 +929,7 @@ CPSourceFileRef,&
   END SUBROUTINE read_tddfpt_control
 
 ! *****************************************************************************
-!> \brief Write the DFT control parameters to the output unit. 
+!> \brief Write the DFT control parameters to the output unit.
 ! *****************************************************************************
   SUBROUTINE write_dft_control(dft_control, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1028,7 +1028,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(xc_section,"gradient_cutoff", r_val=gradient_cut,error=error)
        CALL section_vals_val_get(xc_section,"tau_cutoff", r_val=tau_cut,error=error)
        CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",r_val=density_smooth_cut_range,error=error)
-       
+
        WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
             "DFT| Cutoffs: density ",density_cut,&
             "DFT|          gradient",gradient_cut,&
@@ -1628,9 +1628,9 @@ CPSourceFileRef,&
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        efield%polarisation = tmp_vals
        CALL section_vals_val_get(efield_section,"PHASE",i_rep_section=i, &
-            r_val=efield%phase_offset,error=error) 
+            r_val=efield%phase_offset,error=error)
        CALL section_vals_val_get(efield_section,"ENVELOP",i_rep_section=i, &
-            i_val=efield%envelop_id,error=error)    
+            i_val=efield%envelop_id,error=error)
        CALL section_vals_val_get(efield_section,"WAVELENGTH",i_rep_section=i, &
             r_val=efield%wavelength,error=error)
        IF(efield%envelop_id==constant_env)THEN

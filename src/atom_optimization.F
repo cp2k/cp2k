@@ -93,7 +93,7 @@ CONTAINS
 
     INTEGER                                  :: nlen, nmax, nnow
 
-    nmax = history%max_history 
+    nmax = history%max_history
     nlen = MIN (history%hlen + 1, nmax)
     nnow = history%hpos + 1
     IF (nnow > nmax) nnow = 1
@@ -163,7 +163,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s, work
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vec
 
-    nmax = history%max_history 
+    nmax = history%max_history
     nnow = history%hpos
     a = history%damping
     IF ( history%hlen > 1 ) THEN
@@ -209,7 +209,7 @@ CONTAINS
         fmat = a*history%hmat(nnow)%fmat + (1._dp - a)*history%hmat(nm)%fmat
       END IF
     ELSEIF ( history%hlen == 1 ) THEN
-      fmat = history%hmat(nnow)%fmat 
+      fmat = history%hmat(nnow)%fmat
     ELSE
       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF

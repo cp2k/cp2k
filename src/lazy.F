@@ -20,7 +20,7 @@ MODULE lazy
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lazy'
 
 ! *** Public data types ***
-  
+
   PUBLIC :: lazy_arrays
 
 CONTAINS
@@ -51,7 +51,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! The normalization is chosen such that a constant function remains the same constant 
+       ! The normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        ch(-7)=-5._dp/2048._dp
@@ -69,7 +69,7 @@ CONTAINS
        ch( 5)=49._dp/2048._dp
        ch( 6)=0._dp
        ch( 7)=-5._dp/2048._dp
-       ! 
+       !
        cht( 0)=1._dp
 
        ! g coefficients from h coefficients
@@ -95,7 +95,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -124,7 +124,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -157,7 +157,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -192,7 +192,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -230,7 +230,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -273,7 +273,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -322,7 +322,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -376,7 +376,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp
@@ -452,7 +452,7 @@ CONTAINS
           cgt(i)=0._dp
        ENDDO
 
-       ! the normalization is chosen such that a constant function remains the same constant 
+       ! the normalization is chosen such that a constant function remains the same constant
        ! on each level of the transform
 
        cht( 0)=1._dp

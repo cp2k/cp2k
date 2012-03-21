@@ -67,7 +67,7 @@ MODULE se_core_core
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_core_core'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
-  
+
   PUBLIC :: se_core_core_interaction
 
 CONTAINS
@@ -212,12 +212,12 @@ CONTAINS
                    ! Core-Core term
                    enucij = enucij + se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
                 END IF
-                
+
                 ! Core-Core Derivatives
                 IF(calculate_forces) THEN
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
-                   
+
                    CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
                         anag=anag,se_int_control=se_int_control,se_taper=se_taper,error=error)
 
@@ -259,15 +259,15 @@ CONTAINS
           enuclear = enuclear + enucij
        END DO
        CALL neighbor_list_iterator_release(nl_iterator)
-    
+
        DEALLOCATE (se_kind_param,se_defined,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-       IF (calculate_forces) THEN 
+
+       IF (calculate_forces) THEN
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
+
        CALL mp_sum(enuclear,para_env%group)
        energy%core_overlap  = enuclear
        energy%core_overlap0 = enuclear
@@ -276,6 +276,6 @@ CONTAINS
     CALL finalize_se_taper(se_taper,error=error)
     CALL timestop(handle)
   END SUBROUTINE se_core_core_interaction
-  
+
 END MODULE se_core_core
 

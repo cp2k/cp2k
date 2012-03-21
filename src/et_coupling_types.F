@@ -17,7 +17,7 @@ MODULE et_coupling_types
 
   IMPLICIT NONE
 
-  PRIVATE 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling_types'
 
@@ -42,7 +42,7 @@ MODULE et_coupling_types
     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER     :: rest_mat
     LOGICAL                                            :: first_run
     LOGICAL                                            :: keep_matrix
-    REAL(KIND = dp)                                    :: energy,e1,order_p 
+    REAL(KIND = dp)                                    :: energy,e1,order_p
   END TYPE
 
   CONTAINS
@@ -59,7 +59,7 @@ MODULE et_coupling_types
     LOGICAL                                  :: failure
 
       failure=.FALSE.
-      
+
       ALLOCATE(et_coupling, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -70,7 +70,7 @@ MODULE et_coupling_types
          et_coupling%keep_matrix=.FALSE.
          ALLOCATE(et_coupling%rest_mat(2))
       END IF
-      
+
     END SUBROUTINE et_coupling_create
 
 ! *****************************************************************************
@@ -87,7 +87,7 @@ MODULE et_coupling_types
 
       IF(PRESENT(et_mo_coeff))et_mo_coeff => et_coupling%et_mo_coeff
       IF(PRESENT(rest_mat))rest_mat => et_coupling%rest_mat
-      
+
     END SUBROUTINE get_et_coupling_type
 
 ! *****************************************************************************
@@ -104,7 +104,7 @@ MODULE et_coupling_types
 
       IF(PRESENT(et_mo_coeff))  et_coupling%et_mo_coeff  = et_mo_coeff
       IF(PRESENT(rest_mat)) et_coupling%rest_mat => rest_mat
-      
+
     END SUBROUTINE set_et_coupling_type
 
 ! *****************************************************************************
@@ -128,10 +128,10 @@ MODULE et_coupling_types
 !         CALL deallocate_matrix_set(et_coupling%rest_mat,error)
          DEALLOCATE(et_coupling%rest_mat)
       END IF
-      
+
       DEALLOCATE(et_coupling,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SUBROUTINE et_coupling_release
-    
+
 END MODULE et_coupling_types
-  
+

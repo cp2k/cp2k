@@ -82,7 +82,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     ! Check for  N < 3
-    IF (n  < 3 .OR. n > 5000)   THEN 
+    IF (n  < 3 .OR. n > 5000)   THEN
        failure = .TRUE.
        IF (output_unit>0) WRITE(output_unit,'(A)')&
             "Shapiro Wilk test: number of points less than 3 or greated than 5000."
@@ -90,7 +90,7 @@ CONTAINS
             "Not able to perform the test!"
     END IF
     ! Sort input array of data in ascending order
-    IF (MOD(n,2)==0) THEN 
+    IF (MOD(n,2)==0) THEN
        n2 = n/2
     ELSE
        n2 = (n-1)/2
@@ -104,7 +104,7 @@ CONTAINS
     x = ix
     CALL sort(x, n, itmp)
     ! Check for zero range
-    IF (.NOT.failure ) THEN 
+    IF (.NOT.failure ) THEN
        range = x(n) - x(1)
        IF (range < small) failure = .TRUE.
        IF (failure.AND.(output_unit>0)) THEN
@@ -310,7 +310,7 @@ CONTAINS
     GO TO 40
 20  y = half*z*z
     IF(z > con) GO TO 30
-    
+
     fn_val = half - z*(p-q*y/(y+a1+b1/(y+a2+b2/(y+a3))))
     GO TO 40
 30  fn_val = r*EXP(-y)/(z+c1+d1/(z+c2+d2/(z+c3+d3/(z+c4+d4/(z+c5+d5/(z+c6))))))
@@ -327,7 +327,7 @@ CONTAINS
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
   FUNCTION poly(c, nord, x) RESULT(fn_val)
-    
+
     REAL(KIND=dp), INTENT(IN)                :: c(:)
     INTEGER, INTENT(IN)                      :: nord
     REAL(KIND=dp), INTENT(IN)                :: x
@@ -471,8 +471,8 @@ CONTAINS
        DO i = 11, n
           xdata(i) = 0.1*next_random_number(globenv%gaussian_rng_stream,error=error)
        END DO
-       
-       ! Test for trend 
+
+       ! Test for trend
        DO i = 1, n
           CALL k_test(xdata,i,n,tau,z,prob,error)
           IF (prob<=0.2_dp) EXIT
@@ -486,7 +486,7 @@ CONTAINS
          ydata = xdata(i:n)
          CALL sw_test ( ydata, n-i+1, w, pw, error)
          CALL vn_test(ydata,n-i+1,r,u,prob,error)
-         WRITE(*,*)"Shapiro Wilks test",i,w,pw 
+         WRITE(*,*)"Shapiro Wilks test",i,w,pw
          WRITE(*,*)"Von Neu",i,r,u,prob
          DEALLOCATE(ydata, stat=stat)
          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

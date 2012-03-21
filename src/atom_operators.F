@@ -111,7 +111,7 @@ CONTAINS
       DO ll=1,SIZE(integrals%ceri)
         NULLIFY ( integrals%ceri(ll)%int, integrals%eeri(ll)%int )
       END DO
-    
+
       ALLOCATE (integrals%ovlp(n,n,0:3),STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
       integrals%ovlp = 0._dp
@@ -195,7 +195,7 @@ CONTAINS
             IF (n>0 .AND. m>0) THEN
               ALLOCATE (omat(m,m),STAT=ierr)
               CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-  
+
               CALL  sg_overlap ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
               CALL contract2(integrals%ovlp(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
               CALL  sg_kinetic ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
@@ -365,7 +365,7 @@ CONTAINS
       integrals%n = basis%nbas
 
       NULLIFY ( integrals%core, integrals%hnl )
-    
+
       ALLOCATE (integrals%hnl(n,n,0:3),STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
       integrals%hnl = 0._dp
@@ -469,7 +469,7 @@ CONTAINS
                 IF(n>0 .AND. m>0) THEN
                   ALLOCATE (omat(m,m),spmat(n,5),xmat(m),STAT=ierr)
                   CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-  
+
                   omat = 0._dp
                   CALL sg_erf ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
                   omat(1:m,1:m) = -potential%gth_pot%zion*omat(1:m,1:m)
@@ -513,7 +513,7 @@ CONTAINS
                     integrals%hnl(1:n,1:n,l) = MATMUL(spmat(1:n,1:k),&
                       MATMUL(potential%gth_pot%hnl(1:k,1:k,l),TRANSPOSE(spmat(1:n,1:k))))
                   END IF
-  
+
                   DEALLOCATE (omat,spmat,xmat,STAT=ierr)
                   CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
                 END IF
@@ -684,7 +684,7 @@ CONTAINS
           ALLOCATE (modpot(1:m),cpot(1:m),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           CALL calculate_model_potential(modpot,basis%grid,zcore,error)
-          ! Zora potential 
+          ! Zora potential
           cpot(1:m) = modpot(1:m)/(4._dp*cspeed*cspeed - 2._dp*modpot(1:m))
           cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
           CALL numpot_matrix(integrals%tzora,cpot,basis,0,error)
@@ -943,7 +943,7 @@ CONTAINS
             state%occ(l,i) = ll
           END IF
         END DO
-      END IF 
+      END IF
     END DO
 
     modpot = -zcore/grid%rad(:)
@@ -981,7 +981,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE contract2 
+  END SUBROUTINE contract2
 ! *****************************************************************************
   SUBROUTINE contract2add ( int, omat, cm, error )
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: int

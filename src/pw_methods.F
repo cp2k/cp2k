@@ -47,7 +47,7 @@ MODULE pw_methods
   IMPLICIT NONE
 
   PRIVATE
-  
+
   PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
   PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_dr2, pw_fft_wrap, pw_write
@@ -117,10 +117,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief copy a pw type variable
 !> \note
-!>      Currently only copying of respective types allowed, 
+!>      Currently only copying of respective types allowed,
 !>      in order to avoid errors
 !> \par History
-!>      JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if 
+!>      JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if
 !>        in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
 !>      JGH (21-Feb-2003) : Code for generalized reference grids
 !> \author apsi
@@ -142,11 +142,11 @@ CONTAINS
     CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
-    
+
        IF ( pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical ) THEN
-    
+
           IF ( pw_compatible (pw1%pw_grid, pw2%pw_grid, error=error) ) THEN
-             
+
              IF ( pw1%in_use == COMPLEXDATA1D .AND. &
                   pw2%in_use == COMPLEXDATA1D .AND. &
                   pw1%in_space == RECIPROCALSPACE ) THEN
@@ -167,30 +167,30 @@ CONTAINS
              ELSE
                 CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
              END IF
-             
+
           ELSE
              WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                         " grid 1 :",pw1%pw_grid %id_nr, &
                         " sperical :",pw1%pw_grid%spherical, &
-                        " reference :",pw1%pw_grid%reference 
+                        " reference :",pw1%pw_grid%reference
              WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                         " grid 2 :",pw2%pw_grid %id_nr, &
                         " sperical :",pw2%pw_grid%spherical, &
-                        " reference :",pw2%pw_grid%reference 
+                        " reference :",pw2%pw_grid%reference
              CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
           END IF
-          
+
        ELSE IF ( .NOT. ( pw1%pw_grid%spherical .OR. &
                          pw2%pw_grid%spherical ) ) THEN
 
           ng1 = SIZE ( pw1%cc )
           ng2 = SIZE ( pw2%cc )
           ns = 2 * MAX ( ng1, ng2 )
-          
+
           IF ( pw1%in_use == COMPLEXDATA1D .AND. &
                pw2%in_use == COMPLEXDATA1D .AND. &
                pw1%in_space == RECIPROCALSPACE ) THEN
-             
+
              IF ( ( pw1%pw_grid %id_nr == pw2%pw_grid%reference ) ) THEN
                 IF( ng1 >= ng2 ) THEN
 !$omp parallel do private(i,j)
@@ -225,29 +225,29 @@ CONTAINS
                 WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                            " grid 1 :",pw1%pw_grid %id_nr, &
                            " sperical :",pw1%pw_grid%spherical, &
-                           " reference :",pw1%pw_grid%reference 
+                           " reference :",pw1%pw_grid%reference
                 WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                            " grid 2 :",pw2%pw_grid %id_nr, &
                            " sperical :",pw2%pw_grid%spherical, &
-                           " reference :",pw2%pw_grid%reference 
+                           " reference :",pw2%pw_grid%reference
                 CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
              END IF
-             
+
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
           END IF
-          
+
           pw2%in_space = RECIPROCALSPACE
-          
+
        ELSE
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                      " grid 1 :",pw1%pw_grid %id_nr, &
                      " sperical :",pw1%pw_grid%spherical, &
-                     " reference :",pw1%pw_grid%reference 
+                     " reference :",pw1%pw_grid%reference
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
                      " grid 2 :",pw2%pw_grid %id_nr, &
                      " sperical :",pw2%pw_grid%spherical, &
-                     " reference :",pw2%pw_grid%reference 
+                     " reference :",pw2%pw_grid%reference
           CALL stop_program(routineN,moduleN,__LINE__,"Incompatible grids")
        END IF
 
@@ -276,13 +276,13 @@ CONTAINS
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
        END IF
-       
+
     END IF
-    
+
     pw2%in_space = pw1%in_space
     zc = REAL ( ns,KIND=dp) * 1.e-6_dp
     CALL timestop(handle)
-  
+
   END SUBROUTINE pw_copy
 
 ! *****************************************************************************
@@ -320,7 +320,7 @@ CONTAINS
     CASE (COMPLEXDATA3D )
        ns = 2*SIZE(pw%cc3d)
        pw%cc3d(:,:,:) = a*pw%cc3d(:,:,:)
-    CASE DEFAULT  
+    CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__, "No suitable data field" )
     END SELECT
 
@@ -534,7 +534,7 @@ CONTAINS
 !$omp parallel do private (ig)
           DO ig = pw%pw_grid%first_gne0, cnt
              pwdr2_gg%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig)) &
-                  / pw%pw_grid%gsq(ig) 
+                  / pw%pw_grid%gsq(ig)
           END DO
           flop = flop + 5 * cnt
        END IF
@@ -762,7 +762,7 @@ CONTAINS
 
           IF ( pw1%pw_grid%spherical ) THEN
 
-             IF (my_alpha==1.0_dp) THEN           
+             IF (my_alpha==1.0_dp) THEN
 !$omp parallel do private(i)
                 DO i = 1, ng
                    pw2%cc (i) = pw2%cc (i) + pw1%cc (i)
@@ -1331,7 +1331,7 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__, "In place FFT only possible for "//&
             "replicated data with COMPLEXDATA3D structure" )
     END IF
-    CALL timestop(handle) 
+    CALL timestop(handle)
 
   END SUBROUTINE fft_wrap_pw1
 
@@ -1619,8 +1619,8 @@ CONTAINS
     IF ( test .AND. pw1%pw_grid%para%group_head ) THEN
        WRITE ( *,'(A)') " End of FFT Protocol "
     END IF
-    CALL timestop(handle) 
-    CALL timestop(handle2) 
+    CALL timestop(handle)
+    CALL timestop(handle2)
 
 
   END SUBROUTINE fft_wrap_pw1pw2
@@ -1679,8 +1679,8 @@ CONTAINS
 !>      optional long_description arg?)
 !> \param pw the pw data to output
 !> \param unit_nr the unit to output to
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -1786,8 +1786,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compares two pw, only for debugging purposes
 !> \param pw 1,pw2: the two pw to compare
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi

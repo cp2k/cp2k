@@ -81,15 +81,15 @@ CONTAINS
        CALL get_qs_env(qs_env,cell=cell,vee=v_ee,input=input,error=error)
        ext_pot_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_POTENTIAL",error=error)
        CALL section_vals_val_get(ext_pot_section,"STATIC",l_val=static_potential,error=error)
-       
+
        IF ((.NOT.static_potential).OR.qs_env%dft_control%eval_external_potential) THEN
           dr=v_ee%pw%pw_grid%dr
           dvol=v_ee%pw%pw_grid%dvol
-          v_ee%pw%cr3d=0.0_dp 
-          
+          v_ee%pw%cr3d=0.0_dp
+
           bo_local=v_ee%pw%pw_grid%bounds_local
           bo_global=v_ee%pw%pw_grid%bounds
-          
+
           DO k=bo_local(1,3),bo_local(2,3)
              DO j=bo_local(1,2),bo_local(2,2)
                 DO i=bo_local(1,1),bo_local(2,1)

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculation of Coulomb integrals over Correlated Cartesian Gaussian 
+!> \brief Calculation of Coulomb integrals over Correlated Cartesian Gaussian
 !>        Geminals (electron repulsion integrals, ERIs).
 !>        This is a slow reference implementation for debugging perposes
 !> \par Literature

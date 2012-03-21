@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief   Configuration options for Machine Architecture 
+!> \brief   Configuration options for Machine Architecture
 !> \author  Christiane Pousa Ribeiro
 !> \date    2011-17-08
 !> \version 1.0
@@ -29,7 +29,7 @@ MODULE ma_config
   PUBLIC :: ma_set_conf_print_thread, ma_get_conf_print_thread
   PUBLIC :: ma_set_conf_print_thread_cur, ma_get_conf_print_thread_cur
   PUBLIC :: ma_set_conf_sched, ma_get_conf_sched
-  PUBLIC :: ma_set_conf_mpiSched, ma_get_conf_mpiSched  
+  PUBLIC :: ma_set_conf_mpiSched, ma_get_conf_mpiSched
   PUBLIC :: ma_set_conf_mempol, ma_get_conf_mempol
   PUBLIC :: ma_set_conf_comm_thread, ma_get_conf_comm_thread
   PUBLIC :: ma_set_all_affinty, ma_valid_inputs
@@ -55,16 +55,16 @@ MODULE ma_config
   INTEGER, DIMENSION(:), POINTER :: thread
   INTEGER, DIMENSION(:), POINTER :: memory
 
-  ! Possible prints 
+  ! Possible prints
   LOGICAL            :: print_branch, print_resume, &
-                        print_full, print_proc, print_thread, & 
+                        print_full, print_proc, print_thread, &
                         print_thread_cur, comm_thread
 
   CHARACTER(len=1)   :: use_sched, mpi_sched, use_mempol
 
   LOGICAL, SAVE :: isconfigured = .FALSE.
   LOGICAL, SAVE :: isdefault = .FALSE.
-  LOGICAL, SAVE :: hasnet = .TRUE. 
+  LOGICAL, SAVE :: hasnet = .TRUE.
 
 CONTAINS
 
@@ -154,7 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     comm_thread = comm
-    
+
   END SUBROUTINE ma_set_conf_comm_thread
 
   FUNCTION ma_get_conf_comm_thread () RESULT (comm)
@@ -236,7 +236,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     sched = mpi_sched
-    
+
   END FUNCTION ma_get_conf_mpiSched
 
 
@@ -293,7 +293,7 @@ CONTAINS
     istat = .FALSE.
     IF (SIZE(process) .GE. nMPI .AND. &
         SIZE(memory) .GE. nMPI) THEN
-      istat = .TRUE. 
+      istat = .TRUE.
     END IF
   END FUNCTION ma_valid_inputs
 

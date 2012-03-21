@@ -131,7 +131,7 @@ CONTAINS
           CALL mp_sum(rpoint,para_env%group)
           CALL mp_sum(mtot,para_env%group)
        END IF
-       IF (ABS(mtot) > 0._dp) THEN 
+       IF (ABS(mtot) > 0._dp) THEN
           rpoint(:) = rpoint(:)/mtot
           IF (PRESENT(drpoint)) drpoint = drpoint / mtot
        END IF
@@ -174,7 +174,7 @@ CONTAINS
           CALL mp_sum(rpoint,para_env%group)
           CALL mp_sum(ztot,para_env%group)
        END IF
-       IF (ABS(ztot) > 0._dp) THEN 
+       IF (ABS(ztot) > 0._dp) THEN
           rpoint(:) = rpoint(:)/ztot
           IF (PRESENT(drpoint)) drpoint = drpoint / ztot
        END IF

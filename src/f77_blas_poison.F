@@ -6,7 +6,7 @@ MODULE f77_blas_poison
 ! possible (unless the USE statement is appropriate )
 ! since there will be an argument mismatch. This provides an easy way
 ! to keep a code clean of direct BLAS calls.
-! 
+!
 ! This file can be useful together with the f77_blas_generic module
 ! which provides generic interfaces to the BLAS routines. In that case
 ! only generic calls to BLAS routines will be allowed.
@@ -28,7 +28,7 @@ PUBLIC :: SGEMV, DGEMV, CGEMV, ZGEMV, SGBMV, DGBMV, CGBMV, ZGBMV, &
           CHEMV, ZHEMV, CHBMV, ZHBMV, CHPMV, ZHPMV, SSYMV, DSYMV, &
           SSBMV, DSBMV, SSPMV, DSPMV, STRMV, DTRMV, CTRMV, ZTRMV, &
           STBMV, DTBMV, CTBMV, ZTBMV, STPMV, DTPMV, CTPMV, ZTPMV, &
-          STRSV, DTRSV, CTRSV, ZTRSV, STBSV, DTBSV, CTBSV, ZTBSV, &  
+          STRSV, DTRSV, CTRSV, ZTRSV, STBSV, DTBSV, CTBSV, ZTBSV, &
           STPSV, DTPSV, CTPSV, ZTPSV, SGER,  DGER,  CGERU, ZGERU, &
           CGERC, ZGERC, CHER,  ZHER,  CHPR,  ZHPR,  CHER2, ZHER2, &
           CHPR2, ZHPR2, SSYR,  DSYR,  SSPR,  DSPR,  SSYR2, DSYR2, &

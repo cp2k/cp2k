@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief type for berry phase efield matrices. At the moment only used for 
+!> \brief type for berry phase efield matrices. At the moment only used for
 !>        cosmat and sinmat
 !> \par History
 !>      none
@@ -25,8 +25,8 @@ MODULE qs_period_efield_types
 
   PUBLIC:: efield_berry_type, efield_berry_release, init_efield_matrices, &
            set_efield_matrices,deriv_p_type
-  
-  TYPE deriv_p_type 
+
+  TYPE deriv_p_type
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: deriv
   END TYPE
 
@@ -36,7 +36,7 @@ MODULE qs_period_efield_types
      TYPE(deriv_p_type),DIMENSION(:), POINTER           :: dcosmat
      TYPE(deriv_p_type),DIMENSION(:), POINTER           :: dsinmat
   END TYPE efield_berry_type
-  
+
 CONTAINS
 
 

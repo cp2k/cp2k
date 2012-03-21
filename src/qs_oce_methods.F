@@ -183,9 +183,9 @@ CONTAINS
          ncob = npgfb(jset)*ncoset(lb_max(jset))
          isgfb = first_sgfb(1,jset)
          lsgfb = isgfb - 1 + nsgfb(jset)
- 
+
          lsgfb_cnt = isgfb_cnt - 1 + nsgfb(jset)
- 
+
          DO lprj = 0,maxlprj
            CALL overlap(lprj,lprj,nprjla(lprj),&
                        rzetprja(:,lprj),zetprja(:,lprj),&
@@ -200,8 +200,8 @@ CONTAINS
                lz = indco(3,ico+ncoset(lprj-1))
                c2s(iso,ico) = orbtramat(lprj)%c2s(iso,ico)/SQRT((4.0_dp*pi)/dfac(2*lprj+1)*&
                               dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-             ENDDO 
-           ENDDO 
+             ENDDO
+           ENDDO
            DO ider=1,maxder
              is = (ider-1)*SIZE(spa_tmp,1)
              isp =  (ider-1)*maxcob*nsetb
@@ -219,7 +219,7 @@ CONTAINS
              ENDDO
            ENDDO
          ENDDO
- 
+
          IF(paw_atom_b) THEN
            CALL get_paw_proj_set(paw_proj_set=paw_proj_b,zisomin=zisominb)
            DO ipgf = 1,npgfb(jset)
@@ -235,7 +235,7 @@ CONTAINS
              ENDDO
            END DO
          ENDIF
- 
+
          ! *** Contraction step (integrals and derivatives)
          DO ider = 1,maxder
           first_col = (ider - 1)*maxcob*nsetb + 1 + m1
@@ -290,12 +290,12 @@ CONTAINS
     NULLIFY(orb_basis_a,paw_proj_a)
     CALL get_atomic_kind(atomic_kind=atom_ka,orb_basis_set=orb_basis_a,&
                          paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
- 
+
     IF(.NOT. paw_atom_a) RETURN
- 
+
     CALL get_paw_proj_set(paw_proj_set=paw_proj_a,maxl=maxlprj,nsatbas=nsatbas,&
                           n2oindex=n2oindex)
- 
+
     CALL get_gto_basis_set(gto_basis_set=orb_basis_a,first_sgf=first_sgfa,&
                            nsgf=nsgfa,nsgf_set=nsgf_seta,nset=nseta,maxso=maxsoa)
 
@@ -499,7 +499,7 @@ CONTAINS
          END IF
          IF(.NOT.ASSOCIATED(intac(iac)%alist(ilist)%clist)) THEN
             intac(iac)%alist(ilist)%aatom  = atom_a
-            intac(iac)%alist(ilist)%nclist = nneighbor 
+            intac(iac)%alist(ilist)%nclist = nneighbor
             ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          END IF
@@ -592,10 +592,10 @@ CONTAINS
      ! set up sort index
      CALL sap_sort(intac,error)
 
-   END IF 
+   END IF
 
    CALL timestop(handle)
-    
+
  END SUBROUTINE build_oce_matrices
 
 !==========================================================================================================
@@ -719,5 +719,5 @@ CONTAINS
 
   END SUBROUTINE prj_scatter
 !==========================================================================================================
-  
+
 END MODULE qs_oce_methods

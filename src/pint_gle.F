@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief  Methods to apply GLE to PI runs. 
+!> \brief  Methods to apply GLE to PI runs.
 !> \author michelec
 !> \par History
 !>      06.2010 created [michelec]
@@ -39,7 +39,7 @@ MODULE pint_gle
         pint_env%e_gle=pint_env%e_gle+pint_env%gle%nvt(i)%thermostat_energy
       END DO
     END IF
-  END SUBROUTINE 
+  END SUBROUTINE
 
   SUBROUTINE pint_gle_init( pint_env, error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -53,7 +53,7 @@ MODULE pint_gle
 
     failure = .FALSE.
 
-    CALL gle_cholesky_stab(pint_env%gle%c_mat, cc, pint_env%gle%ndim)  
+    CALL gle_cholesky_stab(pint_env%gle%c_mat, cc, pint_env%gle%ndim)
     DO i = 1, pint_env%gle%loc_num_gle
       imap = pint_env%gle%map_info%index(i)
       ib=1+(imap-1)/pint_env%ndim
@@ -63,7 +63,7 @@ MODULE pint_gle
       DO j = 1, pint_env%gle%ndim
         rr(j) =  next_random_number( rng_stream,error=error)*mf
       END DO
-      pint_env%gle%nvt(i)%s = MATMUL(cc,rr) 
+      pint_env%gle%nvt(i)%s = MATMUL(cc,rr)
     END DO
 
   END SUBROUTINE pint_gle_init
@@ -86,7 +86,7 @@ MODULE pint_gle
     CALL timeset(routineN,handle)
 
     gle => pint_env%gle
-    NULLIFY( rng_stream) 
+    NULLIFY( rng_stream)
     ndim = gle%ndim
 
     ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
@@ -101,13 +101,13 @@ MODULE pint_gle
        imap = gle%map_info%index(ideg)
        ib=1+(imap-1)/pint_env%ndim
        idim=1+MOD(imap-1,pint_env%ndim)
-       
+
        gle%nvt(ideg)%s(1)= pint_env%uv_t(ib,idim)
        gle%nvt(ideg)%thermostat_energy=gle%nvt(ideg)%thermostat_energy &
                +0.5_dp*pint_env%mass_fict(ib,idim)*gle%nvt(ideg)%s(1)**2
        s_tmp(1,imap) = gle%nvt(ideg)%s(1)
        rng_stream => gle%nvt(ideg)%gaussian_rng_stream
-       rr =  next_random_number( rng_stream,error=error)     
+       rr =  next_random_number( rng_stream,error=error)
        mf=1.0_dp/SQRT(pint_env%mass_fict(ib,idim))
        e_tmp(1,imap)= rr*mf
        DO iadd = 2,ndim
@@ -121,7 +121,7 @@ MODULE pint_gle
     alpha = 1.0_dp
     beta = 0.0_dp
 
-    
+
     CALL DGEMM('N','N',ndim,num,ndim,alpha,a_mat(1,1),ndim,e_tmp(1,1),ndim,beta,h_tmp(1,1),ndim)
 
     a_mat => gle%gle_t

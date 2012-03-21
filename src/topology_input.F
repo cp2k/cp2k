@@ -69,7 +69,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, error )
      CALL cp_assert(ival<=1,cp_failure_level,cp_assertion_failed,routineP,&
           "Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! "//&
 CPSourceFileRef,&
-          only_ionode=.TRUE.)     
+          only_ionode=.TRUE.)
      CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res,error=error)
      CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom,error=error)
      CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules,error=error)
@@ -194,10 +194,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                 l_val=cons_info%g33_exclude_qm(ig),error=error)
            CALL section_vals_val_get(g3x3_section,"EXCLUDE_MM",i_rep_section=ig,&
                 l_val=cons_info%g33_exclude_mm(ig),error=error)
-           ! Intramolecular restraint 
+           ! Intramolecular restraint
            CALL section_vals_val_get(g3x3_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%g33_intermolecular(ig),error=error)
-           ! If it is intramolecular let's unset (in case user did it) 
+           ! If it is intramolecular let's unset (in case user did it)
            ! the molecule and molname field
            IF (cons_info%g33_intermolecular(ig)) THEN
               CALL section_vals_val_unset(g3x3_section,"MOLECULE",i_rep_section=ig,error=error)
@@ -290,10 +290,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                 l_val=cons_info%g46_exclude_qm(ig),error=error)
            CALL section_vals_val_get(g4x6_section,"EXCLUDE_MM",i_rep_section=ig,&
                 l_val=cons_info%g46_exclude_mm(ig),error=error)
-           ! Intramolecular restraint 
+           ! Intramolecular restraint
            CALL section_vals_val_get(g4x6_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%g46_intermolecular(ig),error=error)
-           ! If it is intramolecular let's unset (in case user did it) 
+           ! If it is intramolecular let's unset (in case user did it)
            ! the molecule and molname field
            IF (cons_info%g46_intermolecular(ig)) THEN
               CALL section_vals_val_unset(g4x6_section,"MOLECULE",i_rep_section=ig,error=error)
@@ -381,10 +381,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                 l_val=cons_info%vsite_exclude_qm(ig),error=error)
            CALL section_vals_val_get(vsite_section,"EXCLUDE_MM",i_rep_section=ig,&
                 l_val=cons_info%vsite_exclude_mm(ig),error=error)
-           ! Intramolecular restraint 
+           ! Intramolecular restraint
            CALL section_vals_val_get(vsite_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%vsite_intermolecular(ig),error=error)
-           ! If it is intramolecular let's unset (in case user did it) 
+           ! If it is intramolecular let's unset (in case user did it)
            ! the molecule and molname field
            IF (cons_info%vsite_intermolecular(ig)) THEN
               CALL section_vals_val_unset(vsite_section,"MOLECULE",i_rep_section=ig,error=error)
@@ -493,7 +493,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               END DO
               ! Exclude QM or MM work only if defined MOLNAME
               CALL reallocate(cons_info%fixed_exclude_qm,1,msize)
-              CALL reallocate(cons_info%fixed_exclude_mm,1,msize)              
+              CALL reallocate(cons_info%fixed_exclude_mm,1,msize)
               CALL section_vals_val_get(fix_atom_section,"EXCLUDE_QM",i_rep_section=ig,&
                    l_val=cons_info%fixed_exclude_qm(msize_old+1),error=error)
               CALL section_vals_val_get(fix_atom_section,"EXCLUDE_MM",i_rep_section=ig,&
@@ -596,10 +596,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                 l_val=cons_info%colv_exclude_qm(ig),error=error)
            CALL section_vals_val_get(collective_section,"EXCLUDE_MM",i_rep_section=ig,&
                 l_val=cons_info%colv_exclude_mm(ig),error=error)
-           ! Intramolecular restraint 
+           ! Intramolecular restraint
            CALL section_vals_val_get(collective_section,"INTERMOLECULAR",i_rep_section=ig,&
                 l_val=cons_info%colv_intermolecular(ig),error=error)
-           ! If it is intramolecular let's unset (in case user did it) 
+           ! If it is intramolecular let's unset (in case user did it)
            ! the molecule and molname field
            IF (cons_info%colv_intermolecular(ig)) THEN
               CALL section_vals_val_unset(collective_section,"MOLECULE",i_rep_section=ig,error=error)
@@ -650,7 +650,7 @@ CPSourceFileRef,&
         END DO
      END IF
   END IF
-  
+
 END SUBROUTINE read_constraints_section
 
 ! *****************************************************************************
@@ -683,7 +683,7 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label,
      restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",&
           i_rep_section=i_rep_section,error=error)
      CALL section_vals_get(restraint_section,explicit=is_restraint, error=error)
-     IF (is_restraint) THEN        
+     IF (is_restraint) THEN
         CALL section_vals_val_get(restraint_section,"K",r_val=k0,error=error)
         IF (output_unit>0) THEN
            nlabel = cp_to_string(i_rep_section)

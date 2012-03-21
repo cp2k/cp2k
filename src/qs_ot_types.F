@@ -212,15 +212,15 @@ MODULE qs_ot_types
      TYPE(cp_dbcsr_type), POINTER :: rot_mat_evec
      ! *** SCP
      ! third part of the variables, if we are simultaneously
-     ! minimizing SCP variables 
+     ! minimizing SCP variables
      ! DFT
      TYPE ( cp_para_env_type ), POINTER :: scp_para_env
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: x 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: dx 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: gx 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: gx_old 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_e 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_x 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: x
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: dx
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: gx
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: gx_old
+     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_e
+     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_x
      ! NDDO
      TYPE ( cp_dbcsr_type ), POINTER :: xmat
      TYPE ( cp_dbcsr_type ), POINTER :: dxmat
@@ -232,12 +232,12 @@ MODULE qs_ot_types
      ! *** SCP
 
      ! fourth part of the variables, if we need to optimize orbital energies
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_x 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_dx 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx_old 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_e 
-     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_x 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_x
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_dx
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx_old
+     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_e
+     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_x
   END TYPE qs_ot_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_types'
@@ -754,7 +754,7 @@ CONTAINS
     ENDIF
 
     ! **** SCP
-    ! The aux_coeffs in SCP are distributed. The arrays will be 
+    ! The aux_coeffs in SCP are distributed. The arrays will be
     ! allocated to the number of local coeffs.  There may be need
     ! for communication in the minimization
     IF ( qs_ot_env % settings % scp_nddo ) THEN
@@ -768,10 +768,10 @@ CONTAINS
       CALL cp_dbcsr_init_p(qs_ot_env % xmat, error=error)
       CALL cp_dbcsr_copy(qs_ot_env % xmat,scp_sm,"SCP_XMAT",error=error)
       CALL cp_dbcsr_set ( qs_ot_env % xmat, 0.0_dp, error=error )
-      
+
       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-        CALL cp_dbcsr_allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
-        CALL cp_dbcsr_allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
+        CALL cp_dbcsr_allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error )
+        CALL cp_dbcsr_allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error )
 
         DO ii = 1, m_diis
            CALL cp_dbcsr_init_p(qs_ot_env % he_mat ( ii )%matrix, error=error)
@@ -802,21 +802,21 @@ CONTAINS
 
 ! Finding the actuall number of allocated elements in scp_sm.  This will coresspond
 ! to the number of variational degrees of freedom (e.g. coefficients).
-     
+
       ncoef = cp_dbcsr_get_data_size(scp_sm)
-     
+
       qs_ot_env % n_el_scp = ncoef
-   
+
     END IF
     IF ( qs_ot_env % settings % scp_dft ) THEN
-       CALL cp_para_env_retain (  aux_coeff_set % distribution % para_env, error ) 
+       CALL cp_para_env_retain (  aux_coeff_set % distribution % para_env, error )
        qs_ot_env % scp_para_env => aux_coeff_set % distribution % para_env
        ncoef = 0
        nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
        DO ikind = 1, nkind
           local_coeff => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
           IF ( ASSOCIATED ( local_coeff ) ) THEN
-             CALL get_aux_coeff ( coeffs = local_coeff,  & 
+             CALL get_aux_coeff ( coeffs = local_coeff,  &
                   ncoef_of_kind = ncoef_of_kind, error = error  )
              ncoef = ncoef + ncoef_of_kind
           END IF
@@ -964,7 +964,7 @@ CONTAINS
           DEALLOCATE ( qs_ot_env % gx_old, STAT=istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDIF
-       CALL cp_para_env_release ( qs_ot_env % scp_para_env, error ) 
+       CALL cp_para_env_release ( qs_ot_env % scp_para_env, error )
     END IF
 
     IF (qs_ot_env%settings%scp_nddo) THEN

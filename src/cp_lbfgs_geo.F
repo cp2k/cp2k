@@ -89,10 +89,10 @@ CONTAINS
 
        ! Geometry optimization starts now
        output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
-            extension=".geoLog",error=error)       
+            extension=".geoLog",error=error)
        CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)       
+            "PRINT%PROGRAM_RUN_INFO", error=error)
 
        ! Stop if not implemented
        SELECT CASE(gopt_env%type_id)

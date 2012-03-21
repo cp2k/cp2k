@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2012  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
- 
+
 ! *****************************************************************************
 !> \brief a module to allow simple buffering of read lines of a parser
 !> \author Teodoro Laino [tlaino] - University of Zurich

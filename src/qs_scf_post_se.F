@@ -253,13 +253,13 @@ CONTAINS
        IF (do_mo_cubes .AND. (nhomo/=0 .OR. do_stm)) THEN
           IF (qs_env%dft_control%restricted) THEN
              !
-             ! The issue is that one state is different from the others, 
+             ! The issue is that one state is different from the others,
              ! so we certainly can't rotate all N+1 alpha states among themselves
-             ! furthermore, alpha and beta orbitals do have the same shape, 
+             ! furthermore, alpha and beta orbitals do have the same shape,
              ! but not the same v_xc, therefore these seems to be no reason that
              ! they should have the same eigenvalues.
              ! So it looks like I need a convincing definition of an eigenstate in this case :-)
-             ! 
+             !
              IF (output_unit>0) WRITE(output_unit,*) &
                 " Unclear how we define MOs in the restricted case ... skipping"
           ELSE
@@ -400,7 +400,7 @@ CPSourceFileRef,&
        ENDIF
 
        ! Gets the lumos, and eigenvalues for the lumos
-       IF (do_mo_cubes .AND. nlumo .NE. 0 ) THEN 
+       IF (do_mo_cubes .AND. nlumo .NE. 0 ) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
           ALLOCATE(unoccupied_evals(dft_control%nspins))
           DO ispin=1,dft_control%nspins
@@ -486,16 +486,16 @@ CPSourceFileRef,&
           DEALLOCATE(unoccupied_evals)
           DEALLOCATE(unoccupied_orbs)
        ENDIF
-       
+
        ! Print coherent X-ray diffraction spectrum
        CALL qs_scf_post_xray(input, dft_section, logger, qs_env, output_unit, error)
-       
+
        ! Calculation of Electric Field Gradients
        CALL qs_scf_post_efg(input, logger, error)
 
        ! Calculation of ET
        CALL qs_scf_post_et(input, qs_env, dft_control, error)
-       
+
        ! Calculation of EPR Hyperfine Coupling Tensors
        CALL qs_scf_post_epr(input, logger, qs_env, error)
 
@@ -503,7 +503,7 @@ CPSourceFileRef,&
        CALL qs_scf_post_molopt(input, logger, qs_env, error)
 
     END IF
-    
+
     CALL timestop(handle)
 
   END SUBROUTINE scf_post_calculation_se
@@ -752,7 +752,7 @@ CPSourceFileRef,&
   END SUBROUTINE qs_scf_post_xray
 
 ! *****************************************************************************
-!> \brief Dumps EPR 
+!> \brief Dumps EPR
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -781,7 +781,7 @@ CPSourceFileRef,&
   END SUBROUTINE qs_scf_post_epr
 
 ! *****************************************************************************
-!> \brief computes the condition number of the overlap matrix and 
+!> \brief computes the condition number of the overlap matrix and
 !>      prints the value of the total energy. This is needed
 !>      for BASIS_MOLOPT optimizations
 !> \param qs_env the qs_env in which the qs_env lives
@@ -839,7 +839,7 @@ CPSourceFileRef,&
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="ET_COUPLING  not implemented for Semi-Empirical calculations!!", &
             error=error, error_level=cp_warning_level)
-    END IF    
+    END IF
 
   END SUBROUTINE qs_scf_post_et
 

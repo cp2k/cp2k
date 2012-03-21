@@ -115,7 +115,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(harmonics)) THEN 
+    IF (ASSOCIATED(harmonics)) THEN
 
        IF(ASSOCIATED(harmonics%slm)) THEN
           DEALLOCATE (harmonics%slm,STAT=stat)
@@ -223,7 +223,7 @@ CONTAINS
        END DO
 
        !   *** allocate and calculate the spherical harmonics LM for this grid ***
-       !       and their derivatives 
+       !       and their derivatives
        CALL reallocate(harmonics%slm,1,na,1,max_s_harm)
        CALL reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
        CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
@@ -310,7 +310,7 @@ CONTAINS
                         orbtramat(l)%slm(is,ic)*dc(ic,3)
                 END DO
              END DO
-          END DO  ! l   
+          END DO  ! l
        END DO
 
        ! Expansion coefficients of the cartesian derivatives
@@ -419,7 +419,7 @@ CONTAINS
           ! Derivative with respect to the azimuthal angle
           IF(m > 0) THEN
 
-             DO ia = 1,na 
+             DO ia = 1,na
 
                 harmonics%dslm(1,ia,iso) = m_r * cotan_azi(ia)*harmonics%slm(ia,iso)
 
@@ -439,7 +439,7 @@ CONTAINS
           ELSEIF(m == 0) THEN
              IF(l == 0) THEN
                 harmonics%dslm(1,1:na,iso) = 0.0_dp
-             ELSE 
+             ELSE
                 iso_mp1 = soset(l,1)
                 iso_mm1 = soset(l,-1)
                 DO ia = 1,na
@@ -452,8 +452,8 @@ CONTAINS
              END IF
           ELSE
 
-             abs_m = ABS(m_r) 
-             DO ia = 1,na 
+             abs_m = ABS(m_r)
+             DO ia = 1,na
                 harmonics%dslm(1,ia,iso) = abs_m * cotan_azi(ia)*&
                      harmonics%slm(ia,iso)
                 IF(m /= -l) THEN
@@ -462,7 +462,7 @@ CONTAINS
                    sinmp1 =  SIN( (abs_m+1._dp)*pol(ia) )
                    IF(ABS(sinmp1) > EPSILON(1.0_dp) ) THEN
                       harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
-                           SIN( abs_m*pol(ia) ) * harmonics%slm(ia,iso_mm1)/& 
+                           SIN( abs_m*pol(ia) ) * harmonics%slm(ia,iso_mm1)/&
                            sinmp1 * SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )
                    END IF
                 END IF
@@ -479,7 +479,7 @@ CONTAINS
        !          WRITE(25,'(2I4,2f12.5,3f20.16)') l,m,ACOS(cos_pol(ia)),azi(ia),&
        !                    harmonics%slm(ia,iso),&
        !                    harmonics%dslm(1,ia,iso),harmonics%dslm(2,ia,iso)
-       !        END DO 
+       !        END DO
        !      END DO
 
        ! expansion coefficients of product of theta derivatives (dslm(1...)) in
@@ -501,7 +501,7 @@ CONTAINS
          END DO
        END DO
 
-       !   *** Assign indexes for the non null CG coefficients ***      
+       !   *** Assign indexes for the non null CG coefficients ***
        max_iso_not0 = 0
        dmax_iso_not0 = 0
        damax_iso_not0 =  0

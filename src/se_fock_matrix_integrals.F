@@ -32,7 +32,7 @@ MODULE se_fock_matrix_integrals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_integrals'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
-  
+
   PUBLIC :: fock2_1el, dfock2_1el, fock1_2el, fock2_1el_ew, fock2C_ew,&
             fock2C, dfock2C, fock2E, dfock2E, fock2_1el_r3, dfock2_1el_r3,&
             fock2C_r3, dfock2C_r3, se_coulomb_ij_interaction
@@ -163,7 +163,7 @@ CONTAINS
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
           tmp= 2.0_dp * pi_block(i1,j1)
-          force(1) = force(1) + de1b(1,i2) * tmp 
+          force(1) = force(1) + de1b(1,i2) * tmp
           force(2) = force(2) + de1b(2,i2) * tmp
           force(3) = force(3) + de1b(3,i2) * tmp
        END DO
@@ -193,7 +193,7 @@ CONTAINS
        force(2) = force(2) + de2a(2,i2) * pj_block(i1,j1)
        force(3) = force(3) + de2a(3,i2) * pj_block(i1,j1)
     END DO
-    
+
   END SUBROUTINE dfock2_1el
 
 ! *****************************************************************************
@@ -725,12 +725,12 @@ CONTAINS
                 force(1) = force(1) - a(1) * tmp2
                 force(1) = force(1) - a(1) * tmp3
                 force(1) = force(1) - a(1) * tmp4
-                
+
                 force(2) = force(2) - a(2) * tmp1
                 force(2) = force(2) - a(2) * tmp2
                 force(2) = force(2) - a(2) * tmp3
                 force(2) = force(2) - a(2) * tmp4
-                
+
                 force(3) = force(3) - a(3) * tmp1
                 force(3) = force(3) - a(3) * tmp2
                 force(3) = force(3) - a(3) * tmp3
@@ -742,7 +742,7 @@ CONTAINS
   END SUBROUTINE dfock2E
 
 ! *****************************************************************************
-!> \brief  Construction of 2-center 1-electron Fock Matrix for the residual 
+!> \brief  Construction of 2-center 1-electron Fock Matrix for the residual
 !>         (1/R^3) integral part
 !> \param  DIMENSION(sepi%natorb, sepi%natorb) :: ksi_block
 !> \param  DIMENSION(sepj%natorb, sepj%natorb) :: ksj_block
@@ -796,8 +796,8 @@ CONTAINS
   END SUBROUTINE fock2_1el_r3
 
 ! *****************************************************************************
-!> \brief  Derivatives of 2-center 1-electron Fock Matrix residual (1/R^3) 
-!>         integral part 
+!> \brief  Derivatives of 2-center 1-electron Fock Matrix residual (1/R^3)
+!>         integral part
 !> \author Teodoro Laino [tlaino]
 !> \date   12.2008 [tlaino]
 ! *****************************************************************************
@@ -848,12 +848,12 @@ CONTAINS
        force(2) = force(2) + tmp * drp(2)
        force(3) = force(3) + tmp * drp(3)
     END DO
-    
+
   END SUBROUTINE dfock2_1el_r3
 
 ! *****************************************************************************
 !> \brief  Construction of 2-center Fock Matrix - Coulomb Terms for the residual
-!>         (1/R^3) integral part 
+!>         (1/R^3) integral part
 !> \author Teodoro Laino [tlaino]
 !> \param  DIMENSION(sepi%natorb, sepi%natorb) :: fi_mat
 !> \param  DIMENSION(sepj%natorb, sepj%natorb) :: fj_mat
@@ -924,7 +924,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Derivatives of 2-center Fock Matrix - Coulomb Terms for the residual
-!>         (1/R^3) integral part 
+!>         (1/R^3) integral part
 !> \author Teodoro Laino [tlaino]
 !> \date   12.2008 [tlaino]
 ! *****************************************************************************

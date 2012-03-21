@@ -117,7 +117,7 @@ MODULE dbcsr_config
   LOGICAL, PARAMETER :: has_MPI = .TRUE.
 #else
   LOGICAL, PARAMETER :: has_MPI = .FALSE.
-  
+
 #endif
 
   LOGICAL, PARAMETER :: has_omp_2_5 = .TRUE.
@@ -163,7 +163,7 @@ MODULE dbcsr_config
 
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
-  INTEGER, SAVE :: comm_thread_load = 100 
+  INTEGER, SAVE :: comm_thread_load = 100
 
   LOGICAL, SAVE :: is_configured = .FALSE.
 
@@ -191,7 +191,7 @@ CONTAINS
     use_combined_types = .FALSE.
     use_MPI_memory = has_MPI
     use_CUDA_host_pinned_memory = .FALSE.
-      
+
     !
     mm_driver = mm_driver_smm
     mm_stack_size = 1000
@@ -433,7 +433,7 @@ CONTAINS
     nstacks(1) = nm_stacks
     nstacks(2) = nn_stacks
     nstacks(3) = nk_stacks
-    nbuffers   = nstackbuffers 
+    nbuffers   = nstackbuffers
     nmemregs   = nstackmemregions
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks

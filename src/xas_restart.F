@@ -194,7 +194,7 @@ CONTAINS
       CALL get_mo_set(mo_set=mos(1)%mo_set,nao=nao)
       ALLOCATE (vecbuffer(1,nao),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   
+
       DO ispin = 1, SIZE(mos)
         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, eigenvalues=eigenvalues,&
              occupation_numbers=occupation_numbers,mo_coeff=mo_coeff,nelectron=nelectron)
@@ -206,7 +206,7 @@ CONTAINS
           CALL cp_assert(nao==nao_read,cp_failure_level,cp_assertion_failed,routineP,&
                  "To change basis is not possible. "//&
                  CPSourceFileRef,&
-                 only_ionode=.TRUE.)    
+                 only_ionode=.TRUE.)
           ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           eig_read = 0.0_dp
@@ -229,7 +229,7 @@ CPSourceFileRef,&
         ENDIF
         CALL mp_bcast(eigenvalues,source,group)
         CALL mp_bcast(occupation_numbers,source,group)
-        
+
          DO i=1,nmo
             IF (para_env%ionode) THEN
                READ (rst_unit) vecbuffer
@@ -239,7 +239,7 @@ CPSourceFileRef,&
             CALL mp_bcast(vecbuffer,source,group)
             CALL cp_fm_set_submatrix(mo_coeff,&
                  vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
-         END DO  
+         END DO
          ! Skip extra MOs if there any
          IF (para_env%ionode) THEN
            DO i=nmo+1,nmo_read
@@ -311,9 +311,9 @@ CPSourceFileRef,&
 
        output_unit = cp_print_key_unit_nr(logger,xas_section,&
             "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
-       
+
        CALL get_qs_env( qs_env=qs_env, mos=mos, error=error)
-       
+
        ! Open file
        rst_unit = -1
        my_middle= 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))
@@ -329,7 +329,7 @@ CPSourceFileRef,&
           WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,A,/)")&
                "Xas orbitals  for the absorbing atom ", iatom,&
                " are written in ", TRIM(filename)
-          
+
        END IF
 
        ! Write mos
@@ -422,7 +422,7 @@ CPSourceFileRef,&
 !>      03-2010 MI created
 !> \author MI
 ! *****************************************************************************
- 
+
   SUBROUTINE find_excited_core_orbital(xas_env,mos,matrix_s,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env

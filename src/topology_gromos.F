@@ -228,7 +228,7 @@ CONTAINS
                    CALL parser_get_next_line(parser,1,error=error)
                    READ(parser%input_line,iostat=stat,FMT=*) (ii(i),i=begin,ntype)
                 END IF
-                DO i=ntype,1,-1 
+                DO i=ntype,1,-1
                    IF (ii(i).lt.0) THEN
                       begin=i
                    END IF
@@ -259,7 +259,7 @@ CONTAINS
                       CALL parser_get_next_line(parser,1,error=error)
                       READ(parser%input_line,iostat=stat,FMT=*) (ii(i),i=begin,ntype)
                    END IF
-                   DO i=ntype,1,-1 
+                   DO i=ntype,1,-1
                       IF (ii(i).lt.0) THEN
                          begin=i
                       END IF
@@ -723,7 +723,7 @@ CONTAINS
           atom_info%id_resname(natom)=str2id(s2s(strtmp))
           atom_info%id_atmname(natom)=str2id(s2s(strtmp2))
           atom_info%id_molname(natom) = atom_info%id_resname(natom)
-          atom_info%id_element(natom) = atom_info%id_atmname(natom) 
+          atom_info%id_element(natom) = atom_info%id_atmname(natom)
           atom_info%r(1,natom) = cp_unit_to_cp2k(atom_info%r(1,natom),"nm",error=error)
           atom_info%r(2,natom) = cp_unit_to_cp2k(atom_info%r(2,natom),"nm",error=error)
           atom_info%r(3,natom) = cp_unit_to_cp2k(atom_info%r(3,natom),"nm",error=error)
@@ -753,7 +753,7 @@ CONTAINS
              atom_info%id_resname(natom)=str2id(strtmp)
              atom_info%id_atmname(natom)=str2id(strtmp2)
              atom_info%id_molname(natom)=atom_info%id_resname(natom)
-             atom_info%id_element(natom)=atom_info%id_atmname(natom) 
+             atom_info%id_element(natom)=atom_info%id_atmname(natom)
              velocity(1,natom) = cp_unit_to_cp2k(velocity(1,natom),"nm*ps^-1",error=error)
              velocity(2,natom) = cp_unit_to_cp2k(velocity(2,natom),"nm*ps^-1",error=error)
              velocity(3,natom) = cp_unit_to_cp2k(velocity(3,natom),"nm*ps^-1",error=error)

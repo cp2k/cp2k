@@ -132,12 +132,12 @@ CONTAINS
 
         t1 = SQRT(alpha)
         t2 = t1**2
-        t11 = rootpi                      
+        t11 = rootpi
         DO i = 1, n
           x  = r(i)
           t5 = x**2
           t7 = expa(i)
-          t13 = erfa(i)    
+          t13 = erfa(i)
           t18 = -1._dp/t2/t1*(2._dp*x*t7*t1-t11*t13)/4._dp
           wc(i) = t18
         END DO
@@ -147,12 +147,12 @@ CONTAINS
         t1 = SQRT(alpha)
         t2 = t1**2
         t3 = t2**2
-        t17 = rootpi                      
+        t17 = rootpi
         DO i = 1, n
           x  = r(i)
           t6 = x**2
-          t9 = expa(i)        
-          t19 = erfa(i)    
+          t9 = expa(i)
+          t19 = erfa(i)
           t25 = -1._dp/t3/t1*(4._dp*t6*x*t9*t2*t1+6._dp*x*t9*t1-3*t17*t19)/8._dp
           wc(i) = t25
         END DO
@@ -163,13 +163,13 @@ CONTAINS
         t2 = t1**2
         t3 = t2*t1
         t4 = t2**2
-        t23 = rootpi                      
+        t23 = rootpi
         DO i = 1, n
           x  = r(i)
           t7 = x**2
           t8 = t7**2
-          t11 = expa(i)        
-          t25 = erfa(i)    
+          t11 = expa(i)
+          t25 = erfa(i)
           t31 = -1._dp/t4/t3*(8._dp*t8*x*t11*t4*t1+20._dp*t7*x*t11*t3+30._dp*x*t11*t1-&
                 15._dp*t23*t25)/16._dp
           wc(i) = t31
@@ -182,14 +182,14 @@ CONTAINS
         t10 = t9**2
         t11 = t10**2
         t17 = t9*t8
-        t28 = rootpi                      
+        t28 = rootpi
         DO i = 1, n
           x  = r(i)
           t1 = x**2
           t2 = t1*x
           t3 = t1**2
-          t6 = expa(i)        
-          t30 = erfa(i)    
+          t6 = expa(i)
+          t30 = erfa(i)
           t39 = -(16._dp*t3*t2*t6*t11*t8+56._dp*t3*x*t6*t10*t17+140._dp*t2*t6*t10*t8+&
                 210._dp*x*t6*t17-105._dp*t28*t30*alpha)/t11/t17/32._dp
           wc(i) = t39
@@ -202,16 +202,16 @@ CONTAINS
         t10 = t9*t8
         t11 = t9**2
         t12 = t11**2
-        t34 = rootpi                      
+        t34 = rootpi
         DO i = 1, n
           x  = r(i)
           t1 = x**2
           t2 = t1**2
           t3 = t2**2
-          t6 = expa(i)        
+          t6 = expa(i)
           t16 = t1*x
           t28 = t11*t8
-          t36 = erfa(i)    
+          t36 = erfa(i)
           t45 = -(32._dp*t3*x*t6*t12*t10+144._dp*t2*t16*t6*t12*t8+504._dp*t2*x*t6*t11*t10+&
                 1260._dp*t16*t6*t28+1890._dp*x*t6*t10-945._dp*t34*t36*alpha)/t12/t28/64._dp
           wc(i) = t45
@@ -226,15 +226,15 @@ CONTAINS
         t13 = t11**2
         t19 = t10*t9
         t30 = t11*t19
-        t39 = rootpi                      
+        t39 = rootpi
         DO i = 1, n
           x  = r(i)
           t1 = x**2
           t2 = t1*x
           t3 = t1**2
           t4 = t3**2
-          t7 = expa(i)        
-          t41 = erfa(i)    
+          t7 = expa(i)
+          t41 = erfa(i)
           t50 = -(64._dp*t4*t2*t7*t13*t12+352._dp*t4*x*t7*t13*t19+&
                   1584._dp*t3*t2*t7*t13*t9+5544._dp*t3*x*t7*t30+&
                   13860._dp*t2*t7*t12+20790._dp*x*t7*t19-10395._dp*t39*t41*alpha)/&
@@ -250,17 +250,17 @@ CONTAINS
         t12 = t10**2
         t13 = t12*t11
         t14 = t12**2
-        t44 = rootpi                      
+        t44 = rootpi
         DO i = 1, n
           x  = r(i)
           t1 = x**2
           t2 = t1**2
           t3 = t2*x
           t4 = t2**2
-          t7 = expa(i)        
+          t7 = expa(i)
          t18 = t1*x
          t21 = t12*t9
-         t46 = erfa(i)    
+         t46 = erfa(i)
          t51 = t14**2
          t56 = -(128._dp*t4*t3*t7*t13*t14+832._dp*t4*t18*t7*t14*t21+&
                  4576._dp*t4*x*t7*t14*t11+20592._dp*t2*t18*t7*t14*t9+72072._dp*t3*t7*t13+&
@@ -279,7 +279,7 @@ CONTAINS
         t21 = t11*t10
         t22 = t12*t21
         t28 = t12*t10
-        t50 = rootpi                      
+        t50 = rootpi
         DO i = 1, n
           x  = r(i)
           t1 = x**2
@@ -287,9 +287,9 @@ CONTAINS
           t3 = t1**2
           t4 = t3*t2
           t5 = t3**2
-          t8 = expa(i)        
+          t8 = expa(i)
           t18 = t3*x
-          t52 = erfa(i)    
+          t52 = erfa(i)
           t61 = -(256._dp*t5*t4*t8*t14*t10+1920._dp*t5*t18*t8*t13*t22+&
                   12480._dp*t5*t2*t8*t13*t28+68640._dp*t5*x*t8*t13*t21+&
                   308880._dp*t4*t8*t13*t10+1081080._dp*t18*t8*t22+&
@@ -307,8 +307,8 @@ CONTAINS
 !>
 !>                  (-1 - 1/2 l~)                          2
 !>          1/2 alpha              GAMMA(1/2 l + 1, alpha x )
-!>        
-!>        
+!>
+!>
 !>        wc(:)    :: output
 !>        r(:)     :: coordinate
 !>        expa(:)  :: exp(-alpha*r(:)**2)
@@ -354,7 +354,7 @@ CONTAINS
         DO i = 1, n
           x  = r(i)
           t2 = x**2
-          t4 = expa(i)           
+          t4 = expa(i)
           t6 = 1._dp/alpha*t4/2._dp
           wc(i) = t6
         END DO
@@ -366,7 +366,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t9 = t3*(t2+1)/t6/2._dp
           wc(i) = t9
         END DO
@@ -378,7 +378,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t4 = t1**2
           t13 = t3*(t4*t5+2._dp*t2+2._dp)/t5/alpha/2._dp
           wc(i) = t13
@@ -392,7 +392,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t4 = t1**2
           t17 = t3*(t4*t1*t6*alpha+3._dp*t4*t6+6._dp*t2+6._dp)/t14/2._dp
           wc(i) = t17
@@ -406,7 +406,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t4 = t1**2
           t5 = t4**2
           t21 = t3*(t5*t7+4._dp*t4*t1*t6*alpha+12._dp*t4*t6+24._dp*t2+24._dp)/t7/alpha/2._dp
@@ -421,7 +421,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t4 = t1**2
           t5 = t4**2
           t25 = t3*(t5*t1*t8*alpha+5._dp*t5*t8+20._dp*t4*t1*t7*alpha+60._dp*t4*t7+&
@@ -438,7 +438,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t4 = t1**2
           t5 = t4**2
           t29 = t3*(t5*t4*t8*t7+6._dp*t5*t1*t8*alpha+30._dp*t5*t8+120._dp*t4*t1*t18+&
@@ -456,7 +456,7 @@ CONTAINS
           x  = r(i)
           t1 = x**2
           t2 = alpha*t1
-          t3 = expa(i)           
+          t3 = expa(i)
           t4 = t1**2
           t5 = t4*t1
           t6 = t4**2

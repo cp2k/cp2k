@@ -9,7 +9,7 @@
 !>      - build and update merged (11.02.2005,MK)
 !>      - bug fix for PERIODIC NONE (24.02.06,MK)
 !>      - Major rewriting (light memory neighbor lists): teo and joost (05.2006)
-!>      - Completely new algorithm for the neighbor lists 
+!>      - Completely new algorithm for the neighbor lists
 !>        (faster and memory lighter) (Teo 08.2006)
 !> \author MK (19.11.2002,24.07.2003)
 !>      Teodoro Laino (08.2006) - MAJOR REWRITING
@@ -511,7 +511,7 @@ CONTAINS
           bg_k = a_k+ik
           b_k  = MOD(bg_k,zdim)
           b_pk = bg_k/zdim
-          IF (b_k<=0) THEN 
+          IF (b_k<=0) THEN
              b_k  = zdim+b_k
              b_pk = b_pk - 1
           END IF
@@ -523,7 +523,7 @@ CONTAINS
           bg_j = a_j+ij
           b_j  = MOD(bg_j,ydim)
           b_pj = bg_j/ydim
-          IF (b_j<=0) THEN 
+          IF (b_j<=0) THEN
              b_j  = ydim+b_j
              b_pj = b_pj - 1
           END IF
@@ -537,7 +537,7 @@ CONTAINS
           bg_i  = a_i+ii
           b_i  = MOD(bg_i,xdim)
           b_pi = bg_i/xdim
-          IF (b_i<=0) THEN 
+          IF (b_i<=0) THEN
              b_i  = xdim+b_i
              b_pi = b_pi - 1
           END IF
@@ -576,7 +576,7 @@ CONTAINS
                 rab(1) = rb(1) - coord(1,atom_a)
                 rab(2) = rb(2) - coord(2,atom_a)
                 rab(3) = rb(3) - coord(3,atom_a)
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)                
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                 rab_max  = r_max(ikind,jkind)
                 rab2_max = rab_max*rab_max
                 IF (rab2 < rab2_max) THEN
@@ -687,7 +687,7 @@ CONTAINS
        CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
        DO ilist=1,neighbor_kind_pair%npairs
           nneighbor = nneighbor + 1
-          IF (output_unit > 0) THEN             
+          IF (output_unit > 0) THEN
              ! Print second part of the headline
              atom_a = neighbor_kind_pair%list(1,ilist)
              atom_b = neighbor_kind_pair%list(2,ilist)
@@ -697,7 +697,7 @@ CONTAINS
                      "Distance","ONFO","VDW-scale","EI-scale"
                 print_headline = .FALSE.
              END IF
-             
+
              ra(:) = pbc(particle_set(atom_a)%r,cell)
              rb(:) = pbc(particle_set(atom_b)%r,cell)
              rab   = rb(:)-ra(:)+cell_v
@@ -719,7 +719,7 @@ CONTAINS
                      dab*conv
              END IF
           END IF
-       END DO ! ilist      
+       END DO ! ilist
     END DO ! iab
 
     string = ""
@@ -736,7 +736,7 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      09.2007 created [tlaino] University of Zurich - Reducing memory usage 
+!>      09.2007 created [tlaino] University of Zurich - Reducing memory usage
 !>              for the FIST neighbor lists
 !> \author Teodoro Laino - University of Zurich
 ! *****************************************************************************
@@ -776,7 +776,7 @@ CONTAINS
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
        npairs = neighbor_kind_pair%npairs
        nscale = neighbor_kind_pair%nscale
-       IF (npairs/=0) THEN 
+       IF (npairs/=0) THEN
           IF (npairs>nscale) THEN
              ! 1) Sort the atom pairs by id_kind. Pairs whose interactions are
              ! scaled (possibly to zero for exclusion) are not touched. They
@@ -830,7 +830,7 @@ CONTAINS
           ALLOCATE(neighbor_kind_pair%ij_kind(2,max_alloc_size),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! Start the first interval.
-          ipair = 1 
+          ipair = 1
           neighbor_kind_pair%ngrp_kind = 1
           neighbor_kind_pair%grp_kind_start(neighbor_kind_pair%ngrp_kind)=ipair
           ! Get ikind and jkind corresponding to id_kind.

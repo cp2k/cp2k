@@ -80,8 +80,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Main Driver to compute the QM/MM Electrostatic Coupling
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -133,7 +133,7 @@ CONTAINS
             WRITE(iw,'(T2,"QMMM|",1X,A)')"Information on the QM/MM Electrostatic Potential:"
        !
        ! Initializing vectors:
-       !        Zeroing v_qmmm_rspace 
+       !        Zeroing v_qmmm_rspace
        CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw,error=error)
        IF (qs_env%dft_control%qs_control%semi_empirical) THEN
           ! SEMIEMPIRICAL
@@ -147,7 +147,7 @@ CONTAINS
           CASE (do_qmmm_gauss,do_qmmm_swave)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
-                  error=error, error_level=cp_failure_level)            
+                  error=error, error_level=cp_failure_level)
           CASE DEFAULT
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -158,12 +158,12 @@ CONTAINS
           message="QM/MM electrostatic coupling not yet implemented for DFTB.", &
           error=error, error_level=cp_failure_level)
        ELSE
-          ! QS 
+          ! QS
           SELECT CASE(qmmm_env%qmmm_coupl_type)
           CASE(do_qmmm_coulomb)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-                  error=error, error_level=cp_failure_level) 
+                  error=error, error_level=cp_failure_level)
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) &
                   WRITE(iw,'(T2,"QMMM|",1X,A)')&
@@ -212,8 +212,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Compute the QM/MM electrostatic Interaction collocating the gaussian
 !>      Electrostatic Potential
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -260,7 +260,7 @@ CONTAINS
     DO igrid=1,ngrids
        CALL pw_zero(grids(igrid)%pw,error=error)
     END DO
-    
+
     CALL qmmm_elec_with_gaussian_low( grids, mm_particles,&
          qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,  &
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
@@ -272,7 +272,7 @@ CONTAINS
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
        CALL qmmm_elec_with_gaussian_low( grids, qmmm_env%added_charges%added_particles,   &
          qmmm_env%added_charges%mm_atom_chrg, qmmm_env%added_charges%mm_el_pot_radius,    &
-         qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,       & 
+         qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,       &
          cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs,auxbas_grid,     &
          coarser_grid, aug_pools, qmmm_env%added_charges%potentials,            &
          mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic,           &
@@ -318,8 +318,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Compute the QM/MM electrostatic Interaction collocating the gaussian
 !>      Electrostatic Potential - Low Level
-!> \param error variable to control error logging ,stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging ,stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -383,12 +383,12 @@ CONTAINS
     ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (par_scheme==do_par_atom) myind = 0
-    Radius: DO IRadTyp = 1, SIZE(pgfs) 
+    Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
        n_rep_real = 0
        IF (periodic) THEN
-          per_pot => per_potentials(IRadTyp)%pot 
+          per_pot => per_potentials(IRadTyp)%pot
           n_rep_real = per_pot%n_rep_real
        END IF
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
@@ -406,7 +406,7 @@ CONTAINS
              ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
              W         =   mm_charges(LIndMM) * height
              ! Possible Spherical Cutoff
-             IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+             IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
                 CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
                 W = W * sph_chrg_factor
              END IF
@@ -455,7 +455,7 @@ CONTAINS
                                            dOmmOqm=dOmmOqm,&
                                            par_scheme=par_scheme,&
                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
-                                           error=error)       
+                                           error=error)
     ELSE
        ! Long Range Part of the QM/MM Potential with Gaussians
        CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
@@ -479,12 +479,12 @@ CONTAINS
   END SUBROUTINE qmmm_elec_with_gaussian_low
 
 ! *****************************************************************************
-!> \brief Compute the QM/MM electrostatic Interaction collocating 
+!> \brief Compute the QM/MM electrostatic Interaction collocating
 !>      (1/R - Sum_NG Gaussians) on the coarser grid level in G-SPACE
 !>      Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
 !>      PERIODIC BOUNDARY CONDITION VERSION
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      This version includes the explicit code of Eval_Interp_Spl3_pbc
 !>      in order to achieve better performance
@@ -539,14 +539,14 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grid, pw)
-    dr1c = cgrid%pw_grid%dr(1) 
-    dr2c = cgrid%pw_grid%dr(2) 
-    dr3c = cgrid%pw_grid%dr(3) 
+    dr1c = cgrid%pw_grid%dr(1)
+    dr2c = cgrid%pw_grid%dr(2)
+    dr3c = cgrid%pw_grid%dr(3)
     gbo  = cgrid%pw_grid%bounds
     bo   = cgrid%pw_grid%bounds_local
     grid2=>cgrid%cr3d
     IF (par_scheme==do_par_atom) myind = 0
-    Radius: DO IRadTyp = 1, SIZE(pgfs) 
+    Radius: DO IRadTyp = 1, SIZE(pgfs)
        per_pot => per_potentials(IRadTyp)%pot
        pw => per_pot%TabLR
        npts = pw%pw_grid%npts
@@ -564,7 +564,7 @@ CONTAINS
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
-          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
              qt = qt * sph_chrg_factor
           END IF
@@ -584,26 +584,26 @@ CONTAINS
                 DO i =  bo(1,1), bo(2,1)
                    rv1  = rt1 - xs1
                    !
-                   ! Spline Interpolation 
+                   ! Spline Interpolation
                    !
                    vec = (/rv1,rv2,rv3/)
                    ivec = FLOOR(vec/pw%pw_grid%dr)
                    xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
                    xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
-                   xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)    
+                   xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
                    ik1 = MODULO(ivec(3)-1,npts(3))+1
                    ik2 = MODULO(ivec(3)  ,npts(3))+1
                    ik3 = MODULO(ivec(3)+1,npts(3))+1
-                   ik4 = MODULO(ivec(3)+2,npts(3))+1                   
+                   ik4 = MODULO(ivec(3)+2,npts(3))+1
                    ij1 = MODULO(ivec(2)-1,npts(2))+1
                    ij2 = MODULO(ivec(2)  ,npts(2))+1
                    ij3 = MODULO(ivec(2)+1,npts(2))+1
-                   ij4 = MODULO(ivec(2)+2,npts(2))+1       
+                   ij4 = MODULO(ivec(2)+2,npts(2))+1
                    ii1 = MODULO(ivec(1)-1,npts(1))+1
                    ii2 = MODULO(ivec(1)  ,npts(1))+1
                    ii3 = MODULO(ivec(1)+1,npts(1))+1
                    ii4 = MODULO(ivec(1)+2,npts(1))+1
- 
+
                    aaa   = grid(ii1,ij1,ik1)
                    baa   = grid(ii2,ij1,ik1)
                    caa   = grid(ii3,ij1,ik1)
@@ -668,7 +668,7 @@ CONTAINS
                    bdd   = grid(ii2,ij4,ik4)
                    cdd   = grid(ii3,ij4,ik4)
                    ddd   = grid(ii4,ij4,ik4)
-                   
+
                    a1  = 3.0_dp + xd1
                    a2  = a1*a1
                    a3  = a2*a1
@@ -705,7 +705,7 @@ CONTAINS
                    u1  = xd3
                    u2  = u1*u1
                    u3  = u2*u1
-       
+
                    t1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
                    t2 = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
                    t3 =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
@@ -718,7 +718,7 @@ CONTAINS
                    v2 = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
                    v3 =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
                    v4 =   1.0_dp/6.0_dp*u3
-       
+
                    val = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
                           ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
                           ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
@@ -734,9 +734,9 @@ CONTAINS
                          (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
                           ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
                           ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
-                          ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
+                          ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
 
-                   grid2(i,j,k) = grid2(i,j,k) - val * qt 
+                   grid2(i,j,k) = grid2(i,j,k) - val * qt
                    xs1 = xs1 + dr1c
                 END DO
                 xs2 = xs2 + dr2c
@@ -748,11 +748,11 @@ CONTAINS
   END SUBROUTINE qmmm_elec_with_gaussian_LG
 
 ! *****************************************************************************
-!> \brief Compute the QM/MM electrostatic Interaction collocating 
+!> \brief Compute the QM/MM electrostatic Interaction collocating
 !>      (1/R - Sum_NG Gaussians) on the coarser grid level.
 !>      Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -802,16 +802,16 @@ CONTAINS
     n1   = grid%pw_grid%npts(1)
     n2   = grid%pw_grid%npts(2)
     n3   = grid%pw_grid%npts(3)
-    dr1  = grid%pw_grid%dr(1) 
-    dr2  = grid%pw_grid%dr(2) 
-    dr3  = grid%pw_grid%dr(3) 
+    dr1  = grid%pw_grid%dr(1)
+    dr2  = grid%pw_grid%dr(2)
+    dr3  = grid%pw_grid%dr(3)
     gbo  = grid%pw_grid%bounds
     bo   = grid%pw_grid%bounds_local
     grid2=>grid%cr3d
     IF (par_scheme==do_par_atom) myind=0
-    Radius: DO IRadTyp = 1, SIZE(pgfs) 
+    Radius: DO IRadTyp = 1, SIZE(pgfs)
        pot => potentials(IRadTyp)%pot
-       dx     =  Pot%dx 
+       dx     =  Pot%dx
        pot0_2 => Pot%pot0_2
        Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
           IF (par_scheme==do_par_atom) THEN
@@ -823,7 +823,7 @@ CONTAINS
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
-          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
              qt = qt * sph_chrg_factor
           END IF
@@ -847,12 +847,12 @@ CONTAINS
                    ix  = FLOOR(r/dx)+1
                    rx  = (r-REAL(ix-1,dp)*dx)/dx
                    rx2 = rx*rx
-                   rx3 = rx2*rx                   
+                   rx3 = rx2*rx
                    Term = pot0_2(1,ix  )*(1.0_dp-3.0_dp*rx2+2.0_dp*rx3)  &
                          +pot0_2(2,ix  )*(rx-2.0_dp*rx2+rx3)             &
                          +pot0_2(1,ix+1)*(3.0_dp*rx2-2.0_dp*rx3)         &
                          +pot0_2(2,ix+1)*(-rx2+rx3)
-                   grid2(i,j,k) = grid2(i,j,k) - Term * qt 
+                   grid2(i,j,k) = grid2(i,j,k) - Term * qt
                    xs1 = xs1 + dr1
                 END DO
                 xs2 = xs2 + dr2

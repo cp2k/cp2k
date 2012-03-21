@@ -124,7 +124,7 @@ CONTAINS
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          &                             extension=".linresLog",error=error)
-    
+
     IF(epr_env%ref_count /= 0) THEN
       CALL epr_env_cleanup(epr_env,error=error)
     END IF

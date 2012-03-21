@@ -113,8 +113,8 @@ CONTAINS
                  IF (ls_mstruct%atom_to_molecule(iblock_row)==ls_mstruct%atom_to_molecule(iblock_col)) block_needed=.TRUE.
               ENDIF
           ENDIF
-          
-          ! add it 
+
+          ! add it
           IF (block_needed) THEN
              !CALL cp_dbcsr_put_block(matrix=matrix_bs,&
              !                   row=iblock_row, col=iblock_col, block=block_s)
@@ -146,10 +146,10 @@ CONTAINS
     CASE(ls_s_preconditioner_atomic, ls_s_preconditioner_molecular)
        CALL cp_dbcsr_copy(matrix_bs_sqrt,matrix_bs,error=error)
        CALL cp_dbcsr_copy(matrix_bs_sqrt_inv,matrix_bs,error=error)
-       ! XXXXXXXXXXX 
+       ! XXXXXXXXXXX
        ! XXXXXXXXXXX the threshold here could be done differently,
        ! XXXXXXXXXXX using eps_filter is reducing accuracy for no good reason, this is cheap
-       ! XXXXXXXXXXX 
+       ! XXXXXXXXXXX
        CALL matrix_sqrt_Newton_Schulz(matrix_bs_sqrt,matrix_bs_sqrt_inv,matrix_bs,&
                                       threshold=MIN(threshold,1.0E-10_dp),error=error)
     END SELECT
@@ -261,11 +261,11 @@ CONTAINS
        CALL density_matrix_sign_fixed_mu(matrix_p,trace,mu,matrix_ks,matrix_s,matrix_s_inv,threshold,error)
        IF (unit_nr>0) WRITE(unit_nr,'(T2,A,I2,1X,F13.9,1X,F15.9)') &
              "Density matrix:  iter, mu, trace error: ", iter, mu, trace-nelectron
-    
+
        ! OK, we can skip early if we are as close as possible to the exact result
-       ! smaller differences should be considered 'noise' 
+       ! smaller differences should be considered 'noise'
        IF (ABS(trace-nelectron)<0.5_dp .OR. fixed_mu) EXIT
-   
+
        IF (trace<nelectron) THEN
           mu_low=mu
           mu=mu+increment
@@ -327,7 +327,7 @@ CONTAINS
     ! compute sign(inv(S)*H-I*mu)
     CALL cp_dbcsr_init(matrix_sign,error=error)
     CALL cp_dbcsr_create(matrix_sign,template=matrix_s,matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL matrix_sign_Newton_Schulz(matrix_sign,matrix_sinv_ks,threshold,error) 
+    CALL matrix_sign_Newton_Schulz(matrix_sign,matrix_sinv_ks,threshold,error)
     CALL cp_dbcsr_release(matrix_sinv_ks,error=error)
 
     ! now construct the density matrix PS=0.5*(I-sign(inv(S)H-I*mu))

@@ -35,7 +35,7 @@ MODULE cuda_memory
   !the pointer to the begining of the device memory array
   REAL(kind=sp), POINTER, PRIVATE           :: device_memory
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cuda_memory'
- 
+
   PUBLIC  :: cuda_device_mem_init, cuda_device_mem_release
 CONTAINS
 
@@ -78,7 +78,7 @@ CONTAINS
     CALL cuda_device_mem_release_cu(device_memory)
     CALL cublasshutdown_cu()
 
-#endif 
+#endif
 
   END SUBROUTINE cuda_device_mem_release
 

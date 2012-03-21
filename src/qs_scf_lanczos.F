@@ -4,8 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief module that contains the algorithms to perform an itrative 
-!>         diagonalization by the block-Lanczos approach 
+!> \brief module that contains the algorithms to perform an itrative
+!>         diagonalization by the block-Lanczos approach
 !> \par History
 !>      05.2009 created [MI]
 !> \author fawzi
@@ -48,9 +48,9 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-!> \brief  allocates matrices and vectros used in the construction of 
+!> \brief  allocates matrices and vectros used in the construction of
 !>        the krylov space and for the lanczos refinement
-!> \param 
+!> \param
 !> \par History
 !>      05.2009 created [MI]
 ! *****************************************************************************
@@ -73,22 +73,22 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-    failure = .FALSE. 
-     
+    failure = .FALSE.
+
     CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(krylov_space),cp_failure_level,routineP,error,failure)
 
     IF(.NOT. ASSOCIATED(krylov_space%mo_conv)) THEN
         NULLIFY(fm_struct_tmp, mo_coeff)
-     
+
         krylov_space%nkrylov = scf_control%diagonalization%nkrylov
         krylov_space%nblock = scf_control%diagonalization%nblock_krylov
-     
-        nk =  krylov_space%nkrylov 
+
+        nk =  krylov_space%nkrylov
         nblock =  krylov_space%nblock
         nspin = SIZE(mos,1)
-     
+
         ALLOCATE(krylov_space%mo_conv(nspin),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(krylov_space%mo_refine(nspin),STAT=istat)
@@ -111,15 +111,15 @@ CONTAINS
            CALL cp_fm_struct_release(fm_struct_tmp,error=error)
            max_nmo = MAX(max_nmo,nmo)
         END DO
-     
-     
+
+
         !the use of max_nmo might not be ok, in this case allocate nspin matrices
         ALLOCATE(krylov_space%c_eval(max_nmo),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     
+
         ALLOCATE(krylov_space%v_mat(nk),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     
+
         NULLIFY(fm_struct_tmp)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nblock,&
                                  para_env=mo_coeff%matrix_struct%para_env, &
@@ -131,8 +131,8 @@ CONTAINS
         CALL cp_fm_create(krylov_space%tmp_mat,matrix_struct=fm_struct_tmp,&
                 name="tmp_mat",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-     
-    ! NOTE: the following matrices are small and could be defined 
+
+    ! NOTE: the following matrices are small and could be defined
 !           as standard array rather than istributed fm
         NULLIFY(fm_struct_tmp)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nblock, ncol_global=nblock,&
@@ -145,16 +145,16 @@ CONTAINS
         CALL cp_fm_create(krylov_space%block3_mat,matrix_struct=fm_struct_tmp,&
                 name="b2_mat_"//TRIM(ADJUSTL(cp_to_string(ik))),error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-        
+
         ndim = nblock*nk
         NULLIFY(fm_struct_tmp)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ndim, ncol_global=ndim,&
                                  para_env=mo_coeff%matrix_struct%para_env, &
                                  context=mo_coeff%matrix_struct%context,error=error)
         CALL cp_fm_create(krylov_space%block4_mat,matrix_struct=fm_struct_tmp,&
-                name="t_mat",error=error) 
+                name="t_mat",error=error)
         CALL cp_fm_create(krylov_space%block5_mat,matrix_struct=fm_struct_tmp,&
-                name="t_vec",error=error) 
+                name="t_vec",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ALLOCATE(krylov_space%t_eval(ndim),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -164,13 +164,13 @@ CONTAINS
     END IF
 
     CALL timestop(handle)
-  
+
   END SUBROUTINE krylov_space_allocate
-  
+
 
 ! *****************************************************************************
 !> \brief lanczos refinement by blocks of not-converged MOs
-!> \param 
+!> \param
 !> \par History
 !>      05.2009 created [MI]
 ! *****************************************************************************
@@ -230,16 +230,16 @@ CONTAINS
                        para_env=c0%matrix_struct%para_env, &
                        context=c0%matrix_struct%context,error=error)
     CALL cp_fm_create(c_tmp,matrix_struct=fm_struct_tmp,&
-                name="c_tmp",error=error) 
+                name="c_tmp",error=error)
     CALL cp_fm_create(hc,matrix_struct=fm_struct_tmp,&
-                name="hc",error=error) 
+                name="hc",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    !Compute (C^t)HC 
+    !Compute (C^t)HC
     CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,hc,error=error)
     CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,hc,rzero,chc,error=error)
 
-    !Diagonalize  (C^t)HC 
+    !Diagonalize  (C^t)HC
     CALL timeset(routineN//"diag_chc",hand1)
     CALL cp_fm_syevd(chc,evec,eval,error=error)
     CALL timestop(hand1)
@@ -273,7 +273,7 @@ CONTAINS
     END DO
 
     nblock = krylov_space%nblock
-    num_blocks = nmo_nc/nblock 
+    num_blocks = nmo_nc/nblock
 
     krylov_space%nmo_nc = nmo_nc
     krylov_space%nmo_conv = nmo_converged
@@ -287,18 +287,18 @@ CONTAINS
       RETURN
     ELSE IF(krylov_space%nmo_nc>0) THEN
 
-      CALL cp_fm_to_fm(c0,c1,nmo_nc,nmo_converged+1,1)    
+      CALL cp_fm_to_fm(c0,c1,nmo_nc,nmo_converged+1,1)
 
       nblock = krylov_space%nblock
       IF(MODULO(nmo_nc,nblock)>0.0_dp) THEN
         num_blocks = nmo_nc/nblock +1
       ELSE
-        num_blocks = nmo_nc/nblock 
+        num_blocks = nmo_nc/nblock
       END IF
 
       DO ib = 1, num_blocks
 
-        imo_low = (ib-1)*nblock + 1 
+        imo_low = (ib-1)*nblock + 1
         imo_up =  MIN(ib*nblock,nmo_nc)
         nmob = imo_up - imo_low + 1
         ndim = krylov_space%nkrylov*nmob
@@ -308,14 +308,14 @@ CONTAINS
                        para_env=c0%matrix_struct%para_env, &
                        context=c0%matrix_struct%context,error=error)
         CALL cp_fm_create(c2_tmp,matrix_struct=fm_struct_tmp,&
-                      name="c2_tmp",error=error) 
+                      name="c2_tmp",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         NULLIFY(fm_struct_tmp)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmob, ncol_global=ndim,&
                        para_env=c0%matrix_struct%para_env, &
                        context=c0%matrix_struct%context,error=error)
         CALL cp_fm_create(c3_tmp,matrix_struct=fm_struct_tmp,&
-                      name="c3_tmp",error=error) 
+                      name="c3_tmp",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
         ! Create local matrix of right size
@@ -326,20 +326,20 @@ CONTAINS
                              para_env=chc%matrix_struct%para_env, &
                              context=chc%matrix_struct%context,error=error)
           CALL cp_fm_create(a_mat,matrix_struct=fm_struct_tmp,&
-                name="a_mat",error=error) 
+                name="a_mat",error=error)
           CALL cp_fm_create(b_mat,matrix_struct=fm_struct_tmp,&
-                name="b_mat",error=error) 
+                name="b_mat",error=error)
           CALL cp_fm_create(b2_mat,matrix_struct=fm_struct_tmp,&
-                name="b2_mat",error=error) 
+                name="b2_mat",error=error)
           CALL cp_fm_struct_release(fm_struct_tmp,error=error)
           NULLIFY(fm_struct_tmp)
           CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ndim, ncol_global=ndim,&
                              para_env=chc%matrix_struct%para_env, &
                              context=chc%matrix_struct%context,error=error)
           CALL cp_fm_create(t_mat,matrix_struct=fm_struct_tmp,&
-                name="t_mat",error=error) 
+                name="t_mat",error=error)
           CALL cp_fm_create(t_vec,matrix_struct=fm_struct_tmp,&
-                name="t_vec",error=error) 
+                name="t_vec",error=error)
           CALL cp_fm_struct_release(fm_struct_tmp,error=error)
           NULLIFY(fm_struct_tmp)
           CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmob,&
@@ -348,7 +348,7 @@ CONTAINS
           ALLOCATE(v_mat(krylov_space%nkrylov))
           DO ik=1,krylov_space%nkrylov
             CALL cp_fm_create(v_mat(ik)%matrix,matrix_struct=fm_struct_tmp,&
-                name="v_mat",error=error) 
+                name="v_mat",error=error)
           END DO
           CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ELSE
@@ -366,9 +366,9 @@ CONTAINS
     CALL timeset(routineN//"_kry_loop",hand2)
         CALL cp_fm_set_all(b_mat,rzero,error=error)
         CALL cp_fm_set_all(t_mat,rzero,error=error)
-        CALL cp_fm_to_fm(c1,v_mat(1)%matrix,nmob,imo_low,1) 
+        CALL cp_fm_to_fm(c1,v_mat(1)%matrix,nmob,imo_low,1)
 
-      !Compute A =(V^t)HV 
+      !Compute A =(V^t)HV
         CALL cp_fm_gemm('N','N',nao,nmob,nao,rone,ks,v_mat(1)%matrix,rzero,hc,error=error)
         CALL cp_fm_gemm('T','N',nmob,nmob,nao,rone,v_mat(1)%matrix,hc,&
                    rzero,a_mat,error=error)
@@ -393,18 +393,18 @@ CONTAINS
            CALL cp_fm_triangular_multiply(b_mat,  v_mat(ik)%matrix, side="R", invert_tr=.TRUE.,&
               n_rows=nao,n_cols=nmob,error=error)
 
-       !Compute A =(V^t)HV 
+       !Compute A =(V^t)HV
            CALL cp_fm_gemm('N','N',nao,nmob,nao,rone,ks,v_mat(ik)%matrix,rzero,hc,error=error)
            CALL cp_fm_gemm('T','N',nmob,nmob,nao,rone,v_mat(ik)%matrix,hc,rzero, a_mat,error=error)
 
-       !Compute the !residual matrix R !for next !factorisation 
+       !Compute the !residual matrix R !for next !factorisation
            CALL cp_fm_gemm('N','N',nao,nmob,nmob,rone,v_mat(ik)%matrix,a_mat,&
-                   rzero,c_tmp,error=error) 
-           CALL cp_fm_scale_and_add(rmone,c_tmp,rone,hc,error=error) 
+                   rzero,c_tmp,error=error)
+           CALL cp_fm_scale_and_add(rmone,c_tmp,rone,hc,error=error)
            CALL cp_fm_to_fm(v_mat(ik-1)%matrix,hc,nmob,1,1)
            CALL cp_fm_triangular_multiply(b_mat,hc,side='R',transpose_tr=.TRUE.,&
-                   n_rows=nao,n_cols=nmob,alpha=rmone,error=error) 
-           CALL cp_fm_scale_and_add(rone,c_tmp,rone,hc,error=error) 
+                   n_rows=nao,n_cols=nmob,alpha=rmone,error=error)
+           CALL cp_fm_scale_and_add(rone,c_tmp,rone,hc,error=error)
 
 
         ! Build the block tridiagonal matrix
@@ -416,7 +416,7 @@ CONTAINS
            CALL cp_fm_transpose(b_mat,a_mat,error=error)
            CALL cp_fm_get_submatrix(a_mat,tblock,1,1,nmob,nmob,error=error)
            CALL cp_fm_set_submatrix(t_mat,tblock,it,jt,nmob,nmob,error=error)
-          
+
         END DO ! ik
     CALL timestop(hand2)
 
@@ -457,14 +457,14 @@ CONTAINS
               END IF
            END DO
            itaken(ik) = 1
-            
+
           CALL cp_fm_to_fm(c2_tmp,v_mat(1)%matrix,1,ik,it)
         END DO
         DEALLOCATE(itaken,STAT=istat)
         DEALLOCATE(q_mat,STAT=istat)
 
       !Copy in the converged set to enlarge the converged subspace
-        CALL cp_fm_to_fm(v_mat(1)%matrix,c0,nmob,1,(nmo_converged+imo_low)) 
+        CALL cp_fm_to_fm(v_mat(1)%matrix,c0,nmob,1,(nmo_converged+imo_low))
     CALL timestop(hand4)
 
         IF(nmob<nblock) THEN
@@ -565,16 +565,16 @@ CONTAINS
                        para_env=c0%matrix_struct%para_env, &
                        context=c0%matrix_struct%context,error=error)
     CALL cp_fm_create(c_tmp,matrix_struct=fm_struct_tmp,&
-                name="c_tmp",error=error) 
+                name="c_tmp",error=error)
     CALL cp_fm_create(hc,matrix_struct=fm_struct_tmp,&
-                name="hc",error=error) 
+                name="hc",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    !Compute (C^t)HC 
+    !Compute (C^t)HC
     CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,hc,error=error)
     CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,hc,rzero,chc,error=error)
 
-    !Diagonalize  (C^t)HC 
+    !Diagonalize  (C^t)HC
     CALL timeset(routineN//"diag_chc",hand1)
     CALL cp_fm_syevd(chc,evec,eval,error=error)
 
@@ -622,18 +622,18 @@ CONTAINS
       ! Do nothing
     ELSE IF(krylov_space%nmo_nc>0) THEN
 
-      CALL cp_fm_to_fm(c0,c1,nmo_nc,nmo_converged+1,1)    
+      CALL cp_fm_to_fm(c0,c1,nmo_nc,nmo_converged+1,1)
 
       nblock = krylov_space%nblock
       IF(MODULO(nmo_nc,nblock)>0.0_dp) THEN
         num_blocks = nmo_nc/nblock +1
       ELSE
-        num_blocks = nmo_nc/nblock 
+        num_blocks = nmo_nc/nblock
       END IF
 
       DO ib = 1, num_blocks
 
-        imo_low = (ib-1)*nblock + 1 
+        imo_low = (ib-1)*nblock + 1
         imo_up =  MIN(ib*nblock,nmo_nc)
         nmob = imo_up - imo_low + 1
         ndim = krylov_space%nkrylov*nmob
@@ -648,22 +648,22 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
         NULLIFY(fm_struct_tmp)
-      ! by forcing ncol_block=nmo, the needed part of the matrix is distributed on a subset of processes  
+      ! by forcing ncol_block=nmo, the needed part of the matrix is distributed on a subset of processes
       ! this is due to the use of two-dimensional grids of processes
       ! nrow_global is distributed over num_pe(1)
       ! a local_data array is anyway allocated for the processes non included
       ! this should have a minimum size
-      ! with ncol_local=1.      
+      ! with ncol_local=1.
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmob,&
                        ncol_block=nmob,&
                        para_env=c0%matrix_struct%para_env, &
                        context=c0%matrix_struct%context,&
                        force_block=.TRUE.,error=error)
         CALL cp_fm_create(c_tmp,matrix_struct=fm_struct_tmp,&
-                name="c_tmp",error=error) 
+                name="c_tmp",error=error)
         CALL cp_fm_set_all(c_tmp,rzero,error=error)
         CALL cp_fm_create(v_tmp,matrix_struct=fm_struct_tmp,&
-                name="v_tmp",error=error) 
+                name="v_tmp",error=error)
         CALL cp_fm_set_all(v_tmp,rzero,error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         NULLIFY(fm_struct_tmp)
@@ -676,10 +676,10 @@ CONTAINS
                        force_block=.TRUE.,error=error)
         DO ik=1,krylov_space%nkrylov
             CALL cp_fm_create(v_mat(ik)%matrix,matrix_struct=fm_struct_tmp,&
-                name="v_mat",error=error) 
+                name="v_mat",error=error)
         END DO
         CALL cp_fm_create(hc,matrix_struct=fm_struct_tmp,&
-                name="hc",error=error) 
+                name="hc",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         NULLIFY(fm_struct_tmp)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=ndim,&
@@ -688,7 +688,7 @@ CONTAINS
                        context=c0%matrix_struct%context,&
                        force_block=.TRUE., error=error)
         CALL cp_fm_create(c2_tmp,matrix_struct=fm_struct_tmp,&
-                      name="c2_tmp",error=error) 
+                      name="c2_tmp",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
         NULLIFY(fm_struct_tmp)
@@ -696,7 +696,7 @@ CONTAINS
                        para_env=c0%matrix_struct%para_env, &
                        context=c0%matrix_struct%context,error=error)
         CALL cp_fm_create(b_mat,matrix_struct=fm_struct_tmp,&
-                name="b_mat",error=error) 
+                name="b_mat",error=error)
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         CALL timestop(hand6)
         !End allocation
@@ -706,9 +706,9 @@ CONTAINS
 
        ! Here starts the construction of krylov space
         CALL timeset(routineN//"_kry_loop",hand2)
-        !Compute A =(V^t)HV 
+        !Compute A =(V^t)HV
         CALL cp_fm_gemm('N','N',nao,nmob,nao,rone,ks,v_mat(1)%matrix,rzero,hc,error=error)
- 
+
         a_block = 0.0_dp
         a_loc => v_mat(1)%matrix%local_data
         b_loc => hc%local_data
@@ -749,7 +749,7 @@ CONTAINS
 
            CALL cp_fm_get_submatrix(b_mat,b_block,1,1,nmob,nmob,error=error)
 
-       !Compute A =(V^t)HV 
+       !Compute A =(V^t)HV
            CALL cp_fm_gemm('N','N',nao,nmob,nao,rone,ks,v_mat(ik)%matrix,rzero,hc,error=error)
 
            a_block = 0.0_dp
@@ -785,8 +785,8 @@ CONTAINS
            END IF
 
         ! Build the block tridiagonal matrix
-           it = (ik-2)*nmob 
-           jt = (ik-1)*nmob 
+           it = (ik-2)*nmob
+           jt = (ik-1)*nmob
            DO j=1,nmob
              t_mat(jt+1:jt+nmob,jt+j) = a_block(1:nmob,j)
              DO i = 1,nmob
@@ -845,7 +845,7 @@ CONTAINS
                  0.0_dp,q_mat(1,1),nmob)
         END IF
         CALL mp_sum(q_mat, hc%matrix_struct%para_env%group)
-        
+
         ALLOCATE(itaken(ndim),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         itaken = 0
@@ -859,7 +859,7 @@ CONTAINS
               END IF
            END DO
            itaken(ik) = 1
-            
+
           CALL cp_fm_to_fm(c2_tmp,v_mat(1)%matrix,1,ik,it)
         END DO
         DEALLOCATE(itaken,STAT=istat)
@@ -868,7 +868,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        !Copy in the converged set to enlarge the converged subspace
-        CALL cp_fm_to_fm(v_mat(1)%matrix,c0,nmob,1,(nmo_converged+imo_low)) 
+        CALL cp_fm_to_fm(v_mat(1)%matrix,c0,nmob,1,(nmo_converged+imo_low))
         CALL timestop(hand4)
 
 
@@ -900,7 +900,7 @@ CONTAINS
       CALL timestop(hand5)
     ELSE
       ! Do nothing
-    END IF 
+    END IF
 
     CALL timestop(handle)
   END SUBROUTINE lanczos_refinement_2v

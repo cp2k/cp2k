@@ -257,9 +257,9 @@ CONTAINS
          thermolist=thermolist,&
          local_molecules=local_molecules, molecule_kind_set=molecule_kind_set,&
          molecules=molecules, particles=particles, qmmm_env=qmmm_env, error=error)
- 
+
 !    map_loc_thermo_gen=>thermostat_info%map_loc_thermo_gen
-    molecule_set => molecules%els 
+    molecule_set => molecules%els
     SELECT CASE(ensemble)
     CASE DEFAULT
         CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble')
@@ -269,7 +269,7 @@ CONTAINS
            ! Global Thermostat
            nointer = .FALSE.
            sum_of_thermostats = 1
-        CASE(do_region_molecule) 
+        CASE(do_region_molecule)
            ! Molecular Thermostat
            itherm=0
            DO ikind = 1, nkind
@@ -332,7 +332,7 @@ CONTAINS
 
     ! Now map the local atoms with the corresponding thermostat
     ALLOCATE(thermostat_info%map_loc_thermo_gen(natom_local),stat=stat)
-    thermostat_info%map_loc_thermo_gen  = HUGE ( 0 ) 
+    thermostat_info%map_loc_thermo_gen  = HUGE ( 0 )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     natom_local = 0
     DO ikind = 1, SIZE(molecule_kind_set)
@@ -363,7 +363,7 @@ CONTAINS
               nmol_local = local_molecules % n_el ( ikind )
               molecule_kind => molecule_kind_set ( ikind )
               CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell)
-              IF (do_shell) THEN 
+              IF (do_shell) THEN
                  natom = nshell
                  IF (nshell==0) nmol_local = 0
               END IF
@@ -380,7 +380,7 @@ CONTAINS
            dis_type = do_thermo_communication
            IF ((region==do_region_global).OR.(region==do_region_molecule)) number = 1
         END IF
-          
+
         IF (PRESENT(nfree)) THEN
           ! re-initializing simpar%nfree to zero because of multiple thermostats in the adiabatic sampling
            nfree = 0.0_dp
@@ -486,9 +486,9 @@ CONTAINS
             subsys_qm=.TRUE., ig=ig, sum_of_thermostats=sum_of_thermostats, nregions=nregions,&
             error=error)
     END DO
-    
+
     CPPostcondition(.NOT.ALL(thermolist==HUGE(0)),cp_failure_level,routineP,error,failure)
-    
+
 !    natom_local = 0
 !    DO ikind = 1, SIZE(molecule_kind_set)
 !       nmol_per_kind = local_molecules%n_el(ikind)
@@ -504,7 +504,7 @@ CONTAINS
 
     ! Now map the local atoms with the corresponding thermostat
 !    ALLOCATE(map_loc_thermo_gen(natom_local),stat=stat)
-!    map_loc_thermo_gen  = HUGE ( 0 ) 
+!    map_loc_thermo_gen  = HUGE ( 0 )
 !    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !    natom_local = 0
 !    DO ikind = 1, SIZE(molecule_kind_set)
@@ -627,7 +627,7 @@ CONTAINS
                 nmol_local = local_molecules % n_el ( ikind )
                 molecule_kind => molecule_kind_set ( ikind )
                 CALL get_molecule_kind ( molecule_kind, natom=natom, nshell=nshell)
-                IF (do_shell) THEN 
+                IF (do_shell) THEN
                    natom = nshell
                    IF (nshell==0) nmol_local = 0
                 END IF
@@ -651,7 +651,7 @@ CONTAINS
                      molecules=molecules, particles=particles, qmmm_env=qmmm_env, error=error)
              END IF
           END IF
-          
+
           IF (PRESENT(nfree)) THEN
              IF ((sum_of_thermostats>1).OR.(dis_type==do_thermo_no_communication)) THEN
                 ! re-initializing simpar%nfree to zero because of multiple thermostats
@@ -754,7 +754,7 @@ CONTAINS
             subsys_qm=.TRUE., ig=ig, sum_of_thermostats=sum_of_thermostats, nregions=nregions,&
             error=error)
     END DO
-    
+
     ! Dump IO warning for not thermalized particles
     IF (ANY(thermolist==HUGE(0))) THEN
        nregions = nregions + 1
@@ -778,7 +778,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CPPostcondition(ALL(thermolist/=HUGE(0)),cp_failure_level,routineP,error,failure)
-    
+
     ! Now identify the local number of thermostats
     ALLOCATE(tmp(nregions),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -820,7 +820,7 @@ CONTAINS
     DEALLOCATE(thermolist, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE get_defined_region_info
-  
+
 ! *****************************************************************************
 !> \author 11.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
@@ -850,7 +850,7 @@ CONTAINS
     failure = .FALSE.
     label1               = "MM_SUBSYS"
     label2               = "QM_SUBSYS"
-    IF (subsys_qm) THEN 
+    IF (subsys_qm) THEN
        label1            = "QM_SUBSYS"
        label2            = "MM_SUBSYS"
     END IF
@@ -858,7 +858,7 @@ CONTAINS
     IF (nrep==1) THEN
        IF (ASSOCIATED(qmmm_env)) THEN
           atom_index1          => qmmm_env%mm_atom_index
-          IF (subsys_qm) THEN 
+          IF (subsys_qm) THEN
              atom_index1       => qmmm_env%qm_atom_index
           END IF
           CALL section_vals_val_get(region_sections,TRIM(label1),i_val=thermo1,i_rep_section=ig,error=error)
@@ -904,7 +904,7 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE setup_thermostat_subsys
-  
+
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
@@ -966,7 +966,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, vel, error)
-    
+
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -997,7 +997,7 @@ CONTAINS
        DO imol_local = 1, nmol_local
           imol = local_molecules % list ( ikind ) % array ( imol_local )
           molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
+          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom )
           DO ipart = first_atom, last_atom
              ii = ii + 1
              atomic_kind => particle_set ( ipart ) % atomic_kind
@@ -1030,7 +1030,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE momentum_region_particles (map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, vel, error)
-    
+
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -1061,7 +1061,7 @@ CONTAINS
        DO imol_local = 1, nmol_local
           imol = local_molecules % list ( ikind ) % array ( imol_local )
           molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
+          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom )
           DO ipart = first_atom, last_atom
              ii = ii + 1
              atomic_kind => particle_set ( ipart ) % atomic_kind
@@ -1082,14 +1082,14 @@ CONTAINS
     IF (map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group)
 
   END SUBROUTINE momentum_region_particles
-  
+
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE vel_rescale_particles(map_info, molecule_kind_set, molecule_set,&
        particle_set, local_molecules, shell_adiabatic, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
-    
+
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1137,7 +1137,7 @@ CONTAINS
        Mol_local: DO imol_local = 1, nmol_local
           imol = local_molecules % list ( ikind ) % array ( imol_local )
           molecule => molecule_set ( imol )
-          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
+          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom )
           Particle: DO ipart = first_atom, last_atom
              ii = ii + 1
              IF (present_vel) THEN
@@ -1156,7 +1156,7 @@ CONTAINS
                    jj = jj + 2
                    atomic_kind => particle_set ( ipart ) % atomic_kind
                    CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell=shell)
-                   fac_masss = shell%mass_shell/mass 
+                   fac_masss = shell%mass_shell/mass
                    fac_massc = shell%mass_core/mass
                    IF (present_vel) THEN
                       vs(1:3) = shell_vel( 1:3,shell_index )
@@ -1166,7 +1166,7 @@ CONTAINS
                       shell_vel( 3,shell_index ) = vel( 3, ipart ) + fac_massc*(vs(3)-vc(3))
                       core_vel ( 1,shell_index ) = vel( 1, ipart ) + fac_masss*(vc(1)-vs(1))
                       core_vel ( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
-                      core_vel ( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))                        
+                      core_vel ( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
                    ELSE
                       vs(1:3) = shell_particle_set(shell_index)%v(1:3)
                       vc(1:3) = core_particle_set(shell_index)%v(1:3)
@@ -1191,7 +1191,7 @@ CONTAINS
   SUBROUTINE ke_region_shells(map_info, particle_set, atomic_kind_set,&
        local_particles, group, core_particle_set, shell_particle_set,&
        core_vel, shell_vel, error)
-    
+
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -1225,13 +1225,13 @@ CONTAINS
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     ii = 0
-    
+
     nparticle_kind = SIZE(atomic_kind_set)
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell_active=is_shell,shell=shell)
        IF(is_shell) THEN
-          mu_mass = shell%mass_shell*shell%mass_core/mass 
+          mu_mass = shell%mass_shell*shell%mass_core/mass
           nparticle_local = local_particles%n_el(iparticle_kind)
           DO iparticle_local=1,nparticle_local
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
@@ -1243,7 +1243,7 @@ CONTAINS
                 v_sc(3) = core_vel(3,shell_index)-shell_vel(3,shell_index)
                 map_info%p_kin(1,ii)%point = map_info%p_kin(1,ii)%point + mu_mass * v_sc(1)**2
                 map_info%p_kin(2,ii)%point = map_info%p_kin(2,ii)%point + mu_mass * v_sc(2)**2
-                map_info%p_kin(3,ii)%point = map_info%p_kin(3,ii)%point + mu_mass * v_sc(3)**2               
+                map_info%p_kin(3,ii)%point = map_info%p_kin(3,ii)%point + mu_mass * v_sc(3)**2
              ELSE
                 v_sc(1) = core_particle_set(shell_index)%v(1)-shell_particle_set(shell_index)%v(1)
                 v_sc(2) = core_particle_set(shell_index)%v(2)-shell_particle_set(shell_index)%v(2)
@@ -1306,7 +1306,7 @@ CONTAINS
           umass = 1.0_dp/mass
           masss = shell%mass_shell*umass
           massc = shell%mass_core*umass
-          
+
           nparticle_local = local_particles%n_el(iparticle_kind)
           Particles: DO iparticle_local=1,nparticle_local
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
@@ -1315,13 +1315,13 @@ CONTAINS
              IF (present_vel) THEN
                 vc(1:3) = core_vel(1:3,shell_index)
                 vs(1:3) = shell_vel(1:3,shell_index)
-                v(1:3) =  vel(1:3,iparticle)                
+                v(1:3) =  vel(1:3,iparticle)
                 shell_vel(1,shell_index) = v(1) + map_info%p_scale ( 1, ii ) % point * massc*(vs(1)-vc(1))
                 shell_vel(2,shell_index) = v(2) + map_info%p_scale ( 2, ii ) % point * massc*(vs(2)-vc(2))
                 shell_vel(3,shell_index) = v(3) + map_info%p_scale ( 3, ii ) % point * massc*(vs(3)-vc(3))
                 core_vel(1,shell_index)  = v(1) + map_info%p_scale ( 1, ii ) % point * masss*(vc(1)-vs(1))
                 core_vel(2,shell_index)  = v(2) + map_info%p_scale ( 2, ii ) % point * masss*(vc(2)-vs(2))
-                core_vel(3,shell_index)  = v(3) + map_info%p_scale ( 3, ii ) % point * masss*(vc(3)-vs(3))               
+                core_vel(3,shell_index)  = v(3) + map_info%p_scale ( 3, ii ) % point * masss*(vc(3)-vs(3))
              ELSE
                 vc(1:3) = core_particle_set(shell_index)%v(1:3)
                 vs(1:3) = shell_particle_set(shell_index)%v(1:3)
@@ -1386,7 +1386,7 @@ CONTAINS
     END IF
     nhc_kin = SUM(akin)
     nhc_pot = SUM(vpot)
-    
+
     ! Possibly give back kinetic or potential energy arrays
     IF (PRESENT(array_pot)) THEN
        IF (ASSOCIATED(array_pot)) THEN
@@ -1573,7 +1573,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: thermo_energy
 
     failure = .FALSE.
-    
+
     thermostat_pot = 0.0_dp
     thermostat_kin = 0.0_dp
     IF (ASSOCIATED(thermostat)) THEN
@@ -1855,7 +1855,7 @@ CONTAINS
           END DO
           CPPrecondition(ncheck==SIZE(work2),cp_fatal_level,routineP,error,failure)
           CPPrecondition(ALL(work2==work2(1)),cp_fatal_level,routineP,error,failure)
-          
+
           array(i) = work2(1)
           DEALLOCATE(work2,stat=stat)
           CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -1864,7 +1864,7 @@ CONTAINS
     DEALLOCATE(work,stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
   END SUBROUTINE communication_thermo_low1
-  
+
 ! *****************************************************************************
 !> \brief Handles the communication for thermostats (2D array)
 !> \author Teodoro Laino [tlaino] - University of Zurich 11.2007

@@ -201,7 +201,7 @@ CPSourceFileRef,&
           END DO
        END IF
     END IF
-    
+
     !
     ! BOND section
     !
@@ -405,7 +405,7 @@ CPSourceFileRef,&
             "PSF_INFO| Error while reading PSF using the unformatted PSF reading option!",&
             "PSF_INFO| Try using PSF instead of UPSF."
     END IF
-    
+
     CALL stop_program(routineN,moduleN,__LINE__,"Error while reading PSF data!")
 
   END SUBROUTINE read_topology_psf

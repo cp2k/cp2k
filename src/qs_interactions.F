@@ -160,8 +160,8 @@ CONTAINS
                            paw_atom=paw_atom)
 
       ! Calculate the orbital basis function radii ***
-      ! For ALL electron this has to come before the calculation of the 
-      ! radii used to calculate the 3c lists. 
+      ! For ALL electron this has to come before the calculation of the
+      ! radii used to calculate the 3c lists.
       ! Indeed, there the radii of the GTO primitives are needed
       IF (ASSOCIATED(orb_basis_set)) THEN
 
@@ -500,7 +500,7 @@ CONTAINS
       ! Calculate the paw projector basis function radii
 
       IF (ASSOCIATED(paw_proj_set)) THEN
-    
+
         p_paw = .TRUE.
         CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
                                nprj=nprj,&
@@ -514,10 +514,10 @@ CONTAINS
              zeta = zet(ip,lprj)
              rzetprj(ip,lprj) = MAX(rzetprj(ip,lprj),&
                                       exp_radius(lprj,zeta,&
-                                      qs_control%eps_pgf_orb,1.0_dp)) 
+                                      qs_control%eps_pgf_orb,1.0_dp))
              rcprj = MAX(rcprj,rzetprj(ip,lprj))
            ENDDO
-        ENDDO 
+        ENDDO
         CALL set_paw_proj_set(paw_proj_set=paw_proj_set,&
                                rzetprj = rzetprj,&
                                rcprj=rcprj)
@@ -631,7 +631,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Write the radii of the core charge distributions to the output
-!>         unit. 
+!>         unit.
 !> \author  MK
 !> \date    15.09.2000
 !> \version 1.0
@@ -724,7 +724,7 @@ CONTAINS
       bas="ORBITAL   "
     ELSE IF ( bas(1:3) == "AUX" ) THEN
       bas="AUXILLIARY"
-    ELSE 
+    ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Undefined basis set type")
     END IF
@@ -1036,7 +1036,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Write the radii of the projector functions of the Goedecker
 !>          pseudopotential (GTH, non-local part) to the logical unit number
-!>          "output_unit".  
+!>          "output_unit".
 !> \author  MK
 !> \date    06.10.2000
 !> \version 1.0
@@ -1084,7 +1084,7 @@ CONTAINS
   END SUBROUTINE write_ppnl_radii
 
 ! *****************************************************************************
-!> \brief   Write the radii of the one center projector 
+!> \brief   Write the radii of the one center projector
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_paw_radii(atomic_kind_set,subsys_section,error)

@@ -74,7 +74,7 @@ CONTAINS
             "CT","CV","CW","C*","C0","F ","H ","HC","HA","HO",&
             "HS","HW","HP","I ","IM","IP","IB","MG","N ","NA",&
             "NB","NC","N ","N*","O ","OW","OH","OS","P ","S ",&
-            "SH","CU","FE","Li","K ","Rb","Cs"/) 
+            "SH","CU","FE","Li","K ","Rb","Cs"/)
        amber_map%element=(/&
             "Br","C ","C ","C ","C ","C ","C ","C ","C ","C ",&
             "C ","C ","C ","C ","C ","F ","H ","H ","H ","H ",&
@@ -134,7 +134,7 @@ CONTAINS
        gromos_map%element=(/&
             "H ","C ","H ","S ","O ","C ","H ","S ",&
             "C ","O ","C ","H ","O ","O ","P ","O ",&
-            "Mg","Na","Cl","O ","H ","H "/)       
+            "Mg","Na","Cl","O ","H ","H "/)
 
     END SELECT
 

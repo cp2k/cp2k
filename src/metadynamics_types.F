@@ -46,7 +46,7 @@ MODULE metadynamics_types
      !RG Adaptive hills
      REAL(KIND=dp)                             :: ww, min_disp, energy
      INTEGER                                   :: n_hills, nt_hills, min_nt_hills
-     INTEGER                                   :: old_hill_number, old_hill_step      
+     INTEGER                                   :: old_hill_number, old_hill_step
      !RG Adaptive hills
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: ss_history
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: delta_s_history
@@ -107,7 +107,7 @@ MODULE metadynamics_types
                                                   wtgamma, wttemperature
      INTEGER                                   :: n_steps
      ! time pointer should never be allocated itself.. that's a quite bad
-     ! choice derived from the md_env.. So whenever the meta_env type is 
+     ! choice derived from the md_env.. So whenever the meta_env type is
      ! used the pointer time should be pointer to the high level time counter
      REAL(KIND=dp), POINTER                    :: time
      TYPE(hills_env_type), POINTER             :: hills_env
@@ -122,15 +122,15 @@ MODULE metadynamics_types
   END TYPE meta_env_type
 
 CONTAINS
-  
+
 ! *****************************************************************************
-!> \brief allocates a metadynamic environment (performs only minimal 
+!> \brief allocates a metadynamic environment (performs only minimal
 !>      initialization)
 !> \param meta_env the meta env_ that will be allocated
 !> \param n_colvar number of collectiva variables
 !> \param do_hills if the hills should be added
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      04.2004 created
 !>      02.2006 Reorganized the structure of the restart for Metadynamics (teo)
@@ -225,13 +225,13 @@ CONTAINS
        IF (meta_env%do_multiple_walkers) THEN
           ALLOCATE(meta_env%multiple_walkers,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-          
+
           ! Walkers status and Walkers file name
           NULLIFY(meta_env%multiple_walkers%walkers_status,&
                   meta_env%multiple_walkers%walkers_file_name)
           meta_env%multiple_walkers%n_hills_local = 0
        END IF
-       
+
        CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin,error=error)
        IF (do_langevin) THEN
           ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
@@ -317,7 +317,7 @@ CONTAINS
              DO i = 1, SIZE(meta_env%metavar)
                 IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
                    DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
-                   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)  
+                   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
                 END IF
              END DO
              DEALLOCATE(meta_env%metavar,stat=stat)

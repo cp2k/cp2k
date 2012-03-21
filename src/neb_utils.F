@@ -211,7 +211,7 @@ CONTAINS
              CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
                                 error=error)
              CALL parser_get_next_line(parser,1,error=error)
-             ! Start parser             
+             ! Start parser
              CALL parser_get_object(parser,natom,error=error)
              CPPostcondition((natom == SIZE(particle_set)),cp_failure_level,routineP,error,failure)
              CALL parser_get_next_line(parser,1,error=error)
@@ -236,7 +236,7 @@ CPSourceFileRef,&
              END DO
              CALL parser_release(parser,error=error)
           END IF
-          ! Collective Variables 
+          ! Collective Variables
           IF (neb_env%use_colvar) THEN
              CALL  section_vals_val_get(replica_section,"COLLECTIVE",&
                                         i_rep_section=i_rep,n_rep_val=n_rep,error=error)
@@ -246,7 +246,7 @@ CPSourceFileRef,&
                 CALL  section_vals_val_get(replica_section,"COLLECTIVE",&
                                            i_rep_section=i_rep,r_vals=initial_colvars,error=error)
                 check = (neb_env%nsize_int == SIZE(initial_colvars))
-                CPPostcondition(check,cp_failure_level,routineP,error,failure)          
+                CPPostcondition(check,cp_failure_level,routineP,error,failure)
                 coords%int(:,i_rep) = initial_colvars
              ELSE
                 ! Compute the values of the collective variables
@@ -324,7 +324,7 @@ CPSourceFileRef,&
                 ! the potential energy function. The reference are the internal coordinates
                 ! interpolated here after..
                 coords%int(:,jtarg+2:input_nr_replica) = coords%int(:,jtarg+1:input_nr_replica-1)
-                coords%int(:,jtarg+1) = (coords%int(:,jtarg)+coords%int(:,jtarg+2))/2.0_dp             
+                coords%int(:,jtarg+1) = (coords%int(:,jtarg)+coords%int(:,jtarg+2))/2.0_dp
              END IF
              vels%wrk(:,jtarg+2:input_nr_replica) = vels%wrk(:,jtarg+1:input_nr_replica-1)
              vels%wrk(:,jtarg+1) = 0.0_dp
@@ -491,11 +491,11 @@ CPSourceFileRef,&
           END DO
           IF (neb_env%optimize_end_points) THEN
              forces%wrk(:,1)                  = tmp_a ! Image A
-             forces%wrk(:,SIZE(forces%wrk,2)) = tmp_b ! Image B             
+             forces%wrk(:,SIZE(forces%wrk,2)) = tmp_b ! Image B
              DEALLOCATE(tmp_a,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(tmp_b,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)             
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ELSE
              ! Nullify forces on the two end points images
              forces%wrk(:,1)                  = 0.0_dp ! Image A
@@ -511,7 +511,7 @@ CPSourceFileRef,&
   END SUBROUTINE neb_calc_energy_forces
 
 ! *****************************************************************************
-!> \brief Driver to perform an MD run on each single replica to 
+!> \brief Driver to perform an MD run on each single replica to
 !>      compute specifically Free Energies in a NEB scheme
 !> \author Teodoro Laino  01.2007
 ! *****************************************************************************
@@ -589,7 +589,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Driver to perform a GEO_OPT run on each single replica to
-!>        compute specifically minimum energies in a collective variable 
+!>        compute specifically minimum energies in a collective variable
 !>        NEB scheme
 !> \author Teodoro Laino 05.2007
 ! *****************************************************************************
@@ -646,7 +646,7 @@ CPSourceFileRef,&
           ! Collect the gradients in cartesian coordinates
           CALL get_force(rep_env%f_env_id, rep_env%f(1:n_el,j+1), n_el, ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-          ! Copy the energy 
+          ! Copy the energy
           CALL get_energy(rep_env%f_env_id, rep_env%f(n_el+1,j+1), ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
           ! The gradients in the colvar coordinates
@@ -712,7 +712,7 @@ CPSourceFileRef,&
           tangent(:) = coords%wrk(:,i+1) - coords%wrk(:,i)
        ELSE IF ((energies(i+1).LT.energies(i)).AND.(energies(i).LT.(energies(i-1)))) THEN
           tangent(:) = coords%wrk(:,i)   - coords%wrk(:,i-1)
-       ELSE 
+       ELSE
           DVmax = MAX(ABS(energies(i+1)-energies(i)),ABS(energies(i-1)-energies(i)))
           DVmin = MIN(ABS(energies(i+1)-energies(i)),ABS(energies(i-1)-energies(i)))
           IF (energies(i+1) .GE. energies(i-1)) THEN
@@ -760,7 +760,7 @@ CPSourceFileRef,&
     CPPostcondition(ASSOCIATED(forces),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
     nsize_wrk = coords%size_wrk(1)
-    ! All methods but not the classical elastic band will skip the force 
+    ! All methods but not the classical elastic band will skip the force
     ! calculation for the last frame of the band
     SELECT CASE(my_tag)
     CASE(do_b_neb, do_it_neb, do_ci_neb, do_d_neb)
@@ -822,14 +822,14 @@ CPSourceFileRef,&
             rotate=.FALSE.,error=error)
        tmp = neb_env%k * (distance1-distance2)
        wrk = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
-       forces%wrk(:,i) = wrk + tmp * tangent       
+       forces%wrk(:,i) = wrk + tmp * tangent
     CASE(do_ci_neb)
        ! Climbing Image NEB
        CALL cite_reference(Jonsson2000_2)
        IF (neb_env%istep<=neb_env%nsteps_it.OR.i/=neb_env%nr_HE_image) THEN
           CALL get_neb_force(neb_env, tangent, coords, i, forces, do_it_neb, Mmatrix, iw, error)
        ELSE
-          wrk = forces%wrk(:,i) 
+          wrk = forces%wrk(:,i)
           tmp = -2.0_dp*dot_product_band(neb_env,wrk,tangent,Mmatrix,error=error)
           forces%wrk(:,i) = wrk + tmp * tangent
        END IF
@@ -841,7 +841,7 @@ CPSourceFileRef,&
        dtmp1       = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = dtmp1
        dtmp1 = dtmp1 / SQRT(DOT_PRODUCT(dtmp1,dtmp1))
-       ! Project out only the spring component interfering with the 
+       ! Project out only the spring component interfering with the
        ! orthogonal gradient of the band
        wrk   = (coords%wrk(:,i+1)-2.0_dp*coords%wrk(:,i)+coords%wrk(:,i-1))
        dtmp1 = neb_env%k * (wrk - DOT_PRODUCT(wrk,dtmp1)*dtmp1)
@@ -1058,7 +1058,7 @@ CPSourceFileRef,&
     IF (ALL(labels=="YES")) converged = .TRUE.
 
     iw=cp_print_key_unit_nr(logger,neb_env%neb_section,"CONVERGENCE_INFO",&
-         extension=".nebLog",error=error)    
+         extension=".nebLog",error=error)
     IF (iw>0) THEN
        ! Print convergence info
        WRITE(iw,FMT='(A,A)')' **************************************', &

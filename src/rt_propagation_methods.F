@@ -135,7 +135,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(matrix_ks,rho,mos,ks_env,rtp)
-    my_force=.TRUE.    
+    my_force=.TRUE.
 
     CALL get_qs_env(qs_env,&
          matrix_ks=matrix_ks,&
@@ -170,7 +170,7 @@ CONTAINS
 
     SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
     CASE( do_diag, do_pade, do_taylor)
-       
+
        SELECT CASE(qs_env%dft_control%rtp_control%propagator)
        CASE(do_cn,do_em)
           IF(rtp%iter.NE.1)&
@@ -198,7 +198,7 @@ CONTAINS
        CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
     ELSE
        delta_iter=1.0_dp
-    END IF 
+    END IF
     CALL cp_fm_vect_dealloc(delta_mos,error)
     IF(qs_env%dft_control%rtp_control%fixed_ions)my_force=.FALSE.
     CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=my_force,&
@@ -237,7 +237,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,rho=rho,mos=mos,rtp=rtp,error=error)    
+    CALL get_qs_env(qs_env=qs_env,rho=rho,mos=mos,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,&
          exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
 
@@ -247,7 +247,7 @@ CONTAINS
     DO i=1,2*SIZE(mos)
        CALL cp_fm_create(propagator(i)%matrix,&
             matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
-            error=error) 
+            error=error)
     END DO
 
     SELECT CASE (qs_env%dft_control%rtp_control%propagator)
@@ -260,12 +260,12 @@ CONTAINS
     DO i=1,SIZE(mos)
        re_part=2*i-1
        im_part=2*i
-       
+
        tmp_re=>propagator(re_part)%matrix
        tmp_im=>propagator(im_part)%matrix
-       
+
        CALL cp_fm_get_info(mos(i)%mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
- 
+
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
             mos_old(re_part)%matrix,zero,mos_new(re_part)%matrix,error)
@@ -288,11 +288,11 @@ CONTAINS
 
 
 
-  
+
 ! *****************************************************************************
 !> \brief applys the propagator on the MO coefficients
 !>        at the moment only the ETRS, might have to be splitted when different
-!>        propagators are implemented 
+!>        propagators are implemented
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -320,7 +320,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY (rho, ks_env, mos, rtp)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)    
+    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,&
          exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
 
@@ -376,7 +376,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief computes t*S_inv*H, if needed t*Sinv*B 
+!> \brief computes t*S_inv*H, if needed t*Sinv*B
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -404,7 +404,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)  
+    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
 
     CALL cp_fm_create(H_fm,&
@@ -418,7 +418,7 @@ CONTAINS
     ndim=H_fm%matrix_struct%nrow_global
 
     DO ispin=1,SIZE(matrix_ks)
-       
+
        lb=(ispin-1)*2+1
        ub=(ispin-1)*2+2
 
@@ -437,14 +437,14 @@ CONTAINS
        CALL cp_fm_to_fm(exp_H(1)%matrix,SinvB,error)
        IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(exp_H(1)%matrix,exp_H(3)%matrix,error)
     END IF
-            
+
     CALL cp_fm_release(H_fm,error)
     CALL cp_fm_release(tmp_mat_H,error)
 
     CALL timestop(handle)
   END SUBROUTINE calc_SinvH
 
-       
+
 
 
 
@@ -487,12 +487,12 @@ CONTAINS
 
     IF(diagonalize)THEN
        CALL get_rtp(rtp=rtp,S_half=S_half,S_minus_half=S_minus_half,error=error)
-       
+
        CALL cp_fm_create(eigvec_H,&
             matrix_struct=S_inv%matrix_struct,&
             name="tmp_EVEC",&
             error=error)
-       
+
        !H_fm,eigvec_H,eigval_H is used as tmp, for diagonalizing S
 
        ALLOCATE(eigval_H(ndim),stat=stat)
@@ -500,16 +500,16 @@ CONTAINS
 
        CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp,error=error)
        CALL cp_fm_upper_to_full(tmp,eigvec_H,error)
-       
+
        CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error)
-       
+
        eigval_H(:)=one/eigval_H(:)
-       CALL backtransform_matrix(eigval_H,eigvec_H,S_inv,error)       
+       CALL backtransform_matrix(eigval_H,eigvec_H,S_inv,error)
        eigval_H(:)=SQRT(eigval_H(:))
        CALL backtransform_matrix(eigval_H,eigvec_H,S_minus_half,error)
        eigval_H(:)=one/eigval_H(:)
        CALL backtransform_matrix(eigval_H,eigvec_H,S_half,error)
-       CALL cp_fm_release(eigvec_H,error)       
+       CALL cp_fm_release(eigvec_H,error)
 
     ELSE
        CALL copy_dbcsr_to_fm(s_mat(1)%matrix,S_inv,error=error)
@@ -520,12 +520,12 @@ CONTAINS
     CALL cp_fm_release(tmp,error)
     CALL timestop(handle)
   END SUBROUTINE s_matrices_create
-     
+
 
 
 ! *****************************************************************************
 !> \brief calculates the density from the complex MOs and passes the density to
-!>        qs_env. 
+!>        qs_env.
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -552,7 +552,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (rho,ks_env,mos,rtp,tmp_rho_im, tmp_rho_re)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)    
+    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
 
     ALLOCATE(tmp_rho_im, tmp_rho_re)
@@ -562,10 +562,10 @@ CONTAINS
     CALL cp_dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
 
     DO i=1,SIZE(mos)
-       re_part=2*(i-1)+1       
-       im_part=2*(i-1)+2   
+       re_part=2*(i-1)+1
+       im_part=2*(i-1)+2
        CALL cp_fm_to_fm(mos_new(im_part)%matrix,mos(i)%mo_set%mo_coeff,error)
-       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_im,error=error)    
+       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_im,error=error)
        CALL cp_fm_to_fm(mos_new(re_part)%matrix,mos(i)%mo_set%mo_coeff,error)
        CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error=error)
 
@@ -586,7 +586,7 @@ CONTAINS
   END SUBROUTINE calc_update_rho
 
 ! *****************************************************************************
-!> \brief needed only for EMD. Recalculates neighborlists and integrals, when 
+!> \brief needed only for EMD. Recalculates neighborlists and integrals, when
 !>        ionic positions change
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
@@ -617,13 +617,13 @@ CONTAINS
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-    CALL qs_env_update_s_mstruct(qs_env,error=error)    
-    
+    CALL qs_env_update_s_mstruct(qs_env,error=error)
+
     CALL calculate_ecore_self(qs_env,error=error)
     CALL calculate_ecore_overlap(qs_env, para_env, &
          calculate_forces=.FALSE.,error=error)
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,ks_env=ks_env,error=error)
-    
+
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
        CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
        DO ispin=1,dft_control%nspins
@@ -666,10 +666,10 @@ CONTAINS
        CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
        CALL qs_ks_release(ks_env,error=error)
     END IF
-   
-    
+
+
     CALL timestop(handle)
-  
+
   END SUBROUTINE update_core_and_matrices
   SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -709,14 +709,14 @@ CONTAINS
     naspc=MIN(rtp%istep,aspc_order)
     CALL cite_reference(Kolafa2004)
     IF(rtp%history%mos_or_H==2)THEN
-       exp_hist=>rtp%history%exp_history    
+       exp_hist=>rtp%history%exp_history
        IF(naspc.GT.1)THEN
           DO imat=1,nmat
              DO iaspc=1,naspc
                 IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
                 IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
                      binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
-                
+
                 ihist=MOD(rtp%istep-iaspc,aspc_order)+1
                 IF(iaspc==1)THEN
                    CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
@@ -754,7 +754,7 @@ CONTAINS
           END DO
        END IF
 
- 
+
        mo_hist=>rtp%history%mo_history
        s_hist=>rtp%history%s_history
        DO i=1,SIZE(mos_new)/2
@@ -787,7 +787,7 @@ CONTAINS
                                    nrow_global=k,&
                                    ncol_global=k,error=error)
           CALL cp_cfm_create(csc,matrix_struct_new,error=error)
-          
+
 
           CALL cp_fm_struct_release(matrix_struct_new,error=error)
           CALL cp_fm_struct_release(matrix_struct,error=error)
@@ -796,7 +796,7 @@ CONTAINS
 
 
 ! reorthogonalize vectors
-             
+
              DO icol_local=1,ncol_local
                 fm_tmp%local_data(:,icol_local)=mos_new(2*i-1)%matrix%local_data(:,icol_local)
                 fm_tmp%local_data(:,icol_local+ncol_local)=mos_new(2*i)%matrix%local_data(:,icol_local)
@@ -808,7 +808,7 @@ CONTAINS
                 cfm_tmp%local_data(:,icol_local)=CMPLX(fm_tmp1%local_data(:,icol_local),&
                      fm_tmp1%local_data(:,icol_local+ncol_local),dp)
                 cfm_tmp1%local_data(:,icol_local)=CMPLX(mos_new(2*i-1)%matrix%local_data(:,icol_local),&
-                     mos_new(2*i)%matrix%local_data(:,icol_local),dp)               
+                     mos_new(2*i)%matrix%local_data(:,icol_local),dp)
              END DO
              CALL cp_cfm_gemm('C','N',k,k,n,cone,cfm_tmp1,cfm_tmp,czero,csc,error=error)
              CALL cp_cfm_cholesky_decompose(csc,error=error)
@@ -825,9 +825,9 @@ CONTAINS
              CALL cp_fm_release(fm_tmp1,error)
              CALL cp_fm_release(fm_tmp2,error)
              CALL cp_cfm_release(cfm_tmp,error)
-             CALL cp_cfm_release(cfm_tmp1,error)  
+             CALL cp_cfm_release(cfm_tmp1,error)
           END DO
-         
+
        END IF
 
     CALL timestop(handle)
@@ -861,13 +861,13 @@ CONTAINS
           CALL cp_fm_to_fm(exp_H(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
        END DO
     END IF
-    
+
    IF(PRESENT(mos))THEN
       DO i=1,SIZE(mos)
          CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
       END DO
    END IF
-   
+
    IF(PRESENT(s_mat))THEN
        IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
           ! (future struct:check)

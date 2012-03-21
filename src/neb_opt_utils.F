@@ -38,7 +38,7 @@ MODULE neb_opt_utils
 
   PUBLIC :: accept_diis_step,&
             neb_ls
-            
+
   REAL(KIND=dp), DIMENSION(2:10), PRIVATE :: acceptance_factor = &
        (/0.97_dp, 0.84_dp, 0.71_dp, 0.67_dp, 0.62_dp, 0.56_dp, 0.49_dp, 0.41_dp, 0.0_dp/)
 
@@ -83,7 +83,7 @@ CONTAINS
     failure  = .FALSE.
     accepted = .FALSE.
     IF (.NOT.failure) THEN
-       ! find the index with the minimum element of the set_err array 
+       ! find the index with the minimum element of the set_err array
        nv = MINLOC(set_err,1)
        IF (iw>0) WRITE(iw,'(A,I3)')"Entering into the DIIS module. Error vector number:: ",nv
        set_err(nv) = 1
@@ -197,7 +197,7 @@ CONTAINS
                 DEALLOCATE(work,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 DEALLOCATE(wrk_inv,stat=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)                
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 EXIT
              END IF
              DEALLOCATE(awrk,stat=stat)
@@ -270,7 +270,7 @@ CONTAINS
        IF (accepted) THEN
           ! (a) The direction of the DIIS step, can be compared to the reference step.
           !     if the angle is grater than a specified value, the DIIS step is not
-          !     acceptable. 
+          !     acceptable.
           norm1 = SQRT(DOT_PRODUCT(ref,ref))
           norm2 = SQRT(DOT_PRODUCT(step,step))
           costh = DOT_PRODUCT(ref,step)/(norm1*norm2)
@@ -302,7 +302,7 @@ CONTAINS
        IF (accepted.AND.check_diis) THEN
           ! (d) If the DIIS matrix is nearly singular, the norm of the DIIS step
           !     vector becomes small and cwrk/norm1 becomes large, signaling a
-          !     numerical stability problems. If the magnitude of cwrk/norm1 
+          !     numerical stability problems. If the magnitude of cwrk/norm1
           !     exceeds 10^8 then the step size is assumed to be unacceptable
           IF (ANY(ABS(cwrk(1:nv)/norm1)>10**8_dp)) accepted = .FALSE.
           IF (output_unit > 0.AND.(.NOT.accepted))  THEN
@@ -312,7 +312,7 @@ CONTAINS
                   "numerical stability problems. IF the magnitude of Coeff/E_norm",&
                   "exceeds 10^8 THEN the step size is assumed to be unacceptable.",&
                   "Value exceeded. Reset DIIS!"
-          END IF          
+          END IF
        END IF
     END IF
     DEALLOCATE(tmp, stat=stat)
@@ -352,7 +352,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Icoord
 
-! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3 
+! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3
 
     failure  = .FALSE.
     IF (.NOT.failure) THEN

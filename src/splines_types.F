@@ -439,20 +439,20 @@ CONTAINS
     IF (ASSOCIATED(spline_factor)) THEN
        IF (ASSOCIATED(spline_factor%rscale)) THEN
           DEALLOCATE(spline_factor%rscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(spline_factor%fscale)) THEN
           DEALLOCATE(spline_factor%fscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(spline_factor%dscale)) THEN
           DEALLOCATE(spline_factor%dscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        DEALLOCATE (spline_factor, stat=stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-  END SUBROUTINE spline_factor_release 
+  END SUBROUTINE spline_factor_release
 
 ! *****************************************************************************
 !> \brief releases spline_factor
@@ -469,7 +469,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(spline_factor),cp_failure_level,routineP,error,failure) 
+    CPPrecondition(.NOT.ASSOCIATED(spline_factor),cp_failure_level,routineP,error,failure)
     ALLOCATE(spline_factor, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(spline_factor%rscale(1),stat=stat)
@@ -483,7 +483,7 @@ CONTAINS
     spline_factor%dscale = 1.0_dp
     spline_factor%rcutsq_f = 1.0_dp
     spline_factor%cutoff   = 0.0_dp
-  END SUBROUTINE spline_factor_create 
+  END SUBROUTINE spline_factor_create
 
 ! *****************************************************************************
 !> \brief releases spline_factor
@@ -510,10 +510,10 @@ CONTAINS
        CPPrecondition(isize==jsize,cp_failure_level,routineP,error,failure)
        CPPrecondition(isize==ksize,cp_failure_level,routineP,error,failure)
        CALL spline_factor_create(spline_factor_dest, error)
-       spline_factor_dest%rscale = spline_factor_source%rscale 
+       spline_factor_dest%rscale = spline_factor_source%rscale
        spline_factor_dest%fscale = spline_factor_source%fscale
        spline_factor_dest%dscale = spline_factor_source%dscale
-       spline_factor_dest%rcutsq_f = spline_factor_source%rcutsq_f 
+       spline_factor_dest%rcutsq_f = spline_factor_source%rcutsq_f
        spline_factor_dest%cutoff   = spline_factor_source%cutoff
     END IF
   END SUBROUTINE spline_factor_copy

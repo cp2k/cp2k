@@ -15,7 +15,7 @@
           CALL stop_memory(routineN,moduleN,__LINE__,&
                            "work",t_size*(ub1-lb1+1)*&
                                          (ub2-lb2+1))
-                                          
+
        END IF
        work(lb1:ub1,lb2:ub2) = p(lb1:ub1,lb2:ub2)
        DEALLOCATE (p,STAT=istat)

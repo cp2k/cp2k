@@ -54,10 +54,10 @@ MODULE cell_opt_types
      REAL(KIND=dp), DIMENSION(3,3)              :: rot_matrix
      TYPE(cell_type), POINTER                   :: ref_cell
   END TYPE cell_opt_env_type
-  
+
 
 CONTAINS
-  
+
 ! *****************************************************************************
 !> \par History
 !>      none
@@ -93,7 +93,7 @@ CONTAINS
        CALL cell_clone(cell, cell_env%ref_cell, error)
        CALL section_vals_val_get(geo_section,"KEEP_ANGLES",l_val=cell_env%keep_angles,error=error)
        CALL section_vals_val_get(geo_section,"PRESSURE_TOLERANCE",r_val=cell_env%pres_tol,error=error)
-       
+
        ! First let's rotate the cell vectors in order to have an upper triangular matrix.
        CALL get_ut_cell_matrix(force_env, error)
 

@@ -43,12 +43,12 @@ MODULE qmmm_util
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from 
+!> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from
 !>      the QM Box
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
-!>      02.2008 created 
+!>      02.2008 created
 !> \author Benjamin G Levine
 ! *****************************************************************************
   SUBROUTINE apply_qmmm_walls(force_env, error)
@@ -79,10 +79,10 @@ CONTAINS
   END SUBROUTINE apply_qmmm_walls
 
 ! *****************************************************************************
-!> \brief Apply reflective QM walls in order to avoid QM atoms escaping from 
-!>      the QM Box 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief Apply reflective QM walls in order to avoid QM atoms escaping from
+!>      the QM Box
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [tlaino] - Zurich University
 !> \author Teodoro Laino
@@ -125,14 +125,14 @@ CONTAINS
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
-   
+
        CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
                           cell=mm_cell,subsys=subsys_mm,error=error)
        CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                           cell=qm_cell,subsys=subsys_qm,error=error)
        qm_atom_index   => force_env%qmmm_env%qm_atom_index
        CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-   
+
        qm_cell_diag = (/qm_cell%hmat(1,1),&
                         qm_cell%hmat(2,2),&
                         qm_cell%hmat(3,3)/)
@@ -146,9 +146,9 @@ CONTAINS
                    ! Apply Walls
                    is_x(1) = (coord(1)<skin(1))
                    is_x(2) = (coord(1)>(qm_cell_diag(1)-skin(1)))
-                   is_y(1) = (coord(2)<skin(2))                  
+                   is_y(1) = (coord(2)<skin(2))
                    is_y(2) = (coord(2)>(qm_cell_diag(2)-skin(2)))
-                   is_z(1) = (coord(3)<skin(3))                  
+                   is_z(1) = (coord(3)<skin(3))
                    is_z(2) = (coord(3)>(qm_cell_diag(3)-skin(3)))
                    IF (ANY(is_x)) THEN
                       ! X coordinate
@@ -185,19 +185,19 @@ CONTAINS
                 CPSourceFileRef,&
                 only_ionode=.TRUE.)
              END IF
-          END IF 
-       END DO 
+          END IF
+       END DO
     END SELECT
 
   END SUBROUTINE apply_qmmm_walls_reflective
 
 ! *****************************************************************************
-!> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from 
+!> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from
 !>      the QM Box
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
-!>      02.2008 created 
+!>      02.2008 created
 !> \author Benjamin G Levine
 ! *****************************************************************************
   SUBROUTINE apply_qmmm_walls_quadratic(force_env, walls_section, error)
@@ -236,7 +236,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
 
     skin(:) = list(:)
-  
+
     qm_cell_diag = (/qm_cell%hmat(1,1),&
                      qm_cell%hmat(2,2),&
                      qm_cell%hmat(3,3)/)
@@ -248,9 +248,9 @@ CONTAINS
        IF (ANY(coord<skin).OR.ANY(coord>(qm_cell_diag-skin))) THEN
           is_x(1) = (coord(1)<skin(1))
           is_x(2) = (coord(1)>(qm_cell_diag(1)-skin(1)))
-          is_y(1) = (coord(2)<skin(2))                  
+          is_y(1) = (coord(2)<skin(2))
           is_y(2) = (coord(2)>(qm_cell_diag(2)-skin(2)))
-          is_z(1) = (coord(3)<skin(3))                  
+          is_z(1) = (coord(3)<skin(3))
           is_z(2) = (coord(3)>(qm_cell_diag(3)-skin(3)))
           IF (is_x(1)) THEN
             wallforce=2.0_dp*k*(skin(1)-coord(1))
@@ -303,8 +303,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply translation to the full system in order to center the QM
 !>      system into the QM box
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [tlaino] - Zurich University
 !> \author Teodoro Laino
@@ -392,10 +392,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes a spherical cutoff factor for the QMMM interactions
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
-!>      08.2008 created 
+!>      08.2008 created
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE spherical_cutoff_factor(spherical_cutoff, rij, factor, error)

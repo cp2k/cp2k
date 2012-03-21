@@ -108,7 +108,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(particle_set)) THEN 
+    IF (ASSOCIATED(particle_set)) THEN
        CALL deallocate_particle_set(particle_set,error=error)
     END IF
     ALLOCATE (particle_set(nparticle),STAT=stat)
@@ -221,9 +221,9 @@ CONTAINS
   END SUBROUTINE get_particle_set
 
 ! *****************************************************************************
-!> \brief   Should be able to write a few formats e.g. xmol, and some binary 
+!> \brief   Should be able to write a few formats e.g. xmol, and some binary
 !>          format (dcd) some format can be used for x,v,f
-!>          
+!>
 !>          FORMAT   CONTENT                                    UNITS x, v, f
 !>          XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u.
 !>
@@ -341,7 +341,7 @@ CONTAINS
           END SELECT
        END DO
     CASE (dump_dcd)
-       IF (.NOT.(PRESENT(cell))) THEN 
+       IF (.NOT.(PRESENT(cell))) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Cell is not present! Report this bug!")
        END IF
@@ -858,7 +858,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add, error )
-    
+
     TYPE(particle_type), POINTER             :: particle_set( : )
     INTEGER, INTENT(IN)                      :: int_group
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : ), &
@@ -917,7 +917,7 @@ CONTAINS
           END DO
        END IF
     ENDIF
-    
+
   END SUBROUTINE update_particle_set
 
 ! *****************************************************************************
@@ -928,7 +928,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION get_particle_pos_or_vel(iatom,particle_set,vector) RESULT(x)
-    
+
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -962,7 +962,7 @@ CONTAINS
 !>          the packed vector are updated
 ! *****************************************************************************
   SUBROUTINE update_particle_pos_or_vel(iatom,particle_set,x,vector)
-    
+
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

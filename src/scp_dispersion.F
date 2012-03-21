@@ -134,7 +134,7 @@ CONTAINS
          cell=cell, scp_env = scp_env, se_taper = se_taper, &
          se_store_int_env=store_int_env, &
          para_env=para_env, particle_set=particle_set,&
-         sab_se=sab_se, force=force, dft_control=dft_control, & 
+         sab_se=sab_se, force=force, dft_control=dft_control, &
          error=error)
 
     CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
@@ -179,7 +179,7 @@ CONTAINS
        de_b = se_de(jkind)
        ! Computing the constants for the dispersion interaction
        IF ( (de_a + de_b) == 0._dp ) THEN
-          disp_factor = 0._dp 
+          disp_factor = 0._dp
        ELSE
           disp_factor = -0.25_dp * de_a * de_b / ( de_a + de_b )
        END IF
@@ -204,7 +204,7 @@ CONTAINS
             se_taper=se_taper, store_int_env=store_int_env,      &
             se_int_control=se_int_control, edisp=e_scp, error=error)
        IF ( forces ) THEN
-          CALL dscp_disp_2C ( se_kind_a, se_kind_b, rab, switch, factor=disp_factor, & 
+          CALL dscp_disp_2C ( se_kind_a, se_kind_b, rab, switch, factor=disp_factor, &
                se_taper=se_taper, store_int_env=store_int_env,  &
                se_int_control=se_int_control, force=force_ab, error=error)
           i_atom = atom_of_kind(iatom)
@@ -225,7 +225,7 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     CALL mp_sum(e_scp,para_env%group)
-    energy % e_scp_disp =  e_scp 
+    energy % e_scp_disp =  e_scp
 
     DEALLOCATE(atom_of_kind,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -309,8 +309,8 @@ CONTAINS
                     para_env=para_env,&
                     particle_set=particle_set,&
                     sab_scp=sab_scp,error=error)
-    
-    CALL get_scp_env(scp_env=scp_env, & 
+
+    CALL get_scp_env(scp_env=scp_env, &
                      energy=energy, force = force, error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -387,7 +387,7 @@ CONTAINS
 
        NULLIFY(atomic_kind)
        atomic_kind => atomic_kind_set(jkind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis, & 
+       CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis, &
             alpha_scp = alpha_b, I_scp = I_b )
 
        ! Computing the constants for the dispersion interaction
@@ -437,7 +437,7 @@ CONTAINS
                 ldvab1 = ncoa
                 ldvab2 = ncob
              ELSE
-                vab = 0._dp 
+                vab = 0._dp
              ENDIF
 
              ALLOCATE( I_ab ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=stat )
@@ -511,7 +511,7 @@ CONTAINS
                 DO ia = 1, nsgf_seta ( iseta )
                    DO ib = 1, nsgf_setb ( isetb )
                       ! **** need to omit (s|s) ****
-                      e_scp = e_scp + disp_factor * I_ab ( ia, ib )**2 
+                      e_scp = e_scp + disp_factor * I_ab ( ia, ib )**2
                       force_a(1)=force_a(1)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdx(ia,ib)
                       force_a(2)=force_a(2)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdy(ia,ib)
                       force_a(3)=force_a(3)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdz(ia,ib)
@@ -554,7 +554,7 @@ CONTAINS
                 DO ia = 1, nsgf_seta ( iseta )
                    DO ib = 1, nsgf_setb ( isetb )
                       ! **** need to omit (s|s) ****
-                      e_scp= e_scp +  disp_factor * I_ab ( ia, ib )**2 
+                      e_scp= e_scp +  disp_factor * I_ab ( ia, ib )**2
                    END DO
                 END DO
 
@@ -577,7 +577,7 @@ CONTAINS
     END IF
 
     CALL mp_sum(e_scp,para_env%group)
-    energy % e_scp_disp =  e_scp 
+    energy % e_scp_disp =  e_scp
 
     ! print
     IF (.NOT.debug_this_module) THEN
@@ -636,7 +636,7 @@ CONTAINS
                                                 ass_a, ass_b, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
-    failure = .FALSE.    
+    failure = .FALSE.
     CALL get_se_param(sepi, ass = ass_a, asp = asp_a, app = app_a )
     ascp_a( 1  ,  1) = ass_a
     ascp_a( 1  ,2:4) = asp_a

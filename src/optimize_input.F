@@ -75,7 +75,7 @@ MODULE optimize_input
 
   TYPE variable_type
      CHARACTER(LEN=default_string_length) :: label
-     REAL(KIND=dp)                        :: value 
+     REAL(KIND=dp)                        :: value
      LOGICAL                              :: fixed
   END TYPE
 
@@ -306,11 +306,11 @@ CONTAINS
 
     t1 = m_walltime()
 
-    DO 
+    DO
 
 
       ! globalize the state
-      IF (para_env%mepos==para_env%source) state=ostate%state 
+      IF (para_env%mepos==para_env%source) state=ostate%state
       CALL mp_bcast(state,para_env%source,para_env%group)
 
       ! if required get the energy of this set of params
@@ -502,7 +502,7 @@ CONTAINS
 !> \param force_traj: forces
 !> \param pos_traj: position
 !> \param energy_traj: energies, as extracted from the forces file
-!> \param cell_traj: cell parameters, as extracted from a CP2K cell file 
+!> \param cell_traj: cell parameters, as extracted from a CP2K cell file
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE read_reference_data(oi_env,para_env,force_traj,pos_traj,energy_traj,cell_traj,error)

@@ -637,12 +637,12 @@ END FUNCTION wfi_get_method_label
     failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
-  
+
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%SCF%PRINT%PROGRAM_RUN_INFO",&
                   extension=".scfLog",error=error)
-  
+
     CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
     CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -653,7 +653,7 @@ END FUNCTION wfi_get_method_label
             error=error)
        CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
-  
+
        ! chooses the method for this extrapolation
        IF (wf_history%snapshot_count<1) THEN
           actual_extrapolation_method_nr=wfi_use_guess_method_nr
@@ -675,19 +675,19 @@ END FUNCTION wfi_get_method_label
              actual_extrapolation_method_nr=wfi_use_prev_wf_method_nr
           END IF
        END SELECT
-  
+
        IF (PRESENT(extrapolation_method_nr)) &
             extrapolation_method_nr=actual_extrapolation_method_nr
        my_orthogonal_wf=.FALSE.
-  
+
        SELECT CASE (actual_extrapolation_method_nr)
        CASE(wfi_frozen_method_nr)
           t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
           CPPrecondition(ASSOCIATED(t0_state%rho_frozen),cp_failure_level,routineP,error,failure)
-  
+
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-  
+
           DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
              CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
                              t0_state%rho_frozen%rho_ao(ispin)%matrix,&
@@ -698,14 +698,14 @@ END FUNCTION wfi_get_method_label
           !FM wrong matrix structure
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
-  
+
           my_orthogonal_wf=.FALSE.
        CASE(wfi_use_prev_rho_r_method_nr)
           t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
           CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-  
+
           DO ispin=1,SIZE(t0_state%rho_ao)
              CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
@@ -713,13 +713,13 @@ END FUNCTION wfi_get_method_label
                              error=error)
           END DO
           rho%rho_g_valid=.TRUE.
-  
+
           ! does nothing
        CASE(wfi_use_prev_wf_method_nr)
           my_orthogonal_wf=.TRUE.
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-  
+
           DO ispin=1,SIZE(mos)
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                   nmo=nmo)
@@ -731,13 +731,13 @@ END FUNCTION wfi_get_method_label
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-  
+
        CASE(wfi_use_prev_p_method_nr)
           t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
           CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-  
+
           DO ispin=1,SIZE(t0_state%rho_ao)
              CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
@@ -748,7 +748,7 @@ END FUNCTION wfi_get_method_label
           !FM wrong matrix structure
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
-  
+
        CASE(wfi_use_guess_method_nr)
           !FM more clean to do it here, but it
           !FM might need to read a file (restart) and thus globenv
@@ -768,7 +768,7 @@ END FUNCTION wfi_get_method_label
           END IF
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-  
+
           IF (.NOT.failure) THEN
              my_orthogonal_wf=.TRUE.
              t0=0.0_dp
@@ -793,7 +793,7 @@ END FUNCTION wfi_get_method_label
                      density_matrix=rho%rho_ao(ispin)%matrix,error=error)
              END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env,  error=error)
-  
+
              CALL qs_ks_did_change(qs_env%ks_env,&
                   rho_changed=.TRUE., error=error)
           END IF
@@ -808,7 +808,7 @@ END FUNCTION wfi_get_method_label
           END IF
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-  
+
           IF (.not.failure) THEN
             t0=0.0_dp
             t1=t1_state%dt
@@ -821,7 +821,7 @@ END FUNCTION wfi_get_method_label
             END DO
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
             CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
-  
+
             ! wf not calculated, extract with PSC renormalized?
             ! use wf_linear?
           END IF
@@ -851,7 +851,7 @@ END FUNCTION wfi_get_method_label
               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             END IF
           END IF
-  
+
           IF (.not.failure) THEN
              my_orthogonal_wf=.TRUE.
              ! use PS_2=2 PS_1-PS_0
@@ -865,7 +865,7 @@ END FUNCTION wfi_get_method_label
                                          nrow_global=k,ncol_global=k,error=error)
                 CALL cp_fm_create(csc,matrix_struct_new,error=error)
                 CALL cp_fm_struct_release(matrix_struct_new,error=error)
- 
+
                 IF ( use_overlap ) THEN
                   CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
                   CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
@@ -884,7 +884,7 @@ END FUNCTION wfi_get_method_label
              END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
              CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-  
+
           END IF
       CASE(wfi_ps_method_nr)
           ! figure out the actual number of vectors to use in the extrapolation:
@@ -902,7 +902,7 @@ END FUNCTION wfi_get_method_label
               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             END IF
           END IF
-  
+
           my_orthogonal_wf=.TRUE.
           DO ispin=1,SIZE(mos)
              NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
@@ -943,7 +943,7 @@ END FUNCTION wfi_get_method_label
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-  
+
       CASE (wfi_aspc_nr)
         CALL cite_reference(Kolafa2004)
         ! figure out the actual number of vectors to use in the extrapolation:
@@ -961,7 +961,7 @@ END FUNCTION wfi_get_method_label
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
           END IF
         END IF
-  
+
         my_orthogonal_wf = .TRUE.
         DO ispin=1,SIZE(mos)
           NULLIFY (mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
@@ -990,7 +990,7 @@ END FUNCTION wfi_get_method_label
               "B(",1,") = ",alpha
           END IF
           CALL cp_fm_scale(alpha,mo_coeff,error=error)
-  
+
           DO i=2,nvec
             t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
             IF ( use_overlap ) THEN
@@ -1021,7 +1021,7 @@ END FUNCTION wfi_get_method_label
         END DO
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
-  
+
       CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"Unknown interpolation method: "//&

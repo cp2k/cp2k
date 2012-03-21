@@ -15,31 +15,31 @@
 !>      the list, an iterator between the elment of the list.
 !>      An empty list is represented by an unassociated pointer.
 !> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/                                        
-!>      ____ _                  ___                              _ _       _       _       
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>                                                        |___/
+!>      ____ _                  ___                              _ _       _       _
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/ 
-!>     _____ _     _       _____ _ _      _ 
+!>                                                                                   |___/
+!>     _____ _     _       _____ _ _      _
 !>    |_   _| |__ (_)___  |  ___(_) | ___| |
 !>      | | | '_ \| / __| | |_  | | |/ _ \ |
 !>      | | | | | | \__ \ |  _| | | |  __/_|
 !>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!> 
+!>
 !>      This is a template
-!> 
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify the .template and .instantition instead
 !> \par History
 !>      1.2002 created
-!>      4.2002 changed most of the methods, by making access to the list 
+!>      4.2002 changed most of the methods, by making access to the list
 !>             always through pointers (identifying pointer, list and iterators)
 !>      6.2004 removed %initialized from list elements
 !> \author Fawzi Mohamed
@@ -163,18 +163,18 @@ MODULE cp_linked_list_3d_r
 
 ! *****************************************************************************
 !> \brief represent a single linked list that stores pointers to the elements
-!> \param first_el the element that is stored in this node. 
+!> \param first_el the element that is stored in this node.
 !> \param rest the rest of the list
-!> 
+!>
 !> \param empty true if the list pointer is not associated, if it points to
-!>             to a not it is always false (as there is at least the 
+!>             to a not it is always false (as there is at least the
 !>             first_el in the list)
 !> \param length the number of elements in the list
 !> \note
-!>      List are alway accessed through pointers, so every node of the 
+!>      List are alway accessed through pointers, so every node of the
 !>      linked list can be seen as a list, its first element
 !>      a pointer to the position before itself, in a very natural way:
-!>      all the insertions take place before the actual element, and 
+!>      all the insertions take place before the actual element, and
 !>      you still can insert an element at the end.
 !>      This way I could identify nodes, lists and pointers between the
 !>      elements of the list.
@@ -209,8 +209,8 @@ CONTAINS
 !> \param sll the single linked list to initialize
 !> \param first_el the first element of this list
 !> \param rest the following elements (if not given: empty)
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -250,8 +250,8 @@ CONTAINS
 !> \brief deallocates the singly linked list starting at sll.
 !>      Does not work if loops are present!
 !> \param sll the list to be deallocated
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      does not deallocate the elments that are stored in the list
 !>      check more?
@@ -274,8 +274,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocates a node of a singly linked list (low level)
 !> \param sll the node to be deallocated
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -300,13 +300,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief sets tha various attributes of a single linked list
-!>      It is an error to set the rest of an empty list without setting 
+!>      It is an error to set the rest of an empty list without setting
 !>      the first_el (change and make it simply a sll=>rest ?)
 !> \param sll the single linked list to change
 !> \param first_el the element to replace the first element of this list
 !> \param rest the rest of the list (can be unassociated)
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -344,8 +344,8 @@ CONTAINS
 !> \param first_el the first element of this list (can be unassociated)
 !> \param rest the rest of the list (can be unassociated)
 !> \param length the length of the list
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -384,8 +384,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the first element stored in the list
 !> \param sll the single linked list to get the element from
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -416,8 +416,8 @@ CONTAINS
 !> \param sll the single linked list to get the rest from
 !> \param iter how many times the call to rest should be iterated,
 !>            defaults to 1; -1 means till end of the list.
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      split the case iter=1 to make it more optimized?
 !> \par History
@@ -471,8 +471,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \param sll the single linked list to get the rest from
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -495,8 +495,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief returns the length of the list
 !> \param sll the list you want to know the length of
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      slow (O(n))
 !> \par History
@@ -532,8 +532,8 @@ CPSourceFileRef,&
 !> \brief returns the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      slow (O(index))
 !> \par History
@@ -575,8 +575,8 @@ CPSourceFileRef,&
 !> \param index the position of the element (stating at 1)
 !>             -1 means at the end
 !> \param value the new element
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      slow (O(index))
 !> \par History
@@ -615,8 +615,8 @@ CPSourceFileRef,&
 !> \brief returns true if the actual element is valid (i.e. iterator ont at end)
 !>      moves the iterator to the next element
 !> \param iterator iterator that moves along the list
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \param el_att the actual element (valid only if the function returns true)
 !> \par History
 !>      none
@@ -649,11 +649,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief insert an element at the beginning of the list
-!> \param sll the single linked list point at the beginning of which 
+!> \param sll the single linked list point at the beginning of which
 !>           you want to add the element
 !> \param el the element to add
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      fast (O(1))
 !> \par History
@@ -683,8 +683,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief remove the first element of the linked list
 !> \param sll the list whose first element has to be removed
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      fast (O(1))
 !> \par History
@@ -718,11 +718,11 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief inserts the element at the given index
 !> \param sll the list you get the element from
-!> \param index the position of the element (stating at 1). 
+!> \param index the position of the element (stating at 1).
 !>             If it is -1, it means at end
 !> \param el the new element
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      slow (O(index))
 !> \par History
@@ -764,8 +764,8 @@ CPSourceFileRef,&
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
 !> \param el the new element
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      slow (O(index))
 !> \par History
@@ -784,7 +784,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_3d_r_type), POINTER          :: pos
 
     failure=.FALSE.
-    
+
     IF (cp_debug) THEN
        CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
     END IF
@@ -806,8 +806,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief removes all the elements from the list
 !> \param sll the list that should be removed
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      check more?
 !> \par History
@@ -840,8 +840,8 @@ CPSourceFileRef,&
 !> \brief returns a newly allocated array with the same contents as
 !>      the linked list
 !> \param sll the list to trasform in array
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -860,7 +860,7 @@ FUNCTION cp_sll_3d_r_to_array(sll,error) RESULT(res)
     TYPE(cp_sll_3d_r_type), POINTER          :: iter
 
   failure=.FALSE.
-  
+
   len=cp_sll_3d_r_get_length(sll,error)
   ALLOCATE(res(len),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -878,8 +878,8 @@ END FUNCTION cp_sll_3d_r_to_array
 ! *****************************************************************************
 !> \brief returns a linked list with the same contents as the given array
 !> \param array the array you want to copy
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -898,7 +898,7 @@ FUNCTION cp_sll_3d_r_from_array(array,error) RESULT(res)
     TYPE(cp_sll_3d_r_type), POINTER          :: last_el
 
   failure=.FALSE.
-  
+
   NULLIFY(res,last_el)
   IF (SIZE(array)>0) THEN
      CALL cp_sll_3d_r_create(res,&
@@ -923,8 +923,8 @@ END FUNCTION cp_sll_3d_r_from_array
 !> \param did_insert true if it did insert the element
 !> \param pos node where the element has been inserted (or of the same
 !>        element that was already in the list)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -948,7 +948,7 @@ SUBROUTINE cp_sll_3d_r_insert_ordered(sll,el,insert_equals,&
 
   failure=.FALSE.
   i_eq=.FALSE.
-  
+
   IF (PRESENT(did_insert)) did_insert=.FALSE.
   IF (PRESENT(pos)) NULLIFY(pos)
 
@@ -996,8 +996,8 @@ END SUBROUTINE cp_sll_3d_r_insert_ordered
 !>        than the second, 0 if they are equal, otherwise a positive number
 !> \param insert_equals if equal elements should be inserted
 !>        (defaults to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -1031,7 +1031,7 @@ USE cp_array_r_utils, ONLY: cp_3d_r_p_type
 
   failure=.FALSE.
   i_eq=.FALSE.
-  
+
   IF (PRESENT(did_insert)) did_insert=.FALSE.
   IF (PRESENT(pos)) NULLIFY(pos)
 
@@ -1079,8 +1079,8 @@ END SUBROUTINE cp_sll_3d_r_insert_ordered2
 !> \param el the element to control
 !> \param ordered if true assumes that the list is ordered in growing order.
 !>        (defaults to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      marginally faster if ordered (n/2 instread of n)
 !> \par History
@@ -1105,7 +1105,7 @@ FUNCTION cp_sll_3d_r_contains(sll,el,ordered,error) RESULT(res)
 
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
-  
+
   iter => sll
   IF (PRESENT(ordered)) ord=ordered
   IF (ord) THEN
@@ -1136,8 +1136,8 @@ END FUNCTION cp_sll_3d_r_contains
 !>        than the second, 0 if they are equal, otherwise a positive number
 !> \param ordered if true assumes that the list is ordered in growing order.
 !>        (defaults to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      marginally faster if ordered (n/2 instread of n)
 !> \par History
@@ -1173,7 +1173,7 @@ USE cp_array_r_utils, ONLY: cp_3d_r_p_type
 
   failure=.FALSE.
   res=.FALSE.
-  
+
   iter => sll
   IF (ordered) THEN
      DO
@@ -1195,17 +1195,17 @@ USE cp_array_r_utils, ONLY: cp_3d_r_p_type
   END IF
 END FUNCTION cp_sll_3d_r_contains2
 
-! template def put here so that line numbers in template and derived 
+! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE = 
+!  USE =
 !    "USE kinds, only: dp
 !     USE cp_array_r_utils, only: cp_3d_r_p_type"
 !  array= = "=>"
 !  arrayEl = "%array"
-!  defines = 
+!  defines =
 !    "! less not much meningful... and defines oly a partial ordering.
 !     #define CP_SLL_R_LESS_Q(el1,el2,error) ( all(el1 < el2) )
 !     #define CP_SLL_R_EQUAL_Q(el1,el2,error) ( all(el1 == el2) )

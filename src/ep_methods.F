@@ -234,7 +234,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates c0 for a single molecule
-!> \param ep_env the ep_env with all the 
+!> \param ep_env the ep_env with all the
 !> \param main_qs_env the qs_env of the full system
 !> \param projections the projections into the subsystems
 !> \param error variable to control error logging, stopping,...
@@ -256,7 +256,7 @@ CONTAINS
 
     CALL section_vals_val_get(ep_env%root_section,"FORCE_EVAL%EP%START_COEFFS",&
          r_vals=coeff_standard1d,error=error)
-    
+
     ! trova rotazione usando la posizione mol_pos (coordinate xyz xyz xyz)
     ! che porta la molecola nella posizione standard
 
@@ -270,7 +270,7 @@ CONTAINS
        END DO
     END DO
   END SUBROUTINE calc_c0_tilde
-  
+
 ! *****************************************************************************
 !> \brief creates the environement to perform an ep perturbation
 !> \param ep_env the ep_env env to create
@@ -2203,7 +2203,7 @@ CONTAINS
 
 ! *****************************************************************************
 ! The following routines are never called, but introduce a dependence on the
-! old SM code. 
+! old SM code.
 !> \brief Calculate the forces due to dC/dR (in the sub systems)
 !> \param ep_env the ep environment
 !> \param error controls error handling

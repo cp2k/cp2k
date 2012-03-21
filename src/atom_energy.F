@@ -166,7 +166,7 @@ CONTAINS
     ! Check for the total number of method types to be calculated
     method_section => section_vals_get_subs_vals(atom_section,"METHOD",error=error)
     CALL section_vals_get(method_section,n_repetition=n_meth,error=error)
- 
+
     ! integrals
     ALLOCATE(ae_int, pp_int,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -180,7 +180,7 @@ CONTAINS
         NULLIFY(atom_info(in,im)%atom)
         CALL create_atom_type(atom_info(in,im)%atom,error)
 
-        atom_info(in,im)%atom%optimization = optimization 
+        atom_info(in,im)%atom%optimization = optimization
 
         atom_info(in,im)%atom%z = zval
         xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=im,error=error)
@@ -193,7 +193,7 @@ CONTAINS
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
                                   c_vals=tmpstringlist, error=error)
 
-        ! set occupations 
+        ! set occupations
         CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity,error)
         state%maxl_occ = get_maxl_occ(state%occ)
         state%maxn_occ = get_maxn_occ(state%occ)
@@ -209,7 +209,7 @@ CONTAINS
         ! is there a pseudo potential
         pp_calc = ANY(INDEX(tmpstringlist(1:),"CORE") /= 0)
         IF ( pp_calc ) THEN
-          ! get and set the core occupations 
+          ! get and set the core occupations
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
           CALL atom_set_occupation(tmpstringlist,state%core,pocc,error=error)
           zcore = zval - SUM(state%core)
@@ -227,7 +227,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
           CALL atom_print_method(atom_info(in,im)%atom,iw,error)
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
-  
+
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
           IF ( pp_calc ) THEN
             IF(iw > 0) CALL atom_print_potential(p_pot,iw,error)
@@ -339,7 +339,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE atom_response_basis(atom,delta,nder,iw,error)
- 
+
     TYPE(atom_type), POINTER                 :: atom
     REAL(KIND=dp), INTENT(IN)                :: delta
     INTEGER, INTENT(IN)                      :: nder, iw
@@ -456,7 +456,7 @@ CONTAINS
       prefac = SQRT( SQRT(pi)/2._dp**(l+2)*dfac(2*l+1) )
       DO i=1,m
         zeta = (2._dp*atom%basis%am(i,l))**expzet
-        WRITE(iw,'(4X,F20.10,4X,15ES20.6)') atom%basis%am(i,l),((prefac*rbasis(i,k,l)/zeta),k=1,n) 
+        WRITE(iw,'(4X,F20.10,4X,15ES20.6)') atom%basis%am(i,l),((prefac*rbasis(i,k,l)/zeta),k=1,n)
       END DO
 
     END DO

@@ -21,7 +21,7 @@ MODULE mc_environment_types
   TYPE mc_environment_type
      INTEGER :: id_nr, ref_count, in_use
      TYPE ( mc_simpar_type ), POINTER :: mc_par
-     TYPE ( force_env_type ), POINTER :: force_env  
+     TYPE ( force_env_type ), POINTER :: force_env
   END TYPE mc_environment_type
 
 ! *****************************************************************************
@@ -44,7 +44,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates and initializes an mc_env
 !> \param mc_env the mc_environment you want to create
-!> 
+!>
 !>    Suitable for parallel use.
 !> \author MJM
 ! *****************************************************************************
@@ -77,7 +77,7 @@ CONTAINS
 !> \param mc_par the mc parameters you want to associate with this mc_env
 !> \param force_env the force environment type you want to associate
 !>                   with this mc_env
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -91,7 +91,7 @@ CONTAINS
     IF ( PRESENT ( force_env )) THEN
        mc_env % force_env => force_env
     END IF
-    
+
 
   END SUBROUTINE set_mc_env
 
@@ -103,7 +103,7 @@ CONTAINS
 !>                associated with this mc_env
 !> \param force_env the force environment type you want to point to the
 !>                force environment associated with this mc_env
-!> 
+!>
 !>    Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
@@ -121,9 +121,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given mc env
 !> \param mc_env the force environment to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
 !>    Suitable for parallel.
 !> \note
 !>      see doc/ReferenceCounting.html
@@ -139,7 +139,7 @@ SUBROUTINE mc_env_retain(mc_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(mc_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP,error)
@@ -150,9 +150,9 @@ END SUBROUTINE mc_env_retain
 ! *****************************************************************************
 !> \brief releases the given mc env
 !> \param mc_env the mc environment to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
 !>    Suitable for parallel.
 !> \note
 !>      see doc/ReferenceCounting.html
@@ -169,7 +169,7 @@ SUBROUTINE mc_env_release(mc_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(mc_env)) THEN
      CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP,error)
      mc_env%ref_count=mc_env%ref_count-1

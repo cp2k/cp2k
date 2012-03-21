@@ -67,7 +67,7 @@ CONTAINS
             error=error)
 
        NULLIFY(subsection, keyword)
-       
+
        CALL keyword_create(keyword, name="EIP_MODEL", &
             description="Selects the empirical interaction potential model", &
             usage="EIP_MODEL BAZANT", required=.TRUE., type_of_var=enum_t, &

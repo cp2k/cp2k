@@ -114,7 +114,7 @@ CONTAINS
        point(1)=rp(1)+i*radius
        point(2)=rp(2)+j*radius
        point(3)=rp(3)+k*radius
-       CALL matvec_3x3(res,info%dh_inv,point) 
+       CALL matvec_3x3(res,info%dh_inv,point)
        lb=MIN(lb,FLOOR(res))
        ub=MAX(ub,CEILING(res))
     ENDDO
@@ -211,7 +211,7 @@ CONTAINS
     REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, dz2, &
                                                 dzi, radius, radius2, rp(3)
 
-    CALL timeset(routineN,handle) 
+    CALL timeset(routineN,handle)
     info%dr = dr
     info%dh = dh
     info%dh_inv = dh_inv
@@ -251,7 +251,7 @@ CONTAINS
 
         DO i=1,imr
           k=1
-          radius=i*drmin 
+          radius=i*drmin
           radius2=radius**2
           kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
           k=k+1
@@ -275,7 +275,7 @@ CONTAINS
 
 !       init sphere_bounds array
         ! notice : as many points in lb_cube..0 as 1..ub_cube
-        DO i=1,imr 
+        DO i=1,imr
           k=1
           radius=i*drmin
           info%lb_cube(:,i)=-1
@@ -301,7 +301,7 @@ CONTAINS
           ENDDO
           info%ub_cube(:,i)=1-info%lb_cube(:,i)
         ENDDO
-        IF (check_1.NE.check_2) THEN 
+        IF (check_1.NE.check_2) THEN
             CALL stop_program(routineN,moduleN,__LINE__,&
                               "Irreproducible fp math caused memory corruption")
         END IF

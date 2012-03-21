@@ -137,7 +137,7 @@ CONTAINS
 !> calls to BLACS or MPI).
 !> \par Threading
 !>      The TYPE(dbcsr_iterator) variable should be thread-private.
-!> \par 
+!> \par
 !>      The iterator has several modes of operation when used with
 !>      OpenMP. Two options can be set to influence the behavior.
 !> \par Threading: shared vs. non-shared

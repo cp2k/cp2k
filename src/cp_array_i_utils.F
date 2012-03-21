@@ -10,29 +10,29 @@
 !> \brief various utilities that regard array of different kinds:
 !>      output, allocation,...
 !> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/                                        
-!>      ____ _                  ___                              _ _       _       _       
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>                                                        |___/
+!>      ____ _                  ___                              _ _       _       _
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/ 
-!>     _____ _     _       _____ _ _      _ 
+!>                                                                                   |___/
+!>     _____ _     _       _____ _ _      _
 !>    |_   _| |__ (_)___  |  ___(_) | ___| |
 !>      | | | '_ \| / __| | |_  | | |/ _ \ |
 !>      | | | | | | \__ \ |  _| | | |  __/_|
 !>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!> 
+!>
 !>      This is a template
-!> 
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify the .template and .instantition instead
-!> 
+!>
 !>      maybe it is not a good idea mixing output and memeory utils...
 !> \par History
 !>      12.2001 first version [fawzi]
@@ -55,7 +55,7 @@ MODULE cp_array_i_utils
 
   ! generic interfaces
   PUBLIC :: cp_guarantee_size
-  
+
   ! the underlying procedures
   PUBLIC :: cp_1d_i_guarantee_size, &
        cp_1d_i_write, cp_2d_i_write,&
@@ -68,7 +68,7 @@ MODULE cp_array_i_utils
   END INTERFACE
 
 !***
-  
+
 ! *****************************************************************************
 !> \brief represent a pointer to a 1d array
 !> \par History
@@ -106,8 +106,8 @@ CONTAINS
 !> \param array the array to write
 !> \param unit_nr the unit to write to (defaults to the standard out)
 !> \param el_format the format of a single element
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      maybe I will move to a comma separated paretized list
 !> \par History
@@ -128,12 +128,12 @@ SUBROUTINE cp_1d_i_write(array, unit_nr, el_format, error)
 
   failure=.FALSE.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
-  CPPrecondition(iostat==0,cp_failure_level,routineP,error,failure)  
+  CPPrecondition(iostat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      IF (PRESENT(el_format)) THEN
         DO i=1,SIZE(array)-1
            WRITE(unit=unit_nr,fmt=el_format,advance="no") array(i)
-           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line 
+           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line
               WRITE(unit=unit_nr,fmt="(',')")
            ELSE
               WRITE(unit=unit_nr,fmt="(',')",advance="no")
@@ -144,7 +144,7 @@ SUBROUTINE cp_1d_i_write(array, unit_nr, el_format, error)
      ELSE
         DO i=1,SIZE(array)-1
            WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(i)
-           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line 
+           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line
               WRITE(unit=unit_nr,fmt="(',')")
            ELSE
               WRITE(unit=unit_nr,fmt="(',')",advance="no")
@@ -164,8 +164,8 @@ END SUBROUTINE cp_1d_i_write
 !> \param array the array to write
 !> \param unit_nr the unit to write to (defaults to the standard out)
 !> \param el_format the format of a single element
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      maybe I will move to a comma separated parentized list
 !> \par History
@@ -187,7 +187,7 @@ SUBROUTINE cp_2d_i_write(array, unit_nr, el_format, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)
      IF (PRESENT(el_format)) THEN
@@ -209,14 +209,14 @@ END SUBROUTINE cp_2d_i_write
 !> \brief If the size of the array is changes reallocate it.
 !>      Issues a warning when the size changes (but not on allocation
 !>      and deallocation).
-!> 
+!>
 !>      The data is NOT preserved (if you want to preserve the data see
 !>      the realloc in the module memory_utilities)
 !> \param array the array to reallocate if necessary
 !> \param n the wanted size
 !> \param init the initial value of the elements when resized
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \note
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
@@ -260,15 +260,15 @@ END SUBROUTINE cp_2d_i_write
 !> \brief If the size of the array is changes reallocate it.
 !>      Issues a warning when the size changes (but not on allocation
 !>      and deallocation).
-!> 
+!>
 !>      The data is NOT preserved (if you want to preserve the data see
 !>      the realloc in the module memory_utilities)
 !> \param array the array to reallocate if necessary
 !> \param n_rows the wanted number of rows
 !> \param n_cols the wanted number of cols
 !> \param init the initial value of the elements when resized
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
@@ -319,8 +319,8 @@ END SUBROUTINE cp_2d_i_write
 !> \param el the element to look for
 !> \param l_index the lower index for binary search (defaults to 1)
 !> \param u_index the upper index for binary search (defaults to size(array))
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      the array should be ordered in growing order
 !> \par History
@@ -342,7 +342,7 @@ FUNCTION cp_1d_i_bsearch(array, el, l_index, u_index, error)&
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   lindex=1
   uindex=SIZE(array)
   IF (PRESENT(l_index)) lindex=l_index
@@ -358,13 +358,13 @@ FUNCTION cp_1d_i_bsearch(array, el, l_index, u_index, error)&
   res=lindex
 END FUNCTION cp_1d_i_bsearch
 
-  ! template def put here so that line numbers in template and derived 
+  ! template def put here so that line numbers in template and derived
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
 ! ARGS:
 !  USE = ""
 !  defaultFormatType1 = ""(i6)""
-!  defines = 
+!  defines =
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_I_LESS_Q"

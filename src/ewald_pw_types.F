@@ -90,7 +90,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(ASSOCIATED(ewald_pw),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -207,10 +207,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    
+
     NULLIFY ( pw_big_grid )
     NULLIFY ( pw_small_grid, poisson_section )
-    
+
     CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED ( cell ),cp_failure_level,routineP,error,failure)
@@ -233,7 +233,7 @@ CONTAINS
           logger => cp_error_get_logger ( error )
           output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log",error=error)
           CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF ,error=error)
-          
+
           IF ( ANY(gmax == 2 * ( gmax / 2 )) ) THEN
              CALL stop_program(routineN,moduleN,__LINE__,"gmax has to be odd.")
           END IF
@@ -279,37 +279,37 @@ CONTAINS
              WRITE ( output_unit, '( A,T63,3I6 )' ) &
                   ' EWALD| Full box grid ', pw_big_grid % npts
           END IF
-          
+
           ! pw pools initialized
           NULLIFY ( pw_pool )
           CALL pw_pool_create( pw_pool, pw_grid = pw_big_grid ,error=error)
           ewald_pw % pw_big_pool => pw_pool
           CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
           CALL pw_pool_release ( pw_pool ,error=error)
-          
+
           NULLIFY ( pw_pool )
           CALL pw_pool_create( pw_pool, pw_grid = pw_small_grid ,error=error)
           ewald_pw%pw_small_pool => pw_pool
           CALL pw_pool_retain ( ewald_pw % pw_small_pool ,error=error)
           CALL pw_pool_release ( pw_pool ,error=error)
-          
+
           NULLIFY ( rs_desc )
           CALL init_input_type(input_settings,nsmax=MAXVAL ( pw_small_grid % npts(1:3) ),&
                                rs_grid_section=rs_grid_section,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
           CALL rs_grid_create_descriptor(rs_desc,pw_big_grid, input_settings, error)
-          
+
           CALL rs_grid_create(rs, rs_desc, error)
           CALL rs_grid_print(rs,output_unit,error=error)
           CALL rs_grid_release(rs, error)
-          
+
           CALL cp_print_key_finished_output(output_unit,logger,print_section,"",error=error)
 
           ewald_pw%rs_desc => rs_desc
 
           CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc, error)
           CALL rs_grid_release_descriptor ( rs_desc, error)
-          
+
           CALL pw_grid_release ( pw_small_grid, error )
           CALL pw_grid_release ( pw_big_grid, error )
 
@@ -324,19 +324,19 @@ CONTAINS
           npts_s = gmax
           CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
                rs_dims=(/para_env%num_pe,1/), iounit=output_unit, fft_usage=.TRUE., error=error)
-          
+
           ! pw pools initialized
           NULLIFY ( pw_pool )
           CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid,error=error)
           ewald_pw%pw_big_pool => pw_pool
           CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
           CALL pw_pool_release ( pw_pool ,error=error)
-          
+
           NULLIFY ( rs_desc )
           CALL init_input_type(input_settings,nsmax=o_spline,&
                                rs_grid_section=rs_grid_section,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
-          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings, error) 
+          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings, error)
 
           CALL rs_grid_create(rs, rs_desc, error)
           CALL rs_grid_print(rs,output_unit,error=error)

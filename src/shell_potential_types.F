@@ -121,7 +121,7 @@ CONTAINS
       NULLIFY (shell_list(i)%shell)
       CALL shell_create(shell_list(i)%shell,error)
       shell_list(i)%atm_name=''
-    END DO 
+    END DO
 
   END SUBROUTINE shell_p_create
 
@@ -183,7 +183,7 @@ CONTAINS
     INTEGER                                  :: i, istat
 
     IF (ASSOCIATED(shell_list)) THEN
-      DO i = 1,SIZE(shell_list) 
+      DO i = 1,SIZE(shell_list)
          CALL shell_release(shell_list(i)%shell,error=error)
       END DO
       DEALLOCATE(shell_list,stat=istat)

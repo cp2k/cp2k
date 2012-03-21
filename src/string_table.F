@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief generates a unique id number for a string (str2id) that can be used
-!>      two compare two strings. I.e. 
+!>      two compare two strings. I.e.
 !>      if (str1==str2) => str2id(str1)==str2id(str2)
 !>      if (str1.NE.str2) => str2id(str1).NE.str2id(str2)
 !>      and the other way around. Given an id, the string can be retrieved.
@@ -26,18 +26,18 @@ MODULE string_table
 
   ! user functions
   PUBLIC :: str2id, id2str, s2s
-  
+
   ! setup function
   PUBLIC :: string_table_allocate,string_table_deallocate
 
   PRIVATE
   ! For good performance, the hash table should be larger than the largest number
-  ! of strings that will be saved, but the memory for an empty table is 16*hash_table_size 
+  ! of strings that will be saved, but the memory for an empty table is 16*hash_table_size
   ! the string_table should remain functional for up to ~ 2**32 strings
   INTEGER, PARAMETER :: Nbit=16
   INTEGER, PARAMETER :: hash_table_size=2**Nbit
 
-  ! actual elements in the hash table 
+  ! actual elements in the hash table
   INTEGER, SAVE      :: actual_strings
   INTEGER, SAVE      :: inserted_strings
 
@@ -54,7 +54,7 @@ MODULE string_table
 CONTAINS
 
 ! *****************************************************************************
-!> \brief returns a unique id for a given string, and stores the string for 
+!> \brief returns a unique id for a given string, and stores the string for
 !>      later retrieval using the id.
 !> \param str the string to be stored (default_string_length)
 !> \note
@@ -89,7 +89,7 @@ CONTAINS
              EXIT
           ELSE
              IF (.NOT. ASSOCIATED(this%next)) ALLOCATE(this%next)
-             ipos=ipos+1              
+             ipos=ipos+1
              this=>this%next
           ENDIF
        ENDIF
@@ -141,13 +141,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates the string table
 !> \note
-!>      this needs to be done only once at program startup, before any use 
+!>      this needs to be done only once at program startup, before any use
 !>      of other procedures of this module. The scope of this table is global
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE string_table_allocate()
-     ALLOCATE(hash_table(0:hash_table_size-1)) 
+     ALLOCATE(hash_table(0:hash_table_size-1))
      actual_strings=0
      inserted_strings=0
   END SUBROUTINE string_table_allocate
@@ -176,7 +176,7 @@ CONTAINS
             DEALLOCATE(hash_table(i)%str)
             ilist=ilist+1
         ENDIF
-        this=>hash_table(i)%next 
+        this=>hash_table(i)%next
         DO WHILE (ASSOCIATED(this))
            ipos=ipos+1
            next=>this%next
@@ -196,15 +196,15 @@ CONTAINS
      actual_strings=0
      inserted_strings=0
   END SUBROUTINE string_table_deallocate
-  
+
 ! *****************************************************************************
 !> \brief generates the hash of a string and the index in the table
 !> \param key a string of any length
 !> \note
 !>       http://en.wikipedia.org/wiki/Hash_table
 !>       http://www.burtleburtle.net/bob/hash/doobs.html
-!>       However, since fortran doesn't have an unsigned 4 byte int 
-!>       we compute it using an integer with the appropriate range 
+!>       However, since fortran doesn't have an unsigned 4 byte int
+!>       we compute it using an integer with the appropriate range
 !>       we return already the index in the table as a final result
 !> \par History
 !>       09.2006 created [Joost VandeVondele]
@@ -228,7 +228,7 @@ CONTAINS
     hash=IAND(     hash+IAND(ISHFT(hash,  3),b32)  ,b32)
     hash=IAND(IEOR(hash,IAND(ISHFT(hash,-11),b32)) ,b32)
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
-    ! hash is the real 32bit hash value of the string, 
+    ! hash is the real 32bit hash value of the string,
     ! hash_index is an index in the hash_table
     hash_index=MOD(hash,INT(hash_table_size,KIND=k64))
   END FUNCTION joaat_hash

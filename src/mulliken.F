@@ -58,15 +58,15 @@ MODULE mulliken
 CONTAINS
 
 ! *****************************************************************************
-!> \brief computes the energy and density matrix derivate of a constraint on the 
+!> \brief computes the energy and density matrix derivate of a constraint on the
 !>      mulliken charges
-!> 
+!>
 !>      optional outputs:
 !>      computes energy (added)
 !>      contribution to KS matrix (added)
 !>      contribution to W  matrix (added)
 !> \param mulliken_restraint_control additional parameters needed to control the restraint
-!> \param para_env para_env of the matrices 
+!> \param para_env para_env of the matrices
 !> \param s_matrix ,p_matrix : containing the respective quantities
 !> \note
 !>      contribution to the KS matrix is derivative wrt P
@@ -111,14 +111,14 @@ CONTAINS
     !
     ! this can be used to check the correct implementation of the derivative
     ! CALL rf_deriv_check(mulliken_restraint_control,charges)
-    ! 
+    !
     CALL restraint_functional(mulliken_restraint_control, &
                               charges,charges_deriv,my_energy,my_order_p)
 
     IF (PRESENT(order_p)) THEN
         order_p=my_order_p
     ENDIF
-    IF (PRESENT(energy)) THEN 
+    IF (PRESENT(energy)) THEN
         energy=my_energy
     ENDIF
 
@@ -158,7 +158,7 @@ CONTAINS
              ! we can cycle if a block is not present
              IF ( .NOT. (ASSOCIATED(w_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
 
-             ! minus sign relates to convention for W 
+             ! minus sign relates to convention for W
              mult = -0.5_dp * charges_deriv(iblock_row,ispin)   &
                     -0.5_dp * charges_deriv(iblock_col,ispin)
 
@@ -177,7 +177,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes energy and derivatives given a set of charges
-!>       this implementation uses the spin density on a number of atoms 
+!>       this implementation uses the spin density on a number of atoms
 !>       as a penalty function
 !> \param charges (nblock,nspin)
 !> \param output :
@@ -241,7 +241,7 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     ALLOCATE(deriv_num(1:SIZE(charges,1),1:SIZE(charges,2)))
 
     ! finite difference check
-    charges_local=charges 
+    charges_local=charges
     do_i: DO I=1,SIZE(charges,1)
       do_j: DO J=1,SIZE(charges,2)
          ! x+dx

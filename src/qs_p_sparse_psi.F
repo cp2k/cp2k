@@ -72,8 +72,8 @@ CONTAINS
 !>        defaults to all the ones of the atoms.
 !> \param particle_set the particle set from where to extract the indexes
 !>        of the ao
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -155,8 +155,8 @@ END SUBROUTINE p_proj_create
 !> \brief augments the retain count by one, to be called to hold a shared copy
 !>      of this object
 !> \param p_proj the projection to retain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -171,7 +171,7 @@ SUBROUTINE p_proj_retain(p_proj, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
   IF (.not.failure) THEN
      CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -185,8 +185,8 @@ END SUBROUTINE p_proj_retain
 !> \brief decreases the retain count by one, deleting the objecs when it hits 0.
 !>      To be called when you no longer need a shared copy you retained
 !> \param p_proj the projection to release
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -202,7 +202,7 @@ SUBROUTINE p_proj_release(p_proj, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(p_proj)) THEN
      CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
      p_proj%ref_count=p_proj%ref_count-1
@@ -230,8 +230,8 @@ END SUBROUTINE p_proj_release
 !>        (i min_m) will be written (defaults to 1)
 !> \param ncol number of columns to set (defaults to all the columns of
 !>        min_m
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -256,7 +256,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
 
   CALL timeset(routineN,handle)
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
   IF (.not.failure) THEN
      CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -292,7 +292,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
              start_col=icol+my_start_col_min, n_cols=blocksize, &
              transpose=.TRUE.,&
              error=error)
-        
+
         CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_dp,0,tmp_full(1,1),1)
         DO i=1,SIZE(p_proj%proj_indexes)
            tmp_full(1:blocksize,p_proj%proj_indexes(i))=tmp_min(1:blocksize,i)
@@ -307,7 +307,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      DEALLOCATE(tmp_min, tmp_full, stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
-  
+
   CALL timestop(handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
 
@@ -318,8 +318,8 @@ END SUBROUTINE p_proj_transfer_blacs_to_f
 !> \param full_m the matrix in the full basis to be restrained
 !> \param start_col the first column to restrain (defaults to 1)
 !> \param ncol number of columns to restrain
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \note
 !>      keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
 !> \par History
@@ -347,7 +347,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
 
   failure=.FALSE.
   NULLIFY(row_indices,col_indices)
-  
+
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
   CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(full_m),cp_failure_level,routineP,error,failure)
@@ -368,7 +368,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
      DO irow=1,SIZE(p_proj%proj_indexes)
         keep_row(p_proj%proj_indexes(irow))=.TRUE.
      END DO
-     
+
      DO icol=1,SIZE(full_m%local_data,2)
         IF (col_indices(icol)>start_col .AND.&
              col_indices(icol)<my_end_col) THEN
@@ -386,7 +386,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
      DEALLOCATE(keep_row,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
-  
+
   CALL timestop(handle)
 END SUBROUTINE p_proj_restrain_f
 

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief The Harris force , which contains all the informations needed to perform 
+!> \brief The Harris force , which contains all the informations needed to perform
 !>      and analyse the Harris functional force correction.
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -101,9 +101,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Retains a harris force type (see doc/ReferenceCounting.html)
 !> \param harris_force The harris force type to retain
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_force_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -122,7 +122,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -133,9 +133,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases the given harris force type (see doc/ReferenceCounting.html)
 !> \param harris_force The harris force type to release
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_force_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -244,7 +244,7 @@ CONTAINS
 !> \brief Returns various attributes of the harris force type
 !> \param harris_force The enquired harris force type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param f_trace The forces of the sum of eigenvalue term
 !> \param f_hartree The forces due to the hartree repulsion of the electrons
@@ -265,7 +265,7 @@ CONTAINS
 !> \param f_gth_pp The forces of the GTH pseudopotential
 !> \param f_overlap The forces due to the overlap
 !> \param f_nsc The non-self-consistent forces
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_force_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -296,7 +296,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     IF (.NOT.failure) THEN
       CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -332,7 +332,7 @@ CONTAINS
 !> \brief Sets various attributes of the harris force type
 !> \param harris_force The enquired harris force type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param f_trace The forces of the sum of eigenvalue term
 !> \param f_hartree The forces due to the hartree repulsion of the electrons
@@ -353,7 +353,7 @@ CONTAINS
 !> \param f_gth_pp The forces of the GTH pseudopotential
 !> \param f_overlap The forces due to the overlap
 !> \param f_nsc The non-self-consistent forces
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_force_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -384,7 +384,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     IF (.NOT.failure) THEN
       CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -420,9 +420,9 @@ CONTAINS
 !> \brief Reinitializes the harris force type
 !> \param harris_force The harris force type to be cleared
 !> \param natom The number of atoms
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_force_type
 !> \par History
 !>      06.2005 initial create [tdk]
@@ -443,7 +443,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
@@ -478,9 +478,9 @@ CONTAINS
 !> \brief Creates a harris force type instance
 !> \param harris_force The harris force type to be created
 !> \param natom The number of atoms
-!> \param error variable to control error logging, stopping,... 
+!> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> 
+!>
 !>      For possible missing arguments see the attributes of harris_force_type
 !> \par History
 !>      06.2005 initial create [tdk]

@@ -63,7 +63,7 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      04.2007 
+!>      04.2007
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE qs_ks_scp_create ( ks_scp_env, qs_env, error )
@@ -139,9 +139,9 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY ( rho_scp, rhop_r, energy )
-   
+
     CALL get_scp_env(scp_env=scp_env,&
-                     rho_scp = rho_scp, & 
+                     rho_scp = rho_scp, &
                      energy = energy, &
                      error=error)
     CALL scp_rho_get ( rho_scp, rhop_r = rhop_r, error = error )
@@ -166,13 +166,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY ( rho_scp, rhop_g, energy )
-   
+
     CALL get_scp_env(scp_env=scp_env,&
-                     rho_scp = rho_scp, & 
+                     rho_scp = rho_scp, &
                      energy = energy, &
                      error=error)
     CALL scp_rho_get ( rho_scp, rhop_g = rhop_g, error = error )
-     
+
     energy % e_scp_ks = pw_integral_ab ( rhop_g % pw, v%pw ,error=error)
 
     CALL timestop(handle)
@@ -181,7 +181,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Modify the hartree potential in order to include the SCP correction
 !> \par History
-!>      04.2007 
+!>      04.2007
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE scp_modify_hartree_pot(v_hartree,v_scp, input,error)
@@ -244,8 +244,8 @@ SUBROUTINE qs_ks_scp_did_change(qs_env,rho_changed,potential_changed,full_reset,
 
   failure=.FALSE.
 
-  CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error ) 
-  CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error ) 
+  CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+  CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
 
   CPPrecondition(ASSOCIATED(ks_scp_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ks_scp_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -304,7 +304,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
 
   CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
   CALL get_scp_env ( scp_env = scp_env, rspw = rspw, ks_scp_env = ks_scp_env, error = error )
-  CALL scp_rspw_get ( scp_rspw=rspw, qs_pw_env = pw_env, error = error ) 
+  CALL scp_rspw_get ( scp_rspw=rspw, qs_pw_env = pw_env, error = error )
 
 ! Could also get pw_env direct from qs_env. But, in general,
 ! SCP should have its own pw_env (for example with using SCP
@@ -325,7 +325,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
        CALL pw_pool_create_pw(auxbas_pw_pool, vhscp_gspace%pw, &
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE, error=error)
-       CALL pw_zero(vhscp_gspace%pw,error=error) 
+       CALL pw_zero(vhscp_gspace%pw,error=error)
 
 ! Getting the energy and density structures
        CALL get_scp_env ( scp_env=scp_env,&
@@ -349,7 +349,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
           ks_scp_env%potential_changed=.FALSE.
           ks_scp_env%full_reset=.FALSE.
        END IF
-    END IF   
+    END IF
   END IF
   t1 = m_walltime()
   CALL timestop(handle)

@@ -4,13 +4,13 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Interface to the Libint-Library 
+!> \brief Interface to the Libint-Library
 !> \note
 !>      IMPORTANT NOTE : this file currently is for a libint configured for
 !>                       LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
 !> \par History
 !>      11.2006 created [Manuel Guidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_libint_interface
 
@@ -68,7 +68,7 @@ MODULE hfx_libint_interface
 ! *****************************************************************************
   SUBROUTINE build_quartet_data_screen(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
                                        potential_parameter, prim, R11,R22)
-     
+
     REAL(KIND=dp)                            :: A(3), B(3), C(3), D(3)
     REAL(KIND=dp), INTENT(IN)                :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: m_max
@@ -101,11 +101,11 @@ MODULE hfx_libint_interface
       PQ(i) = P(i)-Q(i)
       W(i) = (Zeta*P(i) + Eta*Q(i))*ZetapEtaInv
     END DO
-   
+
     AB2 = DOT_PRODUCT(AB,AB)
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
-    
+
     S1234= EXP((-Zeta_A*Zeta_B*ZetaInv*AB2)+(-Zeta_C*Zeta_D*EtaInv*CD2))
     T = Rho*PQ2
 
@@ -134,7 +134,7 @@ MODULE hfx_libint_interface
         tmp = - omega_corr
         DO i=1,m_max+1
           prim%F(i)=prim%F(i) + Fm(i)*tmp
-          tmp = tmp * omega_corr2 
+          tmp = tmp * omega_corr2
         END DO
         factor = 2.0_dp*Pi*RhoInv
       CASE(do_hfx_potential_long)
@@ -163,8 +163,8 @@ MODULE hfx_libint_interface
         END DO
         factor = 2.0_dp*Pi*RhoInv
       CASE(do_hfx_potential_mix_cl_trunc)
-       
-        ! truncated 
+
+        ! truncated
         R = potential_parameter%cutoff_radius * SQRT(rho)
         R1 = R11
         R2 = R22
@@ -179,9 +179,9 @@ MODULE hfx_libint_interface
 
         DO i=1,m_max+1
            prim%F(i)=prim%F(i)*(potential_parameter%scale_coulomb+potential_parameter%scale_longrange)- &
-                     Fm(i)*potential_parameter%scale_longrange 
+                     Fm(i)*potential_parameter%scale_longrange
         ENDDO
-        
+
         ! longrange
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
@@ -222,11 +222,11 @@ MODULE hfx_libint_interface
           prim%F(i) = EXP(T) * tmp + Fm(i)
           tmp = tmp * omega2/(Rho+omega2)
         END DO
-        factor = 1.0_dp 
+        factor = 1.0_dp
       CASE(do_hfx_potential_id)
         prim%F(1) = (Pi*RhoInv)**(1.5_dp)
         DO i=2,m_max+1
-         prim%F(i)= 0.0_dp 
+         prim%F(i)= 0.0_dp
         END DO
         factor = 1.0_dp
     END SELECT
@@ -259,7 +259,7 @@ MODULE hfx_libint_interface
                               Zeta_A, Zeta_B, Zeta_C, Zeta_D,&
                               ZetaInv,EtaInv,ZetapEtaInv,Rho,RhoInv,&
                               P,Q,W)
-     
+
     TYPE(prim_data)                          :: prim
     REAL(KIND=dp), INTENT(IN)                :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN)                     :: Zeta_A, Zeta_B, Zeta_C, &
@@ -283,7 +283,7 @@ MODULE hfx_libint_interface
     prim%poz       = Rho*ZetaInv
     prim%pon       = Rho*EtaInv
     prim%oo2p      = 0.5_dp*RhoInv
-    
+
   END SUBROUTINE build_deriv_data
 
 ! *****************************************************************************
@@ -306,7 +306,7 @@ MODULE hfx_libint_interface
                                 work,work2,work_forces,buffer1,buffer2,primitives_tmp,&
                                 use_virial, work_virial, work2_virial, primitives_tmp_virial,&
                                 primitives_virial, cell, tmp_max_all_virial)
-    
+
     TYPE(lib_deriv)                          :: deriv
     INTEGER, INTENT(IN)                      :: nproducts
     TYPE(hfx_pgf_product_list), &
@@ -364,7 +364,7 @@ MODULE hfx_libint_interface
       work2_virial = 0.0_dp
     END IF
 
-   
+
     perm_case = 1
     IF(n_a<n_b) THEN
       perm_case = perm_case + 1
@@ -392,7 +392,7 @@ MODULE hfx_libint_interface
           CD = pgf_product_list(i)%CD
           ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
           prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-  
+
           CALL build_deriv_data(prim, A, B, C, D,&
                                  Zeta_A, Zeta_B, Zeta_C, Zeta_D, &
                                  ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
@@ -647,7 +647,7 @@ MODULE hfx_libint_interface
           END DO
         END DO
         IF( use_virial ) THEN
-          DO n = 1,12 
+          DO n = 1,12
             tmp_max_virial = 0.0_dp
             DO i = 1,mysize
               tmp_max_virial = MAX(tmp_max_virial, &
@@ -940,7 +940,7 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
-        IF( use_virial ) THEN 
+        IF( use_virial ) THEN
           DO n = 1,12
             tmp_max_virial = 0.0_dp
             DO i = 1,mysize
@@ -1162,7 +1162,7 @@ MODULE hfx_libint_interface
           END DO
         END IF
     END SELECT
-    
+
     IF( .NOT. use_virial) THEN
       IF( tmp_max_all < eps_schwarz ) RETURN
     END IF
@@ -1178,7 +1178,7 @@ MODULE hfx_libint_interface
                       sphi_d, &
                       primitives_tmp(1,1,1,1), &
                       buffer1, buffer2)
-    
+
         primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
                    s_offset_b+1:s_offset_b+nsob*nl_b,&
                    s_offset_c+1:s_offset_c+nsoc*nl_c,&
@@ -1186,7 +1186,7 @@ MODULE hfx_libint_interface
         primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
                    s_offset_b+1:s_offset_b+nsob*nl_b,&
                    s_offset_c+1:s_offset_c+nsoc*nl_c,&
-                   s_offset_d+1:s_offset_d+nsod*nl_d,i) + primitives_tmp(:,:,:,:) 
+                   s_offset_d+1:s_offset_d+nsod*nl_d,i) + primitives_tmp(:,:,:,:)
       END DO
     END IF
 
@@ -1202,7 +1202,7 @@ MODULE hfx_libint_interface
                         sphi_d, &
                         primitives_tmp_virial(1,1,1,1), &
                         buffer1, buffer2)
-      
+
           primitives_virial(s_offset_a+1:s_offset_a+nsoa*nl_a,&
                      s_offset_b+1:s_offset_b+nsob*nl_b,&
                      s_offset_c+1:s_offset_c+nsoc*nl_c,&
@@ -1210,7 +1210,7 @@ MODULE hfx_libint_interface
           primitives_virial(s_offset_a+1:s_offset_a+nsoa*nl_a,&
                      s_offset_b+1:s_offset_b+nsob*nl_b,&
                      s_offset_c+1:s_offset_c+nsoc*nl_c,&
-                     s_offset_d+1:s_offset_d+nsod*nl_d,i,m) + primitives_tmp_virial(:,:,:,:) 
+                     s_offset_d+1:s_offset_d+nsod*nl_d,i,m) + primitives_tmp_virial(:,:,:,:)
         END DO
       END DO
     END IF
@@ -1221,14 +1221,14 @@ MODULE hfx_libint_interface
 !> \brief Evaluates max-abs values of  electron repulsion integrals for a primitive quartet
 !> \par History
 !>      03.2007 created [Manuel Guidon]
-!>      08.2007 refactured permutation part [Manuel Guidon]                  
+!>      08.2007 refactured permutation part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE evaluate_eri_screen(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                  n_a,n_b,n_c,n_d,&
                                  max_val, potential_parameter, R1, R2,&
                                  p_work)
-    
+
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: A(3), B(3), C(3), D(3), &
                                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D
@@ -1360,7 +1360,7 @@ MODULE hfx_libint_interface
                           nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod,&
                           sphi_a, sphi_b, sphi_c, sphi_d, work,work2,buffer1,buffer2, &
                           primitives_tmp, p_work)
-    
+
     TYPE(lib_int)                            :: lib
     INTEGER, INTENT(IN)                      :: nproducts
     TYPE(hfx_pgf_product_list), &
@@ -1433,7 +1433,7 @@ MODULE hfx_libint_interface
             CD = pgf_product_list(i)%CD
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
-  
+
             CALL build_quartet_data(prim, A, C,&
                                     ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
                                     P, Q, W)
@@ -1823,7 +1823,7 @@ MODULE hfx_libint_interface
                     sphi_d, &
                     primitives_tmp, &
                     buffer1, buffer2)
-  
+
       primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
                  s_offset_b+1:s_offset_b+nsob*nl_b,&
                  s_offset_c+1:s_offset_c+nsoc*nl_c,&
@@ -1831,7 +1831,7 @@ MODULE hfx_libint_interface
       primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
                  s_offset_b+1:s_offset_b+nsob*nl_b,&
                  s_offset_c+1:s_offset_c+nsoc*nl_c,&
-                 s_offset_d+1:s_offset_d+nsod*nl_d) + primitives_tmp(:,:,:,:) 
+                 s_offset_d+1:s_offset_d+nsod*nl_d) + primitives_tmp(:,:,:,:)
 
   END SUBROUTINE evaluate_eri
 
@@ -1845,7 +1845,7 @@ MODULE hfx_libint_interface
   SUBROUTINE build_quartet_data(prim, A, C,&
                                 ZetaInv,EtaInv,ZetapEtaInv,Rho,RhoInv,&
                                 P,Q,W)
-     
+
     TYPE(prim_data)                          :: prim
     REAL(KIND=dp), INTENT(IN)                :: A(3), C(3)
     REAL(dp), INTENT(IN)                     :: ZetaInv, EtaInv, ZetapEtaInv, &

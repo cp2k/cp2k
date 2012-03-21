@@ -1491,7 +1491,7 @@ CONTAINS
                                       col=atom_a,&
                                       block=h_block,&
                                       found=found)
- 
+
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
             CALL cp_dbcsr_get_block_p(matrix=sm_v,&

@@ -153,9 +153,9 @@ CONTAINS
        ALLOCATE(sinmat(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF(calculate_forces)THEN
-          ALLOCATE(efield%dcosmat(3),stat=stat)  
+          ALLOCATE(efield%dcosmat(3),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(efield%dsinmat(3),stat=stat)  
+          ALLOCATE(efield%dsinmat(3),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        DO i=1,3
@@ -180,7 +180,7 @@ CONTAINS
              CALL set_efield_matrices(efield=efield,cosmat=cosmat,sinmat=sinmat,dcosmat=dcosmat,dsinmat=dsinmat,fielddir=i)
           ELSE
              CALL berry_mat_derivs(qs_env,cosmat(i)%matrix,sinmat(i)%matrix,kvec,calculate_forces,error=error)
-             CALL set_efield_matrices(efield=efield,cosmat=cosmat,sinmat=sinmat) 
+             CALL set_efield_matrices(efield=efield,cosmat=cosmat,sinmat=sinmat)
           END IF
        END DO
        CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
@@ -296,7 +296,7 @@ CONTAINS
     END DO
 
     IF(calculate_forces)THEN
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force,error=error)    
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force,error=error)
        nkind=SIZE(atomic_kind_set)
        kkk=1
        DO ikind=1,SIZE(atomic_kind_set)
@@ -308,7 +308,7 @@ CONTAINS
           natom = SIZE(atom_list)
           DO iatom=1,natom
              DO idir=1,3
-                
+
                 IF(para_env%mepos==0)&
                    force(ikind)%efield(idir,iatom)=force(ikind)%efield(idir,iatom)+0.5_dp*fieldfac(idir)*charge
              END DO
@@ -344,7 +344,7 @@ CONTAINS
     ALLOCATE(mo_coeff_tmp(SIZE(mo_derivs)),stat=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmotot = 0
-    
+
     ! A bit to allocate for the wavefunction
     DO ispin = 1, dft_control%nspins
        NULLIFY(tmp_fm_struct,mo_coeff)
@@ -354,7 +354,7 @@ CONTAINS
             ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
             error=error)
        CALL cp_fm_create (mo_derivs_tmp(ispin)%matrix , mo_coeff%matrix_struct ,error=error)
-       CALL cp_fm_create (mo_coeff_tmp(ispin)%matrix , mo_coeff%matrix_struct ,error=error) 
+       CALL cp_fm_create (mo_coeff_tmp(ispin)%matrix , mo_coeff%matrix_struct ,error=error)
        CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_derivs_tmp(ispin)%matrix,error=error)
        DO i = 1, SIZE ( op_fm_set, 1 )
           CALL cp_fm_create (opvec(i,ispin)%matrix , mo_coeff%matrix_struct ,error=error)
@@ -374,8 +374,8 @@ CONTAINS
     IF(calculate_forces)THEN
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
             ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context,&
-            error=error)   
-       NULLIFY (ao_work,dcos_full,dsin_full,tmp_re,tmp_im) 
+            error=error)
+       NULLIFY (ao_work,dcos_full,dsin_full,tmp_re,tmp_im)
        CALL cp_fm_create ( ao_work, tmp_fm_struct,error=error)
        CALL cp_fm_create ( dcos_full, tmp_fm_struct,error=error)
        CALL cp_fm_create ( dsin_full, tmp_fm_struct,error=error)
@@ -389,13 +389,13 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
-            error=error) 
+            error=error)
        CALL cp_fm_get_info(dcos_full,ncol_local=ncol_local,nrow_local=nrow_local,&
             row_indices=row_indices, col_indices=col_indices, error=error)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (kind_of(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(row_atom_index(SIZE(row_indices)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
@@ -421,7 +421,7 @@ CONTAINS
 
     !Start the MO derivative calculation
     ria = twopi * REAL(nmotot,dp) * MATMUL ( cell%h_inv, rcc )
-    xphase = CMPLX ( COS(ria), SIN(ria), dp )  
+    xphase = CMPLX ( COS(ria), SIN(ria), dp )
 
     zi=0.0_dp
 
@@ -451,12 +451,12 @@ CONTAINS
           zdet=one
           DO ispin = 1, dft_control%nspins
              CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
-             DO idim=1,tmp_dim 
+             DO idim=1,tmp_dim
                 eigrmat(ispin)%matrix%local_data(:,idim) = &
                      CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
                      -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
              END DO
-             
+
              CALL cp_cfm_set_all (inv_mat(ispin)%matrix,zero,one,error)
              CALL cp_cfm_solve ( eigrmat(ispin)%matrix,inv_mat(ispin)%matrix, zdeta,error )
              zdet=zdet*zdeta
@@ -479,7 +479,7 @@ CONTAINS
                   1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
              CALL cp_fm_gemm("N","N",nao,nmo,nmo,-fieldfac(idir)/(occ),opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
                   1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
-             
+
           END DO
 
           !now states the funny part, get the derivative w.r.t. the nuclei
@@ -533,7 +533,7 @@ CONTAINS
                    END DO
                 END DO
              END DO
-             
+
           END IF
        END IF
 
@@ -665,7 +665,7 @@ CONTAINS
        ALLOCATE(dcosab(ldab,ldab,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(dsinab(ldab,ldab,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)      
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     nkind = SIZE(atomic_kind_set)
@@ -690,7 +690,7 @@ CONTAINS
           CALL cp_dbcsr_alloc_block_from_nbl(dsinmat(m)%matrix,sab_all,error=error)
           CALL cp_dbcsr_set(dsinmat(m)%matrix,0.0_dp,error=error)
 
-          
+
           name = TRIM(cgfsym(4:))//" DERIVATIVE OF COSMAT"
           CALL compress(name)
           CALL uppercase(name)
@@ -756,7 +756,7 @@ CONTAINS
        NULLIFY (sblock)
        CALL cp_dbcsr_get_block_p(matrix=sinmat,&
             row=irow,col=icol,BLOCK=sblock,found=found)
-        
+
        IF (calculate_forces) THEN
           irow = iatom
           icol = jatom
@@ -770,7 +770,7 @@ CONTAINS
                   row=irow,col=icol,BLOCK=cost(m)%block,found=found)
              CPPostcondition(found,cp_failure_level,routineP,error,failure)
           ENDDO
-       ENDIF  
+       ENDIF
 
        IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
             .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
@@ -798,7 +798,7 @@ CONTAINS
                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                         lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                         ra,rb,kvec,cosab,sinab,dcosab,dsinab)
-                   
+
                 ELSE
                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                         lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -816,7 +816,7 @@ CONTAINS
                            iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
                            jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
                            dcosab(:,:,m),dsinab(:,:,m),ldab,work,ldwork)
-                      
+
                    END DO
                 END IF
              END DO
@@ -824,7 +824,7 @@ CONTAINS
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
-    
+
     IF(calculate_forces)THEN
        DO j = 1,3
           CALL cp_dbcsr_finalize(dcosmat(j)%matrix,error=error)

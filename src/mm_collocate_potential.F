@@ -32,10 +32,10 @@ MODULE mm_collocate_potential
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Main driver to collocate gaussian functions on grid 
+!> \brief Main driver to collocate gaussian functions on grid
 !>      without using periodic boundary conditions (NoPBC)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -117,7 +117,7 @@ CONTAINS
                 yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
                 ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
                 xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
-                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))   
+                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
                 IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) CYCLE
                 DO ig=zlb,zub
                    rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)
@@ -143,11 +143,11 @@ CONTAINS
   END SUBROUTINE collocate_gf_rspace_NoPBC
 
 ! *****************************************************************************
-!> \brief Main driver to integrate gaussian functions on a grid function   
+!> \brief Main driver to integrate gaussian functions on a grid function
 !>      without using periodic boundary conditions (NoPBC)
 !>      Computes Forces.
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -184,12 +184,12 @@ CONTAINS
     force  = 0.0_dp
     radius = exp_radius( 0, zetp, eps_mm_rspace, scale*W)
     IF (radius .EQ. 0.0_dp ) RETURN
-    
+
 !   *** properties of the grid ***
     rpl   = rp
     dr(:) = pwgrid%pw_grid%dr(:)
     grid  => pwgrid%cr3d(:,:,:)
-    gbo   =  pwgrid%pw_grid%bounds    
+    gbo   =  pwgrid%pw_grid%bounds
 
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
@@ -201,7 +201,7 @@ CONTAINS
        yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
        ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
        xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
-       xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))       
+       xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
        IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) RETURN
        DO ig=zlb,zub
           rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)
@@ -229,14 +229,14 @@ CONTAINS
              my_shift(2) = mm_cell%hmat(2,2)*REAL(iy,KIND=dp)
              DO ix = -n_rep_real(1),n_rep_real(1)
                 my_shift(1) = mm_cell%hmat(1,1)*REAL(ix,KIND=dp)
-                rpl   = rp + my_shift(:)         
-                cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1,:)       
+                rpl   = rp + my_shift(:)
+                cubecenter(:) = FLOOR(rpl(:)/dr(:))+gbo(1,:)
                 zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
                 zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
                 yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
                 ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
                 xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
-                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))                
+                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
                 IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) CYCLE
                 DO ig=zlb,zub
                    rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)

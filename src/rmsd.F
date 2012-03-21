@@ -31,7 +31,7 @@ CONTAINS
 !>      Optional arguments:
 !>          my_val -> gives back the value of the RMSD
 !>          transl -> provides the translational vector
-!>          rotate -> if .true. gives back in r the coordinates rotated 
+!>          rotate -> if .true. gives back in r the coordinates rotated
 !>                    in order to minimize the RMSD3
 !>          rot    -> provides the rotational matrix
 !>          drmsd3 -> derivatives of RMSD3 w.r.t. atomic positions
@@ -73,7 +73,7 @@ CONTAINS
        IF (PRESENT(rotate)) my_rotate=rotate
        ALLOCATE(w(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (PRESENT(weights)) THEN 
+       IF (PRESENT(weights)) THEN
           w = weights
        ELSE
           ! All atoms have a weight proportional to their mass in the RMSD unless
@@ -153,7 +153,7 @@ CONTAINS
           rrsq  =w(I)*(rr0(1)**2+rr0(2)**2+rr0(3)**2+rr(1)**2+rr(2)**2+rr(3)**2)
           rr0(1)=w(I)*rr0(1)
           rr0(2)=w(I)*rr0(2)
-          rr0(3)=w(I)*rr0(3)       
+          rr0(3)=w(I)*rr0(3)
           M(1,1)=M(1,1) + rrsq + 2.0_dp*(-rr0(1)*rr(1)-rr0(2)*rr(2)-rr0(3)*rr(3))
           M(2,2)=M(2,2) + rrsq + 2.0_dp*(-rr0(1)*rr(1)+rr0(2)*rr(2)+rr0(3)*rr(3))
           M(3,3)=M(3,3) + rrsq + 2.0_dp*( rr0(1)*rr(1)-rr0(2)*rr(2)+rr0(3)*rr(3))
@@ -203,47 +203,47 @@ CONTAINS
              rr0(1) = W(I)*2.0_dp*r0p(1,I)
              rr0(2) = W(I)*2.0_dp*r0p(2,I)
              rr0(3) = W(I)*2.0_dp*r0p(3,I)
-             
+
              dm_r (1,1,1)=(rr(1)-rr0(1))
              dm_r (1,1,2)=(rr(2)-rr0(2))
              dm_r (1,1,3)=(rr(3)-rr0(3))
-             
+
              dm_r (1,2,1)= 0.0_dp
              dm_r (1,2,2)= rr0(3)
              dm_r (1,2,3)=-rr0(2)
-             
+
              dm_r (1,3,1)=-rr0(3)
              dm_r (1,3,2)= 0.0_dp
              dm_r (1,3,3)= rr0(1)
-             
+
              dm_r (1,4,1)= rr0(2)
              dm_r (1,4,2)=-rr0(1)
              dm_r (1,4,3)= 0.0_dp
-             
+
              dm_r (2,2,1)=(rr(1)-rr0(1))
              dm_r (2,2,2)=(rr(2)+rr0(2))
              dm_r (2,2,3)=(rr(3)+rr0(3))
-             
+
              dm_r (2,3,1)=-rr0(2)
              dm_r (2,3,2)=-rr0(1)
              dm_r (2,3,3)= 0.0_dp
-             
+
              dm_r (2,4,1)=-rr0(3)
              dm_r (2,4,2)= 0.0_dp
              dm_r (2,4,3)=-rr0(1)
-             
+
              dm_r (3,3,1)=(rr(1)+rr0(1))
              dm_r (3,3,2)=(rr(2)-rr0(2))
              dm_r (3,3,3)=(rr(3)+rr0(3))
-             
+
              dm_r (3,4,1)= 0.0_dp
              dm_r (3,4,2)=-rr0(3)
              dm_r (3,4,3)=-rr0(2)
-             
+
              dm_r (4,4,1)=(rr(1)+rr0(1))
              dm_r (4,4,2)=(rr(2)+rr0(2))
              dm_r (4,4,3)=(rr(3)-rr0(3))
-             
+
              DO ix=1,3
                 dm_r(2,1,ix) = dm_r(1,2,ix)
                 dm_r(3,1,ix) = dm_r(1,3,ix)

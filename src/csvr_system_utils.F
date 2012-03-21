@@ -27,20 +27,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Stochastic velocity rescale, as described in
 !>      Bussi, Donadio and Parrinello, J. Chem. Phys. 126, 014101 (2007)
-!> 
+!>
 !>      This subroutine implements Eq.(A7) and returns the new value for the kinetic energy,
 !>      which can be used to rescale the velocities.
 !>      The procedure can be applied to all atoms or to smaller groups.
 !>      If it is applied to intersecting groups in sequence, the kinetic energy
-!>      that is given as an input (kk) has to be up-to-date with respect to the previous 
+!>      that is given as an input (kk) has to be up-to-date with respect to the previous
 !>      rescalings.
-!> 
-!>      When applied to the entire system, and when performing standard molecular dynamics 
+!>
+!>      When applied to the entire system, and when performing standard molecular dynamics
 !>      (fixed c.o.m. (center of mass))
 !>      the degrees of freedom of the c.o.m. have to be discarded in the calculation of ndeg,
 !>      and the c.o.m. momentum HAS TO BE SET TO ZERO.
 !>      When applied to subgroups, one can chose to:
-!>      (a) calculate the subgroup kinetic energy in the usual reference frame, and count 
+!>      (a) calculate the subgroup kinetic energy in the usual reference frame, and count
 !>          the c.o.m. in ndeg
 !>      (b) calculate the subgroup kinetic energy with respect to its c.o.m. motion, discard
 !>          the c.o.m. in ndeg and apply the rescale factor with respect to the subgroup c.o.m.
@@ -48,10 +48,10 @@ CONTAINS
 !>      They should be almost equivalent.
 !>      If the subgroups are expected to move one respect to the other, the choice (b)
 !>      should be better.
-!> 
+!>
 !>      If a null relaxation time is required (taut=0.0), the procedure reduces to an istantaneous
 !>      randomization of the kinetic energy, as described in paragraph IIA.
-!> 
+!>
 !>      HOW TO CALCULATE THE EFFECTIVE-ENERGY DRIFT
 !>      The effective-energy (htilde) drift can be used to check the integrator against
 !>      discretization errors.
@@ -60,7 +60,7 @@ CONTAINS
 !>      where h is the total energy (kinetic + potential)
 !>      and conint is a quantity accumulated along the trajectory as minus the sum of all
 !>      the increments of kinetic energy due to the thermostat.
-!> 
+!>
 !>      Variables:
 !>       kk    ! present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
 !>       sigma ! target average value of the kinetic energy (ndeg k_b T/2)  (in the same units as kk)

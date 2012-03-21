@@ -77,7 +77,7 @@ MODULE dbcsr_pq_methods
   PUBLIC :: dbcsr_ps_target_hold, dbcsr_ps_target_release
   PUBLIC :: dbcsr_ps_target_rm_data, dbcsr_ps_target_add_data
   PUBLIC :: dbcsr_ps_target_rm_data_cuda, dbcsr_ps_target_add_data_cuda
-  
+
   PUBLIC :: dbcsr_ps_target_lock_main, dbcsr_ps_target_unlock_main
   PUBLIC :: dbcsr_ps_target_lock_regions, dbcsr_ps_target_unlock_regions
 
@@ -216,7 +216,7 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     !$OMP BARRIER
-    !$OMP MASTER 
+    !$OMP MASTER
     DEALLOCATE (queue%all_queues%queues)
     DEALLOCATE (queue%all_queues%working)
     DEALLOCATE (queue%all_queues)
@@ -581,7 +581,7 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_ps_target_release
-  
+
   SUBROUTINE dbcsr_ps_target_create (t, error)
     TYPE(dbcsr_ps_target_type), INTENT(OUT)  :: t
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -718,7 +718,7 @@ CONTAINS
           DEALLOCATE (stack%s)
           NULLIFY (stack%s)
        ENDIF
-       
+
     ENDIF
   END SUBROUTINE dbcsr_ps_release
 
@@ -895,7 +895,7 @@ CONTAINS
     IF (stack%own_data) THEN
      IF (stack%mem_type .NE. dbcsr_memory_CUDA_host_pinned) THEN
        CALL memory_deallocate (stack%parameters, stack%mem_type, error=error)
-     ENDIF  
+     ENDIF
     ENDIF
     CALL dbcsr_ps_rm_data_ab (stack, error)
     CALL dbcsr_ps_rm_data_cuda_ab (stack, error)
@@ -907,7 +907,7 @@ CONTAINS
     IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_ps_destroy
 
-  
+
 ! *****************************************************************************
 !> \brief Removes left and right matrix data areas from a stack
 !> \param[in,out] stack           Parameter stack
@@ -1104,7 +1104,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Direct access to paramater stack
 !> \par View details
-!>      A pointer to the parameters array is returned.  Other data is 
+!>      A pointer to the parameters array is returned.  Other data is
 !>      returned as copies.  Therefore any changes must later be committed with
 !>      dbcsr_ps_view_close.
 !> \param[in] stack               Parameter stack
@@ -1170,7 +1170,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Direct access to paramater stack group
 !> \par View details
-!>      A pointer to the parameters array is returned.  Other data is 
+!>      A pointer to the parameters array is returned.  Other data is
 !>      returned as copies.  Therefore any changes must later be committed with
 !>      dbcsr_ps_view_close.
 !> \param[in] group               Parameter stack group
@@ -1235,27 +1235,27 @@ CONTAINS
   END SUBROUTINE dbcsr_psg_view_close
 
 ! *****************************************************************************
-!> \brief Initializes a set of stacks 
+!> \brief Initializes a set of stacks
 !> \param[in] group_size              The size of stack groups
 !> \param[in] n_stack_mem_regions     Number of memory region in the stack
-!> \param[in] stack_size              Each stack size  
+!> \param[in] stack_size              Each stack size
 !> \param[in,out] error               error
 ! *****************************************************************************
   SUBROUTINE dbcsr_ps_set_init (group_size,n_stack_mem_regions,stack_size, error)
     INTEGER                                  :: group_size,n_stack_mem_regions, &
-                                                stack_size  
+                                                stack_size
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER                                  :: ithread, nthreads, mem_type, k
 #if defined (__DBCSR_CUDA)
-  
+
     ithread = 0 ; nthreads = 1
     mem_type = dbcsr_memory_CUDA_host_pinned
-    !$ ithread = OMP_GET_THREAD_NUM () 
-    !$ nthreads = OMP_GET_NUM_THREADS ()  
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    !$ nthreads = OMP_GET_NUM_THREADS ()
 
     !$OMP MASTER
      NULLIFY(ps_host_global)
-     NULLIFY(ps_host_parameter) 
+     NULLIFY(ps_host_parameter)
      ALLOCATE (ps_host_global(nthreads))
      ALLOCATE (ps_host_parameter(nthreads))
     !$OMP END MASTER
@@ -1283,7 +1283,7 @@ CONTAINS
 
 #if defined (__DBCSR_CUDA)
   INTEGER                                  :: k, i
-  
+
      IF (ASSOCIATED(ps_host_global)) THEN
       DO k = 1, SIZE(ps_host_global)
        DO i = 1, SIZE(ps_host_global(k)%ps_local)
@@ -1345,7 +1345,7 @@ CONTAINS
     stack_set%group_size = group_size
     ALLOCATE (stack_set%all_states (nmemregs))
     DO k = 1, stack_set%nmemregs
-       
+
        ! Allocates the state array for all (non-master) stacks in this
        ! memory region.
       IF( mem_type .EQ. dbcsr_memory_CUDA_host_pinned) THEN
@@ -1354,9 +1354,9 @@ CONTAINS
        CALL memory_allocate (stack_set%all_states(k)%data,&
             group_size * nbuffers,&
             mem_type=mem_type, error=error)
-      ENDIF 
+      ENDIF
        stack_set%all_states(k)%mem_type = mem_type
-     
+
        DO j = 1, stack_set%nbuffers
           CALL dbcsr_ps_init (stack_set%groups(j,k)%master, error)
           ALLOCATE (stack_set%groups(j,k)%stacks(group_size))
@@ -1367,7 +1367,7 @@ CONTAINS
        ! A new master stack for this memory region is created.  All
        ! (non-master) parameter arrays will be set to point into the
        ! parameter array of this master stack.
-       
+
       CALL dbcsr_ps_init (memreg_stack, error)
       IF( mem_type .EQ. dbcsr_memory_CUDA_host_pinned) THEN
        ALLOCATE (memreg_stack%s)
@@ -1388,7 +1388,7 @@ CONTAINS
        CALL dbcsr_ps_new (memreg_stack,&
             stack_size*group_size*nbuffers,&
             mem_type=mem_type, error=error)
-     ENDIF  
+     ENDIF
        CALL dbcsr_ps_add_target (memreg_stack%s, product_target, error)
        CALL dbcsr_ps_set_set_b_master (stack_set, k,&
             memreg_stack, error=error)

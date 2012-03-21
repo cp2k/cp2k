@@ -40,7 +40,7 @@ CONTAINS
 
     INTEGER                                  :: unit_num
 
-      unit_num = default_output_unit 
+      unit_num = default_output_unit
 
       IF (PRESENT(message)) THEN
        WRITE(unit_num,"(T2,A)") "MACHINE| "//TRIM(message)

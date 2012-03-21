@@ -369,7 +369,7 @@ CONTAINS
                data_type=dbcsr_get_data_type (matrix_a),&
                error=dbcsr_error)
           CALL dbcsr_distribution_release (dist_a)
-          CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error) 
+          CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error)
           ! B
           CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
                dist_b, dbcsr_type_no_symmetry,&

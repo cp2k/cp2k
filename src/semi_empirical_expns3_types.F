@@ -71,7 +71,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical type
 !> \author Teodoro Laino [tlaino] - 12.2008
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE semi_empirical_expns3_release(expns3, error)
     TYPE(semi_empirical_expns3_type), &
       POINTER                                :: expns3

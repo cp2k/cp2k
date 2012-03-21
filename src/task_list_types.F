@@ -7,7 +7,7 @@
 !> \brief types for task lists
 !> \par History
 !>      01.2008 [Joost VandeVondele] refactered out of qs_collocate / qs_integrate
-!> \author Joost VandeVondele 
+!> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE task_list_types
   USE f77_blas

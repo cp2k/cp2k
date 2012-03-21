@@ -187,7 +187,7 @@ CONTAINS
     END DO
 
     gapw = (dft_control%qs_control%method=="GAPW")
-     
+
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_of_kind",natom*int_size)
@@ -317,7 +317,7 @@ CONTAINS
                error=error)
           DO ispin=1,nspin
              mo_set => mos(ispin)%mo_set
-             CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
+             CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
              use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
              CALL calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff, &
                                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger, &
@@ -361,8 +361,8 @@ CONTAINS
                force(ikind)%fock_4c(:,:) +&
                force(ikind)%hfx_ri(:,:) +&
                force(ikind)%repulsive(:,:)  +&
-               force(ikind)%dispersion(:,:) +& 
-               force(ikind)%ehrenfest(:,:) +& 
+               force(ikind)%dispersion(:,:) +&
+               force(ikind)%ehrenfest(:,:) +&
                force(ikind)%efield(:,:)+&
                force(ikind)%eev(:,:)
 
@@ -374,14 +374,14 @@ CONTAINS
              CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
              force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )
              ! Add dispersion if it is activated
-             IF (dft_control%scp_control%dispersion) THEN 
+             IF (dft_control%scp_control%dispersion) THEN
                 CALL mp_sum ( scp_force ( ikind )%f_scp_disp, para_env % group )
                 force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp_disp ( :, : )
              ENDIF
           END IF
           ! **** SCP
        END DO
-      
+
 
        DO iatom=1,natom
           ikind = kind_of(iatom)

@@ -6,13 +6,13 @@
 ! *****************************************************************************
 !> \brief Calculates the density_scaled Lyp functional when used in adiabatic hybrids.
 !>      The energy is given as
-!> 
-!>        Ec = 2*lambda*Ec(rho/lambda) + lambda^2*d/dlambda(Ec(rho/lambda)), 
-!> 
-!>      where rho/lambda is the scaled density 
+!>
+!>        Ec = 2*lambda*Ec(rho/lambda) + lambda^2*d/dlambda(Ec(rho/lambda)),
+!>
+!>      where rho/lambda is the scaled density
 !> \par History
 !>      1.2008 created [mguidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
 MODULE xc_lyp_adiabatic
   USE bibliography,                    ONLY: Lee1988,&
@@ -51,8 +51,8 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -88,11 +88,11 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -121,7 +121,7 @@ CONTAINS
 ! *****************************************************************************
 !> \par History
 !>      01.2008 created [mguidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lda_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -169,7 +169,7 @@ CONTAINS
       ELSE
         dummy=> rho
       END IF
-     
+
       e_0 => dummy
       e_rho => dummy
       e_ndrho => dummy
@@ -230,7 +230,7 @@ CONTAINS
 ! *****************************************************************************
 !> \par History
 !>      01.2008 created [mguidon]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
@@ -356,7 +356,7 @@ CONTAINS
 ! *****************************************************************************
 !> \par History
 !>      01.2008 created [fawzi]
-!> \author Manuel Guidon 
+!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -466,7 +466,7 @@ CONTAINS
            e_ndra=e_ndra, e_ndrb=e_ndrb,&
            grad_deriv=grad_deriv, npoints=npoints, &
            epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,lambda=lambda,error=error)
- 
+
       !$omp end parallel
 
       IF (cp_debug) THEN
@@ -485,7 +485,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
-     e_0, e_ra, e_rb,& 
+     e_0, e_ra, e_rb,&
      e_ndr,&
      e_ndra, e_ndrb, &
      grad_deriv,npoints,epsilon_rho,epsilon_drho,lambda,error)
@@ -526,7 +526,7 @@ CONTAINS
       IF (my_rhoa+my_rhob>epsilon_rho) THEN
         my_ndrhoa=norm_drhoa(ii)
         my_ndrhob=norm_drhob(ii)
-        my_ndrho = norm_drho(ii) 
+        my_ndrho = norm_drho(ii)
         IF( grad_deriv >= 0 ) THEN
           t1 = a * my_rhoa
           t2 = my_rhoa + my_rhob

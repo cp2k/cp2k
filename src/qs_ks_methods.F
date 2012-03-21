@@ -161,7 +161,7 @@ MODULE qs_ks_methods
   INTERFACE calculate_w_matrix
     MODULE PROCEDURE calculate_w_matrix_1,&
                      calculate_w_matrix_roks
-                     
+
   END INTERFACE
 
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
@@ -427,7 +427,7 @@ CONTAINS
          error=error)
 
 ! Define logicals for SCP
-    scp_dft =  dft_control % scp 
+    scp_dft =  dft_control % scp
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     do_ep=ASSOCIATED(ep_qs_env)
@@ -438,14 +438,14 @@ CONTAINS
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
     IF( do_hfx ) THEN
       CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core,&
-                                i_rep_section=1,error=error) 
+                                i_rep_section=1,error=error)
     END IF
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
     just_energy_xc=just_energy
     IF(do_adiabatic_rescaling) THEN
      !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
-     !! HFX-energy. Thus, let us first calculate the energy 
+     !! HFX-energy. Thus, let us first calculate the energy
      just_energy_xc=.TRUE.
     END IF
 
@@ -549,11 +549,11 @@ CONTAINS
 
        IF ( scp_dft ) THEN
           ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
-          ! potential due to the ions + electrons.  
+          ! potential due to the ions + electrons.
           ! Get the SCP environment
           CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
           CALL scp_calculate_gpw_energy ( scp_env, v_hartree_gspace, error )
-       END IF 
+       END IF
 
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN
@@ -569,7 +569,7 @@ CONTAINS
                   error=error)
           END IF
        END IF
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)  
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
 
        IF(dft_control%apply_efield_field)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,v_efield_rspace%pw,&
@@ -600,7 +600,7 @@ CONTAINS
           energy%ee=-ee_ener
        END IF
 
-       ! Adds the QM/MM potential 
+       ! Adds the QM/MM potential
        IF (qs_env%qmmm) THEN
           CALL qmmm_calculate_energy (qs_env=qs_env,&
                                       rho=rho%rho_r,&
@@ -612,7 +612,7 @@ CONTAINS
                                        rho_hartree_gspace=rho_tot_gspace,&
                                        energy=energy,&
                                        qmmm_env=qs_env%qmmm_env_qm,&
-                                       qs_env=qs_env,error=error) 
+                                       qs_env=qs_env,error=error)
                IF (.NOT.just_energy) THEN
                   CALL add_image_pot_to_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                                                  v_metal=qs_env%ks_qmmm_env%v_metal_rspace,&
@@ -625,14 +625,14 @@ CONTAINS
                   ENDIF
                ENDIF
                   CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw,error=error)
-             END IF 
+             END IF
           IF (.NOT.just_energy) THEN
              CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                   v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,scale=1.0_dp,&
                   error=error)
           END IF
        END IF
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)   
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
        ! SCP: Add the polarization potential
        IF ( scp_dft ) THEN
@@ -650,7 +650,7 @@ CONTAINS
        END IF
 
        ! calculate the density matrix for the fitted mo_coeffs
-       IF( dft_control%do_admm ) THEN 
+       IF( dft_control%do_admm ) THEN
           IF(.NOT.qs_env%run_rtp)THEN
              CALL admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
           ELSE
@@ -658,7 +658,7 @@ CONTAINS
           END IF
        END IF
 
-       ! only activate stress calculation if 
+       ! only activate stress calculation if
        IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
 
        ! *** calculate the xc potential on the pw density ***
@@ -673,7 +673,7 @@ CONTAINS
               just_energy=just_energy_xc, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
               error=error)
          IF (use_virial .AND. calculate_forces) THEN
-           virial%pv_virial = virial%pv_virial - virial%pv_xc 
+           virial%pv_virial = virial%pv_virial - virial%pv_xc
            ! ** virial%pv_xc will be zeroed in the xc routines
          END IF
          xc_section => admm_env%xc_section_primary
@@ -690,9 +690,9 @@ CONTAINS
        END IF
 
        IF (use_virial .AND. calculate_forces) THEN
-          virial%pv_virial = virial%pv_virial - virial%pv_xc 
+          virial%pv_virial = virial%pv_virial - virial%pv_xc
        ENDIF
-       
+
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hfx ) THEN
          CALL hfx_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,calculate_forces,&
@@ -745,7 +745,7 @@ CONTAINS
                 v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
                 v_efield_rspace,v_sic_rspace,v_spin_ddapc_rest_r,&
                 becke,calculate_forces,error=error)
-          
+
        END IF  ! .NOT. just energy
 
        IF (dft_control%qs_control%ddapc_explicit_potential) THEN
@@ -757,7 +757,7 @@ CONTAINS
                                         error=error)
        IF(dft_control%apply_efield_field)THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_efield_rspace%pw,&
-                                        error=error)   
+                                        error=error)
        END IF
        IF(gapw) THEN
           ! Integrals of the Hartree potential with g0_soft
@@ -765,13 +765,13 @@ CONTAINS
                                      calculate_forces, error=error)
        END IF
 
-       ! Single atom contributions to KS matrix due to self-correction of the SCP with 
-       ! the orbitals. 
+       ! Single atom contributions to KS matrix due to self-correction of the SCP with
+       ! the orbitals.
        IF (scp_dft) THEN
           CALL integrate_a_vhscp_b ( qs_env, ks_matrix, rho%rho_ao, &
                                      just_energy, error=error )
           CALL scp_qs_energies ( qs_env, calculate_forces, just_energy, error=error )
-          
+
        ENDIF
 
        IF(gapw .OR. gapw_xc) THEN
@@ -811,7 +811,7 @@ CONTAINS
           DO ispin=1,SIZE(mo_array)
              energy%kTS = energy%kTS + mo_array(ispin)%mo_set%kTS
              energy%efermi = energy%efermi + mo_array(ispin)%mo_set%mu
-          ENDDO          
+          ENDDO
           energy%efermi = energy%efermi /REAL(SIZE(mo_array))
        ENDIF
 
@@ -882,7 +882,7 @@ CONTAINS
                  ! use a temporary array with the same size as the first spin for the second spin
 
                  ! uniform_occupation is needed for this case, otherwise we can no
-                 ! reconstruct things in ot, since we irreversibly sum 
+                 ! reconstruct things in ot, since we irreversibly sum
                  CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
                  CALL get_mo_set(mo_set=mo_array(2)%mo_set,&
@@ -916,7 +916,7 @@ CONTAINS
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
             mo_array,energy,calculate_forces, just_energy,error)
-        
+
        IF ( do_ppl ) THEN
          ! update core energy for grid based local pseudopotential
          ecore_ppl = 0._dp
@@ -946,7 +946,7 @@ CONTAINS
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
          energy%total = energy%total + scp_energy%e_scp_total
          energy%total = energy%total + scp_energy%e_scp_disp
-       ENDIF 
+       ENDIF
 
        !Print detailed energy
        IF(my_print) THEN
@@ -1051,7 +1051,7 @@ CONTAINS
        in_range=ALL(ivec>=1) .AND. ALL(ivec<=2)
        CPPostcondition(in_range, cp_failure_level, routineP, error, failure)
        DO k=1,Nelectron
-          occupations(ivec(k),k,iterm)=1 
+          occupations(ivec(k),k,iterm)=1
        ENDDO
     ENDDO
 
@@ -1148,11 +1148,11 @@ CONTAINS
            DO ispin=1,Nspin
               ! use a work_v_rspace
               work_v_rspace%pw%cr3d = (energy_scaling(iterm) * vxc(ispin)%pw %pw_grid%dvol)* &
-                                      vxc(ispin)%pw%cr3d 
+                                      vxc(ispin)%pw%cr3d
               ! zero first ?!
               CALL cp_dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
               CALL integrate_v_rspace(v_rspace=work_v_rspace,p=matrix_p(ispin),h=matrix_h(ispin),&
-                                      qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
+                                      qs_env=qs_env,calculate_forces=calculate_forces,error=error)
               CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc(ispin)%pw,error=error)
            ENDDO
            DEALLOCATE(vxc)
@@ -1297,13 +1297,13 @@ CONTAINS
 
       iorb=0
       DO i=1,k_alpha
-         iorb=iorb+1 
+         iorb=iorb+1
          sic_orbital_list(1,iorb)=1
          sic_orbital_list(2,iorb)=i
          sic_orbital_list(3,iorb)=1
       ENDDO
       DO i=1,k_beta
-         iorb=iorb+1 
+         iorb=iorb+1
          sic_orbital_list(1,iorb)=2
          sic_orbital_list(2,iorb)=i
          IF (SIZE(mo_derivs,1)==1) THEN
@@ -1316,7 +1316,7 @@ CONTAINS
     CASE(sic_list_unpaired)
       ! we have two spins
       CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,error,failure)
-      ! we have them restricted 
+      ! we have them restricted
       CPPrecondition(SIZE(mo_derivs,1)==1,cp_failure_level,routineP,error,failure)
       CPPrecondition(dft_control%restricted,cp_failure_level,routineP,error,failure)
 
@@ -1329,10 +1329,10 @@ CONTAINS
       Norb=k_alpha-k_beta
       ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      
+
       iorb=0
       DO i=k_beta+1,k_alpha
-         iorb=iorb+1 
+         iorb=iorb+1
          sic_orbital_list(1,iorb)=1
          sic_orbital_list(2,iorb)=i
          ! we are guaranteed to be restricted
@@ -1399,7 +1399,7 @@ CONTAINS
     rho_r(1)%pw=>orb_rho_r%pw
     rho_r(2)%pw=>tmp_r%pw
     CALL pw_zero(tmp_r%pw, error=error)
-    
+
     ALLOCATE(rho_g(2),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rho_g(1)%pw=>orb_rho_g%pw
@@ -1452,14 +1452,14 @@ CONTAINS
                    pw_pool=xc_pw_pool, error=error)
            ! add to the existing work_v_rspace
            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &
-                   dft_control%sic_scaling_b * vxc(1)%pw %pw_grid%dvol *  vxc(1)%pw%cr3d 
+                   dft_control%sic_scaling_b * vxc(1)%pw %pw_grid%dvol *  vxc(1)%pw%cr3d
        END IF
        energy%exc = energy%exc - dft_control%sic_scaling_b * exc
 
        IF (.NOT. just_energy) THEN
            ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
            CALL integrate_v_rspace(v_rspace=work_v_rspace,p=orb_density_matrix_p,h=orb_h_p,&
-                                   qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
+                                   qs_env=qs_env,calculate_forces=calculate_forces,error=error)
 
            ! add this to the mo_derivs
            CALL cp_dbcsr_sm_fm_multiply(orb_h,matrix_v,matrix_hv, 1, error=error)
@@ -1498,7 +1498,7 @@ CONTAINS
     DEALLOCATE(rho_r)
     DEALLOCATE(rho_g)
 
-    CALL cp_dbcsr_deallocate_matrix_set(tmp_dbcsr,error=error)!fm->dbcsr                                                           
+    CALL cp_dbcsr_deallocate_matrix_set(tmp_dbcsr,error=error)!fm->dbcsr
 
     CALL timestop(handle)
 
@@ -1604,7 +1604,7 @@ CONTAINS
 
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
-       full_scaling= - dft_control%sic_scaling_a 
+       full_scaling= - dft_control%sic_scaling_a
     CASE ( sic_ad )
        full_scaling= - dft_control%sic_scaling_a * nelec
     CASE DEFAULT
@@ -2091,7 +2091,7 @@ CONTAINS
     CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
     IF (do_symm) CALL cp_fm_create(h_block_t,fm_struct_tmp, name="h block t",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-  
+
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers )
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2135,7 +2135,7 @@ CONTAINS
        CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
        DEALLOCATE(scaling_factor,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        WRITE(6,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient,error=error)
     ENDIF
@@ -2204,10 +2204,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print detailed energies
-!>        
+!>
 !> \par History
 !>    refactoring 04.03.2011 [MI]
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE print_detailed_energy(qs_env,dft_control,input,energy,mulliken_order_p,error)
 
@@ -2298,10 +2298,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate
-!>        
+!>
 !> \par History
 !>    refactoring 04.03.2011 [MI]
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE sum_up_and_integrate(ks_env,qs_env,ks_matrix,rho,my_rho,vppl_rspace,&
              v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
@@ -2372,7 +2372,7 @@ CONTAINS
              ! Now the Hartree potential to be integrated with the full basis
              v_rspace_new(ispin)%pw%cr3d  =&
                 ks_env%v_hartree_rspace%pw%cr3d
-          ELSE 
+          ELSE
          ! Add v_hartree + v_xc = v_rspace_new
             v_rspace_new(ispin)%pw%cr3d  =&
                  v_rspace_new(ispin)%pw%pw_grid%dvol * &
@@ -2516,7 +2516,7 @@ CONTAINS
         END DO
         DEALLOCATE(v_tau_rspace_aux_fit, stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF  
+      END IF
     END IF
 
     CALL timestop(handle)
@@ -2525,10 +2525,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate
-!>        
+!>
 !> \par History
 !>    refactoring 04.03.2011 [MI]
-!> \author 
+!> \author
 ! *****************************************************************************
   SUBROUTINE ep_v_core(qs_env,ep_qs_env,nspins,error)
 
