@@ -1068,7 +1068,11 @@ END SUBROUTINE diag_subspace_allocate
     NULLIFY (mo_eigenvalues)
     NULLIFY (c0, c1)
 
-    ortho => scf_env%ortho
+    IF(scf_env%cholesky_method==cholesky_inverse) THEN
+      ortho => scf_env%ortho_m1
+    ELSE
+      ortho => scf_env%ortho
+    END IF
     work  => scf_env%scf_work2
 
     DO ispin=1,SIZE(matrix_ks)
@@ -1247,11 +1251,6 @@ END SUBROUTINE diag_subspace_allocate
                                                 my_check_moconv_only
     TYPE(cp_logger_type), POINTER            :: logger
 
-! dbg
-!    integer:: i,nao,nmo
-!        TYPE(cp_fm_struct_type), POINTER         ::  fm_struct_tmp
-!       TYPE(cp_fm_type), POINTER                :: matrix_tmp, matrix_sc
-!dbg
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -1329,31 +1328,7 @@ END SUBROUTINE diag_subspace_allocate
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
     END DO
-!dbg
-!      write(*,*) 'mo_coeff '
-!      Do ispin=1,5
-!         write(*,*) ispin, mos(1)%mo_set%mo_coeff%local_data(ispin,1:5)
-!      end do
-!      CALL get_mo_set(mo_set= mos(1)%mo_set,nao=nao,nmo=nmo)
-!
-!      CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo,ncol_global=nmo, &
-!                             context=mos(1)%mo_set%mo_coeff%matrix_struct%context, &
-!                             para_env=mos(1)%mo_set%mo_coeff%matrix_struct%para_env,error=error)
-!      CALL cp_fm_create(matrix_tmp,fm_struct_tmp,name="matrix_tmp",error=error)
-!      CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-!
-!      CALL cp_fm_create(matrix_sc,mos(1)%mo_set%mo_coeff%matrix_struct,name="sc",error=error)
-!      CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, mos(1)%mo_set%mo_coeff,matrix_sc,nmo,error=error)
-!      CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mos(1)%mo_set%mo_coeff,matrix_sc,0.0_dp,matrix_tmp,error=error)
-!
-!      write(*,*) ' diag CHC'
-!!      do i=1,nmo
-!         write(*,*)  (matrix_tmp%local_data(i,i), i=1,nmo)
-!!      end do
-!      CALL cp_fm_release(matrix_tmp,error=error)
-!      CALL cp_fm_release(matrix_sc,error=error)
-!
-!dbg
+
 
     IF (output_unit > 0) THEN
           WRITE(output_unit,"(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
