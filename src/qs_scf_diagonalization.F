@@ -1251,7 +1251,6 @@ END SUBROUTINE diag_subspace_allocate
                                                 my_check_moconv_only
     TYPE(cp_logger_type), POINTER            :: logger
 
-
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
