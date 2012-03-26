@@ -11,6 +11,8 @@
 
 static const int verbose_print = 0;
 
+/* The following are defined in "dbcsr_cuda.h" */
+/* BLOCK, TDIM, TOTALTHREADS23SQ */
 
 __global__ void zerolocks (
 	int *__restrict__ locks,
@@ -105,6 +107,16 @@ __global__ void stack_mm_mnk_vec_d (
 	double *__restrict__ c_data,
 	int *__restrict__ c_locks);
 
+__global__ void stack_mm_mnk_sq23_d (
+	const int *__restrict__ param_stack,
+	const int careful, const int nruns,
+	const int m, const int n, const int k,
+	//const int mn, const int mk, const int kn, const int maxb,
+	const int liter,
+	const double *__restrict__ a_data,
+	const double *__restrict__ b_data,
+	double *__restrict__ c_data,
+	int *__restrict__ c_locks);
 
 /**
  * \brief Bridge routine to call appropriate CUDA kernel.
@@ -124,6 +136,10 @@ extern "C" int dc_do_stack_cu(
 	struct cudaDeviceProp devProperties;
 	int mn, mk, nk, maxb, liter;
 	cudaStream_t stream;
+
+	static long num_calls=0;
+
+	//       	num_calls++;
 
 	if (verbose_print) {
 		printf("Locks address %p.\n", c_locks);
@@ -167,6 +183,11 @@ extern "C" int dc_do_stack_cu(
 			if (verbose_print)
 				printf("Defined m,n,k: %d %d %d; %d.\n",
 				       m_max, n_max, k_max, stack_size);
+			if (num_calls>0) {
+			  printf("On call %d defined m,n,k: %d %d %d; %d : blocks %d, threads %d\n",
+				 num_calls,m_max, n_max, k_max, stack_size, (stack_size+GROUPING-1)/GROUPING,maxt);
+			  fflush(stdout);
+			}
 			if (0) {
 				mn = m_max * n_max;
 				mk = m_max * k_max;
@@ -202,13 +223,25 @@ extern "C" int dc_do_stack_cu(
 					printf("#: %d, maxt: %d, shr: %d, liter %d, sz: %d\n",
 					      (stack_size+GROUPING-1)/GROUPING,
 					       maxt, shared_size, liter, stack_size);
-				stack_mm_mnk_d <<< (stack_size+GROUPING-1)/GROUPING, maxt, shared_size, stream >>>
-					(param_stack, careful, nruns,
-					 m_max, n_max, k_max,
-					 //mn, mk, nk, maxb, liter,
-					 liter,
-					 (double *) a_data, (double *) b_data, (double *) c_data,
-					 c_locks);
+				if(m_max==23 && n_max==23 && k_max==23){
+				  /* Shared size is 2 arrays of 24x24 all double precision */
+				  /* Note that the kernel is always called with TOTALTHREADS23SQ threads */
+				  shared_size=(BLOCK*BLOCK)*2*sizeof(double);
+				  stack_mm_mnk_sq23_d <<< ((stack_size+GROUPING-1)/GROUPING), TOTALTHREADS23SQ, shared_size, stream >>>
+				      (param_stack, careful, nruns,
+				     m_max, n_max, k_max,
+				     liter,
+				     (double *) a_data, (double *) b_data, (double *) c_data,
+				     c_locks);
+				}else{
+				  stack_mm_mnk_d <<< (stack_size+GROUPING-1)/GROUPING, maxt, shared_size, stream >>>
+				    (param_stack, careful, nruns,
+				     m_max, n_max, k_max,
+				     //mn, mk, nk, maxb, liter,
+				     liter,
+				     (double *) a_data, (double *) b_data, (double *) c_data,
+				     c_locks);
+				}
 			}
 		} else {
 			//if (verbose_print)

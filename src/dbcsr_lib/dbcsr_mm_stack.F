@@ -56,6 +56,7 @@ MODULE dbcsr_mm_stack
        tmr_kernel_time, tmr_process_me, tmr_process_other_stack, &
        tmr_process_stack, tmr_process_target, tmr_wait_for_empty_stack, &
        tmr_wait_for_my_target, tmr_wait_for_other_target
+  USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -708,7 +709,7 @@ CONTAINS
        error)
     INTEGER, INTENT(IN)                      :: stack_size, driver
     INTEGER, DIMENSION(1:dbcsr_ps_width, &
-      stack_size), INTENT(IN)                :: params
+      stack_size), INTENT(INOUT)             :: params
     TYPE(dbcsr_data_obj), INTENT(IN)         :: left_data_area, &
                                                 right_data_area
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
@@ -733,6 +734,7 @@ CONTAINS
     LOGICAL, DIMENSION(max_regions)          :: which_locks
     REAL(KIND=dp)                            :: rnd, t_tmp
 
+!stack_size), INTENT(IN)                :: params
 !   ---------------------------------------------------------------------------
 
     IF (detailed_timing)  THEN
@@ -960,7 +962,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: stack_size
     INTEGER, &
       DIMENSION(dbcsr_ps_width*stack_size), &
-      INTENT(IN), TARGET                     :: params
+      INTENT(INOUT), TARGET                  :: params
     TYPE(dbcsr_cuda_mem_type), INTENT(IN)    :: data_a_dev, data_b_dev
     TYPE(dbcsr_cuda_mem_type), INTENT(INOUT) :: data_c_dev, c_locks, &
                                                 params_dev
@@ -974,9 +976,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_process_mm_stack', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, k_max, m_max, &
-                                                n_max, stream
+    INTEGER                                  :: error_handle, i, k_max, &
+                                                m_max, n_max, stream
     INTEGER, DIMENSION(:), POINTER           :: params_p
+    INTEGER, DIMENSION(stack_size)           :: c_sort, c_sort_ind
+    INTEGER, &
+      DIMENSION(dbcsr_ps_width, stack_size)  :: params_sort, params_tmp
     REAL(kind=dp)                            :: kt
     REAL(kind=dp), SAVE                      :: index_time = 0
 
@@ -1021,7 +1026,19 @@ CONTAINS
        kt = kt + m_walltime()
        WRITE(*,'(1X,A20,1(1X,EN12.3,1X,A))')"Thread sync time", kt, "s"
     ENDIF
-    !
+    !========================================
+    ! sort the stack. 
+    IF ( stack_size .GT. 1) THEN
+      params_tmp =  RESHAPE(params, (/dbcsr_ps_width, stack_size/))
+      ! sort by the C-blocks
+      c_sort = params_tmp(6,:)
+      CALL sort(c_sort, stack_size, c_sort_ind)
+      DO i=1,stack_size
+         params_sort(:, i)=params_tmp(:, c_sort_ind(i))
+      END DO
+      params = RESHAPE(params_sort, (/dbcsr_ps_width*stack_size/))
+    ENDIF
+    !========================================
     IF (kernel_timing) kt = -m_walltime()
     CALL dbcsr_cuda_cp_host_to_dev (params_p,&
          params_dev%d_i, dbcsr_ps_width*stack_size,&

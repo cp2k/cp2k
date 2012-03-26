@@ -20,3 +20,11 @@ static cudaStream_t *streams;
 static int nStreams = 0;
 
 cudaStream_t dc_get_stream (int stream_id);
+
+/* The following are only required or used by the 23 squared case */
+#define SQUARESIZE 23
+#define BLOCK 24
+#define TDIM 3
+#define NUMTHREADS23SQ ((BLOCK*BLOCK)/(TDIM*TDIM))
+#define BLOCKSPLIT23SQ 2
+#define TOTALTHREADS23SQ ((NUMTHREADS23SQ)*(BLOCKSPLIT23SQ))
