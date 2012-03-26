@@ -9,13 +9,15 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_util
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_copy,&
+                                             cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_qmmm
-  USE input_constants,                 ONLY: do_qmmm_wall_quadratic,&
+  USE input_constants,                 ONLY: do_qmmm_wall_none,&
+                                             do_qmmm_wall_quadratic,&
                                              do_qmmm_wall_reflective
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -23,8 +25,12 @@ MODULE qmmm_util
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type,&
+                                             write_fist_particle_coordinates,&
                                              write_qs_particle_coordinates
   USE qmmm_types,                      ONLY: fist_subsys,&
+                                             force_mixing_core_subsys,&
+                                             force_mixing_extended_subsys,&
+                                             primary_subsys,&
                                              qs_subsys
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env
@@ -33,11 +39,12 @@ MODULE qmmm_util
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_util'
   PUBLIC :: apply_qmmm_walls_reflective,&
             apply_qmmm_walls,&
             apply_qmmm_translate,&
+            apply_qmmm_translate_low,&
             spherical_cutoff_factor
 
 CONTAINS
@@ -119,6 +126,8 @@ CONTAINS
           CALL section_vals_val_get(walls_section,"TYPE",i_val=iwall_type,error=error)
           skin(:) = list(:)
        ELSE
+          ![NB]
+          iwall_type=do_qmmm_wall_reflective
           skin(:) = 0.0_dp
        END IF
        CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -126,9 +135,16 @@ CONTAINS
        CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-       CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
+       CALL cp_assert(iwall_type == do_qmmm_wall_none .OR. SIZE(force_env%sub_force_env) == 1, &
+         cp_warning_level,cp_assertion_failed,routineP,&
+         "Reflective walls for QM/MM are not implemented (or useful), when "//&
+         "top level force_env has two or more sub_force_env allocated, which only happens when "//&
+         "force mixing is active.  Skipping!"//CPSourceFileRef)
+       IF (SIZE(force_env%sub_force_env) /= 1) RETURN
+   
+       CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
                           cell=mm_cell,subsys=subsys_mm,error=error)
-       CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
+       CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
                           cell=qm_cell,subsys=subsys_qm,error=error)
        qm_atom_index   => force_env%qmmm_env%qm_atom_index
        CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
@@ -228,10 +244,19 @@ CONTAINS
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
+
+    CALL cp_assert(SIZE(force_env%sub_force_env) == 1, &
+       cp_warning_level,cp_assertion_failed,routineP,&
+       "Quadratic walls for QM/MM are not implemented (or useful), when "//&
+       "top level force_env has two or more sub_force_env allocated, which only happens when "//&
+       "force mixing is active.  Skipping!"//CPSourceFileRef)
+    IF (SIZE(force_env%sub_force_env) /= 1) RETURN
+
+    CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
                        cell=mm_cell,subsys=subsys_mm,error=error)
-    CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
+    CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
                        cell=qm_cell,subsys=subsys_qm,error=error)
+
     qm_atom_index   => force_env%qmmm_env%qm_atom_index
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
 
@@ -294,11 +319,11 @@ CONTAINS
        ENDIF
     ENDDO
 
-    CALL get_qs_env(qs_env=force_env%sub_force_env(qs_subsys)%&
+    CALL get_qs_env(qs_env=force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(qs_subsys)%&
       force_env%qs_env, energy=energy,error=error)
     energy%total = energy%total + wallenergy
 
-  END SUBROUTINE
+  END SUBROUTINE apply_qmmm_walls_quadratic
 
 ! *****************************************************************************
 !> \brief Apply translation to the full system in order to center the QM
@@ -316,9 +341,95 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ip
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+    LOGICAL                                  :: failure
+    REAL(dp), POINTER                        :: charges(:)
+    TYPE(cell_type), POINTER                 :: cell_core, cell_extended
+    TYPE(cp_subsys_type), POINTER            :: subsys_core, subsys_extended, &
+                                                subsys_fist, subsys_qs
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_core, &
+                                                particles_extended, &
+                                                particles_mm, particles_qm
+    TYPE(section_vals_type), POINTER         :: subsys_section
+
+    SELECT CASE(force_env%in_use)
+
+    CASE(use_qmmm)
+      IF (SIZE(force_env%sub_force_env) == 1) THEN
+        CALL apply_qmmm_translate_low(force_env%sub_force_env(1)%force_env,error)
+      ELSE IF (SIZE(force_env%sub_force_env) == 2) THEN
+        ! want to center extended, and make core consistent with that
+        CALL apply_qmmm_translate_low(force_env%sub_force_env(force_mixing_extended_subsys)%force_env,error)
+
+        ! translate core fist particles
+        CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env,&
+                          subsys=subsys_extended,cell=cell_extended,error=error)
+         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env,&
+                          subsys=subsys_core,cell=cell_core,error=error)
+        particles_extended => subsys_extended%particles%els
+        particles_core => subsys_core%particles%els
+         DO ip=1,SIZE(particles_extended)
+            particles_core(ip)%r = particles_extended(ip)%r
+         END DO
+         CALL cell_copy(cell_extended, cell_core, error)
+
+         ! also update core QM particles (like in apply_qmmm_translate_low)
+         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
+                          subsys=subsys_fist,error=error)
+         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
+                          subsys=subsys_qs,error=error)
+       qm_atom_index   => force_env%sub_force_env(force_mixing_core_subsys)%force_env%qmmm_env%qm_atom_index
+       particles_qm => subsys_qs%particles%els
+       particles_mm => subsys_fist%particles%els
+       CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+       DO ip=1,SIZE(qm_atom_index)
+          particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
+       END DO
+
+IF (debug_this_module) THEN
+CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
+                  subsys=subsys_core,cell=cell_core,error=error)
+particles_core => subsys_core%particles%els
+subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
+                                                    "SUBSYS",error=error)
+CALL write_qs_particle_coordinates(particles_core,subsys_section,"QM/MM core calc first QM, then MM (0 charges)",error)
+CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
+                  subsys=subsys_core,cell=cell_core,error=error)
+particles_core => subsys_core%particles%els
+ALLOCATE(charges(SIZE(particles_core)))
+charges = 0.0_dp
+CALL write_fist_particle_coordinates(particles_core,subsys_section,charges,error)
+DEALLOCATE(charges)
+ENDIF
+
+      ELSE
+         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      ENDIF
+    END SELECT
+  END SUBROUTINE apply_qmmm_translate
+
+! *****************************************************************************
+!> \brief Apply translation to the full system in order to center the QM
+!>      system into the QM box
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2007 created [tlaino] - Zurich University
+!> \author Teodoro Laino
+! *****************************************************************************
+  SUBROUTINE apply_qmmm_translate_low(force_env,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate_low', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: failure
+    REAL(DP), POINTER                        :: charges(:)
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -383,12 +494,18 @@ CONTAINS
        DO ip=1,SIZE(qm_atom_index)
           particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
        END DO
+
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "SUBSYS",error=error)
-       CALL write_qs_particle_coordinates(particles_qm,subsys_section,"QM/MM",error)
+       CALL write_qs_particle_coordinates(particles_qm,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
+       ALLOCATE(charges(SIZE(particles_mm)))
+       charges = 0.0_dp
+       CALL write_fist_particle_coordinates(particles_mm,subsys_section,charges,error)
+       DEALLOCATE(charges)
+
     END SELECT
 
-  END SUBROUTINE apply_qmmm_translate
+  END SUBROUTINE apply_qmmm_translate_low
 
 ! *****************************************************************************
 !> \brief Computes a spherical cutoff factor for the QMMM interactions

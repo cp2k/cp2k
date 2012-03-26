@@ -68,7 +68,7 @@ MODULE cell_types
 ! *** Public subroutines ***
   PUBLIC :: get_cell, get_cell_param, init_cell, read_cell,&
             write_cell, cell_create, cell_retain, cell_release,&
-            cell_clone, compare_cells, parse_cell_line, set_cell_param
+            cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param
 
 ! *** Public functions ***
   PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real
@@ -130,6 +130,27 @@ CONTAINS
     last_cell_id = last_cell_id + 1
     cell_out%id_nr = last_cell_id
   END SUBROUTINE cell_clone
+
+! *****************************************************************************
+  SUBROUTINE cell_copy (cell_in, cell_out, error)
+    TYPE(cell_type), POINTER                 :: cell_in, cell_out
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cell_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
+
+    cell_out%deth =                cell_in%deth
+    cell_out%perd =                cell_in%perd
+    cell_out%hmat =                cell_in%hmat
+    cell_out%h_inv =               cell_in%h_inv
+    cell_out%orthorhombic =        cell_in%orthorhombic
+  END SUBROUTINE cell_copy
 
 ! *****************************************************************************
 !> \brief   Read cell info from a line (parsed from a file)

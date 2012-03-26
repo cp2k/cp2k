@@ -79,6 +79,7 @@ MODULE integrator
                                              update_particle_set
   USE physcon,                         ONLY: bohr,&
                                              femtoseconds
+  USE qmmm_main,                       ONLY: qmmm_update_force_mixing_env
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
@@ -254,6 +255,9 @@ CONTAINS
 
     DEALLOCATE (pos,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
@@ -461,6 +465,9 @@ CONTAINS
           deallocate_vel=.FALSE.
        END IF
 
+       ![ADAPT] update input structure with new coordinates, make new labels
+       CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
+
        CALL force_env_calc_energy_force(force_env,error=error)
 
        ! Metadynamics
@@ -626,6 +633,9 @@ CONTAINS
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
+
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
 
     CALL force_env_calc_energy_force(force_env,error=error)
 
@@ -824,6 +834,9 @@ CONTAINS
         CALL optimize_shell_core(force_env,  particle_set,&
              shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error)
     END IF
+
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
@@ -1355,6 +1368,8 @@ CONTAINS
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -1575,6 +1590,9 @@ CPSourceFileRef,&
        CALL init_cell(cell)
        CALL force_env_set_cell(force_env, cell, error)
     END IF
+
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
 
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
@@ -1797,6 +1815,8 @@ CPSourceFileRef,&
 
     ! Update forces (and stress)
     CALL force_env_set_cell(force_env, cell, error)
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2059,6 +2079,8 @@ CPSourceFileRef,&
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2357,6 +2379,8 @@ CPSourceFileRef,&
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
+    ![ADAPT] update input structure with new coordinates, make new labels
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -2579,6 +2603,9 @@ CPSourceFileRef,&
           particle_set_respa(iparticle)%r = particle_set(iparticle)%r
        END DO
 
+       ![ADAPT] update input structure with new coordinates, make new labels
+       ! Not checked, and probably won't work, with RESPA.
+       CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
        ! Update forces
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
 
@@ -2611,6 +2638,9 @@ CPSourceFileRef,&
 
     ! Multiple time step (second part)
     ! Compute forces for respa force_env
+    ![ADAPT] update input structure with new coordinates, make new labels
+    ! Not checked, and probably won't work, with RESPA.
+    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics

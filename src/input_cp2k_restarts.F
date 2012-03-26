@@ -112,7 +112,8 @@ MODULE input_cp2k_restarts
   PUBLIC :: write_restart,&
             update_subsys,&
             section_velocity_val_set,&
-            write_restart_header
+            write_restart_header,&
+            update_input
 
 CONTAINS
 

@@ -36,7 +36,8 @@ MODULE input_cp2k_qmmm
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
-                                             real_t
+                                             real_t, &
+					     logical_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
@@ -189,6 +190,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! NB: remember to create these
+       CALL create_qmmm_force_mixing_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)    
+
        CALL create_qmmm_qm_kinds(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -277,6 +283,174 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_qmmm_mm_kinds
+
+! *****************************************************************************
+!> \brief Input section to create FORCE_MIXING sections
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author noam
+! *****************************************************************************
+  SUBROUTINE create_qmmm_force_mixing_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_qmmm_force_mixing_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: link_subsection, print_key, &
+                                                subsection
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="FORCE_MIXING",&
+            description="This section defines parameters for force-mixing based QM/MM,"//&
+            " which actually does two conventional QM/MM calculations, on a small "//&
+            " and a large QM regions, and combines the MM forces from one and QM "//&
+            " forces from the other to create a complete set of forces.  Energy is "//&
+            " not conserved (although the energy from the large QM region is saved) "//&
+            " so a proper thermostat (i.e. massive, and able to handle dissipation) must be used.",&
+         n_keywords=5, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+        description="Enables force-mixing", &
+        default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="R_CORE",&
+        description="Specify the inner and outer radii of core QM region. "//&
+        "All atoms within this distance (hysteretically) of any atoms listed in "//&
+        "ATOM_INDEX will be core QM atoms in the force-mixing calculation.", &
+        usage="R_CORE <real> <real>",n_var=2,type_of_var=real_t,&
+        default_r_vals=(/ cp_unit_to_cp2k(0.0_dp,"angstrom",error=error),&
+                          cp_unit_to_cp2k(0.0_dp,"angstrom",error=error) /),&
+        unit_str="angstrom",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="R_QM",&
+        description="Specify the inner and outer radii of extended QM region. "//&
+        "All atoms within this distance (hysteretically) of any atoms listed in "//&
+        "ATOM_INDEX will be QM atoms in the force-mixing calculation.", &
+        usage="R_QM <real> <real>",n_var=2,type_of_var=real_t,&
+        default_r_vals=(/ cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
+                          cp_unit_to_cp2k(1.0_dp,"angstrom",error=error) /),&
+        unit_str="angstrom",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST",&
+        description="Makes the extended QM zone be defined hysterestically "//&
+	"by distance from QM core list (i.e. atoms specified explicitly by "//&
+	"user) instead of from full QM core region (specified by user + hysteretic "//&
+	"selection + unbreakable bonds)",&
+        usage="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST <logical>",n_var=1,type_of_var=logical_t,&
+	default_l_val=.FALSE., repeats = .FALSE., required = .FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="R_BUF",&
+      description="Specify the inner and outer radii of buffer region. "//&
+      "All atoms within this distance (hysteretically) of any QM atoms "//&
+      "will be buffer atoms in the force-mixing calculation.", &
+      usage="R_BUF <real> <real>",n_var=2,type_of_var=real_t,&
+      default_r_vals=(/ cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
+                      cp_unit_to_cp2k(1.0_dp,"angstrom",error=error) /),&
+      unit_str="angstrom",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="QM_KIND_ELEMENT_MAPPING",&
+         description="Mapping from elements to QM_KINDs for adaptivity",&
+         usage="QM_KIND_ELEMENT_MAPPING {El} {QM_KIND}",&
+         n_var=2,type_of_var=char_t,repeats=.TRUE.,required=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="MAX_N_QM",&
+         description="Maximum number of QM atoms, for detection of runaway adaptive selection.",&
+         usage="MAX_N_QM int",default_i_val=300,&
+         n_var=1,type_of_var=integer_t,repeats=.FALSE.,required=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+
+    ![NB] also need a list?
+    ![NB] maybe not list+links , but some sort of link template
+    ![NB] also, breakable bonds?
+    ! BUFFER_LINKS subsection
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="BUFFER_LINKS",&
+         description="Information about possible links for the buffer QM/MM calculation."//&
+         "Not used yet - need to implement buffer selection by atom and walking of connectivity data.",&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+         error=error)
+
+    NULLIFY(link_subsection)
+    CALL create_qmmm_link_section(link_subsection,error)
+    CALL section_add_subsection(subsection,link_subsection,error=error)
+    CALL section_release(link_subsection,error=error)
+
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)    
+
+    ! RESTART_INFO subsection
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="RESTART_INFO",&
+            description="This section provides information about old force-mixing indices and labels, "//&
+            "for restarts.", &
+         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         error=error)
+
+      CALL keyword_create(keyword, name="INDICES",&
+          description="Indices of atoms in previous step QM regions.", &
+          usage="INDICES 1 2 ...", &
+          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,required=.TRUE.,error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="LABELS",&
+          description="Labels of atoms in previous step QM regions.", &
+          usage="LABELS 1 1 ...", &
+          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,required=.TRUE.,error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)    
+
+      ! PRINT subsection, with keys for neighbor list
+       CALL section_create(subsection,name="print",&
+            description="Section of possible print options in FORCE_MIXING.",&
+            n_keywords=0, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"SUBCELL",&
+            description="Activates the printing of the subcells used for the"//&
+            "generation of neighbor lists.", unit_str="angstrom",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
+            description="Activates the printing of the neighbor lists used"//&
+            " for the hysteretic region calculations.", &
+            print_level=high_print_level,filename="",unit_str="angstrom",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)    
+
+
+  END SUBROUTINE create_qmmm_force_mixing_section
 
 ! *****************************************************************************
 !> \brief Input section to create QM kinds sections

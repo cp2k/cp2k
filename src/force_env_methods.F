@@ -112,11 +112,10 @@ MODULE force_env_methods
                                              qmmm_added_chrg_forces,&
                                              qmmm_link_Imomm_coord,&
                                              qmmm_link_Imomm_forces
-  USE qmmm_types,                      ONLY: fist_subsys,&
-                                             qmmm_env_qm_retain,&
-                                             qmmm_env_qm_type,&
-                                             qmmm_links_type,&
-                                             qs_subsys
+  USE qmmm_types,                      ONLY: &
+       fist_subsys, force_mixing_core_subsys, force_mixing_extended_subsys, &
+       force_mixing_label_QM_extended, primary_subsys, qmmm_env_qm_retain, &
+       qmmm_env_qm_type, qmmm_links_type, qs_subsys
   USE qmmm_util,                       ONLY: apply_qmmm_translate,&
                                              apply_qmmm_walls
   USE qs_energy,                       ONLY: qs_energies
@@ -677,7 +676,7 @@ CONTAINS
           force_env%in_use=use_qmmm
           force_env%qmmm_env => qmmm_env
           CALL qmmm_env_qm_retain(qmmm_env,error=error)
-          force_env%virial => sub_force_env(1)%force_env%virial
+          force_env%virial => sub_force_env(primary_subsys)%force_env%virial
           CALL virial_retain(force_env%virial,error=error)
           ! Virial controlled through the external request
           CALL virial_set ( virial=force_env%virial,&
@@ -734,7 +733,7 @@ CONTAINS
           CALL eip_env_get(force_env%eip_env,subsys=force_env%subsys,error=error)
           CALL cp_subsys_retain(force_env%subsys, error=error)
        CASE(use_qmmm)
-          subsys => force_env%sub_force_env(1)%force_env%subsys
+          subsys => force_env%sub_force_env(primary_subsys)%force_env%subsys
           force_env%subsys => subsys
           CALL cp_subsys_retain(subsys,error=error)
        CASE(use_mixed_force)
@@ -794,12 +793,95 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
-
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip, isubf
+    INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
+    LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys_primary, &
+                                                subsys_qmmm_core, &
+                                                subsys_qmmm_extended
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_primary, &
+                                                particles_qmmm_core, &
+                                                particles_qmmm_extended
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
+! Possibly translate the system
+
+    CALL apply_qmmm_translate(force_env, error)
+
+    DO isubf=1, SIZE(force_env%sub_force_env)
+        CALL qmmm_energy_and_forces_low(force_env%sub_force_env(isubf)%force_env,&
+             calc_force,error)
+    END DO
+
+    IF (SIZE(force_env%sub_force_env) == 1) THEN
+        ! see force_env_get for potential energy to copy 
+        ! copy forces, energy, virial up
+        CONTINUE
+    ELSE IF (SIZE(force_env%sub_force_env) == 2) THEN
+        ! force mixing happens here
+        ! energy will just inherit from extended sub_force_env in force_env_get()
+
+        ! get forces from subsys of each sub force env
+        CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env,&
+                           subsys=subsys_qmmm_core,force_env_section=force_env_section,error=error)
+        CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env,&
+                           subsys=subsys_qmmm_extended,error=error)
+
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
+
+        particles_qmmm_extended => subsys_qmmm_extended%particles%els
+        particles_qmmm_core => subsys_qmmm_core%particles%els
+        DO ip=1,SIZE(cur_indices)
+           IF (cur_labels(ip) >= force_mixing_label_QM_extended) THEN ! this is a QM atom
+             ! copy (QM) force from extended calculation
+             particles_qmmm_core(cur_indices(ip))%f=particles_qmmm_extended(cur_indices(ip))%f
+           ENDIF
+        END DO
+
+        IF (force_mixing_core_subsys /= primary_subsys) THEN
+          CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
+                             subsys=subsys_primary,force_env_section=force_env_section,error=error)
+          particles_primary => subsys_primary%particles%els
+          DO ip=1,SIZE(particles_qmmm_core)
+             particles_primary(ip)%f=particles_qmmm_core(ip)%f
+          END DO
+        ENDIF
+
+    ELSE
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"size(sub_force_env) neither 1 (conventional QM/MM) nor "//&
+             "2 (force-mixing)! "//&
+CPSourceFileRef,&
+         error,failure)
+    ENDIF
+
+  END SUBROUTINE qmmm_energy_and_forces
+
+! *****************************************************************************
+!> \brief calculates the qm/mm energy and forces
+!> \param calc_force if also the forces should be calculated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+  RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(force_env,calc_force,error)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces_low', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip, output_unit
@@ -848,9 +930,6 @@ CONTAINS
        IF (ASSOCIATED(qmmm_links%imomm)) qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
     END IF
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-
-    ! Possibly translate the system
-    CALL apply_qmmm_translate(force_env, error)
 
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
@@ -925,7 +1004,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
          "QMMM%PRINT%DERIVATIVES",error=error)
-  END SUBROUTINE qmmm_energy_and_forces
+  END SUBROUTINE qmmm_energy_and_forces_low
 
 ! *****************************************************************************
 !> \brief ****f* force_env_methods/mixed_energy_forces  [1.0]
