@@ -36,8 +36,8 @@ MODULE input_cp2k_qmmm
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
-                                             real_t, &
-					     logical_t
+                                             logical_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
@@ -346,11 +346,11 @@ CONTAINS
 
     CALL keyword_create(keyword, name="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST",&
         description="Makes the extended QM zone be defined hysterestically "//&
-	"by distance from QM core list (i.e. atoms specified explicitly by "//&
-	"user) instead of from full QM core region (specified by user + hysteretic "//&
-	"selection + unbreakable bonds)",&
+        "by distance from QM core list (i.e. atoms specified explicitly by "//&
+        "user) instead of from full QM core region (specified by user + hysteretic "//&
+        "selection + unbreakable bonds)",&
         usage="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST <logical>",n_var=1,type_of_var=logical_t,&
-	default_l_val=.FALSE., repeats = .FALSE., required = .FALSE., error=error)
+        default_l_val=.FALSE., repeats = .FALSE., required = .FALSE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

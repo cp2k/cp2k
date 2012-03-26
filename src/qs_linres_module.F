@@ -32,7 +32,8 @@ MODULE qs_linres_module
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE qmmm_types,                      ONLY: qs_subsys, primary_subsys
+  USE qmmm_types,                      ONLY: primary_subsys,&
+                                             qs_subsys
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env

@@ -68,16 +68,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_rep_section, i_rep_val, ip, im, &
-                                                n_new, n_rep_section, &
-                                                n_rep_val, natoms
+    INTEGER :: i_rep_section, i_rep_val, im, ip, max_n_qm, n_new, &
+      n_rep_section, n_rep_val, natoms, QM_extended_seed_min_label_val
     INTEGER, ALLOCATABLE                     :: new_full_labels(:), &
                                                 orig_full_labels(:)
-    INTEGER, POINTER                         :: cur_indices(:), &
-                                                cur_labels(:), &
-                                                mm_index_entry(:), &
-                                                new_indices(:), new_labels(:)
-    LOGICAL                                  :: explicit
+    INTEGER, POINTER :: breakable_bonds(:,:), broken_bonds(:), &
+      cur_indices(:), cur_labels(:), mm_index_entry(:), molecule_of_atom(:), &
+      new_indices(:), new_labels(:)
+    LOGICAL                                  :: explicit, &
+                                                QM_extended_seed_is_core_list
     REAL(dp), ALLOCATABLE                    :: nearest_dist(:)
     REAL(dp), POINTER                        :: r_buf(:), r_core(:), r_qm(:)
     TYPE(cell_type), POINTER                 :: cell
@@ -91,18 +90,13 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_mixing_section, &
                                                 qm_kind_section, &
                                                 restart_section
-    integer :: QM_extended_seed_min_label_val
-    logical :: QM_extended_seed_is_core_list
-    integer, pointer :: breakable_bonds(:,:), broken_bonds(:)
-    integer, pointer :: molecule_of_atom(:)
-    integer :: max_n_qm
 
-if (debug_this_module) print *, "BOB starting update_force_mixing_labels"
+IF (debug_this_module) PRINT *, "BOB starting update_force_mixing_labels"
     ! get cur indices, labels
     force_mixing_section => section_vals_get_subs_vals3(qmmm_section,"FORCE_MIXING",error=error)
     CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels, error=error)
-if (debug_this_module) print *, "BOB got cur_indices ",cur_indices(1:n_new)
-if (debug_this_module) print *, "BOB got cur_labels ",cur_labels(1:n_new)
+IF (debug_this_module) PRINT *, "BOB got cur_indices ",cur_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB got cur_labels ",cur_labels(1:n_new)
 
     ! read from input 
     ![NB] breakable bonds will come from here, too
@@ -117,7 +111,7 @@ if (debug_this_module) print *, "BOB got cur_labels ",cur_labels(1:n_new)
     ! should be 2xN_bb integer arrays, with (1,:) indices of inside atoms, and (2,:) indices of outside atoms
     ! maybe also breakable_bond_types, with _atomic numbers_ of inside/outside atoms?
     ! separate lists for core/buffer?
-    allocate(breakable_bonds(2,1))
+    ALLOCATE(breakable_bonds(2,1))
     breakable_bonds(1:2,1) = 0
 
     ! get particles, molecules
@@ -154,14 +148,14 @@ if (debug_this_module) print *, "BOB got cur_labels ",cur_labels(1:n_new)
         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,i_rep_val=i_rep_val, &
           i_vals=mm_index_entry, error=error)
         DO ip=1, SIZE(mm_index_entry)
-	  call add_new_label(mm_index_entry(ip), force_mixing_label_QM_core_list, n_new, new_indices, new_labels, &
-	                     new_full_labels, max_n_qm)
+          CALL add_new_label(mm_index_entry(ip), force_mixing_label_QM_core_list, n_new, new_indices, new_labels, &
+                             new_full_labels, max_n_qm)
         END DO ! ip
       END DO ! i_rep_val
     END DO ! i_rep_section
 
-if (debug_this_module) print *, "BOB core_list new_indices ",new_indices(1:n_new)
-if (debug_this_module) print *, "BOB core_list new_labels ",new_labels(1:n_new)
+IF (debug_this_module) PRINT *, "BOB core_list new_indices ",new_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB core_list new_labels ",new_labels(1:n_new)
 
     ! allocate and initialize full atom set labels for hysteretic loops
     ALLOCATE(nearest_dist(natoms))
@@ -176,52 +170,52 @@ if (debug_this_module) print *, "BOB core_list new_labels ",new_labels(1:n_new)
     ! (need intra molecule bond info, which isn't available for QM molecules yet)
 
     ! find molecule of atom
-    allocate(molecule_of_atom(natoms))
-    do im=1, size(molecule_set)
+    ALLOCATE(molecule_of_atom(natoms))
+    DO im=1, SIZE(molecule_set)
       molecule_of_atom(molecule_set(im)%first_atom:molecule_set(im)%last_atom) = im
-    end do
+    END DO
 
     ! add core using hysteretic selection(core_list, r_core) + unbreakable bonds
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         force_mixing_label_QM_core_list, force_mixing_label_QM_core_list, force_mixing_label_QM_core, r_core, &
-	max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
+        max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
     ![NB] should actually pass this back for making link sections?
-    deallocate(broken_bonds)
+    DEALLOCATE(broken_bonds)
 
-if (debug_this_module) print *, "BOB core new_indices ",new_indices(1:n_new)
-if (debug_this_module) print *, "BOB core new_labels ",new_labels(1:n_new)
+IF (debug_this_module) PRINT *, "BOB core new_indices ",new_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB core new_labels ",new_labels(1:n_new)
 
     ![NB] need more sophisticated QM extended, buffer rules
 
     ! add QM using hysteretic selection (core_list, r_qm) + unbreakable bonds
-if (debug_this_module) print *, "BOB QM_extended_seed_is_core_list ",QM_extended_seed_is_core_list
-    if (QM_extended_seed_is_core_list) then
+IF (debug_this_module) PRINT *, "BOB QM_extended_seed_is_core_list ",QM_extended_seed_is_core_list
+    IF (QM_extended_seed_is_core_list) THEN
       QM_extended_seed_min_label_val = force_mixing_label_QM_core_list
-    else ! QM region seed is all of core, not just core list + unbreakable bonds
+    ELSE ! QM region seed is all of core, not just core list + unbreakable bonds
       QM_extended_seed_min_label_val = force_mixing_label_QM_core
-    endif
+    ENDIF
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
-	orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
-	QM_extended_seed_min_label_val, force_mixing_label_QM_core_list, &
-	force_mixing_label_QM_extended, r_qm, &
-	max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set)
+        orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
+        QM_extended_seed_min_label_val, force_mixing_label_QM_core_list, &
+        force_mixing_label_QM_extended, r_qm, &
+        max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set)
 
-if (debug_this_module) print *, "BOB extended new_indices ",new_indices(1:n_new)
-if (debug_this_module) print *, "BOB extended new_labels ",new_labels(1:n_new)
+IF (debug_this_module) PRINT *, "BOB extended new_indices ",new_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB extended new_labels ",new_labels(1:n_new)
 
     ! add buffer using hysteretic selection (>= QM extended, r_buf) + unbreakable bonds
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
-	orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
+        orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         force_mixing_label_QM_extended, force_mixing_label_QM_core_list, force_mixing_label_buffer, r_buf, &
-	max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
+        max_n_qm, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
     ![NB] should actually pass this back for making link sections?
-    deallocate(broken_bonds)
+    DEALLOCATE(broken_bonds)
 
-if (debug_this_module) print *, "BOB buffer new_indices ",new_indices(1:n_new)
-if (debug_this_module) print *, "BOB buffer new_labels ",new_labels(1:n_new)
+IF (debug_this_module) PRINT *, "BOB buffer new_indices ",new_indices(1:n_new)
+IF (debug_this_module) PRINT *, "BOB buffer new_labels ",new_labels(1:n_new)
 
-     deallocate(molecule_of_atom, breakable_bonds)
+     DEALLOCATE(molecule_of_atom, breakable_bonds)
      DEALLOCATE(nearest_dist)
 
      IF (PRESENT(labels_changed)) labels_changed = ANY (new_full_labels /= orig_full_labels)
@@ -244,26 +238,25 @@ if (debug_this_module) print *, "BOB buffer new_labels ",new_labels(1:n_new)
      CALL fist_neighbor_deallocate(nlist,error)
 
      ![NB] perhap be controlled by some &PRINT section?
-     if (force_env%para_env%ionode) then
-       print *, "QMMM FORCE MIXING final count (not including links): "//&
-	  " N_QM core ", count(new_labels >= force_mixing_label_QM_core), &
-	  " N_QM buffered ", count(new_labels >= force_mixing_label_buffer)
-     endif
+     IF (force_env%para_env%ionode) THEN
+       PRINT *, "QMMM FORCE MIXING final count (not including links): "//&
+          " N_QM core ", COUNT(new_labels >= force_mixing_label_QM_core), &
+          " N_QM buffered ", COUNT(new_labels >= force_mixing_label_buffer)
+     ENDIF
 
    END SUBROUTINE update_force_mixing_labels
 
   SUBROUTINE add_new_label(ip, label, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
-      integer :: ip, label, n_new
-      integer, pointer :: new_indices(:), new_labels(:)
-      integer :: new_full_labels(:)
-      integer :: max_n_qm
+    INTEGER                                  :: ip, label, n_new
+    INTEGER, POINTER                         :: new_indices(:), new_labels(:)
+    INTEGER                                  :: new_full_labels(:), max_n_qm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels', &
-        routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_new_label', &
+      routineP = moduleN//':'//routineN
 
       n_new = n_new + 1
       CALL cp_assert(n_new <= max_n_qm, cp_failure_level,cp_assertion_failed,routineP,&
-	   "add_new_label tried to add more atoms than allowed by &FORCE_MIXING&MAX_N_QM!"//&
+           "add_new_label tried to add more atoms than allowed by &FORCE_MIXING&MAX_N_QM!"//&
 CPSourceFileRef)
       IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices,1,n_new+9)
       IF (n_new > SIZE(new_labels))  CALL reallocate(new_labels,1,n_new+9)
@@ -283,37 +276,31 @@ CPSourceFileRef)
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp)                                 :: nearest_dist(:)
-    INTEGER                                  :: orig_full_labels(:), new_full_labels(:)
-    integer :: n_new
+    INTEGER                                  :: orig_full_labels(:), &
+                                                new_full_labels(:), n_new
     INTEGER, POINTER                         :: new_indices(:), new_labels(:)
     INTEGER                                  :: seed_min_label_val, &
                                                 seed_max_label_val, &
                                                 set_label_val
     REAL(dp)                                 :: r_inout(2)
-    integer :: max_n_qm
+    INTEGER                                  :: max_n_qm
     LOGICAL                                  :: pad_to_breakable_bonds
-    integer, pointer, optional :: molecule_of_atom(:), breakable_bonds(:,:), broken_bonds(:)
-    integer :: bond_atom_a, bond_atom_b, bond_atom_inside, bond_atom_outside
+    INTEGER, OPTIONAL, POINTER               :: breakable_bonds(:,:), &
+                                                molecule_of_atom(:)
     TYPE(molecule_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_set
-
-    integer :: natoms
+    INTEGER, OPTIONAL, POINTER               :: broken_bonds(:)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_layer_hysteretically', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_ind, im, ip, ib, ibb, ipair, &
+    INTEGER                                  :: i_ind, im, ip, ipair, &
                                                 ipairkind, j_ind
-    LOGICAL                                  :: molec_in_inner, molec_in_outer
-    LOGICAL                                  :: i_in_new_seed, j_in_new_seed
-    LOGICAL                                  :: i_outside_new_seed, j_outside_new_seed
-    LOGICAL                                  :: breakable
+    LOGICAL :: i_in_new_seed, i_outside_new_seed, j_in_new_seed, &
+      j_outside_new_seed, molec_in_inner, molec_in_outer
     REAL(dp)                                 :: r_ij(3), r_ij_mag
-    integer :: orig_n_new
-    logical :: any_additions
-    integer :: n_broken_bonds
 
-if (debug_this_module) print *,"BOB adding hysteretically seed ",seed_min_label_val,seed_max_label_val,&
+IF (debug_this_module) PRINT *,"BOB adding hysteretically seed ",seed_min_label_val,seed_max_label_val,&
 " set ",set_label_val," r ",r_inout
     ! calculate nearest dist from each atom outside of new seed to nearest atom inside of new seed
     nearest_dist=HUGE(1.0_dp)
@@ -324,50 +311,50 @@ if (debug_this_module) print *,"BOB adding hysteretically seed ",seed_min_label_
         i_ind = nlist%neighbor_kind_pairs(ipairkind)%list(1,ipair)
         j_ind = nlist%neighbor_kind_pairs(ipairkind)%list(2,ipair)
 
-	i_in_new_seed = (new_full_labels(i_ind) >= seed_min_label_val .AND. new_full_labels(i_ind) <= seed_max_label_val)
-	i_outside_new_seed = (new_full_labels(i_ind) < seed_min_label_val)
-	j_in_new_seed = (new_full_labels(j_ind) >= seed_min_label_val .AND. new_full_labels(j_ind) <= seed_max_label_val)
-	j_outside_new_seed = (new_full_labels(j_ind) < seed_min_label_val)
+        i_in_new_seed = (new_full_labels(i_ind) >= seed_min_label_val .AND. new_full_labels(i_ind) <= seed_max_label_val)
+        i_outside_new_seed = (new_full_labels(i_ind) < seed_min_label_val)
+        j_in_new_seed = (new_full_labels(j_ind) >= seed_min_label_val .AND. new_full_labels(j_ind) <= seed_max_label_val)
+        j_outside_new_seed = (new_full_labels(j_ind) < seed_min_label_val)
 
-        IF ((i_in_new_seed .and. j_outside_new_seed) .or. (j_in_new_seed .and. i_outside_new_seed)) THEN
+        IF ((i_in_new_seed .AND. j_outside_new_seed) .OR. (j_in_new_seed .AND. i_outside_new_seed)) THEN
           r_ij = pbc(particle_set(i_ind)%r - particle_set(j_ind)%r, cell)
           r_ij_mag = SQRT(SUM(r_ij**2))
-          IF (i_in_new_seed .and. j_outside_new_seed .and. (r_ij_mag < nearest_dist(j_ind))) then
-	    nearest_dist(j_ind) = r_ij_mag
-	  ENDIF
-          IF (j_in_new_seed .and. i_outside_new_seed .and. (r_ij_mag < nearest_dist(i_ind))) then
+          IF (i_in_new_seed .AND. j_outside_new_seed .AND. (r_ij_mag < nearest_dist(j_ind))) THEN
+            nearest_dist(j_ind) = r_ij_mag
+          ENDIF
+          IF (j_in_new_seed .AND. i_outside_new_seed .AND. (r_ij_mag < nearest_dist(i_ind))) THEN
             nearest_dist(i_ind) = r_ij_mag
           ENDIF
         ENDIF
 
       END DO
     END DO
-if (debug_this_module) print *,"BOB nearest_dist ", nearest_dist
+IF (debug_this_module) PRINT *,"BOB nearest_dist ", nearest_dist
 
 ![NB] this is whole molecule.  Should be replaced with labeling of individual atoms + 
 ! pad_to_breakable_bonds (below), but QM molecule bond information isn't available yet
 DO im=1, SIZE(molecule_set)
-if (debug_this_module) print *, "BOB check molecule ",im," atoms ",molecule_set(im)%first_atom,molecule_set(im)%last_atom
-  molec_in_inner = any(nearest_dist(molecule_set(im)%first_atom:molecule_set(im)%last_atom) <= r_inout(1))
-  molec_in_outer = any(nearest_dist(molecule_set(im)%first_atom:molecule_set(im)%last_atom) <= r_inout(2))
-if (debug_this_module) print *, "BOB got molec_in_inner ", molec_in_inner, " outer ", molec_in_outer
-  if (molec_in_inner) then
-    do ip=molecule_set(im)%first_atom, molecule_set(im)%last_atom
+IF (debug_this_module) PRINT *, "BOB check molecule ",im," atoms ",molecule_set(im)%first_atom,molecule_set(im)%last_atom
+  molec_in_inner = ANY(nearest_dist(molecule_set(im)%first_atom:molecule_set(im)%last_atom) <= r_inout(1))
+  molec_in_outer = ANY(nearest_dist(molecule_set(im)%first_atom:molecule_set(im)%last_atom) <= r_inout(2))
+IF (debug_this_module) PRINT *, "BOB got molec_in_inner ", molec_in_inner, " outer ", molec_in_outer
+  IF (molec_in_inner) THEN
+    DO ip=molecule_set(im)%first_atom, molecule_set(im)%last_atom
       ! labels are being rebuild from scratch, so never overwrite new label that's higher level
-      if (new_full_labels(ip) < set_label_val) &
-	call add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
-    end do
-  else if (molec_in_outer) then
-    if (any(orig_full_labels(molecule_set(im)%first_atom:molecule_set(im)%last_atom) >= set_label_val)) then
-      do ip=molecule_set(im)%first_atom, molecule_set(im)%last_atom
-	! labels are being rebuild from scratch, so never overwrite new label that's higher level
-	if (new_full_labels(ip) < set_label_val) &
-	  call add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
-      end do
-    endif
-  endif
-end do
-if (present(broken_bonds)) CALL reallocate(broken_bonds,1,0)
+      IF (new_full_labels(ip) < set_label_val) &
+        CALL add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
+    END DO
+  ELSE IF (molec_in_outer) THEN
+    IF (ANY(orig_full_labels(molecule_set(im)%first_atom:molecule_set(im)%last_atom) >= set_label_val)) THEN
+      DO ip=molecule_set(im)%first_atom, molecule_set(im)%last_atom
+        ! labels are being rebuild from scratch, so never overwrite new label that's higher level
+        IF (new_full_labels(ip) < set_label_val) &
+          CALL add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
+      END DO
+    ENDIF
+  ENDIF
+END DO
+IF (PRESENT(broken_bonds)) CALL reallocate(broken_bonds,1,0)
 
 !!![NB] enable this (and remove previous bit) once intra-QM-molecule bond information
 !!! is available
@@ -381,12 +368,12 @@ if (present(broken_bonds)) CALL reallocate(broken_bonds,1,0)
 !!!" is not in seed, check for for adding"
 !!!      ![NB] is this logic right?  maybe it is
 !!!      IF ( nearest_dist(ip) <= r_inout(1) .OR. &
-!!!	  (nearest_dist(ip) <= r_inout(2) .AND. orig_full_labels(ip) >= set_label_val) ) THEN 
-!!!	  ! atom in inner radius
-!!!	  ! or
-!!!	  ! atom in outer radius and was previously set to set_label_val or higher 
+!!!          (nearest_dist(ip) <= r_inout(2) .AND. orig_full_labels(ip) >= set_label_val) ) THEN 
+!!!          ! atom in inner radius
+!!!          ! or
+!!!          ! atom in outer radius and was previously set to set_label_val or higher 
 !!!if (debug_this_module) print *,"BOB add label for atom ", ip
-!!!	  call add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
+!!!          call add_new_label(ip, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
 !!!      ENDIF
 !!!    END DO ! ip
 !!!
@@ -394,19 +381,19 @@ if (present(broken_bonds)) CALL reallocate(broken_bonds,1,0)
 !!!    if (pad_to_breakable_bonds) then
 !!!if (debug_this_module) print *,"BOB pad to breakable bonds"
 !!!      CALL cp_assert(PRESENT(molecule_of_atom),cp_failure_level,cp_assertion_failed,routineP,&
-!!!	   "pad_to_breakable_bonds is true, but molecule_of_atom not present!"//&
+!!!           "pad_to_breakable_bonds is true, but molecule_of_atom not present!"//&
 !!!CPSourceFileRef)
 !!!      CALL cp_assert(PRESENT(molecule_set),cp_failure_level,cp_assertion_failed,routineP,&
-!!!	   "pad_to_breakable_bonds is true, but molecule_set not present!"//&
+!!!           "pad_to_breakable_bonds is true, but molecule_set not present!"//&
 !!!CPSourceFileRef)
 !!!      CALL cp_assert(PRESENT(breakable_bonds),cp_failure_level,cp_assertion_failed,routineP,&
-!!!	   "whole_molecule is true, but breakable_bonds not present!"//&
+!!!           "whole_molecule is true, but breakable_bonds not present!"//&
 !!!CPSourceFileRef)
 !!!
 !!!      orig_n_new = n_new
 !!!      ! loop over all recently marked atoms
 !!!      do ip=1, orig_n_new
-!!!	if (new_labels(ip) /= set_label_val) cycle
+!!!        if (new_labels(ip) /= set_label_val) cycle
 !!!
 !!!if (debug_this_module) then
 !!!  print *, "BOB molecule set"
@@ -421,62 +408,62 @@ if (present(broken_bonds)) CALL reallocate(broken_bonds,1,0)
 !!!endif
 !!!
 !!!if (debug_this_module) print *,"BOB check atom local index ",ip," full index ", new_indices(ip)
-!!!	! atom has just been set to set_label_val, check the rest of its molecule
-!!!	im = molecule_of_atom(new_indices(ip))
+!!!        ! atom has just been set to set_label_val, check the rest of its molecule
+!!!        im = molecule_of_atom(new_indices(ip))
 !!!
 !!!if (debug_this_module) print *,"in molecule ",im
-!!!	any_additions = .true.
-!!!	do while (any_additions)
+!!!        any_additions = .true.
+!!!        do while (any_additions)
 !!!if (debug_this_module) print *,"start loop checking for additions"
-!!!	  any_additions = .false.
-!!!	  ! loop over bonds in this molecule in random order
-!!!	  do ib=1, size(molecule_set(im)%molecule_kind%bond_list)
-!!!	    bond_atom_a = molecule_set(im)%molecule_kind%bond_list(ib)%a + molecule_set(im)%first_atom - 1
-!!!	    bond_atom_b = molecule_set(im)%molecule_kind%bond_list(ib)%b + molecule_set(im)%first_atom - 1
+!!!          any_additions = .false.
+!!!          ! loop over bonds in this molecule in random order
+!!!          do ib=1, size(molecule_set(im)%molecule_kind%bond_list)
+!!!            bond_atom_a = molecule_set(im)%molecule_kind%bond_list(ib)%a + molecule_set(im)%first_atom - 1
+!!!            bond_atom_b = molecule_set(im)%molecule_kind%bond_list(ib)%b + molecule_set(im)%first_atom - 1
 !!!if (debug_this_module) print *,"bond ", ib, " between a,b ", bond_atom_a,bond_atom_b
 !!!
-!!!	    if (new_full_labels(bond_atom_a) == set_label_val .and. new_full_labels(bond_atom_b) < set_label_val) then
-!!!	      ! a is inside, b is outside
-!!!	      bond_atom_inside = bond_atom_a
-!!!	      bond_atom_outside = bond_atom_b
+!!!            if (new_full_labels(bond_atom_a) == set_label_val .and. new_full_labels(bond_atom_b) < set_label_val) then
+!!!              ! a is inside, b is outside
+!!!              bond_atom_inside = bond_atom_a
+!!!              bond_atom_outside = bond_atom_b
 !!!if (debug_this_module) print *,"  a is inside, b is outside"
-!!!	    else if (new_full_labels(bond_atom_b) == set_label_val .and. new_full_labels(bond_atom_a) < set_label_val) then
-!!!	      ! b is inside, a is outside
-!!!	      bond_atom_inside = bond_atom_b
-!!!	      bond_atom_outside = bond_atom_a
+!!!            else if (new_full_labels(bond_atom_b) == set_label_val .and. new_full_labels(bond_atom_a) < set_label_val) then
+!!!              ! b is inside, a is outside
+!!!              bond_atom_inside = bond_atom_b
+!!!              bond_atom_outside = bond_atom_a
 !!!if (debug_this_module) print *,"  b is inside, a is outside"
-!!!	    else
-!!!	      ! inside-inside or outside-outside
-!!!	      cycle
-!!!	    endif
+!!!            else
+!!!              ! inside-inside or outside-outside
+!!!              cycle
+!!!            endif
 !!!
-!!!	    ! check for breakable bonds
-!!!	    breakable = .false.
-!!!	    do ibb=1,size(breakable_bonds,2)
-!!!	      if ((breakable_bonds(1,ibb) == bond_atom_inside) .and. breakable_bonds(2,ibb) == bond_atom_outside) then
-!!!		! this bond is OK to break.
-!!!		breakable = .true.
-!!!		if (set_label_val == force_mixing_label_buffer) then ! set termination mark on outside atom b
-!!!		  call add_new_label(bond_atom_outside, force_mixing_label_termination, n_new, new_indices, new_labels, &
-!!!		    new_full_labels, max_n_qm)
-!!!		endif
-!!!		if (present(broken_bonds)) then ! add a new one
-!!!		  n_broken_bonds = n_broken_bonds + 1
-!!!		  CALL reallocate(broken_bonds,1,n_broken_bonds)
-!!!		  broken_bonds(n_broken_bonds) = ibb
-!!!		endif
-!!!	      endif
-!!!	    end do ! ibb
+!!!            ! check for breakable bonds
+!!!            breakable = .false.
+!!!            do ibb=1,size(breakable_bonds,2)
+!!!              if ((breakable_bonds(1,ibb) == bond_atom_inside) .and. breakable_bonds(2,ibb) == bond_atom_outside) then
+!!!                ! this bond is OK to break.
+!!!                breakable = .true.
+!!!                if (set_label_val == force_mixing_label_buffer) then ! set termination mark on outside atom b
+!!!                  call add_new_label(bond_atom_outside, force_mixing_label_termination, n_new, new_indices, new_labels, &
+!!!                    new_full_labels, max_n_qm)
+!!!                endif
+!!!                if (present(broken_bonds)) then ! add a new one
+!!!                  n_broken_bonds = n_broken_bonds + 1
+!!!                  CALL reallocate(broken_bonds,1,n_broken_bonds)
+!!!                  broken_bonds(n_broken_bonds) = ibb
+!!!                endif
+!!!              endif
+!!!            end do ! ibb
 !!!if (debug_this_module) print *,"  breakable ", breakable
 !!!
-!!!	    if (.not. breakable) then ! add correct atom
-!!!	      call add_new_label(bond_atom_outside, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
-!!!	      any_additions = .true.
+!!!            if (.not. breakable) then ! add correct atom
+!!!              call add_new_label(bond_atom_outside, set_label_val, n_new, new_indices, new_labels, new_full_labels, max_n_qm)
+!!!              any_additions = .true.
 !!!if (debug_this_module) print *, " not breakable, adding outside atom ", bond_atom_outside
-!!!	    endif
+!!!            endif
 !!!
-!!!	  end do ! ib
-!!!	end do ! any_additions
+!!!          end do ! ib
+!!!        end do ! any_additions
 !!!
 !!!      end do ! ip
 !!!
@@ -596,7 +583,7 @@ if (present(broken_bonds)) CALL reallocate(broken_bonds,1,0)
     ALLOCATE(elem_mapping(2,n_elements))
     DO ielem=1,n_elements
       CALL section_vals_val_get(force_mixing_section,"QM_KIND_ELEMENT_MAPPING",i_rep_val=ielem,c_vals=elem_mapping_entry,&
-	error=error)
+        error=error)
       elem_mapping(1:2,ielem) = elem_mapping_entry(1:2)
     END DO
 
