@@ -587,15 +587,16 @@ MODULE mp2_gpw
 
     INTEGER :: a, a_group_counter, b, b_global, b_group_counter, blk, col, &
       col_offset, col_size, color_counter, comm_exchange, EX_end, &
-      EX_end_send, EX_start, EX_start_send, group_counter, handle, i, &
-      i_counter, i_group_counter, index_proc_shift, j, max_b_size, &
-      max_batch_size_A, max_batch_size_I, mepos_in_EX_group, my_A_batch_size, &
-      my_A_virtual_end, my_A_virtual_start, my_B_size, my_B_virtual_end, &
-      my_B_virtual_start, my_I_batch_size, my_I_occupied_end, &
-      my_I_occupied_start, my_q_position, ngroup, one, p, p_best, &
-      proc_receive, proc_send, q, q_best, row, row_offset, row_size, size_EX, &
-      size_EX_send, size_of_exchange_group
-    INTEGER :: stat, sub_sub_color, virtual, wfn_calc, wfn_calc_best
+      EX_end_send, EX_start, EX_start_send, group_counter, handle, handle2, &
+      handle3, i, i_counter, i_group_counter, index_proc_shift, j, &
+      max_b_size, max_batch_size_A, max_batch_size_I, mepos_in_EX_group, &
+      my_A_batch_size, my_A_virtual_end, my_A_virtual_start, my_B_size, &
+      my_B_virtual_end, my_B_virtual_start, my_I_batch_size, &
+      my_I_occupied_end, my_I_occupied_start, my_q_position, ngroup, one, p, &
+      p_best, proc_receive, proc_send, q, q_best, row, row_offset, row_size, &
+      size_EX, size_EX_send
+    INTEGER :: size_of_exchange_group, stat, sub_sub_color, virtual, &
+      wfn_calc, wfn_calc_best
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, vector_B_sizes, &
                                                 vector_batch_A_size_group, &
                                                 vector_batch_I_size_group
@@ -851,6 +852,7 @@ MODULE mp2_gpw
     ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
+    CALL timeset(routineN//"_loop",handle2)
     DO a=homo+my_A_virtual_start, homo+my_A_virtual_end
       ! psi_a
       BIb_C=0.0_dp
@@ -872,28 +874,36 @@ MODULE mp2_gpw
         !                pw_env_sub,external_vector=C(:,i),error=error_sub)
 
         ! potential
+        CALL timeset(routineN//"_pot",handle3)
         rho_r%pw%cr3d = psi_i(i)%pw%cr3d * psi_a%pw%cr3d
         !rho_r%pw%cr3d = psi_i%pw%cr3d * psi_a%pw%cr3d ! no store psi for occupied
         CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
         CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
         CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
         CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+        CALL timestop(handle3)
 
-        !max_val_pot=MAXVAL(ABS(rho_r%pw%cr3d))
 
         ! and finally (ia|munu)
+        CALL timeset(routineN//"_int",handle3)
         CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
         CALL integrate_v_rspace(rho_r, h=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
            basis_set_id=use_orb_basis_set, &
            sab_orb_external=sab_orb_sub, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
+        CALL timestop(handle3)
 
         ! multiply and goooooooo ...
+        CALL timeset(routineN//"_mult_o",handle3)
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
                                 0.0_dp, matrix_ia_jnu, filter_eps=eps_filter, error=error_sub)
+        CALL timestop(handle3)
+        CALL timeset(routineN//"_mult_v",handle3)
         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
                                 0.0_dp, matrix_ia_jb, filter_eps=eps_filter, error=error_sub)
+        CALL timestop(handle3)
 
         ! Coulomb only MP2 .....
+        CALL timeset(routineN//"_E_Cou",handle3)
         CALL cp_dbcsr_iterator_start(iter, matrix_ia_jb)
         DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
            CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
@@ -909,16 +919,20 @@ MODULE mp2_gpw
            ENDDO
         ENDDO
         CALL cp_dbcsr_iterator_stop(iter)
+        CALL timestop(handle3)
 
         ! now mp_sum the matrix BIb_jb in and keep only my local
         ! b_start, b_end
+        CALL timeset(routineN//"_E_Ex_1",handle3)
         CALL mp_sum(BIb_jb,para_env_sub%group)
         BIb_C(1:my_B_size,1:homo,i_counter)=BIb_jb(my_B_virtual_start:my_B_virtual_end,1:homo)
+        CALL timestop(handle3)
 
       END DO
 
       DEALLOCATE(BIb_jb)
 
+      CALL timeset(routineN//"_E_Ex_2",handle3)
       ! calculate the contribution to MP2 energy for my local data
       DO i=1,my_I_batch_size
         DO j=my_I_occupied_start,my_I_occupied_end
@@ -969,8 +983,10 @@ MODULE mp2_gpw
         DEALLOCATE(BIb_send)
 
       END DO
+      CALL timestop(handle3)
 
     ENDDO
+    CALL timestop(handle2)
 
     CALL mp_sum(Emp2_Cou,para_env%group)
     CALL mp_sum(Emp2_EX,para_env%group)
