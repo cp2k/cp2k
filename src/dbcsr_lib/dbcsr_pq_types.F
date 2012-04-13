@@ -91,6 +91,8 @@ MODULE dbcsr_pq_types
 
   PUBLIC :: max_regions
 
+  PUBLIC :: ps_type_global
+  PUBLIC :: ps_host_type
   PUBLIC :: ps_host_global
   PUBLIC :: ps_host_parameter
 
