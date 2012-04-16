@@ -612,7 +612,7 @@ MODULE qs_rho0_ggrid
              cube_info(igrid),hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
-             hdab=hdab,hadb=hadb,ithread=0,&
+             hdab=hdab,hadb=hadb,&
              collocate_rho0=.TRUE.,rpgf0_s=rpgf0,&
              use_virial=use_virial,  my_virial_a=my_virial_a, my_virial_b=my_virial_b,&
              a_hdab=a_hdab,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)

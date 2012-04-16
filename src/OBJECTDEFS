@@ -486,6 +486,7 @@ OBJECTS_GENERIC =\
  qs_harmonics_atom.o\
  qs_initial_guess.o\
  qs_integrate_potential.o\
+ qs_integrate_potential_low.o\
  qs_interactions.o\
  qs_kinetic.o\
  qs_kpp1_env_methods.o\
