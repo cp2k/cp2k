@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_mp_operations
 
+  USE dbcsr_config,                    ONLY: has_MPI
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
@@ -171,7 +172,7 @@ CONTAINS
     IF (PRESENT (no_hybrid)) no_h = no_hybrid
     all_group = dbcsr_mp_group (mp_env)
     ! Don't use subcommunicators if they're not defined.
-    no_h = no_h .OR. .NOT. dbcsr_mp_has_subgroups (mp_env)
+    no_h = no_h .OR. .NOT. dbcsr_mp_has_subgroups (mp_env) .OR. .NOT. has_MPI
     subgrouped: IF (mp_env%mp%subgroups_defined .AND. .NOT. no_h) THEN
        mynode = dbcsr_mp_mynode (mp_env)
        numnodes = dbcsr_mp_numnodes (mp_env)
