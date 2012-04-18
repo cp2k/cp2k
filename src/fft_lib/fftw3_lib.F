@@ -229,6 +229,7 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 
   USE fft_plan,                           ONLY : fft_plan_type
   USE fft_kinds,                          ONLY : dp
+  !$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -238,8 +239,6 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
   INTEGER                                            :: plan_style
   LOGICAL                                            :: aligned
   INTEGER                                            :: ii,di,io,DO, num_threads, num_rows
-
-!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
@@ -373,6 +372,7 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
 
   USE fft_plan,                 ONLY : fft_plan_type
   USE fft_kinds,                          ONLY : dp
+  !$ USE OMP_LIB
 
   IMPLICIT NONE
 #if defined (__NAG)
@@ -390,8 +390,6 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
   INTEGER :: num_rows, my_id, in_offset, out_offset, scal_offset
   COMPLEX(KIND=dp), POINTER :: zin_ptr, zout_ptr, zscal_ptr
   INTEGER (KIND=integer8_kind)        :: fftw_plan
-
-!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
 !------------------------------------------------------------------------------
 

@@ -7,6 +7,7 @@
 SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign, scale )
 
   USE mltfftsg_tools
+  !$ USE OMP_LIB
 
 #if defined(__SGL) || defined(__FFTSGL)
   INTEGER, PARAMETER :: dbl = KIND(0.0)
@@ -29,8 +30,6 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   INTEGER :: length, isig, ic, lot, itr, nfft, i, inzee, j, ierr
   INTEGER :: id, num_threads, istart, iend, chunk, iterations
 
-! needed for OpenMP parallelization
-!$ INTEGER :: omp_get_num_threads,omp_get_thread_num
 
   ncache = get_cache_size ( )
   LENGTH = 2 * ( NCACHE / 4 + 1 )

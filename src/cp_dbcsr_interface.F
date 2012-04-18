@@ -527,7 +527,7 @@ CONTAINS
     CASE(mm_driver_cuda)   ; mm_name = mm_name_cuda
     END SELECT
 
-    mm_name = ADJUSTR(mm_name(:info_len))
+    mm_name = ADJUSTR(mm_name(1:info_len))
 
     mm_ss_str = int2str_r(mm_ss,info_len)
     use_subcomms_str = l2str_r(use_subcomms,info_len)
@@ -553,7 +553,7 @@ CONTAINS
     ENDIF
     IF (unit_num>0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
        WRITE(UNIT=unit_num, FMT=o_fmt) &
-            plabel, "Multiplication driver",     ADJUSTR(mm_name(1:info_len)),&
+            plabel, "Multiplication driver",     mm_name(1:info_len),&
             plabel, "Multiplication stack size", mm_ss_str(1:info_len)
        IF (nmemregions .NE. 1) &
             WRITE(UNIT=unit_num, FMT=o_fmt) &

@@ -1283,14 +1283,15 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     dist_p => dist
-!$  IF (.NOT. OMP_IN_PARALLEL ()) THEN
-!$OMP PARALLEL
-!$     CALL make_threads (dist_p, row_sizes=row_sizes)
-!$OMP END PARALLEL
-!$  ELSE
+    !$ IF (.NOT. OMP_IN_PARALLEL ()) THEN
+       !$OMP PARALLEL DEFAULT(NONE) &
+       !$OMP          SHARED(dist_p,row_sizes)
+       !$    CALL make_threads (dist_p, row_sizes=row_sizes)
+       !$OMP END PARALLEL
+    !$ ELSE
        CALL make_threads (dist_p, row_sizes=row_sizes)
-!$OMP BARRIER
-!$  ENDIF
+       !$OMP BARRIER
+    !$ ENDIF
   END SUBROUTINE dbcsr_distribution_make_threads
 
 ! *****************************************************************************

@@ -40,6 +40,8 @@ MODULE eip_silicon
                                              evolt
   USE timings,                         ONLY: timeset,&
                                              timestop
+
+  !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
   PRIVATE
@@ -673,14 +675,6 @@ CONTAINS
                                   coord_var,count)
 
         IMPLICIT REAL(KIND=dp) (a-h,o-z)
-!$      interface
-!$        integer ( kind=4 ) function omp_get_num_threads ( )
-!$        end function omp_get_num_threads
-!$      end interface
-!$      interface
-!$        integer ( kind=4 ) function omp_get_thread_num ( )
-!$        end function omp_get_thread_num
-!$      end interface
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -1776,14 +1770,6 @@ CONTAINS
                                    coord_var,count)
 
         IMPLICIT REAL(KIND=dp) (a-h,o-z)
-!$      interface
-!$        integer ( kind=4 ) function omp_get_num_threads ( )
-!$        end function omp_get_num_threads
-!$      end interface
-!$      interface
-!$        integer ( kind=4 ) function omp_get_thread_num ( )
-!$        end function omp_get_thread_num
-!$      end interface
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz

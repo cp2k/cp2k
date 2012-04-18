@@ -16,6 +16,8 @@ MODULE gauss_colloc
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE lgrid_types,                     ONLY: lgrid_type
+
+  !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
 IMPLICIT NONE
