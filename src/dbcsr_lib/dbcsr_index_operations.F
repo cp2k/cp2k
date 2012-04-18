@@ -759,7 +759,7 @@ CONTAINS
     ALLOCATE (buff(dbcsr_nblkcols_total (matrix)), stat=stat)
     ! Goes through all rows and sorts the column in each row. It also
     ! reorders the blk_p correspondingly.
-!$test!$OMP DO
+!test!$OMP DO
     DO row = 1, dbcsr_nblkrows_total (matrix)
        first_blk = full_row_p(row)+1
        last_blk = full_row_p(row+1)
@@ -773,7 +773,7 @@ CONTAINS
           blk_p(i) = buff(permutation(i))
        ENDDO
     ENDDO
-!$test!OMP END DO NOWAIT
+!test!OMP END DO NOWAIT
     DEALLOCATE (permutation, buff)
 !test!$OMP END PARALLEL
     CALL dbcsr_error_stop(error_handle, error)
@@ -1387,8 +1387,7 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: blk, error_handle, ithread, &
-                                                my_cnt, nblks, nrows, &
-                                                nthreads, thr
+                                                my_cnt, nblks, nrows, nthreads
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: blki
     INTEGER, DIMENSION(0)                    :: zero_len_array
     INTEGER, DIMENSION(:), POINTER           :: global_cols, local_rows, td, &
@@ -1468,7 +1467,7 @@ CONTAINS
           local_rows => array_data (matrix%m%local_rows)
        ENDIF
        !$OMP PARALLEL DEFAULT (none) &
-       !$OMP PRIVATE (my_cnt, ithread, blk, thr) &
+       !$OMP PRIVATE (my_cnt, ithread, blk) &
        !$OMP SHARED (td, blki, nthreads, thr_c, nblks, matrix, error, local_rows)
        !
        ithread = 0
@@ -1528,7 +1527,7 @@ CONTAINS
        !
        IF (nblks>0) THEN
           CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
-               DATA=RESHAPE(blki, ((/3*nblks/))), error=error)
+               DATA=RESHAPE(blki, (/3*nblks/)), error=error)
        ELSE
           CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
                DATA=zero_len_array, error=error)

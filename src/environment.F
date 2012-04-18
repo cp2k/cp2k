@@ -96,6 +96,8 @@ MODULE environment
                                              timestop,&
                                              trace_debug,&
                                              use_HPM
+
+  !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -513,8 +515,6 @@ CONTAINS
                                                 global_section, qmmm_section, &
                                                 subsys_section
 
-!$  INTEGER :: omp_get_num_threads
-!$  INTEGER :: omp_get_thread_num
     failure = .FALSE.
     NULLIFY(dft_section,global_section, i_force_eval)
 
@@ -676,11 +676,7 @@ CONTAINS
     ENDIF
 
     num_threads=1
-!$omp parallel shared(num_threads)
-!$omp master
-!$ num_threads = omp_get_num_threads()
-!$omp end master
-!$omp end parallel
+!$  num_threads=omp_get_max_threads()
     IF (output_unit > 0 ) THEN
        WRITE (UNIT=output_unit,FMT=*)
        CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
