@@ -309,14 +309,7 @@ MODULE mp2
      CASE (mp2_method_gpw)
        ! free Hartree Fock stuff
        CALL hfx_release(qs_env%x_data, error=error)
-       mem=m_memory()
-       mem_real=(mem+1024*1024-1)/(1024*1024)
-       CALL mp_max(mem_real,para_env%group)
-       mp2_env%mp2_memory=mp2_env%mp2_memory-mem_real
-       IF(mp2_env%mp2_memory<0.0_dp) mp2_env%mp2_memory=1.0_dp
 
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
-                                                       mp2_env%mp2_memory, ' MB'
        ! go with mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,error)
 

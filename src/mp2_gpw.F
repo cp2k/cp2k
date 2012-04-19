@@ -65,8 +65,11 @@ MODULE mp2_gpw
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: default_output_unit,&
-                                             m_flush
+                                             m_flush,&
+                                             m_memory
   USE message_passing,                 ONLY: mp_comm_split_direct,&
+                                             mp_max,&
+                                             mp_min,&
                                              mp_sendrecv,&
                                              mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -390,6 +393,11 @@ MODULE mp2_gpw
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,error=error_sub)
 
+    ! run the FFT once, to set up buffers and to take into account the memory
+    rho_r%pw%cr3d = 0.0D0
+    CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+
+
     ! and the array of mos
     CALL get_qs_env(qs_env=qs_env, mos=mos, dft_control=dft_control, error=error)
     CALL get_mo_set( mo_set=mos(1)%mo_set, nelectron=nelectron,&
@@ -476,6 +484,7 @@ MODULE mp2_gpw
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
     CALL cp_dbcsr_filter(mo_coeff_v,mp2_env%mp2_gpw%eps_filter,error=error_sub)
+
 
     ! now we're kind of ready to go....
     CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
@@ -603,7 +612,8 @@ MODULE mp2_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
                                                 exchange_group_sizes
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: mem_real, pair_energy
+    REAL(KIND=dp)                            :: mem_real, mem_try, &
+                                                pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_jb
     REAL(KIND=dp), ALLOCATABLE, &
@@ -644,24 +654,43 @@ MODULE mp2_gpw
     CALL array_release (row_blk_size)
     CALL array_release (row_dist)
 
+    mem_real=m_memory()
+    mem_real=(mem_real+1024*1024-1)/(1024*1024)
+    ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
+    ! has not been given back to the OS yet. 
+    CALL mp_min(mem_real,para_env%group)
+    mem_real=mp2_memory-mem_real
+    IF(mem_real<0.0_dp) mem_real=1.0_dp
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
+                                                    mem_real, ' MB'
+
     virtual=nmo-homo
+
+    wfn_size=REAL(SIZE(rho_r%pw%cr3d),KIND=dp)
+    CALL mp_max(wfn_size,para_env%group)
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
     p_best=ngroup
     q_best=1
     wfn_calc_best=HUGE(wfn_calc_best)
     DO p=1,ngroup
-       DO q=1,ngroup
-          IF (p*q.NE.ngroup) CYCLE
-          mem_real=(REAL(virtual,KIND=dp)*(REAL(homo,KIND=dp)+REAL(homo,KIND=dp)/p)*homo/p)*8.0D+00/1024.0D+00**2
-          IF(mem_real>mp2_memory) CYCLE
-          wfn_calc=((homo+p-1)/p)+((virtual+q-1)/q)
-          IF (wfn_calc<wfn_calc_best) THEN
-             wfn_calc_best=wfn_calc
-             p_best=p
-             q_best=q
-          ENDIF
-       ENDDO
+       q=ngroup/p
+       IF (p*q.NE.ngroup) CYCLE
+       ! integrals
+       mem_try=virtual*REAL(homo,KIND=dp)**2/(p*para_env_sub%num_pe)
+       ! exchange
+       mem_try=mem_try+virtual*REAL(homo,KIND=dp)**2/(p*p*para_env_sub%num_pe)
+       ! wfn
+       mem_try=mem_try+((homo+p-1)/p)*wfn_size
+       ! Mb
+       mem_try=mem_try*8.0D+00/1024.0D+00**2
+       IF(mem_try>mem_real) CYCLE
+       wfn_calc=((homo+p-1)/p)+((virtual+q-1)/q)
+       IF (wfn_calc<wfn_calc_best) THEN
+          wfn_calc_best=wfn_calc
+          p_best=p
+          q_best=q
+       ENDIF
     ENDDO
 
     max_batch_size_I=(homo+p_best-1)/p_best
