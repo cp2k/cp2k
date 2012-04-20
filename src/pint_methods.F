@@ -802,7 +802,7 @@ CONTAINS
                                                 istat, n_rep_val
     LOGICAL                                  :: done_init, done_levy, &
                                                 done_rand, explicit, failure, &
-                                                ltmp
+                                                ltmp, levycorr
     REAL(kind=dp)                            :: tcorr, var
     REAL(kind=dp), DIMENSION(3)              :: x0
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
@@ -845,23 +845,47 @@ CONTAINS
                              distribution_type=GAUSSIAN,&
                              extended_precision=.TRUE.,&
                              seed=seed,error=error)
-      idim = 0
-      DO ia = 1, pint_env%ndim/3
-!        var = SQRT(1.0_dp/(pint_env%kT*tcorr*4.0_dp*pint_env%mass(3*ia)))
-!        CALL pint_free_part_bead_x(pint_env%p,var,rng_gaussian,bx,nb,error)
-!        CPPostcondition(nb==pint_env%p,cp_fatal_level,routineP,error,failure)
-        x0(1) = pint_env%x(1,3*(ia-1)+1)
-        x0(2) = pint_env%x(1,3*(ia-1)+2)
-        x0(3) = pint_env%x(1,3*(ia-1)+3)
-        var = SQRT(1.0_dp/(pint_env%kT*tcorr*pint_env%mass(3*ia)))
-        CALL pint_levy_walk( x0, pint_env%p, var, bx, rng_gaussian, error )
-        DO ic = 1, 3
-          idim = idim + 1
-          DO ib=1,pint_env%p
-            pint_env%x(ib,idim) = pint_env%x(ib,idim) + bx(3*(ib-1)+ic)
+
+      CALL section_vals_val_get(pint_env%input,&
+           "MOTION%PINT%INIT%LEVY_CORRELATED",&
+           l_val=levycorr,error=error)
+
+      IF ( levycorr ) THEN
+
+        ! correlated Levy walk - the same path for all atoms
+        x0 = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
+        CALL pint_levy_walk( x0, pint_env%p, 1.0_dp, bx, rng_gaussian, error )
+        idim = 0
+        DO ia = 1, pint_env%ndim/3
+          var = SQRT(1.0_dp/(pint_env%kT*tcorr*pint_env%mass(3*ia)))
+          DO ic = 1, 3
+            idim = idim + 1
+            DO ib=1,pint_env%p
+              pint_env%x(ib,idim) = pint_env%x(ib,idim) + bx(3*(ib-1)+ic)*var
+            END DO
           END DO
         END DO
-      END DO
+
+      ELSE
+
+        ! uncorrelated bead initialization - distinct Levy walk for each atom
+        idim = 0
+        DO ia = 1, pint_env%ndim/3
+          x0(1) = pint_env%x(1,3*(ia-1)+1)
+          x0(2) = pint_env%x(1,3*(ia-1)+2)
+          x0(3) = pint_env%x(1,3*(ia-1)+3)
+          var = SQRT(1.0_dp/(pint_env%kT*tcorr*pint_env%mass(3*ia)))
+          CALL pint_levy_walk( x0, pint_env%p, var, bx, rng_gaussian, error )
+          DO ic = 1, 3
+            idim = idim + 1
+            DO ib=1,pint_env%p
+              pint_env%x(ib,idim) = pint_env%x(ib,idim) + bx(3*(ib-1)+ic)
+            END DO
+          END DO
+        END DO
+
+      END IF
+
       CALL delete_rng_stream(rng_gaussian,error=error)
       DEALLOCATE(bx, STAT=istat)
       CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)

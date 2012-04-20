@@ -2580,6 +2580,14 @@ CONTAINS
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="LEVY_CORRELATED",&
+            description="Use the same Levy path for all atoms, though "//&
+            "with mass-dependent variances (might help at very low T)",&
+            repeats=.FALSE., default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="LEVY_TEMP_FACTOR",&
             description="Multiplicative correction factor for the "//&
             "temperature at which the Levy walk is performed "//&
