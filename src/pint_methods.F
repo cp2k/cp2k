@@ -802,7 +802,7 @@ CONTAINS
                                                 istat, n_rep_val
     LOGICAL                                  :: done_init, done_levy, &
                                                 done_rand, explicit, failure, &
-                                                ltmp, levycorr
+                                                levycorr, ltmp
     REAL(kind=dp)                            :: tcorr, var
     REAL(kind=dp), DIMENSION(3)              :: x0
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
