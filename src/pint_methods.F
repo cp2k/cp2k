@@ -972,6 +972,16 @@ CONTAINS
   !>         2011-04-05 added centroid velocity initialization [lwalewski]
   !>         2011-12-19 removed optional parameter kT, target temperature is
   !>                    now determined from the input directly [lwalewski]
+  !> \note   Initialization is done according to the following protocol:
+  !>         1. set all the velocities to FORCE_EVAL%SUBSYS%VELOCITY if present
+  !>         2. scale the velocities according to the actual temperature
+  !>            (has no effect if vels not present in 1.)
+  !>         3. draw vels for the remaining dof from MB distribution
+  !>            (all or non-centroid modes only depending on 1.)
+  !>         4. add random noise to the centroid vels if CENTROID_SPEED == T
+  !>         5. set the vels for all dof to 0.0 if VELOCITY_QUENCH == T
+  !>         6. set the vels according to the explicit values from the input
+  !>            if present
   !> \author fawzi
   ! ***************************************************************************
   SUBROUTINE pint_init_v( pint_env, error )
@@ -985,7 +995,7 @@ CONTAINS
                                                 unit_str
     INTEGER                                  :: first_mode, ia, ib, ic, idim, &
                                                 itmp, n_rep_val
-    LOGICAL                                  :: done_init, done_scale, &
+    LOGICAL                                  :: done_init, done_quench, done_scale, &
                                                 done_sped, explicit, failure, &
                                                 ltmp, vels_present
     REAL(kind=dp)                            :: actual_t, ek, rtmp, target_t, &
@@ -1131,6 +1141,22 @@ CPSourceFileRef,&
       done_sped = .TRUE.
     END IF
 
+    ! quench (set to zero) velocities for all the modes if requested
+    ! (disregard all the initialization done so far)
+    done_quench = .FALSE.
+    CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%INIT%VELOCITY_QUENCH",&
+         l_val=ltmp,error=error)
+    IF (ltmp) THEN
+      DO idim=1,pint_env%ndim
+        DO ib=1,pint_env%p
+          pint_env%v(ib,idim) = 0.0_dp
+        END DO
+      END DO
+      CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+      done_quench = .TRUE.
+    END IF
+
     ! set the velocities to the values from the input if they are explicit
     ! (disregard all the initialization done so far)
     done_init = .FALSE.
@@ -1168,15 +1194,24 @@ CPSourceFileRef,&
     msg = "Bead velocities initialization:"
     IF ( done_init ) THEN
       msg = TRIM(msg)//" input structure"
-    ELSE IF ( vels_present ) THEN
-      msg = TRIM(ADJUSTL(msg))//" centroid + Maxwell-Boltzmann at "//TRIM(ADJUSTL(stmp1))//" K."
-
+    ELSE IF ( done_quench ) THEN
+      msg = TRIM(msg)//" quenching (set to 0.0)"
     ELSE
+      IF ( vels_present ) THEN
+        msg = TRIM(ADJUSTL(msg))//" centroid +"
+      END IF
       msg = TRIM(ADJUSTL(msg))//" Maxwell-Boltzmann at "//TRIM(ADJUSTL(stmp1))//" K."
     END IF
     CALL pint_write_line(msg, error)
 
-    IF (.NOT. done_init) THEN
+    IF ( done_init .AND. done_quench ) THEN
+      msg = "WARNING: exclusive options requested (velocity restart and quenching)"
+      CALL pint_write_line(msg, error)
+      msg = "WARNING: velocity restart took precedence"
+      CALL pint_write_line(msg, error)
+    END IF
+
+    IF ( (.NOT. done_init) .AND. (.NOT. done_quench) ) THEN
       IF (vels_present .AND. done_scale) THEN
         WRITE(stmp1,'(F10.2)') actual_t * unit_conv
         WRITE(stmp2,'(F10.2)') target_t * unit_conv

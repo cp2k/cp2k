@@ -2619,6 +2619,12 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="VELOCITY_QUENCH",&
+            description="set the initial velocities to zero",&
+            repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="VELOCITY_SCALE",&
             description="scale initial velocities to the temperature given in MOTION%PINT%TEMP",&
             repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
