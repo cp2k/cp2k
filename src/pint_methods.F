@@ -995,9 +995,10 @@ CONTAINS
                                                 unit_str
     INTEGER                                  :: first_mode, ia, ib, ic, idim, &
                                                 itmp, n_rep_val
-    LOGICAL                                  :: done_init, done_quench, done_scale, &
-                                                done_sped, explicit, failure, &
-                                                ltmp, vels_present
+    LOGICAL                                  :: done_init, done_quench, &
+                                                done_scale, done_sped, &
+                                                explicit, failure, ltmp, &
+                                                vels_present
     REAL(kind=dp)                            :: actual_t, ek, rtmp, target_t, &
                                                 unit_conv
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
