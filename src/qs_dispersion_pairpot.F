@@ -342,8 +342,14 @@ CONTAINS
           scaling = 1.00_dp
        CASE("PBE")
           scaling = 0.75_dp
+       CASE("PBE0")
+          scaling = 0.6_dp
+       CASE("B2PLYP")
+          scaling = 0.55_dp
        CASE("BP86")
           scaling = 1.05_dp
+       CASE("B97")
+          scaling = 1.25_dp
     END SELECT
 
   END SUBROUTINE qs_scaling_init
