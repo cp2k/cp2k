@@ -36,6 +36,7 @@ MODULE input_cp2k_qmmm
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
@@ -613,6 +614,24 @@ CONTAINS
             enum_desc=s2a("Calculates image matrix and solves linear set of equations", &
                           "Uses an iterative scheme to calculate the coefficients"),&
             default_i_val=do_qmmm_image_calcmatrix, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_IMAGE_MATRIX",&
+            description="Restart the image matrix. Useful when "//&
+            "calculating coefficients iteratively (the image matrix "//&
+            "is used as preconditioner in that case)",&
+            usage="RESTART_IMAGE_MATRIX", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="IMAGE_RESTART_FILE_NAME",&
+            description="File name where to read the image matrix used "//&
+            "as preconditioner in the iterative scheme",&
+            usage="IMAGE_RESTART_FILE_NAME <FILENAME>",&
+            type_of_var=lchar_t,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1233,6 +1252,14 @@ CONTAINS
             description="Prints image charge coefficients and detailed energy info", &
             print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+ 
+       CALL cp_print_key_section_create(print_key,"image_charge_restart",&
+            description="Controls the printing of the restart file for "// &
+            "the image matrix when using the iterative scheme",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="RESTART",&
+            common_iter_levels=3, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

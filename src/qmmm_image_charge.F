@@ -14,16 +14,25 @@ MODULE  qmmm_image_charge
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp,&
                                              int_8
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_integral_ab,&
@@ -53,6 +62,7 @@ MODULE  qmmm_image_charge
                                              rs_grid_release,&
                                              rs_grid_retain,&
                                              rs_pw_transfer
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -100,9 +110,15 @@ CONTAINS
   IF(qmmm_env%image_charge_pot%coeff_iterative) THEN
      !calculate preconditioner matrix for CG if necessary
      IF(qs_env%calc_image_preconditioner) THEN
+      IF(qmmm_env%image_charge_pot%image_restart) THEN
+       CALL restart_image_matrix(image_matrix=qs_env%image_matrix,&
+                                 qs_env=qs_env,qmmm_env=qmmm_env,&
+                                 error=error)
+      ELSE
        CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
                                    qs_env=qs_env,qmmm_env=qmmm_env,&
                                    error=error)
+      ENDIF
      ENDIF
      CALL calc_image_coeff_iterative(v_hartree_rspace=v_hartree_rspace,&
                                   coeff=qs_env%image_coeff,qmmm_env=qmmm_env,&
@@ -681,6 +697,7 @@ SUBROUTINE calculate_image_matrix(image_matrix,ipiv,qs_env,qmmm_env,error)
            qs_env%image_matrix(j,k)=qs_env%image_matrix(k,j)
           ENDDO
          ENDDO
+         CALL write_image_matrix(qs_env%image_matrix,qs_env,qmmm_env,error)
       ELSE
          !pivoting prior to DGETRS (Gaussian elimination)
          IF(PRESENT(ipiv)) THEN
@@ -701,10 +718,10 @@ SUBROUTINE calculate_image_matrix(image_matrix,ipiv,qs_env,qmmm_env,error)
 
 END SUBROUTINE calculate_image_matrix
 
-! ****************************************************************************
+!****************************************************************************
 !\brief calculates potential of the metal (image potential) given a set of
 !       coefficents coeff
-!**************************************************************************
+!****************************************************************************
 SUBROUTINE calculate_potential_metal(v_metal_rspace,coeff,rho_hartree_gspace,energy,&
                                      qs_env,error)
 
@@ -825,6 +842,149 @@ SUBROUTINE add_image_pot_to_hartree_pot(v_hartree,v_metal,qs_env,error)
 
   CALL timestop(handle)
 END SUBROUTINE add_image_pot_to_hartree_pot
+
+!****************************************************************************
+!> \brief writes image matrix T to file when used as preconditioner for
+!>        calculating image coefficients iteratively 
+!*****************************************************************************
+SUBROUTINE write_image_matrix(image_matrix,qs_env,qmmm_env,error)
+
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_image_matrix', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: handle, rst_unit
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: print_key, qmmm_section
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(qmmm_section, print_key, logger, para_env)
+    logger => cp_error_get_logger(error)
+    failure = .FALSE.
+    rst_unit = -1
+
+    CALL get_qs_env(qs_env=qs_env,para_env=para_env,&
+                    input=qmmm_section,&
+                    error=error)
+
+    print_key => section_vals_get_subs_vals(qmmm_section,&
+                                           "QMMM%PRINT%IMAGE_CHARGE_RESTART",&
+                                           error=error)
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+              qmmm_section,"QMMM%PRINT%IMAGE_CHARGE_RESTART",error=error),&
+              cp_p_file)) THEN
+
+       rst_unit = cp_print_key_unit_nr(logger,qmmm_section,&
+                          "QMMM%PRINT%IMAGE_CHARGE_RESTART",&
+                           extension=".Image",&
+                           file_status="REPLACE",&
+                           file_action="WRITE",&
+                           file_form="UNFORMATTED",&
+                           error=error)
+
+       IF(rst_unit>0) filename = cp_print_key_generate_filename(logger,&
+                                 print_key, extension=".IMAGE", &
+                                 my_local=.FALSE.,error=error)
+
+       IF(rst_unit>0) THEN
+         WRITE(rst_unit) image_matrix
+       ENDIF
+       
+       CALL cp_print_key_finished_output(rst_unit,logger,qmmm_section,&
+                       "QMMM%PRINT%IMAGE_CHARGE_RESTART", error=error)
+    ENDIF
+
+    CALL timestop(handle)
+
+END SUBROUTINE write_image_matrix
+
+!****************************************************************************
+!> \brief restarts image matrix T when used as preconditioner for calculating
+!>        image coefficients iteratively 
+!*****************************************************************************
+SUBROUTINE restart_image_matrix(image_matrix,qs_env,qmmm_env,error)
+
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_image_matrix', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: image_filename
+    INTEGER                                  :: handle, natom, output_unit, &
+                                                rst_unit, stat
+    LOGICAL                                  :: exist, failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(qmmm_section, logger, para_env)
+    logger => cp_error_get_logger(error)
+    failure = .FALSE.
+    exist= .FALSE.
+    rst_unit=-1
+
+    natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
+ 
+    IF (.NOT.ASSOCIATED(image_matrix)) THEN
+       ALLOCATE(image_matrix(natom,natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+   
+    image_matrix=0.0_dp 
+    
+    CALL get_qs_env(qs_env=qs_env,para_env=para_env,&
+                    input=qmmm_section,&
+                    error=error)
+
+    CALL section_vals_val_get(qmmm_section,"QMMM%IMAGE_CHARGE%IMAGE_RESTART_FILE_NAME",&
+                               c_val=image_filename, error=error)
+
+    INQUIRE(FILE=image_filename, exist=exist)
+ 
+    IF(exist) THEN
+      IF(para_env%ionode) THEN
+       CALL open_file(file_name=image_filename,&
+                      file_status="OLD",&
+                      file_form="UNFORMATTED",& 
+                      file_action="READ",&
+                      unit_number=rst_unit)
+
+       READ(rst_unit) qs_env%image_matrix
+      ENDIF
+      
+      CALL mp_bcast(qs_env%image_matrix,para_env%source,para_env%group)
+
+      IF (para_env%ionode) CALL close_file(unit_number=rst_unit)
+
+      output_unit=cp_print_key_unit_nr(logger,qmmm_section,&
+                             "QMMM%PRINT%PROGRAM_RUN_INFO",&
+                            extension=".qmmmLog",error=error)
+      IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
+                             "Restarted image matrix"
+    ELSE
+      CALL stop_program(routineN,moduleN,__LINE__,&
+           "Restart file for image matrix not found")
+    ENDIF
+
+    qmmm_env%image_charge_pot%image_restart=.FALSE.
+  
+    CALL timestop(handle)
+
+END SUBROUTINE restart_image_matrix 
 
 ! ****************************************************************************
 !> \brief Print info on image gradients on image MM atoms

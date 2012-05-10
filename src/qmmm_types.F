@@ -157,6 +157,7 @@ MODULE qmmm_types
   TYPE image_charge_type
      LOGICAL                                    :: all_mm
      LOGICAL                                    :: coeff_iterative
+     LOGICAL                                    :: image_restart
      INTEGER, DIMENSION(:), POINTER             :: image_mm_list
      TYPE(particle_type), DIMENSION(:), POINTER :: particles_all
      REAL(KIND=dp),DIMENSION(:,:),POINTER       :: image_forcesMM
@@ -835,6 +836,7 @@ SUBROUTINE create_image_charge_type(image_charge_pot,error)
 
   image_charge_pot%all_mm=.TRUE.
   image_charge_pot%coeff_iterative=.FALSE.
+  image_charge_pot%image_restart=.FALSE.
 
 END SUBROUTINE create_image_charge_type
 

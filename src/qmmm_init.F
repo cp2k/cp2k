@@ -682,7 +682,10 @@ CPSourceFileRef,&
        CASE(do_qmmm_image_iter)
          qmmm_env%image_charge_pot%coeff_iterative=.TRUE.
        END SELECT
-
+     
+       CALL section_vals_val_get(image_charge_section,"RESTART_IMAGE_MATRIX",&
+                                l_val=qmmm_env%image_charge_pot%image_restart,&
+                                error=error)
     END IF
 
   END SUBROUTINE setup_qmmm_vars_qm
