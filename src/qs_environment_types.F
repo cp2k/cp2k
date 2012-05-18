@@ -452,7 +452,7 @@ CONTAINS
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,efield,&
+       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
@@ -552,7 +552,7 @@ CONTAINS
                                                 mo_loc_history
     TYPE(tddfpt_control_type), OPTIONAL, &
       POINTER                                :: tddfpt_control
-    INTEGER, OPTIONAL                        :: nelectron_total
+    INTEGER, OPTIONAL                        :: natom, nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(efield_berry_type), OPTIONAL, &
       POINTER                                :: efield
@@ -738,6 +738,7 @@ CONTAINS
                       molecules_new=molecules_new,&
                       error=error)
 
+    IF (PRESENT(natom)) natom=SIZE(particles%els)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els

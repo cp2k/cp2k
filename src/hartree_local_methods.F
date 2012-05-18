@@ -16,6 +16,7 @@ MODULE  hartree_local_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
                                              ecoul_1center_type,&
+                                             hartree_local_type,&
                                              set_ecoul_1c
   USE input_constants,                 ONLY: tddfpt_singlet,&
                                              use_periodic
@@ -26,19 +27,16 @@ MODULE  hartree_local_methods
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
-  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
   USE qs_local_rho_types,              ONLY: rhoz_type
-  USE qs_oce_methods,                  ONLY: prj_scatter
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_atom_type,&
@@ -46,7 +44,6 @@ MODULE  hartree_local_methods
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: trace_r_AxB
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -66,50 +63,36 @@ MODULE  hartree_local_methods
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE init_coulomb_local(qs_env,tddft,p_env,error)
+  SUBROUTINE init_coulomb_local(hartree_local,natom,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
+    TYPE(hartree_local_type), POINTER        :: hartree_local
+    INTEGER, INTENT(IN)                      :: natom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_coulomb_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, natom, nkind
-    LOGICAL                                  :: my_tddft
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER                                  :: handle
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set)
     NULLIFY(ecoul_1c)
-
-    my_tddft = .FALSE.
-    IF (PRESENT(tddft)) my_tddft = tddft
-
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,error=error)
-    nkind = SIZE(atomic_kind_set,1)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         natom=natom)
-
     !   Allocate and Initialize 1-center Potentials and Integrals
     CALL allocate_ecoul_1center(ecoul_1c,natom, error)
-
-    IF (.NOT.my_tddft) THEN
-       CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c,error=error)
-    ELSE
-       p_env%hartree_local%ecoul_1c => ecoul_1c
-    END IF
+    hartree_local%ecoul_1c => ecoul_1c
 
     CALL timestop(handle)
 
   END SUBROUTINE init_coulomb_local
 
+! *****************************************************************************
+!> \brief Calculates Hartree potential for hard and soft densities (including
+!>        nuclear charge and compensation charges) using numerical integration
+!> \par History
+!>      05.2012 JGH refactoring
+!> \author ??
 ! *****************************************************************************
   SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
 
@@ -207,6 +190,14 @@ CONTAINS
   END SUBROUTINE calculate_Vh_1center
 
 ! *****************************************************************************
+!> \brief Calculates one center GAPW Hartree energies and matrix elements
+!>        Hartree potentials are input
+!>        Takes possible background charge into account
+!>        Special case for densities without core charge
+!> \par History
+!>      05.2012 JGH refactoring
+!> \author ??
+! *****************************************************************************
   SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,do_triplet,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -218,24 +209,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_gg_integrals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, is1, &
-      is2, iset1, iset2, iso, iso1, iso2, ispin, istat, l_ang, llmax, lmax0, &
-      lmax_0, m1, m2, max_iso, max_iso_not0, max_iso_not0_local, max_nr, &
-      max_s_harm, maxl, maxso, mepos, n1, n2, nat, natom, nchan_0, nkind, nr, &
+    INTEGER :: bo(2), handle, iat, iatom, ikind, ipgf1, is1, iset1, iso, &
+      istat, l_ang, llmax, lmax0, lmax_0, m1, max_iso, max_iso_not0, max_nr, &
+      max_s_harm, maxl, maxso, mepos, n1, nat, natom, nchan_0, nkind, nr, &
       nset, nsotot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
-    LOGICAL                                  :: atenergy, failure, &
-                                                my_periodic, my_tddft, &
-                                                paw_atom
-    REAL(dp)                                 :: back_ch, ec_tmp, ecoul_1_0, &
-                                                ecoul_1_h, ecoul_1_s, &
-                                                ecoul_1_z, factor, gVg_0, &
-                                                gVg_h, gVg_s
+    LOGICAL                                  :: atenergy, core_charge, &
+                                                failure, my_periodic, &
+                                                my_tddft, paw_atom
+    REAL(dp)                                 :: back_ch, factor
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gexp, sqrtwr
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aVh1b_00, aVh1b_hh, aVh1b_ss, &
-                                                cpc_atom, g0_h_w
+                                                g0_h_w
     REAL(dp), DIMENSION(:), POINTER          :: rrad_z, vrrad_z
     REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, gsph, rrad_0, Vh1_h, &
                                                 Vh1_s, vrrad_0, zet
@@ -251,18 +238,12 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: cpc_h, cpc_s, int_local_h, &
-                                                int_local_s, r_h, r_s, vr_h, &
-                                                vr_s
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
@@ -272,7 +253,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(cell,dft_control,para_env,poisson_env,pw_env,qs_charges)
-    NULLIFY(atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)
+    NULLIFY(atomic_kind_set, rho_atom_set, rho0_atom_set)
     NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
     NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
     NULLIFY(orb_basis,lmin,lmax,npgf,zet)
@@ -280,12 +261,12 @@ CONTAINS
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
+    core_charge = .NOT.my_tddft
 
     CALL get_qs_env(qs_env=qs_env,&
          cell=cell,dft_control=dft_control,&
          para_env=para_env,&
          atomic_kind_set=atomic_kind_set,&
-         particle_set=particle_set,&
          pw_env=pw_env,qs_charges=qs_charges,error=error)
 
     CALL pw_env_get(pw_env,poisson_env=poisson_env,error=error)
@@ -331,7 +312,7 @@ CONTAINS
     IF (ASSOCIATED(qs_env%atprop)) THEN
       atenergy = qs_env%atprop%energy
       IF (atenergy) THEN
-        natom = SIZE(particle_set)
+        CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
         CALL atprop_array_init(qs_env%atprop%ate1c,natom,error)
       END IF
     END IF
@@ -348,7 +329,6 @@ CONTAINS
             natom=nat,grid_atom=grid_atom,&
             harmonics=harmonics,ngrid_rad=nr,&
             max_iso_not0=max_iso_not0,paw_atom=paw_atom)
-! MI get rid of full gapw
       IF(paw_atom) THEN
 !===========    PAW   ===============
          CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
@@ -421,198 +401,33 @@ CONTAINS
 
          DO iat = bo(1), bo(2) !1,nat
             iatom = atom_list(iat)
-
-            NULLIFY(rho_atom,r_h,r_s,vr_h,vr_s,cpc_h,cpc_s)
-            NULLIFY(int_local_h,int_local_s)
             rho_atom => rho_atom_set(iatom)
-            CALL get_rho_atom(rho_atom=rho_atom,&
-                 rho_rad_h=r_h,rho_rad_s=r_s,&
-                 vrho_rad_h=vr_h,vrho_rad_s=vr_s,&
-                 cpc_h=cpc_h,cpc_s=cpc_s,&
-                 ga_Vlocal_gb_h=int_local_h,&
-                 ga_Vlocal_gb_s=int_local_s)
 
-            NULLIFY(rrad_0,vrrad_0)
-            rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
-            vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
-            Vh1_h = 0.0_dp
-            Vh1_s = 0.0_dp
-
-            IF (.NOT.my_tddft) THEN
+            NULLIFY(rrad_z,vrrad_z,rrad_0,vrrad_0)
+            IF(core_charge) THEN
                rrad_z  => rhoz_set(ikind)%r_coef
                vrrad_z => rhoz_set(ikind)%vr_coef
-               Vh1_h(:,1) = vrrad_z(:)
+            END IF
+            rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
+            vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
+            IF(my_periodic .AND. back_ch .GT. 1.E-3_dp) THEN
+               factor = -2.0_dp*pi/3.0_dp*SQRT(fourpi)*qs_charges%background
+            ELSE
+               factor = 0._dp
             END IF
 
-            DO iso = 1,nchan_0
-               Vh1_s(:,iso) = vrrad_0(:,iso)
-            END DO
+            CALL Vh_1c_atom_potential(rho_atom,vrrad_0,&
+                 grid_atom,iatom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
+                 nchan_0,nspins,max_iso_not0,factor,error)
 
-            DO ispin = 1,nspins
-               IF(my_periodic .AND. back_ch .GT. 1.E-3_dp .AND. ispin==1) THEN
-                  factor = -2.0_dp*pi/3.0_dp*SQRT(fourpi)*qs_charges%background
-                  DO ir = 1,nr
-                     Vh1_h(ir,1) =  Vh1_h(ir,1)  + vr_h(ispin)%r_coef(ir,1) + &
-                          factor * grid_atom%rad2(ir)*grid_atom%wr(ir)
-                     Vh1_s(ir,1) =  Vh1_s(ir,1)  + vr_s(ispin)%r_coef(ir,1) + &
-                          factor * grid_atom%rad2(ir)*grid_atom%wr(ir)
-                  END DO
-                  DO iso =2,max_iso_not0
-                     Vh1_h(:,iso) = Vh1_h(:,iso) + vr_h(ispin)%r_coef(:,iso)
-                     Vh1_s(:,iso) = Vh1_s(:,iso) + vr_s(ispin)%r_coef(:,iso)
-                  END DO
-               ELSE
-                  DO iso =1,max_iso_not0
-                     Vh1_h(:,iso) = Vh1_h(:,iso) + vr_h(ispin)%r_coef(:,iso)
-                     Vh1_s(:,iso) = Vh1_s(:,iso) + vr_s(ispin)%r_coef(:,iso)
-                  END DO
-               END IF
-            END DO
+            CALL Vh_1c_atom_energy(energy_hartree_1c,ecoul_1c,rho_atom,rrad_0,&
+                 grid_atom,iatom,core_charge,rrad_z,Vh1_h,Vh1_s,&
+                 nchan_0,nspins,max_iso_not0,atenergy,qs_env%atprop%ate1c,error)
 
-            !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz
-
-            ecoul_1_z = 0.0_dp
-            IF(.NOT. my_tddft) THEN
-               DO ir = 1,nr
-                  ecoul_1_z = ecoul_1_z + Vh1_h(ir,1)*rrad_z(ir)*grid_atom%wr(ir)
-               END DO
-               ecoul_1_z = 0.5_dp*ecoul_1_z
-            END IF
-
-            !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
-            ecoul_1_0 = 0.0_dp
-            DO iso = 1,nchan_0
-               ec_tmp = 0.0_dp
-               DO ir = 1,nr
-                  ec_tmp = ec_tmp + Vh1_s(ir,iso)*rrad_0(ir,iso)*&
-                       grid_atom%wr(ir)
-               END DO  ! ir
-               ecoul_1_0 = ecoul_1_0 + ec_tmp
-            END DO  ! iso
-            ecoul_1_0 = 0.5_dp*ecoul_1_0
-
-            CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
-
-            energy_hartree_1c = energy_hartree_1c +  ecoul_1_z -  ecoul_1_0
-            ! atomic energy contribution
-            IF (atenergy) THEN
-               qs_env%atprop%ate1c(iatom) = qs_env%atprop%ate1c(iatom) + ecoul_1_z - ecoul_1_0
-            END IF
-
-            !       Calculate the integrals of the potential with 2 primitives
-            aVh1b_hh = 0.0_dp
-            aVh1b_ss = 0.0_dp
-            aVh1b_00 = 0.0_dp
-
-            m1 = 0
-            DO iset1 = 1,nset
-               m2 = 0
-               DO iset2 = 1,nset !iset1,nset
-                  CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
-                                         max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
-
-                  n1 = nsoset(lmax(iset1))
-                  DO ipgf1  = 1,npgf(iset1)
-                     n2 = nsoset(lmax(iset2))
-                     DO ipgf2  = 1,npgf(iset2)
-                        !               with contributions to  V1_s*rho0
-
-                        DO iso = 1,nchan_0
-                           l_ang = indso(1,iso)
-                           DO icg = 1,cg_n_list(iso)
-                              is1 = cg_list(1,icg,iso)
-                              is2 = cg_list(2,icg,iso)
-
-                              iso1 = is1 + n1*(ipgf1-1) + m1
-                              iso2 = is2 + n2*(ipgf2-1) + m2
-                              gVg_h = 0.0_dp
-                              gVg_s = 0.0_dp
-                              gVg_0 = 0.0_dp
-
-                              DO ir = 1,nr
-                                 gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
-                                      Vh1_h(ir,iso)
-                                 gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
-                                      Vh1_s(ir,iso)
-                                 gVg_0 = gVg_0 + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
-                              END DO  ! ir
-
-                              aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + &
-                                   gVg_h*my_CG(is1,is2,iso)
-                              aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + &
-                                   gVg_s*my_CG(is1,is2,iso)
-                              aVh1b_00(iso1,iso2) = aVh1b_00(iso1,iso2) + &
-                                   Qlm_gg(iso1,iso2,iso)*gVg_0
-
-                           END DO  !icg
-                        END DO  ! iso
-                        !               without contributions to  V1_s*rho0
-
-
-                        DO iso = nchan_0+1,max_iso_not0
-                           DO icg = 1,cg_n_list(iso)
-                              is1 = cg_list(1,icg,iso)
-                              is2 = cg_list(2,icg,iso)
-
-                              iso1 = is1 + n1*(ipgf1-1) + m1
-                              iso2    = is2 + n2*(ipgf2-1) + m2
-                              gVg_h = 0.0_dp
-                              gVg_s = 0.0_dp
-
-                              DO ir = 1,nr
-                                 gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* &
-                                      Vh1_h(ir,iso)
-                                 gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
-                                      Vh1_s(ir,iso)
-                              END DO  ! ir
-
-                              aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + &
-                                   gVg_h*my_CG(is1,is2,iso)
-                              aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + &
-                                   gVg_s*my_CG(is1,is2,iso)
-
-                           END DO  !icg
-                        END DO  ! iso
-                     END DO  ! ipgf2
-                  END DO  ! ipgf1
-                  m2 = m2 + maxso
-               END DO  ! iset2
-               m1 = m1 + maxso
-            END DO  !iset1
-
-            !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
-
-            ALLOCATE(cpc_atom(nsotot,nsotot),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-            ecoul_1_h = 0.0_dp
-            ecoul_1_s = 0.0_dp
-            DO ispin = 1,nspins
-               cpc_atom=0._dp
-               CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_atom,atom_kind,error)
-               ecoul_1_h  = ecoul_1_h + trace_r_AxB(aVh1b_hh,nsotot,cpc_atom,nsotot,nsotot,nsotot)
-
-               cpc_atom=0._dp
-               CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_atom,atom_kind,error)
-               ecoul_1_s  =  ecoul_1_s + trace_r_AxB(aVh1b_ss,nsotot,cpc_atom,nsotot,nsotot,nsotot)
-
-               CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_hh,1,int_local_h(ispin)%r_coef,1)
-               CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_ss,1,int_local_s(ispin)%r_coef,1)
-               CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_h(ispin)%r_coef,1)
-               CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_s(ispin)%r_coef,1)
-
-            END DO  ! ispin
-
-            DEALLOCATE(cpc_atom,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-            ecoul_1_h = 0.5_dp*ecoul_1_h
-            ecoul_1_s = 0.5_dp*ecoul_1_s
-
-            CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,&
-                 ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
-
-            energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s
+            CALL Vh_1c_atom_integrals(rho_atom,&
+                 aVh1b_hh,aVh1b_ss,aVh1b_00,Vh1_h,Vh1_s,max_iso_not0,&
+                 max_s_harm,llmax,cg_list,cg_n_list,&
+                 nset,npgf,lmin,lmax,nsotot,maxso,nspins,nchan_0,gsph,g0_h_w,my_CG,Qlm_gg,error)
 
          END DO  ! iat
 
@@ -650,6 +465,247 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE Vh_1c_gg_integrals
+
+! *****************************************************************************
+
+  SUBROUTINE Vh_1c_atom_potential(rho_atom,vrrad_0,&
+             grid_atom,iatom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
+             nchan_0,nspins,max_iso_not0,bfactor,error)
+
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    REAL(dp), DIMENSION(:, :), POINTER       :: vrrad_0
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    INTEGER, INTENT(IN)                      :: iatom
+    LOGICAL, INTENT(IN)                      :: core_charge
+    REAL(dp), DIMENSION(:), POINTER          :: vrrad_z
+    REAL(dp), DIMENSION(:, :), POINTER       :: Vh1_h, Vh1_s
+    INTEGER, INTENT(IN)                      :: nchan_0, nspins, max_iso_not0
+    REAL(dp), INTENT(IN)                     :: bfactor
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_atom_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ir, iso, ispin, nr
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: vr_h, vr_s
+
+    nr = grid_atom%nr
+
+    NULLIFY(vr_h,vr_s)
+    CALL get_rho_atom(rho_atom=rho_atom,vrho_rad_h=vr_h,vrho_rad_s=vr_s)
+
+    Vh1_h = 0.0_dp
+    Vh1_s = 0.0_dp
+
+    IF (core_charge) Vh1_h(:,1) = vrrad_z(:)
+
+    DO iso = 1,nchan_0
+       Vh1_s(:,iso) = vrrad_0(:,iso)
+    END DO
+
+    DO ispin = 1,nspins
+       DO iso =1,max_iso_not0
+          Vh1_h(:,iso) = Vh1_h(:,iso) + vr_h(ispin)%r_coef(:,iso)
+          Vh1_s(:,iso) = Vh1_s(:,iso) + vr_s(ispin)%r_coef(:,iso)
+       END DO
+    END DO
+
+    IF(bfactor /= 0._dp) THEN
+       DO ir = 1,nr
+          Vh1_h(ir,1) =  Vh1_h(ir,1)  + bfactor * grid_atom%rad2(ir)*grid_atom%wr(ir)
+          Vh1_s(ir,1) =  Vh1_s(ir,1)  + bfactor * grid_atom%rad2(ir)*grid_atom%wr(ir)
+       END DO
+    END IF
+
+  END SUBROUTINE Vh_1c_atom_potential
+
+! *****************************************************************************
+
+  SUBROUTINE Vh_1c_atom_energy(energy_hartree_1c,ecoul_1c,rho_atom,rrad_0,&
+             grid_atom,iatom,core_charge,rrad_z,Vh1_h,Vh1_s,&
+             nchan_0,nspins,max_iso_not0,atenergy,ate1c,error)
+
+    REAL(dp), INTENT(INOUT)                  :: energy_hartree_1c
+    TYPE(ecoul_1center_type), DIMENSION(:), &
+      POINTER                                :: ecoul_1c
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    REAL(dp), DIMENSION(:, :), POINTER       :: rrad_0
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    INTEGER, INTENT(IN)                      :: iatom
+    LOGICAL, INTENT(IN)                      :: core_charge
+    REAL(dp), DIMENSION(:), POINTER          :: rrad_z
+    REAL(dp), DIMENSION(:, :), POINTER       :: Vh1_h, Vh1_s
+    INTEGER, INTENT(IN)                      :: nchan_0, nspins, max_iso_not0
+    LOGICAL, INTENT(IN)                      :: atenergy
+    REAL(dp), DIMENSION(:), POINTER          :: ate1c
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_atom_energy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iso, ispin, nr
+    REAL(dp)                                 :: ecoul_1_0, ecoul_1_h, &
+                                                ecoul_1_s, ecoul_1_z
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: r_h, r_s
+
+    nr = grid_atom%nr
+
+    NULLIFY(r_h,r_s)
+    CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,rho_rad_s=r_s)
+
+    !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz
+    ecoul_1_z = 0.0_dp
+    IF(core_charge) THEN
+       ecoul_1_z = 0.5_dp*SUM(Vh1_h(:,1)*rrad_z(:)*grid_atom%wr(:))
+    END IF
+
+    !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
+    ecoul_1_0 = 0.0_dp
+    DO iso = 1,nchan_0
+       ecoul_1_0 = ecoul_1_0 + 0.5_dp*SUM(Vh1_s(:,iso)*rrad_0(:,iso)*grid_atom%wr(:))
+    END DO
+
+    !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
+    ecoul_1_s = 0.0_dp
+    ecoul_1_h = 0.0_dp
+    DO ispin = 1,nspins
+       DO iso = 1,max_iso_not0
+          ecoul_1_s = ecoul_1_s + 0.5_dp*SUM(Vh1_s(:,iso)*r_s(ispin)%r_coef(:,iso)*grid_atom%wr(:))
+          ecoul_1_h = ecoul_1_h + 0.5_dp*SUM(Vh1_h(:,iso)*r_h(ispin)%r_coef(:,iso)*grid_atom%wr(:))
+       END DO 
+    END DO 
+
+    CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
+    CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
+
+    energy_hartree_1c = energy_hartree_1c + ecoul_1_z - ecoul_1_0
+    energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s
+
+    ! atomic energy contribution
+    IF (atenergy) THEN
+       ate1c(iatom) = ate1c(iatom) + ecoul_1_z - ecoul_1_0
+    END IF
+
+  END SUBROUTINE Vh_1c_atom_energy
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  SUBROUTINE Vh_1c_atom_integrals(rho_atom,&
+             aVh1b_hh,aVh1b_ss,aVh1b_00,Vh1_h,Vh1_s,max_iso_not0,&
+             max_s_harm,llmax,cg_list,cg_n_list,&
+             nset,npgf,lmin,lmax,nsotot,maxso,nspins,nchan_0,gsph,g0_h_w,my_CG,Qlm_gg,error)
+
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    REAL(dp), DIMENSION(:, :)                :: aVh1b_hh, aVh1b_ss, aVh1b_00
+    REAL(dp), DIMENSION(:, :), POINTER       :: Vh1_h, Vh1_s
+    INTEGER, INTENT(IN)                      :: max_iso_not0, max_s_harm, &
+                                                llmax
+    INTEGER, DIMENSION(:, :, :)              :: cg_list
+    INTEGER, DIMENSION(:)                    :: cg_n_list
+    INTEGER, INTENT(IN)                      :: nset
+    INTEGER, DIMENSION(:), POINTER           :: npgf, lmin, lmax
+    INTEGER, INTENT(IN)                      :: nsotot, maxso, nspins, nchan_0
+    REAL(dp), DIMENSION(:, :), POINTER       :: gsph
+    REAL(dp), DIMENSION(:, 0:)               :: g0_h_w
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG, Qlm_gg
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_atom_integrals', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: icg, ipgf1, ipgf2, ir, is1, is2, iset1, iset2, iso, iso1, &
+      iso2, ispin, l_ang, m1, m2, max_iso_not0_local, n1, n2, nr
+    REAL(dp)                                 :: gVg_0, gVg_h, gVg_s
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: int_local_h, int_local_s
+
+    NULLIFY(int_local_h,int_local_s)
+    CALL get_rho_atom(rho_atom=rho_atom,&
+         ga_Vlocal_gb_h=int_local_h,&
+         ga_Vlocal_gb_s=int_local_s)
+
+    !       Calculate the integrals of the potential with 2 primitives
+    aVh1b_hh = 0.0_dp
+    aVh1b_ss = 0.0_dp
+    aVh1b_00 = 0.0_dp
+
+    nr = SIZE(gsph,1)
+
+    m1 = 0
+    DO iset1 = 1,nset
+       m2 = 0
+       DO iset2 = 1,nset
+          CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+
+          n1 = nsoset(lmax(iset1))
+          DO ipgf1  = 1,npgf(iset1)
+             n2 = nsoset(lmax(iset2))
+             DO ipgf2  = 1,npgf(iset2)
+                !               with contributions to  V1_s*rho0
+                DO iso = 1,nchan_0
+                   l_ang = indso(1,iso)
+                   gVg_0 = SUM(Vh1_s(:,iso)*g0_h_w(:,l_ang))
+                   DO icg = 1,cg_n_list(iso)
+                      is1 = cg_list(1,icg,iso)
+                      is2 = cg_list(2,icg,iso)
+
+                      iso1 = is1 + n1*(ipgf1-1) + m1
+                      iso2 = is2 + n2*(ipgf2-1) + m2
+                      gVg_h = 0.0_dp
+                      gVg_s = 0.0_dp
+
+                      DO ir = 1,nr
+                         gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* Vh1_h(ir,iso)
+                         gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* Vh1_s(ir,iso)
+                      END DO  ! ir
+
+                      aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + gVg_h*my_CG(is1,is2,iso)
+                      aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + gVg_s*my_CG(is1,is2,iso)
+                      aVh1b_00(iso1,iso2) = aVh1b_00(iso1,iso2) + gVg_0*Qlm_gg(iso1,iso2,iso)
+
+                   END DO  !icg
+                END DO  ! iso
+                !               without contributions to  V1_s*rho0
+                DO iso = nchan_0+1,max_iso_not0
+                   DO icg = 1,cg_n_list(iso)
+                      is1 = cg_list(1,icg,iso)
+                      is2 = cg_list(2,icg,iso)
+
+                      iso1 = is1 + n1*(ipgf1-1) + m1
+                      iso2 = is2 + n2*(ipgf2-1) + m2
+                      gVg_h = 0.0_dp
+                      gVg_s = 0.0_dp
+
+                      DO ir = 1,nr
+                         gVg_h = gVg_h + gsph(ir,iso1)*gsph(ir,iso2)* Vh1_h(ir,iso)
+                         gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* Vh1_s(ir,iso)
+                      END DO  ! ir
+
+                      aVh1b_hh(iso1,iso2) = aVh1b_hh(iso1,iso2) + gVg_h*my_CG(is1,is2,iso)
+                      aVh1b_ss(iso1,iso2) = aVh1b_ss(iso1,iso2) + gVg_s*my_CG(is1,is2,iso)
+
+                   END DO  !icg
+                END DO  ! iso
+             END DO  ! ipgf2
+          END DO  ! ipgf1
+          m2 = m2 + maxso
+       END DO  ! iset2
+       m1 = m1 + maxso
+    END DO  !iset1
+
+    DO ispin = 1,nspins
+       CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_hh,1,int_local_h(ispin)%r_coef,1)
+       CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_ss,1,int_local_s(ispin)%r_coef,1)
+       CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_h(ispin)%r_coef,1)
+       CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_s(ispin)%r_coef,1)
+    END DO  ! ispin
+
+  END SUBROUTINE Vh_1c_atom_integrals
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 END MODULE hartree_local_methods
 

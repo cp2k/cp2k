@@ -336,3 +336,5 @@ H2S-gapw-gop.inp
 H2S-gapw-ot.inp
 #  
 H2S-gapw-gop-ot.inp
+#
+HF_gapw_all_LB.inp

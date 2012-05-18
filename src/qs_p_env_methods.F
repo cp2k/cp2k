@@ -133,7 +133,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
-                                                spin, stat
+                                                natom, spin, stat
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
@@ -264,7 +264,8 @@ CONTAINS
           CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
                          .TRUE., p_env%local_rho_set, error)
           CALL hartree_local_create(p_env%hartree_local,error=error)
-          CALL init_coulomb_local(qs_env, .TRUE., p_env,error=error)
+          CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
+          CALL init_coulomb_local(p_env%hartree_local,natom,error=error)
        END IF
 
        !------------------------!

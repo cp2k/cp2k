@@ -744,10 +744,11 @@ CONTAINS
        !     *** Allocate and initialize the set of atomic densities ***
        CALL init_rho_atom(qs_env,gapw_control,error=error)
        IF(dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
+          CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
           !       *** Allocate and initialize the compensation density rho0 ***
           CALL init_rho0(qs_env,gapw_control,error=error)
-          !       *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-          CALL init_coulomb_local(qs_env,error=error)
+          !       *** Allocate and Initialize the local coulomb term ***
+          CALL init_coulomb_local(qs_env%hartree_local,natom,error=error)
        END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
        NULLIFY(se_store_int_env, se_nddo_mpole, se_nonbond_env)
