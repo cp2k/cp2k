@@ -17,7 +17,10 @@ MODULE qs_integrate_potential_low
                                              ncoset
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_type
+
 #include "cp_common_uses.h"
+
+
 
   IMPLICIT NONE
 
@@ -80,7 +83,7 @@ CONTAINS
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
       ico, icoef, ig, j, jco, k, l, la, la_max_local, la_min_local, lb, &
       lb_cube_min, lb_max_local, lb_min_local, length, lx, lx_max, lxa, lxb, lxy, &
-      lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start, ub_cube_max
+      lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start, ub_cube_max, handle
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
@@ -109,8 +112,10 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
+
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
     LOGICAL  :: failure
+
 
     failure = .FALSE.
     subpatch_integrate = .FALSE.
@@ -312,6 +317,7 @@ CONTAINS
     END DO
     DEALLOCATE(vab)
 
+
   CONTAINS
 
 ! *****************************************************************************
@@ -373,7 +379,8 @@ CONTAINS
 
     CALL call_integrate()
 
-    CALL xyz_to_vab()
+
+    CALL call_to_xyz_to_vab()
 
     DEALLOCATE(coef_xyz)
     DEALLOCATE(pol_z)
@@ -424,6 +431,10 @@ CONTAINS
 
     END SUBROUTINE call_integrate
 
+! The subroutine CALL_XYZ_TO_VAB is also autogenterated
+#include "xyz_to_vab.f90"
+
+
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab
 
@@ -444,6 +455,7 @@ CONTAINS
 !   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
 !
 !   *** make the alpha matrix ***
+
     ALLOCATE(alpha(0:lp,0:la_max_local,0:lb_max_local,3))
     alpha(:,:,:,:)=0.0_dp
     DO iaxis=1,3
@@ -487,7 +499,7 @@ CONTAINS
              ENDDO
              ENDDO
 
-          ENDDO
+          ENDDO ! lxp
 
           DO lyb=0,lb_max_local
           DO lya=0,la_max_local
@@ -499,7 +511,7 @@ CONTAINS
           ENDDO
           ENDDO
 
-       ENDDO
+       ENDDO !lyp
 
        DO lzb=0,lb_max_local
        DO lza=0,la_max_local
@@ -736,7 +748,7 @@ CONTAINS
       ENDDO
       ENDDO
 
-      CALL xyz_to_vab()
+      CALL call_to_xyz_to_vab()
 
       ! deallocation needed to pass around a pgi bug..
       DEALLOCATE(hmatgridp)
@@ -781,7 +793,7 @@ CONTAINS
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3,error)
-        CALL xyz_to_vab()
+        CALL call_to_xyz_to_vab()
         DEALLOCATE(coef_xyz,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     END SUBROUTINE
@@ -818,7 +830,7 @@ CONTAINS
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3,error)
-        CALL xyz_to_vab()
+        CALL call_to_xyz_to_vab()
         DEALLOCATE(coef_xyz,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     END SUBROUTINE
@@ -894,6 +906,7 @@ CONTAINS
         ENDDO
 
     END SUBROUTINE
+
 
   END SUBROUTINE integrate_pgf_product_rspace
 
