@@ -103,3 +103,5 @@ Li-ROKS.inp
 NO2-ROKS.inp
 #  
 C-levelshift.inp
+# improved BFGS and CELL_OPT, new defaults
+NO2-ROKS.inp

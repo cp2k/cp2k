@@ -14,3 +14,7 @@ H2O-field-gopt-lsd.inp
 H2O-field.inp
 #  
 H2O-field-lsd.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-field-gopt.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-field-gopt-lsd.inp

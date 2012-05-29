@@ -325,3 +325,13 @@ nh3-meta-walks_1r.inp
 nh3-meta-walks_2r.inp
 # Atomic energy and stress properties 
 H2O-meta-combine.inp
+# improved BFGS and CELL_OPT, new defaults
+nh3-restraint-fixd-2.inp
+# improved BFGS and CELL_OPT, new defaults
+nh3_wat-restraint-fixd-3.inp
+# improved BFGS and CELL_OPT, new defaults
+nh3_wat-restraint-fixd-4.inp
+# improved BFGS and CELL_OPT, new defaults
+nh3_bfgs.inp
+# improved BFGS and CELL_OPT, new defaults
+nh3_bfgs_r.inp

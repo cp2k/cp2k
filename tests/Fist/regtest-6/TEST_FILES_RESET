@@ -140,3 +140,7 @@ uo2_buckmorse_nve.inp
 # Numerical changes due to new implementation of 14 electrostatics
 cubane_0.inp
 cubane_15.inp
+# improved BFGS and CELL_OPT, new defaults
+cubane_15.inp
+# improved BFGS and CELL_OPT, new defaults
+cubane_0.inp

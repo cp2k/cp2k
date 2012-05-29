@@ -203,3 +203,7 @@ mol.inp
 zwitt.inp
 # Numerics
 water_3_walls_q.inp
+# improved BFGS and CELL_OPT, new defaults
+water_3_full.inp
+# improved BFGS and CELL_OPT, new defaults
+water_3_full_num.inp

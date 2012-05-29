@@ -37,7 +37,8 @@ MODULE gopt_f_types
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE particle_list_types,             ONLY: particle_list_type
 #include "cp_common_uses.h"
 
@@ -69,6 +70,7 @@ MODULE gopt_f_types
      TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
      TYPE(cell_opt_env_type), POINTER         :: cell_env
+     REAL(KIND=dp),DIMENSION(3,3)                      :: h_ref
   END TYPE gopt_f_type
 
 CONTAINS

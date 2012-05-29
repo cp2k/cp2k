@@ -7,6 +7,15 @@
 !> \brief Routines for Geometry optimization using BFGS algorithm
 ! *****************************************************************************
 MODULE bfgs_optimizer
+  USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cell_types,                      ONLY: cell_copy,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             init_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_external_control,             ONLY: external_control
@@ -34,7 +43,12 @@ MODULE bfgs_optimizer
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE force_env_types,                 ONLY: force_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
+  USE constraint_fxd,                  ONLY: fix_atom_control
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set_cell,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&
                                              gopt_f_io,&
@@ -44,7 +58,8 @@ MODULE bfgs_optimizer
                                              print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_cell_method_id,&
+  USE input_constants,                 ONLY: default_cell_direct_id,&
+                                             default_cell_method_id,&
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -55,6 +70,7 @@ MODULE bfgs_optimizer
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_sum
+  USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -90,17 +106,19 @@ CONTAINS
 
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
-    INTEGER                                  :: handle, hesunit_read, indf, &
-                                                iter_nr, its, maxiter, ndf, &
-                                                nfree, output_unit, stat
-    LOGICAL                                  :: conv, failure, hesrest, &
-                                                ionode, should_stop
+    INTEGER                                  :: handle, hesunit_read, i, &
+                                                indf, iter_nr, its, maxiter, &
+                                                ndf, nfree, output_unit, stat
+    LOGICAL                                  :: conv, do_cell, failure, &
+                                                hesrest, ionode, should_stop, &
+                                                use_mod_hes, use_rfo
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step, t_diff, &
                                                 t_now, t_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
                                                 work, xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_hes
     TYPE(cp_fm_type), POINTER                :: eigvec_mat, hess_mat, hess_tmp
@@ -116,22 +134,32 @@ CONTAINS
     t_old=m_walltime()
 
     CALL timeset(routineN,handle)
+    CALL section_vals_val_get(geo_section,"BFGS%TRUST_RADIUS",r_val=rad,error=error)
     print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART", error=error)
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
     conv        = .FALSE.
-    rad         = 0.10_dp
     rat         = 0.0_dp
     wildcard    = " BFGS"
-
+    do_cell=.FALSE.
     ! Stop if not implemented
     SELECT CASE(gopt_env%type_id)
-    CASE(default_ts_method_id,default_cell_method_id)
+    CASE(default_ts_method_id)
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="BFGS method not yet working with for DIMER or CELL_OPT", &
+            message="BFGS method not yet working with DIMER", &
             error=error, error_level=cp_failure_level)
+    CASE(default_cell_method_id)
+       IF(gopt_env%cell_method_id==default_cell_direct_id)THEN
+          do_cell=.TRUE.
+       ELSE
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="BFGS method not working with specified CELL_OPT method", &
+               error=error, error_level=cp_failure_level)
+       END IF
     END SELECT
 
+    CALL section_vals_val_get(geo_section,"BFGS%USE_RAT_FUN_OPT",l_val=use_rfo,error=error)
+    CALL section_vals_val_get(geo_section,"BFGS%USE_MODEL_HESSIAN",l_val=use_mod_hes,error=error)
     CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest,error=error)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
@@ -139,13 +167,18 @@ CONTAINS
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
 
-    ! Initialize hessian (hes = unitary matrix )
+    ! Initialize hessian (hes = unitary matrix or model hessian )
     CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
                              globenv%blacs_repeatable,error=error)
     CALL cp_fm_struct_create(fm_struct_hes,para_env=para_env,context=blacs_env, &
          nrow_global=ndf,ncol_global=ndf,error=error)
     CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat",error=error)
-    CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
+    IF(use_mod_hes)THEN
+       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.04_dp,error=error)
+       CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
+    ELSE
+       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
+    END IF
 
     CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp",error=error)
     CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat",error=error)
@@ -181,6 +214,9 @@ CONTAINS
     ALLOCATE (dr(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dr(:) = 0.0_dp
+
+    ! refernce cell needed for smooth cell optimizations
+    CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
 
     ! Geometry optimization starts now
     CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
@@ -235,10 +271,12 @@ CONTAINS
        CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
 
        CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
-       CALL set_hes_eig(ndf,eigval,work)
-       dx = eigval
-       CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
-       CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,error)
+       IF(use_rfo)THEN
+          CALL set_hes_eig(ndf,eigval,work)
+          dx = eigval
+          CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
+       END IF
+       CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo,error)
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
 
        ! Update the atomic positions
@@ -251,6 +289,7 @@ CONTAINS
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, error)
        ediff = etot - eold
+    write(*,*)g
 
        ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
@@ -266,9 +305,10 @@ CONTAINS
 
        IF (conv.OR.(its==maxiter)) EXIT
        IF (etot < emin) emin = etot
-       CALL update_trust_rad(rat,rad,step,ediff)
+       IF(use_rfo)CALL update_trust_rad(rat,rad,step,ediff)
     END DO
-
+    
+    IF(do_cell)CALL unbias_coordinates(gopt_env,gopt_env%h_ref,cell,x0,error)
     IF(its == maxiter .AND. (.NOT.conv))THEN
        CALL print_geo_opt_nc(gopt_env, output_unit)
     END IF
@@ -581,7 +621,7 @@ CONTAINS
   END SUBROUTINE set_hes_eig
 
 ! *****************************************************************************
-  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,error)
+  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo,error)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf)
@@ -589,6 +629,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: dr(ndf), g(ndf)
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    LOGICAL                                  :: use_rfo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
@@ -601,10 +642,15 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: tmp
 
     CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
-
-    DO indf=1,ndf
-       eigval(indf) = one/eigval(indf)
-    END DO
+    IF(use_rfo)THEN
+       DO indf=1,ndf
+         eigval(indf) = one/eigval(indf)
+       END DO
+    ELSE
+       DO indf=1,ndf
+          eigval(indf) = one/MAX(0.0001_dp,eigval(indf))
+       END DO
+    END IF
 
     CALL cp_fm_column_scale(hess_tmp,eigval)
     CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct,error=error)
@@ -644,19 +690,17 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: DDOT, scal
+    REAL(KIND=dp)                            :: scal
 
     CALL timeset(routineN,handle)
 
-    step = DDOT(ndf,dr,1,dr,1)
-    scal = MAX(one,LOG10(REAL(nfree,dp)))
-    step = SQRT(step/scal)
+    step = MAXVAL(ABS(dr))
+    scal = MAX(one,rad/step)
 
     IF( step > rad )THEN
        rat = rad / step
        CALL DSCAL(ndf,rat,dr,1)
-       step = DDOT(ndf,dr,1,dr,1)
-       step = SQRT(step/scal)
+       step = rad
        IF(output_unit>0) THEN
          WRITE(unit=output_unit,FMT="(/,T2,A,F8.5)") &
              " Step is scaled; Scaling factor = ", rat
@@ -816,5 +860,280 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_bfgs_hessian
+! *****************************************************************************
+
+  SUBROUTINE construct_initial_hess(force_env,hess_mat,error)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_fm_type), POINTER                :: hess_mat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'construct_initial_hess', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i, iat_col, iat_row, iglobal, iind, j, jat_row, jglobal, jind, &
+      k, natom, ncol_local, nrow_local, stat, z
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_row
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: d_ij, rho_ij
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: r_ij
+    REAL(KIND=dp), DIMENSION(3, 3)           :: alpha, r0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fixed
+
+    failure=.FALSE.
+     CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,error=error)
+     CALL cp_subsys_get(subsys,&
+                 particles=particles,&
+                 error=error)
+
+     alpha(1,:)=(/1._dp,0.3949_dp,0.3949_dp/)
+     alpha(2,:)=(/0.3494_dp,0.2800_dp,0.2800_dp/)
+     alpha(3,:)=(/0.3494_dp,0.2800_dp,0.2800_dp/)
+
+     r0(1,:)=(/1.35_dp,2.10_dp,2.53_dp/)
+     r0(2,:)=(/2.10_dp,2.87_dp,3.40_dp/)
+     r0(3,:)=(/2.53_dp,3.40_dp,3.40_dp/)
+
+     CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
+            local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+     natom=particles%n_els
+     ALLOCATE(at_row(natom),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(rho_ij(natom,natom),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(d_ij(natom,natom),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(r_ij(natom,natom,3),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(fixed(3,natom),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     fixed=1.0_dp
+     CALL fix_atom_control( force_env, error, fixed)
+     rho_ij=0
+      !XXXX insert proper rows !XXX
+     at_row=3
+     DO i=1,natom
+         CALL get_atomic_kind(atomic_kind=particles%els(i)%atomic_kind,z=z)
+         IF(z.LE.10)at_row(i)=2
+         IF(z.LE.2)at_row(i)=1
+     END DO
+    DO i=2,natom
+        iat_row=at_row(i)
+        DO j=1,i-1
+           jat_row=at_row(j)
+           !pbc for a distance vector
+           r_ij(j,i,:)=pbc(particles%els(i)%r,particles%els(j)%r,cell)
+           r_ij(i,j,:)=-r_ij(j,i,:)
+           d_ij(j,i)=SQRT(DOT_PRODUCT(r_ij(j,i,:),r_ij(j,i,:)))
+           d_ij(i,j)=d_ij(j,i)
+           rho_ij(j,i)=EXP(alpha(jat_row,iat_row)*(r0(jat_row,iat_row)**2-d_ij(j,i)**2))
+           rho_ij(i,j)=rho_ij(j,i)
+        END DO
+     END DO
+     DO i=1,ncol_local
+        iglobal=col_indices(i)
+        iind=MOD(iglobal-1,3)+1
+        iat_col=CEILING(REAL(iglobal)/3)
+        IF(fixed(iind,iat_col).lt.0.5_dp)CYCLE
+        IF(iat_col.gt.natom)CYCLE
+        DO j=1,nrow_local
+           jglobal=row_indices(j)
+           jind=MOD(jglobal-1,3)+1
+           iat_row=CEILING(REAL(jglobal)/3)
+           IF(fixed(jind,iat_row).lt.0.5_dp)CYCLE
+           IF(iat_row.gt.natom)CYCLE
+           IF(iat_row.ne.iat_col)THEN
+               IF(rho_ij(iat_row,iat_col).gt.0.0001_dp)&
+               local_data(j,i)=local_data(j,i)+&
+                     angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
+           ELSE
+               local_data(j,i)=local_data(j,i)+&
+                     angle_second_deriv(r_ij,d_ij,rho_ij,iind,jind,iat_col,iat_row,natom)
+           END IF
+           IF(iat_col.NE.iat_row)THEN
+               local_data(j,i)=local_data(j,i)-&
+                               dist_second_deriv(r_ij(iat_col,iat_row,:),&
+                               iind,jind,d_ij(iat_row,iat_col),rho_ij(iat_row,iat_col))
+           ELSE
+              DO k=1,natom
+                 IF(k==iat_col)CYCLE
+                 IF(rho_ij(iat_row,k).gt.0.0001_dp) &
+                 local_data(j,i)=local_data(j,i)+&
+                               dist_second_deriv(r_ij(iat_col,k,:),&
+                               iind,jind,d_ij(iat_row,k),rho_ij(iat_row,k))
+              END DO
+           END IF 
+        END DO
+     END DO
+     DEALLOCATE(rho_ij,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(d_ij,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(r_ij,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(at_row,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE  construct_initial_hess
+
+  FUNCTION dist_second_deriv(r1,i,j,d,rho)  RESULT(deriv)
+    REAL(KIND=dp), DIMENSION(3)              :: r1
+    INTEGER                                  :: i, j
+    REAL(KIND=dp)                            :: d, rho, deriv
+
+      deriv=0.45_dp*rho*(r1(i)*r1(j))/d**2
+  END FUNCTION
+
+  FUNCTION angle_second_deriv(r_ij,d_ij,rho_ij,idir,jdir,iat_der,jat_der,natom) RESULT(deriv)
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: r_ij
+    REAL(KIND=dp), DIMENSION(:, :)           :: d_ij, rho_ij
+    INTEGER                                  :: idir, jdir, iat_der, jat_der, &
+                                                natom
+    REAL(KIND=dp)                            :: deriv
+
+    INTEGER                                  :: i, iat, idr, j, jat, jdr
+    REAL(KIND=dp) :: d12, d23, d31, D_mat(3,2), denom1, denom2, denom3, ka1, &
+      ka2, ka3, rho12, rho23, rho31, rsst1, rsst2, rsst3
+    REAL(KIND=dp), DIMENSION(3)              :: r12, r23, r31
+
+     deriv=0._dp
+     IF(iat_der==jat_der)THEN
+        DO i=1,natom-1
+           IF(rho_ij(iat_der,i).lt.0.00001)CYCLE
+           DO j=i+1,natom
+              IF(rho_ij(iat_der,j).lt.0.00001)CYCLE
+              IF(i==iat_der.OR.j==iat_der)CYCLE
+              IF(iat_der.lt.i.OR.iat_der.gt.j)THEN
+                 r12=r_ij(iat_der,i,:); r23=r_ij(i,j,:); r31=r_ij(j,iat_der,:)
+                 d12=d_ij(iat_der,i); d23=d_ij(i,j); d31=d_ij(j,iat_der)
+                 rho12=rho_ij(iat_der,i); rho23=rho_ij(i,j); rho31=rho_ij(j,iat_der)
+              ELSE
+                 r12=r_ij(iat_der,j,:); r23=r_ij(j,i,:); r31=r_ij(i,iat_der,:)
+                 d12=d_ij(iat_der,j); d23=d_ij(j,i); d31=d_ij(i,iat_der)
+                 rho12=rho_ij(iat_der,j); rho23=rho_ij(j,i); rho31=rho_ij(i,iat_der)
+              END IF
+              ka1=0.15_dp*rho12*rho23; ka2=0.15_dp*rho23*rho31; ka3=0.15_dp*rho31*rho12
+              rsst1=DOT_PRODUCT(r12,r23);rsst2=DOT_PRODUCT(r23,r31);rsst3=DOT_PRODUCT(r31,r12)
+              denom1=1.0_dp-rsst1**2/(d12**2*d23**2); denom2=1.0_dp-rsst2**2/(d23**2*d31**2)
+              denom3=1.0_dp-rsst3**2/(d31**2*d12**2)
+              denom1=SIGN(1._dp,denom1)*MAX(ABS(denom1),0.0001)
+              denom2=SIGN(1._dp,denom2)*MAX(ABS(denom2),0.0001)
+              denom3=SIGN(1._dp,denom3)*MAX(ABS(denom3),0.0001)
+              D_mat(1,1)=r23(idir)/(d12*d23)-rsst1*r12(idir)/(d12**3*d23)
+              D_mat(1,2)=r23(jdir)/(d12*d23)-rsst1*r12(jdir)/(d12**3*d23)
+              D_mat(2,1)=-r23(idir)/(d23*d31)+rsst2*r31(idir)/(d23*d31**3)
+              D_mat(2,2)=-r23(jdir)/(d23*d31)+rsst2*r31(jdir)/(d23*d31**3)
+              D_mat(3,1)=(r31(idir)-r12(idir))/(d31*d12)+rsst3*r31(idir)/(d31**3*d12)-&
+                                                         rsst3*r12(idir)/(d31*d12**3)
+              D_mat(3,2)=(r31(jdir)-r12(jdir))/(d31*d12)+rsst3*r31(jdir)/(d31**3*d12)-&
+                                                         rsst3*r12(jdir)/(d31*d12**3)
+              deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
+                    ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
+                    ka3*D_mat(3,1)*D_mat(3,2)/denom3
+
+           END DO
+        END DO
+     ELSE
+        DO i=1,natom
+           IF(i==iat_der.OR.i==jat_der)CYCLE
+           IF(jat_der.lt.iat_der)THEN
+              iat=jat_der; jat=iat_der; idr=jdir; jdr=idir
+           ELSE
+              iat=iat_der; jat=jat_der; idr=idir; jdr=jdir
+           END IF
+           IF(jat.lt.i.OR.iat.gt.i)THEN
+              r12=r_ij(iat,jat,:); r23=r_ij(jat,i,:); r31=r_ij(i,iat,:)
+              d12=d_ij(iat,jat); d23=d_ij(jat,i); d31=d_ij(i,iat)
+              rho12=rho_ij(iat,jat); rho23=rho_ij(jat,i); rho31=rho_ij(i,iat)
+           ELSE
+              r12=r_ij(iat,i,:); r23=r_ij(i,jat,:); r31=r_ij(jat,iat,:)
+              d12=d_ij(iat,i); d23=d_ij(i,jat); d31=d_ij(jat,iat)
+              rho12=rho_ij(iat,i); rho23=rho_ij(i,jat); rho31=rho_ij(jat,iat)
+           END IF
+           ka1=0.15_dp*rho12*rho23; ka2=0.15_dp*rho23*rho31; ka3=0.15_dp*rho31*rho12
+           rsst1=DOT_PRODUCT(r12,r23);rsst2=DOT_PRODUCT(r23,r31);rsst3=DOT_PRODUCT(r31,r12)
+           denom1=1.0_dp-rsst1**2/(d12**2*d23**2); denom2=1.0_dp-rsst2**2/(d23**2*d31**2)
+           denom3=1.0_dp-rsst3**2/(d31**2*d12**2)
+           denom1=SIGN(1._dp,denom1)*MAX(ABS(denom1),0.0001)
+           denom2=SIGN(1._dp,denom2)*MAX(ABS(denom2),0.0001)
+           denom3=SIGN(1._dp,denom3)*MAX(ABS(denom3),0.0001)
+           D_mat(1,1)=r23(idr)/(d12*d23)-rsst1*r12(idr)/(d12**3*d23)
+           D_mat(2,1)=-r23(idr)/(d23*d31)+rsst2*r31(idr)/(d23*d31**3)
+           D_mat(3,1)=(r31(idr)-r12(idr))/(d31*d12)+rsst3*r31(idr)/(d31**3*d12)-&
+                                                         rsst3*r12(idr)/(d31*d12**3)
+           IF(jat.lt.i.OR.iat.gt.i)THEN
+              D_mat(1,2)=(r12(jdr)-r23(jdr))/(d12*d23)+rsst1*r12(jdr)/(d12**3*d23)-&
+                                                       rsst1*r23(jdr)/(d12*d23**3)
+              D_mat(2,2)=r31(jdr)/(d23*d31)-rsst2*r23(jdr)/(d23**3*d31)
+              D_mat(3,2)=-r31(jdr)/(d31*d12)+rsst3*r12(jdr)/(d31*d12**3)
+           ELSE
+              D_mat(1,2)=-r12(jdr)/(d12*d23)+rsst1*r23(jdr)/(d12*d23**3)
+              D_mat(2,2)=(r23(jdr)-r31(jdr))/(d23*d31)+rsst2*r23(jdr)/(d23**3*d31)-&
+                                                       rsst2*r31(jdr)/(d23*d31**3)
+              D_mat(3,2)=r12(jdr)/(d31*d12)-rsst3*r31(jdr)/(d31**3*d12)
+           END IF
+           deriv=deriv+ka1*D_mat(1,1)*D_mat(1,2)/denom1+&
+                 ka2*D_mat(2,1)*D_mat(2,2)/denom2+&
+                 ka3*D_mat(3,1)*D_mat(3,2)/denom3
+         END DO
+      END IF
+      deriv=0.5_dp*deriv
+
+ END FUNCTION angle_second_deriv
+  
+
+  SUBROUTINE unbias_coordinates(gopt_env,h_ref,cell,x,error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'unbias_coordinates', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, idg, ip, j
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: r, s
+    TYPE(cell_type), POINTER                 :: cell_ref
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+
+     failure = .FALSE.
+     NULLIFY(cell_ref)
+     CALL cell_create(cell_ref,error=error)
+     CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
+     CALL cp_subsys_get(subsys,&
+                       particles=particles,&
+                       error=error)
+     CALL cell_copy(cell,cell_ref, error)
+     CALL init_cell(cell_ref,hmat=h_ref)
+     idg = SIZE(x)-6
+     DO i = 1, 3
+       DO j = 1, i
+          idg = idg + 1
+          cell%hmat(j,i) = x(idg)
+       END DO
+     END DO
+     CALL init_cell(cell)
+     CALL force_env_set_cell(gopt_env%force_env, cell, error)
+     ! Converting into reals
+     DO ip=1,(SIZE(x)-6)/3
+        r=x(3*ip-2:3*ip)
+        CALL real_to_scaled(s,r,cell_ref)
+        CALL scaled_to_real(r,s,cell)
+        particles%els(ip)%r = r
+     END DO
+     CALL cell_release(cell_ref,error)
+ 
+ END SUBROUTINE unbias_coordinates
+
 
 END MODULE bfgs_optimizer

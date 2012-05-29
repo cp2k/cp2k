@@ -965,3 +965,7 @@ H2O-UKS-GPW-relax_multip.inp
 H2O-UKS-GPW-relax_multip.inp
 O2-UKS-GPW-relax_multip.inp
 O2-UKS-OTdiag-relax_multip.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-xc_none.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-UKS-GPW-relax_multip.inp

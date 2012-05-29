@@ -76,3 +76,13 @@ ch2o-r.inp
 MoS.inp
 # direct regtest of differences between numerical and analytical stress tensor 
 h2o-32_4.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-2.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-3.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-r.inp
+# improved BFGS and CELL_OPT, new defaults
+n2.inp
+# improved BFGS and CELL_OPT, new defaults
+s2.inp

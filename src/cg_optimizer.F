@@ -9,14 +9,24 @@
 !>      10.2005
 ! *****************************************************************************
 MODULE cg_optimizer
+  USE cell_types,                      ONLY: cell_copy,&
+                                             cell_create,&
+                                             cell_type,&
+                                             init_cell,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE cg_utils,                        ONLY: cg_linmin,&
                                              get_conjugate_direction
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE f77_blas
-  USE force_env_types,                 ONLY: force_env_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set_cell,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&
                                              gopt_f_io,&
@@ -26,10 +36,13 @@ MODULE cg_optimizer
                                              print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
+  USE input_constants,                 ONLY: default_cell_direct_id,&
+                                             default_cell_method_id
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
+  USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -123,6 +136,7 @@ CONTAINS
                                                 res_lim, t_diff, t_now, t_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: root_section
 
@@ -146,7 +160,8 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(xold(SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
+       CALL force_env_get(force_env,cell=cell,error=error)
+       
        ! Evaluate energy and forces at the first step
        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, error)
@@ -205,6 +220,10 @@ CONTAINS
           g   = -xi
           xi  =   h
        END DO
+       IF(gopt_env%type_id==default_cell_method_id)THEN
+          IF(gopt_env%cell_method_id==default_cell_direct_id)&
+          CALL unbias_coordinates(gopt_env,gopt_env%h_ref,cell,x0,error)
+       END IF
        IF(its == maxiter .AND. (.NOT.conv))THEN
           CALL print_geo_opt_nc(gopt_env, output_unit)
        END IF
@@ -228,5 +247,52 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_cg_main
+
+
+  SUBROUTINE unbias_coordinates(gopt_env,h_ref,cell,x,error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'unbias_coordinates', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, idg, ip, j
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: r, s
+    TYPE(cell_type), POINTER                 :: cell_ref
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+
+     failure = .FALSE.
+     NULLIFY(cell_ref)
+
+     CALL cell_create(cell_ref,error=error)
+     CALL cell_copy(cell,cell_ref, error)
+     CALL init_cell(cell_ref,hmat=h_ref)
+     CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
+     CALL cp_subsys_get(subsys,&
+                       particles=particles,&
+                       error=error)
+     idg = SIZE(x)-6
+     DO i = 1, 3
+       DO j = 1, i
+          idg = idg + 1
+          cell%hmat(j,i) = x(idg)
+       END DO
+     END DO
+     CALL init_cell(cell)
+     CALL force_env_set_cell(gopt_env%force_env, cell, error)
+     ! Converting into reals
+     DO ip=1,(SIZE(x)-6)/3
+        r=x(3*ip-2:3*ip)
+        CALL real_to_scaled(s,r,cell_ref)
+        CALL scaled_to_real(r,s,cell)
+        particles%els(ip)%r = r
+     END DO
+
+ END SUBROUTINE unbias_coordinates
 
 END MODULE cg_optimizer

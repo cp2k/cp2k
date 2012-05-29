@@ -535,3 +535,15 @@ constr_hb_mm.inp
 constr_hb_qm.inp
 #  
 water_3_dist.inp
+# improved BFGS and CELL_OPT, new defaults
+C4H10-qmmm-gauss-2.inp
+# improved BFGS and CELL_OPT, new defaults
+C4H10-qmmm-gauss-9.inp
+# improved BFGS and CELL_OPT, new defaults
+C4H10-qmmm-gauss-10.inp
+# improved BFGS and CELL_OPT, new defaults
+C4H10-qmmm-gauss-11.inp
+# improved BFGS and CELL_OPT, new defaults
+C11H24-qmmm-gauss-0.inp
+# improved BFGS and CELL_OPT, new defaults
+constr.inp

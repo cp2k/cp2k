@@ -162,7 +162,9 @@ CONTAINS
              ALLOCATE(new_pairs(i)%id_kind(list_size),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(new_pairs(i)%ei_scale(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(new_pairs(i)%vdw_scale(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(new_pairs(i)%is_onfo(0),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              NULLIFY(new_pairs(i)%ij_kind,&
@@ -205,6 +207,7 @@ CONTAINS
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
+             NULLIFY(new_pairs(i)%ei_scale,new_pairs(i)%vdw_scale,new_pairs(i)%is_onfo)
           ENDDO
           DEALLOCATE(fist_neighbor%neighbor_kind_pairs,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

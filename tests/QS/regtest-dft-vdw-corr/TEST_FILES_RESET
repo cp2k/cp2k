@@ -87,3 +87,9 @@ dftd3_t7.inp
 dftd3_t8.inp
 #  
 dftd3_t11.inp
+# improved BFGS and CELL_OPT, new defaults
+dftd3_t5.inp
+# improved BFGS and CELL_OPT, new defaults
+dftd3_t7.inp
+# improved BFGS and CELL_OPT, new defaults
+dftd3_t11.inp

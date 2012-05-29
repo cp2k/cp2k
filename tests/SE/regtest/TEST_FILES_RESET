@@ -737,3 +737,29 @@ ice-ewald-nomol.inp
 ice-ewald-r_cut.inp
 ice-scp-ewald_gks.inp
 ice-scp-ewald.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o.inp
+# improved BFGS and CELL_OPT, new defaults
+h2o.inp
+# improved BFGS and CELL_OPT, new defaults
+h2o_lsd.inp
+# improved BFGS and CELL_OPT, new defaults
+hf.inp
+# improved BFGS and CELL_OPT, new defaults
+nh4.inp
+# improved BFGS and CELL_OPT, new defaults
+st.inp
+# improved BFGS and CELL_OPT, new defaults
+h2o_lsd-ot.inp
+# improved BFGS and CELL_OPT, new defaults
+O2-ROKS.inp
+# improved BFGS and CELL_OPT, new defaults
+NO2-ROKS.inp
+# improved BFGS and CELL_OPT, new defaults
+geom.inp
+# improved BFGS and CELL_OPT, new defaults
+b2h6_pm6.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o_pm6.inp
+# improved BFGS and CELL_OPT, new defaults
+hcn_pm6.inp

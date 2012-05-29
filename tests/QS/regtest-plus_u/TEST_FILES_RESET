@@ -479,3 +479,27 @@ H2O-uks-u_ramping.inp
 H2O-rks-u_ramping_reset.inp
 #  
 H2O-uks-u_ramping_reset.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-rks-diag.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-rks-otcg.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-uks-diag.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-uks-otcg.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-rks-diag-mulliken.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-rks-otcg-mulliken.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-uks-diag-mulliken.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-uks-otcg-mulliken.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-rks-u_ramping.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-uks-u_ramping.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-rks-u_ramping_reset.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-uks-u_ramping_reset.inp

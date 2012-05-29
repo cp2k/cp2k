@@ -890,15 +890,17 @@ CONTAINS
     NULLIFY(keyword,print_key,subsection)
     CALL keyword_create(keyword, name="TYPE",&
          description="Specify which kind of method to use for the optimization of the simulation cell",&
-         usage="TYPE (GEO_OPT|MD)",&
-         enum_c_vals=s2a("GEO_OPT","MD"),&
+         usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)",&
+         enum_c_vals=s2a("GEO_OPT","MD","DIRECT_CELL_OPT"),&
          enum_desc=s2a(&
          "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps. "//&
          " The stress tensor is computed at the optimized geometry.",&
          "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor "//&
-         " used for the cell optimization."),&
-         enum_i_vals=(/default_cell_geo_opt_id,default_cell_md_id/),&
-         default_i_val=default_cell_geo_opt_id,error=error)
+         " used for the cell optimization.",&
+         "Performs a geometry and cell optimization at the same time."//&
+         " The stress tensor is computed at every step"),&
+         enum_i_vals=(/default_cell_geo_opt_id,default_cell_md_id,default_cell_direct_id/),&
+         default_i_val=default_cell_direct_id,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -1100,6 +1102,30 @@ CONTAINS
             description="Provides parameters to tune the BFGS optimization",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
+
+       CALL keyword_create(keyword, name="TRUST_RADIUS",&
+            description="Trust radius used in BFGS. Previously set to 0.1. "//&
+            "Large values can lead to instabilities",&
+            usage="TRUST_RADIUS {real}",unit_str='angstrom',&
+            default_r_val=cp_unit_to_cp2k(0.25_dp,"angstrom",error=error),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="USE_MODEL_HESSIAN",&
+            description="Uses a model Hessian as initial guess instead of a unit matrix."//&
+            " Should lead in general to improved convergence might be switched off for exotic cases",&
+            usage="USE_RAT_FUN_OPT",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="USE_RAT_FUN_OPT",&
+            description="Includes a rational function optimization to determine the step."//&
+            " Previously default but did not improve convergence in many cases",&
+            usage="USE_RAT_FUN_OPT",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_HESSIAN",&
             description="Controls the reading of the initial Hessian from file.",&

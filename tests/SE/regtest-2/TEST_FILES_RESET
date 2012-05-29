@@ -478,3 +478,37 @@ Pt-cis-2xpet3Cl2-si.inp
 H2O-32.inp
 # Allow the specification of the threshold value for RELAX_MULTIP
 O2-UKS-MNDO-relax_multip.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o.inp
+# improved BFGS and CELL_OPT, new defaults
+h2o.inp
+# improved BFGS and CELL_OPT, new defaults
+h2o_lsd.inp
+# improved BFGS and CELL_OPT, new defaults
+hf.inp
+# improved BFGS and CELL_OPT, new defaults
+nh4.inp
+# improved BFGS and CELL_OPT, new defaults
+st.inp
+# improved BFGS and CELL_OPT, new defaults
+h2o_lsd-ot.inp
+# improved BFGS and CELL_OPT, new defaults
+O2-ROKS.inp
+# improved BFGS and CELL_OPT, new defaults
+NO2-ROKS.inp
+# improved BFGS and CELL_OPT, new defaults
+b2h6_pm6.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o_pm6.inp
+# improved BFGS and CELL_OPT, new defaults
+hcn_pm6.inp
+# improved BFGS and CELL_OPT, new defaults
+O2-ROKS-PM6.inp
+# improved BFGS and CELL_OPT, new defaults
+Pt-cis-2xpet3Cl2.inp
+# improved BFGS and CELL_OPT, new defaults
+Pt-cis-2xpet3Cl2-si.inp
+# improved BFGS and CELL_OPT, new defaults
+Pt-cis-2xpet3Cl2-si-noc.inp
+# improved BFGS and CELL_OPT, new defaults
+O2-UKS-MNDO-relax_multip.inp

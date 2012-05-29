@@ -507,3 +507,13 @@ h2.t2.inp
 h4.t4.inp
 h2o_dip_berry.inp
 h2o_dip_iso.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-harris.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-geoopt.inp
+# improved BFGS and CELL_OPT, new defaults
+H2O-fixed.inp
+# improved BFGS and CELL_OPT, new defaults
+h2.t1.inp
+# improved BFGS and CELL_OPT, new defaults
+h2.t2.inp

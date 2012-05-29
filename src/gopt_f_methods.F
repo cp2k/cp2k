@@ -29,7 +29,10 @@ MODULE gopt_f_methods
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_cell_method_id,&
+  USE input_constants,                 ONLY: default_cell_direct_id,&
+                                             default_cell_geo_opt_id,&
+                                             default_cell_md_id,&
+                                             default_cell_method_id,&
                                              default_minimization_method_id,&
                                              default_shellcore_method_id,&
                                              default_ts_method_id
@@ -82,6 +85,7 @@ CONTAINS
 
     INTEGER                                  :: i, idg, j, nparticle, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: s
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
 
@@ -100,16 +104,44 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL pack_subsys_particles(subsys=subsys,r=x0,error=error)
     CASE (default_cell_method_id)
-      CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
-      ALLOCATE (x0(6),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      idg = 0
-      DO i=1,3
-        DO j=1,i
-          idg = idg + 1
-          x0(idg) = cell%hmat(j,i)
-        END DO
-      END DO
+      SELECT CASE(gopt_env%cell_method_id)
+      CASE(default_cell_geo_opt_id,default_cell_md_id)
+         CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
+         ALLOCATE (x0(6),stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         idg=0
+         DO i=1,3
+           DO j=1,i
+             idg = idg + 1
+             x0(idg) = cell%hmat(j,i)
+           END DO
+         END DO
+      CASE(default_cell_direct_id)
+         CALL force_env_get(gopt_env%force_env,subsys=subsys,cell=cell,error=error)
+         gopt_env%h_ref=cell%hmat
+         !before starting we handle the case of translating coordinates (QM/MM)
+         CALL apply_qmmm_translate(gopt_env%force_env,error=error)
+         nparticle = force_env_get_nparticle(gopt_env%force_env,error)
+         ALLOCATE (x0(3*nparticle+6),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ! for a combined optimization positions have to be stored in scaled coord
+         idg = 0
+         DO i=1,nparticle
+            s=subsys%particles%els(i)%r
+            DO j=1,3
+               idg=idg+1
+               x0(idg)=s(j)
+            END DO
+         END DO
+         DO i=1,3
+            DO j=1,i
+              idg = idg + 1
+              x0(idg) = cell%hmat(j,i)
+            END DO
+         END DO
+      CASE DEFAULT
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
     CASE DEFAULT
       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT

@@ -9,6 +9,13 @@
 !>      none
 ! *****************************************************************************
 MODULE cp_lbfgs_geo
+  USE cell_types,                      ONLY: cell_copy,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             init_cell,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE cp_external_control,             ONLY: external_control
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
@@ -19,8 +26,11 @@ MODULE cp_lbfgs_geo
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&
@@ -29,11 +39,13 @@ MODULE cp_lbfgs_geo
                                              print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_cell_method_id,&
+  USE input_constants,                 ONLY: default_cell_direct_id,&
+                                             default_cell_method_id,&
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
+  USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -69,8 +81,9 @@ CONTAINS
 
     INTEGER                                  :: handle, iter_nr, its, &
                                                 output_unit
-    LOGICAL                                  :: converged, failure, &
+    LOGICAL                                  :: converged, do_cell, failure, &
                                                 should_stop
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -78,6 +91,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
+    do_cell=.FALSE.
     NULLIFY(optimizer, para_env)
     logger => cp_error_get_logger(error)
     root_section => force_env%root_section
@@ -85,7 +99,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
     CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL force_env_get(force_env, para_env=para_env, error=error)
+       CALL force_env_get(force_env, para_env=para_env, cell=cell, error=error)
 
        ! Geometry optimization starts now
        output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -96,10 +110,18 @@ CONTAINS
 
        ! Stop if not implemented
        SELECT CASE(gopt_env%type_id)
-       CASE(default_ts_method_id,default_cell_method_id)
+       CASE(default_ts_method_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="L-BFGS method not yet working with for DIMER or CELL_OPT", &
+               message="BFGS method not yet working with DIMER", &
                error=error, error_level=cp_failure_level)
+       CASE(default_cell_method_id)
+          IF(gopt_env%cell_method_id==default_cell_direct_id)THEN
+             do_cell=.TRUE.
+          ELSE
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="BFGS method not working with specified CELL_OPT method", &
+                  error=error, error_level=cp_failure_level)
+          END IF
        END SELECT
 
        CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env,&
@@ -126,6 +148,8 @@ CONTAINS
           IF (its==gopt_param%max_iter) EXIT
        END DO
 
+       IF(do_cell)CALL unbias_coordinates(gopt_env,gopt_env%h_ref,cell,x0,error)
+
        IF(its == gopt_param%max_iter .AND. (.NOT.converged))THEN
           CALL print_geo_opt_nc(gopt_env, output_unit)
        END IF
@@ -142,4 +166,51 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE geoopt_lbfgs
 
+  SUBROUTINE unbias_coordinates(gopt_env,h_ref,cell,x,error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'unbias_coordinates', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, idg, ip, j
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: r, s
+    TYPE(cell_type), POINTER                 :: cell_ref
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+
+     failure = .FALSE.
+     NULLIFY(cell_ref)
+
+     CALL cell_create(cell_ref,error=error)
+     CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
+     CALL cp_subsys_get(subsys,&
+                       particles=particles,&
+                       error=error)
+     CALL cell_copy(cell,cell_ref, error)
+     CALL init_cell(cell_ref,hmat=h_ref)
+     idg = SIZE(x)-6
+     DO i = 1, 3
+       DO j = 1, i
+          idg = idg + 1
+          cell%hmat(j,i) = x(idg)
+       END DO
+     END DO
+     CALL init_cell(cell)
+     CALL force_env_set_cell(gopt_env%force_env, cell, error)
+     ! Converting into reals
+     DO ip=1,(SIZE(x)-6)/3
+        r=x(3*ip-2:3*ip)
+        CALL real_to_scaled(s,r,cell_ref)
+        CALL scaled_to_real(r,s,cell)
+        particles%els(ip)%r = r
+     END DO
+     CALL cell_release(cell_ref,error)
+
+ END SUBROUTINE unbias_coordinates
+  
 END MODULE cp_lbfgs_geo

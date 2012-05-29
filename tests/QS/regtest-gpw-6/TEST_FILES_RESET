@@ -467,3 +467,7 @@ si8_lsd_broy_wc_list_rst.inp
 si8_lsd_broy_fm0.2.inp
 #  
 Ne_nlcc_md.inp
+# improved BFGS and CELL_OPT, new defaults
+c8_broy_gop.inp
+# improved BFGS and CELL_OPT, new defaults
+c8_broy_gapw_gop.inp

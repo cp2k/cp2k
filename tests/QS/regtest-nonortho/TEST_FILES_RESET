@@ -196,3 +196,7 @@ graphite3.inp
 graph_b111.inp
 #  
 graph_b111_gapw.inp
+# improved BFGS and CELL_OPT, new defaults
+graph_b111.inp
+# improved BFGS and CELL_OPT, new defaults
+graph_b111_gapw.inp

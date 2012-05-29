@@ -338,3 +338,7 @@ H2S-gapw-ot.inp
 H2S-gapw-gop-ot.inp
 #
 HF_gapw_all_LB.inp
+# improved BFGS and CELL_OPT, new defaults
+H2S-gapw-gop.inp
+# improved BFGS and CELL_OPT, new defaults
+H2S-gapw-gop-ot.inp

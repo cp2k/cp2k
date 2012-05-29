@@ -178,3 +178,9 @@ nptf_ortho_screen.inp
 water_3_dist_inter2.inp
 # Atomic energy and stress properties 
 H2O-constr_1_ext.inp
+# improved BFGS and CELL_OPT, new defaults
+argon_opt_cell.inp
+# improved BFGS and CELL_OPT, new defaults
+argon_opt_cell_ks.inp
+# improved BFGS and CELL_OPT, new defaults
+Si_tersoff.inp

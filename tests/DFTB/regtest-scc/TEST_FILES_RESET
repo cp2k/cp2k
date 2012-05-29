@@ -202,3 +202,15 @@ ch2o-r.inp
 ch2o-p.inp
 h2o.inp
 h2o_hb_corr.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-1.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-3.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-5.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o.inp
+# improved BFGS and CELL_OPT, new defaults
+ch2o-r.inp
+# improved BFGS and CELL_OPT, new defaults
+fa_atprop.inp

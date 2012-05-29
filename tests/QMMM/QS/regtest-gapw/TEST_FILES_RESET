@@ -73,3 +73,5 @@ C11H24-qmmmgapw-gauss-0.inp
 H2O-qmmm-gapw-fdbg.inp
 #  
 H2O-qmmm-hfx.inp
+# improved BFGS and CELL_OPT, new defaults
+C11H24-qmmmgapw-gauss-0.inp

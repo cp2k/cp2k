@@ -164,3 +164,19 @@ NaCl-H2O.inp
 water_2_TS.inp
 water_2_TS_CG.inp
 ace_ala_nme.inp
+# improved BFGS and CELL_OPT, new defaults
+silicon_cluster.inp
+# improved BFGS and CELL_OPT, new defaults
+silicon_cluster_3.inp
+# improved BFGS and CELL_OPT, new defaults
+silicon_cluster_4.inp
+# improved BFGS and CELL_OPT, new defaults
+silicon_cluster_5.inp
+# improved BFGS and CELL_OPT, new defaults
+silicon_cluster_6.inp
+# improved BFGS and CELL_OPT, new defaults
+ace_ala_nme.inp
+# improved BFGS and CELL_OPT, new defaults
+ace_ala_nme-ambconn.inp
+# improved BFGS and CELL_OPT, new defaults
+ace_ala_nme-amber.inp

@@ -603,3 +603,9 @@ butane.inp
 water_atprop_spme.inp
 water_atprop_pme.inp
 water_atprop_ewald.inp
+# improved BFGS and CELL_OPT, new defaults
+h2.inp
+# improved BFGS and CELL_OPT, new defaults
+h2_parse.inp
+# improved BFGS and CELL_OPT, new defaults
+TNF2.inp

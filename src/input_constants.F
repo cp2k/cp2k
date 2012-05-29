@@ -451,7 +451,8 @@ MODULE input_constants
                                               do_third_rotation_step=2
 
   INTEGER, PUBLIC, PARAMETER               :: default_cell_geo_opt_id=0,&
-                                              default_cell_md_id=1
+                                              default_cell_md_id=1,&
+                                              default_cell_direct_id=2
 
   INTEGER, PARAMETER, PUBLIC               :: add_last_no=0,&
                                               add_last_numeric=1,&
