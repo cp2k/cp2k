@@ -1315,7 +1315,8 @@ CONTAINS
 
     INTEGER :: block_size, block_size0, cur_block, group_size, i, last_row, &
       nlrows, nrows, nthreads, row, t, t_cnt
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: reorder, sorted_row_sizes
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itemp1, itemp2, reorder, &
+                                                sorted_row_sizes
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
     LOGICAL                                  :: assigned, found, heap_error
     REAL(kind=sp)                            :: load_fraction, rn, soft_thr
@@ -1368,8 +1369,14 @@ CONTAINS
           ! evenly distributed among all threads.
           CALL heap_new (t_heap, nthreads-1, heap_error)
           ! We do not want thread 0 to be in the heap.
-          CALL heap_fill (t_heap,(/ (t, t=1, nthreads-1) /),&
-               (/(0, t=1, nthreads-1)/),heap_error)
+          ALLOCATE(itemp1(1:nthreads-1))
+          ALLOCATE(itemp2(1:nthreads-1))
+          DO i=1,nthreads-1
+             itemp1(i)=i
+             itemp2(i)=0
+          ENDDO
+          CALL heap_fill (t_heap,itemp1,itemp2,heap_error)
+          DEALLOCATE(itemp1,itemp2)
           ALLOCATE (sorted_row_sizes (nrows))
           ALLOCATE (reorder (nrows))
           sorted_row_sizes(:) = row_sizes(:)
