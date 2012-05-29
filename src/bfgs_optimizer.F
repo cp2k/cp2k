@@ -289,7 +289,6 @@ CONTAINS
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, error)
        ediff = etot - eold
-    write(*,*)g
 
        ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
@@ -972,6 +971,8 @@ CONTAINS
            END IF 
         END DO
      END DO
+     DEALLOCATE(fixed,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DEALLOCATE(rho_ij,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DEALLOCATE(d_ij,stat=stat)
