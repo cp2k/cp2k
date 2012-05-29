@@ -17,10 +17,7 @@ MODULE qs_integrate_potential_low
                                              ncoset
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_type
-
 #include "cp_common_uses.h"
-
-
 
   IMPLICIT NONE
 

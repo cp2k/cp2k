@@ -16,6 +16,7 @@ MODULE bfgs_optimizer
                                              pbc,&
                                              real_to_scaled,&
                                              scaled_to_real
+  USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_external_control,             ONLY: external_control
@@ -45,7 +46,6 @@ MODULE bfgs_optimizer
                                              cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE constraint_fxd,                  ONLY: fix_atom_control
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set_cell,&
                                              force_env_type
@@ -106,9 +106,9 @@ CONTAINS
 
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
-    INTEGER                                  :: handle, hesunit_read, i, &
-                                                indf, iter_nr, its, maxiter, &
-                                                ndf, nfree, output_unit, stat
+    INTEGER                                  :: handle, hesunit_read, indf, &
+                                                iter_nr, its, maxiter, ndf, &
+                                                nfree, output_unit, stat
     LOGICAL                                  :: conv, do_cell, failure, &
                                                 hesrest, ionode, should_stop, &
                                                 use_mod_hes, use_rfo
@@ -880,11 +880,10 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r_ij
     REAL(KIND=dp), DIMENSION(3, 3)           :: alpha, r0
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fixed, local_data
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fixed
 
     failure=.FALSE.
      CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,error=error)
