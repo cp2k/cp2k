@@ -383,16 +383,23 @@ CONTAINS
        sr6 = 1.613_dp
        s8  = 1.868_dp
     CASE ("B2GPPLYP")
-       ! Not yet published
-       s6  = 0.400_dp
-       sr6 = 1.438_dp
-       s8  = 0.761_dp
+       ! L. Goerigk and S. Grimme
+       ! J. Chem. Theory Comput. 2011, 7, 291–309; doi:10.1021/ct100466k
+       s6  = 0.56_dp
+       sr6 = 1.586_dp
+       s8  = 0.760_dp
     CASE ("B2PLYP")
-       ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
-       ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
-       s6  = 0.500_dp
-       sr6 = 1.332_dp
-       s8  = 1.000_dp
+       ! L. Goerigk and S. Grimme
+       ! J. Chem. Theory Comput. 2011, 7, 291–309; doi:10.1021/ct100466k
+       s6  = 0.64_dp
+       sr6 = 1.427_dp
+       s8  = 1.022_dp
+    CASE ("DSD-BLYP")
+       ! L. Goerigk and S. Grimme
+       ! J. Chem. Theory Comput. 2011, 7, 291–309; doi:10.1021/ct100466k
+       s6  = 0.50_dp
+       sr6 = 1.569_dp
+       s8  = 0.705_dp
     CASE ("B3LYP")
        ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
        ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344

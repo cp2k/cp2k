@@ -95,6 +95,8 @@ MODULE mp2_types
        TYPE(mp2_potential_type) :: potential_parameter
        TYPE(mp2_gpw_type)       :: mp2_gpw
        REAL(dp) :: mp2_memory
+       REAL(dp) :: scale_S
+       REAL(dp) :: scale_T
        INTEGER  :: mp2_num_proc
   END TYPE
 

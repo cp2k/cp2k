@@ -56,6 +56,8 @@ CONTAINS
     ! should come from input
     CALL section_vals_val_get(mp2_section,"METHOD",i_val=mp2_env%method,error=error)
     CALL section_vals_val_get(mp2_section,"MEMORY",r_val=mp2_env%mp2_memory,error=error)
+    CALL section_vals_val_get(mp2_section,"SCALE_S",r_val=mp2_env%scale_S,error=error)
+    CALL section_vals_val_get(mp2_section,"SCALE_T",r_val=mp2_env%scale_T,error=error)
     CALL section_vals_val_get(mp2_section,"GROUP_SIZE",i_val=mp2_env%mp2_num_proc,error=error)
     CALL section_vals_val_get(mp2_section,"DIRECT_CANONICAL%BIG_SEND",l_val=mp2_env%direct_canonical%big_send,error=error)
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%POTENTIAL_TYPE",&

@@ -68,12 +68,12 @@ CONTAINS
             keyword=keyword,&
             name="METHOD",&
             description="Which method should be used to compute the MP2 energy",&
-            usage="METHOD LAPLACE",&
+            usage="METHOD MP2_GPW",&
             enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW"),&
             enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw/),&
             enum_desc=s2a("Skip MP2 calculation",&
                           "Use the direct mp2 canonical approach",&
-                          "Use a GPW approach"),&
+                          "Use the GPW approach to MP2"),&
             default_i_val=mp2_method_direct, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -81,9 +81,29 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="MEMORY",&
-            description="Memory usage in direct mp2 method",&
-            usage="MEMORY 1024.0",&
+            description="Maximum allowed total memory usage during MP2 methods [Mb].",&
+            usage="MEMORY 1500 ",&
             default_r_val=1.024E+3_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="SCALE_S",&
+            description="Scaling factor of the singlet energy component (opposite spin, OS). ",&
+            usage="SCALE_S  1.0",&
+            default_r_val=1.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+  
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="SCALE_T",&
+            description="Scaling factor of the triplet energy component (same spin, SS).",&
+            usage="SCALE_T  1.0",&
+            default_r_val=1.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

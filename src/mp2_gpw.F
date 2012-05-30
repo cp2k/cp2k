@@ -35,7 +35,7 @@ MODULE mp2_gpw
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_submatrix,&
+                                             cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
@@ -116,6 +116,7 @@ MODULE mp2_gpw
                                              task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -133,21 +134,21 @@ MODULE mp2_gpw
 !> \brief with a big bang to mp2
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,error)
+  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,calc_ex,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: unit_nr
+    LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_main', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blacs_grid_layout, blk, col, col_offset, col_size, color_sub, &
-      comm_sub, dimen, handle, homo, i, i_multigrid, j, local_unit_nr, &
-      n_multigrid, nao, natom, nelectron, nkind, nmo, row, row_offset, &
-      row_size, stat
+    INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, handle, homo, &
+      i, i_multigrid, local_unit_nr, n_multigrid, nao, natom, nelectron, &
+      nkind, nmo, stat
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: blacs_repeatable, failure, &
                                                 skip_load_balance_distributed
@@ -157,23 +158,16 @@ MODULE mp2_gpw
     REAL(KIND=dp) :: eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
       progression_factor, relative_cutoff_old, subcells
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, cutoff_old
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: C
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
-                                                row_blk_sizes
+    TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
-    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
     TYPE(cp_error_type)                      :: error_sub
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_mo_coeff_o, fm_mo_coeff_v, &
-                                                mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -337,11 +331,24 @@ MODULE mp2_gpw
     CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error_sub)
     CALL array_release (row_blk_sizes)
 
+    ! and the array of mos
+    CALL get_qs_env(qs_env=qs_env, mos=mos, dft_control=dft_control, error=error)
+    CALL get_mo_set( mo_set=mos(1)%mo_set, nelectron=nelectron,&
+                      eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
+                      mo_coeff=mo_coeff,nao=dimen)
+    ALLOCATE(Auto(dimen),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    Auto(:)=mo_eigenvalues(:)
+
+    ! new routin: replicate a full matrix from one para_env to a smaller one
+    ! keeping the memory usage as small as possible in this case the 
+    ! output the two part of the C matrix (virtual, occupied)
+    CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
+                                   mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
+
     ! a pw_env
     NULLIFY(pw_env_sub)
     CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
-    !CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
-    !                poisson_env=poisson_env,error=error_sub)
 
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
     progression_factor=qs_env%dft_control%qs_control%progression_factor
@@ -380,12 +387,6 @@ MODULE mp2_gpw
     CALL pw_pool_create_pw(auxbas_pw_pool,rho_r%pw,&
                             use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error_sub)
-    !CALL pw_pool_create_pw(auxbas_pw_pool,psi_a%pw,&
-    !                        use_data=REALDATA3D,&
-    !                        in_space=REALSPACE,error=error_sub)
-    !CALL pw_pool_create_pw(auxbas_pw_pool,psi_i%pw,&
-    !                        use_data=REALDATA3D,&
-    !                        in_space=REALSPACE,error=error_sub)
     CALL pw_pool_create_pw(auxbas_pw_pool,rho_g%pw,&
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,error=error_sub)
@@ -397,105 +398,14 @@ MODULE mp2_gpw
     rho_r%pw%cr3d = 0.0D0
     CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
 
-
-    ! and the array of mos
-    CALL get_qs_env(qs_env=qs_env, mos=mos, dft_control=dft_control, error=error)
-    CALL get_mo_set( mo_set=mos(1)%mo_set, nelectron=nelectron,&
-                      eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
-                      mo_coeff=mo_coeff,nao=dimen)
-    ALLOCATE(C(dimen,dimen),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(Auto(dimen),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE., error)
-    Auto(:)=mo_eigenvalues(:)
-
-    ! the occupied
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, homo, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mat_munu%matrix))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(mat_munu%matrix)),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(mat_munu%matrix)), col_dist)
-    NULLIFY(mo_coeff_o)
-    CALL cp_dbcsr_init_p(mo_coeff_o,error=error_sub)
-    CALL cp_dbcsr_create(mo_coeff_o, "mo_coeff_o", dist, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(mat_munu%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&
-         error=error_sub)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
-
-    ! a very ugly trick to create a dbcsr matrix with all blocks ...
-    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                             nrow_global=dimen,ncol_global=homo,error=error_sub)
-    CALL cp_fm_create(fm_mo_coeff_o, fm_struct_tmp,name="occ",error=error_sub)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-    CALL cp_fm_set_all(fm_mo_coeff_o,0.0_dp,error=error_sub)
-    CALL copy_fm_to_dbcsr(fm_mo_coeff_o,mo_coeff_o, error=error_sub)
-    CALL cp_fm_release(fm_mo_coeff_o, error=error_sub)
-
-    CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-            row_size=row_size, col_size=col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-       DO j=1,col_size
-       DO i=1,row_size
-          data_block(i,j)=C(row_offset+i-1,col_offset+j-1)
-       ENDDO
-       ENDDO
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-    CALL cp_dbcsr_filter(mo_coeff_o,mp2_env%mp2_gpw%eps_filter,error=error_sub)
-
-
-    ! the virtual
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo-homo, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mat_munu%matrix))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(mat_munu%matrix)),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(mat_munu%matrix)), col_dist)
-    NULLIFY(mo_coeff_v)
-    CALL cp_dbcsr_init_p(mo_coeff_v,error=error_sub)
-    CALL cp_dbcsr_create(mo_coeff_v, "mo_coeff_v", dist, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(mat_munu%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&
-         error=error_sub)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
-
-    ! a very ugly trick to create a dbcsr matrix with all blocks ...
-    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                             nrow_global=dimen,ncol_global=nmo-homo,error=error_sub)
-    CALL cp_fm_create(fm_mo_coeff_v, fm_struct_tmp,name="virt",error=error_sub)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-    CALL cp_fm_set_all(fm_mo_coeff_v,0.0_dp,error=error_sub)
-    CALL copy_fm_to_dbcsr(fm_mo_coeff_v,mo_coeff_v, error=error_sub)
-    CALL cp_fm_release(fm_mo_coeff_v, error=error_sub)
-
-    CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-            row_size=row_size, col_size=col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-       DO j=1,col_size
-       DO i=1,row_size
-          data_block(i,j)=C(row_offset+i-1,homo+col_offset+j-1)
-       ENDDO
-       ENDDO
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-    CALL cp_dbcsr_filter(mo_coeff_v,mp2_env%mp2_gpw%eps_filter,error=error_sub)
-
-
     ! now we're kind of ready to go....
     CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                          atomic_kind_set,mo_coeff,C,auto,nmo,homo,rho_r,rho_g,pot_g,&
+                          atomic_kind_set,mo_coeff,auto,nmo,homo,rho_r,rho_g,pot_g,&
                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                          mp2_env%mp2_memory,error_sub)
+                          mp2_env%mp2_memory,calc_ex,error_sub)
 
     ! and now free the whole lot
-    DEALLOCATE(C,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Auto,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -558,10 +468,10 @@ MODULE mp2_gpw
   END SUBROUTINE mp2_gpw_main
 
   SUBROUTINE mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,&
-                 cell,particle_set,atomic_kind_set,mo_coeff,C,auto,nmo,homo,&
+                 cell,particle_set,atomic_kind_set,mo_coeff,auto,nmo,homo,&
                  rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                  poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
-                 mp2_memory,error_sub)
+                 mp2_memory,calc_ex,error_sub)
 
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -574,7 +484,6 @@ MODULE mp2_gpw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    REAL(KIND=dp), DIMENSION(:, :)           :: C
     REAL(KIND=dp), DIMENSION(:)              :: Auto
     INTEGER                                  :: nmo, homo
     TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
@@ -589,6 +498,7 @@ MODULE mp2_gpw
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
     REAL(KIND=dp)                            :: mp2_memory
+    LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_compute', &
@@ -615,7 +525,7 @@ MODULE mp2_gpw
     REAL(KIND=dp)                            :: mem_real, mem_try, &
                                                 pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: BIb_jb
+      DIMENSION(:, :)                        :: BIb_jb, my_Cocc, my_Cvirt
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_Ex, BIb_send
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
@@ -734,24 +644,6 @@ MODULE mp2_gpw
         END DO
     END IF
 
-    ! give to each group its (ia| block
-    !group_counter=0
-    !i_group_counter=0
-    !my_I_occupied_start=1
-    !DO i=0, p_best-1
-    !  my_A_virtual_start=1
-    !  a_group_counter=0
-    !  DO j=0, q_best-1
-    !    group_counter=group_counter+1
-    !    IF(color_sub==group_counter-1) EXIT
-    !    my_A_virtual_start=my_A_virtual_start+vector_batch_A_size_group(j)
-    !    a_group_counter=a_group_counter+1
-    !  END DO
-    !  IF(color_sub==group_counter-1) EXIT
-    !  my_I_occupied_start=my_I_occupied_start+vector_batch_I_size_group(i)
-    !  i_group_counter=i_group_counter+1
-    !END DO
-
     !XXXXXXXXXXXXX inverse group distribution
     group_counter=0
     a_group_counter=0
@@ -779,6 +671,15 @@ MODULE mp2_gpw
 
     DEALLOCATE(vector_batch_I_size_group)
     DEALLOCATE(vector_batch_A_size_group)
+
+    ! replicate on a local array on proc 0 the occupied and virtual wavevectior
+    ! needed for the calculation of the WF's by calculate_wavefunction
+    ! (external vector)
+    CALL grep_occ_virt_wavefunc(qs_env,para_env_sub,nmo,homo,virtual,&
+                                my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
+                                my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
+                                mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
+
 
     ! divide the b states in the sub_group in such a way to create
     ! b_start and b_end for each proc inside the sub_group
@@ -867,7 +768,7 @@ MODULE mp2_gpw
                             in_space=REALSPACE,error=error_sub)
       CALL calculate_wavefunction(mo_coeff,i,psi_i(i),rho_g, &
                         atomic_kind_set,cell,dft_control,particle_set, &
-                        pw_env_sub,external_vector=C(:,i),error=error_sub)
+                        pw_env_sub,external_vector=my_Cocc(:,i-my_I_occupied_start+1),error=error_sub)
     END DO
 
     !NULLIFY(psi_i%pw)
@@ -878,22 +779,27 @@ MODULE mp2_gpw
     Emp2=0.0_dp
     Emp2_Cou=0.0_dp
     Emp2_EX=0.0_dp
-    ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    IF(calc_ex) THEN
+      ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    END IF
 
     CALL timeset(routineN//"_loop",handle2)
     DO a=homo+my_A_virtual_start, homo+my_A_virtual_end
-      ! psi_a
-      BIb_C=0.0_dp
-      ALLOCATE(BIb_jb(virtual,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
+      IF(calc_ex) THEN
+        BIb_C=0.0_dp
+        ALLOCATE(BIb_jb(virtual,homo),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      END IF
+
+      ! psi_a
       CALL calculate_wavefunction(mo_coeff,a,psi_a,rho_g, &
                       atomic_kind_set,cell,dft_control,particle_set, &
-                      pw_env_sub,external_vector=C(:,a),error=error_sub)
+                      pw_env_sub,external_vector=my_Cvirt(:,a-(homo+my_A_virtual_start)+1),error=error_sub)
       i_counter=0
       DO i=my_I_occupied_start, my_I_occupied_end
-        BIb_jb=0.0_dp
+        IF(calc_ex) BIb_jb=0.0_dp
         i_counter=i_counter+1
         !ia_counter=ia_counter+1
         !IF(MOD(ia_counter,para_env%num_pe/para_env_sub%num_pe).NE.para_env%mepos/para_env_sub%num_pe) CYCLE
@@ -931,7 +837,6 @@ MODULE mp2_gpw
                                 0.0_dp, matrix_ia_jb, filter_eps=eps_filter, error=error_sub)
         CALL timestop(handle3)
 
-        ! Coulomb only MP2 .....
         CALL timeset(routineN//"_E_Cou",handle3)
         CALL cp_dbcsr_iterator_start(iter, matrix_ia_jb)
         DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
@@ -942,8 +847,10 @@ MODULE mp2_gpw
            DO j=1,row_size
               ! Compute the coulomb MP2 energy
               Emp2_Cou=Emp2_Cou-2.0_dp*data_block(j,b)**2/(Auto(a)+Auto(homo+col_offset+b-1)-Auto(i)-Auto(row_offset+j-1))
-              ! now fill the matrix
-              BIb_jb(col_offset+b-1,row_offset+j-1)=data_block(j,b)
+              IF (calc_ex) THEN
+                 ! now fill the matrix
+                 BIb_jb(col_offset+b-1,row_offset+j-1)=data_block(j,b)
+              END IF
            ENDDO
            ENDDO
         ENDDO
@@ -952,67 +859,71 @@ MODULE mp2_gpw
 
         ! now mp_sum the matrix BIb_jb in and keep only my local
         ! b_start, b_end
-        CALL timeset(routineN//"_E_Ex_1",handle3)
-        CALL mp_sum(BIb_jb,para_env_sub%group)
-        BIb_C(1:my_B_size,1:homo,i_counter)=BIb_jb(my_B_virtual_start:my_B_virtual_end,1:homo)
-        CALL timestop(handle3)
+        IF(calc_ex) THEN
+          CALL timeset(routineN//"_E_Ex_1",handle3)
+          CALL mp_sum(BIb_jb,para_env_sub%group)
+          BIb_C(1:my_B_size,1:homo,i_counter)=BIb_jb(my_B_virtual_start:my_B_virtual_end,1:homo)
+          CALL timestop(handle3)
+        END IF
 
       END DO
 
-      DEALLOCATE(BIb_jb)
+      IF(calc_ex) THEN
+        DEALLOCATE(BIb_jb)
 
-      CALL timeset(routineN//"_E_Ex_2",handle3)
-      ! calculate the contribution to MP2 energy for my local data
-      DO i=1,my_I_batch_size
-        DO j=my_I_occupied_start,my_I_occupied_end
-          DO b=1,my_B_size
-            b_global=b-1+my_B_virtual_start
-            Emp2_EX=Emp2_EX+BIb_C(b,j,i)*BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1)&
-                  /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j))
-          END DO
-        END DO
-      END DO
-
-      ! start communicating and collecting exchange contributions from
-      ! other processes in my exchange group
-      DO index_proc_shift=1, size_of_exchange_group-1
-        proc_send=proc_map(mepos_in_EX_group+index_proc_shift)
-        proc_receive=proc_map(mepos_in_EX_group-index_proc_shift)
-
-        EX_start=exchange_group_sizes(proc_receive,1)
-        EX_end=exchange_group_sizes(proc_receive,2)
-        size_EX=exchange_group_sizes(proc_receive,3)
-
-        ALLOCATE(BIb_EX(my_B_size,my_I_batch_size,size_EX),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-        BIb_EX=0.0_dp
-
-        EX_start_send=exchange_group_sizes(proc_send,1)
-        EX_end_send=exchange_group_sizes(proc_send,2)
-        size_EX_send=exchange_group_sizes(proc_send,3)
-
-        ALLOCATE(BIb_send(my_B_size,size_EX_send,my_I_batch_size),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-        BIb_send(1:my_B_size,1:size_EX_send,1:my_I_batch_size)=BIb_C(1:my_B_size,EX_start_send:EX_end_send,1:my_I_batch_size)
-
-        ! send and receive the exchange array
-        CALL mp_sendrecv(BIb_send,proc_send,BIb_EX,proc_receive,para_env_exchange%group)
-
+        CALL timeset(routineN//"_E_Ex_2",handle3)
+        ! calculate the contribution to MP2 energy for my local data
         DO i=1,my_I_batch_size
-          DO j=1,size_EX
-            DO b=1, my_B_size
+          DO j=my_I_occupied_start,my_I_occupied_end
+            DO b=1,my_B_size
               b_global=b-1+my_B_virtual_start
-              Emp2_EX=Emp2_EX+BIb_C(b,j+EX_start-1,i)*BIb_EX(b,i,j)&
-                    /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j+EX_start-1))
+              Emp2_EX=Emp2_EX+BIb_C(b,j,i)*BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1)&
+                    /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j))
             END DO
           END DO
         END DO
 
-        DEALLOCATE(BIb_EX)
-        DEALLOCATE(BIb_send)
+        ! start communicating and collecting exchange contributions from
+        ! other processes in my exchange group
+        DO index_proc_shift=1, size_of_exchange_group-1
+          proc_send=proc_map(mepos_in_EX_group+index_proc_shift)
+          proc_receive=proc_map(mepos_in_EX_group-index_proc_shift)
 
-      END DO
-      CALL timestop(handle3)
+          EX_start=exchange_group_sizes(proc_receive,1)
+          EX_end=exchange_group_sizes(proc_receive,2)
+          size_EX=exchange_group_sizes(proc_receive,3)
+
+          ALLOCATE(BIb_EX(my_B_size,my_I_batch_size,size_EX),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+          BIb_EX=0.0_dp
+
+          EX_start_send=exchange_group_sizes(proc_send,1)
+          EX_end_send=exchange_group_sizes(proc_send,2)
+          size_EX_send=exchange_group_sizes(proc_send,3)
+
+          ALLOCATE(BIb_send(my_B_size,size_EX_send,my_I_batch_size),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+          BIb_send(1:my_B_size,1:size_EX_send,1:my_I_batch_size)=BIb_C(1:my_B_size,EX_start_send:EX_end_send,1:my_I_batch_size)
+
+          ! send and receive the exchange array
+          CALL mp_sendrecv(BIb_send,proc_send,BIb_EX,proc_receive,para_env_exchange%group)
+
+          DO i=1,my_I_batch_size
+            DO j=1,size_EX
+              DO b=1, my_B_size
+                b_global=b-1+my_B_virtual_start
+                Emp2_EX=Emp2_EX+BIb_C(b,j+EX_start-1,i)*BIb_EX(b,i,j)&
+                      /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j+EX_start-1))
+              END DO
+            END DO
+          END DO
+
+          DEALLOCATE(BIb_EX)
+          DEALLOCATE(BIb_send)
+
+        END DO
+        CALL timestop(handle3)
+      END IF
 
     ENDDO
     CALL timestop(handle2)
@@ -1021,7 +932,10 @@ MODULE mp2_gpw
     CALL mp_sum(Emp2_EX,para_env%group)
     Emp2=Emp2_Cou+Emp2_EX
 
-    DEALLOCATE(BIb_C)
+    DEALLOCATE(my_Cocc)
+    DEALLOCATE(my_Cvirt)
+
+    IF(calc_ex) DEALLOCATE(BIb_C)
     DEALLOCATE(proc_map)
     DEALLOCATE(exchange_group_sizes)
 
@@ -1046,5 +960,464 @@ MODULE mp2_gpw
 
   END SUBROUTINE mp2_gpw_compute
 
-END MODULE mp2_gpw
+  SUBROUTINE replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
+                                       mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    INTEGER                                  :: dimen, homo
+    TYPE(cp_dbcsr_p_type)                    :: mat_munu
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
+    INTEGER                                  :: unit_nr
+    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, iiB, &
+      iproc, itmp(2), j, j_global, jjB, max_row_col_local, my_mu_end, &
+      my_mu_size, my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, &
+      proc_receive, proc_send, proc_shift, rec_mu_end, rec_mu_size, &
+      rec_mu_start, row, row_offset, row_size, stat, virtual
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
+                                                sizes_array, starts_array
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
+                                                rec_col_row_info
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, col_indices_rec, &
+                                                row_indices, row_indices_rec
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: C, Cocc, Cvirt, rec_C
+    REAL(KIND=dp), DIMENSION(1, 1)           :: null_mat, null_mat2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, local_C_internal
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff, fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_mo_coeff_o, fm_mo_coeff_v
+    TYPE(dbcsr_distribution_obj)             :: dist
+
+    CALL timeset(routineN,handle)
+
+    ALLOCATE(sizes_array(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(starts_array(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    starts_array=0
+    ALLOCATE(ends_array(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ends_array=0
+
+    DO iproc=0,para_env_sub%num_pe-1
+       itmp=get_limit(dimen,para_env_sub%num_pe,iproc) 
+       starts_array(iproc)=itmp(1)
+       ends_array(iproc)=itmp(2)
+       sizes_array(iproc)=itmp(2)-itmp(1)+1
+    ENDDO
+ 
+    my_mu_size=sizes_array(para_env_sub%mepos)
+    my_mu_start=starts_array(para_env_sub%mepos)
+    my_mu_end=ends_array(para_env_sub%mepos)
+
+    ! local storage for the C matrix
+    ALLOCATE(C(my_mu_size,dimen),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    C=0.0_dp
+
+    ! proc_map, vector that replicate the processor numbers also
+    ! for negative and positive number > num_pe
+    ! needed to know which is the processor, to respect to another one,
+    ! for a given shift
+    ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO iiB=0,para_env%num_pe-1
+      proc_map(iiB)=iiB
+      proc_map(-iiB-1)=para_env%num_pe-iiB-1
+      proc_map(para_env%num_pe+iiB)=iiB
+    END DO
+
+    CALL cp_fm_get_info(matrix=mo_coeff,&
+                        matrix_struct=fm_struct_coeff,&
+                        nrow_local=nrow_local,&
+                        ncol_local=ncol_local,&
+                        row_indices=row_indices,&
+                        col_indices=col_indices,&
+                        local_data=local_C_internal,&
+                        error=error)
+
+    ALLOCATE(local_C(nrow_local,ncol_local),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    local_C=local_C_internal(1:nrow_local,1:ncol_local)
+ 
+    max_row_col_local=MAX(nrow_local,ncol_local)
+    CALL mp_max(max_row_col_local,para_env%group)
+
+    ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    local_col_row_info=0
+    ! 0,1 nrows
+    local_col_row_info(0,1)=nrow_local
+    local_col_row_info(1:nrow_local,1)=row_indices(1:nrow_local)
+    ! 0,2 ncols
+    local_col_row_info(0,2)=ncol_local
+    local_col_row_info(1:ncol_local,2)=col_indices(1:ncol_local)
+
+    ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! accumulate data on C buffer starting from myself
+    DO iiB=1, nrow_local
+      i_global=row_indices(iiB)
+      IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
+        DO jjB=1, ncol_local
+          j_global=col_indices(jjB)
+          C(i_global-my_mu_start+1,j_global)=local_C(iiB,jjB)
+        END DO
+      END IF
+    END DO
+
+    ! start ring communication for collecting the data from the other
+    ! proc. null_mat is just a dummy array that is exchanged in the case
+    ! the size of the real arrays is zero
+    null_mat=0.0_dp
+    null_mat2=0.0_dp
+    DO proc_shift=1, para_env%num_pe-1
+      proc_send=proc_map(para_env%mepos+proc_shift)
+      proc_receive=proc_map(para_env%mepos-proc_shift)
+
+      ! first exchange information on the local data
+      rec_col_row_info=0
+      CALL  mp_sendrecv(local_col_row_info,proc_send,rec_col_row_info,proc_receive,para_env%group)
+      nrow_rec=rec_col_row_info(0,1)
+      ncol_rec=rec_col_row_info(0,2)
+
+      ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      row_indices_rec=rec_col_row_info(1:nrow_rec,1)
+
+      ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      col_indices_rec=rec_col_row_info(1:ncol_rec,2)
+
+      ALLOCATE(rec_C(nrow_rec,ncol_rec),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      rec_C=0.0_dp
+
+      CALL  mp_sendrecv(local_C,proc_send,rec_C,proc_receive,para_env%group)
+      ! then send and receive the real data
+      ! IF(nrow_local*ncol_local>0.AND.SIZE(rec_C)>0) THEN
+      !   CALL  mp_sendrecv(local_C,proc_send,rec_C,proc_receive,para_env%group)
+      ! END IF
+      ! IF(nrow_local*ncol_local>0.AND.SIZE(rec_C)<=0) THEN
+      !   ! send only local data
+      !   CALL  mp_sendrecv(local_C,proc_send,null_mat,proc_receive,para_env%group)
+      ! END IF
+      ! IF(nrow_local*ncol_local<=0.AND.SIZE(rec_C)>0) THEN 
+      !   ! receive only
+      !   CALL  mp_sendrecv(null_mat,proc_send,rec_C,proc_receive,para_env%group)
+      ! END IF
+      ! IF(nrow_local*ncol_local<=0.AND.SIZE(rec_C)<=0) THEN 
+      !   ! all zero
+      !   CALL  mp_sendrecv(null_mat,proc_send,null_mat2,proc_receive,para_env%group)
+      ! END IF
+
+      ! accumulate the received data on C buffer 
+      DO iiB=1, nrow_rec
+        i_global=row_indices_rec(iiB)
+        IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
+          DO jjB=1, ncol_rec
+            j_global=col_indices_rec(jjB)
+            C(i_global-my_mu_start+1,j_global)=rec_C(iiB,jjB)
+          END DO
+        END IF
+      END DO
+
+
+      DEALLOCATE(col_indices_rec)
+      DEALLOCATE(row_indices_rec)
+      DEALLOCATE(rec_C)
+    END DO
+
+    DEALLOCATE(local_col_row_info)
+    DEALLOCATE(rec_col_row_info)
+    DEALLOCATE(proc_map)
+
+    ! proc_map, for the sub_group
+    ALLOCATE(proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO iiB=0,para_env_sub%num_pe-1
+      proc_map(iiB)=iiB
+      proc_map(-iiB-1)=para_env_sub%num_pe-iiB-1
+      proc_map(para_env_sub%num_pe+iiB)=iiB
+    END DO
+
+    ! split the C matrix into occupied and virtual
+    ALLOCATE(Cocc(my_mu_size,homo),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    Cocc(1:my_mu_size,1:homo)=C(1:my_mu_size,1:homo)
+ 
+    virtual=dimen-homo
+    ALLOCATE(Cvirt(my_mu_size,virtual),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    Cvirt(1:my_mu_size,1:virtual)=C(1:my_mu_size,homo+1:dimen)
+
+    DEALLOCATE(C)
+
+    ! the occupied
+    CALL cp_create_bl_distribution (col_dist, col_blk_size, homo, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mat_munu%matrix))))
+    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(mat_munu%matrix)),&
+         dbcsr_distribution_row_dist(cp_dbcsr_distribution(mat_munu%matrix)), col_dist)
+    NULLIFY(mo_coeff_o)
+    CALL cp_dbcsr_init_p(mo_coeff_o,error=error_sub)
+    CALL cp_dbcsr_create(mo_coeff_o, "mo_coeff_o", dist, dbcsr_type_no_symmetry,&
+         cp_dbcsr_row_block_sizes(mat_munu%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&
+         error=error_sub)
+    CALL cp_dbcsr_distribution_release (dist)
+    CALL array_release (col_blk_size)
+    CALL array_release (col_dist)
+
+    ! a very ugly trick to create a dbcsr matrix with all blocks ...
+    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
+                             nrow_global=dimen,ncol_global=homo,error=error_sub)
+    CALL cp_fm_create(fm_mo_coeff_o, fm_struct_tmp,name="occ",error=error_sub)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
+    CALL cp_fm_set_all(fm_mo_coeff_o,0.0_dp,error=error_sub)
+    CALL copy_fm_to_dbcsr(fm_mo_coeff_o,mo_coeff_o, error=error_sub)
+    CALL cp_fm_release(fm_mo_coeff_o, error=error_sub)
+
+    ! accumulate data on mo_coeff_o starting from myself
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       DO i=1,row_size
+         i_global=row_offset+i-1
+         IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
+           DO j=1,col_size
+             j_global=col_offset+j-1
+             data_block(i,j)=Cocc(i_global-my_mu_start+1,col_offset+j-1)
+           ENDDO
+         END IF
+       ENDDO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    ! start ring communication in the subgroup for collecting the data from the other
+    ! proc (occupied)
+    DO proc_shift=1, para_env_sub%num_pe-1
+      proc_send=proc_map(para_env_sub%mepos+proc_shift)
+      proc_receive=proc_map(para_env_sub%mepos-proc_shift)
+
+      rec_mu_start=starts_array(proc_receive)
+      rec_mu_end=ends_array(proc_receive)
+      rec_mu_size=sizes_array(proc_receive)
+
+      ALLOCATE(rec_C(rec_mu_size,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      rec_C=0.0_dp
+
+      ! then send and receive the real data
+      CALL  mp_sendrecv(Cocc,proc_send,rec_C,proc_receive,para_env_sub%group) 
+
+      ! accumulate data on mo_coeff_o the data received from proc_rec
+      CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
+      DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+              row_size=row_size, col_size=col_size, &
+              row_offset=row_offset, col_offset=col_offset)
+         DO i=1,row_size
+           i_global=row_offset+i-1
+           IF(i_global>=rec_mu_start.AND.i_global<=rec_mu_end) THEN
+             DO j=1,col_size
+               j_global=col_offset+j-1
+               data_block(i,j)=rec_C(i_global-rec_mu_start+1,col_offset+j-1)
+             ENDDO
+           END IF
+         ENDDO
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      DEALLOCATE(rec_C)
+
+    END DO
+    CALL cp_dbcsr_filter(mo_coeff_o,mp2_env%mp2_gpw%eps_filter,error=error_sub)
+
+    DEALLOCATE(Cocc)
+
+    ! the virtual
+    CALL cp_create_bl_distribution (col_dist, col_blk_size, virtual, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mat_munu%matrix))))
+    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(mat_munu%matrix)),&
+         dbcsr_distribution_row_dist(cp_dbcsr_distribution(mat_munu%matrix)), col_dist)
+    NULLIFY(mo_coeff_v)
+    CALL cp_dbcsr_init_p(mo_coeff_v,error=error_sub)
+    CALL cp_dbcsr_create(mo_coeff_v, "mo_coeff_v", dist, dbcsr_type_no_symmetry,&
+         cp_dbcsr_row_block_sizes(mat_munu%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&
+         error=error_sub)
+    CALL cp_dbcsr_distribution_release (dist)
+    CALL array_release (col_blk_size)
+    CALL array_release (col_dist)
+
+    ! a very ugly trick to create a dbcsr matrix with all blocks ...
+    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
+                             nrow_global=dimen,ncol_global=virtual,error=error_sub)
+    CALL cp_fm_create(fm_mo_coeff_v, fm_struct_tmp,name="virt",error=error_sub)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
+    CALL cp_fm_set_all(fm_mo_coeff_v,0.0_dp,error=error_sub)
+    CALL copy_fm_to_dbcsr(fm_mo_coeff_v,mo_coeff_v, error=error_sub)
+    CALL cp_fm_release(fm_mo_coeff_v, error=error_sub)
+
+    ! accumulate data on mo_coeff_v starting from myself
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       DO i=1,row_size
+         i_global=row_offset+i-1
+         IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
+           DO j=1,col_size
+             j_global=col_offset+j-1
+             data_block(i,j)=Cvirt(i_global-my_mu_start+1,col_offset+j-1)
+           ENDDO
+         END IF
+       ENDDO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    ! start ring communication in the subgroup for collecting the data from the other
+    ! proc (virtual)
+    DO proc_shift=1, para_env_sub%num_pe-1
+      proc_send=proc_map(para_env_sub%mepos+proc_shift)
+      proc_receive=proc_map(para_env_sub%mepos-proc_shift)
+
+      rec_mu_start=starts_array(proc_receive)
+      rec_mu_end=ends_array(proc_receive)
+      rec_mu_size=sizes_array(proc_receive)
+
+      ALLOCATE(rec_C(rec_mu_size,virtual),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      rec_C=0.0_dp
+
+      ! then send and receive the real data
+      CALL  mp_sendrecv(Cvirt,proc_send,rec_C,proc_receive,para_env_sub%group)
+
+      ! accumulate data on mo_coeff_v the data received from proc_rec
+      CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
+      DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+              row_size=row_size, col_size=col_size, &
+              row_offset=row_offset, col_offset=col_offset)
+         DO i=1,row_size
+           i_global=row_offset+i-1
+           IF(i_global>=rec_mu_start.AND.i_global<=rec_mu_end) THEN
+             DO j=1,col_size
+               j_global=col_offset+j-1
+               data_block(i,j)=rec_C(i_global-rec_mu_start+1,col_offset+j-1)
+             ENDDO
+           END IF
+         ENDDO
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      DEALLOCATE(rec_C)
+
+    END DO
+    CALL cp_dbcsr_filter(mo_coeff_v,mp2_env%mp2_gpw%eps_filter,error=error_sub)
+
+    DEALLOCATE(Cvirt)
+
+    DEALLOCATE(proc_map)
+    DEALLOCATE(sizes_array)
+    DEALLOCATE(starts_array)
+    DEALLOCATE(ends_array)
+    DEALLOCATE(local_C)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE
+
+  SUBROUTINE grep_occ_virt_wavefunc(qs_env,para_env_sub,dimen,homo,virtual,&
+                                    my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
+                                    my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
+                                    mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env_sub
+    INTEGER :: dimen, homo, virtual, my_I_occupied_start, my_I_occupied_end, &
+      my_I_batch_size, my_A_virtual_start, my_A_virtual_end, my_A_batch_size
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_Cocc, my_Cvirt
+    INTEGER                                  :: unit_nr
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_offset, &
+                                                col_size, handle, i, &
+                                                i_global, j, j_global, row, &
+                                                row_offset, row_size, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+    CALL timeset(routineN,handle)
+
+    ALLOCATE(my_Cocc(dimen,my_I_batch_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    my_Cocc=0.0_dp
+
+    ALLOCATE(my_Cvirt(dimen,my_A_batch_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    my_Cvirt=0.0_dp
+
+    ! accumulate data from mo_coeff_o into Cocc
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+      DO j=1,col_size
+        j_global=col_offset+j-1
+        IF(j_global>=my_I_occupied_start.AND.j_global<=my_I_occupied_end) THEN
+          DO i=1,row_size
+            i_global=row_offset+i-1
+            my_Cocc(i_global,j_global-my_I_occupied_start+1)=data_block(i,j)
+          END DO
+        END IF
+      END DO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)   
+
+    CALL mp_sum(my_Cocc,para_env_sub%group)
+
+    ! accumulate data from mo_coeff_o into Cocc
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+      DO j=1,col_size
+        j_global=col_offset+j-1
+        IF(j_global>=my_A_virtual_start.AND.j_global<=my_A_virtual_end) THEN
+          DO i=1,row_size
+            i_global=row_offset+i-1
+            my_Cvirt(i_global,j_global-my_A_virtual_start+1)=data_block(i,j)
+          END DO
+        END IF
+      END DO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    CALL mp_sum(my_Cvirt,para_env_sub%group) 
+
+    CALL timestop(handle)
+
+  END SUBROUTINE grep_occ_virt_wavefunc
+
+END MODULE mp2_gpw

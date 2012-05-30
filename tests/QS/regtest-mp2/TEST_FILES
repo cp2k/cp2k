@@ -1,5 +1,10 @@
-H2O-01.inp  50
-Li.inp  50
-Ne2.inp  50
+H2O-01.inp  11
+Li.inp  11
+Ne2.inp  11
 H2O-02.inp 11
 H2O-03.inp 11
+H2O_B2PLYP_GPW.inp 11
+H2O_B2PLYP.inp 11
+H2O_B2GPPLYP.inp 11
+H2O_DSD-BLYP.inp 11
+H2O_B2PLYP_D3.inp 11

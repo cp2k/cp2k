@@ -81,10 +81,10 @@ MODULE mp2
       nelec_alpha, nelec_beta, nelectron, nkind, nmo, nspins, stat, unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: calc_ex, failure
     REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
       Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
-      Emp2_ex, mem_real, t1, t2
+      Emp2_ex, Emp2_S, Emp2_T, mem_real, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, Auto_alpha, Auto_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, C_alpha, C_beta
@@ -193,6 +193,8 @@ MODULE mp2
     Emp2=0.D+00
     Emp2_Cou=0.D+00
     Emp2_ex=0.D+00
+    calc_ex=.TRUE.
+
     t1=m_walltime()
     SELECT CASE(mp2_env%method)
      CASE(mp2_method_laplace)
@@ -215,7 +217,7 @@ MODULE mp2
 
        IF(nspins==2) THEN
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Unrestricted Canonical Direct Methods:'
-    ! for now, require the mos to be always present
+         ! for now, require the mos to be always present
 
          ! get the alpha coeff and eigenvalues
          CALL get_mo_set( mo_set=mos(1)%mo_set,&
@@ -310,18 +312,35 @@ MODULE mp2
        ! free Hartree Fock stuff
        CALL hfx_release(qs_env%x_data, error=error)
 
+       ! check if calculate the exchange contribution
+       IF(mp2_env%scale_T==0.0_dp) calc_ex=.FALSE.
+
        ! go with mp2_gpw
-       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,error)
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,calc_ex,error)
 
      CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
    END SELECT
    t2=m_walltime()
    IF (unit_nr>0) WRITE(unit_nr,*)
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Time:',t2-t1
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Exchange Energy = ', Emp2_ex
-   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Direct MP2 Canonical Energy = ', Emp2
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total MP2 Time=',t2-t1
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Exchange Energy = ', Emp2_ex
+   Emp2_S=Emp2_Cou/2.0_dp
+   IF (calc_ex) THEN
+      Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
+   ELSE
+      ! unknown if Emp2_ex is not computed
+      Emp2_T=0.0_dp
+   ENDIF
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SS compenent (triplet) = ', Emp2_T
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SS                 = ', mp2_env%scale_T
+   Emp2_S=Emp2_S*mp2_env%scale_S
+   Emp2_T=Emp2_T*mp2_env%scale_T
+   Emp2=Emp2_S+Emp2_T
+   IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Second order perturbation energy  =   ', Emp2
    IF (unit_nr>0) WRITE(unit_nr,*)
 
    ! we have it !!!!
@@ -387,7 +406,7 @@ MODULE mp2
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_direct_energy', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: due = 2.D+00, zero = 0.D+00
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.D+00
 
     INTEGER :: a, batch_number, color_sub, comm_sub, counter, &
       elements_ij_proc, group_counter, handle, i, i_batch, i_batch_start, &
@@ -402,14 +421,14 @@ MODULE mp2
       vector_batch_I_size_group, vector_batch_J_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_list_proc, &
                                                 ij_list_proc_temp, ij_matrix
-    LOGICAL                                  :: alpha_bata_case = .FALSE., &
-                                                failure
+    LOGICAL                                  :: alpha_beta_case, failure
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    IF(PRESENT(C_j).AND.PRESENT(Auto_j)) alpha_bata_case=.TRUE.
+    alpha_beta_case=.FALSE.
+    IF(PRESENT(C_j).AND.PRESENT(Auto_j)) alpha_beta_case=.TRUE.
 
     IF (unit_nr>0.AND.mp2_env%potential_parameter%potential_type==do_mp2_potential_TShPSC) THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T64,F12.6,A5)') 'Truncated MP2 method, Rt=',&
@@ -635,7 +654,7 @@ MODULE mp2
          END DO
          DEALLOCATE(ij_list_proc_temp)
 
-         IF(.NOT.alpha_bata_case) THEN
+         IF(.NOT.alpha_beta_case) THEN
            CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
                                         elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
