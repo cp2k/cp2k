@@ -77,8 +77,7 @@ MODULE mp2_gpw
   USE mp2_types,                       ONLY: mp2_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE pw_env_methods,                  ONLY: pw_env_create,&
-                                             pw_env_rebuild
+  USE pw_env_methods,                  ONLY: pw_env_create
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
@@ -155,8 +154,8 @@ MODULE mp2_gpw
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
-    REAL(KIND=dp) :: eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
-      progression_factor, relative_cutoff_old, subcells, cutoff_old
+    REAL(KIND=dp) :: cutoff_old, eps_gvg_rspace_old, eps_pgf_orb_old, &
+      eps_rho_rspace_old, progression_factor, relative_cutoff_old, subcells
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, e_cutoff_old
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
@@ -993,7 +992,8 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, Cocc, Cvirt, rec_C
     REAL(KIND=dp), DIMENSION(1, 1)           :: null_mat, null_mat2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, local_C_internal
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
+                                                local_C_internal
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff, fm_struct_tmp
