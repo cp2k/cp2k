@@ -253,7 +253,7 @@ MODULE mp2_gpw
     eps_pgf_orb_old=qs_env%dft_control%qs_control%eps_pgf_orb
     eps_rho_rspace_old=qs_env%dft_control%qs_control%eps_rho_rspace
     eps_gvg_rspace_old=qs_env%dft_control%qs_control%eps_gvg_rspace
-    ! hack hack hack XXXXXXXXXXXXXXX
+    ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
     qs_env%dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
     qs_env%dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
     qs_env%dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
