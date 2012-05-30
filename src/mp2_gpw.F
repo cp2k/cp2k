@@ -156,8 +156,8 @@ MODULE mp2_gpw
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
     REAL(KIND=dp) :: eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
-      progression_factor, relative_cutoff_old, subcells
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, cutoff_old
+      progression_factor, relative_cutoff_old, subcells, cutoff_old
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, e_cutoff_old
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -346,19 +346,16 @@ MODULE mp2_gpw
     CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                    mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
 
-    ! a pw_env
-    NULLIFY(pw_env_sub)
-    CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
-
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
     progression_factor=qs_env%dft_control%qs_control%progression_factor
     n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
-    ALLOCATE(cutoff_old(n_multigrid), STAT=stat)
+    ALLOCATE(e_cutoff_old(n_multigrid), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    cutoff_old=0.0_dp
-    cutoff_old=qs_env%dft_control%qs_control%e_cutoff
+    e_cutoff_old=qs_env%dft_control%qs_control%e_cutoff
+    cutoff_old=qs_env%dft_control%qs_control%cutoff
 
-    qs_env%dft_control%qs_control%e_cutoff(1)=mp2_env%mp2_gpw%cutoff*0.5_dp
+    qs_env%dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
+    qs_env%dft_control%qs_control%e_cutoff(1)=qs_env%dft_control%qs_control%cutoff
     DO i_multigrid=2, n_multigrid
       qs_env%dft_control%qs_control%e_cutoff(i_multigrid) = qs_env%dft_control%qs_control%e_cutoff(i_multigrid-1) &
           / progression_factor
@@ -367,8 +364,12 @@ MODULE mp2_gpw
     relative_cutoff_old=qs_env%dft_control%qs_control%relative_cutoff
     qs_env%dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp
 
-    CALL pw_env_rebuild(pw_env=pw_env_sub, qs_env=qs_env, &
-                        external_para_env=para_env_sub, error=error_sub)
+    ! a pw_env
+    NULLIFY(pw_env_sub)
+    CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
+
+  ! CALL pw_env_rebuild(pw_env=pw_env_sub, qs_env=qs_env, &
+  !                     external_para_env=para_env_sub, error=error_sub)
     CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
                     poisson_env=poisson_env,error=error_sub)
     ! hack hack hack XXXXXXXXXXXXXXX
@@ -452,7 +453,8 @@ MODULE mp2_gpw
     CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, error_sub)
 
     ! restore the initial value of the cutoff
-    qs_env%dft_control%qs_control%e_cutoff=cutoff_old
+    qs_env%dft_control%qs_control%e_cutoff=e_cutoff_old
+    qs_env%dft_control%qs_control%cutoff=cutoff_old
     qs_env%dft_control%qs_control%relative_cutoff=relative_cutoff_old
 
     CALL cp_blacs_env_release(blacs_env_sub, error=error_sub)

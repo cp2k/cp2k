@@ -111,24 +111,29 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    CALL timeset(routineN,handle)
 
-  CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(pw_env, stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT. failure) THEN
-     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
-          pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
-          pw_env%xc_pw_pool, pw_env%lgrid)
-     pw_env%auxbas_grid=-1
-     pw_env%ref_count=1
-     IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,external_para_env=external_para_env,error=error)
-  END IF
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE(pw_env, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT. failure) THEN
+       NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
+            pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
+            pw_env%xc_pw_pool, pw_env%lgrid)
+       pw_env%auxbas_grid=-1
+       pw_env%ref_count=1
+       IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,external_para_env=external_para_env,error=error)
+    END IF
+
+    CALL timestop(handle)
+
 END SUBROUTINE pw_env_create
 
 ! *****************************************************************************
