@@ -3,10 +3,29 @@
 #         GENERATE_XYZ_TO_VAB
 #
 #
-# Interprets the template given as parameter and
+# Author: Ruyman Reyes (rreyes@epcc.ed.ac.uk)
+#
+# Generate unrolled version of the xyz_to_vab routine
+#  for the most common la_max_local and lb_max_local combinations.
+# For those combinations whose unrolled code would be larger but
+#  still some optimisation is needed, an additional template 
+#  with less agressive loop unrolling can be specified
+#
+# Usage:
+#   generate_xyz_to_vab <template> <destination> <optional>
+#
+# The range of values can be specified
 #
 ######################################
 
+
+# Range of values to generate the routine variants
+la_max_local_init = 0
+la_max_local_end = 4
+lb_max_local_init = 0
+lb_max_local_end = 4
+
+# ~~~~~~~~~~~~~~~~
 # Import the template subsystem
 import pyratemp
 
@@ -151,11 +170,6 @@ if __name__ == "__main__":
         # User can specify an unrolled version of the template
         if len(sys.argv) == 4:
             template_no_unroll = sys.argv[3]
-        # Values to generate the routines
-	la_max_local_init = 0
-	la_max_local_end = 4
-	lb_max_local_init = 0
-	lb_max_local_end = 4
         # Create a list of pairs ordered by probability
 	l = create_ordered_pairs()
         # Initialize the templates
