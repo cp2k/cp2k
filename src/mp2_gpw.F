@@ -339,7 +339,7 @@ MODULE mp2_gpw
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     Auto(:)=mo_eigenvalues(:)
 
-    ! new routin: replicate a full matrix from one para_env to a smaller one
+    ! new routine: replicate a full matrix from one para_env to a smaller one
     ! keeping the memory usage as small as possible in this case the 
     ! output the two part of the C matrix (virtual, occupied)
     CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
