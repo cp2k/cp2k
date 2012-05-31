@@ -2274,7 +2274,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: el, error_handle, nprows, prow
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: row_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -2292,8 +2292,11 @@ CONTAINS
           nle(prow) = nle(prow) + 1
        ENDDO
        DO prow = 0, nprows-1
+          ALLOCATE(itmp(nle(prow)))
+          itmp=0
           CALL array_new (dist%d%other_l_rows(prow),&
-               (/ (0, el=1,nle(prow)) /), lb=1)
+               itmp, lb=1)
+          DEALLOCATE(itmp)
        ENDDO
        DEALLOCATE (nle)
        CALL find_all_local_elements (dist%d%other_l_rows, row_dist, nprows)
@@ -2326,7 +2329,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: el, error_handle, npcols, pcol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: col_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -2344,8 +2347,11 @@ CONTAINS
           nle(pcol) = nle(pcol) + 1
        ENDDO
        DO pcol = 0, npcols-1
+          ALLOCATE(itmp(nle(pcol)))
+          itmp=0
           CALL array_new (dist%d%other_l_cols(pcol),&
-               (/ (0, el=1,nle(pcol)) /), lb=1)
+               itmp, lb=1)
+          DEALLOCATE(itmp)
        ENDDO
        DEALLOCATE (nle)
        CALL find_all_local_elements (dist%d%other_l_cols, col_dist, npcols)
@@ -2504,7 +2510,7 @@ CONTAINS
 
     INTEGER                                  :: el, error_handle, nvprows, &
                                                 vprow
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: vrow_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -2523,8 +2529,11 @@ CONTAINS
           nle(vprow) = nle(vprow) + 1
        ENDDO
        DO vprow = 0, nvprows-1
+          ALLOCATE(itmp(nle(vprow)))
+          itmp=0
           CALL array_new (imgdist%i%other_vl_rows(vprow),&
-               (/ (0, el=1,nle(vprow)) /), lb=1)
+               itmp, lb=1)
+          DEALLOCATE(itmp)
        ENDDO
        DEALLOCATE (nle)
        CALL find_all_local_elements (imgdist%i%other_vl_rows, vrow_dist, nvprows)
@@ -2558,7 +2567,7 @@ CONTAINS
 
     INTEGER                                  :: el, error_handle, nvpcols, &
                                                 vpcol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: vcol_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -2577,8 +2586,11 @@ CONTAINS
           nle(vpcol) = nle(vpcol) + 1
        ENDDO
        DO vpcol = 0, nvpcols-1
+          ALLOCATE(itmp(nle(vpcol)))
+          itmp=0
           CALL array_new (imgdist%i%other_vl_cols(vpcol),&
-               (/ (0, el=1,nle(vpcol)) /), lb=1)
+               itmp, lb=1)
+          DEALLOCATE(itmp)
        ENDDO
        DEALLOCATE (nle)
        CALL find_all_local_elements (imgdist%i%other_vl_cols, vcol_dist, nvpcols)
