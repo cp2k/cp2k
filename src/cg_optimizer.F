@@ -11,6 +11,7 @@
 MODULE cg_optimizer
   USE cell_types,                      ONLY: cell_copy,&
                                              cell_create,&
+                                             cell_release,&
                                              cell_type,&
                                              init_cell,&
                                              real_to_scaled,&
@@ -292,6 +293,7 @@ CONTAINS
         CALL scaled_to_real(r,s,cell)
         particles%els(ip)%r = r
      END DO
+     CALL cell_release(cell_ref,error=error)
 
  END SUBROUTINE unbias_coordinates
 
