@@ -523,7 +523,7 @@ MODULE mp2_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
                                                 exchange_group_sizes
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: mem_real, mem_try, &
+    REAL(KIND=dp)                            :: mem_min, mem_real, mem_try, &
                                                 pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_jb, my_Cocc, my_Cvirt
@@ -570,10 +570,6 @@ MODULE mp2_gpw
     ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
     ! has not been given back to the OS yet. 
     CALL mp_min(mem_real,para_env%group)
-    mem_real=mp2_memory-mem_real
-    IF(mem_real<0.0_dp) mem_real=1.0_dp
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
-                                                    mem_real, ' MB'
 
     virtual=nmo-homo
 
@@ -581,20 +577,39 @@ MODULE mp2_gpw
     CALL mp_max(wfn_size,para_env%group)
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
+
+    ! calculate the minimal memory required per MPI task (p=occupied division,q=virtual division)
     p_best=ngroup
     q_best=1
+    mem_min=HUGE(0)
+    DO p=1,ngroup
+       q=ngroup/p
+       IF (p*q.NE.ngroup) CYCLE
+
+       CALL estimate_memory_usage(wfn_size, p, q, para_env_sub%num_pe, nmo, virtual, homo, calc_ex, mem_try)
+
+       IF(mem_try<=mem_min) THEN
+         mem_min=mem_try
+         p_best=p
+         q_best=q
+       END IF
+    END DO
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Minimum required memory per MPI process for MP2:',&
+                                                       mem_min, ' MB'
+
+    mem_real=mp2_memory-mem_real
+    mem_real=MAX(mem_real,mem_min)
+    ! IF(mem_real<0.0_dp) mem_real=1.0_dp
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI process for MP2:',&
+                                                    mem_real, ' MB'
+
     wfn_calc_best=HUGE(wfn_calc_best)
     DO p=1,ngroup
        q=ngroup/p
        IF (p*q.NE.ngroup) CYCLE
-       ! integrals
-       mem_try=virtual*REAL(homo,KIND=dp)**2/(p*para_env_sub%num_pe)
-       ! exchange
-       mem_try=mem_try+virtual*REAL(homo,KIND=dp)**2/(p*p*para_env_sub%num_pe)
-       ! wfn
-       mem_try=mem_try+((homo+p-1)/p)*wfn_size
-       ! Mb
-       mem_try=mem_try*8.0D+00/1024.0D+00**2
+
+       CALL estimate_memory_usage(wfn_size, p, q, para_env_sub%num_pe, nmo, virtual, homo, calc_ex, mem_try)
+
        IF(mem_try>mem_real) CYCLE
        wfn_calc=((homo+p-1)/p)+((virtual+q-1)/q)
        IF (wfn_calc<wfn_calc_best) THEN
@@ -960,6 +975,34 @@ MODULE mp2_gpw
     CALL timestop(handle)
 
   END SUBROUTINE mp2_gpw_compute
+
+  SUBROUTINE estimate_memory_usage(wfn_size,p,q,num_w,nmo, virtual, homo,calc_ex,mem_try)
+    REAL(KIND=dp)                            :: wfn_size
+    INTEGER                                  :: p, q, num_w, nmo, virtual, &
+                                                homo
+    LOGICAL                                  :: calc_ex
+    REAL(KIND=dp)                            :: mem_try
+
+    mem_try=0.0_dp
+    ! integrals
+    mem_try=mem_try+virtual*REAL(homo,KIND=dp)**2/(p*num_w)
+    ! array for the coefficient matrix and wave vectors
+    mem_try=mem_try+REAL(homo,KIND=dp)*nmo/p+&
+                    REAL(virtual,KIND=dp)*nmo/q+&
+                    2.0_dp*MAX(REAL(homo,KIND=dp)*nmo/p,REAL(virtual,KIND=dp)*nmo/q)
+    ! temporary array for MO integrals and MO integrals to be exchanged 
+    IF(calc_ex) THEN
+      mem_try=mem_try+2.0_dp*MAX(virtual*REAL(homo,KIND=dp),&
+                                 virtual*REAL(homo,KIND=dp)**2/(p*p*num_w))
+    ELSE
+      mem_try=mem_try+2.0_dp*virtual*REAL(homo,KIND=dp)
+    END IF
+    ! wfn
+    mem_try=mem_try+((homo+p-1)/p)*wfn_size
+    ! Mb
+    mem_try=mem_try*8.0D+00/1024.0D+00**2
+
+  END SUBROUTINE
 
   SUBROUTINE replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                        mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
