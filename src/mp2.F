@@ -12,8 +12,18 @@
 MODULE mp2
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+  USE cp_fm_diag,                      ONLY: cp_fm_power
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -47,10 +57,18 @@ MODULE mp2
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
+  USE qs_matrix_pools,                 ONLY: mpools_create,&
+                                             mpools_rebuild_fm_pools,&
+                                             mpools_release,&
+                                             qs_matrix_pools_type
+  USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                             deallocate_mo_set,&
+                                             get_mo_set,&
+                                             init_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -77,14 +95,16 @@ MODULE mp2
     CHARACTER(len=*), PARAMETER :: routineN = 'mp2_main', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dimen, handle, i, iatom, ikind, max_nset, nao, natom, &
-      nelec_alpha, nelec_beta, nelectron, nkind, nmo, nspins, stat, unit_nr
+    INTEGER :: cholesky_method, dimen, handle, iatom, ikind, ispin, max_nset, &
+      nao, natom, ncol_block, ndep, nelec_alpha, nelec_beta, nelectron, &
+      nfullcols_total, nfullrows_total, nkind, nmo, nrow_block, nspins, stat, &
+      unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: calc_ex, failure
     REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
       Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
-      Emp2_ex, Emp2_S, Emp2_T, mem_real, t1, t2
+      Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, Auto_alpha, Auto_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, C_alpha, C_beta
@@ -93,20 +113,23 @@ MODULE mp2
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_ks, fm_matrix_s, &
+                                                fm_matrix_work, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: mos, mos_mp2
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(mp2_biel_type)                      :: mp2_biel
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_matrix_pools_type), POINTER      :: my_mpools
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
@@ -119,8 +142,6 @@ MODULE mp2
                   particle_set=particle_set, para_env=para_env,   &
                   energy=energy, rho=rho, mos=mos, scf_env=scf_env,&
                   matrix_ks=matrix_ks, matrix_s=matrix_s, mp2_env=mp2_env, error=error)
-
-
 
     unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%MP2%MP2_INFO",&
                                    extension=".mp2Log",error=error)
@@ -181,6 +202,86 @@ MODULE mp2
     CALL get_mo_set( mo_set=mos(1)%mo_set,nao=nao)
     CPPostcondition(dimen==nao,cp_failure_level,routineP,error,failure)
 
+    ! diagonalize the KS matrix in order to have the full set of MO's
+    ! get S and KS matrices in fm_type (create also a working array)
+    NULLIFY(fm_matrix_s)
+    NULLIFY(fm_matrix_ks)
+    NULLIFY(fm_matrix_work)
+    NULLIFY(fm_struct)
+    CALL cp_dbcsr_get_info(matrix_s(1)%matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=qs_env%blacs_env,nrow_global=nfullrows_total,&
+                             ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix_s,fm_struct,name="fm_matrix_s",error=error)
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s, error=error)
+
+    CALL cp_fm_create(fm_matrix_ks,fm_struct,name="fm_matrix_ks",error=error)
+
+    CALL cp_fm_create(fm_matrix_work,fm_struct,name="fm_matrix_work",error=error)
+    CALL cp_fm_set_all(matrix=fm_matrix_work,alpha=0.0_dp,error=error)
+
+    CALL cp_fm_struct_release(fm_struct,error=error)
+   
+    CALL cp_fm_get_info(matrix=fm_matrix_ks,nrow_block=nrow_block,ncol_block=ncol_block,error=error)
+
+    ! calculate S^(-1/2)
+    CALL cp_fm_power(fm_matrix_s,fm_matrix_work,-0.5_dp,&
+                     qs_env%scf_control%eps_eigval,ndep,error=error)
+
+    NULLIFY(mos_mp2)
+    ALLOCATE(mos_mp2(nspins),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1, nspins
+      CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc,nelectron=nelectron)
+
+      NULLIFY (mos_mp2(ispin)%mo_set)
+      CALL allocate_mo_set(mo_set=mos_mp2(ispin)%mo_set,&
+                           nao=nao,&
+                           nmo=nao,&
+                           nelectron=nelectron,&
+                           n_el_f=REAL(nelectron,dp),&
+                           maxocc=maxocc,&
+                           flexible_electron_count=qs_env%dft_control%relax_multiplicity,&
+                           error=error)
+    END DO
+
+    NULLIFY(my_mpools)
+    CALL mpools_create(mpools=my_mpools,error=error)
+    CALL mpools_rebuild_fm_pools(mpools=my_mpools,&
+                                 mos=mos_mp2,&
+                                 blacs_env=qs_env%blacs_env,&
+                                 para_env=para_env,&
+                                 nrow_block=nrow_block,&
+                                 ncol_block=ncol_block,&
+                                 error=error)
+
+    DO ispin=1, nspins
+
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks, error=error)
+
+      CALL init_mo_set(mos_mp2(ispin)%mo_set,&
+                       my_mpools%ao_mo_fm_pools(ispin)%pool,&
+                       name="mp2_mos",&
+                       error=error)
+
+      ! diagonalize KS matrix
+      cholesky_method=0
+      CALL eigensolver(matrix_ks=fm_matrix_ks,&
+                       mo_set=mos_mp2(ispin)%mo_set,&
+                       ortho=fm_matrix_s,&
+                       work=fm_matrix_work,&
+                       do_level_shift=.FALSE.,&
+                       level_shift=0.0_dp,&
+                       cholesky_method=cholesky_method,&
+                       use_jacobi=.FALSE.,&
+                       jacobi_threshold=qs_env%scf_control%diagonalization%jacobi_threshold,&
+                       error=error)
+    END DO
+      
+    CALL cp_fm_release(fm_matrix_s, error=error)
+    CALL cp_fm_release(fm_matrix_ks, error=error)
+    CALL cp_fm_release(fm_matrix_work, error=error)
+    CALL mpools_release(mpools=my_mpools, error=error)
+
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
 
     !   build the table of index
@@ -202,16 +303,16 @@ MODULE mp2
               message="laplace not implemented",&
               error=error, error_level=cp_failure_level)
      CASE (mp2_method_direct)
-       DO i=1,SIZE(mos)
-          CALL get_mo_set( mo_set=mos(i)%mo_set,&
-                      nmo=nmo, nao=nao, mo_coeff=mo_coeff)
-          IF (nmo.NE.nao) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 " Direct MP2 needs the full set of virtual MOs, use ADDED_MOS in the input"//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
-          ENDIF
-       ENDDO
+       !DO i=1,SIZE(mos)
+       !   CALL get_mo_set( mo_set=mos(i)%mo_set,&
+       !               nmo=nmo, nao=nao, mo_coeff=mo_coeff)
+       !   IF (nmo.NE.nao) THEN
+       !      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       !          " Direct MP2 needs the full set of virtual MOs, use ADDED_MOS in the input"//&
+       !          CPSourceFileRef,&
+       !          only_ionode=.TRUE.)
+       !   ENDIF
+       !ENDDO
 
        IF (unit_nr>0) WRITE(unit_nr,*)
 
@@ -220,7 +321,7 @@ MODULE mp2
          ! for now, require the mos to be always present
 
          ! get the alpha coeff and eigenvalues
-         CALL get_mo_set( mo_set=mos(1)%mo_set,&
+         CALL get_mo_set( mo_set=mos_mp2(1)%mo_set,&
                       nelectron=nelec_alpha,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
@@ -234,7 +335,7 @@ MODULE mp2
          Auto_alpha(:)=mo_eigenvalues(:)
 
          ! get the beta coeff and eigenvalues
-         CALL get_mo_set( mo_set=mos(2)%mo_set,&
+         CALL get_mo_set( mo_set=mos_mp2(2)%mo_set,&
                       nelectron=nelec_beta,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
@@ -283,10 +384,13 @@ MODULE mp2
          Emp2_Cou=Emp2_AA_Cou+Emp2_BB_Cou+Emp2_AB_Cou*2.0_dp !+Emp2_BA
          Emp2_ex=Emp2_AA_ex+Emp2_BB_ex+Emp2_AB_ex*2.0_dp !+Emp2_BA
 
+         Emp2_S=Emp2_AB*2.0_dp
+         Emp2_T=Emp2_AA+Emp2_BB
+
        ELSE
 
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Canonical Direct Methods:'
-         CALL get_mo_set( mo_set=mos(1)%mo_set,&
+         CALL get_mo_set( mo_set=mos_mp2(1)%mo_set,&
                       nelectron=nelectron,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
@@ -316,7 +420,8 @@ MODULE mp2
        IF(mp2_env%scale_T==0.0_dp) calc_ex=.FALSE.
 
        ! go with mp2_gpw
-       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,calc_ex,error)
+       CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
+                          mos_mp2,para_env,unit_nr,calc_ex,error)
 
      CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -326,13 +431,16 @@ MODULE mp2
    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total MP2 Time=',t2-t1
    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Coulomb Energy = ', Emp2_Cou/2.0_dp
    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Exchange Energy = ', Emp2_ex
-   Emp2_S=Emp2_Cou/2.0_dp
-   IF (calc_ex) THEN
-      Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
-   ELSE
-      ! unknown if Emp2_ex is not computed
-      Emp2_T=0.0_dp
-   ENDIF
+   IF(nspins==1) THEN
+     ! valid only in the closed shell case
+     Emp2_S=Emp2_Cou/2.0_dp
+     IF (calc_ex) THEN
+        Emp2_T=Emp2_ex+Emp2_Cou/2.0_dp
+     ELSE
+        ! unknown if Emp2_ex is not computed
+        Emp2_T=0.0_dp
+     ENDIF
+   END IF
    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy SS compenent (triplet) = ', Emp2_T
    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'Scaling factor SO                 = ', mp2_env%scale_S
@@ -346,6 +454,11 @@ MODULE mp2
    ! we have it !!!!
    energy%mp2=Emp2
    energy%total=energy%total+Emp2
+
+   DO ispin=1, nspins
+     CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set,error=error)
+   END DO
+   DEALLOCATE(mos_mp2)
 
    CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                      "DFT%XC%MP2%MP2_INFO", error=error)

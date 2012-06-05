@@ -100,8 +100,7 @@ MODULE mp2_gpw
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: atom2d_build,&
@@ -133,10 +132,14 @@ MODULE mp2_gpw
 !> \brief with a big bang to mp2
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,para_env,unit_nr,calc_ex,error)
+  SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
+                          mos_mp2,para_env,unit_nr,calc_ex,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
-    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX, &
+                                                Emp2_S, Emp2_T
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_mp2
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: calc_ex
@@ -146,17 +149,19 @@ MODULE mp2_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, handle, homo, &
-      i, i_multigrid, local_unit_nr, n_multigrid, nao, natom, nelectron, &
-      nkind, nmo, stat
+      homo_beta, i, i_multigrid, local_unit_nr, n_multigrid, nao, natom, &
+      nelectron, nelectron_beta, nkind, nmo, nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: blacs_repeatable, failure, &
                                                 skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
-    REAL(KIND=dp) :: cutoff_old, eps_gvg_rspace_old, eps_pgf_orb_old, &
-      eps_rho_rspace_old, progression_factor, relative_cutoff_old, subcells
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, e_cutoff_old
+    REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, &
+      eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
+      progression_factor, relative_cutoff_old, subcells
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
+                                                Eigenval_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -164,9 +169,10 @@ MODULE mp2_gpw
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
+                                                mo_coeff_v, mo_coeff_v_beta
     TYPE(cp_error_type)                      :: error_sub
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -178,9 +184,6 @@ MODULE mp2_gpw
     TYPE(distribution_2d_type), POINTER      :: distribution_2d_sub
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom2d
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -331,19 +334,33 @@ MODULE mp2_gpw
     CALL array_release (row_blk_sizes)
 
     ! and the array of mos
-    CALL get_qs_env(qs_env=qs_env, mos=mos, dft_control=dft_control, error=error)
-    CALL get_mo_set( mo_set=mos(1)%mo_set, nelectron=nelectron,&
-                      eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
-                      mo_coeff=mo_coeff,nao=dimen)
-    ALLOCATE(Auto(dimen),STAT=stat)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nelectron=nelectron,&
+                    eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
+                    mo_coeff=mo_coeff,nao=dimen)
+    ALLOCATE(Eigenval(dimen),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    Auto(:)=mo_eigenvalues(:)
+    Eigenval(:)=mo_eigenvalues(:)
 
     ! new routine: replicate a full matrix from one para_env to a smaller one
     ! keeping the memory usage as small as possible in this case the 
     ! output the two part of the C matrix (virtual, occupied)
     CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                    mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
+
+    ! if open shell case replicate also the coefficient matrix for the beta orbitals 
+    nspins=SIZE(mos_mp2)
+    IF(nspins==2) THEN
+      CALL get_mo_set(mo_set=mos_mp2(2)%mo_set, nelectron=nelectron_beta,&
+                      eigenvalues=mo_eigenvalues,homo=homo_beta,&
+                      mo_coeff=mo_coeff_beta)
+      ALLOCATE(Eigenval_beta(dimen),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      Eigenval_beta(:)=mo_eigenvalues(:)
+
+      CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
+                                     mo_coeff_o_beta,mo_coeff_v_beta,blacs_env_sub,unit_nr,error,error_sub)
+    END IF
 
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
     progression_factor=qs_env%dft_control%qs_control%progression_factor
@@ -367,8 +384,6 @@ MODULE mp2_gpw
     NULLIFY(pw_env_sub)
     CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
 
-  ! CALL pw_env_rebuild(pw_env=pw_env_sub, qs_env=qs_env, &
-  !                     external_para_env=para_env_sub, error=error_sub)
     CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
                     poisson_env=poisson_env,error=error_sub)
     ! hack hack hack XXXXXXXXXXXXXXX
@@ -399,21 +414,57 @@ MODULE mp2_gpw
     CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
 
     ! now we're kind of ready to go....
-    CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                          atomic_kind_set,mo_coeff,auto,nmo,homo,rho_r,rho_g,pot_g,&
-                          mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                          mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                          mp2_env%mp2_memory,calc_ex,error_sub)
+    Emp2_S=0.0_dp
+    Emp2_T=0.0_dp
+    IF(nspins==2) THEN
+      ! alpha-alpha and alpha-beta components
+      IF (unit_nr>0) WRITE(unit_nr,*)
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Alpha (ia|'
+      CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                           atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
+                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                           mp2_env%mp2_memory,calc_ex,error_sub,&
+                           homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
+
+      Emp2_Cou=Emp2_Cou*0.25_dp
+      Emp2_EX=Emp2_EX*0.5_dp
+
+      ! beta-beta component
+      IF (unit_nr>0) WRITE(unit_nr,*)
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Beta (ia|'
+      CALL mp2_gpw_compute(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                           atomic_kind_set,mo_coeff_beta,Eigenval_beta,nmo,homo_beta,rho_r,rho_g,pot_g,&
+                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                           mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                           mp2_env%mp2_memory,calc_ex,error_sub)
+      
+      Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
+      Emp2_EX_BB=Emp2_EX_BB*0.5_dp
+
+      Emp2_S=Emp2_AB
+      Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
+
+      Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
+      Emp2_EX=Emp2_EX+Emp2_EX_BB
+      Emp2=Emp2_EX+Emp2_Cou
+
+    ELSE 
+      ! closed shell case
+      CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                           atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
+                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                           mp2_env%mp2_memory,calc_ex,error_sub)
+    END IF
 
     ! and now free the whole lot
-    DEALLOCATE(Auto,STAT=stat)
+    DEALLOCATE(Eigenval,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error_sub)
-    !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i%pw,error=error_sub)
-    !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_a%pw,error=error_sub)
 
     CALL deallocate_task_list(task_list_sub,error=error_sub)
 
@@ -425,6 +476,16 @@ MODULE mp2_gpw
     CALL cp_dbcsr_release(mo_coeff_v,error=error_sub)
     DEALLOCATE(mo_coeff_v, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF(nspins==2) THEN
+      CALL cp_dbcsr_release(mo_coeff_o_beta,error=error_sub)
+      DEALLOCATE(mo_coeff_o_beta, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL cp_dbcsr_release(mo_coeff_v_beta,error=error_sub)
+      DEALLOCATE(mo_coeff_v_beta, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(Eigenval_beta,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL cp_dbcsr_release(mat_munu%matrix,error=error_sub)
     DEALLOCATE(mat_munu%matrix, STAT=stat)
@@ -469,10 +530,10 @@ MODULE mp2_gpw
   END SUBROUTINE mp2_gpw_main
 
   SUBROUTINE mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,&
-                 cell,particle_set,atomic_kind_set,mo_coeff,auto,nmo,homo,&
+                 cell,particle_set,atomic_kind_set,mo_coeff,Eigenval,nmo,homo,&
                  rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                  poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
-                 mp2_memory,calc_ex,error_sub)
+                 mp2_memory,calc_ex,error_sub,homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
 
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -485,7 +546,7 @@ MODULE mp2_gpw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    REAL(KIND=dp), DIMENSION(:)              :: Auto
+    REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: nmo, homo
     TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
@@ -501,6 +562,11 @@ MODULE mp2_gpw
     REAL(KIND=dp)                            :: mp2_memory
     LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
+    INTEGER, OPTIONAL                        :: homo_beta
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: mo_coeff_o_beta, &
+                                                mo_coeff_v_beta
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
+    REAL(KIND=dp), OPTIONAL                  :: Emp2_AB
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_compute', &
       routineP = moduleN//':'//routineN
@@ -516,13 +582,13 @@ MODULE mp2_gpw
       p_best, proc_receive, proc_send, q, q_best, row, row_offset, row_size, &
       size_EX, size_EX_send
     INTEGER :: size_of_exchange_group, stat, sub_sub_color, virtual, &
-      wfn_calc, wfn_calc_best
+      virtual_beta, wfn_calc, wfn_calc_best
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, vector_B_sizes, &
                                                 vector_batch_A_size_group, &
                                                 vector_batch_I_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
                                                 exchange_group_sizes
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_alpha_beta, failure
     REAL(KIND=dp)                            :: mem_min, mem_real, mem_try, &
                                                 pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
@@ -533,7 +599,10 @@ MODULE mp2_gpw
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist
     TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_dbcsr_type)                      :: matrix_ia_jb, matrix_ia_jnu
+    TYPE(cp_dbcsr_type)                      :: matrix_ia_jb, &
+                                                matrix_ia_jb_beta, &
+                                                matrix_ia_jnu, &
+                                                matrix_ia_jnu_beta
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(pw_p_type)                          :: psi_a
@@ -544,6 +613,13 @@ MODULE mp2_gpw
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
+
+    do_alpha_beta=.FALSE.
+    IF(PRESENT(homo_beta).AND.&
+       PRESENT(mo_coeff_o_beta).AND.&
+       PRESENT(mo_coeff_v_beta).AND.&
+       PRESENT(Eigenval_beta).AND.&
+       PRESENT(Emp2_AB)) do_alpha_beta=.TRUE.
 
     ! initialize and create the matrix (ia|jnu)
     CALL cp_dbcsr_init(matrix_ia_jnu,error=error_sub)
@@ -564,6 +640,35 @@ MODULE mp2_gpw
     CALL array_release (col_dist)
     CALL array_release (row_blk_size)
     CALL array_release (row_dist)
+
+    CALL cp_dbcsr_set(matrix_ia_jnu,0.0_dp,error=error_sub)
+    CALL cp_dbcsr_set(matrix_ia_jb,0.0_dp,error=error_sub)
+
+    IF(do_alpha_beta) THEN
+      ! initialize and create the matrix (ia|jnu)
+      CALL cp_dbcsr_init(matrix_ia_jnu_beta,error=error_sub)
+      CALL cp_dbcsr_create(matrix_ia_jnu_beta,template=mo_coeff_o_beta,error=error_sub)
+
+      ! Allocate Sparse matrices: (ia|jb)
+      CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo-homo_beta, &
+            dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_v_beta))))
+      CALL cp_create_bl_distribution (row_dist, row_blk_size, homo_beta, &
+            dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o_beta))))
+      CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o_beta)),&
+            row_dist,col_dist)
+      CALL cp_dbcsr_init(matrix_ia_jb_beta,error=error_sub)
+      CALL cp_dbcsr_create(matrix_ia_jb_beta,"matrix_ia_jb_beta",dist,dbcsr_type_no_symmetry,&
+           row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error_sub)
+      CALL cp_dbcsr_distribution_release (dist)
+      CALL array_release (col_blk_size)
+      CALL array_release (col_dist)
+      CALL array_release (row_blk_size)
+      CALL array_release (row_dist)
+      virtual_beta=nmo-homo_beta
+
+      CALL cp_dbcsr_set(matrix_ia_jnu_beta,0.0_dp,error=error_sub)
+      CALL cp_dbcsr_set(matrix_ia_jb_beta,0.0_dp,error=error_sub)
+    END IF
 
     mem_real=m_memory()
     mem_real=(mem_real+1024*1024-1)/(1024*1024)
@@ -795,6 +900,7 @@ MODULE mp2_gpw
     Emp2=0.0_dp
     Emp2_Cou=0.0_dp
     Emp2_EX=0.0_dp
+    IF(do_alpha_beta) Emp2_AB=0.0_dp
     IF(calc_ex) THEN
       ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
@@ -847,10 +953,20 @@ MODULE mp2_gpw
         CALL timeset(routineN//"_mult_o",handle3)
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
                                 0.0_dp, matrix_ia_jnu, filter_eps=eps_filter, error=error_sub)
+        IF(do_alpha_beta) THEN
+          ! transform orbitals using the beta coeff matrix
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
+                                0.0_dp, matrix_ia_jnu_beta, filter_eps=eps_filter, error=error_sub)
+        END IF      
         CALL timestop(handle3)
         CALL timeset(routineN//"_mult_v",handle3)
         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
                                 0.0_dp, matrix_ia_jb, filter_eps=eps_filter, error=error_sub)
+        IF(do_alpha_beta) THEN
+          ! transform orbitals using the beta coeff matrix
+          CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu_beta, mo_coeff_v_beta, &
+                                0.0_dp, matrix_ia_jb_beta, filter_eps=eps_filter, error=error_sub)
+        END IF
         CALL timestop(handle3)
 
         CALL timeset(routineN//"_E_Cou",handle3)
@@ -862,7 +978,8 @@ MODULE mp2_gpw
            DO b=1,col_size
            DO j=1,row_size
               ! Compute the coulomb MP2 energy
-              Emp2_Cou=Emp2_Cou-2.0_dp*data_block(j,b)**2/(Auto(a)+Auto(homo+col_offset+b-1)-Auto(i)-Auto(row_offset+j-1))
+              Emp2_Cou=Emp2_Cou-2.0_dp*data_block(j,b)**2/&
+                       (Eigenval(a)+Eigenval(homo+col_offset+b-1)-Eigenval(i)-Eigenval(row_offset+j-1))
               IF (calc_ex) THEN
                  ! now fill the matrix
                  BIb_jb(col_offset+b-1,row_offset+j-1)=data_block(j,b)
@@ -871,6 +988,23 @@ MODULE mp2_gpw
            ENDDO
         ENDDO
         CALL cp_dbcsr_iterator_stop(iter)
+        IF(do_alpha_beta) THEN
+          ! Compute the coulomb only= SO = MP2 alpha-beta  MP2 energy component
+          CALL cp_dbcsr_iterator_start(iter, matrix_ia_jb_beta)
+          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+             CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+                  row_size=row_size, col_size=col_size, &
+                  row_offset=row_offset, col_offset=col_offset)
+             DO b=1,col_size
+             DO j=1,row_size
+                ! Compute the coulomb MP2 energy
+                Emp2_AB=Emp2_AB-data_block(j,b)**2/&
+                         (Eigenval(a)+Eigenval_beta(homo_beta+col_offset+b-1)-Eigenval(i)-Eigenval_beta(row_offset+j-1))
+             ENDDO
+             ENDDO
+          ENDDO
+          CALL cp_dbcsr_iterator_stop(iter)         
+        END IF        
         CALL timestop(handle3)
 
         ! now mp_sum the matrix BIb_jb in and keep only my local
@@ -894,7 +1028,7 @@ MODULE mp2_gpw
             DO b=1,my_B_size
               b_global=b-1+my_B_virtual_start
               Emp2_EX=Emp2_EX+BIb_C(b,j,i)*BIb_C(b,i+my_I_occupied_start-1,j-my_I_occupied_start+1)&
-                    /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j))
+                    /(Eigenval(a)+Eigenval(homo+b_global)-Eigenval(i+my_I_occupied_start-1)-Eigenval(j))
             END DO
           END DO
         END DO
@@ -929,7 +1063,7 @@ MODULE mp2_gpw
               DO b=1, my_B_size
                 b_global=b-1+my_B_virtual_start
                 Emp2_EX=Emp2_EX+BIb_C(b,j+EX_start-1,i)*BIb_EX(b,i,j)&
-                      /(Auto(a)+Auto(homo+b_global)-Auto(i+my_I_occupied_start-1)-Auto(j+EX_start-1))
+                      /(Eigenval(a)+Eigenval(homo+b_global)-Eigenval(i+my_I_occupied_start-1)-Eigenval(j+EX_start-1))
               END DO
             END DO
           END DO
@@ -947,6 +1081,7 @@ MODULE mp2_gpw
     CALL mp_sum(Emp2_Cou,para_env%group)
     CALL mp_sum(Emp2_EX,para_env%group)
     Emp2=Emp2_Cou+Emp2_EX
+    IF(do_alpha_beta) CALL mp_sum(Emp2_AB,para_env%group)
 
     DEALLOCATE(my_Cocc)
     DEALLOCATE(my_Cvirt)
@@ -959,9 +1094,12 @@ MODULE mp2_gpw
       CALL cp_para_env_release(para_env_exchange,error=error_sub)
     ENDIF
 
-
     CALL cp_dbcsr_release(matrix_ia_jnu,error=error_sub)
     CALL cp_dbcsr_release(matrix_ia_jb,error=error_sub)
+    IF(do_alpha_beta) THEN
+      CALL cp_dbcsr_release(matrix_ia_jnu_beta,error=error_sub)
+      CALL cp_dbcsr_release(matrix_ia_jb_beta,error=error_sub)
+    END IF
 
     DO i=my_I_occupied_start, my_I_occupied_end
       !CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_i(i)%pw,error=error_sub)
@@ -1149,23 +1287,8 @@ MODULE mp2_gpw
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       rec_C=0.0_dp
 
-      CALL  mp_sendrecv(local_C,proc_send,rec_C,proc_receive,para_env%group)
       ! then send and receive the real data
-      ! IF(nrow_local*ncol_local>0.AND.SIZE(rec_C)>0) THEN
-      !   CALL  mp_sendrecv(local_C,proc_send,rec_C,proc_receive,para_env%group)
-      ! END IF
-      ! IF(nrow_local*ncol_local>0.AND.SIZE(rec_C)<=0) THEN
-      !   ! send only local data
-      !   CALL  mp_sendrecv(local_C,proc_send,null_mat,proc_receive,para_env%group)
-      ! END IF
-      ! IF(nrow_local*ncol_local<=0.AND.SIZE(rec_C)>0) THEN 
-      !   ! receive only
-      !   CALL  mp_sendrecv(null_mat,proc_send,rec_C,proc_receive,para_env%group)
-      ! END IF
-      ! IF(nrow_local*ncol_local<=0.AND.SIZE(rec_C)<=0) THEN 
-      !   ! all zero
-      !   CALL  mp_sendrecv(null_mat,proc_send,null_mat2,proc_receive,para_env%group)
-      ! END IF
+      CALL  mp_sendrecv(local_C,proc_send,rec_C,proc_receive,para_env%group)
 
       ! accumulate the received data on C buffer 
       DO iiB=1, nrow_rec
