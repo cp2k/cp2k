@@ -20,13 +20,13 @@ MODULE mp2_gpw
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_create_bl_distribution, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_info, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_get_info
-  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                             copy_dbcsr_to_fm,&
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
                                              cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
@@ -577,19 +577,21 @@ MODULE mp2_gpw
       col_offset, col_size, color_counter, comm_exchange, EX_end, &
       EX_end_send, EX_start, EX_start_send, group_counter, handle, handle2, &
       handle3, i, i_counter, i_group_counter, index_proc_shift, j, &
-      max_b_size, max_batch_size_A, max_batch_size_I, mepos_in_EX_group, &
-      my_A_batch_size, my_A_virtual_end, my_A_virtual_start, my_B_size, &
-      my_B_virtual_end, my_B_virtual_start, my_I_batch_size, &
-      my_I_occupied_end, my_I_occupied_start, my_q_position, ngroup, one, p, &
-      p_best, proc_receive, proc_send, q, q_best, row, row_offset, row_size, &
-      size_EX, size_EX_send
-    INTEGER :: size_of_exchange_group, stat, sub_sub_color, virtual, &
+      max_b_size, max_batch_size_A, max_batch_size_I, max_row_col_local, &
+      mepos_in_EX_group, my_A_batch_size, my_A_virtual_end, &
+      my_A_virtual_start, my_B_size, my_B_virtual_end, my_B_virtual_start, &
+      my_I_batch_size, my_I_occupied_end, my_I_occupied_start, my_q_position, &
+      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, one, &
+      p, p_best, proc_receive
+    INTEGER :: proc_send, q, q_best, row, row_offset, row_size, size_EX, &
+      size_EX_send, size_of_exchange_group, stat, sub_sub_color, virtual, &
       virtual_beta, wfn_calc, wfn_calc_best
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map, proc_map, vector_B_sizes, &
-                                                vector_batch_A_size_group, &
-                                                vector_batch_I_size_group
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, sub_proc_map, &
+      vector_B_sizes, vector_batch_A_size_group, vector_batch_I_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
-                                                exchange_group_sizes
+                                                exchange_group_sizes, &
+                                                local_col_row_info
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: do_alpha_beta, failure
     REAL(KIND=dp)                            :: mem_min, mem_real, mem_try, &
                                                 pair_energy, wfn_size
@@ -605,18 +607,13 @@ MODULE mp2_gpw
                                                 matrix_ia_jb_beta, &
                                                 matrix_ia_jnu, &
                                                 matrix_ia_jnu_beta
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(pw_p_type)                          :: psi_a
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi_i
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
-    INTEGER                                  :: nfullrows_total, nfullcols_total
-    INTEGER                                  :: max_row_col_local, nrow_local,ncol_local
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info
-    INTEGER, DIMENSION(:), POINTER           :: col_indices,&
-                                                row_indices
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -1178,25 +1175,27 @@ MODULE mp2_gpw
                                my_B_virtual_end,my_B_virtual_start,my_B_size,&
                                error_sub)
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
-    INTEGER                                  :: homo, virtual
-    INTEGER                                  :: max_row_col_local
-    INTEGER                                  :: my_B_virtual_end,my_B_virtual_start,my_B_size
+    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
+    REAL(KIND=dp), DIMENSION(:, :)           :: BIb_jb
+    INTEGER                                  :: max_row_col_local, homo, &
+                                                virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info
-    REAL(KIND=dp), DIMENSION(:, :)           :: BIb_jb
-    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
+    INTEGER                                  :: my_B_virtual_end, &
+                                                my_B_virtual_start, my_B_size
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_my_integrals', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_global, iiB, j_global, jjB, &
+                                                ncol_rec, nrow_rec, &
+                                                proc_receive, proc_send, &
+                                                proc_shift, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices_rec, &
                                                 row_indices_rec
-    INTEGER :: stat
-    LOGICAL :: failure
-    INTEGER :: col_size, handle, i, i_global, iiB,j, j_global, jjB,&
-      ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, proc_send, proc_shift, &
-      row, row_offset, row_size
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_BI, rec_BI
 
     failure=.FALSE.
