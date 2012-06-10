@@ -1417,7 +1417,7 @@ CONTAINS
              t436a = t1 * t86 + t5 * t20 - t430 * t431 + t430 *&
                   t1 + t430 * t5
              IF (t436a<0._dp) THEN
-                PRINT *, t436a
+!                PRINT *, t436a
                 t436=0._dp
              ELSE
                 t436 = SQRT(t436a)
