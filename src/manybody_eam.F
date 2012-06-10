@@ -239,7 +239,11 @@ CONTAINS
        index = 1
     ENDIF
     qq = rab - eam_a%rval(index)
+    IF (index == eam_a%npoints) THEN
+      denspi = eam_a%rhop(index) +  qq*(eam_a%rhop(index) - eam_a%rhop(index-1))/eam_a%drar
+    ELSE
     denspi = eam_a%rhop(index) +  qq*(eam_a%rhop(index+1) - eam_a%rhop(index))/eam_a%drar
+    END IF
 
 
     ! Particle B
@@ -250,7 +254,11 @@ CONTAINS
        index = 1
     ENDIF
     qq = rab - eam_b%rval(index)
+    IF (index == eam_b%npoints) THEN
+      denspj = eam_b%rhop(index) +  qq*(eam_b%rhop(index) - eam_b%rhop(index-1))/eam_b%drar
+    ELSE
     denspj = eam_b%rhop(index) + qq*(eam_b%rhop(index+1) - eam_b%rhop(index))/eam_b%drar
+    END IF
 
     fcp = denspj * eam_data(atom_a)%f_embed + denspi * eam_data(atom_b)%f_embed
     f_eam =  fcp / rab
