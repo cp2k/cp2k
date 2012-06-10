@@ -16,6 +16,9 @@ MODULE qs_pdos
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type, pbc
+  USE cp_control_types,                ONLY: dft_control_type
+
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -40,17 +43,30 @@ MODULE qs_pdos
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: nso,&
                                              nsoset
   USE orbital_symbols,                 ONLY: l_sym,&
                                              sgf_symbol
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_type,pw_env_get
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
@@ -80,10 +96,23 @@ MODULE qs_pdos
       POINTER                                :: pdos_array
   END TYPE ldos_type
 
+  TYPE r_ldos_type
+     INTEGER :: nlist, npoints
+     INTEGER, DIMENSION(:,:), POINTER :: index_grid_local
+     INTEGER, DIMENSION(:), POINTER           :: list_index
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: x_range,y_range,z_range
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range
+     REAL(KIND=dp), DIMENSION(:), &
+      POINTER                                 :: pdos_array
+  END TYPE r_ldos_type
+
   TYPE ldos_p_type
      TYPE(ldos_type), POINTER :: ldos
   END TYPE ldos_p_type
 
+  TYPE r_ldos_p_type
+     TYPE(r_ldos_type), POINTER :: ldos
+  END TYPE r_ldos_p_type
 CONTAINS
 
 ! *****************************************************************************
@@ -120,25 +149,26 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: kind_name, my_act, my_mittle, &
                                                 my_pos, spin(2)
     CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: ldos_index
-    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, ir, irow, iset, &
-      isgf, ishell, iso, iterstep, iw, j, kind_number, lcomponent, lshell, &
-      maxl, maxlgto, my_spin, n_dependent, n_rep, nao, natom, ncol_global, &
-      nkind, nldos, nlumo, nmo, nrow_global, nset, nsgf, nvirt, stat
+      ALLOCATABLE, DIMENSION(:)              :: ldos_index, r_ldos_index
+    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, in_x, in_y, in_z, ir, irow, iset, &
+      isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, kind_number, lcomponent, lshell, &
+      maxl, maxlgto, my_spin, n_dependent,n_r_ldos, n_rep, nao, natom, ncol_global, &
+      nkind, nldos, nlumo, nmo, np_tot, nrow_global, nset, nsgf, nvirt, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: append, do_ldos, do_virt, &
-                                                failure, ionode, &
+    INTEGER, DIMENSION(:, :), POINTER        :: bo, l
+    LOGICAL                                  :: append, do_ldos, do_r_ldos, do_virt, &
+                                                failure, ionode, read_r(4), &
                                                 separate_components, &
                                                 should_output
-    REAL(KIND=dp)                            :: e_fermi
+    REAL(KIND=dp)                            :: dh(3,3), dvol, e_fermi, r(3), r_vec(3), ratom(3), tot1, tot2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &
                                                 occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pdos_array
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_matrix
@@ -147,8 +177,15 @@ CONTAINS
                                                 matrix_work, mo_coeff, mo_virt
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(ldos_p_type), DIMENSION(:), POINTER :: ldos_p
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: wf_r, wf_g
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(r_ldos_p_type), DIMENSION(:), POINTER :: r_ldos_p
     TYPE(section_vals_type), POINTER         :: ldos_section
 
     NULLIFY(logger)
@@ -164,8 +201,8 @@ CONTAINS
 
     NULLIFY (atomic_kind, context, s_matrix, orb_basis_set, para_env, pdos_array)
     NULLIFY (eigenvalues,fm_struct_tmp,matrix_work,matrix_shalf,mo_coeff,vecbuffer)
-    NULLIFY (list)
-    NULLIFY (occupation_numbers, ldos_p)
+    NULLIFY (ldos_section,list,cell,pw_env,auxbas_pw_pool,mo_virt,evals_virt)
+    NULLIFY (occupation_numbers, ldos_p, r_ldos_p,dft_control,occupation_numbers )
 
     CALL timeset(routineN,handle)
     iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
@@ -282,6 +319,157 @@ CONTAINS
 
       END DO
     END IF
+
+    do_r_ldos = .FALSE.
+    ldos_section => section_vals_get_subs_vals(dft_section,"PRINT%PDOS%R_LDOS",error=error)
+    CALL section_vals_get(ldos_section,n_repetition=n_r_ldos,error=error)
+    IF(n_r_ldos>0) THEN
+      do_r_ldos = .TRUE.
+      ALLOCATE(r_ldos_p(n_r_ldos),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(r_ldos_index(n_r_ldos),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL get_qs_env(qs_env=qs_env,&
+           cell=cell,&
+           dft_control=dft_control,&
+           pw_env=pw_env,error=error)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                      pw_pools=pw_pools,error=error)
+      CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE, error=error)
+      CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+      DO ildos=1,n_r_ldos
+        WRITE(r_ldos_index(ildos),'(I0)') ildos
+        ALLOCATE(r_ldos_p(ildos)%ldos,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        NULLIFY(r_ldos_p(ildos)%ldos%pdos_array)
+        NULLIFY(r_ldos_p(ildos)%ldos%list_index)
+
+        CALL section_vals_val_get(ldos_section,"LIST",i_rep_section=ildos, n_rep_val=n_rep,&
+             error=error)
+        IF(n_rep>0) THEN
+          r_ldos_p(ildos)%ldos%nlist = 0
+          DO ir = 1,n_rep
+            NULLIFY (list)
+            CALL section_vals_val_get(ldos_section,"LIST",i_rep_section=ildos,i_rep_val=ir,&
+                 i_vals=list, error=error)
+            IF(ASSOCIATED(list)) THEN
+               CALL reallocate(r_ldos_p(ildos)%ldos%list_index,1,r_ldos_p(ildos)%ldos%nlist+SIZE(list))
+               DO i = 1,SIZE(list)
+                  r_ldos_p(ildos)%ldos%list_index(i+r_ldos_p(ildos)%ldos%nlist) = list(i)
+               END DO
+               r_ldos_p(ildos)%ldos%nlist = r_ldos_p(ildos)%ldos%nlist + SIZE(list)
+            END IF
+          END DO
+        ELSE
+          ! stop, LDOS without list of atoms is not implemented
+        END IF
+
+        ALLOCATE(r_ldos_p(ildos)%ldos%pdos_array(nmo+nvirt),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        r_ldos_p(ildos)%ldos%pdos_array=0.0_dp
+        read_r(1:3) = .FALSE.
+        CALL section_vals_val_get(ldos_section,"XRANGE",i_rep_section=ildos,explicit=read_r(1),error=error)
+        IF (read_r(1)) THEN
+          CALL section_vals_val_get(ldos_section,"XRANGE",i_rep_section=ildos,r_vals=&
+             r_ldos_p(ildos)%ldos%x_range, error=error)
+        ELSE
+          ALLOCATE(r_ldos_p(ildos)%ldos%x_range(2))
+           r_ldos_p(ildos)%ldos%x_range=0.0_dp
+        END IF
+        CALL section_vals_val_get(ldos_section,"YRANGE",i_rep_section=ildos,explicit=read_r(2),error=error)
+        IF (read_r(2)) THEN
+          CALL section_vals_val_get(ldos_section,"YRANGE",i_rep_section=ildos,r_vals=&
+             r_ldos_p(ildos)%ldos%y_range, error=error)
+        ELSE
+          ALLOCATE(r_ldos_p(ildos)%ldos%y_range(2))
+           r_ldos_p(ildos)%ldos%y_range=0.0_dp
+        END IF
+        CALL section_vals_val_get(ldos_section,"ZRANGE",i_rep_section=ildos,explicit=read_r(3),error=error)
+        IF (read_r(3)) THEN
+          CALL section_vals_val_get(ldos_section,"ZRANGE",i_rep_section=ildos,r_vals=&
+             r_ldos_p(ildos)%ldos%z_range, error=error)
+        ELSE
+          ALLOCATE(r_ldos_p(ildos)%ldos%z_range(2))
+           r_ldos_p(ildos)%ldos%z_range=0.0_dp
+        END IF
+
+        CALL section_vals_val_get(ldos_section,"ERANGE",i_rep_section=ildos,explicit=read_r(4),error=error)
+        IF (read_r(4)) THEN
+          CALL section_vals_val_get(ldos_section,"ERANGE",i_rep_section=ildos,&
+               r_vals=r_ldos_p(ildos)%ldos%eval_range, error=error)
+        ELSE
+          ALLOCATE(r_ldos_p(ildos)%ldos%eval_range(2))
+          r_ldos_p(ildos)%ldos%eval_range(1)=-HUGE(0.0_dp)
+          r_ldos_p(ildos)%ldos%eval_range(2)=+HUGE(0.0_dp)
+        END IF
+
+        bo => wf_r%pw%pw_grid%bounds_local
+        dh = wf_r%pw%pw_grid%dh
+        dvol = wf_r%pw%pw_grid%dvol
+        np_tot = wf_r%pw%pw_grid%npts(1)*wf_r%pw%pw_grid%npts(2)*wf_r%pw%pw_grid%npts(3)
+        ALLOCATE(r_ldos_p(ildos)%ldos%index_grid_local(3,np_tot), STAT =stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+        r_ldos_p(ildos)%ldos%npoints = 0
+        DO jz=bo(1,3),bo(2,3)
+        DO jy=bo(1,2),bo(2,2)
+        DO jx=bo(1,1),bo(2,1)
+          !compute the position of the grid point
+          r(3)=jz*dh(3,3)+jy*dh(3,2)+jx*dh(3,1)
+          r(2)=jz*dh(3,3)+jy*dh(2,2)+jx*dh(2,1)
+          r(1)=jz*dh(1,3)+jy*dh(1,2)+jx*dh(1,1)
+          
+          DO il = 1, r_ldos_p(ildos)%ldos%nlist
+             iatom = r_ldos_p(ildos)%ldos%list_index(il)
+             ratom = particle_set(iatom)%r
+             r_vec = pbc(ratom,r,cell)
+             in_x =0
+             in_y =0
+             in_z =0
+             IF( r_ldos_p(ildos)%ldos%x_range(1)/=0.0_dp) THEN
+                if(r_vec(1)>r_ldos_p(ildos)%ldos%x_range(1) .AND. &
+                   r_vec(1)<r_ldos_p(ildos)%ldos%x_range(2)) THEN
+                   in_x = 1
+                END IF
+             ELSE
+               in_x = 1
+             END IF
+             IF( r_ldos_p(ildos)%ldos%y_range(1)/=0.0_dp) THEN
+                if(r_vec(2)>r_ldos_p(ildos)%ldos%y_range(1) .AND. &
+                   r_vec(2)<r_ldos_p(ildos)%ldos%y_range(2)) THEN
+                   in_y = 1
+                END IF
+             ELSE
+               in_y = 1
+             END IF
+             IF( r_ldos_p(ildos)%ldos%z_range(1)/=0.0_dp) THEN
+                if(r_vec(3)>r_ldos_p(ildos)%ldos%z_range(1) .AND. &
+                   r_vec(3)<r_ldos_p(ildos)%ldos%z_range(2)) THEN
+                   in_z = 1
+                END IF
+             ELSE
+               in_z = 1
+             END IF
+             IF(in_x*in_y*in_z>0) THEN
+               r_ldos_p(ildos)%ldos% npoints = r_ldos_p(ildos)%ldos%npoints+1
+               r_ldos_p(ildos)%ldos%index_grid_local(1,r_ldos_p(ildos)%ldos%npoints) = jx
+               r_ldos_p(ildos)%ldos%index_grid_local(2,r_ldos_p(ildos)%ldos%npoints) = jy
+               r_ldos_p(ildos)%ldos%index_grid_local(3,r_ldos_p(ildos)%ldos%npoints) = jz
+               EXIT
+             END IF
+          END DO
+        END DO
+        END DO
+        END DO
+        CALL  reallocate(r_ldos_p(ildos)%ldos%index_grid_local,1,3,1,r_ldos_p(ildos)%ldos%npoints)
+      END DO
+    END IF
+
+
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%COMPONENTS",l_val=separate_components,&
          error=error)
     IF (separate_components) THEN
@@ -415,6 +603,33 @@ CONTAINS
         END DO !il
       END DO !ildos
 
+
+      ! Calculate the DOS projected in a given volume in real space
+      DO ildos = 1,n_r_ldos
+        IF(r_ldos_p(ildos)%ldos%eval_range(1)<eigenvalues(imo) .AND. &
+           r_ldos_p(ildos)%ldos%eval_range(2)>eigenvalues(imo)) THEN
+
+           IF(imo>nmo) THEN
+             CALL calculate_wavefunction(mo_virt,imo-nmo,&
+                    wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                  pw_env, error = error )
+           ELSE
+             CALL calculate_wavefunction(mo_coeff,imo,&
+                   wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                  pw_env, error = error )
+           END IF
+           r_ldos_p(ildos)%ldos%pdos_array(imo)  = 0.0_dp
+           DO il = 1,r_ldos_p(ildos)%ldos%npoints
+              j=j+1
+              jx=r_ldos_p(ildos)%ldos%index_grid_local(1,il)
+              jy=r_ldos_p(ildos)%ldos%index_grid_local(2,il)
+              jz=r_ldos_p(ildos)%ldos%index_grid_local(3,il)
+              r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo)+ &
+                   wf_r%pw%cr3d(jx,jy,jz)* wf_r%pw%cr3d(jx,jy,jz)
+           END DO
+           r_ldos_p(ildos)%ldos%pdos_array(imo) = r_ldos_p(ildos)%ldos%pdos_array(imo)*dvol
+        END IF
+      END DO
     END DO  ! imo
 
     CALL cp_fm_release(matrix_shalfc,error=error)
@@ -570,6 +785,44 @@ CONTAINS
       END IF  ! maxl>0
     END DO  ! ildos
 
+    ! write the pdos for the lists, each ona different file,
+    ! the filenames are indexed with the list number
+    DO ildos=1,n_r_ldos
+
+        call mp_sum(r_ldos_p(ildos)%ldos%pdos_array,para_env%group)
+        IF(PRESENT(ispin)) THEN
+          my_mittle =TRIM(spin(ispin))//"_r_list"//TRIM(r_ldos_index(ildos))
+          my_spin = ispin
+        ELSE
+          my_mittle ="r_list"//TRIM(r_ldos_index(ildos))
+          my_spin = 1
+        END IF
+
+        iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PDOS",&
+             extension=".pdos", file_position=my_pos, file_action=my_act,&
+             file_form="FORMATTED", middle_name=TRIM(my_mittle), &
+             error=error)
+        IF(iw>0) THEN
+          fmtstr1 = "(I8,2X,2F16.6,  (2X,F16.8))"
+          fmtstr2 = "(A42,  (10X,A8))"
+
+          WRITE (UNIT=iw,FMT="(A,I0,A,F12.6,F12.6,A,F12.6,A)")&
+            "# Projected DOS in real space, using ",r_ldos_p(ildos)%ldos%npoints,&
+           " points of the grid, and eval in the range",r_ldos_p(ildos)%ldos%eval_range(1:2),&
+             " Hartree, E(Fermi) = ",e_fermi," a.u."
+            WRITE (UNIT=iw,FMT="(A)")&
+              "#     MO Eigenvalue [a.u.]      Occupation      LDOS"
+            DO imo = 1,nmo+nvirt
+              WRITE (UNIT=iw,FMT="(I8,2X,2F16.6,F20.10)") imo,eigenvalues(imo),occupation_numbers(imo),&
+                r_ldos_p(ildos)%ldos%pdos_array(imo)
+            END DO
+
+        END IF
+        CALL cp_print_key_finished_output(iw,logger,dft_section,&
+                  "PRINT%PDOS", error=error)
+    END DO
+
+
     ! deallocate local variables
     DEALLOCATE(pdos_array, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -588,6 +841,36 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(ldos_index, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(do_r_ldos) THEN
+       DO ildos = 1,n_r_ldos
+         DEALLOCATE(r_ldos_p(ildos)%ldos%index_grid_local,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(r_ldos_p(ildos)%ldos%pdos_array,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(r_ldos_p(ildos)%ldos%list_index,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF(.NOT. read_r(1)) THEN
+           DEALLOCATE(r_ldos_p(ildos)%ldos%x_range)
+         END IF
+         IF(.NOT. read_r(2)) THEN
+           DEALLOCATE(r_ldos_p(ildos)%ldos%y_range)
+         END IF
+         IF(.NOT. read_r(3)) THEN
+           DEALLOCATE(r_ldos_p(ildos)%ldos%z_range)
+         END IF
+         IF(.NOT. read_r(4)) THEN
+           DEALLOCATE(r_ldos_p(ildos)%ldos%eval_range)
+         END IF
+         DEALLOCATE(r_ldos_p(ildos)%ldos,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(r_ldos_p, STAT=stat)
+       DEALLOCATE(r_ldos_index, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
     END IF
     IF(do_virt) THEN
       DEALLOCATE(evals_virt,STAT=stat)

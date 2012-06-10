@@ -671,17 +671,6 @@ CONTAINS
              CALL construct_wannier_states(molecule_set, mo_local(ispin)%matrix,&
               ks_rmpv(ispin)%matrix, qs_env, localization_section=localization_section,&
               WannierCentres=wc(ispin),ns=ns,states=lstates, error=error)
-             IF(ASSOCIATED(marked_states_spin))THEN
-                IF(.NOT.ASSOCIATED(marked_states))THEN
-                   ALLOCATE(marked_states(SIZE(marked_states_spin),dft_control%nspins,2),stat=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                END IF
-                mystate=1
-                IF(qs_loc_env%tag_mo=="LUMO")mystate=2
-                marked_states(:,ispin,mystate)=marked_states_spin(:)
-                DEALLOCATE(marked_states_spin,stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
           ENDIF
           ! Compute the molecular states
           IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&

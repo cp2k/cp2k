@@ -286,26 +286,26 @@ CONTAINS
           CALL cp_fm_to_fm ( rot_e_vectors, storage, 1, i, ind ( i ))
        END DO
 
-       ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
-       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
-            ncol_global=ncol_global, &
-            para_env=mo_localized%matrix_struct%para_env, &
-            context=mo_localized%matrix_struct%context,error=error)
-       CALL cp_fm_create(D_igk,fm_struct_tmp,error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-       CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
-            rot_e_vectors,smo,0.0_dp,D_igk,error=error)
        IF (.FALSE.) THEN ! this is too much data for large systems
-          DO i=1,ns
-             DO k=1,ncol_global
-                CALL cp_fm_get_element(D_igk,i,k,tmp)
-                IF (unit_report>0) THEN
-                   WRITE(unit_report,*) tmp**2
-                ENDIF
-             ENDDO
-          ENDDO
+         ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
+              ncol_global=ncol_global, &
+              para_env=mo_localized%matrix_struct%para_env, &
+              context=mo_localized%matrix_struct%context,error=error)
+         CALL cp_fm_create(D_igk,fm_struct_tmp,error=error)
+         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+         CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
+              rot_e_vectors,smo,0.0_dp,D_igk,error=error)
+            DO i=1,ns
+               DO k=1,ncol_global
+                  CALL cp_fm_get_element(D_igk,i,k,tmp)
+                  IF (unit_report>0) THEN
+                     WRITE(unit_report,*) tmp**2
+                  ENDIF
+               ENDDO
+            ENDDO
+         CALL cp_fm_release(D_igk,error=error)
        ENDIF
-       CALL cp_fm_release(D_igk,error=error)
 
        IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
             "MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN

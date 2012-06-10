@@ -1480,6 +1480,49 @@ CONTAINS
        CALL section_add_subsection(print_key,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="R_LDOS",&
+             description="Controls the printing of local PDOS, projected on 3D volume in real space,"//&
+             " the volume is defined in terms of position with respect to atoms in the lists",&
+             n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+             error=error)
+
+       CALL keyword_create(keyword, name="LIST",&
+            description="Specifies a list of indexes of atoms used to define the real space volume  ",&
+            usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
+            n_var=-1, required=.TRUE., repeats=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="XRANGE",&
+            description="range of positions in Cartesian direction x: all grid points within "//&
+            " this range from at least one atom of the list are considered",&
+            usage="XRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t,  error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="YRANGE",&
+            description="range of positions in Cartesian direction y: all grid points within "//&
+            " this range from at least one atom of the list are considered",&
+            usage="YRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t,  error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="ZRANGE",&
+            description="range of positions in Cartesian direction z: all grid points within "//&
+            " this range from at least one atom of the list are considered",&
+            usage="ZRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t,  error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ERANGE",&
+            description="only project states with the eigenvalues in the given interval. "//&
+                        "Default is all states.",&
+                        usage="ERANGE -1.0 1.0",unit_str="hartree",n_var=2,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL section_add_subsection(print_key,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
