@@ -1120,9 +1120,7 @@ MODULE mp2_gpw
     DEALLOCATE(sub_proc_map)
     DEALLOCATE(exchange_group_sizes)
 
-    IF (para_env_sub%mepos==0) THEN
-      CALL cp_para_env_release(para_env_exchange,error=error_sub)
-    ENDIF
+    CALL cp_para_env_release(para_env_exchange,error=error_sub)
 
     CALL cp_dbcsr_release(matrix_ia_jnu,error=error_sub)
     CALL cp_dbcsr_release(matrix_ia_jb,error=error_sub)
