@@ -16,9 +16,9 @@ MODULE qs_pdos
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type, pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
-
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -43,7 +43,6 @@ MODULE qs_pdos
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -53,7 +52,9 @@ MODULE qs_pdos
   USE orbital_symbols,                 ONLY: l_sym,&
                                              sgf_symbol
   USE particle_types,                  ONLY: particle_type
-  USE pw_env_types,                    ONLY: pw_env_type,pw_env_get
+  USE preconditioner_types,            ONLY: preconditioner_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -63,10 +64,9 @@ MODULE qs_pdos
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE preconditioner_types,            ONLY: preconditioner_type
+  USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
@@ -150,18 +150,18 @@ CONTAINS
                                                 my_pos, spin(2)
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: ldos_index, r_ldos_index
-    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, in_x, in_y, in_z, ir, irow, iset, &
-      isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, kind_number, lcomponent, lshell, &
-      maxl, maxlgto, my_spin, n_dependent,n_r_ldos, n_rep, nao, natom, ncol_global, &
-      nkind, nldos, nlumo, nmo, np_tot, nrow_global, nset, nsgf, nvirt, stat
+    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, in_x, in_y, in_z, &
+      ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, &
+      kind_number, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
+      n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, &
+      np_tot, nrow_global, nset, nsgf, nvirt, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
-    LOGICAL                                  :: append, do_ldos, do_r_ldos, do_virt, &
-                                                failure, ionode, read_r(4), &
-                                                separate_components, &
-                                                should_output
-    REAL(KIND=dp)                            :: dh(3,3), dvol, e_fermi, r(3), r_vec(3), ratom(3), tot1, tot2
+    LOGICAL :: append, do_ldos, do_r_ldos, do_virt, failure, ionode, &
+      read_r(4), separate_components, should_output
+    REAL(KIND=dp)                            :: dh(3,3), dvol, e_fermi, r(3), &
+                                                r_vec(3), ratom(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &
                                                 occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
@@ -181,11 +181,12 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(ldos_p_type), DIMENSION(:), POINTER :: ldos_p
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: wf_r, wf_g
+    TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(r_ldos_p_type), DIMENSION(:), POINTER :: r_ldos_p
+    TYPE(r_ldos_p_type), DIMENSION(:), &
+      POINTER                                :: r_ldos_p
     TYPE(section_vals_type), POINTER         :: ldos_section
 
     NULLIFY(logger)
@@ -431,7 +432,7 @@ CONTAINS
              in_y =0
              in_z =0
              IF( r_ldos_p(ildos)%ldos%x_range(1)/=0.0_dp) THEN
-                if(r_vec(1)>r_ldos_p(ildos)%ldos%x_range(1) .AND. &
+                IF(r_vec(1)>r_ldos_p(ildos)%ldos%x_range(1) .AND. &
                    r_vec(1)<r_ldos_p(ildos)%ldos%x_range(2)) THEN
                    in_x = 1
                 END IF
@@ -439,7 +440,7 @@ CONTAINS
                in_x = 1
              END IF
              IF( r_ldos_p(ildos)%ldos%y_range(1)/=0.0_dp) THEN
-                if(r_vec(2)>r_ldos_p(ildos)%ldos%y_range(1) .AND. &
+                IF(r_vec(2)>r_ldos_p(ildos)%ldos%y_range(1) .AND. &
                    r_vec(2)<r_ldos_p(ildos)%ldos%y_range(2)) THEN
                    in_y = 1
                 END IF
@@ -447,7 +448,7 @@ CONTAINS
                in_y = 1
              END IF
              IF( r_ldos_p(ildos)%ldos%z_range(1)/=0.0_dp) THEN
-                if(r_vec(3)>r_ldos_p(ildos)%ldos%z_range(1) .AND. &
+                IF(r_vec(3)>r_ldos_p(ildos)%ldos%z_range(1) .AND. &
                    r_vec(3)<r_ldos_p(ildos)%ldos%z_range(2)) THEN
                    in_z = 1
                 END IF
@@ -789,7 +790,7 @@ CONTAINS
     ! the filenames are indexed with the list number
     DO ildos=1,n_r_ldos
 
-        call mp_sum(r_ldos_p(ildos)%ldos%pdos_array,para_env%group)
+        CALL mp_sum(r_ldos_p(ildos)%ldos%pdos_array,para_env%group)
         IF(PRESENT(ispin)) THEN
           my_mittle =TRIM(spin(ispin))//"_r_list"//TRIM(r_ldos_index(ildos))
           my_spin = ispin
