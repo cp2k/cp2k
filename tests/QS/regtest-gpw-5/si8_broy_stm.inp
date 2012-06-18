@@ -51,12 +51,9 @@
 #        EIGENVALUES
 #        OCCUPATION_NUMBERS
 #      &END
-      &MO_CUBES
-         STM
-         STM_BIAS [eV] -1.0 -0.5 -0.3 -0.2 -0.1 -0.05
+      &STM
+         BIAS [eV] -1.0 -0.5 -0.3 -0.2 -0.1 -0.05
          TH_TORB S
-         WRITE_CUBE F
-#         NLUMO 0
       &END
     &END
   &END DFT

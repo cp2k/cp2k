@@ -305,3 +305,5 @@ H2O_Onopaw_gop.inp
 Fe.inp
 # improved BFGS and CELL_OPT, new defaults
 H2O_Onopaw_gop.inp
+#
+H2O_Hnopaw_pp.inp

@@ -200,11 +200,11 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, ispin, istat, &
                                                 min_lumos, n_rep, nhomo, &
-                                                nlumo, nlumos, nmo, &
+                                                nlumo, nlumo_stm, nlumo_tddft, nlumos, nmo, &
                                                 output_unit, unit_nr
     INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     LOGICAL :: check_write, compute_lumos, do_homo, do_mo_cubes, do_stm, &
-      do_wannier_cubes, failure, has_homo, has_lumo, my_localized_wfn, p_loc, &
+      do_wannier_cubes, failure, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_localized_wfn, p_loc, &
       p_loc_homo, p_loc_lumo
     REAL(dp)                                 :: e_kin, e_kinAtt
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
@@ -239,7 +239,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
-                                                localize_section, print_key
+                                                localize_section, print_key, stm_section
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     CALL timeset(routineN,handle)
@@ -257,6 +257,10 @@ CONTAINS
 
     has_homo=.FALSE.
     has_lumo=.FALSE.
+    p_loc = .FALSE.
+    p_loc_homo = .FALSE.
+    p_loc_lumo= .FALSE.
+
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -303,25 +307,32 @@ CONTAINS
        ! Determine if we need to computer properties using the localized centers
        localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
        localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
+       CALL section_vals_get(localize_section, explicit=loc_explicit, error=error)
+       CALL section_vals_get(localization_section, explicit=loc_print_explicit, error=error)
 
        ! Print_keys controlled by localization
-       print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_DIPOLES",error=error)
-       p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"TOTAL_DIPOLE",error=error)
-       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CENTERS",error=error)
-       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_SPREADS",error=error)
-       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CUBES",error=error)
-       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
-       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       p_loc_homo=(section_get_ival(localize_section,"STATES",error=error)==do_loc_homo.OR.&
+       IF(loc_print_explicit) THEN
+         print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_DIPOLES",error=error)
+         p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+         print_key => section_vals_get_subs_vals(localization_section,"TOTAL_DIPOLE",error=error)
+         p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+         print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CENTERS",error=error)
+         p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+         print_key => section_vals_get_subs_vals(localization_section,"WANNIER_SPREADS",error=error)
+         p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+         print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CUBES",error=error)
+         p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+         print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
+         p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       END IF
+       IF(loc_explicit) THEN
+         p_loc_homo=(section_get_ival(localize_section,"STATES",error=error)==do_loc_homo.OR.&
                   section_get_ival(localize_section,"STATES",error=error)==do_loc_both).AND.p_loc
-       p_loc_lumo=(section_get_ival(localize_section,"STATES",error=error)==do_loc_lumo.OR.&
+         p_loc_lumo=(section_get_ival(localize_section,"STATES",error=error)==do_loc_lumo.OR.&
                   section_get_ival(localize_section,"STATES",error=error)==do_loc_both).AND.p_loc
-       CALL section_vals_val_get(localize_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
+         CALL section_vals_val_get(localize_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
+       END IF
+
        IF(n_rep==0.AND.p_loc_lumo)THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
               "No LIST_UNOCCUPIED was specified, therefore localization of unoccupied states will be skipped!"//&
@@ -329,19 +340,30 @@ CONTAINS
               only_ionode=.TRUE.)
            p_loc_lumo=.FALSE.
        END IF
-      print_key => section_vals_get_subs_vals(localization_section,"WANNIER_STATES",error=error)
-      p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_STATES",error=error)
+       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
 
-       ! Control for STM_BIAS
-       do_stm = section_get_lval(dft_section,"PRINT%MO_CUBES%STM",error=error)
+
+       ! Control for STM
+       stm_section => section_vals_get_subs_vals(input,"DFT%PRINT%STM", error=error)
+       CALL section_vals_get(stm_section,explicit=do_stm,error=error)
+! BTEST(cp_print_key_should_output(logger%iter_info,stm_section,error=error),cp_p_file)
+       nlumo_stm = 0
+       IF(do_stm) nlumo_stm = section_get_ival(stm_section,"NLUMO",error=error)
 
        ! check for CUBES (MOs and WANNIERS)
        do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                          error=error),cp_p_file)
-       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+       IF(loc_print_explicit) THEN
+         do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                         "WANNIER_CUBES",error=error),cp_p_file)
+       END IF
        nlumo=section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error)
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
+       nlumo_tddft = 0
+       IF(dft_control%do_tddfpt_calculation) THEN
+         nlumo_tddft=section_get_ival(dft_section,"TDDFPT%NLUMO",error=error)
+       END IF
 
        ! Setup the grids needed to compute a wavefunction given a vector..
        IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0  )) .OR. p_loc ) THEN
@@ -356,9 +378,11 @@ CONTAINS
        END IF
 
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
-       IF (do_mo_cubes .AND. (nhomo /= 0 .OR. do_stm)) THEN
+       IF ((do_mo_cubes .AND. nhomo /= 0) .OR. do_stm .OR. dft_control%do_tddfpt_calculation ) THEN
           CALL make_mo_eig(qs_env,error)
           has_homo=.TRUE.
+       END IF
+       IF (do_mo_cubes .AND. nhomo /= 0) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                   eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -425,8 +449,10 @@ CONTAINS
        ENDIF
 
        ! Gets the lumos, and eigenvalues for the lumos, and localize them if requested
-       compute_lumos=(do_mo_cubes .OR.dft_control%do_tddfpt_calculation ) .AND. nlumo .NE. 0
+       nlumo = MAX(nlumo, nlumo_stm,nlumo_tddft)
+       compute_lumos=(do_mo_cubes .OR.dft_control%do_tddfpt_calculation .OR. do_stm ) .AND. nlumo .NE. 0
        compute_lumos=compute_lumos.OR.p_loc_lumo
+
        IF (compute_lumos) THEN
           check_write=.TRUE.
           min_lumos=nlumo
@@ -509,7 +535,7 @@ CONTAINS
 
        !stm images
        IF(do_stm)THEN
-         CALL th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
+         CALL th_stm_image(qs_env, stm_section, particles, unoccupied_orbs, &
                          unoccupied_evals, error)
        END IF
 
@@ -522,12 +548,14 @@ CONTAINS
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
 
+       IF(compute_lumos) THEN
        ! Compute the optical conductivity (needs homos and lumos)
-       CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-            unoccupied_orbs, unoccupied_evals, output_unit, error)
+         CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
+              unoccupied_orbs, unoccupied_evals, output_unit, error)
+       END IF
 
        ! This is just a deallocation for printing MO_CUBES or TDDFPT
-       IF ((( do_mo_cubes .OR. dft_control%do_tddfpt_calculation ) .AND. nlumo /= 0).OR.p_loc_lumo ) THEN
+       IF(compute_lumos) THEN
           DO ispin=1,dft_control%nspins
              DEALLOCATE(unoccupied_evals(ispin)%array,stat=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -860,33 +888,34 @@ CONTAINS
              IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
           ENDIF
           IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
-          ! Also rotate the OT derivs, since they are needed for force calculations
-          IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-             mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
-          ELSE
-             mo_coeff_deriv=>NULL()
-          ENDIF
+
+          IF(scf_control%use_ot) THEN
+             ! Also rotate the OT derivs, since they are needed for force calculations
+             IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+             ELSE
+                mo_coeff_deriv=>NULL()
+             ENDIF
 
 
-          ! ** If we do ADMM, we add have to modify the kohn-sham matrix
-          IF( dft_control%do_admm ) THEN
-            CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
-                                              ks_rmpv_aux_fit(ispin)%matrix, error)
+             ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+             IF( dft_control%do_admm ) THEN
+               CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                                 ks_rmpv_aux_fit(ispin)%matrix, error)
+             END IF
+
+
+             CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
+                  scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
+                  co_rotate_dbcsr=mo_coeff_deriv,error=error)
+
+
+             ! ** If we do ADMM, we restore the original kohn-sham matrix
+             IF( dft_control%do_admm ) THEN
+               CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                                   ks_rmpv_aux_fit(ispin)%matrix, error)
+             END IF
           END IF
-
-
-          CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-               scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
-               co_rotate_dbcsr=mo_coeff_deriv,error=error)
-
-
-          ! ** If we do ADMM, we restore the original kohn-sham matrix
-          IF( dft_control%do_admm ) THEN
-            CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
-                                                ks_rmpv_aux_fit(ispin)%matrix, error)
-          END IF
-
-
           CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &
                "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt

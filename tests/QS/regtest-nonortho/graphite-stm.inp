@@ -11,7 +11,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0 ! E-6
+      EPS_SCF 1.0  !E-6
       MAX_SCF 30
       &OT
         PRECONDITIONER FULL_ALL
@@ -19,7 +19,7 @@
         ENERGY_GAP 0.01
       &END
       &OUTER_SCF
-         EPS_SCF 1.0 ! E-6
+         EPS_SCF 1.0  !E-6
          MAX_SCF 30
       &END
     &END SCF
@@ -28,13 +28,9 @@
       &END XC_FUNCTIONAL
     &END XC
     &PRINT
-      &MO_CUBES
-         ! do not write MO_CUBES
-         WRITE_CUBE .FALSE.
-         ! list of stm biases
+      &STM
          NLUMO 32
-         STM
-         STM_BIAS  -6 -1 1 6
+         BIAS  -6 -1 1 6
          TH_TORB S
          TH_TORB PZ
       &END

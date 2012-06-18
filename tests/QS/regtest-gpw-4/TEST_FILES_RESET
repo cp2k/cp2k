@@ -1050,3 +1050,9 @@ H2O-extpot.inp
 ND3_meta_welltemp.inp
 # improved BFGS and CELL_OPT, new defaults
 H2-geo-1.inp
+#
+H2O-debug-2.inp
+H2O-debug-3.inp
+H2O-debug-4.inp
+H2O-meta_hydro.inp
+

@@ -137,7 +137,7 @@ CONTAINS
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
     INTEGER, DIMENSION(:), POINTER           :: marked_states
-    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, explicit, failure, &
+    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, &
       ionode, my_localized_wfn, p_loc, p_molstates, p_wanstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -228,9 +228,6 @@ CONTAINS
        p_wanstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        p_loc=p_loc.OR.p_wanstates
 
-       ! Control for STM_BIAS
-       do_stm = section_get_lval(dft_section,"PRINT%MO_CUBES%STM",error=error)
-
        ! Check for cubes MOs and WANNIERS
        do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                    error=error),cp_p_file)
@@ -250,7 +247,7 @@ CONTAINS
 
 
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
-       IF (do_mo_cubes .AND. (nhomo/=0 .OR. do_stm)) THEN
+       IF (do_mo_cubes .AND. (nhomo/=0)) THEN
           IF (qs_env%dft_control%restricted) THEN
              !
              ! The issue is that one state is different from the others,
@@ -463,15 +460,6 @@ CPSourceFileRef,&
        IF (p_loc) THEN
           CALL qs_loc_env_destroy(qs_loc_env, error=error)
        ENDIF
-
-       !stm images
-       IF(do_stm)THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="STM images not implemented for Semi-Empirical calculations!!", &
-            error=error, error_level=cp_warning_level)
-!         CALL th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
-!                         unoccupied_evals, error)
-       END IF
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&

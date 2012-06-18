@@ -455,3 +455,5 @@ N3-rp_colvar.inp
 LM-KSDO.inp
 # improved BFGS and CELL_OPT, new defaults
 LM-KSDO-D.inp
+#
+wfn_ex2.inp

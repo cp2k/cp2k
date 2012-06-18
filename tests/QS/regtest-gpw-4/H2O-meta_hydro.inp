@@ -94,6 +94,7 @@
    &SCF
      SCF_GUESS          ATOMIC
      EPS_SCF 1.0E-3
+     ADDED_MOS  50
    &END SCF
    &QS
    &END QS

@@ -82,11 +82,11 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
 
-  SUBROUTINE th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
+  SUBROUTINE th_stm_image(qs_env, stm_section, particles, unoccupied_orbs, &
              unoccupied_evals, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: stm_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
@@ -101,8 +101,8 @@ CONTAINS
                                                 n_rep, ndim, nmo, nspin, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: nadd_unocc, stm_th_torb
-    LOGICAL                                  :: append_cube, failure
-    REAL(KIND=dp)                            :: efermi
+    LOGICAL                                  :: append_cube, failure, use_ref_energy
+    REAL(KIND=dp)                            :: efermi, ref_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occ, &
                                                 stm_biases
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
@@ -132,12 +132,10 @@ CONTAINS
 
      CALL get_qs_env(qs_env, mos=mos,rho=rho, pw_env=pw_env,&
             error=error)
-     CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%APPEND",&
-          l_val=append_cube,error=error)
-     CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",&
-          r_vals=stm_biases,error=error)
-     CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%TH_TORB", &
-          n_rep_val=n_rep, error=error)
+     CALL section_vals_val_get(stm_section,"APPEND", l_val=append_cube,error=error)
+     CALL section_vals_val_get(stm_section,"BIAS", r_vals=stm_biases,error=error)
+     CALL section_vals_val_get(stm_section,"REF_ENERGY",r_val=ref_energy,explicit=use_ref_energy,error=error)
+     CALL section_vals_val_get(stm_section,"TH_TORB", n_rep_val=n_rep, error=error)
      IF(n_rep==0) THEN
         ALLOCATE (stm_th_torb(1), STAT=istat)
         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -146,7 +144,7 @@ CONTAINS
         ALLOCATE (stm_th_torb(n_rep), STAT=istat)
         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        DO irep = 1,n_rep
-          CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%TH_TORB",&
+          CALL section_vals_val_get(stm_section,"TH_TORB",&
                i_rep_val=irep,i_val=stm_th_torb(irep), error=error)
        END DO
      END IF
@@ -206,7 +204,9 @@ CONTAINS
                     nadd_unocc(ispin), 1, nmo+1)
           END IF
      ENDDO
-     CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+     IF(use_ref_energy) efermi = ref_energy
+     
+     CALL stm_cubes(qs_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                     occupation, efermi, stm_biases, stm_th_torb,  particles, &
                     output_unit, append_cube,  error=error)
      DO ispin = 1,nspin
@@ -248,12 +248,12 @@ CONTAINS
 !>       07.2009 modified MI
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+  SUBROUTINE stm_cubes(qs_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                        occupation, efermi, stm_biases,  stm_th_torb, particles, &
                        output_unit, append_cube,  error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: stm_section
     TYPE(cp_dbcsr_type), POINTER             :: stm_density_ao
     TYPE(pw_p_type)                          :: wf_r, wf_g
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -295,7 +295,7 @@ CONTAINS
     nspin = SIZE(mo_arrays)
 
     IF (output_unit>0) WRITE(output_unit,'(T2,A)')       ""
-    IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6, A)') "STM : Fermi energy ", efermi , " a.u. "
+    IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6, A)') "STM : Reference energy ", efermi , " a.u. "
     DO ibias=1,SIZE(stm_biases)
 
        IF (output_unit>0) WRITE(output_unit,'(T2,A)')       ""
@@ -380,15 +380,14 @@ CONTAINS
            my_pos = "APPEND"
          END IF
 
-         unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%MO_CUBES",extension=".cube",&
+         unit_nr=cp_print_key_unit_nr(logger,stm_section,extension=".cube",&
               middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
               log_filename=.FALSE.,error=error)
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
          CALL pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
-             stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
-             zero_tails=.TRUE., error=error)
+             stride=section_get_ivals(stm_section,"STRIDE",error=error),zero_tails=.TRUE., error=error)
 
-         CALL cp_print_key_finished_output(unit_nr,logger,dft_section,"PRINT%MO_CUBES",error=error)
+         CALL cp_print_key_finished_output(unit_nr,logger,stm_section,error=error)
        END DO
 
        CALL cp_fm_release(matrix_v, error=error)

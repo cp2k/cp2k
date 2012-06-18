@@ -1288,6 +1288,11 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL create_stm_section(print_key,error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
        CALL create_wfn_mix_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -1811,7 +1816,7 @@ CONTAINS
     CALL keyword_create(keyword, name="nlumo",&
          description="If the printkey is activated controls the number of lumos"//&
                      "that are printed and dumped as a cube (-1=all)",&
-         default_i_val=5, error=error)
+         default_i_val=0, error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="nhomo",&
@@ -1821,11 +1826,11 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="STM",&
-         description="do stm",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+!    CALL keyword_create(keyword, name="STM",&
+!         description="do stm",&
+!         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+!    CALL section_add_keyword(print_key,keyword,error=error)
+!    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="APPEND",&
          description="append the cube files when they already exist",&
@@ -1833,7 +1838,66 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="STM_BIAS",&
+!    CALL keyword_create(keyword, name="STM_BIAS",&
+!         description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
+!                     "Orbital densities are summed according to the bias energy."//&
+!                     "For negative values, states in the range ]EF+bias,EF] are summed,"//&
+!                     "While positive values sum states in the range [EF,EF+bias[."//&
+!                     "If postive biases are used, sufficiently many unoccupied stated"//&
+!                     " (see ADDED_MOS and NLUMO ) should be computed.",&
+!         n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
+!    CALL section_add_keyword(print_key,keyword,error=error)
+!    CALL keyword_release(keyword,error=error)
+
+!    CALL keyword_create(keyword, name="TH_TORB",&
+!         description="Tip orbital symmetry in Tersoff-Hamann approximation to compute STM images",&
+!         required=.FALSE.,&
+!         repeats=.TRUE.,&
+!         default_i_val=orb_s,&
+!         usage="TH_TORB s dz2",&
+!         enum_c_vals=s2a("S","PX","PY","PZ","DXY","DYZ","DZX","DX2","DY2","DZ2"),&
+!         enum_i_vals=(/orb_s,orb_px,orb_py,orb_pz,orb_dxy,orb_dyz,orb_dzx,orb_dx2,orb_dy2,orb_dz2/),&
+!         enum_desc=s2a("s orbital","px orbital","py orbital","pz orbital",&
+!         "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
+!         error=error)
+!    CALL section_add_keyword(print_key,keyword,error=error)
+!    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_mo_cubes_section
+
+  SUBROUTINE create_stm_section(print_key,error)
+    TYPE(section_type), POINTER              :: print_key
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_stm_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+
+    NULLIFY(keyword)
+
+    CALL cp_print_key_section_create(print_key,"STM",&
+         description="Controls the printing of cubes for the generation of STM images.", &
+         print_level=high_print_level,filename="",&
+         error=error)
+    CALL keyword_create(keyword, name="stride",&
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="nlumo",&
+         description="If the printkey is activated controls the number of additional lumos"//&
+                     " that are computed to be able to reproduce STM images obtained"//&
+                     "  from positive bias (imaging unoccupied states)",&
+         default_i_val=0, error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+
+    CALL keyword_create(keyword, name="BIAS",&
          description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
                      "Orbital densities are summed according to the bias energy."//&
                      "For negative values, states in the range ]EF+bias,EF] are summed,"//&
@@ -1858,7 +1922,24 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-  END SUBROUTINE create_mo_cubes_section
+    CALL keyword_create(keyword, name="REF_ENERGY",&
+         description="By default the reference energy is the Fermi energy. In order to compare"//&
+                     " with STS experiments, where specific energy ranges are addressed, here"//&
+                     "  one can set a different reference energy."//&
+                     " The energy range is anyway controlled by the BIAS",&
+         type_of_var=real_t,default_r_val=0.0_dp, unit_str='eV',error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="APPEND",&
+         description="append the cube files when they already exist",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+
+
+  END SUBROUTINE create_stm_section
 
   SUBROUTINE create_wfn_mix_section(section, error)
 
@@ -3744,6 +3825,14 @@ CONTAINS
             usage="NEV someInteger>0",&
             n_var=1,type_of_var=integer_t,&
             default_i_val=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NLUMO",&
+            description=" number of additional unoccupied orbitals ",&
+            usage="NLUMO 10",&
+            n_var=1,type_of_var=integer_t,&
+            default_i_val=5, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
