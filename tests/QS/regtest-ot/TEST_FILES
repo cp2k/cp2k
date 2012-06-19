@@ -33,3 +33,5 @@ H2-BECKE-MD.inp 1
 H2-diffBECKE-ET_coupling.inp 1
 # just energy with sic
 sic_energy.inp 1
+# elf
+C2H4-elf.inp  1
