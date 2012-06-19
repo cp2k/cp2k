@@ -1440,6 +1440,41 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"ELF_CUBE",&
+            description="Controls printing of cube files with "//&
+            "the electron localization function (ELF). Note that "//&
+            "the value of ELF is defined between 0 and 1:  Pauli kinetic energy density normalized "//&
+            " by the kinetic energy density of a uniform el. gas of same density.",&
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="density_cutoff",&
+            description=" ",&
+            usage="density_cutoff 0.0001",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            type_of_var=real_t,&
+            default_r_val=1.0e-10_dp, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
        CALL cp_print_key_section_create(print_key,"PDOS",&
             description="Print out the DOS projected per kind and per angular momentum  ",&
             print_level=high_print_level,common_iter_levels=1,filename="",&

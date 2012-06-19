@@ -103,7 +103,9 @@ MODULE qs_scf_post_gpw
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE qs_collocate_density,            ONLY: calculate_wavefunction
+  USE qs_collocate_density,            ONLY: calculate_wavefunction, &
+                                             calculate_drho_elec,&
+                                             calculate_rho_elec
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -588,6 +590,8 @@ CONTAINS
        ! Optimize Geminals
        CALL qs_scf_post_gemopt(input, logger, qs_env, error)
 
+       ! Calculate ELF
+       CALL qs_scf_post_elf(input, logger, qs_env, error)
     END IF
     CALL timestop(handle)
 
@@ -1899,6 +1903,247 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_et
+
+
+
+! *****************************************************************************
+!> \brief compute the electron localization function 
+
+!> \par History
+!>      2012-07 Created [MI]
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_post_elf(input, logger, qs_env, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_elf', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
+    INTEGER                                  :: handle, ispin, output_unit, unit_nr, stat
+    LOGICAL                                  :: append_cube, do_elf, failure, gapw
+
+    REAL(dp)                                 :: rho_cutoff
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: elf_r
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: elf_section
+
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    do_elf=.FALSE.
+    elf_section =>  section_vals_get_subs_vals(input,"DFT%PRINT%ELF_CUBE",error=error)
+    CALL section_vals_get(elf_section,explicit=do_elf,error=error)
+    IF(do_elf)THEN
+      NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys, elf_r)
+      CALL get_qs_env(qs_env,dft_control=dft_control,  pw_env=pw_env, subsys=subsys, error=error)
+      CALL cp_subsys_get(subsys,particles=particles,error=error)
+
+      gapw=dft_control%qs_control%gapw
+      IF(.NOT. gapw) THEN
+        ! allocate
+        ALLOCATE(elf_r(dft_control%nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                            pw_pools=pw_pools,error=error)
+        DO ispin = 1,dft_control%nspins
+          CALL pw_pool_create_pw(auxbas_pw_pool,elf_r(ispin)%pw,&
+                                    use_data = REALDATA3D,&
+                                    in_space = REALSPACE, error=error)
+          CALL pw_zero(elf_r(ispin)%pw, error=error)
+        END DO
+   
+        rho_cutoff=section_get_rval(elf_section,"density_cutoff",error=error)
+        CALL qs_elf_calc(qs_env, elf_r, rho_cutoff, error=error)
+   
+        ! write ELF into cube file
+        append_cube = section_get_lval(elf_section,"APPEND",error=error)
+        my_pos_cube="REWIND"
+        IF(append_cube) THEN
+          my_pos_cube="APPEND"
+        END IF
+
+        DO ispin = 1,dft_control%nspins
+          WRITE(filename,'(a5,I1.1)')"ELF_S",ispin
+          WRITE(title,*) "ELF spin ", ispin
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%ELF_CUBE",extension=".cube",&
+                 middle_name=TRIM(filename),file_position=my_pos_cube,log_filename=.FALSE.,error=error)
+          IF (output_unit>0) THEN
+              INQUIRE (UNIT=unit_nr,NAME=filename)
+               WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                     "ELF is written in cube file format to the file:",&
+                     TRIM(filename)
+          END IF
+
+          CALL pw_to_cube(elf_r(ispin)%pw,unit_nr,title,particles=particles,&
+                 stride=section_get_ivals(elf_section,"STRIDE",error=error),&
+                 error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%ELF_CUBE",error=error)
+   
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,elf_r(ispin)%pw, error=error)
+        END DO
+   
+        ! deallocate
+        DEALLOCATE(elf_r,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+      ELSE
+         ! not implemented
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="ELF not implemented for GAPW calculations!!", &
+            error=error, error_level=cp_warning_level)
+
+      END IF
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE qs_scf_post_elf
+
+
+  SUBROUTINE qs_elf_calc(qs_env, elf_r, rho_cutoff, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: elf_r
+    REAL(kind=dp), INTENT(IN) :: rho_cutoff
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, idir, i, ispin, j, k, nspin, stat
+    LOGICAL :: failure
+    INTEGER, DIMENSION(2,3) :: bo
+    REAL(kind=dp) :: cfermi, dum, elf_kernel, norm_drho, rho_53
+    REAL(KIND=dp), PARAMETER                 :: f53 = (5.0_dp/3.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: f14 = (1.0_dp/4.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: f23 = (2.0_dp/3.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: ELFEPS= 2.87E-05_dp
+    REAL(KIND=dp), PARAMETER                 :: ELFCUT=0.0001_dp
+    ! for spin restricted systems
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   ::  drho_r, drho_g, rho_r, tau_r, tau_g
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    NULLIFY(rho,rho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools)
+
+    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, error=error)
+
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                            pw_pools=pw_pools,error=error)
+    nspin = SIZE(rho%rho_r)
+    bo = rho%rho_r(1)%pw%pw_grid%bounds_local
+    cfermi = (3.0_dp/10.0_dp)*(pi*pi*3.0_dp)**f23
+
+    ALLOCATE(rho_r(nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tau_r(nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tau_g(nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(drho_r(3*nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(drho_g(3*nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO ispin = 1,nspin
+       rho_r(ispin)%pw => rho%rho_r(ispin)%pw
+       IF (rho%tau_r_valid) THEN
+         tau_r(ispin)%pw => rho%tau_r(ispin)%pw
+       ELSE
+         CALL pw_pool_create_pw(auxbas_pw_pool,tau_r(ispin)%pw,&
+                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+         CALL pw_pool_create_pw(auxbas_pw_pool,tau_g(ispin)%pw,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+         CALL calculate_rho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
+               rho=tau_r(ispin),&
+               rho_gspace=tau_g(ispin),&
+               total_rho=dum, &  
+               qs_env=qs_env, soft_valid=.FALSE., &
+               compute_tau=.TRUE., error=error)
+       END IF
+
+       IF(rho%drho_r_valid) THEN
+         DO idir = 1,3
+           drho_r(3*(ispin-1)+idir)%pw => rho%drho_r(3*(ispin-1)+idir)%pw
+         END DO
+       ELSE
+         DO idir = 1,3
+           CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw,&
+                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+           CALL pw_pool_create_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+         END DO
+         CALL calculate_drho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
+                drho=drho_r(3*(ispin-1)+1:3*ispin),&
+                drho_gspace=drho_g(3*(ispin-1)+1:3*ispin),&
+                qs_env=qs_env,soft_valid=.FALSE.,error=error)
+       END IF
+
+       ! Calculate elf_r
+       !$omp parallel do default(none) shared(bo,elf_r,drho_r,rho_r, tau_r, cfermi, rho_cutoff)&
+       !$omp             private(k,j,i, noorm_rho, rho_53, elf_kernel)
+       DO k = bo(1,3), bo(2,3)
+          DO j = bo(1,2), bo(2,2)
+             DO i = bo(1,1), bo(2,1)
+               norm_drho = drho_r(3*(ispin-1)+1)%pw%cr3d(i,j,k)**2+&
+                        drho_r(3*(ispin-1)+2)%pw%cr3d(i,j,k)**2+&
+                        drho_r(3*(ispin-1)+3)%pw%cr3d(i,j,k)**2
+               norm_drho = norm_drho/MAX( rho_r(ispin)%pw%cr3d(i,j,k),rho_cutoff)
+               rho_53 = cfermi * MAX(rho_r(ispin)%pw%cr3d(i,j,k),rho_cutoff)**f53
+               elf_kernel = 0.5_dp*(tau_r(ispin)%pw%cr3d(i,j,k) - f14*norm_drho)
+               elf_kernel = (elf_kernel/rho_53)**2
+               elf_r(ispin)%pw%cr3d(i,j,k) =  1.0_dp/(1.0_dp+elf_kernel)
+               IF(elf_r(ispin)%pw%cr3d(i,j,k)<ELFCUT ) elf_r(ispin)%pw%cr3d(i,j,k) =0.0_dp
+             END DO
+          END DO
+       END DO
+
+      IF (.NOT. rho%tau_r_valid) THEN
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,tau_r(ispin)%pw, error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,tau_g(ispin)%pw, error=error)
+      END IF
+      IF (.NOT. rho%drho_r_valid) THEN
+        DO idir = 1,3
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw, error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw, error=error)
+        END DO
+      END IF
+    END DO  !ispin
+
+    DEALLOCATE(rho_r,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(tau_r,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(tau_g,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(drho_r,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(drho_g,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE  qs_elf_calc
 
 ! *****************************************************************************
 !> \brief computes the condition number of the overlap matrix and
