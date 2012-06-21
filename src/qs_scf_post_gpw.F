@@ -103,9 +103,9 @@ MODULE qs_scf_post_gpw
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE qs_collocate_density,            ONLY: calculate_wavefunction, &
-                                             calculate_drho_elec,&
-                                             calculate_rho_elec
+  USE qs_collocate_density,            ONLY: calculate_drho_elec,&
+                                             calculate_rho_elec,&
+                                             calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -200,14 +200,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, istat, &
-                                                min_lumos, n_rep, nhomo, &
-                                                nlumo, nlumo_stm, nlumo_tddft, nlumos, nmo, &
-                                                output_unit, unit_nr
+    INTEGER :: handle, homo, ispin, istat, min_lumos, n_rep, nhomo, nlumo, &
+      nlumo_stm, nlumo_tddft, nlumos, nmo, output_unit, unit_nr
     INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     LOGICAL :: check_write, compute_lumos, do_homo, do_mo_cubes, do_stm, &
-      do_wannier_cubes, failure, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_localized_wfn, p_loc, &
-      p_loc_homo, p_loc_lumo
+      do_wannier_cubes, failure, has_homo, has_lumo, loc_explicit, &
+      loc_print_explicit, my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo
     REAL(dp)                                 :: e_kin, e_kinAtt
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -241,7 +239,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
-                                                localize_section, print_key, stm_section
+                                                localize_section, print_key, &
+                                                stm_section
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     CALL timeset(routineN,handle)
@@ -1923,9 +1922,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
-    INTEGER                                  :: handle, ispin, output_unit, unit_nr, stat
-    LOGICAL                                  :: append_cube, do_elf, failure, gapw
-
+    INTEGER                                  :: handle, ispin, output_unit, &
+                                                stat, unit_nr
+    LOGICAL                                  :: append_cube, do_elf, failure, &
+                                                gapw
     REAL(dp)                                 :: rho_cutoff
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1936,7 +1936,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: elf_section
-
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -2017,29 +2016,29 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: elf_r
-    REAL(kind=dp), INTENT(IN) :: rho_cutoff
+    REAL(kind=dp), INTENT(IN)                :: rho_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER :: ELFCUT = 0.0001_dp, ELFEPS = 2.87E-05_dp, &
+      f14 = (1.0_dp/4.0_dp), f23 = (2.0_dp/3.0_dp), f53 = (5.0_dp/3.0_dp)
 
-    INTEGER                                  :: handle, idir, i, ispin, j, k, nspin, stat
-    LOGICAL :: failure
-    INTEGER, DIMENSION(2,3) :: bo
-    REAL(kind=dp) :: cfermi, dum, elf_kernel, norm_drho, rho_53
-    REAL(KIND=dp), PARAMETER                 :: f53 = (5.0_dp/3.0_dp)
-    REAL(KIND=dp), PARAMETER                 :: f14 = (1.0_dp/4.0_dp)
-    REAL(KIND=dp), PARAMETER                 :: f23 = (2.0_dp/3.0_dp)
-    REAL(KIND=dp), PARAMETER                 :: ELFEPS= 2.87E-05_dp
-    REAL(KIND=dp), PARAMETER                 :: ELFCUT=0.0001_dp
-    ! for spin restricted systems
-    TYPE(qs_rho_type), POINTER               :: rho
+    INTEGER                                  :: handle, i, idir, ispin, j, k, &
+                                                nspin, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: cfermi, dum, elf_kernel, &
+                                                norm_drho, rho_53
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   ::  drho_r, drho_g, rho_r, tau_r, tau_g
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: drho_g, drho_r, rho_r, tau_g, &
+                                                tau_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
 
+! for spin restricted systems
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

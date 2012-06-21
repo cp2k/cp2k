@@ -40,7 +40,6 @@ MODULE qs_scf_post_se
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all
   USE input_section_types,             ONLY: section_get_ival,&
-                                             section_get_lval,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -137,8 +136,8 @@ CONTAINS
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
     INTEGER, DIMENSION(:), POINTER           :: marked_states
-    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, &
-      ionode, my_localized_wfn, p_loc, p_molstates, p_wanstates, uniform_occ
+    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, ionode, &
+      my_localized_wfn, p_loc, p_molstates, p_wanstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter

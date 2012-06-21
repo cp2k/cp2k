@@ -101,7 +101,8 @@ CONTAINS
                                                 n_rep, ndim, nmo, nspin, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: nadd_unocc, stm_th_torb
-    LOGICAL                                  :: append_cube, failure, use_ref_energy
+    LOGICAL                                  :: append_cube, failure, &
+                                                use_ref_energy
     REAL(KIND=dp)                            :: efermi, ref_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occ, &
                                                 stm_biases
