@@ -184,3 +184,5 @@ argon_opt_cell.inp
 argon_opt_cell_ks.inp
 # improved BFGS and CELL_OPT, new defaults
 Si_tersoff.inp
+# Numerics 
+Si_tersoff.inp

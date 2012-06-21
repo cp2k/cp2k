@@ -240,3 +240,6 @@ N3dye_geoopt.inp
 N3dye_vib_bfgs.inp
 # improved BFGS and CELL_OPT, new defaults
 N3dye_vib_bfgs2.inp
+# Numerics 
+N3dye_vib_bfgs.inp
+N3dye_vib_bfgs2.inp
