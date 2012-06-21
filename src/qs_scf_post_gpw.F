@@ -1907,7 +1907,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute the electron localization function 
-
+!>
 !> \par History
 !>      2012-07 Created [MI]
 ! *****************************************************************************
@@ -2099,8 +2099,8 @@ CONTAINS
        END IF
 
        ! Calculate elf_r
-       !$omp parallel do default(none) shared(bo,elf_r,drho_r,rho_r, tau_r, cfermi, rho_cutoff)&
-       !$omp             private(k,j,i, noorm_rho, rho_53, elf_kernel)
+       !$omp parallel do default(none) shared(bo,elf_r, ispin, drho_r,rho_r, tau_r, cfermi, rho_cutoff)&
+       !$omp             private(k,j,i, norm_drho, rho_53, elf_kernel)
        DO k = bo(1,3), bo(2,3)
           DO j = bo(1,2), bo(2,2)
              DO i = bo(1,1), bo(2,1)
