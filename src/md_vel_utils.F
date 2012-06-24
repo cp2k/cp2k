@@ -1690,8 +1690,9 @@ CONTAINS
                       only_ionode=.TRUE.)
 
        IF (iw > 0) THEN
+          ekin = cp_unit_from_cp2k(energy,"keV",error=error)
           WRITE (UNIT=iw,FMT="(T2,A,T61,F20.6)")&
-           "CASCADE| Energy [keV]",cp_unit_from_cp2k(energy,"keV",error=error)
+           "CASCADE| Energy [keV]",ekin
           WRITE (UNIT=iw,FMT="(T2,A)")&
            "CASCADE|"
        END IF
@@ -1763,9 +1764,9 @@ CONTAINS
           WRITE (UNIT=iw,FMT="(T2,A,T11,A,3(11X,A),9X,A)")&
            "CASCADE| ","Atom index","v(x)","v(y)","v(z)","E(kin)"
           DO iatom=1,natom
+             ekin = cp_unit_from_cp2k(weight(iatom),"keV",error=error)
              WRITE (UNIT=iw,FMT="(T2,A,I10,4(1X,F14.6))")&
-              "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),&
-              cp_unit_from_cp2k(weight(iatom),"keV",error=error)
+              "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),ekin
           END DO
        END IF
 
