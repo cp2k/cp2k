@@ -1311,6 +1311,7 @@ CONTAINS
        CALL cp_print_key_finished_output(unit_nr, logger,input,"PROPERTIES%FIT_CHARGE", error=error)
     END IF
 
+
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_charges
@@ -2320,7 +2321,7 @@ CONTAINS
                                                 nd(3), nmo, output_unit, &
                                                 unit_nr
     LOGICAL                                  :: all_equal, append_cube, &
-                                                failure, print_total_density
+                                                failure, print_total_density, xrd_interface
     REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
       rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
       volume
@@ -2533,6 +2534,13 @@ CONTAINS
           IF(append_cube) THEN
             my_pos_cube="APPEND"
           END IF
+          ! Write the info on core densities for the interface between cp2k and the XRD code
+          ! together with the valence density they are used to compute the form factor (Fourier transform)
+          xrd_interface = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE",error=error)
+          IF(xrd_interface .AND. dft_control%qs_control%gapw) THEN
+              !in output the gapw densities 
+              print_total_density = .FALSE.
+          END IF
           IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
              ! Print total electronic density
              CALL get_qs_env(qs_env=qs_env,&
@@ -2705,6 +2713,7 @@ CONTAINS
              END IF ! nspins
           END IF ! total density for GAPW
        END IF ! print key
+
 
        ! Print the hartree potential
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
