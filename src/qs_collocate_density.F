@@ -1183,7 +1183,8 @@ SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
   CALL rs_grid_release(rs_rho, error=error)
 
   IF(PRESENT(total_rho_metal)) &
-  total_rho_metal = pw_integrate_function(rhoc_r%pw,error=error)
+  !minus sign: account for the fact that rho_metal has opposite sign
+  total_rho_metal = pw_integrate_function(rhoc_r%pw,isign=-1,error=error)
 
   CALL pw_transfer(rhoc_r%pw,rho_metal%pw,error=error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)

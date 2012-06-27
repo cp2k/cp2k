@@ -168,8 +168,9 @@ CONTAINS
 
   NULLIFY(pot_const)
   failure=.FALSE.
-
-  V0=qmmm_env%image_charge_pot%V0
+  
+  !minus sign V0: account for the fact that v_hartree has the opposite sign
+  V0=-qmmm_env%image_charge_pot%V0
   eta=qmmm_env%image_charge_pot%eta
   natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
 
@@ -234,7 +235,8 @@ CONTAINS
   failure=.FALSE.
   logger => cp_error_get_logger(error)
 
-  V0=qmmm_env%image_charge_pot%V0
+  !minus sign V0: account for the fact that v_hartree has the opposite sign
+  V0=-qmmm_env%image_charge_pot%V0
   eta=qmmm_env%image_charge_pot%eta
   natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
 
@@ -1082,13 +1084,16 @@ SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
 
       DO iatom=1, natom
          atom_a=qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
+         !opposite sign for image_coeff; during the calculation they have
+         !the 'wrong' sign to ensure consistency with v_hartree which has
+         !the opposite sign
          WRITE (unit=output_unit,fmt="(T2,I6,T65,ES16.9)")&
-                                       atom_a, image_coeff(iatom)
+                                       atom_a, -image_coeff(iatom)
       ENDDO
 
    WRITE(unit=output_unit,fmt="(T2,A)") REPEAT("-",79)
    WRITE (unit=output_unit,fmt="(T2,A,T65,ES16.9)") &
-                                  "sum coefficients:",sum_coeff
+                                  "sum coefficients:",-sum_coeff
  ENDIF
 
  CALL cp_print_key_finished_output(output_unit,logger,input,&

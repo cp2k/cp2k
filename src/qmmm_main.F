@@ -446,9 +446,9 @@ CPSourceFileRef,&
        CALL get_cell(mm_cell, abc=abc_mm)
 
        IF (qmmm_env_qm%image_charge) THEN
-          IF(ANY(abc_mm/=abc_qm))&
+          IF(ANY(ABS(abc_mm-abc_qm) > 1.0E-12))&
            CALL stop_program(routineN,moduleN,__LINE__,&
-                             "QM and MM box need to have the same size when using image charges")
+           "QM and MM box need to have the same size when using image charges")
        ENDIF
 
        ! Assign charges and mm_el_pot_radius from fist_topology
