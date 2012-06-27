@@ -2321,7 +2321,8 @@ CONTAINS
                                                 nd(3), nmo, output_unit, &
                                                 unit_nr
     LOGICAL                                  :: all_equal, append_cube, &
-                                                failure, print_total_density, xrd_interface
+                                                failure, print_total_density, &
+                                                xrd_interface
     REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
       rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
       volume
