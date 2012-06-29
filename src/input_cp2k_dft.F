@@ -1508,6 +1508,11 @@ CONTAINS
             usage="NLUMO integer",default_i_val=0, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="OUT_EACH_MO",&
+            description="Output on the status of the calculation every OUT_EACH_MO states. If -1 no output",&
+            usage="OUT_EACH_MO integer",default_i_val=-1, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 !
        CALL section_create(subsection,name="LDOS",&
              description="Controls the printing of local PDOS, projected on subsets"//&

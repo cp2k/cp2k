@@ -154,12 +154,13 @@ CONTAINS
       ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, &
       kind_number, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
       n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, &
-      np_tot, nrow_global, nset, nsgf, nvirt, stat
+      np_tot, npoints, nrow_global, nset, nsgf, nvirt, output_unit, out_each, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
     LOGICAL :: append, do_ldos, do_r_ldos, do_virt, failure, ionode, &
-      read_r(4), separate_components, should_output
+       separate_components, should_output
+    LOGICAL, DIMENSION(:,:), POINTER         :: read_r
     REAL(KIND=dp)                            :: dh(3,3), dvol, e_fermi, r(3), &
                                                 r_vec(3), ratom(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &
@@ -195,6 +196,7 @@ CONTAINS
     failure = .FALSE.
     should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
                           "PRINT%PDOS",error=error),cp_p_file)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     spin(1)="ALPHA"
     spin(2)="BETA"
@@ -208,6 +210,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
 
+    IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T61,I10))')&
+      " Calculate PDOS at iteration step ", iterstep
     CALL get_qs_env(qs_env=qs_env,&
          matrix_s=s_matrix,error=error)
 
@@ -222,6 +226,8 @@ CONTAINS
          nrow_global=nrow_global,&
          ncol_global=ncol_global,error=error)
 
+    CALL section_vals_val_get(dft_section,"PRINT%PDOS%OUT_EACH_MO",i_val=out_each,error=error)
+    IF(out_each==-1) out_each=nao+1
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%NLUMO",i_val=nlumo,error=error)
     IF (nlumo == -1) nlumo = nao - homo
     do_virt = (nlumo>(nmo-homo))
@@ -259,6 +265,8 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     IF (do_virt) THEN
+      IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T14,I10,T27,A))')&
+      " Compute ", nvirt, " additional unoccupied KS orbitals"
       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
             nrow_global=nrow_global,ncol_global=nvirt,error=error)
       CALL cp_fm_create(matrix_work,fm_struct_tmp,name="matrix_shalfc",error=error)
@@ -274,6 +282,8 @@ CONTAINS
 
     CALL section_vals_get(ldos_section,n_repetition=nldos,error=error)
     IF(nldos>0) THEN
+      IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T61,I10))')&
+      " Prepare the list of atoms for LDOS.   Number of lists: ", nldos
       do_ldos = .TRUE.
       ALLOCATE(ldos_p(nldos),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -305,7 +315,9 @@ CONTAINS
         ELSE
           ! stop, LDOS without list of atoms is not implemented
         END IF
-
+        
+        IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='((T10,A,T18,I6,T25,A,T36,I10,A))')&
+         " List ",ildos , " contains ",  ldos_p(ildos)%ldos%nlist , " atoms"
         CALL section_vals_val_get(ldos_section,"COMPONENTS",i_rep_section=ildos,&
              l_val=ldos_p(ildos)%ldos%separate_components,error=error)
         IF(ldos_p(ildos)%ldos%separate_components) THEN
@@ -326,6 +338,8 @@ CONTAINS
     CALL section_vals_get(ldos_section,n_repetition=n_r_ldos,error=error)
     IF(n_r_ldos>0) THEN
       do_r_ldos = .TRUE.
+      IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T61,I10))')&
+      " Prepare the list of points for R_LDOS.   Number of lists: ", n_r_ldos
       ALLOCATE(r_ldos_p(n_r_ldos),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(r_ldos_index(n_r_ldos),STAT=stat)
@@ -342,6 +356,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
+      ALLOCATE(read_r(4,n_r_ldos),STAT=stat)
       DO ildos=1,n_r_ldos
         WRITE(r_ldos_index(ildos),'(I0)') ildos
         ALLOCATE(r_ldos_p(ildos)%ldos,STAT=stat)
@@ -372,25 +387,25 @@ CONTAINS
         ALLOCATE(r_ldos_p(ildos)%ldos%pdos_array(nmo+nvirt),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         r_ldos_p(ildos)%ldos%pdos_array=0.0_dp
-        read_r(1:3) = .FALSE.
-        CALL section_vals_val_get(ldos_section,"XRANGE",i_rep_section=ildos,explicit=read_r(1),error=error)
-        IF (read_r(1)) THEN
+        read_r(1:3, ildos) = .FALSE.
+        CALL section_vals_val_get(ldos_section,"XRANGE",i_rep_section=ildos,explicit=read_r(1,ildos),error=error)
+        IF (read_r(1,ildos)) THEN
           CALL section_vals_val_get(ldos_section,"XRANGE",i_rep_section=ildos,r_vals=&
              r_ldos_p(ildos)%ldos%x_range, error=error)
         ELSE
           ALLOCATE(r_ldos_p(ildos)%ldos%x_range(2))
            r_ldos_p(ildos)%ldos%x_range=0.0_dp
         END IF
-        CALL section_vals_val_get(ldos_section,"YRANGE",i_rep_section=ildos,explicit=read_r(2),error=error)
-        IF (read_r(2)) THEN
+        CALL section_vals_val_get(ldos_section,"YRANGE",i_rep_section=ildos,explicit=read_r(2,ildos),error=error)
+        IF (read_r(2,ildos)) THEN
           CALL section_vals_val_get(ldos_section,"YRANGE",i_rep_section=ildos,r_vals=&
              r_ldos_p(ildos)%ldos%y_range, error=error)
         ELSE
           ALLOCATE(r_ldos_p(ildos)%ldos%y_range(2))
            r_ldos_p(ildos)%ldos%y_range=0.0_dp
         END IF
-        CALL section_vals_val_get(ldos_section,"ZRANGE",i_rep_section=ildos,explicit=read_r(3),error=error)
-        IF (read_r(3)) THEN
+        CALL section_vals_val_get(ldos_section,"ZRANGE",i_rep_section=ildos,explicit=read_r(3,ildos),error=error)
+        IF (read_r(3,ildos)) THEN
           CALL section_vals_val_get(ldos_section,"ZRANGE",i_rep_section=ildos,r_vals=&
              r_ldos_p(ildos)%ldos%z_range, error=error)
         ELSE
@@ -398,8 +413,8 @@ CONTAINS
            r_ldos_p(ildos)%ldos%z_range=0.0_dp
         END IF
 
-        CALL section_vals_val_get(ldos_section,"ERANGE",i_rep_section=ildos,explicit=read_r(4),error=error)
-        IF (read_r(4)) THEN
+        CALL section_vals_val_get(ldos_section,"ERANGE",i_rep_section=ildos,explicit=read_r(4,ildos),error=error)
+        IF (read_r(4,ildos)) THEN
           CALL section_vals_val_get(ldos_section,"ERANGE",i_rep_section=ildos,&
                r_vals=r_ldos_p(ildos)%ldos%eval_range, error=error)
         ELSE
@@ -467,6 +482,10 @@ CONTAINS
         END DO
         END DO
         CALL  reallocate(r_ldos_p(ildos)%ldos%index_grid_local,1,3,1,r_ldos_p(ildos)%ldos%npoints)
+        npoints =  r_ldos_p(ildos)%ldos%npoints
+        CALL mp_sum(npoints,para_env%group)
+        IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='((T10,A,T18,I6,T25,A,T36,I10,A))')&
+         " List ",ildos , " contains ", npoints , " grid points"
       END DO
     END IF
 
@@ -503,8 +522,21 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     firstrow=0
 
+    !Adjust energy range for r_ldos
+    DO ildos=1,n_r_ldos
+       IF(eigenvalues(1)>r_ldos_p(ildos)%ldos%eval_range(1)) & 
+            r_ldos_p(ildos)%ldos%eval_range(1) = eigenvalues(1)
+       IF(eigenvalues(nmo+nvirt)<r_ldos_p(ildos)%ldos%eval_range(2)) &
+            r_ldos_p(ildos)%ldos%eval_range(2) = eigenvalues(nmo+nvirt)
+    END DO
+          
+    IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T15,A))')&
+             "---- PDOS: start iteration on the KS states --- "
+
     DO imo =  1,nmo+nvirt
 
+      IF (output_unit > 0 .AND. MOD(imo,out_each)==0) WRITE(UNIT=output_unit,FMT='((T20,A,I10))')&
+               " KS state index : ", imo
       ! Extract the eigenvector from the distributed full matrix
       IF(imo>nmo) THEN
         CALL cp_fm_get_submatrix(matrix_work,vecbuffer,1,imo-nmo,&
@@ -607,8 +639,8 @@ CONTAINS
 
       ! Calculate the DOS projected in a given volume in real space
       DO ildos = 1,n_r_ldos
-        IF(r_ldos_p(ildos)%ldos%eval_range(1)<eigenvalues(imo) .AND. &
-           r_ldos_p(ildos)%ldos%eval_range(2)>eigenvalues(imo)) THEN
+        IF(r_ldos_p(ildos)%ldos%eval_range(1)<=eigenvalues(imo) .AND. &
+           r_ldos_p(ildos)%ldos%eval_range(2)>=eigenvalues(imo)) THEN
 
            IF(imo>nmo) THEN
              CALL calculate_wavefunction(mo_virt,imo-nmo,&
@@ -790,6 +822,9 @@ CONTAINS
     ! the filenames are indexed with the list number
     DO ildos=1,n_r_ldos
 
+        npoints =  r_ldos_p(ildos)%ldos%npoints
+        CALL mp_sum(npoints,para_env%group)
+        CALL mp_sum(np_tot,para_env%group)
         CALL mp_sum(r_ldos_p(ildos)%ldos%pdos_array,para_env%group)
         IF(PRESENT(ispin)) THEN
           my_mittle =TRIM(spin(ispin))//"_r_list"//TRIM(r_ldos_index(ildos))
@@ -808,14 +843,17 @@ CONTAINS
           fmtstr2 = "(A42,  (10X,A8))"
 
           WRITE (UNIT=iw,FMT="(A,I0,A,F12.6,F12.6,A,F12.6,A)")&
-            "# Projected DOS in real space, using ",r_ldos_p(ildos)%ldos%npoints,&
+            "# Projected DOS in real space, using ",npoints,&
            " points of the grid, and eval in the range",r_ldos_p(ildos)%ldos%eval_range(1:2),&
              " Hartree, E(Fermi) = ",e_fermi," a.u."
             WRITE (UNIT=iw,FMT="(A)")&
               "#     MO Eigenvalue [a.u.]      Occupation      LDOS"
             DO imo = 1,nmo+nvirt
-              WRITE (UNIT=iw,FMT="(I8,2X,2F16.6,F20.10)") imo,eigenvalues(imo),occupation_numbers(imo),&
-                r_ldos_p(ildos)%ldos%pdos_array(imo)
+               IF(r_ldos_p(ildos)%ldos%eval_range(1)<=eigenvalues(imo) .AND. &
+                 r_ldos_p(ildos)%ldos%eval_range(2)>=eigenvalues(imo)) THEN
+                 WRITE (UNIT=iw,FMT="(I8,2X,2F16.6,E20.10,E20.10)") imo,eigenvalues(imo),occupation_numbers(imo),&
+                         r_ldos_p(ildos)%ldos%pdos_array(imo), r_ldos_p(ildos)%ldos%pdos_array(imo)*np_tot
+               END IF
             END DO
 
         END IF
@@ -851,21 +889,22 @@ CONTAINS
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(r_ldos_p(ildos)%ldos%list_index,STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         IF(.NOT. read_r(1)) THEN
+         IF(.NOT. read_r(1,ildos)) THEN
            DEALLOCATE(r_ldos_p(ildos)%ldos%x_range)
          END IF
-         IF(.NOT. read_r(2)) THEN
+         IF(.NOT. read_r(2,ildos)) THEN
            DEALLOCATE(r_ldos_p(ildos)%ldos%y_range)
          END IF
-         IF(.NOT. read_r(3)) THEN
+         IF(.NOT. read_r(3,ildos)) THEN
            DEALLOCATE(r_ldos_p(ildos)%ldos%z_range)
          END IF
-         IF(.NOT. read_r(4)) THEN
+         IF(.NOT. read_r(4,ildos)) THEN
            DEALLOCATE(r_ldos_p(ildos)%ldos%eval_range)
          END IF
          DEALLOCATE(r_ldos_p(ildos)%ldos,STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
+       DEALLOCATE(read_r,STAT=stat)
        DEALLOCATE(r_ldos_p, STAT=stat)
        DEALLOCATE(r_ldos_index, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

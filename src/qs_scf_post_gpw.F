@@ -102,7 +102,8 @@ MODULE qs_scf_post_gpw
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_type
   USE qs_collocate_density,            ONLY: calculate_drho_elec,&
                                              calculate_rho_elec,&
                                              calculate_wavefunction
@@ -1964,6 +1965,10 @@ CONTAINS
           CALL pw_zero(elf_r(ispin)%pw, error=error)
         END DO
    
+        IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T15,A,/)")&
+                     " ----- ELF is computed on the real space grid -----"
+        END IF
         rho_cutoff=section_get_rval(elf_section,"density_cutoff",error=error)
         CALL qs_elf_calc(qs_env, elf_r, rho_cutoff, error=error)
    
@@ -2023,20 +2028,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER :: ELFCUT = 0.0001_dp, ELFEPS = 2.87E-05_dp, &
-      f14 = (1.0_dp/4.0_dp), f23 = (2.0_dp/3.0_dp), f53 = (5.0_dp/3.0_dp)
+      f18 = (1.0_dp/8.0_dp), f23 = (2.0_dp/3.0_dp), f53 = (5.0_dp/3.0_dp)
 
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
                                                 nspin, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: deriv_pw, failure
     REAL(kind=dp)                            :: cfermi, dum, elf_kernel, &
-                                                norm_drho, rho_53
+                                                norm_drho, rho_53, udvol
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: drho_g, drho_r, rho_r, tau_g, &
                                                 tau_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: tmp_g
     TYPE(qs_rho_type), POINTER               :: rho
 
 ! for spin restricted systems
@@ -2044,7 +2051,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    NULLIFY(rho,rho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools)
+    NULLIFY(rho,rho_r,  drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g )
 
     CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, error=error)
 
@@ -2087,16 +2094,38 @@ CONTAINS
            drho_r(3*(ispin-1)+idir)%pw => rho%drho_r(3*(ispin-1)+idir)%pw
          END DO
        ELSE
-         DO idir = 1,3
-           CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw,&
-                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-           CALL pw_pool_create_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw,&
-                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-         END DO
-         CALL calculate_drho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
-                drho=drho_r(3*(ispin-1)+1:3*ispin),&
-                drho_gspace=drho_g(3*(ispin-1)+1:3*ispin),&
-                qs_env=qs_env,soft_valid=.FALSE.,error=error)
+         deriv_pw = .FALSE.
+ !        deriv_pw = .TRUE.
+         IF(deriv_pw) THEN
+           nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+           CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g,&
+                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+           udvol = 1.0_dp/rho%rho_r(ispin)%pw%pw_grid%dvol
+           DO idir = 1,3
+             CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw,&
+                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
+             CALL pw_transfer ( rho%rho_r(ispin)%pw, tmp_g , error=error)
+             CALL pw_derive ( tmp_g, nd(:,idir) , error=error)
+             CALL pw_transfer (tmp_g, drho_r(3*(ispin-1)+idir)%pw , error=error)
+!              CALL pw_scale(drho_r(3*(ispin-1)+idir)%pw,udvol,error=error)
+
+           END DO
+            
+         ELSE
+           DO idir = 1,3
+             CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw,&
+                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
+             CALL pw_pool_create_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw,&
+                       use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+             CALL calculate_rho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
+                  rho=drho_r(3*(ispin-1)+idir),&
+                  rho_gspace=drho_g(3*(ispin-1)+idir),&
+                  total_rho=dum, &  
+                  qs_env=qs_env, soft_valid=.FALSE., &
+                  compute_tau=.FALSE., compute_grad=.TRUE., idir =idir, error=error)
+   
+           END DO
+         END IF
        END IF
 
        ! Calculate elf_r
@@ -2110,7 +2139,7 @@ CONTAINS
                         drho_r(3*(ispin-1)+3)%pw%cr3d(i,j,k)**2
                norm_drho = norm_drho/MAX( rho_r(ispin)%pw%cr3d(i,j,k),rho_cutoff)
                rho_53 = cfermi * MAX(rho_r(ispin)%pw%cr3d(i,j,k),rho_cutoff)**f53
-               elf_kernel = 0.5_dp*(tau_r(ispin)%pw%cr3d(i,j,k) - f14*norm_drho)
+               elf_kernel = (tau_r(ispin)%pw%cr3d(i,j,k) - f18*norm_drho)
                elf_kernel = (elf_kernel/rho_53)**2
                elf_r(ispin)%pw%cr3d(i,j,k) =  1.0_dp/(1.0_dp+elf_kernel)
                IF(elf_r(ispin)%pw%cr3d(i,j,k)<ELFCUT ) elf_r(ispin)%pw%cr3d(i,j,k) =0.0_dp
@@ -2123,10 +2152,17 @@ CONTAINS
         CALL pw_pool_give_back_pw(auxbas_pw_pool,tau_g(ispin)%pw, error=error)
       END IF
       IF (.NOT. rho%drho_r_valid) THEN
-        DO idir = 1,3
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw, error=error)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw, error=error)
-        END DO
+        IF(deriv_pw) THEN
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g, error=error)
+          DO idir = 1,3
+            CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw, error=error)
+          END DO
+        ELSE
+          DO idir = 1,3
+            CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw, error=error)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw, error=error)
+          END DO
+        END IF
       END IF
     END DO  !ispin
 

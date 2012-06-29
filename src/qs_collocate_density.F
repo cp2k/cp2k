@@ -111,7 +111,7 @@ MODULE qs_collocate_density
        FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DABpADB, &
        FUNC_DADB, FUNC_DER, FUNC_DX, FUNC_DXDX, FUNC_DXDY, FUNC_DY, &
        FUNC_DYDY, FUNC_DYDZ, FUNC_DZ, FUNC_DZDX, FUNC_DZDZ, &
-       prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, prepare_dadb, &
+       prepare_adb_m_dab,  prepare_dab_p_adb, prepare_arb, prepare_ardb_m_darb, prepare_dadb, &
        prepare_diadib, prepare_diiadiib, prepare_dijadijb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -1203,14 +1203,14 @@ END SUBROUTINE calculate_rho_metal
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, basis_set_id, der_type, error)
+       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, error)
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau, compute_grad
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type, idir
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
@@ -1223,7 +1223,7 @@ END SUBROUTINE calculate_rho_metal
       igrid_level, ikind, ikind_old, ipair, ipgf, iset, iset_old, itask, &
       ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, &
       lb_l, lbr, lbw, maxco, maxpgf, maxset, maxsgf, maxsgf_set, &
-      my_basis_set_id, my_der_type, n, na1, na2, natoms, nb1, nb2, nblock, &
+      my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, nb1, nb2, nblock, &
       ncoa, ncob, nkind, nn, nr, nrlevel, nseta, nsetb, ntasks, nthread, nxy, &
       nz, nzsize, segment, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
@@ -1235,7 +1235,7 @@ END SUBROUTINE calculate_rho_metal
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
-      map_consistent, my_compute_tau, my_soft, use_subpatch
+      map_consistent, my_compute_tau, my_compute_grad, my_soft, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
@@ -1292,16 +1292,27 @@ END SUBROUTINE calculate_rho_metal
        my_compute_tau = .FALSE.
     ENDIF
 
+    IF (PRESENT(compute_grad)) THEN
+       my_compute_grad = compute_grad
+    ELSE
+       my_compute_grad = .FALSE.
+    ENDIF
+
+
     CALL timeset(routineN,handle)
     my_der_type = 0
+    my_idir = 0
     IF(PRESENT(der_type)) THEN
       my_der_type = der_type
       ga_gb_function = FUNC_DER(my_der_type)
     ELSE IF (my_compute_tau) THEN
        ga_gb_function = FUNC_DADB
+    ELSE IF (my_compute_grad) THEN
+        ga_gb_function = FUNC_DABpADB
     ELSE
        ga_gb_function = FUNC_AB
     ENDIF
+    IF(PRESENT(idir)) my_idir = idir
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
@@ -1440,7 +1451,7 @@ END SUBROUTINE calculate_rho_metal
 !$omp parallel default(none), &
 !$omp          shared(ntasks,tasks,natoms,maxset,maxpgf,particle_set,pabt,workt), &
 !$omp          shared(my_basis_set_id,my_soft,deltap,maxco,dist_ab,ncoset,nthread), &
-!$omp          shared(cell,cube_info,eps_rho_rspace,ga_gb_function,map_consistent), &
+!$omp          shared(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir,map_consistent), &
 !$omp          shared(rs_rho,lgrid,gridlevel_info,task_list), &
 !$omp          private(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$omp          private(iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
@@ -1622,6 +1633,7 @@ END SUBROUTINE calculate_rho_metal
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                  eps_rho_rspace,&
                  ga_gb_function=ga_gb_function, &
+                 idir=my_idir,&
                  lgrid=lgrid,ithread=ithread, &
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
                  subpatch_pattern=tasks(6,itask),error=error)
@@ -1634,6 +1646,7 @@ END SUBROUTINE calculate_rho_metal
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                  eps_rho_rspace,&
                  ga_gb_function=ga_gb_function, &
+                 idir=my_idir,&
                  lgrid=lgrid,ithread=ithread, &
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
                  subpatch_pattern=tasks(6,itask),error=error)
@@ -1647,6 +1660,7 @@ END SUBROUTINE calculate_rho_metal
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                  eps_rho_rspace,&
                  ga_gb_function=ga_gb_function, &
+                 idir=my_idir,&
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
                  subpatch_pattern=tasks(6,itask),error=error)
           ELSE
@@ -1658,6 +1672,7 @@ END SUBROUTINE calculate_rho_metal
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                  eps_rho_rspace,&
                  ga_gb_function=ga_gb_function, &
+                 idir=my_idir,&
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
                  subpatch_pattern=tasks(6,itask),error=error)
           END IF
@@ -2608,7 +2623,7 @@ END SUBROUTINE calculate_rho_metal
               DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
               DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
                  ! this element of pab results in 4 elements of pab_local
-                 CALL prepare_adb_m_dab(pab_local,pab,idir,&
+                 CALL prepare_dab_p_adb(pab_local,pab,idir,&
                       lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
               END DO
               END DO
