@@ -104,8 +104,7 @@ MODULE qs_scf_post_gpw
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE qs_collocate_density,            ONLY: calculate_drho_elec,&
-                                             calculate_rho_elec,&
+  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore

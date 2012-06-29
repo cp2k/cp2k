@@ -154,13 +154,16 @@ CONTAINS
       ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, &
       kind_number, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
       n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, &
-      np_tot, npoints, nrow_global, nset, nsgf, nvirt, output_unit, out_each, stat
+      np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, &
+      stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
-    LOGICAL :: append, do_ldos, do_r_ldos, do_virt, failure, ionode, &
-       separate_components, should_output
-    LOGICAL, DIMENSION(:,:), POINTER         :: read_r
+    LOGICAL                                  :: append, do_ldos, do_r_ldos, &
+                                                do_virt, failure, ionode, &
+                                                separate_components, &
+                                                should_output
+    LOGICAL, DIMENSION(:, :), POINTER        :: read_r
     REAL(KIND=dp)                            :: dh(3,3), dvol, e_fermi, r(3), &
                                                 r_vec(3), ratom(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &
