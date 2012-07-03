@@ -359,6 +359,7 @@ MODULE command_line_tools
     LOGICAL :: do_xyz, do_center, do_fold, do_foldsmart,do_center_atom,do_center_geo, do_center_point
     LOGICAL :: have_input, have_output, write_help, write_version, do_subtract
     LOGICAL :: do_iso, do_slice, do_1d_profile, espot_over_iso, iso_current, have_espot_cube
+    LOGICAL :: from_top, check_atom_from_down
     INTEGER :: atom_center, stride, cube, index_profile
     REAL    :: center_point(3), slice(3), iso_level(3), iso_hmin, iso_hmax, delta_profile,&
                 mult_fact, iso_delta_grid, bwidth
@@ -386,6 +387,8 @@ CONTAINS
     input%iso_current = .FALSE.
     input%bwidth=2.0D0
     input%espot_over_iso = .FALSE.
+    input%from_top = .FALSE.
+    input%check_atom_from_down = .FALSE.
     input%index_profile=0
     input%delta_profile=0.0D0
     input%do_1d_profile=.FALSE.
@@ -536,6 +539,12 @@ CONTAINS
         CALL getarg(I+1,nextarg)
         READ(nextarg,*) input%iso_delta_grid
         WRITE(6,*) " Integration parameter to generate the 2D grid", input%iso_delta_grid
+      CASE("-iso_from_top")
+        input%from_top=.TRUE.
+        WRITE(6,*) " Search for the iso-current surface starting from top of the box "
+      CASE("-iso_stop_at_atom")
+        input%check_atom_from_down=.TRUE.
+        WRITE(6,*) " Does not allow the tip to go through atoms "
       CASE("-1d_profile")
         input%do_1d_profile=.TRUE.
         CALL getarg(I+1,nextarg)
@@ -748,19 +757,21 @@ CONTAINS
   END SUBROUTINE compute_slice
 
   SUBROUTINE compute_iso_surf(cube,dir,iso_val_inp,h_min, h_max, grid_delta, &
-                   use_espot, iso_current, bwidth, cube_espot)
+                   use_espot, iso_current, from_top, check_atom_from_down, bwidth, cube_espot)
 
    TYPE(cube_type), POINTER :: cube
    INTEGER, INTENT(IN) ::dir
    REAL, INTENT(IN) :: iso_val_inp, h_min, h_max, grid_delta
    LOGICAL :: use_espot, iso_current
+   LOGICAL :: check_atom_from_down,  from_top
    REAL, INTENT(IN), OPTIONAL ::  bwidth 
    TYPE(cube_type), OPTIONAL, POINTER :: cube_espot
 
    CHARACTER(LEN=80) :: filename
-   LOGICAL :: check_atom_from_down, found_val
+   LOGICAL :: found_val
    INTEGER ::  d1,d2, iold, jold, kold
    INTEGER :: i, iat, ipoint, j,k, kval, index_min, index_max
+   INTEGER :: i1,i2,incr
    REAL :: d12, iso_val
    REAL :: alpha, fac1, fac2, r, r1, r2 , val1, val2, val1_e, val2_e
    REAL, ALLOCATABLE, DIMENSION(:,:) :: ah
@@ -805,6 +816,8 @@ CONTAINS
 !               +(real(i-1)*cube%dh(2,dir)+cube%origin(2))**2+&
 !                (real(i-1)*cube%dh(3,dir)+cube%origin(3))**2)
        r  = cube%origin(dir) + real(i-1)*cube%dh(dir,dir)
+!dbg
+!    write(*,*) index_min, i, r, r*au2a, h_max
        IF(r*au2a>=h_max)THEN
          index_max = i
          EXIT
@@ -813,11 +826,24 @@ CONTAINS
    END IF
    IF(index_max==cube%npoints(dir)) index_max = index_max-1
 
+  !dbg
+!    write(*,*) index_min, index_max,  h_min, h_max
+!   stop
+  !dbg
+   IF(from_top) THEN
+      i1=index_max
+      i2=index_min
+      incr=-1
+   ELSE
+      i1=index_min
+      i2=index_max
+      incr=1
+   END IF
    IF(iso_current) THEN
      alpha = 2.D0*0.5123D0*bwidth*sqrt(au2ev)
      i = cube%npoints(d1)/2
      j = cube%npoints(d2)/2
-     DO k = index_min, index_max
+     DO k = i1,i2,incr
        IF(dir==3)THEN
          val1 = cube%grid(i,j,k)
          val2 = cube%grid(i,j,k+1)
@@ -869,7 +895,6 @@ CONTAINS
    write(*,*) ' Start search for iso surface at value ', iso_val, ' in the height range between ', h_min, ' and ', h_max
    write(*,*) ' Number of considered planes ', index_max-index_min + 1
 
-   check_atom_from_down = .true.
    IF(check_atom_from_down) THEN
      allocate(ah(cube%npoints(d1),cube%npoints(d2)))
      ah=h_max/au2a
@@ -910,7 +935,7 @@ CONTAINS
      DO j = 1,cube%npoints(d2)
 !     DO j = cube%npoints(d2),1,-1 !cube%npoints(d2)
        found_val = .FALSE. 
-       DO k = index_min, index_max
+       DO k = i1,i2,incr
          IF(dir==3)THEN
            val1 = cube%grid(i,j,k)
            val2 = cube%grid(i,j,k+1)
@@ -974,7 +999,7 @@ CONTAINS
              data_grid(2,i,j) = r2
              IF(use_espot) THEN
                IF(dir==3)THEN
-                 data_grid(3,i,j) = (cube_espot%grid(i,j,kval)*fac1+cube_espot%grid(i,j,kval+1)*fac2)!/2.0D0
+                 data_grid(3,i,j) = (cube_espot%grid(i,j,kval-20)*fac1+cube_espot%grid(i,j,kval+1-20)*fac2)!/2.0D0
                ELSEIF(dir==2)THEN
                  data_grid(3,i,j) = (cube_espot%grid(i,kval,j)+cube_espot%grid(i,kval+1,j))/2.0D0
                ELSEIF(dir==1) THEN
@@ -1039,7 +1064,7 @@ CONTAINS
    delta = grid_delta
 
    np1 = INT(L1/delta) + 1
-   np2 = INT(L2/delta) + 1
+   np2 = INT(2.0D0*L2/delta) + 1
 
    det = (cube%dh(d1,d1)*cube%dh(d2,d2) - cube%dh(d1,d2)*cube%dh(d2,d1))
    det = 1.0D0/det
@@ -1052,24 +1077,31 @@ CONTAINS
        tmp = (cube%dh(d1,d1)*r2-cube%dh(d2,d1)*r1)*det
        j = int(tmp)+1
        IF(i<1) THEN
-        r1_shift = r1+cube%npoints(d1)*cube%dh(d1,d1)
-        r2_shift = r2+cube%npoints(d1)*cube%dh(d2,d1)
-        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
-        i = int(tmp)+1
-        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
-        j = int(tmp)+1
+         r1_shift = r1+cube%npoints(d1)*cube%dh(d1,d1)
+         r2_shift = r2+cube%npoints(d1)*cube%dh(d2,d1)
+         tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
+         i = int(tmp)+1
+!        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+!        j = int(tmp)+1
        ELSEIF(i>cube%npoints(d1)) THEN
-        r1_shift = r1-cube%npoints(d1)*cube%dh(d1,d1)
-        r2_shift = r2-cube%npoints(d1)*cube%dh(d2,d1)
-        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
-        i = int(tmp)+1
-        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
-        j = int(tmp)+1
+         r1_shift = r1-cube%npoints(d1)*cube%dh(d1,d1)
+         r2_shift = r2-cube%npoints(d1)*cube%dh(d2,d1)
+         tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
+         i = int(tmp)+1
+!        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+!        j = int(tmp)+1
        END IF
 
        IF(j<1) THEN
-
+         r1_shift = r1+cube%npoints(d2)*cube%dh(d1,d2)
+         r2_shift = r2+cube%npoints(d2)*cube%dh(d2,d2)
+         tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+         j = int(tmp)+1
        ELSEIF(j>cube%npoints(d2)) THEN
+         r1_shift = r1-cube%npoints(d2)*cube%dh(d1,d2)
+         r2_shift = r2-cube%npoints(d2)*cube%dh(d2,d2)
+         tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+         j = int(tmp)+1
        END IF
 
        im = i 
@@ -1280,10 +1312,10 @@ PROGRAM main
                 dir, ' at level ', iso_val 
         IF(input%espot_over_iso .OR. input%iso_current ) THEN
             CALL compute_iso_surf(cube, dir, iso_val, input%iso_hmin ,input%iso_hmax, input%iso_delta_grid,&
-                  input%espot_over_iso,  input%iso_current, input%bwidth,  cube_espot)
+                  input%espot_over_iso,  input%iso_current, input%from_top, input%check_atom_from_down, input%bwidth,  cube_espot)
         ELSE
             CALL compute_iso_surf(cube, dir, iso_val, input%iso_hmin ,input%iso_hmax, input%iso_delta_grid, &
-                use_espot=.FALSE., iso_current=.FALSE.)
+                use_espot=.FALSE., iso_current=.FALSE., from_top=input%from_top, check_atom_from_down=input%check_atom_from_down)
         END IF
         write(6,*) "Done"
      END IF
