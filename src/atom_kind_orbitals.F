@@ -560,10 +560,10 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_density', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: num_gto = 40
 
     INTEGER :: i, ierr, ii, j, k, l, ll, lm, m, mb, mo, n, ne, nexp_lpot, &
       nexp_lsd, nexp_nlcc, ngp, nn, nr, quadtype, relativistic, z
-    INTEGER, PARAMETER                       :: num_gto = 40
     INTEGER, DIMENSION(0:3)                  :: econfx, starti
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(:), POINTER           :: econf, nct_lpot, nct_lsd, &

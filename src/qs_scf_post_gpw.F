@@ -146,10 +146,8 @@ MODULE qs_scf_post_gpw
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_pdos,                         ONLY: calculate_projected_dos
   USE qs_resp,                         ONLY: resp_fit
+  USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
-                                             rho_atom_coeff,&
-                                             rho_atom_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type,&
                                              special_diag_method_nr
@@ -2359,13 +2357,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1), DIMENSION(3)           :: cdir = (/"x","y","z"/)
-    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: handle, homo, i, id, ikind, &
-                                                ispin, istat, iw, nd(3), nmo, &
-                                                output_unit, unit_nr, nkind, ngto, &
-                                                np, iat, l, niso, nr, iso
+    INTEGER :: handle, homo, i, iat, id, ikind, iso, ispin, istat, iw, l, &
+      nd(3), ngto, niso, nkind, nmo, np, nr, output_unit, unit_nr
     LOGICAL                                  :: all_equal, append_cube, &
                                                 failure, print_total_density, &
                                                 xrd_interface
@@ -2375,7 +2371,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: bfun
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: aedens, ppdens, ccdens
+      DIMENSION(:, :, :)                     :: aedens, ccdens, ppdens
     REAL(KIND=dp), DIMENSION(3)              :: dr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
                                                 occupation_numbers
@@ -2989,19 +2985,18 @@ CONTAINS
   SUBROUTINE project_function_a(ca,a,cb,b,l,error)
     ! project function cb on ca
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: ca
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, cb, b
     INTEGER, INTENT(IN)                      :: l
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'project_function_a', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                              :: failure=.FALSE.
-    INTEGER                                              :: n, istat, info
-    INTEGER, DIMENSION(:), ALLOCATABLE                   :: ipiv
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE           :: smat,tmat,v
+    INTEGER                                  :: info, istat, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: smat, tmat, v
 
     n = SIZE(ca)
     ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n),stat=istat)
@@ -3022,8 +3017,7 @@ CONTAINS
   SUBROUTINE project_function_b(ca,a,bfun,grid_atom,l,error)
     ! project function f on ca
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: ca
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: bfun
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, bfun
     TYPE(grid_atom_type), POINTER            :: grid_atom
     INTEGER, INTENT(IN)                      :: l
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3031,11 +3025,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'project_function_b', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                              :: failure=.FALSE.
-    INTEGER                                              :: n, istat, info, i, nr
-    INTEGER, DIMENSION(:), ALLOCATABLE                   :: ipiv
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE             :: afun
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE           :: smat,v
+    INTEGER                                  :: i, info, istat, n, nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: afun
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: smat, v
 
     n = SIZE(ca)
     nr = grid_atom%nr
