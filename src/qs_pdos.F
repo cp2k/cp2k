@@ -439,7 +439,7 @@ CONTAINS
         DO jx=bo(1,1),bo(2,1)
           !compute the position of the grid point
           r(3)=jz*dh(3,3)+jy*dh(3,2)+jx*dh(3,1)
-          r(2)=jz*dh(3,3)+jy*dh(2,2)+jx*dh(2,1)
+          r(2)=jz*dh(2,3)+jy*dh(2,2)+jx*dh(2,1)
           r(1)=jz*dh(1,3)+jy*dh(1,2)+jx*dh(1,1)
           
           DO il = 1, r_ldos_p(ildos)%ldos%nlist
