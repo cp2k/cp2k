@@ -55,10 +55,12 @@ MODULE atom_fit
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE atom_fit_density (atom,num_gto,norder,iunit,powell_section,error)
+  SUBROUTINE atom_fit_density (atom,num_gto,norder,iunit,powell_section,results,error)
     TYPE(atom_type), POINTER                 :: atom
     INTEGER, INTENT(IN)                      :: num_gto, norder, iunit
-    TYPE(section_vals_type), POINTER         :: powell_section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: powell_section
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: results
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_density', &
@@ -89,9 +91,15 @@ CONTAINS
     ostate%nvar = 2
     x(1) = 0.10_dp      !starting point of geometric series
     x(2) = 2.00_dp      !factor of series
-    CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
-    CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)
-    CALL section_vals_val_get(powell_section,"MAX_FUN", i_val=ostate%maxfun, error=error)
+    IF(PRESENT(powell_section)) THEN
+       CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
+       CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)
+       CALL section_vals_val_get(powell_section,"MAX_FUN", i_val=ostate%maxfun, error=error)
+    ELSE
+       ostate%rhoend = 1.e-8_dp
+       ostate%rhobeg = 5.e-2_dp
+       ostate%maxfun = 1000
+    END IF
     ostate%iprint = 1
     ostate%unit  = iunit
 
@@ -131,6 +139,13 @@ CONTAINS
              "Starting exponent:",x(1),"Proportionality factor:",x(2)
       WRITE(iunit,'(A)') " Expansion coefficients"
       WRITE(iunit,'(4F20.10)') co(1:num_gto)
+    END IF
+
+    IF(PRESENT(results)) THEN
+      CPPrecondition(SIZE(results)>=num_gto+2, cp_failure_level, routineP, error, failure)
+      results(1) = x(1)
+      results(2) = x(2)
+      results(3:2+num_gto) = co(1:num_gto)
     END IF
 
     DEALLOCATE(co,STAT=ierr)

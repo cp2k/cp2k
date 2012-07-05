@@ -1381,6 +1381,12 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NGAUSS",&
+            description="Number of Gaussian functions used in the expansion of atomic (core) density",&
+            usage="NGAUSS 10",n_var=1,default_i_val=12, type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

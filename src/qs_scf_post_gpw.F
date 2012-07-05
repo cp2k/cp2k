@@ -13,6 +13,8 @@ MODULE qs_scf_post_gpw
   USE admm_methods,                    ONLY: admm_correct_for_eigenvalues,&
                                              admm_uncorrect_for_eigenvalues
   USE admm_types,                      ONLY: admm_type
+  USE ai_onecenter,                    ONLY: sg_overlap
+  USE atom_kind_orbitals,              ONLY: calculate_atomic_density
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -71,11 +73,13 @@ MODULE qs_scf_post_gpw
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE lapack,                          ONLY: lapack_sgesv
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE moments_utils,                   ONLY: get_reference_point
+  USE orbital_pointers,                ONLY: indso
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom,&
@@ -114,6 +118,7 @@ MODULE qs_scf_post_gpw
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
+  USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_loc_control,                  ONLY: set_loc_centers,&
@@ -142,6 +147,9 @@ MODULE qs_scf_post_gpw
   USE qs_pdos,                         ONLY: calculate_projected_dos
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
+                                             rho_atom_coeff,&
+                                             rho_atom_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type,&
                                              special_diag_method_nr
@@ -2352,21 +2360,29 @@ CONTAINS
 
     CHARACTER(len=1), DIMENSION(3)           :: cdir = (/"x","y","z"/)
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
-    INTEGER                                  :: handle, homo, id, ispin, iw, &
-                                                nd(3), nmo, output_unit, &
-                                                unit_nr
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: handle, homo, i, id, ikind, &
+                                                ispin, istat, iw, nd(3), nmo, &
+                                                output_unit, unit_nr, nkind, ngto, &
+                                                np, iat, l, niso, nr, iso
     LOGICAL                                  :: all_equal, append_cube, &
                                                 failure, print_total_density, &
                                                 xrd_interface
     REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
       rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
       volume
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: bfun
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: aedens, ppdens, ccdens
     REAL(KIND=dp), DIMENSION(3)              :: dr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
                                                 occupation_numbers
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
@@ -2377,6 +2393,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -2393,6 +2410,9 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
@@ -2573,9 +2593,108 @@ CONTAINS
           ! Write the info on core densities for the interface between cp2k and the XRD code
           ! together with the valence density they are used to compute the form factor (Fourier transform)
           xrd_interface = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE",error=error)
-          IF(xrd_interface .AND. dft_control%qs_control%gapw) THEN
-              !in output the gapw densities 
-              print_total_density = .FALSE.
+          IF(xrd_interface) THEN
+             !cube file only contains soft density (GAPW)
+             IF(dft_control%qs_control%gapw) print_total_density = .FALSE.
+
+             filename = "ELECTRON_DENSITY"
+             unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                            extension=".xrd",middle_name=TRIM(filename),&
+                                            file_position=my_pos_cube,log_filename=.FALSE.,error=error)
+             ngto = section_get_ival(input,"DFT%PRINT%E_DENSITY_CUBE%NGAUSS",error=error)
+             IF (output_unit>0) THEN
+                 INQUIRE (UNIT=unit_nr,NAME=filename)
+                 WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                     "The electron density (atomic part) is written to the file:",&
+                     TRIM(filename)
+             END IF
+
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,*) "Atomic (core) densities"
+                WRITE(unit_nr,*) "Unit cell"
+                WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(1,1),cell%hmat(1,2),cell%hmat(1,3)
+                WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(2,1),cell%hmat(2,2),cell%hmat(2,3)
+                WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(3,1),cell%hmat(3,2),cell%hmat(3,3)
+                ! calculate atomic density and core density
+                nkind = SIZE(atomic_kind_set)
+                WRITE(unit_nr,*) "Atomic types"
+                WRITE(unit_nr,*) nkind
+                ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind),stat=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                DO ikind=1,nkind
+                  atomic_kind => atomic_kind_set(ikind)
+                  CALL get_atomic_kind(atomic_kind=atomic_kind,name=name,element_symbol=element_symbol)
+                  WRITE(unit_nr,FMT="(I6,A10,A20)") ikind,TRIM(element_symbol),TRIM(name)
+                  WRITE(unit_nr,FMT="(I6)") ngto
+                  CALL calculate_atomic_density(ppdens(:,:,ikind),atomic_kind,ngto,iunit=output_unit,&
+                       confine=.TRUE.,error=error)
+                  CALL calculate_atomic_density(aedens(:,:,ikind),atomic_kind,ngto,iunit=output_unit,&
+                       allelectron=.TRUE.,confine=.TRUE.,error=error)
+                  WRITE(unit_nr,*) "   Total density"
+                  WRITE(unit_nr,FMT="(2G24.12)") (aedens(i,1,ikind),aedens(i,2,ikind),i=1,ngto)
+                  ccdens(:,1,ikind) = aedens(:,1,ikind)
+                  ccdens(:,2,ikind) = 0._dp
+                  CALL project_function_a(ccdens(1:ngto,2,ikind),ccdens(1:ngto,1,ikind),&
+                       ppdens(1:ngto,2,ikind),ppdens(1:ngto,1,ikind),0,error)
+                  ccdens(:,2,ikind) = aedens(:,2,ikind) - ccdens(:,2,ikind)
+                  WRITE(unit_nr,*) "    Core density"
+                  WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
+                  NULLIFY(atomic_kind)
+                END DO
+             END IF
+
+             IF (dft_control%qs_control%gapw) THEN
+                CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set,error=error)
+
+                IF (unit_nr>0) THEN
+                   WRITE(unit_nr,*) "Coordinates and GAPW density"
+                   np = particles%n_els
+                   DO iat=1,np
+                      CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind,&
+                                           grid_atom=grid_atom)
+                      rho_atom => rho_atom_set(iat)
+                      nr = SIZE(rho_atom%rho_rad_h(1)%r_coef,1)
+                      niso = SIZE(rho_atom%rho_rad_h(1)%r_coef,2)
+
+                      ALLOCATE(bfun(nr,niso),stat=istat)
+                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                      bfun = 0._dp
+                      DO ispin = 1,dft_control%nspins
+                         bfun = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
+                      END DO
+                      ccdens(:,1,ikind) = ppdens(:,1,ikind)
+                      ccdens(:,2,ikind) = 0._dp
+                      WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
+                      DO iso=1,niso
+                         l = indso(1,iso)
+                         CALL project_function_b(ccdens(:,2,ikind),ccdens(:,1,ikind),bfun(:,iso),grid_atom,l,error)
+                         WRITE(unit_nr,FMT="(3I6)") iso,l,ngto
+                         WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
+                      END DO
+                      DEALLOCATE(bfun,stat=istat)
+                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                   END DO
+                END IF
+             ELSE
+                IF (unit_nr>0) THEN
+                   WRITE(unit_nr,*) "Coordinates"
+                   np = particles%n_els
+                   DO iat=1,np
+                      CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind)
+                      WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
+                   END DO
+                END IF
+             END IF
+
+             IF (unit_nr>0) THEN
+                DEALLOCATE(ppdens,aedens,ccdens,stat=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             END IF
+
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                               "DFT%PRINT%E_DENSITY_CUBE",&
+                                               error=error)
+
           END IF
           IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
              ! Print total electronic density
@@ -2866,5 +2985,75 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_available_results
+
+  SUBROUTINE project_function_a(ca,a,cb,b,l,error)
+    ! project function cb on ca
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: ca
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
+    INTEGER, INTENT(IN)                      :: l
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'project_function_a', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                              :: failure=.FALSE.
+    INTEGER                                              :: n, istat, info
+    INTEGER, DIMENSION(:), ALLOCATABLE                   :: ipiv
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE           :: smat,tmat,v
+
+    n = SIZE(ca)
+    ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL sg_overlap ( smat, l, a, a )
+    CALL sg_overlap ( tmat, l, a, b )
+    v(:,1) = MATMUL(tmat,cb)
+    CALL lapack_sgesv ( n, 1, smat, n, ipiv, v, n, info )
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    ca(:) = v(:,1)
+    
+    DEALLOCATE(smat,tmat,v,ipiv,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE project_function_a
+
+  SUBROUTINE project_function_b(ca,a,bfun,grid_atom,l,error)
+    ! project function f on ca
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: ca
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: bfun
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    INTEGER, INTENT(IN)                      :: l
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'project_function_b', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                              :: failure=.FALSE.
+    INTEGER                                              :: n, istat, info, i, nr
+    INTEGER, DIMENSION(:), ALLOCATABLE                   :: ipiv
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE             :: afun
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE           :: smat,v
+
+    n = SIZE(ca)
+    nr = grid_atom%nr
+    ALLOCATE(smat(n,n),v(n,1),ipiv(n),afun(nr),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL sg_overlap ( smat, l, a, a )
+    DO i=1,n
+       afun(:) = grid_atom%rad(:)**l * EXP(-a(i)*grid_atom%rad2(:))
+       v(i,1) = SUM(afun(:)*bfun(:)*grid_atom%wr(:))
+    END DO
+    CALL lapack_sgesv ( n, 1, smat, n, ipiv, v, n, info )
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    ca(:) = v(:,1)
+
+    DEALLOCATE(smat,v,ipiv,afun,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE project_function_b
 
 END MODULE qs_scf_post_gpw

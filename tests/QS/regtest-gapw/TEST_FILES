@@ -36,3 +36,5 @@ h2o_dist.inp       1
 H2S-gapw-gop.inp       1
 H2S-gapw-ot.inp        1
 H2S-gapw-gop-ot.inp    1
+# XRD total density output to file
+xrd.inp            0

@@ -249,6 +249,7 @@ MODULE atom_types
   PUBLIC :: init_atom_basis, release_atom_basis
   PUBLIC :: init_atom_potential, release_atom_potential
   PUBLIC :: read_atom_opt_section
+  PUBLIC :: Clementi_geobas
   PUBLIC :: GTO_BASIS, CGTO_BASIS, STO_BASIS, NUM_BASIS
   PUBLIC :: opmat_type, create_opmat, release_opmat
   PUBLIC :: opgrid_type, create_opgrid, release_opgrid
