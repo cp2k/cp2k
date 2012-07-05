@@ -2138,7 +2138,7 @@ CONTAINS
                         drho_r(3*(ispin-1)+3)%pw%cr3d(i,j,k)**2
                norm_drho = norm_drho/MAX( rho_r(ispin)%pw%cr3d(i,j,k),rho_cutoff)
                rho_53 = cfermi * MAX(rho_r(ispin)%pw%cr3d(i,j,k),rho_cutoff)**f53
-               elf_kernel = (tau_r(ispin)%pw%cr3d(i,j,k) - f18*norm_drho)
+               elf_kernel = (tau_r(ispin)%pw%cr3d(i,j,k) - f18*norm_drho) +2.87E-5_dp
                elf_kernel = (elf_kernel/rho_53)**2
                elf_r(ispin)%pw%cr3d(i,j,k) =  1.0_dp/(1.0_dp+elf_kernel)
                IF(elf_r(ispin)%pw%cr3d(i,j,k)<ELFCUT ) elf_r(ispin)%pw%cr3d(i,j,k) =0.0_dp
