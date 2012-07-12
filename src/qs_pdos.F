@@ -151,7 +151,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: ldos_index, r_ldos_index
     INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, in_x, in_y, in_z, &
-      ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, &
+      ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k,&
       kind_number, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
       n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, &
       np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, &
@@ -353,6 +353,7 @@ CONTAINS
            pw_env=pw_env,error=error)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                       pw_pools=pw_pools,error=error)
+
       CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
@@ -438,14 +439,23 @@ CONTAINS
         DO jy=bo(1,2),bo(2,2)
         DO jx=bo(1,1),bo(2,1)
           !compute the position of the grid point
-          r(3)=jz*dh(3,3)+jy*dh(3,2)+jx*dh(3,1)
-          r(2)=jz*dh(2,3)+jy*dh(2,2)+jx*dh(2,1)
-          r(1)=jz*dh(1,3)+jy*dh(1,2)+jx*dh(1,1)
-          
+          i = jx -wf_r%pw%pw_grid%bounds(1,1)
+          j = jy -wf_r%pw%pw_grid%bounds(1,2)
+          k = jz -wf_r%pw%pw_grid%bounds(1,3)
+          r(3)=k*dh(3,3)+j*dh(3,2)+i*dh(3,1)
+          r(2)=k*dh(2,3)+j*dh(2,2)+i*dh(2,1)
+          r(1)=k*dh(1,3)+j*dh(1,2)+i*dh(1,1)
+           
           DO il = 1, r_ldos_p(ildos)%ldos%nlist
              iatom = r_ldos_p(ildos)%ldos%list_index(il)
              ratom = particle_set(iatom)%r
              r_vec = pbc(ratom,r,cell)
+             IF (cell%orthorhombic) THEN
+               IF(cell%perd(1)==0) r_vec(1)=MODULO(r_vec(1),cell%hmat(1,1))
+               IF(cell%perd(2)==0) r_vec(2)=MODULO(r_vec(1),cell%hmat(2,2))
+               IF(cell%perd(3)==0) r_vec(3)=MODULO(r_vec(1),cell%hmat(3,3))
+             END IF
+
              in_x =0
              in_y =0
              in_z =0
