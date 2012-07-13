@@ -452,8 +452,8 @@ CONTAINS
              r_vec = pbc(ratom,r,cell)
              IF (cell%orthorhombic) THEN
                IF(cell%perd(1)==0) r_vec(1)=MODULO(r_vec(1),cell%hmat(1,1))
-               IF(cell%perd(2)==0) r_vec(2)=MODULO(r_vec(1),cell%hmat(2,2))
-               IF(cell%perd(3)==0) r_vec(3)=MODULO(r_vec(1),cell%hmat(3,3))
+               IF(cell%perd(2)==0) r_vec(2)=MODULO(r_vec(2),cell%hmat(2,2))
+               IF(cell%perd(3)==0) r_vec(3)=MODULO(r_vec(3),cell%hmat(3,3))
              END IF
 
              in_x =0
