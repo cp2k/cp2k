@@ -151,7 +151,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: ldos_index, r_ldos_index
     INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, in_x, in_y, in_z, &
-      ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k,&
+      ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, &
       kind_number, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
       n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, &
       np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, &

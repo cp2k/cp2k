@@ -2410,13 +2410,13 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, input
+    TYPE(section_vals_type), POINTER         :: dft_section, input, xc_section
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mo_coeff, mo_coeff_deriv,mo_eigenvalues,mos,atomic_kind_set,particle_set,rho,&
-            ks_rmpv,matrix_s,scf_control,dft_section,&
+            ks_rmpv,matrix_s,scf_control,dft_section,xc_section,&
             molecule_set,input,particles,subsys)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
@@ -2606,6 +2606,7 @@ CONTAINS
              END IF
 
              IF (unit_nr>0) THEN
+                xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
                 WRITE(unit_nr,*) "Atomic (core) densities"
                 WRITE(unit_nr,*) "Unit cell"
                 WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(1,1),cell%hmat(1,2),cell%hmat(1,3)

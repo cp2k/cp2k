@@ -37,6 +37,7 @@ MODULE atom_kind_orbitals
                                              do_rks_atom,&
                                              gth_pseudo,&
                                              no_pseudo
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: bohr
@@ -58,13 +59,16 @@ MODULE atom_kind_orbitals
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,confine,error)
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,confine,&
+                                        xc_section,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pmat
     INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: confine
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: xc_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
@@ -104,6 +108,12 @@ CONTAINS
 
     NULLIFY(atom)
     CALL create_atom_type(atom,error)
+
+    IF(PRESENT(xc_section)) THEN
+       atom%xc_section => xc_section
+    ELSE
+       NULLIFY(atom%xc_section)
+    END IF
 
     CALL get_atomic_kind(atomic_kind,z=z,zeff=zeff)
     NULLIFY(all_potential,gth_potential,orb_basis_set)
