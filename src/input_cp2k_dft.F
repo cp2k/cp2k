@@ -4463,6 +4463,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PURIFICATION_METHOD",&
+            description="Scheme used to purify the Kohn-Sham matrix into the density matrix.",&
+            usage="PURIFICATION_METHOD TRS4",&
+            default_i_val=ls_scf_ns,&
+            enum_c_vals=s2a( "SIGN_MATRIX", "TRS4"),&
+            enum_desc=s2a("Newton-Schulz sign matrix iteration.",&
+                          "Trace resetting 4th order scheme"),&
+            enum_i_vals=(/ls_scf_ns, ls_scf_trs4 /),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MATRIX_CLUSTER_TYPE",&
             description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "//&
                         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."//&

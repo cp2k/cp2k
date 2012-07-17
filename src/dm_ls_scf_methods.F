@@ -12,9 +12,10 @@
 MODULE dm_ls_scf_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, cp_dbcsr_init, &
+       cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
+       cp_dbcsr_gershgorin_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace
+       cp_dbcsr_trace, cp_dbcsr_transposed
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE dbcsr_block_access,              ONLY: dbcsr_put_block
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
@@ -37,7 +38,9 @@ MODULE dm_ls_scf_methods
                                              ls_s_preconditioner_none
   USE iterate_matrix,                  ONLY: matrix_sign_Newton_Schulz,&
                                              matrix_sqrt_Newton_Schulz
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
+  USE machine,                         ONLY: m_walltime
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -50,6 +53,7 @@ MODULE dm_ls_scf_methods
 
   PUBLIC density_matrix_sign, density_matrix_sign_fixed_mu
   PUBLIC compute_matrix_preconditioner, apply_matrix_preconditioner
+  PUBLIC density_matrix_trs4
 
 CONTAINS
 
@@ -359,6 +363,194 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE density_matrix_sign_fixed_mu
+
+! *****************************************************************************
+!> \brief compute the density matrix using a trace-resetting algorithm
+!> \par History
+!>       2012.06 created [Florian Thoele]
+!> \author Florian Thoele 
+! *****************************************************************************
+  SUBROUTINE density_matrix_trs4(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
+                                 nelectron, threshold, error)
+
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_s_sqrt_inv
+    INTEGER, INTENT(IN)                      :: nelectron
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_iter = 100
+    REAL(KIND=dp), PARAMETER                 :: gamma_max = 6.0_dp, &
+                                                gamma_min = 0.0_dp
+
+    INTEGER                                  :: handle, i, j, unit_nr
+    INTEGER(kind=int_8)                      :: flop1, flop2
+    REAL(KIND=dp) :: eps_max, eps_min, frob_x, frob_xsq, gam, mu_a, mu_b, &
+      mu_c, mu_fa, mu_fc, occ_matrix, t1, t2, trace_fx, trace_gx
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
+    TYPE(cp_dbcsr_type)                      :: matrix_x, matrix_xidsq, &
+                                                matrix_xsq, tmp_gx, tmp_trans
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = inv(S)*H
+    CALL cp_dbcsr_init(matrix_x,error=error)
+    CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry, error=error)
+
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks,&
+                           0.0_dp, matrix_x, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                           0.0_dp, matrix_x, filter_eps=threshold,error=error)
+
+    ! estimate the lower and upper bounds for the eigenvalues
+    eps_max = cp_dbcsr_gershgorin_norm(matrix_x)
+    eps_min = -eps_max
+    !IF (unit_nr>0) WRITE(unit_nr,'(T2,A,F20.12,F20.12,I4,F20.12)') " eps_zero, eps_max ", eps_min, eps_max, nelectron, threshold
+
+    CALL cp_dbcsr_scale(matrix_x, -1.0_dp, error=error)
+    CALL cp_dbcsr_add_on_diag(matrix_x, eps_max, error=error)
+    CALL cp_dbcsr_scale(matrix_x, 1/(eps_max-eps_min), error=error)
+
+
+    CALL cp_dbcsr_init(matrix_xsq,error=error)
+    CALL cp_dbcsr_create(matrix_xsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    CALL cp_dbcsr_init(matrix_xidsq,error=error)
+    CALL cp_dbcsr_create(matrix_xidsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    CALL cp_dbcsr_init(tmp_trans,error=error)
+    CALL cp_dbcsr_create(tmp_trans,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    CALL cp_dbcsr_init(tmp_gx,error=error)
+    CALL cp_dbcsr_create(tmp_gx,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    ALLOCATE(gamma_values(max_iter))
+    DO i=1,max_iter
+      t1 = m_walltime()
+
+      ! get X*X
+      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x,&
+                             0.0_dp, matrix_xsq, &
+                             filter_eps=threshold,flop=flop1,error=error)
+      ! use the deviation from idempotency as thresholding criterion
+      frob_xsq = cp_dbcsr_frobenius_norm(matrix_xsq)
+      frob_x = cp_dbcsr_frobenius_norm(matrix_x)
+      IF (ABS(frob_xsq - frob_x) < threshold) EXIT
+
+
+      ! xidsq = (1-X)*(1-X) 
+      ! use (1-x)*(1-x) = 1 + x*x - 2*x 
+      CALL cp_dbcsr_copy(matrix_xidsq, matrix_x,error=error)
+      CALL cp_dbcsr_add(matrix_xidsq, matrix_xsq, -2.0_dp, 1.0_dp, error=error)
+      CALL cp_dbcsr_add_on_diag(matrix_xidsq, 1.0_dp, error=error)
+    
+      ! tmp_gx = 4X-3X*X
+      CALL cp_dbcsr_copy(tmp_gx, matrix_x,error=error)
+      CALL cp_dbcsr_add(tmp_gx, matrix_xsq, 4.0_dp, -3.0_dp, error=error)
+
+      ! get gamma 
+      ! Tr(F) = Tr(XX*tmp_gx), tmp_trans=(XX)T, Tr(G) is equivalent
+      CALL cp_dbcsr_transposed(tmp_trans, matrix_xsq, error=error)
+      CALL cp_dbcsr_trace(tmp_trans, matrix_xidsq, trace_gx,  error=error)
+      CALL cp_dbcsr_trace(tmp_trans, tmp_gx, trace_fx, error=error)
+      gam = (nelectron - trace_fx)/trace_gx 
+      gamma_values(i) = gam
+
+      IF (gam > gamma_max) THEN
+        ! Xn+1 = 2X-X*X
+        CALL cp_dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp, error=error)
+        CALL cp_dbcsr_filter(matrix_x, threshold, error=error)
+      ELSE IF (gam < gamma_min) THEN
+        ! Xn+1 = X*X
+        CALL cp_dbcsr_copy(matrix_x, matrix_xsq, error=error)
+      ELSE
+        ! Xn+1 = F(X) + gam*G(X)
+        CALL cp_dbcsr_add(tmp_gx, matrix_xidsq, 1.0_dp, gam, error=error)
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_xsq, tmp_gx,&
+                               0.0_dp, matrix_x, &
+                               flop=flop2, filter_eps=threshold,error=error)
+      ENDIF
+ 
+      occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
+      t2 = m_walltime()
+      IF (unit_nr>0) WRITE(unit_nr,&
+                      '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,F12.5)') "TRS4 it ", &
+                      i, occ_matrix, ABS(frob_xsq-frob_x), t2-t1,&
+                      (flop1+flop2)/(1.0E6_dp*(t2-t1))
+
+    END DO
+
+    occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
+    IF (unit_nr>0) WRITE(unit_nr, '(T6,A,I3,1X,F10.8,E12.3)') 'Final TRS4 iteration  ', i, occ_matrix,ABS(frob_xsq-frob_x)
+    
+    ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
+    ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
+    mu_a = 0.0_dp; mu_b = 1.0_dp; 
+    mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i-1)-0.5_dp
+    DO j=1,40
+      mu_c = 0.5*(mu_a + mu_b)
+      mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i-1)-0.5_dp ! i-1 because in the last iteration, only convergence is checked
+      IF (ABS(mu_fc) < 1.0E-6_dp .OR. (mu_b-mu_a)/2 < 1.0E-6_dp) EXIT !TODO: define threshold values
+      
+      IF (mu_fc*mu_fa > 0) THEN
+        mu_a = mu_c
+        mu_fa = mu_fc
+      ELSE
+        mu_b = mu_c
+      ENDIF
+    ENDDO
+    IF(unit_nr > 0) WRITE(unit_nr, '(T6,A,1X,F10.5)') 'Chemical potential:  ', (eps_min - eps_max)*mu_c + eps_max
+
+
+    ! output to matrix_p, P = X inv(S) = PS inv(S)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
+                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p,&
+                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
+ 
+    CALL cp_dbcsr_release(tmp_trans, error=error)
+    CALL cp_dbcsr_release(tmp_gx, error=error)
+    CALL cp_dbcsr_release(matrix_x, error=error)
+    CALL cp_dbcsr_release(matrix_xsq, error=error)
+    CALL cp_dbcsr_release(matrix_xidsq, error=error)
+    DEALLOCATE(gamma_values)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE density_matrix_trs4
+ 
+  FUNCTION evaluate_trs4_polynomial(x, gamma_values, i) RESULT (xr)
+    REAL(KIND=dp)                            :: x
+    REAL(KIND=dp), DIMENSION(:)              :: gamma_values
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: xr
+
+    REAL(KIND=dp), PARAMETER                 :: gam_max = 6.0_dp, &
+                                                gam_min = 0.0_dp
+
+    INTEGER                                  :: k
+
+    xr = x
+    DO k=1,i
+      IF (gamma_values(k) > gam_max) THEN
+        xr = 2*xr-xr**2
+      ELSE IF(gamma_values(k) < gam_min) THEN
+       xr = xr**2
+      ELSE
+        xr = (xr*xr)*(4*xr-3*xr*xr) + gamma_values(k)*xr*xr*((1-xr)**2)
+      ENDIF
+    ENDDO
+  END FUNCTION evaluate_trs4_polynomial
 
 END MODULE dm_ls_scf_methods
 

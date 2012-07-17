@@ -26,7 +26,8 @@ MODULE dm_ls_scf
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
                                              compute_matrix_preconditioner,&
                                              density_matrix_sign,&
-                                             density_matrix_sign_fixed_mu
+                                             density_matrix_sign_fixed_mu,&
+                                             density_matrix_trs4
   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                              ls_scf_init_qs,&
                                              matrix_ls_create,&
@@ -34,13 +35,11 @@ MODULE dm_ls_scf
                                              matrix_qs_to_ls
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                             ls_cluster_molecular,&
-                                             ls_s_inversion_hotelling,&
-                                             ls_s_inversion_sign_sqrt,&
-                                             ls_s_preconditioner_atomic,&
-                                             ls_s_preconditioner_molecular,&
-                                             ls_s_preconditioner_none
+  USE input_constants,                 ONLY: &
+       ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
+       ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
+       ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
+       ls_scf_trs4
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -351,6 +350,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"S_INVERSION",i_val=ls_scf_env%s_inversion_type,error=error)
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities,error=error)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
+    CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method,error=error)
 
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
@@ -398,6 +398,15 @@ CONTAINS
            WRITE(unit_nr,'(T2,A,T38,A20)') "S preconditioner type ","ATOMIC"
        CASE(ls_s_preconditioner_molecular)
            WRITE(unit_nr,'(T2,A,T38,A20)') "S preconditioner type ","MOLECULAR"
+       END SELECT
+
+       SELECT CASE(ls_scf_env%purification_method)
+       CASE(ls_scf_ns)
+           WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Newton-Schulz sign iter"
+       CASE(ls_scf_trs4)
+           WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Trace resetting 4th order"
+       CASE DEFAULT
+           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
        SELECT CASE(ls_scf_env%ls_mstruct%cluster_type)
@@ -474,6 +483,7 @@ CONTAINS
          EXIT
       ENDIF
 
+
       t1 = m_walltime()
       iscf=iscf+1
 
@@ -508,11 +518,20 @@ CONTAINS
          nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
          IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
 
-         CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
-                                  matrix_mixing_old(ispin),ls_scf_env%matrix_s, &
-                                  ls_scf_env%matrix_s_inv, &
-                                  nelectron_spin_real,ls_scf_env%eps_filter,error)
-
+         IF (ls_scf_env%purification_method==ls_scf_ns) THEN
+           CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
+                                    matrix_mixing_old(ispin),ls_scf_env%matrix_s, &
+                                    ls_scf_env%matrix_s_inv, &
+                                    nelectron_spin_real,ls_scf_env%eps_filter,error)
+         ELSEIF (ls_scf_env%purification_method==ls_scf_trs4) THEN
+           CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), &
+                                    matrix_mixing_old(ispin),   &
+                                    ls_scf_env%matrix_s_sqrt_inv,&
+                                    nelectron_spin_real,        &
+                                    ls_scf_env%eps_filter,      &
+                                    error)
+         ENDIF
+                                  
          IF (ls_scf_env%has_s_preconditioner) THEN
              CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)

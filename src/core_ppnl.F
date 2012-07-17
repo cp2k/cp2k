@@ -259,6 +259,7 @@ CONTAINS
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1,iset)
             prjc = 1
+           ! XXX fix, use correct bounds 
             work = 0._dp
             DO l=0,lppnl
                nprjc = nprj_ppnl(l)*nco(l)

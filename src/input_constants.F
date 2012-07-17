@@ -875,6 +875,8 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
                                               ls_s_inversion_sign_sqrt=5
+  
+  INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns=17, ls_scf_trs4=18
 
   ! some MP2 parameters
   INTEGER, PARAMETER, PUBLIC               :: mp2_method_none=0,&
