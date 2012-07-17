@@ -40,7 +40,8 @@ MODULE dm_ls_scf_methods
                                              matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -483,10 +484,13 @@ CONTAINS
  
       occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
       t2 = m_walltime()
-      IF (unit_nr>0) WRITE(unit_nr,&
+      IF (unit_nr>0) THEN
+         WRITE(unit_nr,&
                       '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,F12.5)') "TRS4 it ", &
                       i, occ_matrix, ABS(frob_xsq-frob_x), t2-t1,&
                       (flop1+flop2)/(1.0E6_dp*(t2-t1))
+         CALL m_flush(unit_nr)
+      ENDIF
 
     END DO
 
