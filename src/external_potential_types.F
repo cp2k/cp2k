@@ -80,8 +80,6 @@ MODULE external_potential_types
                                                zeff, zeff_correction
      INTEGER                                :: z
      INTEGER, DIMENSION(:), POINTER         :: elec_conf
-     REAL(KIND = dp),DIMENSION(:),POINTER   :: orb_radius_3c
-     REAL(KIND = dp),DIMENSION(:,:),POINTER :: set_radius_3c
   END TYPE all_potential_type
 
   ! Define the effective charge & inducible dipole potential type (for Fist)
@@ -240,8 +238,6 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY (potential%elec_conf)
-    NULLIFY (potential%orb_radius_3c)
-    NULLIFY (potential%set_radius_3c)
 
     potential%description(1) = "All-electron potential"
     potential%description(2) = "Krack, Parrinello, PCCP 2, 2105 (2000)"
@@ -347,10 +343,6 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (potential%orb_radius_3c,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (potential%set_radius_3c,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (potential,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

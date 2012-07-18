@@ -36,17 +36,14 @@ MODULE qs_interactions
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp
   USE orbital_pointers,                ONLY: coset
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type,&
                                              set_paw_proj_set
   USE qs_util,                         ONLY: exp_radius
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -90,8 +87,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, &
-      istat, j, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_lpot, &
-      nexp_lsd, nexp_ppl, nkind, nset
+      j, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_lpot, nexp_lsd, &
+      nexp_ppl, nkind, nset
     INTEGER, DIMENSION(:), POINTER           :: ls, nct_lpot, nct_lsd, npgf, &
                                                 nprj, nprj_ppnl, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
@@ -224,13 +221,6 @@ CONTAINS
 
         CALL set_potential(potential=all_potential,&
                            core_charge_radius=core_charge_radius)
-
-        ALLOCATE(all_potential%orb_radius_3c(nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "orb_radius_3c",int_size*nkind)
-        ALLOCATE(all_potential%set_radius_3c(maxnset,nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "set_radius_3c",dp_size*maxnset*nkind)
 
       ELSE IF (ASSOCIATED(gth_potential)) THEN
 

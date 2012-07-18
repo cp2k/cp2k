@@ -6,7 +6,6 @@
 ! *****************************************************************************
 MODULE qs_rho0_methods
 
-  USE ai_coulomb,                      ONLY: coulomb3
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -17,15 +16,12 @@ MODULE qs_rho0_methods
                                              gapw_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE external_potential_types,        ONLY: all_potential_type
   USE f77_blas
-  USE input_constants,                 ONLY: rel_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dp_size
+                                             dp
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
   USE memory_utilities,                ONLY: reallocate
@@ -59,7 +55,6 @@ MODULE qs_rho0_methods
   USE qs_util,                         ONLY: exp_radius,&
                                              gaussint_sph,&
                                              trace_r_AxB
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -350,7 +345,7 @@ MODULE qs_rho0_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER :: handle, iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, &
+    INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, &
       max_nr, maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
       nset, nsotot, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -520,17 +515,6 @@ MODULE qs_rho0_methods
     END DO
     rho0_mpole%max_rpgf0_s = max_rpgf0_s
 
-!MI get rid of full gapw
-    IF ( qs_env%rel_control%rel_method/=rel_none) THEN
-      ALLOCATE(rho0_mpole%orb_radius_3c(nkind),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-!   Calculate the interaction radii for the 3 centers lists
-      CALL radii_3c_orbxrho0(qs_env,rho0_mpole,error=error)
-    END IF
-!MI get rid of full gapw
-
     IF (.NOT.my_tddft) THEN
        CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
                                       rho0_atom_set=rho0_atom_set,&
@@ -585,200 +569,9 @@ MODULE qs_rho0_methods
     rho0_mpole%mp_gau(ik)%rpgf0_s = r_h
     max_rpgf0_s = MAX(max_rpgf0_s,r_h)
 
-    rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_h
-
   END SUBROUTINE  interaction_radii_g0
 
 ! *****************************************************************************
-! MI: get reid of full GAPW
-  SUBROUTINE radii_3c_orbxrho0(qs_env,rho0_mpole,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'radii_3c_orbxrho0', &
-      routineP = moduleN//':'//routineN
-    REAL(dp), PARAMETER                      :: eps_radii_3c = 1.E-8_dp
-
-    INTEGER                                  :: i, ico, ico0, icoa, ikind, &
-                                                ipgf, iset, istat, jkind, l0, &
-                                                la, lmax_0, maxlgto, n, nco0, &
-                                                ncoa, nkind, nseta, nso0
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa
-    REAL(dp)                                 :: intmax0, r(3,0:60), r2(0:60), &
-                                                rab(3), rab2, rac(3), rac2, &
-                                                ri, rmax, rp0, z0_h
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff, Qlm, r_cut_set
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vabc
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: int_abc, int_tmp
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: vv
-    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, orb_rad
-    REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, set_rad, sphi_a, zeta
-    TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind, atom_kindj
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
-
-! XXXX Marcella should this be input ?
-
-    NULLIFY(atomic_kind_set,orb_rad,set_rad)
-
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    nkind = SIZE(atomic_kind_set,1)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
-
-    NULLIFY(ng0_h)
-    CALL get_rho0_mpole(rho0_mpole, lmax_0=lmax_0,&
-                        zet0_h=z0_h, norm_g0l_h=ng0_h,&
-                        max_rpgf0_s=rp0)
-
-    ALLOCATE (vv(ncoset(maxlgto),ncoset(maxlgto),ncoset(lmax_0),&
-              maxlgto+maxlgto+lmax_0+1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "vv",&
-                                     dp_size*ncoset(maxlgto)*ncoset(maxlgto)*&
-                                     ncoset(lmax_0)*(maxlgto+maxlgto+lmax_0+1))
-    ALLOCATE (ff(0:maxlgto+maxlgto+lmax_0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ff",&
-                                     dp_size*(maxlgto+maxlgto+lmax_0+1))
-
-    nco0 = ncoset(lmax_0)
-    nso0 = nsoset(lmax_0)
-    ALLOCATE (Qlm(nco0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "Qlm",dp_size*nco0)
-    Qlm = 0.0_dp
-
-    orb_rad => rho0_mpole%orb_radius_3c
-    set_rad => rho0_mpole%set_radius_3c
-
-    rmax = 20.0_dp
-    DO i=0,60
-      ri=REAL(i,dp)*rmax/60._dp+0.01_dp
-      r2(i)=ri**2
-      r(:,i)=(/ri,0._dp,0._dp/)
-    ENDDO
-    rab(1:3) = 0.0_dp
-    rab2 = 0.0_dp
-
-    DO ikind = 1,nkind
-      NULLIFY(atom_kind,orb_basis,la_max,la_min,npgfa,rpgfa,zeta)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             pgf_radius=rpgfa,&
-                             sphi=sphi_a,&
-                             zet=zeta)
-      orb_rad(ikind) = 0.0_dp
-      set_rad(:,ikind) = 0.0_dp
-      ALLOCATE (r_cut_set(nseta),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "r_cut_set",dp_size*nseta)
-      r_cut_set = 0.0_dp
-
-      DO iset = 1,nseta
-
-        ncoa = npgfa(iset)*ncoset(la_max(iset))
-        ALLOCATE(int_tmp(ncoa,ncoa,nco0),int_abc(ncoa,2,nco0),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "int_tmp")
-        int_abc = 0.0_dp
-
-        ALLOCATE(vabc(ncoa,ncoa),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vabc")
-        vabc=0.0_dp
-
-        DO i = 0,60
-          rac(1:3) = r(1:3,i)
-          rac2 = r2(i)
-
-          int_tmp = 0.0_dp
-          CALL coulomb3(la_max(iset),npgfa(iset),zeta(:,iset),&
-                        rpgfa(:,iset),la_min(iset),&
-                        la_max(iset),npgfa(iset),zeta(:,iset),&
-                        rpgfa(:,iset),la_min(iset),&
-                        lmax_0,z0_h,rp0,0,Qlm,&
-                        rab,rab2,rac,rac2,rac2,&
-                        vabc,int_tmp,vv,ff(0:))
-          DO ico0 = 1,nco0
-            l0 = indco(1,ico0)+indco(2,ico0)+indco(3,ico0)
-            DO icoa = 1,ncoa
-              int_abc(icoa,1,ico0)=ng0_h(l0)*int_tmp(icoa,icoa,ico0)
-            END DO
-          END DO  ! ico0
-
-          int_tmp = 0.0_dp
-          CALL coulomb3(la_max(iset),npgfa(iset),zeta(:,iset),&
-                        rpgfa(:,iset),la_min(iset),&
-                        la_max(iset),npgfa(iset),zeta(:,iset),&
-                        rpgfa(:,iset),la_min(iset),&
-                        lmax_0,z0_h,rp0,0,Qlm,&
-                        rab,rab2,rac,rac2,rac2,&
-                        vabc,int_tmp,vv,ff(0:))
-          intmax0 = 0.0_dp
-          l0 = 0
-
-          DO ipgf = 1,npgfa(iset)
-             n=(ipgf-1)*ncoset(la_max(iset))
-             DO ico = 1,ncoset(la_max(iset))
-               la = indco(1,ico)+indco(2,ico)+indco(3,ico)
-               icoa = ico + n
-               int_abc(icoa,2,1)= ng0_h(l0)*int_tmp(icoa,icoa,1)
-
-               intmax0 = MAX(intmax0,ABS(int_abc(icoa,1,1)-int_abc(icoa,2,1)))
-             END DO
-          END DO
-
-          DO ico0 = 2,nco0
-            l0 = indco(1,ico0)+indco(2,ico0)+indco(3,ico0)
-            DO icoa = 1,ncoa
-              int_abc(icoa,2,ico0)= ng0_h(l0)*int_tmp(icoa,icoa,ico0)
-            END DO
-          END DO  ! ico0
-          IF( intmax0 < eps_radii_3c ) THEN
-            r_cut_set(iset) = r(1,i)
-            EXIT
-          END IF
-        END DO  ! i
-
-        orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) )
-        set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)
-
-        DEALLOCATE(vabc,STAT=istat)
-        DEALLOCATE(int_tmp,int_abc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-              "vabc,int_tmp,int_abc")
-      END DO  ! iset
-      DEALLOCATE(r_cut_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "r_cut_set")
-    DO jkind = 1,nkind
-      NULLIFY(atom_kindj,all_potential)
-      atom_kindj => atomic_kind_set(jkind)
-      CALL get_atomic_kind(atomic_kind=atom_kindj,all_potential=all_potential)
-      IF(ASSOCIATED(all_potential)) THEN
-        orb_rad(ikind) = MAX(orb_rad(ikind),all_potential%orb_radius_3c(ikind))
-      END IF
-    END DO
-    END DO  ! ikind
-    DEALLOCATE(Qlm,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "Qlm")
-    DEALLOCATE(vv,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "vv,ff")
-  END SUBROUTINE radii_3c_orbxrho0
-! MI: get reid of full GAPW
 
 END MODULE qs_rho0_methods
 

@@ -49,9 +49,6 @@ MODULE qs_rho0_types
     REAL(dp), DIMENSION(:,:,:), POINTER         :: Qlm_gg
     REAL(dp), DIMENSION(:,:), POINTER           :: g0_h, vg0_h
     REAL(dp)                                    :: rpgf0_h, rpgf0_s
-!MI get rid of full gapw
-    REAL(dp)                                    :: r_V0hmV0s
-!MI get rid of full gapw
   END TYPE mpole_gau_overlap
 
 ! *****************************************************************************
@@ -63,10 +60,6 @@ MODULE qs_rho0_types
                                                    total_rho0_h
     REAL(dp)                                    :: max_rpgf0_s
     REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h
-!MI get rid of full gapw
-    REAL(dp), DIMENSION(:), POINTER             :: orb_radius_3c
-    REAL(dp), DIMENSION(:,:), POINTER           :: set_radius_3c
-!MI get rid of full gapw
     INTEGER, DIMENSION(:),  POINTER             :: lmax0_kind
     INTEGER                                     :: lmax_0,igrid_zet0_s
     TYPE(pw_p_type), POINTER                    :: rho0_s_rs,&
@@ -138,7 +131,6 @@ CONTAINS
       NULLIFY(mp_gau(ikind)%vg0_h)
       mp_gau(ikind)%rpgf0_h = 0.0_dp
       mp_gau(ikind)%rpgf0_s = 0.0_dp
-      mp_gau(ikind)%r_V0hmV0s = 0.0_dp
     END DO
 
   END SUBROUTINE allocate_multipoles
@@ -225,9 +217,6 @@ CONTAINS
     NULLIFY(rho0%mp_rho)
     NULLIFY(rho0%mp_gau)
     NULLIFY(rho0%norm_g0l_h)
-    NULLIFY(rho0%orb_radius_3c)
-    NULLIFY(rho0%set_radius_3c)
-!MI get rid of full gapw
     NULLIFY(rho0%lmax0_kind)
     NULLIFY(rho0%rho0_s_rs)
     NULLIFY(rho0%rho0_s_gs)
@@ -441,20 +430,6 @@ CONTAINS
                          "rho0%norm_g0l_h")
       END IF
 
-!MI get rid of full gapw
-      IF (ASSOCIATED(rho0%orb_radius_3c)) THEN
-         DEALLOCATE(rho0%orb_radius_3c, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "rho0%orb_radius_3c")
-      END IF
-
-      IF (ASSOCIATED(rho0%set_radius_3c)) THEN
-         DEALLOCATE(rho0%set_radius_3c, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "rho0%set_radius_3c")
-      END IF
-!MI get rid of full gapw
-
       IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
           CALL pw_release(rho0%rho0_s_rs%pw,error=error)
           DEALLOCATE(rho0%rho0_s_rs, STAT=istat)
@@ -483,9 +458,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, vg0_h, iat, ikind, lmax_0, l0_ikind,&
                             mp_gau_ikind, mp_rho, norm_g0l_h, &
-                            orb_radius_3c, set_radius_3c, Qlm_gg, Qlm_car,  Qlm_tot,  &
+                            Qlm_gg, Qlm_car,  Qlm_tot,  &
                             zet0_h, igrid_zet0_s, rpgf0_h,rpgf0_s, &
-                            r_V0hmV0s, max_rpgf0_s, rho0_s_rs, rho0_s_gs)
+                            max_rpgf0_s, rho0_s_rs, rho0_s_gs)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -497,17 +472,14 @@ CONTAINS
     TYPE(mpole_rho_atom), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mp_rho
     REAL(dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: norm_g0l_h, orb_radius_3c
-    REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: set_radius_3c
+      POINTER                                :: norm_g0l_h
     REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: Qlm_gg
     REAL(dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: Qlm_car, Qlm_tot
     REAL(dp), INTENT(OUT), OPTIONAL          :: zet0_h
     INTEGER, INTENT(OUT), OPTIONAL           :: igrid_zet0_s
-    REAL(dp), INTENT(OUT), OPTIONAL          :: rpgf0_h, rpgf0_s, r_V0hmV0s, &
-                                                max_rpgf0_s
+    REAL(dp), INTENT(OUT), OPTIONAL          :: rpgf0_h, rpgf0_s, max_rpgf0_s
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rho0_mpole', &
@@ -518,10 +490,6 @@ CONTAINS
       IF(PRESENT(lmax_0)) lmax_0 = rho0_mpole%lmax_0
       IF(PRESENT(mp_rho)) mp_rho => rho0_mpole%mp_rho
       IF(PRESENT(norm_g0l_h)) norm_g0l_h => rho0_mpole%norm_g0l_h
-!MI get rid of full gapw
-      IF(PRESENT(orb_radius_3c)) orb_radius_3c => rho0_mpole%orb_radius_3c
-      IF(PRESENT(set_radius_3c)) set_radius_3c => rho0_mpole%set_radius_3c
-!MI get rid of full gapw
       IF(PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
       IF(PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
       IF(PRESENT(max_rpgf0_s)) max_rpgf0_s = rho0_mpole%max_rpgf0_s
@@ -536,9 +504,6 @@ CONTAINS
         IF(PRESENT(Qlm_gg))       Qlm_gg => rho0_mpole%mp_gau(ikind)%Qlm_gg
         IF(PRESENT(rpgf0_h))      rpgf0_h = rho0_mpole%mp_gau(ikind)%rpgf0_h
         IF(PRESENT(rpgf0_s))      rpgf0_s = rho0_mpole%mp_gau(ikind)%rpgf0_s
-!MI get rid of full gapw
-        IF(PRESENT(r_V0hmV0s))    r_V0hmV0s = rho0_mpole%mp_gau(ikind)%r_V0hmV0s
-!MI get rid of full gapw
       END IF
       IF(PRESENT(iat)) THEN
         IF(PRESENT(Qlm_car)) Qlm_car => rho0_mpole%mp_rho(iat)%Qlm_car

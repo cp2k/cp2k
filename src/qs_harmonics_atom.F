@@ -510,8 +510,7 @@ CONTAINS
 
     INTEGER                                  :: damax_iso_not0, &
                                                 dmax_iso_not0, handle, is1, &
-                                                is2, iso, itmp, max_iso_not0, &
-                                                nset
+                                                is2, itmp, max_iso_not0, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
     LOGICAL                                  :: failure = .FALSE.
 
