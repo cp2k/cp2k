@@ -796,9 +796,7 @@ MODULE qs_rho_atom_methods
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                     dft_control=dft_control,linres_control=linres_control,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxlgto=maxlgto,&
-                             natom = natom)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto,natom=natom)
 
     nspins = dft_control%nspins
 
@@ -874,7 +872,6 @@ MODULE qs_rho_atom_methods
     DO ikind = 1,nkind
       atomic_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis_set, &
                            atom_list=atom_list,natom=nat, &
                            paw_atom=paw_atom,&
                            grid_atom=grid_atom,&
@@ -941,6 +938,8 @@ MODULE qs_rho_atom_methods
 
 !     *** calculate the spherical harmonics on the grid ***
 
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=maxl)
       maxs=nsoset(maxl)
       CALL create_harmonics_atom(harmonics,&
@@ -964,7 +963,7 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE init_rho_atom
 
 ! *****************************************************************************
-  SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set,error)
+  SUBROUTINE allocate_rho_atom_internals(qs_env,rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -975,15 +974,14 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iat, iatom, ikind, ispin, istat, j, &
-      max_iso_not0, maxso, mepos, nat, natom, nkind, nr, nsatbas, nset, &
-      nsotot, nspins, num_pe
+      max_iso_not0, mepos, nat, natom, nkind, nr, nsatbas, nsotot, nspins, &
+      num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure = .FALSE., paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
@@ -1008,18 +1006,14 @@ MODULE qs_rho_atom_methods
 
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            orb_basis_set=orb_basis_set, &
                             atom_list=atom_list,natom=nat, &
                             paw_proj_set=paw_proj,&
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
                             ngrid_rad=nr)
 
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxso=maxso, nset=nset)
-
        IF (paw_atom) THEN
-         CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
-         nsotot = maxso * nset
+         CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas,nsotot=nsotot)
        END IF
 
        max_iso_not0 = harmonics%max_iso_not0
