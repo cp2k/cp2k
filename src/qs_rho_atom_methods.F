@@ -36,6 +36,7 @@ MODULE qs_rho_atom_methods
   USE qs_grid_atom,                    ONLY: create_grid_atom,&
                                              grid_atom_type
   USE qs_harmonics_atom,               ONLY: create_harmonics_atom,&
+                                             get_maxl_CG,&
                                              get_none0_cg_list,&
                                              harmonics_atom_type
   USE qs_linres_types,                 ONLY: linres_control_type
@@ -765,8 +766,8 @@ MODULE qs_rho_atom_methods
 
     INTEGER :: handle, ia, ikind, il, ir, iso, iso1, iso2, istat, l1, l1l2, &
       l2, la, lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, &
-      max_s_harm, max_s_set, maxlgto, mm, mp, na, nat, natom, nkind, nr, &
-      nspins, quadrature
+      max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, natom, &
+      nkind, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
     REAL(dp)                                 :: cosia, phi
@@ -940,11 +941,14 @@ MODULE qs_rho_atom_methods
 
 !     *** calculate the spherical harmonics on the grid ***
 
-      CALL create_harmonics_atom(harmonics, orb_basis_set,&
-                   my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,&
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=maxl)
+      maxs=nsoset(maxl)
+      CALL create_harmonics_atom(harmonics,&
+                   my_CG,na,llmax,maxs,max_s_harm,ll,grid_atom%wa,&
                    grid_atom%phi,grid_atom%cos_phi,&
                    grid_atom%theta,grid_atom%cos_theta,&
                    grid_atom%cotan_phi,error)
+      CALL get_maxl_CG(harmonics,orb_basis_set,my_CG,llmax,max_s_harm,error)
 
     END DO
 
