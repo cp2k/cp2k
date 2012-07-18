@@ -527,20 +527,18 @@ CONTAINS
     damax_iso_not0 =  0
     DO is1 = 1,nset
        DO is2 = 1,nset
-          DO iso = 1,max_s_harm
-             CALL get_none0_cg_list(harmonics%my_CG,&
-                                    lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
-                                    max_s_harm,llmax,max_iso_not0=itmp,error=error)
-             max_iso_not0 = MAX(max_iso_not0,itmp)
-             CALL get_none0_cg_list(harmonics%my_dCG,&
-                                    lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
-                                    max_s_harm,llmax,max_iso_not0=itmp,error=error)
-             dmax_iso_not0 = MAX(dmax_iso_not0,itmp)
-             CALL get_none0_cg_list(harmonics%my_CG_dxyz_asym,&
-                                    lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
-                                    max_s_harm,llmax,max_iso_not0=itmp,error=error)
-             damax_iso_not0 = MAX(damax_iso_not0,itmp)
-          END DO
+          CALL get_none0_cg_list(harmonics%my_CG,&
+                                 lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
+                                 max_s_harm,llmax,max_iso_not0=itmp,error=error)
+          max_iso_not0 = MAX(max_iso_not0,itmp)
+          CALL get_none0_cg_list(harmonics%my_dCG,&
+                                 lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
+                                 max_s_harm,llmax,max_iso_not0=itmp,error=error)
+          dmax_iso_not0 = MAX(dmax_iso_not0,itmp)
+          CALL get_none0_cg_list(harmonics%my_CG_dxyz_asym,&
+                                 lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
+                                 max_s_harm,llmax,max_iso_not0=itmp,error=error)
+          damax_iso_not0 = MAX(damax_iso_not0,itmp)
        END DO ! is2
     END DO ! is1
     harmonics%max_iso_not0 = max_iso_not0
