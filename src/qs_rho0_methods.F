@@ -346,12 +346,12 @@ MODULE qs_rho0_methods
 
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, &
-      max_nr, maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
+      maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
       nset, nsotot, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, my_tddft, paw_atom
-    REAL(dp) :: alpha_core, ecut, eps_fit, eps_Vrho0, max_rpgf0_s, radius, &
-      rc_min, rc_orb, total_rho_core_rspace, zetsoft_max
+    REAL(dp) :: alpha_core, eps_Vrho0, max_rpgf0_s, radius, &
+      rc_min, rc_orb, total_rho_core_rspace
     REAL(KIND=dp)                            :: zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -388,7 +388,6 @@ MODULE qs_rho0_methods
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                     dft_control=dft_control,error=error)
 
-    ecut = dft_control%qs_control%cutoff
     nkind = SIZE(atomic_kind_set,1)
     eps_Vrho0 = gapw_control%eps_Vrho0
 
@@ -396,9 +395,7 @@ MODULE qs_rho0_methods
 !   in gapw rhoz is calculated on local the lebedev grids
     total_rho_core_rspace = 0.0_dp
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,max_ngrid_rad=max_nr,&
-                             zetsoft_max=zetsoft_max)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
 
 !   Initialize the multipole and the compensation charge type
     CALL allocate_rho0_mpole(rho0_mpole,error=error)
@@ -413,7 +410,6 @@ MODULE qs_rho0_methods
 !   For each kind, determine the max l for the compensation charge density
     lmaxg = gapw_control%lmax_rho0
     laddg = gapw_control%ladd_rho0
-    eps_fit = gapw_control%eps_fit
 
     CALL reallocate(rho0_mpole%lmax0_kind,1,nkind)
 
