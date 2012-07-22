@@ -345,13 +345,14 @@ MODULE qs_rho0_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, &
-      maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
-      nset, nsotot, output_unit
+    INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, maxl, &
+      maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, nset, nsotot, &
+      output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, my_tddft, paw_atom
-    REAL(dp) :: alpha_core, eps_Vrho0, max_rpgf0_s, radius, &
-      rc_min, rc_orb, total_rho_core_rspace
+    REAL(dp)                                 :: alpha_core, eps_Vrho0, &
+                                                max_rpgf0_s, radius, rc_min, &
+                                                rc_orb, total_rho_core_rspace
     REAL(KIND=dp)                            :: zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
