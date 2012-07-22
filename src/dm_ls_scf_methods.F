@@ -66,7 +66,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE compute_matrix_preconditioner(matrix_s,preconditioner_type, ls_mstruct, &
-             matrix_bs_sqrt,matrix_bs_sqrt_inv,threshold,error)
+             matrix_bs_sqrt,matrix_bs_sqrt_inv,threshold,order,error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_s
     INTEGER                                  :: preconditioner_type
@@ -74,6 +74,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_bs_sqrt, &
                                                 matrix_bs_sqrt_inv
     REAL(KIND=dp)                            :: threshold
+    INTEGER                                  :: order
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -156,7 +157,7 @@ CONTAINS
        ! XXXXXXXXXXX using eps_filter is reducing accuracy for no good reason, this is cheap
        ! XXXXXXXXXXX
        CALL matrix_sqrt_Newton_Schulz(matrix_bs_sqrt,matrix_bs_sqrt_inv,matrix_bs,&
-                                      threshold=MIN(threshold,1.0E-10_dp),error=error)
+                                      threshold=MIN(threshold,1.0E-10_dp),order=order,error=error)
     END SELECT
 
     CALL cp_dbcsr_release(matrix_bs,error=error)

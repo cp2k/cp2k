@@ -4509,6 +4509,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SIGN_SQRT_ORDER",&
+            description="Order of the sqrt iteration, should be 2..5, 3 or 5 recommended",&
+            usage="SIGN_SQRT_ORDER 5",&
+            default_i_val=3,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="REPORT_ALL_SPARSITIES",&
             description="Run the sparsity report at the end of the SCF",&
             usage="REPORT_ALL_SPARSITIES", default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)

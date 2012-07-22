@@ -44,6 +44,7 @@ MODULE dm_ls_scf_types
      INTEGER :: s_preconditioner_type
      INTEGER :: s_inversion_type
      INTEGER :: purification_method
+     INTEGER :: sign_sqrt_order
 
      LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu
      REAL(KIND=dp)         :: eps_filter, eps_scf

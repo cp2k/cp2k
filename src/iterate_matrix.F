@@ -248,30 +248,36 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute the sqrt of a matrix via the sign function and the corresponding Newton-Schulz iterations
+!>        the order of the algorithm should be 2..5, 3 or 5 is recommended
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt,matrix_sqrt_inv,matrix,threshold,error)
+  SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt,matrix_sqrt_inv,matrix,threshold,order,error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_sqrt, matrix_sqrt_inv, &
                                                 matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
+    INTEGER, INTENT(IN)                      :: order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, unit_nr
-    INTEGER(KIND=int_8)                      :: flop1, flop2, flop3
-    REAL(KIND=dp)                            :: frob_matrix, &
+    INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
+                                                flop5
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, c, d, frob_matrix, &
                                                 frob_matrix_base, &
-                                                gersh_matrix, occ_matrix, &
-                                                scaling, t1, t2
-    TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
+                                                gersh_matrix, oa, ob, oc, &
+                                                occ_matrix, od, scaling, t1, &
+                                                t2
+    TYPE(cp_dbcsr_type)                      :: tmp1, tmp2, tmp3
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+    failure=.FALSE.
 
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -280,10 +286,15 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
+    ! for stability symmetry can not be assumed
     CALL cp_dbcsr_init(tmp1,error=error)
-    CALL cp_dbcsr_create(tmp1,template=matrix,error=error)
+    CALL cp_dbcsr_create(tmp1,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
     CALL cp_dbcsr_init(tmp2,error=error)
-    CALL cp_dbcsr_create(tmp2,template=matrix,error=error)
+    CALL cp_dbcsr_create(tmp2,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    IF (order.GE.4) THEN
+       CALL cp_dbcsr_init(tmp3,error=error)
+       CALL cp_dbcsr_create(tmp3,template=matrix,matrix_type=dbcsr_type_no_symmetry,error=error)
+    ENDIF
 
     CALL cp_dbcsr_set(matrix_sqrt_inv,0.0_dp,error=error)
     CALL cp_dbcsr_add_on_diag(matrix_sqrt_inv,1.0_dp,error=error)
@@ -303,26 +314,85 @@ CONTAINS
 
        t1 = m_walltime()
 
-       ! tmp1 = I - Zk * Yk
-       CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1,&
+       ! tmp1 = Zk * Yk - I
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1,&
                               filter_eps=threshold, flop=flop1, error=error)
        frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-       CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
+       CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
 
        ! check convergence (frob norm of what should be the identity matrix minus identity matrix)
        frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
 
-       ! update the above to 3*I-Zk*Yk
-       CALL cp_dbcsr_add_on_diag(tmp1,+2.0_dp,error=error)
+       flop4=0 ; flop5=0
+       SELECT CASE(order)
+       CASE(2)
+          ! update the above to 0.5*(3*I-Zk*Yk)
+          CALL cp_dbcsr_add_on_diag(tmp1,-2.0_dp,error=error)
+          CALL cp_dbcsr_scale(tmp1,-0.5_dp,error=error)
+       CASE(3)
+          ! tmp2 = tmp1 ** 2
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp1, 0.0_dp, tmp2,&
+                                 filter_eps=threshold, flop=flop4, error=error)
+          ! tmp1 = 1/16 * (16*I-8*tmp1+6*tmp1**2-5*tmp1**3)
+          CALL cp_dbcsr_add(tmp1, tmp2, -4.0_dp, 3.0_dp, error=error)
+          CALL cp_dbcsr_add_on_diag(tmp1,8.0_dp,error=error)
+          CALL cp_dbcsr_scale(tmp1,0.125_dp,error=error)
+       CASE(4) ! as expensive as case(5), so little need to use it
+          ! tmp2 = tmp1 ** 2
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp1, 0.0_dp, tmp2,&
+                                 filter_eps=threshold, flop=flop4, error=error)
+          ! tmp3 = tmp2 * tmp1
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp1, 0.0_dp, tmp3,&
+                                 filter_eps=threshold, flop=flop5, error=error)
+          CALL cp_dbcsr_scale(tmp1,-8.0_dp,error=error)
+          CALL cp_dbcsr_add_on_diag(tmp1,16.0_dp,error=error)
+          CALL cp_dbcsr_add(tmp1, tmp2, 1.0_dp, 6.0_dp, error=error)
+          CALL cp_dbcsr_add(tmp1, tmp3, 1.0_dp,-5.0_dp, error=error)
+          CALL cp_dbcsr_scale(tmp1,1/16.0_dp,error=error)
+       CASE(5)
+          ! Knuth's reformulation to evaluate the polynomial of 4th degree in 2 multiplications
+          ! p = y4+A*y3+B*y2+C*y+D
+          ! z := y * (y+a); P := (z+y+b) * (z+c) + d.
+          ! a=(A-1)/2 ; b=B*(a+1)-C-a*(a+1)*(a+1)
+          ! c=B-b-a*(a+1)
+          ! d=D-bc
+          oa=-40.0_dp/35.0_dp 
+          ob= 48.0_dp/35.0_dp
+          oc=-64.0_dp/35.0_dp
+          od=128.0_dp/35.0_dp
+          a=(oa-1)/2
+          b=ob*(a+1)-oc-a*(a+1)**2 
+          c=ob-b-a*(a+1)
+          d=od-b*c
+          ! tmp2 = tmp1 ** 2 + a * tmp1
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp1, 0.0_dp, tmp2,&
+                                 filter_eps=threshold, flop=flop4, error=error)
+          CALL cp_dbcsr_add(tmp2, tmp1, 1.0_dp, a , error=error)
+          ! tmp3 = tmp2 + tmp1 + b
+          CALL cp_dbcsr_copy(tmp3,tmp2,error=error)
+          CALL cp_dbcsr_add(tmp3, tmp1, 1.0_dp, 1.0_dp , error=error)
+          CALL cp_dbcsr_add_on_diag(tmp3,b,error=error)
+          ! tmp2 = tmp2 + c
+          CALL cp_dbcsr_add_on_diag(tmp2,c,error=error)
+          ! tmp1 = tmp2 * tmp3
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp1,&
+                                 filter_eps=threshold, flop=flop5, error=error)
+          ! tmp1 = tmp1 + d
+          CALL cp_dbcsr_add_on_diag(tmp1,d,error=error)
+          ! final scale
+          CALL cp_dbcsr_scale(tmp1,35.0_dp/128.0_dp,error=error)    
+       CASE DEFAULT
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
 
-       ! tmp2 = 0.5 * Yk * tmp1 = Y(k+1)
-       CALL cp_dbcsr_multiply("N", "N",  0.5_dp, matrix_sqrt, tmp1,  0.0_dp, tmp2,&
+       ! tmp2 = Yk * tmp1 = Y(k+1)
+       CALL cp_dbcsr_multiply("N", "N",  1.0_dp, matrix_sqrt, tmp1,  0.0_dp, tmp2,&
                               filter_eps=threshold, flop=flop2, error=error)
        ! CALL cp_dbcsr_filter(tmp2,threshold,error=error)
        CALL cp_dbcsr_copy(matrix_sqrt, tmp2, error=error)
 
-       ! tmp2 = 0.5 * tmp1 * Zk = Z(k+1)
-       CALL cp_dbcsr_multiply("N", "N",  0.5_dp, tmp1, matrix_sqrt_inv,  0.0_dp, tmp2,&
+       ! tmp2 = tmp1 * Zk = Z(k+1)
+       CALL cp_dbcsr_multiply("N", "N",  1.0_dp, tmp1, matrix_sqrt_inv,  0.0_dp, tmp2,&
                               filter_eps=threshold,flop=flop3, error=error)
        ! CALL cp_dbcsr_filter(tmp2,threshold,error=error)
        CALL cp_dbcsr_copy(matrix_sqrt_inv, tmp2, error=error)
@@ -335,7 +405,7 @@ CONTAINS
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sqrt iter ",i,occ_matrix,&
                                                              frob_matrix/frob_matrix_base,t2-t1,&
-                                                             (flop1+flop2+flop3)/(1.0E6_dp*(t2-t1))
+                                                 (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*(t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
@@ -363,6 +433,9 @@ CONTAINS
 
     CALL cp_dbcsr_release(tmp1,error=error)
     CALL cp_dbcsr_release(tmp2,error=error)
+    IF (order.GE.4) THEN
+       CALL cp_dbcsr_release(tmp3,error=error)
+    ENDIF
 
     CALL timestop(handle)
 

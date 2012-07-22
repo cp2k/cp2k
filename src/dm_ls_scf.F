@@ -232,7 +232,7 @@ CONTAINS
        CALL compute_matrix_preconditioner(ls_scf_env%matrix_s,&
                             ls_scf_env%s_preconditioner_type, ls_scf_env%ls_mstruct, &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,&
-                            ls_scf_env%eps_filter,error)
+                            ls_scf_env%eps_filter,ls_scf_env%sign_sqrt_order,error)
     ENDIF
 
     ! precondition S
@@ -252,8 +252,8 @@ CONTAINS
 
 
         CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt,ls_scf_env%matrix_s_sqrt_inv,&
-                                       ls_scf_env%matrix_s,ls_scf_env%eps_filter,error)
-
+                                       ls_scf_env%matrix_s,ls_scf_env%eps_filter,&
+                                       ls_scf_env%sign_sqrt_order,error)
 
         IF (.TRUE.) THEN
            CALL cp_dbcsr_init(matrix_tmp1,error=error)
@@ -351,6 +351,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities,error=error)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
     CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method,error=error)
+    CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=ls_scf_env%sign_sqrt_order,error=error)
 
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
@@ -389,6 +390,7 @@ CONTAINS
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing inv(S):",ls_scf_env%needs_s_inv
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing sqrt(S):",ls_scf_env%use_s_sqrt
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing s preconditioner ",ls_scf_env%has_s_preconditioner
+       WRITE(unit_nr,'(T2,A,T38,I20)') "sign sqrt order:",ls_scf_env%sign_sqrt_order
        WRITE(unit_nr,'(T2,A,T38,L20)') "Use single precision matrices",ls_scf_env%ls_mstruct%single_precision
 
        SELECT CASE(ls_scf_env%s_preconditioner_type)
