@@ -15,7 +15,7 @@ MODULE dm_ls_scf_methods
        cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
        cp_dbcsr_gershgorin_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace, cp_dbcsr_transposed
+       cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE dbcsr_block_access,              ONLY: dbcsr_put_block
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
@@ -389,8 +389,10 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
-    REAL(KIND=dp) :: eps_max, eps_min, frob_x, frob_xsq, gam, mu_a, mu_b, &
-      mu_c, mu_fa, mu_fc, occ_matrix, t1, t2, trace_fx, trace_gx
+    REAL(KIND=dp)                            :: eps_max, eps_min, gam, mu_a, &
+                                                mu_b, mu_c, mu_fa, mu_fc, &
+                                                occ_matrix, t1, t2, trace_fx, &
+                                                trace_gx
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_x, matrix_xidsq, &
                                                 matrix_xsq, tmp_gx, tmp_trans
@@ -444,11 +446,6 @@ CONTAINS
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x,&
                              0.0_dp, matrix_xsq, &
                              filter_eps=threshold,flop=flop1,error=error)
-      ! use the deviation from idempotency as thresholding criterion
-      frob_xsq = cp_dbcsr_frobenius_norm(matrix_xsq)
-      frob_x = cp_dbcsr_frobenius_norm(matrix_x)
-      IF (ABS(frob_xsq - frob_x) < threshold) EXIT
-
 
       ! xidsq = (1-X)*(1-X) 
       ! use (1-x)*(1-x) = 1 + x*x - 2*x 
@@ -461,10 +458,8 @@ CONTAINS
       CALL cp_dbcsr_add(tmp_gx, matrix_xsq, 4.0_dp, -3.0_dp, error=error)
 
       ! get gamma 
-      ! Tr(F) = Tr(XX*tmp_gx), tmp_trans=(XX)T, Tr(G) is equivalent
-      CALL cp_dbcsr_transposed(tmp_trans, matrix_xsq, error=error)
-      CALL cp_dbcsr_trace(tmp_trans, matrix_xidsq, trace_gx,  error=error)
-      CALL cp_dbcsr_trace(tmp_trans, tmp_gx, trace_fx, error=error)
+      CALL cp_dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx,  error=error)
+      CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx, error=error)
       gam = (nelectron - trace_fx)/trace_gx 
       gamma_values(i) = gam
 
@@ -488,15 +483,18 @@ CONTAINS
       IF (unit_nr>0) THEN
          WRITE(unit_nr,&
                       '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,F12.5)') "TRS4 it ", &
-                      i, occ_matrix, ABS(frob_xsq-frob_x), t2-t1,&
+                      i, occ_matrix, ABS(trace_gx), t2-t1,&
                       (flop1+flop2)/(1.0E6_dp*(t2-t1))
          CALL m_flush(unit_nr)
       ENDIF
 
+      ! exit the loop if Tr[gx] was small enough (Tr[(x(1-x))^2] < sqrt(threshold)) before the iteration
+      IF (ABS(trace_gx) < sqrt(threshold)) EXIT
+
     END DO
 
     occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
-    IF (unit_nr>0) WRITE(unit_nr, '(T6,A,I3,1X,F10.8,E12.3)') 'Final TRS4 iteration  ', i, occ_matrix,ABS(frob_xsq-frob_x)
+    IF (unit_nr>0) WRITE(unit_nr, '(T6,A,I3,1X,F10.8,E12.3)') 'Final TRS4 iteration  ', i, occ_matrix,ABS(trace_gx)
     
     ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
     ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
