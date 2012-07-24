@@ -77,7 +77,7 @@ MODULE hfx_types
           pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
           hfx_pgf_image, hfx_pgf_product_list, hfx_block_range_type, &
           alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
-          hfx_create_neighbor_cells
+          hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -465,19 +465,13 @@ MODULE hfx_types
 
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val
-    INTEGER :: co_counter, handle, i, i_thread, iatom, ikind, int_val, ipgf, &
-      irep, iset, j, jkind, k, la, max_am_kind, max_coeff, max_nsgfl, &
-      max_pgf, max_pgf_kind, max_set, n_rep_hf, n_threads, natom_a, natom_b, &
-      nkind, nl_count, nset, nseta, nsetb, offset_a, offset_a1, pbc_shells, &
-      s_offset_nl_a, sgfa, so_counter, stat, storage_id
-    INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of, la_max, &
-                                                la_min, npgfa, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
+    INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
+      max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
+      pbc_shells, stat, storage_id
+    INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: exist, failure, logic_val
     REAL(dp)                                 :: real_val
-    REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
@@ -594,119 +588,8 @@ MODULE hfx_types
         ! at least 1 atom per block, and avoid overly large blocks
         actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
 
-        !! BASIS parameter
-        nkind = SIZE(atomic_kind_set,1)
-        ALLOCATE(actual_x_data%basis_parameter(nkind), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        max_set = 0
-        DO ikind = 1,nkind
-            NULLIFY(atom_kind)
-            atom_kind => atomic_kind_set(ikind)
-            IF( .NOT.dft_control%do_admm ) THEN
-              CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                   orb_basis_set=orb_basis_a)
-              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                       maxsgf=actual_x_data%basis_info%max_sgf,&
-                                       maxnset=actual_x_data%basis_info%max_set,&
-                                       maxlgto=actual_x_data%basis_info%max_am)
-
-            ELSE
-              CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                   aux_fit_basis_set=orb_basis_a)
-              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                       maxsgf=actual_x_data%basis_info%max_sgf,&
-                                       maxnset=actual_x_data%basis_info%max_set,&
-                                       maxlgto=actual_x_data%basis_info%max_am,&
-                                       basis_set_id=use_aux_fit_basis_set)
-            END IF
-            max_set = MAX(max_set,actual_x_data%basis_info%max_set)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
-                                   lmax=actual_x_data%basis_parameter(ikind)%lmax, &
-                                   lmin=actual_x_data%basis_parameter(ikind)%lmin, &
-                                   npgf=actual_x_data%basis_parameter(ikind)%npgf, &
-                                   nset=actual_x_data%basis_parameter(ikind)%nset, &
-                                   zet=actual_x_data%basis_parameter(ikind)%zet, &
-                                   nsgf_set=actual_x_data%basis_parameter(ikind)%nsgf, &
-                                   first_sgf=actual_x_data%basis_parameter(ikind)%first_sgf, &
-                                   sphi=actual_x_data%basis_parameter(ikind)%sphi, &
-                                   nsgf=actual_x_data%basis_parameter(ikind)%nsgf_total,&
-                                   l=actual_x_data%basis_parameter(ikind)%nl,&
-                                   nshell=actual_x_data%basis_parameter(ikind)%nshell,&
-                                   set_radius=actual_x_data%basis_parameter(ikind)%set_radius,&
-                                   pgf_radius=actual_x_data%basis_parameter(ikind)%pgf_radius,&
-                                   kind_radius=actual_x_data%basis_parameter(ikind)%kind_radius)
-        END DO
-        DO ikind = 1,nkind
-          ALLOCATE(actual_x_data%basis_parameter(ikind)%nsgfl(0:actual_x_data%basis_info%max_am,max_set))
-          actual_x_data%basis_parameter(ikind)%nsgfl = 0
-          nset = actual_x_data%basis_parameter(ikind)%nset
-          nshell => actual_x_data%basis_parameter(ikind)%nshell
-          DO iset = 1,nset
-            DO i=0,actual_x_data%basis_info%max_am
-              nl_count = 0
-              DO j=1,nshell(iset)
-                IF( actual_x_data%basis_parameter(ikind)%nl(j,iset) == i) nl_count = nl_count + 1
-              END DO
-              actual_x_data%basis_parameter(ikind)%nsgfl(i,iset) = nl_count
-            END DO
-          END DO
-        END DO
-
-        max_nsgfl = 0
-        max_pgf = 0
-        DO ikind = 1,nkind
-          max_coeff = 0
-          max_am_kind = 0
-          max_pgf_kind = 0
-          npgfa => actual_x_data%basis_parameter(ikind)%npgf
-          nseta = actual_x_data%basis_parameter(ikind)%nset
-          nl_a => actual_x_data%basis_parameter(ikind)%nsgfl
-          la_max => actual_x_data%basis_parameter(ikind)%lmax
-          la_min => actual_x_data%basis_parameter(ikind)%lmin
-          DO iset = 1,nseta
-            max_pgf_kind = MAX(max_pgf_kind,npgfa(iset))
-            max_pgf = MAX(max_pgf, npgfa(iset))
-            DO la = la_min(iset), la_max(iset)
-              max_nsgfl = MAX(max_nsgfl, nl_a(la,iset))
-              max_coeff = MAX(max_coeff, nso(la)*nl_a(la,iset)*nco(la))
-              max_am_kind = MAX(max_am_kind, la)
-            END DO
-          END DO
-          ALLOCATE(actual_x_data%basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          actual_x_data%basis_parameter(ikind)%sphi_ext = 0.0_dp
-        END DO
-
-        DO ikind = 1,nkind
-          sphi_a => actual_x_data%basis_parameter(ikind)%sphi
-          nseta = actual_x_data%basis_parameter(ikind)%nset
-          la_max => actual_x_data%basis_parameter(ikind)%lmax
-          la_min => actual_x_data%basis_parameter(ikind)%lmin
-          npgfa => actual_x_data%basis_parameter(ikind)%npgf
-          first_sgfa => actual_x_data%basis_parameter(ikind)%first_sgf
-          nl_a => actual_x_data%basis_parameter(ikind)%nsgfl
-          DO iset = 1,nseta
-            sgfa = first_sgfa(1,iset)
-            DO ipgf = 1,npgfa(iset)
-              offset_a1 = (ipgf-1)*ncoset(la_max(iset))
-              s_offset_nl_a = 0
-              DO la = la_min(iset),la_max(iset)
-                offset_a = offset_a1 + ncoset(la-1)
-                co_counter = 0
-                co_counter = co_counter + 1
-                so_counter = 0
-                DO k = sgfa+s_offset_nl_a,sgfa+s_offset_nl_a+nso(la)*nl_a(la,iset)-1
-                  DO i = offset_a+1,offset_a+nco(la)
-                    so_counter = so_counter + 1
-                    actual_x_data%basis_parameter(ikind)%sphi_ext(so_counter,la,ipgf,iset) = sphi_a(i,k)
-                  END DO
-                END DO
-                s_offset_nl_a = s_offset_nl_a + nso(la) * (nl_a(la,iset))
-              END DO
-            END DO
-          END DO
-        END DO
-
+        CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, atomic_kind_set,&
+                        dft_control%do_admm, error) 
 
 !!**************************************************************************************************
 !! **        !! ** This code writes the contraction routines
@@ -818,6 +701,9 @@ MODULE hfx_types
           ! ** Initialize this guy to enable non periodic stress regtests
           actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
+
+        nkind = SIZE(atomic_kind_set,1)
+        max_set=actual_x_data%basis_info%max_set
 
         !! ** This guy is allocated on the master thread only
         IF (i_thread == 1 ) THEN
@@ -973,6 +859,185 @@ MODULE hfx_types
     END DO
     CALL timestop(handle)
   END SUBROUTINE hfx_create
+
+! *****************************************************************************
+!> \brief - This routine allocates and initializes the basis_info and basis_parameter types
+!> \par History
+!>      07.2011 refactored
+! *****************************************************************************
+  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, atomic_kind_set, do_admm, error)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(hfx_basis_info_type)                :: basis_info
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    LOGICAL                                  :: do_admm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: co_counter, handle, i, ikind, ipgf, iset, j, k, la, &
+      max_am_kind, max_coeff, max_nsgfl, max_pgf, max_pgf_kind, max_set, &
+      nkind, nl_count, nset, nseta, offset_a, offset_a1, s_offset_nl_a, sgfa, &
+      so_counter, stat
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    !! BASIS parameter
+    nkind = SIZE(atomic_kind_set,1)
+    ALLOCATE(basis_parameter(nkind), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    max_set = 0
+    DO ikind = 1,nkind
+        NULLIFY(atom_kind)
+        atom_kind => atomic_kind_set(ikind)
+        IF( .NOT. do_admm ) THEN
+          CALL get_atomic_kind(atomic_kind=atom_kind,&
+                               orb_basis_set=orb_basis_a)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                   maxsgf=basis_info%max_sgf,&
+                                   maxnset=basis_info%max_set,&
+                                   maxlgto=basis_info%max_am)
+
+        ELSE
+          CALL get_atomic_kind(atomic_kind=atom_kind,&
+                               aux_fit_basis_set=orb_basis_a)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                   maxsgf=basis_info%max_sgf,&
+                                   maxnset=basis_info%max_set,&
+                                   maxlgto=basis_info%max_am,&
+                                   basis_set_id=use_aux_fit_basis_set)
+        END IF
+        IF (basis_info%max_set<max_set) STOP "UNEXPECTED MAX_SET"
+        max_set = MAX(max_set,basis_info%max_set)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
+                               lmax=basis_parameter(ikind)%lmax, &
+                               lmin=basis_parameter(ikind)%lmin, &
+                               npgf=basis_parameter(ikind)%npgf, &
+                               nset=basis_parameter(ikind)%nset, &
+                               zet=basis_parameter(ikind)%zet, &
+                               nsgf_set=basis_parameter(ikind)%nsgf, &
+                               first_sgf=basis_parameter(ikind)%first_sgf, &
+                               sphi=basis_parameter(ikind)%sphi, &
+                               nsgf=basis_parameter(ikind)%nsgf_total,&
+                               l=basis_parameter(ikind)%nl,&
+                               nshell=basis_parameter(ikind)%nshell,&
+                               set_radius=basis_parameter(ikind)%set_radius,&
+                               pgf_radius=basis_parameter(ikind)%pgf_radius,&
+                               kind_radius=basis_parameter(ikind)%kind_radius)
+    END DO
+    DO ikind = 1,nkind
+      ALLOCATE(basis_parameter(ikind)%nsgfl(0:basis_info%max_am,max_set))
+      basis_parameter(ikind)%nsgfl = 0
+      nset = basis_parameter(ikind)%nset
+      nshell => basis_parameter(ikind)%nshell
+      DO iset = 1,nset
+        DO i=0,basis_info%max_am
+          nl_count = 0
+          DO j=1,nshell(iset)
+            IF( basis_parameter(ikind)%nl(j,iset) == i) nl_count = nl_count + 1
+          END DO
+          basis_parameter(ikind)%nsgfl(i,iset) = nl_count
+        END DO
+      END DO
+    END DO
+
+    max_nsgfl = 0
+    max_pgf = 0
+    DO ikind = 1,nkind
+      max_coeff = 0
+      max_am_kind = 0
+      max_pgf_kind = 0
+      npgfa => basis_parameter(ikind)%npgf
+      nseta = basis_parameter(ikind)%nset
+      nl_a => basis_parameter(ikind)%nsgfl
+      la_max => basis_parameter(ikind)%lmax
+      la_min => basis_parameter(ikind)%lmin
+      DO iset = 1,nseta
+        max_pgf_kind = MAX(max_pgf_kind,npgfa(iset))
+        max_pgf = MAX(max_pgf, npgfa(iset))
+        DO la = la_min(iset), la_max(iset)
+          max_nsgfl = MAX(max_nsgfl, nl_a(la,iset))
+          max_coeff = MAX(max_coeff, nso(la)*nl_a(la,iset)*nco(la))
+          max_am_kind = MAX(max_am_kind, la)
+        END DO
+      END DO
+      ALLOCATE(basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      basis_parameter(ikind)%sphi_ext = 0.0_dp
+    END DO
+
+    DO ikind = 1,nkind
+      sphi_a => basis_parameter(ikind)%sphi
+      nseta = basis_parameter(ikind)%nset
+      la_max => basis_parameter(ikind)%lmax
+      la_min => basis_parameter(ikind)%lmin
+      npgfa => basis_parameter(ikind)%npgf
+      first_sgfa => basis_parameter(ikind)%first_sgf
+      nl_a => basis_parameter(ikind)%nsgfl
+      DO iset = 1,nseta
+        sgfa = first_sgfa(1,iset)
+        DO ipgf = 1,npgfa(iset)
+          offset_a1 = (ipgf-1)*ncoset(la_max(iset))
+          s_offset_nl_a = 0
+          DO la = la_min(iset),la_max(iset)
+            offset_a = offset_a1 + ncoset(la-1)
+            co_counter = 0
+            co_counter = co_counter + 1
+            so_counter = 0
+            DO k = sgfa+s_offset_nl_a,sgfa+s_offset_nl_a+nso(la)*nl_a(la,iset)-1
+              DO i = offset_a+1,offset_a+nco(la)
+                so_counter = so_counter + 1
+                basis_parameter(ikind)%sphi_ext(so_counter,la,ipgf,iset) = sphi_a(i,k)
+              END DO
+            END DO
+            s_offset_nl_a = s_offset_nl_a + nso(la) * (nl_a(la,iset))
+          END DO
+        END DO
+      END DO
+    END DO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE hfx_create_basis_types
+
+
+  SUBROUTINE hfx_release_basis_types(basis_parameter,error)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release_basis_types', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+
+    !! BASIS parameter
+    DO i=1,SIZE(basis_parameter)
+       DEALLOCATE(basis_parameter(i)%nsgfl,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_parameter(i)%sphi_ext,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(basis_parameter,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle)
+
+  END SUBROUTINE hfx_release_basis_types
+
 
 ! *****************************************************************************
 !> \brief - Parses the memory section
@@ -1166,14 +1231,7 @@ MODULE hfx_types
         END IF
 
         !! BASIS parameter
-        DO i=1,SIZE(actual_x_data%basis_parameter)
-          DEALLOCATE(actual_x_data%basis_parameter(i)%nsgfl,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%basis_parameter(i)%sphi_ext,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END DO
-        DEALLOCATE(actual_x_data%basis_parameter,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CALL hfx_release_basis_types(actual_x_data%basis_parameter,error)
 
         !! Deallocate containers
         CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
