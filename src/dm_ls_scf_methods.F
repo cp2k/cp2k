@@ -489,7 +489,7 @@ CONTAINS
       ENDIF
 
       ! exit the loop if Tr[gx] was small enough (Tr[(x(1-x))^2] < sqrt(threshold)) before the iteration
-      IF (ABS(trace_gx) < sqrt(threshold)) EXIT
+      IF (ABS(trace_gx) < SQRT(threshold)) EXIT
 
     END DO
 
