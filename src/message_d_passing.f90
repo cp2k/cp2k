@@ -1413,7 +1413,7 @@
     REAL(kind=real_8), INTENT(OUT)                     :: msg_gather( : )
     INTEGER, INTENT(IN)                      :: root, gid
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_d]v', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_dv', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
@@ -1438,6 +1438,44 @@
 #endif
   END SUBROUTINE mp_gather_dv
 
+! *****************************************************************************
+!> \brief Gathers data from all processes to one
+!> \par Data length
+!>      All data (msg) is equal-sized
+!> \par MPI mapping
+!>      mpi_gather
+!> \param[in] msg             Datum to send to root
+!> \sa mp_gather_d
+! *****************************************************************************
+  SUBROUTINE mp_gather_dm(msg,msg_gather,root,gid)
+    REAL(kind=real_8), INTENT(IN)                      :: msg( :, : )
+    REAL(kind=real_8), INTENT(OUT)                     :: msg_gather( :, : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_dm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    CALL mpi_gather(msg,msglen,MPI_DOUBLE_PRECISION,msg_gather,&
+         msglen,MPI_DOUBLE_PRECISION,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
+#else
+    msg_gather = msg
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_gather_dm
 
 ! *****************************************************************************
 !> \brief Gathers data from all processes to one.

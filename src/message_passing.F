@@ -212,12 +212,12 @@ MODULE message_passing
 
 
   INTERFACE mp_gather
-     MODULE PROCEDURE mp_gather_i, mp_gather_iv,&
-                      mp_gather_l, mp_gather_lv,&
-                      mp_gather_r, mp_gather_rv,&
-                      mp_gather_d, mp_gather_dv,&
-                      mp_gather_c, mp_gather_cv,&
-                      mp_gather_z, mp_gather_zv
+     MODULE PROCEDURE mp_gather_i, mp_gather_iv, mp_gather_im,&
+                      mp_gather_l, mp_gather_lv, mp_gather_lm,&
+                      mp_gather_r, mp_gather_rv, mp_gather_rm,&
+                      mp_gather_d, mp_gather_dv, mp_gather_dm,&
+                      mp_gather_c, mp_gather_cv, mp_gather_cm,&
+                      mp_gather_z, mp_gather_zv, mp_gather_zm
   END INTERFACE
 
   INTERFACE mp_gatherv
