@@ -1,0 +1,73 @@
+&GLOBAL                                                                                           
+  PROJECT  H2O_NO_HFX
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  ../HFX_BASIS
+    POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF  200
+      REL_CUTOFF  30
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER WAVELET
+    &END POISSON
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-30
+    &END QS
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-6
+      MAX_SCF 6
+    &END SCF
+    &XC
+      ! No HFX.... yet MP2
+      &XC_FUNCTIONAL 
+        &BECKE88
+        &END
+      &END XC_FUNCTIONAL
+      &MP2 
+        METHOD  MP2_GPW
+        &MP2_GPW
+          CUTOFF  200
+          REL_CUTOFF 30
+        &END
+        MEMORY  100.
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  7.0000   7.0000   7.0000
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET  DZVP-GTH
+      POTENTIAL  GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET  DZVP-GTH
+      POTENTIAL  GTH-HF-q6
+    &END KIND
+    &COORD
+      O       0.000000    0.000000    -0.111000
+      H       0.000000   -0.744000     0.495000
+      H       0.000000    0.744000     0.495000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

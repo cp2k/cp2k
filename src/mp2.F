@@ -31,9 +31,11 @@ MODULE mp2
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE hfx_types,                       ONLY: hfx_basis_type,&
+  USE hfx_types,                       ONLY: hfx_basis_info_type,&
+                                             hfx_basis_type,&
+                                             hfx_create_basis_types,&
                                              hfx_release,&
-                                             hfx_type
+                                             hfx_release_basis_types
   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -118,9 +120,9 @@ MODULE mp2
                                                 fm_matrix_work, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(hfx_basis_info_type)                :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_mp2
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -188,8 +190,8 @@ MODULE mp2
                                kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
 
-    actual_x_data => qs_env%x_data(1,1)
-    basis_parameter   => actual_x_data%basis_parameter
+
+    CALL hfx_create_basis_types(basis_parameter,basis_info, atomic_kind_set, do_admm=.FALSE., error=error)
 
     dimen=0
     max_nset=0
@@ -413,8 +415,10 @@ MODULE mp2
        END IF
 
      CASE (mp2_method_gpw)
-       ! free Hartree Fock stuff
-       CALL hfx_release(qs_env%x_data, error=error)
+       ! free Hartree Fock stuff, if associated
+       IF (ASSOCIATED(qs_env%x_data)) THEN
+          CALL hfx_release(qs_env%x_data, error=error)
+       ENDIF
 
        ! check if calculate the exchange contribution
        IF(mp2_env%scale_T==0.0_dp) calc_ex=.FALSE.
@@ -459,6 +463,8 @@ MODULE mp2
      CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set,error=error)
    END DO
    DEALLOCATE(mos_mp2)
+
+   CALL hfx_release_basis_types(basis_parameter,error)
 
    CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                      "DFT%XC%MP2%MP2_INFO", error=error)
