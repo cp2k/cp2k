@@ -10,6 +10,9 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2
+  USE admm_methods,                    ONLY: admm_correct_for_eigenvalues,&
+                                             admm_uncorrect_for_eigenvalues
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
@@ -111,10 +114,12 @@ MODULE mp2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, C_alpha, C_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_ks_aux, &
+                                                matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_matrix_ks, fm_matrix_s, &
                                                 fm_matrix_work, mo_coeff
@@ -143,7 +148,8 @@ MODULE mp2
     CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
                   particle_set=particle_set, para_env=para_env,   &
                   energy=energy, rho=rho, mos=mos, scf_env=scf_env,&
-                  matrix_ks=matrix_ks, matrix_s=matrix_s, mp2_env=mp2_env, error=error)
+                  matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
+                  mp2_env=mp2_env, admm_env=admm_env, error=error)
 
     unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%MP2%MP2_INFO",&
                                    extension=".mp2Log",error=error)
@@ -258,7 +264,18 @@ MODULE mp2
 
     DO ispin=1, nspins
 
+      ! If ADMM we should make the ks matrix up-to-date
+      IF( qs_env%dft_control%do_admm ) THEN
+        CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
+                                          matrix_ks_aux(ispin)%matrix, error)
+      END IF
+
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks, error=error)
+
+      IF( qs_env%dft_control%do_admm ) THEN
+        CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
+                                          matrix_ks_aux(ispin)%matrix, error)
+      END IF
 
       CALL init_mo_set(mos_mp2(ispin)%mo_set,&
                        my_mpools%ao_mo_fm_pools(ispin)%pool,&
