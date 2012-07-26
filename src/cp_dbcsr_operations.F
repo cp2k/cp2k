@@ -496,10 +496,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, my_ncol, row, &
-                                                timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+    INTEGER                                  :: blk, col, coloff, colsize, &
+                                                my_ncol, row, rowoff, &
+                                                rowsize, timing_handle
     REAL(dp)                                 :: my_alpha, my_alpha2
     REAL(dp), DIMENSION(:, :), POINTER       :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -517,39 +516,41 @@ CONTAINS
     IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
 
     !> this should be precomputed somewhere else
-    row_blk_size => array_data(cp_dbcsr_row_block_sizes(matrix_a))
-    ALLOCATE(offset(cp_dbcsr_nblkrows_total(matrix_a)))
-    offset(1) = 1
-    DO row = 2,cp_dbcsr_nblkrows_total(matrix_a)
-       offset(row) = offset(row-1) + row_blk_size(row-1)
-    ENDDO
+  !  row_blk_size => array_data(cp_dbcsr_row_block_sizes(matrix_a))
+  !  ALLOCATE(offset(cp_dbcsr_nblkrows_total(matrix_a)))
+  !  offset(1) = 1
+  !  DO row = 2,cp_dbcsr_nblkrows_total(matrix_a)
+  !     offset(row) = offset(row-1) + row_blk_size(row-1)
+  !  ENDDO
     !<
 
     CALL cp_dbcsr_iterator_start(iter, matrix_a)
 
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
 
-       CALL dgemm('N','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
-                  my_alpha,data_d(1,1),SIZE(data_d,1),&
-                  vec_b(offset(col),1),SIZE(vec_b,1),&
-                  1.0_dp,vec_c(offset(row),1),SIZE(vec_c,1))
+       CALL dgemm('N','N',&
+                  SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
+                  my_alpha, data_d(1,1),          SIZE(data_d,1),&
+                            vec_b(coloff,1), SIZE(vec_b,1), &
+                  1.0_dp,   vec_c(rowoff,1), SIZE(vec_c,1))
 
        IF((cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
           cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)) THEN
           IF(row.NE.col) THEN
-             CALL dgemm('T','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
-                  my_alpha2,data_d(1,1),SIZE(data_d,1),&
-                  vec_b(offset(row),1),SIZE(vec_b,1),&
-                  1.0_dp,vec_c(offset(col),1),SIZE(vec_c,1))
+             CALL dgemm('T','N', &
+                        SIZE(data_d,2), my_ncol, SIZE(data_d,1),&
+                        my_alpha2, data_d(1,1),          SIZE(data_d,1), &
+                                   vec_b(rowoff,1), SIZE(vec_b,1),  &
+                        1.0_dp,    vec_c(coloff,1), SIZE(vec_c,1))
           ENDIF
        ENDIF
     ENDDO
 
     CALL cp_dbcsr_iterator_stop(iter)
 
-    DEALLOCATE(offset)
+    !DEALLOCATE(offset)
 
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_local
