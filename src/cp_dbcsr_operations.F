@@ -496,9 +496,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, coloff, colsize, &
-                                                my_ncol, row, rowoff, &
-                                                rowsize, timing_handle
+    INTEGER                                  :: blk, col, coloff, my_ncol, &
+                                                row, rowoff, timing_handle
     REAL(dp)                                 :: my_alpha, my_alpha2
     REAL(dp), DIMENSION(:, :), POINTER       :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter

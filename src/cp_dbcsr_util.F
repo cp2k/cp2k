@@ -15,7 +15,9 @@ MODULE cp_dbcsr_util
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_min,&
+                                             mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -31,8 +33,9 @@ MODULE cp_dbcsr_util
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Computes the highest and lowest eigenvalue of matrix_a 
-!>        with the Lanczos algorithm. The Lanczos vectors are replicated.
+!> \brief Computes the highest and lowest eigenvalue of matrix_a (assumed to be symmetric)
+!>        with the Lanczos algorithm. The 3 Lanczos vectors are replicated.
+!>        speedups could be gained from an improved dbcsr x vector multiplication (distributed vector).
 !> \par History
 !>       2012.07 created [Florian Thoele]
 !> \author Florian Thoele 
@@ -48,7 +51,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_alg_serial', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: default_max_iter = 40
-    REAL, PARAMETER                          :: default_threshold = 1.0E-6_dp
+    REAL(KIND=dp), PARAMETER                 :: default_threshold = 1.0E-6_dp
 
     INTEGER                                  :: handle, i, info, lwork, &
                                                 mp_group, my_max_iter, n, &
@@ -128,6 +131,10 @@ CONTAINS
 
       CALL DCOPY(n, vn, 1, v, 1)
     ENDDO
+
+    ! make absolutely sure we have the same values on all processes
+    CALL mp_min(min_ev,mp_group)
+    CALL mp_max(max_ev,mp_group)
 
     DEALLOCATE(v, u, vn, evs, evs_tmp, eval, work)
     CALL timestop(handle)
