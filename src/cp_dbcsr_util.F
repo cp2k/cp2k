@@ -105,14 +105,7 @@ CONTAINS
       alpha = DDOT(n, u, 1, v, 1)        ! alpha_i = ui^T*vi
       CALL DAXPY(n, -alpha, v, 1, u, 1)  ! ui = ui-alpha*vi   
       beta = DNRM2(n, u, 1)              ! beta_i = sqrt(ri^T*ri)
-      CALL DSCAL(n, 1/beta, u, 1)        ! 
-      CALL DCOPY(n, u, 1, vn, 1)         ! vi+1 = ui/beta_i
-  
-      u(:,:) = 0.0_dp
-      CALL cp_dbcsr_multiply_local(matrix_a, vn, u, error=error)  !  
-      CALL mp_sum(u, mp_group)
-      CALL DAXPY(n, -beta, v, 1, u, 1)                            ! ui+1 = A*vi+1 - beta_i*vi
-  
+
       evs(i,i) = alpha
       evs(i,i+1) = beta
       evs(i+1,i) = beta
@@ -126,10 +119,22 @@ CONTAINS
         EXIT
       ENDIF
 
+      ! update the current best value of max/min ev
       max_ev = MAXVAL(eval(1:i))
       min_ev = MINVAL(eval(1:i))
 
+      ! if we have lost orthonormality, or the initial guess is an eigenstate (for example A is unit matrix), quit
+      IF (ABS(beta)<EPSILON(beta)*5*SQRT(REAL(n,KIND=dp))) EXIT
+
+      CALL DSCAL(n, 1/beta, u, 1)        ! 
+      CALL DCOPY(n, u, 1, vn, 1)         ! vi+1 = ui/beta_i
+  
+      u(:,:) = 0.0_dp
+      CALL cp_dbcsr_multiply_local(matrix_a, vn, u, error=error)  !  
+      CALL mp_sum(u, mp_group)
+      CALL DAXPY(n, -beta, v, 1, u, 1)                            ! ui+1 = A*vi+1 - beta_i*vi
       CALL DCOPY(n, vn, 1, v, 1)
+
     ENDDO
 
     ! make absolutely sure we have the same values on all processes
