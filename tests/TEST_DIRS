@@ -1,8 +1,9 @@
 # directories in this file will be scanned for a TEST_FILES entry, and used in regression testing of cp2k
 # Directories have been reordered according the execution time needed for a g95 sopt
-# in case a new directory is added just drop it at the end of the list..
+# in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-mp2
+QS/regtest-dm-ls-scf
 TAMC/regtest
 Fist/regtest-7
 QS/regtest-meta
@@ -102,5 +103,4 @@ Fist/regtest-excl-G
 Fist/regtest-excl-R
 QS/regtest-hfx-stress
 optimize_input/regtest-1
-QS/regtest-dm-ls-scf
 QS/regtest-p-efield
