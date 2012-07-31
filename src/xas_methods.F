@@ -1007,7 +1007,7 @@ CONTAINS
              xas_env%my_gto_basis(ik)%gto_basis_set,xas_control%ngauss,error=error)
         CALL deallocate_sto_basis_set(sto_basis_set,error)
         xas_env%my_gto_basis(ik)%gto_basis_set%norm_type = 2
-        CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error)
+        CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error=error)
 
         atomic_kind => atomic_kind_set(kind_type_tmp(ik))
         CALL get_atomic_kind(atomic_kind=atomic_kind,&

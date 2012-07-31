@@ -1191,7 +1191,6 @@ CONTAINS
         match=.FALSE.
       ENDIF
 
-
       IF (.NOT.read_from_input .AND. basis_found) THEN
         CALL parser_release(parser,error=error)
         IF ((match).AND.(PRESENT(basis_section))) THEN
@@ -1225,6 +1224,7 @@ CONTAINS
              TRIM(basis_set_file_name),para_env)
       END IF
     END IF
+
   END SUBROUTINE read_gto_basis_set
 
 ! *****************************************************************************

@@ -1623,7 +1623,8 @@ CONTAINS
                hard_radius=rc,max_rad_local=max_rad_local_type,gpw_type_forced=gpw)
 
           CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,&
-               qs_control%gapw_control,rc,paw_atom,gpw,error)
+               qs_control%gapw_control%eps_fit,rc,paw_atom,&
+               qs_control%gapw_control%force_paw,gpw,error)
 
           CALL set_atomic_kind(atomic_kind=atomic_kind,paw_atom=paw_atom)
 

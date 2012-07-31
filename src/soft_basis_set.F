@@ -13,12 +13,9 @@ MODULE soft_basis_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
                                              init_cphi_and_sphi
-  USE cp_control_types,                ONLY: gapw_control_type
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: dfac,&
-                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
@@ -49,39 +46,36 @@ CONTAINS
 !> \brief   create the soft basis from a GTO basis
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE create_soft_basis(orb_basis,soft_basis,gapw,rc,paw_atom,gpw_type_forced,&
-       error)
+  SUBROUTINE create_soft_basis(orb_basis,soft_basis,eps_fit,rc,paw_atom,&
+       paw_type_forced,gpw_type_forced,error)
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
-    TYPE(gapw_control_type), POINTER         :: gapw
-    REAL(dp), INTENT(IN)                     :: rc
+    REAL(dp), INTENT(IN)                     :: eps_fit, rc
     LOGICAL, INTENT(OUT)                     :: paw_atom
-    LOGICAL, INTENT(IN)                      :: gpw_type_forced
+    LOGICAL, INTENT(IN)                      :: paw_type_forced, &
+                                                gpw_type_forced
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_soft_basis', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: bsname
-    INTEGER :: icgf, ico, ipgf, ipgf_s, iset, iset_s, ishell, jpgf, lshell, &
-      lshell_old, lx, ly, lz, m, maxco, maxpgf, maxpgf_s, maxshell, &
-      maxshell_s, ncgf, nset, nset_s, nsgf, stat
+    INTEGER :: ico, ipgf, ipgf_s, iset, iset_s, ishell, lshell, lshell_old, &
+      m, maxco, maxpgf, maxpgf_s, maxshell, maxshell_s, ncgf, nset, nset_s, &
+      nsgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iset_s2h
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
     LOGICAL                                  :: failure, my_gpw_type_forced
-    REAL(KIND=dp)                            :: eps_fit, expzet, fnorm, gcca, &
-                                                gccb, minzet, prefac, radius, &
-                                                zeta, zetb
+    REAL(KIND=dp)                            :: minzet, radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
 
     NULLIFY(gcc,l,lmax,lmin,n,npgf,nshell,zet)
-    eps_fit=gapw%eps_fit
     paw_atom = .FALSE.
     my_gpw_type_forced = gpw_type_forced
-    IF(gapw%force_paw) THEN
+    IF(paw_type_forced) THEN
       paw_atom = .TRUE.
       my_gpw_type_forced = .FALSE.
     END IF
@@ -296,48 +290,7 @@ CONTAINS
 
           ! *** Normalization factor of the contracted Gaussians ***
           soft_basis%norm_type = orb_basis%norm_type
-
-          SELECT CASE (soft_basis%norm_type)
-          CASE ( 0 )
-             ! *** No normalisation requested ***
-          CASE ( 1 )
-             DO iset_s = 1 , nset_s
-                iset = iset_s2h(iset_s)
-                DO ishell = 1,nshell(iset_s)
-                   DO icgf=soft_basis%first_cgf(ishell,iset_s),&
-                        soft_basis%last_cgf(ishell,iset_s)
-                      soft_basis%norm_cgf(icgf) = 1.0_dp
-                   END DO
-                END DO
-             END DO
-          CASE ( 2 )
-             DO iset_s = 1 , nset_s
-                iset = iset_s2h(iset_s)
-                DO ishell = 1,nshell(iset_s)
-                   lshell = l(ishell,iset_s)
-                   expzet = 0.5_dp*REAL(2*lshell+3,dp)
-                   fnorm  = 0.0_dp
-                   DO ipgf=1,orb_basis%npgf(iset)
-                      gcca = orb_basis%gcc(ipgf,ishell,iset)
-                      zeta = orb_basis%zet(ipgf,iset)
-                      DO jpgf=1,orb_basis%npgf(iset)
-                         gccb = orb_basis%gcc(jpgf,ishell,iset)
-                         zetb = orb_basis%zet(jpgf,iset)
-                         fnorm = fnorm + gcca*gccb/(zeta + zetb)**expzet
-                      END DO
-                   END DO
-                   fnorm = 0.5_dp**lshell*pi**1.5_dp*fnorm
-                   DO icgf=soft_basis%first_cgf(ishell,iset_s),&
-                        soft_basis%last_cgf(ishell,iset_s)
-                      lx = soft_basis%lx(icgf)
-                      ly = soft_basis%ly(icgf)
-                      lz = soft_basis%lz(icgf)
-                      prefac = dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)
-                      soft_basis%norm_cgf(icgf) = 1.0_dp/SQRT(prefac*fnorm)
-                   END DO
-                END DO
-             END DO
-          END SELECT
+          soft_basis%norm_cgf = orb_basis%norm_cgf
           ! *** Initialize the transformation matrices ***
           CALL init_cphi_and_sphi(soft_basis,error)
        ENDIF
