@@ -89,10 +89,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_find_n', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, my_icommensurate, &
-                                                my_ncommensurate, nlowest, &
-                                                nlowest_new, ntest(3)
-    LOGICAL                                  :: failure, ftest
+    INTEGER :: idir, my_icommensurate, my_ncommensurate, nsubgrid, &
+      nsubgrid_new, ntest(3), t_icommensurate
+    LOGICAL                                  :: failure, ftest, subgrid_is_OK
 
     failure=.FALSE.
     ! ncommensurate is the number of commensurate grids
@@ -126,13 +125,21 @@ CONTAINS
           IF ( my_ncommensurate>0 ) THEN
              DO idir=1,3
                 DO
+                   ! find valid radix >= ntest
                    CALL fft_radix_operations ( ntest(idir), n(idir), FFT_RADIX_NEXT )
-                   ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                   nlowest=n(idir)/2**(my_ncommensurate-my_icommensurate)
-                   CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                   IF (nlowest==nlowest_new .AND. MODULO(n(idir),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                   ! check every subgrid of n
+                   subgrid_is_OK = .TRUE.
+                   DO t_icommensurate=1, my_ncommensurate-1
+                      nsubgrid=n(idir)/2**(my_ncommensurate-t_icommensurate)
+                      CALL fft_radix_operations ( nsubgrid,nsubgrid_new, FFT_RADIX_NEXT )
+                      subgrid_is_OK = (nsubgrid == nsubgrid_new) .AND. &
+                                      (MODULO(n(idir),2**(my_ncommensurate-t_icommensurate)) == 0)
+                      IF (.NOT. subgrid_is_OK) EXIT
+                   END DO
+                   IF (subgrid_is_OK) THEN
                       EXIT
                    ELSE
+                      ! subgrid wasn't OK, increment ntest and try again
                       ntest(idir)=n(idir)+1
                    ENDIF
                 END DO
