@@ -388,6 +388,7 @@ CONTAINS
        colvar%plane_distance_param%plane = iatms
        CALL section_vals_val_get(plane_dist_section,"ATOM_POINT",i_val=iatm,error=error)
        colvar%plane_distance_param%point = iatm
+       CALL section_vals_val_get(plane_dist_section,"PBC",l_val=colvar%plane_distance_param%use_pbc,error=error)
     ELSE IF (my_subsection(6)) THEN
        ! Rotation colvar of a segment w.r.t. another segment
        wrk_section => rotation_section
@@ -1923,18 +1924,23 @@ CPSourceFileRef)
     CALL get_coordinates(colvar, j, rj, my_particles)
     CALL get_coordinates(colvar, k, rk, my_particles)
     CALL get_coordinates(colvar, l, rl, my_particles)
-    ! xpij
-    ss=MATMUL(cell%h_inv,ri-rj)
-    ss=ss-NINT(ss)
-    xpij=MATMUL(cell%hmat,ss)
-    ! xpkj
-    ss=MATMUL(cell%h_inv,rk-rj)
-    ss=ss-NINT(ss)
-    xpkj=MATMUL(cell%hmat,ss)
-    ! xpl
-    ss=MATMUL(cell%h_inv,rl-(ri+rj+rk)/3.0_dp)
-    ss=ss-NINT(ss)
-    xpl=MATMUL(cell%hmat,ss)
+    xpij=ri-rj
+    xpkj=rk-rj
+    xpl=rl-(ri+rj+rk)/3.0_dp
+    IF (colvar%plane_distance_param%use_pbc) THEN
+      ! xpij
+      ss=MATMUL(cell%h_inv,ri-rj)
+      ss=ss-NINT(ss)
+      xpij=MATMUL(cell%hmat,ss)
+      ! xpkj
+      ss=MATMUL(cell%h_inv,rk-rj)
+      ss=ss-NINT(ss)
+      xpkj=MATMUL(cell%hmat,ss)
+      ! xpl
+      ss=MATMUL(cell%h_inv,rl-(ri+rj+rk)/3.0_dp)
+      ss=ss-NINT(ss)
+      xpl=MATMUL(cell%hmat,ss)
+    END IF
     ! xpn
     xpn(1)  = xpij(2)*xpkj(3)-xpij(3)*xpkj(2)
     xpn(2)  = xpij(3)*xpkj(1)-xpij(1)*xpkj(3)

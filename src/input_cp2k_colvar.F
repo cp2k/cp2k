@@ -592,7 +592,7 @@ CONTAINS
             description="Whether periodic boundary conditions should be applied on the "//&
             "atomic position before computing the colvar or not.",&
             usage="PBC",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -872,7 +872,7 @@ CONTAINS
             description="Whether periodic boundary conditions should be applied on the "//&
             "atomic position before computing the colvar or not.",&
             usage="PBC",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -947,7 +947,7 @@ CONTAINS
             description="Whether periodic boundary conditions should be applied on the "//&
             "atomic position before computing the colvar or not.",&
             usage="PBC",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1080,6 +1080,14 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="PBC",&
+            description="Whether periodic boundary conditions should be applied on the "//&
+            "atomic position before computing the colvar or not.",&
+            usage="PBC",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOMS_PLANE",&
             variants=(/"POINTS_PLANE"/),&

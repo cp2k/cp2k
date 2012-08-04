@@ -160,6 +160,7 @@ MODULE colvar_types
 
 ! *****************************************************************************
   TYPE plane_distance_colvar_type
+     LOGICAL               :: use_pbc
      INTEGER, DIMENSION(3) :: plane
      INTEGER               :: point
   END TYPE plane_distance_colvar_type
@@ -1422,6 +1423,7 @@ CPSourceFileRef)
        colvar_out%torsion_param%i_at_tors     = colvar_in%torsion_param%i_at_tors + my_offset
        colvar_out%torsion_param%o0            = colvar_in%torsion_param%o0
     CASE(plane_distance_colvar_id)
+       colvar_out%plane_distance_param%use_pbc = colvar_in%plane_distance_param%use_pbc
        colvar_out%plane_distance_param%plane = colvar_in%plane_distance_param%plane + my_offset
        colvar_out%plane_distance_param%point = colvar_in%plane_distance_param%point + my_offset
     CASE(plane_plane_angle_colvar_id)
