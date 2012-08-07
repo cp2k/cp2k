@@ -18,6 +18,11 @@ MODULE cp_dbcsr_util
   USE message_passing,                 ONLY: mp_max,&
                                              mp_min,&
                                              mp_sum
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             rng_stream_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -62,6 +67,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evs, evs_tmp, u, v, vn
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CALL timeset(routineN,handle)
 
@@ -86,10 +92,18 @@ CONTAINS
     lwork = my_max_iter*3+100
     ALLOCATE(eval(my_max_iter), work(lwork))
 
-    CALL RANDOM_SEED()
-    DO i=1,n 
-      CALL RANDOM_NUMBER(v(i,1)); v(i,1 ) = v(i,1) - 0.5_dp
-    ENDDO
+!MK    CALL RANDOM_SEED()
+!MK    DO i=1,n 
+!MK      CALL RANDOM_NUMBER(v(i,1)); v(i,1 ) = v(i,1) - 0.5_dp
+!MK    ENDDO
+!MK Use the internal CP2K random number generator
+    NULLIFY (rng_stream)
+    CALL create_rng_stream(rng_stream,name="lanczos_alg_serial",distribution_type=UNIFORM,&
+                           extended_precision=.TRUE.,error=error)
+    DO i=1,n
+      v(i,1) = next_random_number(rng_stream,error=error) - 0.5_dp
+    END DO
+    CALL delete_rng_stream(rng_stream,error=error)
     nrm_v = DDOT(n,v, 1, v, 1)
     v = v/SQRT(nrm_v)
 
