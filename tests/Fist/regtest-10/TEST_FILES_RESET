@@ -84,3 +84,7 @@ nh3-meta-4.inp
 2gly_mtd_dprmsd.inp
 # Atomic energy and stress properties 
 nh3-meta-3.inp
+# Improve numerical stability
+nh3-meta-2.inp
+nh3-meta-3.inp
+nh3-meta-4.inp
