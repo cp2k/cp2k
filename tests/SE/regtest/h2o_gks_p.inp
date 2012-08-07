@@ -23,8 +23,8 @@
     &END SCF
     &POISSON
        &EWALD
-          ALPHA 6.
-          GMAX  21 21 21
+          ALPHA 0.5
+          GMAX  41 41 41
        &END EWALD
     &END POISSON
   &END DFT

@@ -763,3 +763,5 @@ b2h6_pm6.inp
 ch2o_pm6.inp
 # improved BFGS and CELL_OPT, new defaults
 hcn_pm6.inp
+# Improve numerical stability
+h2o_gks_p.inp
