@@ -228,7 +228,7 @@ CPSourceFileRef,&
           ! correct for the fact that v_hartree is scaled by dvol, and has the opposite sign
           IF (qs_env%qmmm) THEN
              ! If it's a QM/MM run let's remove the contribution of the MM potential out of the Hartree pot
-             vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol-qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz)
+             vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol+qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz)
           ELSE
              vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol
           END IF
