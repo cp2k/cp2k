@@ -1990,14 +1990,14 @@ CONTAINS
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the Fumi-Tosi Potential",&
             usage="C {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom^6",error=error)
+            n_var=1, unit_str="hartree*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of the Fumi-Tosi Potential",&
             usage="D {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom^8",error=error)
+            n_var=1, unit_str="hartree*angstrom^8",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2089,14 +2089,14 @@ CONTAINS
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the dispersion-damped Fumi-Tosi Potential",&
             usage="C {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom^6",error=error)
+            n_var=1, unit_str="hartree*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of the dispersion-damped Fumi-Tosi Potential",&
             usage="D {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom^8",error=error)
+            n_var=1, unit_str="hartree*angstrom^8",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
