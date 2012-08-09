@@ -643,17 +643,17 @@ CONTAINS
     ! Proceed with normal calculation
     intermeta_steps=n_step-hills_env%old_hill_step
     force_gauss=.FALSE.
-    IF ((hills_env%min_disp > 0.0_dp).AND.(hills_env%old_hill_number> 0).AND.&
-        (MODULO(intermeta_steps,hills_env%min_nt_hills)==0)) THEN
-       ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
+    IF ((hills_env%min_disp > 0.0_dp).AND.(hills_env%old_hill_number > 0).AND.&
+        (intermeta_steps >= hills_env%min_nt_hills)) THEN
+       ALLOCATE (ddp(meta_env%n_colvar), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(local_last_hills(meta_env%n_colvar), stat=stat)
+       ALLOCATE (local_last_hills(meta_env%n_colvar), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
 
-       local_last_hills(1:n_colvar)=hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
+       local_last_hills(1:n_colvar) = hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
 
        !RG Calculate the displacement
-       dp2=0.0_dp
+       dp2 = 0.0_dp
        DO i = 1, n_colvar
           ddp(i) = colvars(i)%ss0 - local_last_hills(i)
           IF (colvars(i)%periodic) THEN
@@ -662,13 +662,25 @@ CONTAINS
           END IF
           dp2 = dp2 + ddp(i)**2
        ENDDO
-       dp2=SQRT(dp2)
-
-      IF(dp2 > hills_env%min_disp) force_gauss=.TRUE.
-      DEALLOCATE(ddp, stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-      DEALLOCATE(local_last_hills, stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       dp2 = SQRT(dp2)
+       IF (dp2 > hills_env%min_disp) THEN
+          force_gauss = .TRUE.
+          iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+                                    "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",&
+                                    error=error)
+          IF (iw > 0) THEN
+             WRITE (UNIT=iw,FMT="(A,F0.6,A,F0.6)")&
+              " METADYN| Threshold value for COLVAR displacement exceeded: ",&
+              dp2," > ",hills_env%min_disp
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+                                            "PRINT%PROGRAM_RUN_INFO",&
+                                            error=error)
+       END IF
+       DEALLOCATE (ddp, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE (local_last_hills, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     END IF
 
     !RG keep into account adaptive hills
@@ -720,7 +732,7 @@ CONTAINS
                   ' Global/Local Hills number (',hills_env%n_hills,'/',multiple_walkers%n_hills_local,&
                   ') added.'
           ELSE
-             WRITE(iw,'(/,1X,"METADYN|",A,I0,A,/)')' Hills number  (',hills_env%n_hills,') added.'
+             WRITE(iw,'(/,1X,"METADYN|",A,I0,A,/)')' Hills number (',hills_env%n_hills,') added.'
           END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&

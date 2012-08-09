@@ -52,7 +52,7 @@
     &METADYN
       DO_HILLS
       NT_HILLS 3
-      WW 1.0e-2
+      WW 1.0e-3
       &METAVAR
         SCALE 0.02
         COLVAR 1
@@ -83,4 +83,3 @@
     &END
   &END
 &END MOTION
-

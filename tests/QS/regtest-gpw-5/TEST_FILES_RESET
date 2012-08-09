@@ -524,3 +524,5 @@ si8_broy_davsparse_md.inp
 bug_ai_moments.inp
 # improved BFGS and CELL_OPT, new defaults
 si8_broy_kry_r.inp
+# Bug fix for adaptive hills spawning 
+H2O-meta-mindisp2.inp
