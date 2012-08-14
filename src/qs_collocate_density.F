@@ -1222,12 +1222,12 @@ END SUBROUTINE calculate_rho_metal
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
-      igrid_level, ikind, ikind_old, ipair, ipgf, iset, iset_old, itask, &
-      ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, &
-      lb_l, lbr, lbw, maxco, maxpgf, maxset, maxsgf, maxsgf_set, &
-      my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, nb1, nb2, &
-      nblock, ncoa, ncob, nkind, nn, nr, nrlevel, nseta, nsetb, ntasks, &
-      nthread, nxy, nz, nzsize, segment, sgfa, sgfb, stat, ub
+      igrid_level, igrid_level_dummy, ikind, ikind_old, ipair, ipgf, iset, &
+      iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, &
+      jset, jset_old, lb, lb_l, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
+      maxsgf_set, my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, &
+      nb1, nb2, nblock, ncoa, ncob, nkind, nn, nr, nrlevel, nseta, nsetb, &
+      ntasks, nthread, nxy, nz, nzsize, segment, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1462,7 +1462,7 @@ END SUBROUTINE calculate_rho_metal
 !$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
-!$omp          private(lb_l,nn,segment,itask,i,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr)
+!$omp          private(lb_l,nn,segment,itask,i,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -1486,8 +1486,8 @@ END SUBROUTINE calculate_rho_metal
 !$omp do schedule(dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
     loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
     loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
-       !decode the atom pair and basis info
-       CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+       !decode the atom pair and basis info (igrid_level_dummy equals do loop variable by construction).
+       CALL int2pair(tasks(3,itask),igrid_level_dummy,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
 

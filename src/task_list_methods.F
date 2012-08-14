@@ -678,8 +678,8 @@ CONTAINS
 !>      11.2007 created [Joost]
 ! *****************************************************************************
   SUBROUTINE pair2int(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
-    INTEGER(KIND=int_8)                      :: res
-    INTEGER                                  :: ilevel, iatom, jatom, iset, &
+    INTEGER(KIND=int_8), INTENT(OUT)         :: res
+    INTEGER, INTENT(IN)                      :: ilevel, iatom, jatom, iset, &
                                                 jset, ipgf, jpgf, natom, &
                                                 maxset, maxpgf
 
@@ -702,10 +702,10 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE int2pair(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
-    INTEGER(KIND=int_8)                      :: res
-    INTEGER                                  :: ilevel, iatom, jatom, iset, &
-                                                jset, ipgf, jpgf, natom, &
-                                                maxset, maxpgf
+    INTEGER(KIND=int_8), INTENT(IN)          :: res
+    INTEGER, INTENT(OUT)                     :: ilevel, iatom, jatom, iset, &
+                                                jset, ipgf, jpgf
+    INTEGER, INTENT(IN)                      :: natom, maxset, maxpgf
 
     INTEGER(KIND=int_8)                      :: iatom8, ijatom, ijpgf, ijset, &
                                                 ipgf8, iset8, jatom8, jpgf8, &
