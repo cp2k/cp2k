@@ -25,6 +25,7 @@ MODULE input_cp2k_resp
   USE input_val_types,                 ONLY: integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -53,16 +54,21 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="RESP",&
-            description="Requests a RESP fit of charges. The Hartree potential should match "//&
-                        "the one of an isolated system in those points of space that are used for fitting "//&
-                        "(i.e. isolated poisson solver, and big cells). All restraints are harmonic!",&
+            description="Requests a RESP fit of charges. When using a periodic "//&
+            "Poisson solver and a periodic cell, the periodic RESP routines are "//&
+            "used. If the Hartree potential matches with the one of an isolated "//&
+            "system (i.e. isolated Poisson solver and big, nonperiodic cells), "//&
+            "the nonperiodic RESP routines are automatically used. The subsections "//&
+            "NONPERIODIC_SYS and PERIODIC_SYS do not request a nonperiodic or periodic "//&
+            "solution, they only determine the sampling of the fitting points. All "//&
+            "restraints are harmonic!",&
             n_keywords=2, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -70,8 +76,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="stride",&
             description="The stride (X,Y,Z) used to write the cube file "//&
-            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-            " 1 number valid for all components.",&
+            "(larger values result in smaller cube files). You can provide "//&
+            "3 numbers (for X,Y,Z) or 1 number valid for all components.",&
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -91,62 +97,21 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_STRENGTH",&
-            description="If defined, enforce the restraint of non-hydrogen atoms to zero. Its value is the"//&
-            "strenght of the restraint on the heavy atoms.",&
+            description="If defined, enforce the restraint of non-hydrogen "//&
+            "atoms to zero. Its value is the strength of the restraint on "//&
+            "the heavy atoms.",&
             usage="RESTRAIN_HEAVIES_STRENGTH 0.0001 ",&
             default_r_val=1.0E-6_dp ,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="X_LOW",&
-            description="Specifies the lower boundary of the box along X used to sample the potential.",&
-            usage="X_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="X_HI",&
-            description="Specifies the upper boundary of the box along X used to sample the potential.",&
-            usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Y_LOW",&
-            description="Specifies the lower boundary of the box along Y used to sample the potential.",&
-            usage="Y_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Y_HI",&
-            description="Specifies the upper boundary of the box along Y used to sample the potential.",&
-            usage="Y_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Z_LOW",&
-            description="Specifies the lower boundary of the box along Z used to sample the potential.",&
-            usage="Z_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="Z_HI",&
-            description="Specifies the upper boundary of the box along Z used to sample the potential.",&
-            usage="Z_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RMAX",&
-            description="Specifies the maximum distance a fit point is away from an atom. ",&
-            usage="RMAX 2.5",&
-            default_r_val=cp_unit_to_cp2k(value=2.5_dp, unit_str="angstrom", error=error),&
-            unit_str='angstrom', error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RMIN",&
-            description="Specifies the minimum distance a fit point is away from an atom. ",&
-            usage="RMIN 2.1",&
-            default_r_val=cp_unit_to_cp2k(value=2.1_dp, unit_str="angstrom", error=error),&
-            unit_str='angstrom', error=error)
+       CALL keyword_create(keyword, name="WIDTH",&
+            description="Specifies the value of the width of the Gaussian "//&
+                        "charge distribution carried by each atom. Needs only "//&
+                        "to be specified when using a periodic Poisson solver.",&
+            usage="WIDTH <real> ",n_var=1,type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=11.249_dp,unit_str="angstrom^-2",error=error), &
+            unit_str="angstrom^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -158,13 +123,17 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key,error=error)
+       CALL create_nonperiodic_sys_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_periodic_sys_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_print_resp_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_resp_section
@@ -214,7 +183,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="ATOM_COEF",&
-            description="Defines the the coefficient of the atom in this this linear constraint",&
+            description="Defines the the coefficient of the atom in this this "//&
+                        "linear constraint",&
             usage="ATOM_COEF 1.0 -1.0",&
             type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -276,7 +246,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="ATOM_COEF",&
-            description="Defines the the coefficient of the atom in this this linear restraint",&
+            description="Defines the the coefficient of the atom in this this "//&
+                        "linear restraint",&
             usage="ATOM_COEF 1.0 -1.0",&
             type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -285,5 +256,232 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_restraint_section
+
+! *****************************************************************************
+!> \brief specifies the parameter for sampling the resp fitting points for 
+!>        non-periodic systems 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE create_nonperiodic_sys_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_nonperiodic_sys_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="NONPERIODIC_SYS",&
+            description="Specifies the parameter for sampling the RESP fitting points "//&
+                        "for non-periodic systems, i.e. systems that do not involve " //&
+                        "surfaces. This section can be used with periodic and nonperiodic "//&
+                        "Poisson solvers, it only affects the sampling of grid points. "//&
+                        "All grid points in the shell defined by rmin and rmax are accepted "//&
+                        "for fitting.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="X_LOW",&
+            description="Specifies the lower boundary of the box along X used to sample the potential.",&
+            usage="X_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="X_HI",&
+            description="Specifies the upper boundary of the box along X used to sample the potential.",&
+            usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Y_LOW",&
+            description="Specifies the lower boundary of the box along Y used to sample the potential.",&
+            usage="Y_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Y_HI",&
+            description="Specifies the upper boundary of the box along Y used to sample the potential.",&
+            usage="Y_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Z_LOW",&
+            description="Specifies the lower boundary of the box along Z used to sample the potential.",&
+            usage="Z_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Z_HI",&
+            description="Specifies the upper boundary of the box along Z used to sample the potential.",&
+            usage="Z_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMAX",&
+            description="Specifies the maximum distance a fit point is away from an atom. ",&
+            usage="RMAX 2.5",&
+            default_r_val=cp_unit_to_cp2k(value=2.5_dp, unit_str="angstrom", error=error),&
+            unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMIN",&
+            description="Specifies the minimum distance a fit point is away from an atom. ",&
+            usage="RMIN 2.1",&
+            default_r_val=cp_unit_to_cp2k(value=2.1_dp, unit_str="angstrom", error=error),&
+            unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_nonperiodic_sys_section
+! *****************************************************************************
+!> \brief specifies the parameter for sampling the resp fitting points for 
+!>        periodic systems, i.e. systems that involve surfaces 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE create_periodic_sys_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_periodic_sys_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="PERIODIC_SYS",&
+            description="Specifies the parameter for sampling the RESP fitting "//&
+                        "points for periodic systems, i.e. systems that involve " //&
+                       "surfaces. This section can only be used with periodic  "//&
+                        "Poisson solver and cell. To see, which grid points were "//&
+                        "used, switch on COORD_FIT_POINTS in the PRINT section.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword,name="ATOM_LIST",&
+            description="Specifies the list of indexes of atoms used to define "//&
+                        "the region for the RESP fitting. The list should "//&
+                        "contain indexes of atoms of the first surface layer." ,&
+            usage="ATOM_LIST 1 2 3 or 1..3",&
+            type_of_var=integer_t, n_var=-1,required=.TRUE.,repeats=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RANGE",&
+            description="Range where the fitting points are sampled. A range of "//&
+            "3 to 5 Angstroms means that the fitting points are sampled in the region "//&
+            "of 3 to 5 Angstroms above the surface which is defined by atom indexes given "//&
+            "in ATOM_LIST.",&
+            usage="RANGE <real> <real>",unit_str="angstrom",n_var=2,type_of_var=real_t,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LENGTH",&
+            description="Length of the sampling box, i.e. a box of this length and "//&
+            "the height specified by RANGE is defined above each surface atom given "//&
+            "in ATOM_LIST. The grid points in the boxes are accepted as fitting point. "//&
+            "Should be in the range of the nearest neighbour distance (a bit larger to be "//&
+            "on the safe side). Allows for a refined sampling of grid points in case of "//&
+            "corrugated surfaces.",&
+            usage="LENGTH <real> ",unit_str="angstrom",n_var=1,type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=3.0_dp,unit_str="angstrom", error=error),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SURF_DIRECTION",&
+            description="Specifies what above the surface means. Defines the direction.",&
+            usage="SURF_DIRECTION Z",&
+            enum_c_vals=s2a( "X", "Y", "Z"),&
+            enum_i_vals=(/ do_resp_x_dir, do_resp_y_dir, do_resp_z_dir /),&
+            enum_desc=s2a("surface layers are piled up in x-direction", &
+                          "surface layers are piled up in y-direction",&
+                          "surface layers are piled up in z-direction"),&
+            default_i_val=do_resp_z_dir, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_periodic_sys_section
+
+! *****************************************************************************
+!> \brief create the resp print section 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE create_print_resp_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_resp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(print_key)
+       CALL section_create(section,name="print",&
+            description="Section of possible print options specific for the RESP code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            print_level=low_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"COORD_FIT_POINTS",&
+            description="Controls the printing of the coordinates of the "// &
+            "grid points used for periodic RESP fitting. If coordinates of "//&
+            "atoms are outside the box, use CENTER_COODINATES in TOPOLOGY. "//&
+            "Otherwise it is still correct, but might look weird. This section "//&
+            "is intended to be only used for testing (you can get large files).",&
+            print_level=high_print_level,add_last=add_last_numeric,&
+            filename="RESP_FIT_POINTS",&
+            common_iter_levels=3, error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESP_CHARGES_TO_FILE",&
+            description="Controls the printing of the RESP charges "// &
+            "to a file.",&
+            print_level=high_print_level,add_last=add_last_numeric,&
+            filename="RESP_CHARGES",&
+            common_iter_levels=3, error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+   ENDIF
+  END SUBROUTINE create_print_resp_section
 
 END MODULE input_cp2k_resp

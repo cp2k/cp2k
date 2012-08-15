@@ -39,7 +39,8 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE print_atomic_charges(particle_set, scr, title, electronic_charges, atomic_charges)
+  SUBROUTINE print_atomic_charges(particle_set, scr, title, electronic_charges,&
+                                  atomic_charges)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -69,7 +70,11 @@ CONTAINS
        WRITE(scr,'(T2,A)') title
        SELECT CASE (nspin)
        CASE(0,1)
-       WRITE(scr,'(A)') "  Atom     |    Charge"
+       IF(title=="RESP charges:") THEN
+        WRITE(scr,'(A)') "  Type |   Atom   |    Charge"
+       ELSE
+        WRITE(scr,'(A)') "  Atom     |    Charge"
+       ENDIF
        CASE DEFAULT
        WRITE(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
        END SELECT
@@ -85,8 +90,13 @@ CONTAINS
 
           SELECT CASE (nspin)
           CASE(0)
-             WRITE(scr,'(I6,A2,A2,F12.6)') iatom,"  ",element_symbol,atomic_charges(iatom)
-             total_charge=total_charge+atomic_charges(iatom)
+             IF(title=="RESP charges:") THEN
+              WRITE(scr,'(T3,A4,2X,I6,A2,A2,F12.6)') "RESP",iatom,"  ",element_symbol,atomic_charges(iatom)
+              total_charge=total_charge+atomic_charges(iatom)
+             ELSE
+              WRITE(scr,'(I6,A2,A2,F12.6)') iatom,"  ",element_symbol,atomic_charges(iatom)
+              total_charge=total_charge+atomic_charges(iatom)
+             ENDIF
           CASE(1)
              WRITE(scr,'(I6,A2,A2,F12.6)') iatom,"  ",element_symbol,zeff-electronic_charges(iatom,1)
              total_charge=total_charge+zeff-electronic_charges(iatom,1)
@@ -97,7 +107,11 @@ CONTAINS
              total_charge=total_charge+ zeff-(electronic_charges(iatom,1)+electronic_charges(iatom,2))
           END SELECT
        ENDDO
-       WRITE(scr,'(A,F10.6)') "  Total     ",total_charge
+       IF(title=="RESP charges:") THEN
+          WRITE(scr,'(A,F10.6)') "  Total             ",total_charge
+       ELSE
+          WRITE(scr,'(A,F10.6)') "  Total     ",total_charge
+       ENDIF
        WRITE(scr,'(A)') ""
     ENDIF
 

@@ -59,8 +59,10 @@ H  0.8395  -1.0657  0.0000
   &END SUBSYS
     &PROPERTIES
       &RESP
-         RMIN 2.1
-         RMAX 2.5
+         &NONPERIODIC_SYS
+          RMIN 2.1
+          RMAX 2.5
+         &END
          STRIDE 3
          ! fix methyl carbons to be equivalent
          &CONSTRAINT

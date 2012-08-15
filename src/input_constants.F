@@ -883,5 +883,9 @@ MODULE input_constants
                                               mp2_method_laplace=2,&
                                               mp2_method_direct=4,&
                                               mp2_method_gpw=6
+  ! periodic RESP parameters
+  INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&
+                                              do_resp_y_dir=1,&
+                                              do_resp_z_dir=2 
 
 END MODULE input_constants

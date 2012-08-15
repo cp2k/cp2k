@@ -2,6 +2,7 @@
 # Directories have been reordered according the execution time needed for a g95 sopt
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+QS/regtest-properties/resp
 QS/regtest-mp2
 QS/regtest-dm-ls-scf
 TAMC/regtest
