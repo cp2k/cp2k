@@ -414,12 +414,14 @@ CONTAINS
                                       input_unit,para_env)
        IF (TRIM(section_label) == TRIM(section_name)) THEN
           IF (nbuf /= nparticle) THEN
-             message = "INFO: The requested number of "//TRIM(section_name)//" ("//&
-                       TRIM(ADJUSTL(cp_to_string(nparticle)))//") does not match the "//&
-                       "number ("//TRIM(ADJUSTL(cp_to_string(nbuf)))//") available from the "//&
-                       "binary restart file <"//TRIM(binary_restart_file_name)//&
-                       ">. The restart file information is ignored."
-             CALL print_message(message,iw,1,1,1)
+             IF (iw > 0) THEN
+                message = "INFO: The requested number of "//TRIM(section_name)//" ("//&
+                          TRIM(ADJUSTL(cp_to_string(nparticle)))//") does not match the "//&
+                          "number ("//TRIM(ADJUSTL(cp_to_string(nbuf)))//") available from the "//&
+                          "binary restart file <"//TRIM(binary_restart_file_name)//&
+                          ">. The restart file information is ignored."
+                CALL print_message(message,iw,1,1,1)
+             END IF
              ! Ignore this section
              IF (nbuf > 0) THEN
                 ! Perform dummy read
@@ -696,12 +698,14 @@ CONTAINS
              particle_set(iparticle)%v(1:3) = rbuf(1:3,iparticle)
           END DO
        ELSE
-          message = "INFO: The requested number of "//TRIM(ADJUSTL(section_name))//&
-                    " ("//TRIM(ADJUSTL(cp_to_string(nparticle)))//") does not match the "//&
-                    "number ("//TRIM(ADJUSTL(cp_to_string(nbuf)))//") available from the "//&
-                    "binary restart file <"//TRIM(binary_restart_file_name)//&
-                    ">. The restart file information is ignored."
-          CALL print_message(message,iw,1,1,1)
+          IF (iw > 0) THEN
+             message = "INFO: The requested number of "//TRIM(ADJUSTL(section_name))//&
+                       " ("//TRIM(ADJUSTL(cp_to_string(nparticle)))//") does not match the "//&
+                       "number ("//TRIM(ADJUSTL(cp_to_string(nbuf)))//") available from the "//&
+                       "binary restart file <"//TRIM(binary_restart_file_name)//&
+                       ">. The restart file information is ignored."
+             CALL print_message(message,iw,1,1,1)
+          END IF
        END IF
 
        DEALLOCATE (rbuf,STAT=istat)
