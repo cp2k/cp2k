@@ -206,14 +206,12 @@ CONTAINS
             CALL initialize_nhc_fast(thermostats%thermostat_info_fast, simpar, local_molecules,&
                  molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                  thermostats%thermostat_fast%nhc, nose_section=work_section, gci=gci,&
-                 save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
-                 error=error)
+                 save_mem=save_mem, error=error)
             work_section => section_vals_get_subs_vals(adiabatic_slow_section,"NOSE",error=error)
             CALL initialize_nhc_slow(thermostats%thermostat_info_slow, simpar, local_molecules,&
                  molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                  thermostats%thermostat_slow%nhc, nose_section=work_section, gci=gci,&
-                 save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
-                 error=error)
+                 save_mem=save_mem, error=error)
          ENDIF
       ELSE
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&

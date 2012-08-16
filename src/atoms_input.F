@@ -314,9 +314,10 @@ CPSourceFileRef,&
     IF (.NOT.explicit) RETURN
 
     CALL timeset(routineN,handle)
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 2. Read in the coordinates from &SHELL_COORD  section in the input file
+    ! 2. Read in the coordinates from &SHELL_COORD section in the input file
     !-----------------------------------------------------------------------------
     CALL section_vals_val_get(shell_coord_section,"UNIT",c_val=unit_str,error=error)
     CALL section_vals_val_get(shell_coord_section,"SCALED",l_val=shell_scaled_coordinates,error=error)
@@ -324,13 +325,13 @@ CPSourceFileRef,&
     CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
          n_rep_val=nshell,error=error)
 
-    CPPostcondition(SIZE(shell_particle_set,1)==nshell,cp_failure_level, routineP, error, failure)
-    IF(.NOT. failure) THEN
+    IF (ASSOCIATED(shell_particle_set)) THEN
+      CPPrecondition((SIZE(shell_particle_set,1) == nshell),cp_failure_level,routineP,error,failure)
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-           "Overwriting shells coordinates. "//&
-           " Active coordinates READ from &SHELL_COORD section. "//&
+           "Overwriting shell coordinates. "//&
+           "Active coordinates READ from &SHELL_COORD section. "//&
 CPSourceFileRef,&
            only_ionode=.TRUE.)
       CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
@@ -369,19 +370,20 @@ CPSourceFileRef,&
          END DO
       END DO
 
-      IF(PRESENT(core_particle_set)) THEN
-        core_coord_section => section_vals_get_subs_vals(subsys_section,"core_COORD",error=error)
+      IF (PRESENT(core_particle_set)) THEN
+        CPPrecondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
+        core_coord_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
         CALL section_vals_get(core_coord_section, explicit=explicit, error=error)
-        IF(explicit) THEN
+        IF (explicit) THEN
           CALL section_vals_val_get(core_coord_section,"UNIT",c_val=unit_str,error=error)
           CALL section_vals_val_get(core_coord_section,"SCALED",l_val=core_scaled_coordinates,error=error)
           unit_conv_core = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
           CALL section_vals_val_get(core_coord_section,"_DEFAULT_KEYWORD_",&
                n_rep_val=nshell,error=error)
 
-   CPPostcondition(SIZE(core_particle_set,1)==nshell,cp_failure_level,routineP,error,failure)
+          CPPostcondition((SIZE(core_particle_set,1) == nshell),cp_failure_level,routineP,error,failure)
           ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell), STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Overwriting cores coordinates. "//&
                " Active coordinates READ from &CORE_COORD section. "//&
@@ -460,8 +462,8 @@ CPSourceFileRef,&
              END IF
              core_particle_set(sh_index)%atom_index=at_index_c(ishell)
              rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)
-       CPPostcondition(TRIM(at_name(ishell))==TRIM(at_name_c(ishell)),cp_failure_level,routineP,error,failure)
-       CPPostcondition(at_index(ishell)==at_index_c(ishell),cp_failure_level,routineP,error,failure)
+             CPPostcondition(TRIM(at_name(ishell))==TRIM(at_name_c(ishell)),cp_failure_level,routineP,error,failure)
+             CPPostcondition(at_index(ishell)==at_index_c(ishell),cp_failure_level,routineP,error,failure)
            ELSE
              rab = pbc(shell_particle_set(sh_index)%r,particle_set(at_index(ishell))%r,cell)
            END IF
@@ -484,8 +486,11 @@ CPSourceFileRef,&
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(rc,at_index_c,at_name_c,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF  ! failure
-    IF(my_save_mem) CALL section_vals_remove_values(shell_coord_section, error)
+
+    END IF
+
+    IF (my_save_mem) CALL section_vals_remove_values(shell_coord_section,error)
+
     CALL timestop(handle)
 
   END SUBROUTINE read_shell_coord_input

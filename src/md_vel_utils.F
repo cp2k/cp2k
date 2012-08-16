@@ -569,6 +569,9 @@ CONTAINS
     NULLIFY (atomic_kind, fixd_list, atom_list, shell_list, core_list, logger, molecule_kind)
     NULLIFY (molecule_kind_set, shell, val)
     NULLIFY (atomvel_section,shellvel_section, corevel_section)
+    atomvel_read = .FALSE.
+    corevel_read = .FALSE.
+    shellvel_read = .FALSE.
 
     atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
@@ -625,12 +628,10 @@ CONTAINS
     ! Read velocities from binary restart file if available
     CALL read_binary_velocities("",part,force_env%root_section,para_env,&
                                 subsys_section,atomvel_read,error)
-    IF (shell_present) THEN
-       CALL read_binary_velocities("SHELL",shell_part,force_env%root_section,para_env,&
-                                   subsys_section,shellvel_read,error)
-       CALL read_binary_velocities("CORE",core_part,force_env%root_section,para_env,&
-                                   subsys_section,corevel_read,error)
-    END IF
+    CALL read_binary_velocities("SHELL",shell_part,force_env%root_section,para_env,&
+                                subsys_section,shellvel_read,error)
+    CALL read_binary_velocities("CORE",core_part,force_env%root_section,para_env,&
+                                subsys_section,corevel_read,error)
 
     ! Read or initialize the particle velocities
     CALL section_vals_get(atomvel_section,explicit=atomvel_explicit,error=error)

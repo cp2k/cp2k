@@ -200,7 +200,7 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt )
     END IF
 
-    CALL restart_nose(nhc,nose_section,save_mem,restart,"",para_env,error)
+    CALL restart_nose(nhc,nose_section,save_mem,restart,"","",para_env,error)
 
     IF (.NOT.restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
@@ -225,7 +225,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_nhc_slow ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
-       gci, save_mem, binary_restart_file_name, error)
+       gci, save_mem, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -238,7 +238,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
-    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_slow', &
@@ -263,8 +262,7 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
-    CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
-                      para_env,error)
+    CALL restart_nose(nhc,nose_section,save_mem,restart,"","",para_env,error)
 
     IF (.NOT.restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
@@ -285,7 +283,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_nhc_fast ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
-       gci, save_mem, binary_restart_file_name, error)
+       gci, save_mem, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -298,7 +296,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
-    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_fast', &
@@ -323,8 +320,7 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
-    CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
-                      para_env,error)
+    CALL restart_nose(nhc,nose_section,save_mem,restart,"","",para_env,error)
 
     IF (.NOT.restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
@@ -384,7 +380,7 @@ CONTAINS
     END IF
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
-                      para_env,error)
+                      "PARTICLE",para_env,error)
 
     IF (.NOT.restart) THEN
        ! Initializing thermostat forces and velocities for the Nose-Hoover
@@ -442,7 +438,7 @@ CONTAINS
     END IF
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,binary_restart_file_name,&
-                      para_env,error)
+                      "SHELL",para_env,error)
 
     IF (.NOT.restart) THEN
        ! Initialize thermostat forces and velocities
@@ -539,13 +535,15 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE restart_nose(nhc,nose_section,save_mem,restart,&
-                          binary_restart_file_name,para_env,error)
+                          binary_restart_file_name,thermostat_name,&
+                          para_env,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section
     LOGICAL, INTENT(IN)                      :: save_mem
     LOGICAL, INTENT(OUT)                     :: restart
-    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
+    CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name, &
+                                                thermostat_name
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -567,7 +565,8 @@ CONTAINS
 
        ! Read binary restart file, if available
 
-       CALL read_binary_thermostats_nose(nhc,binary_restart_file_name,restart,para_env,error)
+       CALL read_binary_thermostats_nose(thermostat_name,nhc,binary_restart_file_name,&
+                                         restart,para_env,error)
 
     ELSE
 

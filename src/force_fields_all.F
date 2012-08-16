@@ -2435,6 +2435,8 @@ CPSourceFileRef,&
     n = 0
     first_shell = 1
     null_massfrac =.FALSE.
+    core_coord_read = .FALSE.
+    shell_coord_read = .FALSE.
 
     NULLIFY(global_section)
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
@@ -2452,8 +2454,7 @@ CPSourceFileRef,&
        ! The shell potential can be defined only from input
        IF(ASSOCIATED(inp_info%shell_list)) THEN
           DO j=1,SIZE(inp_info%shell_list)
-             IF (iw>0) WRITE(iw,*)"Shell Checking ::",TRIM(inp_info%shell_list(j)%atm_name),atmname
-
+             IF (iw > 0) WRITE(iw,*)"Shell Checking ::",TRIM(inp_info%shell_list(j)%atm_name),atmname
              IF((inp_info%shell_list(j)%atm_name)==atmname) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      shell=shell, mass=atmmass, natom=natom)
@@ -2469,7 +2470,6 @@ CPSourceFileRef,&
                 shell%k4_spring = inp_info%shell_list(j)%shell%k4_spring
                 shell%max_dist=inp_info%shell_list(j)%shell%max_dist
                 shell%shell_cutoff=inp_info%shell_list(j)%shell%shell_cutoff
-
                 shell%mass_shell=shell%massfrac*atmmass
                 shell%mass_core=atmmass-shell%mass_shell
                 CALL issue_duplications(found_shell,routineP, "Shell", atmname, error=error)
@@ -2478,15 +2478,16 @@ CPSourceFileRef,&
                      shell=shell, shell_active=.TRUE.,error=error)
                 CALL shell_release(shell, error)
              END IF
-          END DO  ! j shell kind
-       END IF   ! associated shell_list
-    END DO  ! i atomic kind
+          END DO ! j shell kind
+       END IF ! associated shell_list
+    END DO ! i atomic kind
 
-    IF (iw>0) WRITE(iw,*)"Total number of particles with a shell :: ", nshell_tot
+    IF (iw > 0) WRITE(iw,*) "Total number of particles with a shell :: ", nshell_tot
     ! If shell-model is present: Create particle_set of shells (coord. vel. force)
-    NULLIFY(shell_particle_set,core_particle_set)
-    IF(nshell_tot>0) THEN
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
+    NULLIFY (shell_particle_set)
+    NULLIFY (core_particle_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,shell_adiabatic=shell_adiabatic)
+    IF (nshell_tot > 0) THEN
        IF (shell_adiabatic .AND. null_massfrac) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Shell-model adiabatic: at least one shell_kind has mass zero")
@@ -2494,71 +2495,75 @@ CPSourceFileRef,&
        CALL allocate_particle_set(shell_particle_set,nshell_tot,error)
        CALL allocate_particle_set(core_particle_set,nshell_tot,error)
        counter = 0
-       DO i = 1,SIZE(particle_set)
-          NULLIFY(atomic_kind,shell)
+       ! Initialise the shell (and core) coordinates with the particle (atomic) coordinates,
+       ! count the shell and set pointers
+       DO i=1,SIZE(particle_set)
+          NULLIFY (atomic_kind)
+          NULLIFY (shell)
           atomic_kind => particle_set(i)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
-          IF(is_a_shell) THEN
-             counter = counter+1
+          CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_a_shell)
+          IF (is_a_shell) THEN
+             counter = counter + 1
              particle_set(i)%shell_index = counter
-             shell_particle_set(counter)%shell_index=counter
+             shell_particle_set(counter)%shell_index = counter
              shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
-             shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-             shell_particle_set(counter)%atom_index =   i
-             core_particle_set(counter)%shell_index=counter
+             shell_particle_set(counter)%r(1:3) = particle_set(i)%r(1:3)
+             shell_particle_set(counter)%atom_index = i
+             core_particle_set(counter)%shell_index = counter
              core_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
-             core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-             core_particle_set(counter)%atom_index =   i
+             core_particle_set(counter)%r(1:3) = particle_set(i)%r(1:3)
+             core_particle_set(counter)%atom_index = i
           ELSE
              particle_set(i)%shell_index = 0
           END IF
        END DO
        CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
+    END IF
 
-      ! Initialise the shell (and core) coordinates
+    ! Read the shell (and core) coordinates from the restart file, if available
+    CALL read_binary_cs_coordinates("SHELL",shell_particle_set,root_section,&
+                                    subsys_section,shell_coord_read,error)
+    CALL read_binary_cs_coordinates("CORE",core_particle_set,root_section,&
+                                    subsys_section,core_coord_read,error)
+
+    IF (nshell_tot > 0) THEN
+       ! Read the shell (and core) coordinates from the input, if no coordinates were found
+       ! in the restart file
        IF (shell_adiabatic) THEN
-          ! Note: the order matters
-          CALL read_binary_cs_coordinates("SHELL",shell_particle_set,root_section,&
-                                          subsys_section,shell_coord_read,error)
-          CALL read_binary_cs_coordinates("CORE",core_particle_set,root_section,&
-                                          subsys_section,core_coord_read,error)
           IF (.NOT.(core_coord_read.AND.shell_coord_read)) THEN
              CALL read_shell_coord_input(particle_set,shell_particle_set,cell,&
                                          subsys_section,core_particle_set,&
                                          save_mem=save_mem,error=error)
           END IF
        ELSE
-          CALL read_binary_cs_coordinates("SHELL",shell_particle_set,root_section,&
-                                          subsys_section,shell_coord_read,error)
           IF (.NOT.shell_coord_read) THEN
              CALL read_shell_coord_input(particle_set,shell_particle_set,cell,&
                                          subsys_section,save_mem=save_mem,error=error)
           END IF
        END IF
-
        ! Determine the number of shells per molecule kind
        n = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,molecule_list=molecule_list,&
-               natom=natom, nmolecule=nmol)
+                                 natom=natom, nmolecule=nmol)
           molecule=>molecule_set(molecule_list(1))
           CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-          ALLOCATE(shell_list_tmp(natom),STAT=stat)
+          ALLOCATE (shell_list_tmp(natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter = 0
           DO j = first, last
              atomic_kind => particle_set(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_a_shell)
-             IF(is_a_shell) THEN
+             IF (is_a_shell) THEN
                 counter = counter+1
                 shell_list_tmp(counter) = j - first + 1
                 first_shell = MIN(first_shell, MAX(1,particle_set(j)%shell_index))
              END IF
           END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
-          IF(counter/=0) THEN
+          IF (counter /= 0) THEN
              ! Setup of fist_shell and last_shell for all molecules..
-             DO j = 1, SIZE(molecule_list)
+             DO j=1,SIZE(molecule_list)
                 last_shell = first_shell + counter -1
                 molecule=>molecule_set(molecule_list(j))
                 molecule%first_shell = first_shell
@@ -2567,13 +2572,13 @@ CPSourceFileRef,&
              END DO
              ! Setup of shell_list
              CALL get_molecule_kind(molecule_kind=molecule_kind,shell_list=shell_list)
-             IF(ASSOCIATED(shell_list)) THEN
+             IF (ASSOCIATED(shell_list)) THEN
                 DEALLOCATE(shell_list,STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
-             ALLOCATE(shell_list(counter), STAT=stat)
+             ALLOCATE (shell_list(counter), STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO j = 1, counter
+             DO j=1,counter
                 shell_list(j)%a = shell_list_tmp(j)
                 atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname, shell=shell)
@@ -2583,11 +2588,11 @@ CPSourceFileRef,&
              END DO
              CALL set_molecule_kind(molecule_kind=molecule_kind, nshell=counter,shell_list=shell_list)
           END IF
-          DEALLOCATE(shell_list_tmp,STAT=stat)
+          DEALLOCATE (shell_list_tmp,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          n = n + nmol * counter
-       END DO  ! i molecule kind
-    END IF  ! nshell_tot>0
+          n = n + nmol*counter
+       END DO ! i molecule kind
+    END IF
     CPPostcondition(first_shell-1==nshell_tot,cp_failure_level,routineP,error,failure)
     CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
