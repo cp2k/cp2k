@@ -120,7 +120,7 @@ CONTAINS
        CALL open_file(file_name=binary_restart_file_name,&
                       file_status="OLD",&
                       file_form="UNFORMATTED",&
-                      file_action="READ",&
+                      file_action="READWRITE",&
                       file_position="REWIND",&
                       unit_number=input_unit,&
                       debug=iw)
@@ -401,7 +401,7 @@ CONTAINS
        CALL open_file(file_name=TRIM(binary_restart_file_name),&
                       file_status="OLD",&
                       file_form="UNFORMATTED",&
-                      file_action="READ",&
+                      file_action="READWRITE",&
                       file_position="ASIS",&
                       unit_number=input_unit,&
                       debug=iw)
@@ -624,7 +624,7 @@ CONTAINS
        CALL open_file(file_name=binary_restart_file_name,&
                       file_status="OLD",&
                       file_form="UNFORMATTED",&
-                      file_action="READ",&
+                      file_action="READWRITE",&
                       file_position="ASIS",&
                       unit_number=input_unit,&
                       debug=iw)
@@ -796,7 +796,7 @@ CONTAINS
        CALL open_file(file_name=binary_restart_file_name,&
                       file_status="OLD",&
                       file_form="UNFORMATTED",&
-                      file_action="READ",&
+                      file_action="READWRITE",&
                       file_position="ASIS",&
                       unit_number=input_unit)
        READ (UNIT=input_unit,IOSTAT=istat) section_label,nhc_size
