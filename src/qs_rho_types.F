@@ -79,7 +79,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains a rho_struct by increasing the reference count by one
-!>      (to be called when you what to keep a shared copy)
+!>      (to be called when you want to keep a shared copy)
 !> \param rho_struct the structure to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -107,7 +107,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a rho_struct by decreasing the reference count by one
-!>      and deallocating if it reaces 0 (to be called when you don't whant
+!>      and deallocating if it reaches 0 (to be called when you don't want
 !>      anymore a shared copy)
 !> \param rho_struct the structure to retain
 !> \param error variable to control error logging, stopping,...
