@@ -171,6 +171,10 @@ How to compile CP2K code
                              be selected.  Reasonable defaults are provided
                              (see src/lib/collocate_fast.F) but trial-and-error
 			     might yield (a small ~10%) speedup.
+     with -D__HAS_LIBGRID (and -L/path/to/libgrid.a in LIBS) tuned versions of 
+                             integrate and collocate routines can be generated.
+                             See tools/autotune_grid/README for details
+
      Some options controlling MPI behavior and capabilities:
      -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
                              not declare they are thread safe but you want to

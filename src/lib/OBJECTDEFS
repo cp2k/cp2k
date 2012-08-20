@@ -1,3 +1,4 @@
-LIB1_OBJECTS = fast.o\
+LIB1_OBJECTS = xyz_to_vab_optimised.o\
+               fast.o\
                grid_fast.o\
                lib_kinds.o

@@ -108,6 +108,7 @@
                                                 coef_xy(2,((lp+1)*(lp+2))/2), &
                                                 s(4)
 
+
     sci=1
 
     coef_xyz=0.0_wp

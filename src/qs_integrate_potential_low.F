@@ -14,7 +14,8 @@ MODULE qs_integrate_potential_low
                                              int_8
   USE mathconstants,                   ONLY: fac
   USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+                                             ncoset,&
+                                             current_maxl
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "cp_common_uses.h"
@@ -319,6 +320,8 @@ CONTAINS
 
 ! *****************************************************************************
    SUBROUTINE integrate_ortho()
+    USE MPI
+    INTEGER :: rank, ierr
 
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     cmax=MAXVAL(ub_cube)
@@ -377,18 +380,20 @@ CONTAINS
     CALL call_integrate()
 
 
-    CALL call_to_xyz_to_vab()
-
+    CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
+                                  rp, ra, rab, vab, coset, la_min_local, & 
+                                  lb_min_local, current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
+    
     DEALLOCATE(coef_xyz)
     DEALLOCATE(pol_z)
     DEALLOCATE(pol_y)
     DEALLOCATE(pol_x)
     DEALLOCATE(map)
-
     END SUBROUTINE integrate_ortho
 
 ! *****************************************************************************
     SUBROUTINE call_integrate
+
 
       SELECT CASE(lp)
       CASE(0)
@@ -426,113 +431,11 @@ CONTAINS
                              map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1))
       END SELECT
 
+
+
     END SUBROUTINE call_integrate
 
-! The subroutine CALL_XYZ_TO_VAB is also autogenterated
-#include "xyz_to_vab.f90"
-
-
-! *****************************************************************************
-    SUBROUTINE xyz_to_vab
-
-    coef_xyz=coef_xyz*prefactor
-
-!   *** initialise the coefficient matrix, we transform the sum
-!
-!   sum_{lxa,lya,lza,lxb,lyb,lzb} P_{lxa,lya,lza,lxb,lyb,lzb} (x-a_x)**lxa (y-a_y)**lya (z-a_z)**lza (x-b_x)**lxb (y-a_y)**lya (z-a_z)**lza
-!
-!   into
-!
-!   sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-p_x)**lxp (y-p_y)**lyp (z-p_z)**lzp
-!
-!   where p is center of the product gaussian, and lp = la_max + lb_max
-!   (current implementation is l**7)
-!
-!
-!   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
-!
-!   *** make the alpha matrix ***
-
-    ALLOCATE(alpha(0:lp,0:la_max_local,0:lb_max_local,3))
-    alpha(:,:,:,:)=0.0_dp
-    DO iaxis=1,3
-    DO lxa=0,la_max_local
-    DO lxb=0,lb_max_local
-       binomial_k_lxa=1.0_dp
-       a=1.0_dp
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dp
-        b=1.0_dp
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k,lxa,lxb,iaxis)=alpha(lxa-l+lxb-k,lxa,lxb,iaxis)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
-           b=b*(rp(iaxis)-(ra(iaxis)+rab(iaxis)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
-        a=a*(-ra(iaxis)+rp(iaxis))
-       ENDDO
-    ENDDO
-    ENDDO
-    ENDDO
-
-    !
-    !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
-    !   use a three step procedure
-    !
-
-    ALLOCATE(coef_ttz(0:la_max_local,0:lb_max_local))
-    ALLOCATE(coef_tyz(0:la_max_local,0:lb_max_local,0:la_max_local,0:lb_max_local))
-    lxyz=0
-    DO lzp=0,lp
-       coef_tyz=0.0_dp
-       DO lyp=0,lp-lzp
-          coef_ttz=0.0_dp
-          DO lxp=0,lp-lzp-lyp
-             lxyz=lxyz+1
-             DO lxb=0,lb_max_local
-             DO lxa=0,la_max_local
-                coef_ttz(lxa,lxb)=coef_ttz(lxa,lxb)+coef_xyz(lxyz)*alpha(lxp,lxa,lxb,1)
-             ENDDO
-             ENDDO
-
-          ENDDO ! lxp
-
-          DO lyb=0,lb_max_local
-          DO lya=0,la_max_local
-             DO lxb=0,lb_max_local-lyb
-             DO lxa=0,la_max_local-lya
-                coef_tyz(lxa,lxb,lya,lyb)=coef_tyz(lxa,lxb,lya,lyb)+coef_ttz(lxa,lxb)*alpha(lyp,lya,lyb,2)
-             ENDDO
-             ENDDO
-          ENDDO
-          ENDDO
-
-       ENDDO !lyp
-
-       DO lzb=0,lb_max_local
-       DO lza=0,la_max_local
-          DO lyb=0,lb_max_local-lzb
-          DO lya=0,la_max_local-lza
-             DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
-             jco=coset(lxb,lyb,lzb)
-             DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
-                ico=coset(lxa,lya,lza)
-                vab(ico,jco)=vab(ico,jco)+coef_tyz(lxa,lxb,lya,lyb)*alpha(lzp,lza,lzb,3)
-             ENDDO
-             ENDDO
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-
-    ENDDO
-
-    DEALLOCATE(coef_tyz)
-    DEALLOCATE(coef_ttz)
-    DEALLOCATE(alpha)
-
-    END SUBROUTINE xyz_to_vab
+       
 
 ! *****************************************************************************
 ! general optimized routine, not called for orthogonal cells
@@ -745,7 +648,11 @@ CONTAINS
       ENDDO
       ENDDO
 
-      CALL call_to_xyz_to_vab()
+      CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
+                                  rp, ra, rab, vab, coset, la_min_local, & 
+                                  lb_min_local, current_maxl, ncoset(la_max_local), & 
+                                  ncoset(lb_max_local))
+
 
       ! deallocation needed to pass around a pgi bug..
       DEALLOCATE(hmatgridp)
@@ -790,7 +697,11 @@ CONTAINS
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3,error)
-        CALL call_to_xyz_to_vab()
+        CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
+                                  rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
+                                  current_maxl, ncoset(la_max_local), & 
+                                  ncoset(lb_max_local))
+
         DEALLOCATE(coef_xyz,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     END SUBROUTINE
@@ -827,7 +738,11 @@ CONTAINS
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3,error)
-        CALL call_to_xyz_to_vab()
+        CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
+                                  rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
+                                current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
+
+
         DEALLOCATE(coef_xyz,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     END SUBROUTINE

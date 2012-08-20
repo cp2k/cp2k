@@ -1,0 +1,25 @@
+# Number of optimizations to check (up to 6)  - these are defined in options.f90
+Nopt=6 
+# Maximum lp to generate the routines (from 0 to 9, 7 recommended).  Higher values will give better performance but takes longer to build.
+lmax=7
+# Number of tests to run
+Nrun=3
+
+# #### Gfortran flags
+FC_comp="ftn -ffree-form -pipe"
+FCFLAGS=" -O3 -ffast-math -funroll-loops -ftree-vectorize -fno-omit-frame-pointer -g -march=bdver1 -fgcse-sm -fgcse-las -fmerge-all-constants "
+
+# Cray flags
+#FC_comp="ftn -f free "
+# FCFLAGS=" -target=compute_node  -O3"
+#FCFLAGS=" -target=compute_node  -O2"
+
+# Intel Flags
+#FC_comp="ftn -free"
+#FCFLAGS="-O3"
+
+# PGI Flags
+#FC_comp="ftn -Mfree"
+#FCFLAGS="-fastsse"
+
+makefile_name="Makefile"

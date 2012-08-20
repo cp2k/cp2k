@@ -2,7 +2,9 @@
 ! otherwise, we provide some reasonable defaults
 ! the included fortran files represent the same kernel, with a fortran representation that optimizes best for a given compiler
 
-
+#ifdef __HAS_LIBGRID
+! Nothing here, we use libgrid.a
+#else
 #if !defined(__GRID_CORE)
 
 #if defined(__G95)
@@ -53,3 +55,5 @@
 This is an error, and unknown definition of GRID_CORE (__GRID_CORE) has been used
 
 #endif
+
+#endif 
