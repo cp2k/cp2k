@@ -320,8 +320,6 @@ CONTAINS
 
 ! *****************************************************************************
    SUBROUTINE integrate_ortho()
-    USE MPI
-    INTEGER :: rank, ierr
 
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     cmax=MAXVAL(ub_cube)
