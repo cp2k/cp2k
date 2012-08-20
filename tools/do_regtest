@@ -87,12 +87,12 @@
 # template (and don't forget to include a modified cp2k_prefix for MPI
 # runs as well!).
 export LC_ALL=C
-export FORT_C_NAME=g95
-dir_base=/data03/vondele/clean
-cp2k_version=sopt
-dir_triplet=Linux-x86-64-g95
+export FORT_C_NAME=gfortran
+dir_base=/data/vjoost/clean/cp2k
+cp2k_version=pdbg
+dir_triplet=Linux-x86-64-gfortran
 cp2k_dir=cp2k
-maxtasks=3
+maxtasks=16
 emptycheck="NO"
 leakcheck="NO"
 
@@ -103,8 +103,8 @@ leakcheck="NO"
 
 # *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
 # Leave empty for serial, uncomment for parallel
-#cp2k_run_prefix="mpiexec -np 2"
-cp2k_run_prefix=""
+cp2k_run_prefix="mpiexec -np 2"
+#cp2k_run_prefix=""
 cp2k_run_postfix=
 #cp2k_prefix="( ulimit -t 300; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix=" )"
@@ -511,6 +511,7 @@ do
   echo "Starting tests in ${dir_out}/tests/${dir}"
   echo ">>>>>>>>>>>>>>>>> ${dir_out}/tests/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
+  timing_all=0
   for ((itest=1;itest<=ntest;itest++));
   do
      n_tests=$((n_tests+1))
@@ -566,15 +567,17 @@ do
         fi
      fi
      # Keep the output up-to-date
+     timing=0
      case ${this_test} in
      "NEW" )
         cp ${output_file} ${output_last} 
-        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$NF)}'`
+        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%6.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      "OK" )
-        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$NF)}'`
+        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%6.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
+     timing_all=`echo "($timing_all)+($timing)" | bc -l`
      if [[ ${leakcheck} == "YES" ]]; then
         dum=`grep -l "Remaining memory" ${output_file}`
         if [[ ${dum} != "" ]]; then
@@ -585,7 +588,7 @@ do
      fi 
      printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
-  echo "<<<<<<<<<<<<<<<<< ${dir_out}/tests/${dir}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  printf "%s %8.2f %s\n" "<<<<<<<<<<<<<<<<< ${dir_out}/tests/${dir}" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
   cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
   rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
@@ -597,7 +600,7 @@ do
  runningtasks=10000
  while (( runningtasks >= maxtasks ))
  do
-   sleep 1
+   # sleep 1
    runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
  done
 
