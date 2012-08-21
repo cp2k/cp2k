@@ -7,7 +7,7 @@
 # LIBS = timings_mp.o -L/data/urban/sw/gcc-4.4/openmpi-1.4.3/BLACS-1.1/scalapack-1.8.0/scalapack-1.8.0-exe0/lib -lscalapack -L/data/urban/sw/gcc-4.4/openmpi-1.4.3/BLACS-1.1/BLACS-1.1-exe0/lib -lblacsF77init -lblacs -L/data/urban/sw/gcc-4.6.1/compile-libsmm-mkl/lib -lsmm_dnn -L/opt/intel/parallel_studio/composerxe-2011.4.191/mkl/lib/intel64 -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -L/usr/local/cuda/lib64 -lcudart -lrt -lpthread
 
 NVCC     = nvcc
-HWLOC    = yes
+HWTOPO   = yes
 
 CC       = gcc
 CPP      =
