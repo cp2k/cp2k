@@ -694,13 +694,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2,3), gbo(2,3), handle, iatom, in_x, in_y, in_z, jx, jy, &
-      jz, k, l, m, natom, now, np(3), output_unit, p, request, stat
+      jz, k, l, m, natom, now, np(3), output_unit, p, stat
     LOGICAL                                  :: failure, my_write
-    LOGICAL, DIMENSION(:), POINTER           :: finishedloop
     REAL(KIND=dp)                            :: dh(3,3), dvol, r(3), &
                                                 vec_pbc(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
-    REAL, DIMENSION(:), POINTER              :: mepos_done
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_type), POINTER                   :: v_hartree_pw
@@ -710,7 +708,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     my_write=.TRUE.
-    NULLIFY(v_hartree_pw,para_env,logger,input,resp_section,finishedloop,mepos_done)   
+    NULLIFY(v_hartree_pw,para_env,logger,input,resp_section)   
  
     CALL get_qs_env(qs_env, input=input, para_env=para_env, error=error)
 
@@ -741,9 +739,6 @@ CPSourceFileRef,&
        now = SIZE(resp_env%fitpoints,2)
     END IF
 
-    ALLOCATE(finishedloop(para_env%num_pe),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-    finishedloop=.FALSE.
     ALLOCATE(dist(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
     dist=0.0_dp
@@ -795,12 +790,6 @@ CPSourceFileRef,&
             END SELECT
             IF(in_z*in_y*in_x==1) EXIT
          ENDDO
-         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-                   resp_section,"PRINT%COORD_FIT_POINTS",error=error),&
-                   cp_p_file))THEN
-           CALL print_fitting_points(qs_env,resp_env,r,in_x,in_y,in_z,&
-                output_unit,my_write,finishedloop,error)
-         ENDIF
          IF(in_z*in_y*in_x==0) CYCLE
        ENDIF
        resp_env%npoints=resp_env%npoints+1
@@ -815,36 +804,16 @@ CPSourceFileRef,&
       ENDDO
      ENDDO
     ENDDO
- 
+
+    !print fitting points to file if requested 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             resp_section,"PRINT%COORD_FIT_POINTS",error=error),&
             cp_p_file))THEN
-     !procs must tell proc 0 that they finished loops
-     IF(para_env%mepos/=0) THEN
-      ALLOCATE(mepos_done(3))
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-      mepos_done=-2.0_dp ! -2.0 is arbitrary, acts as a flag
-      CALL mp_isend(msgin=mepos_done,dest=0,comm=para_env%group,request=request)
-      CALL mp_wait(request)
-      DEALLOCATE(mepos_done)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-     !if proc 0 finishes loops earlier than other procs, it has to recv their data here 
-     ELSE
-      finishedloop(1)=.TRUE. !proc 0 finished
-      DO
-       IF(.NOT.ALL(finishedloop.eqv..TRUE.)) THEN
-        CALL print_fitting_points(qs_env,resp_env,r,0,0,0,&
-             output_unit,my_write,finishedloop,error)
-       ELSE
-        EXIT
-       ENDIF
-      ENDDO
-     ENDIF
+     CALL print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,my_write,error)
     ENDIF
+
     CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
                        "PRINT%COORD_FIT_POINTS", error=error)
-    DEALLOCATE(finishedloop,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     DEALLOCATE(dist,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 
@@ -899,15 +868,14 @@ CPSourceFileRef,&
 !\brief print the atom coordinates and the coordinates of the fitting points
 !       to an xyz file
 !****************************************************************************
-  SUBROUTINE print_fitting_points(qs_env,resp_env,r,in_x,in_y,in_z,output_unit,&
-                                  my_write,finishedloop,error)
+  SUBROUTINE print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,&
+                                  my_write,error)
   
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
-    REAL(KIND=dp), INTENT(IN)                :: r(3)
-    INTEGER, INTENT(IN)                      :: in_x, in_y, in_z, output_unit
+    REAL(KIND=dp), INTENT(IN)                :: dh(3,3)
+    INTEGER, INTENT(IN)                      :: output_unit, gbo(2,3)
     LOGICAL, INTENT(INOUT)                   :: my_write
-    LOGICAL, DIMENSION(:), POINTER           :: finishedloop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_fitting_points', &
@@ -915,13 +883,13 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: handle, i, iatom, m, req(2), &
+    INTEGER                                  :: handle, i, iatom, ip, jx, jy, &
+                                                jz, k, l, my_pos, p, req(6), &
                                                 stat
+    INTEGER, DIMENSION(:), POINTER           :: tmp_npoints, tmp_size
+    INTEGER, DIMENSION(:, :), POINTER        :: tmp_points
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: conv
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: r_proc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp
+    REAL(KIND=dp)                            :: conv, r(3)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
@@ -931,7 +899,8 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(para_env,input,logger,resp_section,print_key,particle_set,tmp)   
+    NULLIFY(para_env,input,logger,resp_section,print_key,particle_set,tmp_size,&
+            tmp_points,tmp_npoints)   
  
     CALL get_qs_env(qs_env, input=input, para_env=para_env,&
                        particle_set=particle_set,error=error)
@@ -943,47 +912,7 @@ CPSourceFileRef,&
                                                 error=error)
     logger => cp_error_get_logger(error)
     conv=cp_unit_from_cp2k(1.0_dp,"angstrom",error=error)
- 
-    ALLOCATE(r_proc(para_env%num_pe,3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-    !every r is >= 0 by definition, print only if r_proc >= 0 in the end
-    r_proc=-1.0_dp
 
-    !this condition is NOT true for every proc 
-    IF(in_z*in_y*in_x==1) THEN
-      r_proc(para_env%mepos+1,:)=r(:)*conv
-    ENDIF
-
-    !sending it all to proc 0 making the printing
-    IF(para_env%mepos==0) THEN
-      ALLOCATE(tmp(3),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-      DO i=2,para_env%num_pe
-       IF(finishedloop(i)) CYCLE
-       tmp(:)=r_proc(i,:)
-       CALL mp_irecv(msgout=tmp,source=i-1,comm=para_env%group,request=req(1))
-       CALL mp_wait(req(1))
-       !tmp=-2.0 (mepos_done) is received when proc i finished the 3 loops
-       !tmp=-1.0 is received if in_z*in_y*in_x=0, otherwise tmp >= 0
-       IF(ALL(tmp >= -1.0_dp)) THEN
-          r_proc(i,:)=tmp
-       ELSE
-          finishedloop(i) = .TRUE.
-       ENDIF
-      ENDDO
-    ELSE
-     ALLOCATE(tmp(3),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-     tmp(:)=r_proc(para_env%mepos+1,:)
-     CALL mp_isend(msgin=tmp,dest=0,comm=para_env%group,request=req(2))
-     CALL mp_wait(req(2))
-    ENDIF
-
-    IF(ASSOCIATED(tmp)) THEN
-      DEALLOCATE(tmp, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-    ENDIF    
-       
     IF(output_unit>0) THEN
      filename=cp_print_key_generate_filename(logger,&
               print_key, extension=".xyz",&
@@ -997,15 +926,78 @@ CPSourceFileRef,&
                                                particle_set(iatom)%r(1:3)*conv
        my_write=.FALSE.  
       ENDDO
-     ENDIF     
-     DO m=1,para_env%num_pe
-      IF(ANY(r_proc(m,:)>=0.0_dp)) THEN 
-       WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r_proc(m,1), r_proc(m,2), r_proc(m,3)
-      ENDIF
-     ENDDO
+     ENDIF
+     !printing points of proc which is doing the output (should be proc 0)
+     DO ip=1,resp_env%npoints
+      jx=resp_env%fitpoints(1,ip)     
+      jy=resp_env%fitpoints(2,ip)     
+      jz=resp_env%fitpoints(3,ip)
+      l=jx - gbo(1,1)
+      k=jy - gbo(1,2)
+      p=jz - gbo(1,3) 
+      r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1) 
+      r(2)=p*dh(2,3)+k*dh(2,2)+l*dh(2,1)
+      r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)  
+      r(:)=r(:)*conv 
+      WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r(1), r(2), r(3)
+     ENDDO 
     ENDIF
- 
-    DEALLOCATE(r_proc,stat=stat)
+
+    ALLOCATE(tmp_size(1),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    ALLOCATE(tmp_npoints(1),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+
+    !sending data of all other prosc to proc which makes the output (proc 0) 
+    IF(output_unit>0) THEN
+      my_pos=para_env%mepos
+      DO i=1,para_env%num_pe
+       IF(my_pos==i-1) CYCLE
+       CALL mp_irecv(msgout=tmp_size,source=i-1,comm=para_env%group,&
+            request=req(1))
+       CALL mp_wait(req(1))
+       ALLOCATE(tmp_points(3,tmp_size(1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CALL mp_irecv(msgout=tmp_points,source=i-1,comm=para_env%group,&
+            request=req(3))
+       CALL mp_wait(req(3))
+       CALL mp_irecv(msgout=tmp_npoints,source=i-1,comm=para_env%group,&
+            request=req(5))
+       CALL mp_wait(req(5))
+       DO ip=1,tmp_npoints(1) 
+        jx=tmp_points(1,ip)     
+        jy=tmp_points(2,ip)     
+        jz=tmp_points(3,ip)
+        l=jx - gbo(1,1)
+        k=jy - gbo(1,2)
+        p=jz - gbo(1,3) 
+        r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1) 
+        r(2)=p*dh(2,3)+k*dh(2,2)+l*dh(2,1)
+        r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)  
+        r(:)=r(:)*conv 
+        WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r(1), r(2),r(3)
+       ENDDO 
+       DEALLOCATE(tmp_points,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+      ENDDO
+    ELSE
+     tmp_size(1)=SIZE(resp_env%fitpoints,2)
+     !para_env%source should be 0
+     CALL mp_isend(msgin=tmp_size,dest=para_env%source,comm=para_env%group,&
+          request=req(2))
+     CALL mp_wait(req(2))
+     CALL mp_isend(msgin=resp_env%fitpoints,dest=para_env%source,comm=para_env%group,&
+          request=req(4))
+     CALL mp_wait(req(4))
+     tmp_npoints(1)=resp_env%npoints
+     CALL mp_isend(msgin=tmp_npoints,dest=para_env%source,comm=para_env%group,&
+          request=req(6))
+     CALL mp_wait(req(6))
+    ENDIF
+
+    DEALLOCATE(tmp_size,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+    DEALLOCATE(tmp_npoints,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 
     CALL timestop(handle)
