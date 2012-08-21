@@ -13,10 +13,10 @@ MODULE dm_ls_scf_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
-       cp_dbcsr_gershgorin_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE dbcsr_block_access,              ONLY: dbcsr_put_block
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_init,&
@@ -40,8 +40,7 @@ MODULE dm_ls_scf_methods
                                              matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE machine,                         ONLY: m_flush,&
-                                             m_walltime
+  USE machine,                         ONLY: m_walltime
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -373,12 +372,14 @@ CONTAINS
 !> \author Florian Thoele 
 ! *****************************************************************************
   SUBROUTINE density_matrix_trs4(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
-                                 nelectron, threshold, error)
+                                 nelectron, threshold, e_homo, e_lumo, e_mu, delta_ks, dynamic_threshold, error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_s_sqrt_inv
     INTEGER, INTENT(IN)                      :: nelectron
     REAL(KIND=dp), INTENT(IN)                :: threshold
+    REAL(KIND=dp), INTENT(INOUT)             :: e_homo, e_lumo, e_mu, delta_ks
+    LOGICAL, INTENT(IN), OPTIONAL            :: dynamic_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
@@ -387,15 +388,20 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: gamma_max = 6.0_dp, &
                                                 gamma_min = 0.0_dp
 
-    INTEGER                                  :: handle, i, j, unit_nr
+    INTEGER                                  :: estimated_steps, handle, i, &
+                                                j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
-    REAL(KIND=dp)                            :: eps_max, eps_min, gam, mu_a, &
-                                                mu_b, mu_c, mu_fa, mu_fc, &
-                                                occ_matrix, t1, t2, trace_fx, &
-                                                trace_gx
+    LOGICAL                                  :: do_dyn_threshold
+    REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_gap, &
+      est_threshold, frob_id, frob_x, gam, homo, lumo, max_eig, &
+      max_threshold, min_eig, mmin, mu, mu_a, mu_b, mu_c, mu_fa, mu_fc, &
+      occ_matrix, scaled_homo_bound, scaled_lumo_bound, shift1, shift2, t1, &
+      t2, trace_fx, trace_gx, xi
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
-    TYPE(cp_dbcsr_type)                      :: matrix_x, matrix_xidsq, &
-                                                matrix_xsq, tmp_gx, tmp_trans
+    TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
+                                                matrix_xidsq, matrix_xsq, &
+                                                tmp1, tmp2, tmp3, tmp_gx, &
+                                                tmp_norm, tmp_trans
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -407,7 +413,11 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = inv(S)*H
+    do_dyn_threshold = .FALSE.
+    IF(PRESENT(dynamic_threshold)) do_dyn_threshold = dynamic_threshold
+
+
+    ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
     CALL cp_dbcsr_init(matrix_x,error=error)
     CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry, error=error)
 
@@ -416,14 +426,28 @@ CONTAINS
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
                            0.0_dp, matrix_x, filter_eps=threshold,error=error)
 
-    ! estimate the lower and upper bounds for the eigenvalues
-    eps_max = cp_dbcsr_gershgorin_norm(matrix_x)
-    eps_min = -eps_max
-    !IF (unit_nr>0) WRITE(unit_nr,'(T2,A,F20.12,F20.12,I4,F20.12)') " eps_zero, eps_max ", eps_min, eps_max, nelectron, threshold
+    CALL cp_dbcsr_init(matrix_k0,error=error)
+    CALL cp_dbcsr_create(matrix_k0,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_copy(matrix_k0, matrix_x, error=error)
 
+
+    ! get largest/smallest eigenvalues for scaling
+    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, 1.0E-4_dp, error=error)
+    IF (unit_nr>0) WRITE(unit_nr,'(T6,A,2F12.5)') "Est. extremal eigenvalues", &
+                                                         min_eig, max_eig
+    eps_max = max_eig
+    eps_min = min_eig
+    
+    ! scale KS matrix
     CALL cp_dbcsr_scale(matrix_x, -1.0_dp, error=error)
     CALL cp_dbcsr_add_on_diag(matrix_x, eps_max, error=error)
     CALL cp_dbcsr_scale(matrix_x, 1/(eps_max-eps_min), error=error)
+
+    ! scale bounds for HOMO/LUMO
+    scaled_homo_bound = (eps_max-(e_homo+delta_ks))/(eps_max-eps_min)
+    scaled_lumo_bound = (eps_max-(e_lumo-delta_ks))/(eps_max-eps_min)
+    est_gap = scaled_homo_bound - scaled_lumo_bound
+    current_threshold = threshold
 
 
     CALL cp_dbcsr_init(matrix_xsq,error=error)
@@ -438,14 +462,19 @@ CONTAINS
     CALL cp_dbcsr_init(tmp_gx,error=error)
     CALL cp_dbcsr_create(tmp_gx,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
 
+    CALL cp_dbcsr_init(tmp_norm,error=error)
+    CALL cp_dbcsr_create(tmp_norm,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
     ALLOCATE(gamma_values(max_iter))
+
     DO i=1,max_iter
       t1 = m_walltime()
+      flop1 = 0; flop2 = 0
 
       ! get X*X
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x,&
                              0.0_dp, matrix_xsq, &
-                             filter_eps=threshold,flop=flop1,error=error)
+                             filter_eps=current_threshold,flop=flop1,error=error)
 
       ! xidsq = (1-X)*(1-X) 
       ! use (1-x)*(1-x) = 1 + x*x - 2*x 
@@ -457,16 +486,44 @@ CONTAINS
       CALL cp_dbcsr_copy(tmp_gx, matrix_x,error=error)
       CALL cp_dbcsr_add(tmp_gx, matrix_xsq, 4.0_dp, -3.0_dp, error=error)
 
+      ! tmp_norm = X*X-X
+      CALL cp_dbcsr_copy(tmp_norm, matrix_x,error=error)
+      CALL cp_dbcsr_add(tmp_norm, matrix_xsq, -1.0_dp, 1.0_dp, error=error)
+      frob_id = cp_dbcsr_frobenius_norm(tmp_norm)
+      frob_x = cp_dbcsr_frobenius_norm(matrix_x)
+
+  
       ! get gamma 
+      ! Tr(F) = Tr(XX*tmp_gx), tmp_trans=(XX)T, Tr(G) is equivalent
+      !CALL cp_dbcsr_transposed(tmp_trans, matrix_xsq, error=error)
       CALL cp_dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx,  error=error)
       CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx, error=error)
       gam = (nelectron - trace_fx)/trace_gx 
       gamma_values(i) = gam
 
+
+      ! quantities used for dynamic thresholding, when the estimated gap is larger than zero
+      xi = (scaled_homo_bound-scaled_lumo_bound)
+      IF (do_dyn_threshold .AND. xi > 0.0_dp) THEN
+        mmin = 0.5*(scaled_homo_bound+scaled_lumo_bound)
+        max_threshold = ABS(1-2*mmin)*xi
+  
+        scaled_homo_bound = evaluate_trs4_polynomial(scaled_homo_bound, gamma_values(i:), 1)
+        scaled_lumo_bound = evaluate_trs4_polynomial(scaled_lumo_bound, gamma_values(i:), 1)
+        estimated_steps = estimate_steps(scaled_homo_bound, scaled_lumo_bound, threshold)
+      
+        est_threshold = (threshold/(estimated_steps+i+1))*xi/(1+threshold/(estimated_steps+i+1))
+        est_threshold = MIN(max_threshold, est_threshold)
+        IF (i > 1) est_threshold = MAX(est_threshold, 0.1_dp * current_threshold)
+        current_threshold = est_threshold
+      ELSE
+        current_threshold = threshold
+      ENDIF
+
       IF (gam > gamma_max) THEN
         ! Xn+1 = 2X-X*X
         CALL cp_dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp, error=error)
-        CALL cp_dbcsr_filter(matrix_x, threshold, error=error)
+        CALL cp_dbcsr_filter(matrix_x, current_threshold, error=error)
       ELSE IF (gam < gamma_min) THEN
         ! Xn+1 = X*X
         CALL cp_dbcsr_copy(matrix_x, matrix_xsq, error=error)
@@ -475,21 +532,17 @@ CONTAINS
         CALL cp_dbcsr_add(tmp_gx, matrix_xidsq, 1.0_dp, gam, error=error)
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_xsq, tmp_gx,&
                                0.0_dp, matrix_x, &
-                               flop=flop2, filter_eps=threshold,error=error)
+                               flop=flop2, filter_eps=current_threshold,error=error)
       ENDIF
- 
+   
       occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
       t2 = m_walltime()
-      IF (unit_nr>0) THEN
-         WRITE(unit_nr,&
-                      '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,F12.5)') "TRS4 it ", &
+      IF (unit_nr>0) WRITE(unit_nr,&
+                      '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,E12.3)') "TRS4 it ", &
                       i, occ_matrix, ABS(trace_gx), t2-t1,&
-                      (flop1+flop2)/(1.0E6_dp*(t2-t1))
-         CALL m_flush(unit_nr)
-      ENDIF
+                      (flop1+flop2)/(1.0E6_dp*(t2-t1)), current_threshold
 
-      ! exit the loop if Tr[gx] was small enough (Tr[(x(1-x))^2] < sqrt(threshold)) before the iteration
-      IF (ABS(trace_gx) < SQRT(threshold)) EXIT
+      IF (ABS(frob_id/frob_x) < SQRT(threshold)) EXIT
 
     END DO
 
@@ -512,15 +565,52 @@ CONTAINS
         mu_b = mu_c
       ENDIF
     ENDDO
-    IF(unit_nr > 0) WRITE(unit_nr, '(T6,A,1X,F10.5)') 'Chemical potential:  ', (eps_min - eps_max)*mu_c + eps_max
+    mu = (eps_min - eps_max)*mu_c + eps_max
 
-
-    ! output to matrix_p, P = X inv(S) = PS inv(S)
+    ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
                            0.0_dp, matrix_p, filter_eps=threshold,error=error)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p,&
                            0.0_dp, matrix_p, filter_eps=threshold,error=error)
- 
+
+    ! temporary matrices used for HOMO/LUMO calculation
+    CALL cp_dbcsr_init(tmp1,error=error)
+    CALL cp_dbcsr_create(tmp1,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    CALL cp_dbcsr_init(tmp2,error=error)
+    CALL cp_dbcsr_create(tmp2,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    CALL cp_dbcsr_init(tmp3,error=error)
+    CALL cp_dbcsr_create(tmp3,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    
+    shift1 = -eps_min
+    shift2 = eps_max
+
+    ! find largest ev of P*(X+shift*1), where shift is the neg. val. of the smallest ev of X
+    CALL cp_dbcsr_copy(tmp2, matrix_k0, error=error)
+    CALL cp_dbcsr_add_on_diag(tmp2, shift1, error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, tmp2,&
+                           0.0_dp, tmp1, filter_eps=threshold,error=error)
+    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, 1.0E-4_dp, error=error)
+    homo = max_eig-shift1
+
+    ! -(1-P)*(X-shift*1) = (1-P)*(shift*1 - X), where shift is the largest ev
+    CALL cp_dbcsr_copy(tmp3, matrix_x, error=error)
+    CALL cp_dbcsr_scale(tmp3, -1.0_dp, error=error)
+    CALL cp_dbcsr_add_on_diag(tmp3, 1.0_dp, error=error)  !tmp3 = 1-P
+    CALL cp_dbcsr_copy(tmp2, matrix_k0, error=error)
+    CALL cp_dbcsr_add_on_diag(tmp2, -shift2, error=error)
+    CALL cp_dbcsr_multiply("N", "N", -1.0_dp, tmp3, tmp2,&
+                           0.0_dp, tmp1, filter_eps=threshold,error=error)
+    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, 1.0E-4_dp, error=error)
+    lumo = -max_eig+shift2
+
+    IF (unit_nr > 0) WRITE(unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/mu', homo, lumo, mu !, lumo-homo, (lumo-mu)/(lumo-homo)
+    
+    e_homo = homo
+    e_lumo = lumo
+    e_mu = mu
+                    
     CALL cp_dbcsr_release(tmp_trans, error=error)
     CALL cp_dbcsr_release(tmp_gx, error=error)
     CALL cp_dbcsr_release(matrix_x, error=error)
@@ -528,6 +618,11 @@ CONTAINS
     CALL cp_dbcsr_release(matrix_xidsq, error=error)
     DEALLOCATE(gamma_values)
 
+    CALL cp_dbcsr_release(matrix_k0, error=error)
+    CALL cp_dbcsr_release(tmp_norm, error=error)
+    CALL cp_dbcsr_release(tmp1, error=error)
+    CALL cp_dbcsr_release(tmp2, error=error)
+    CALL cp_dbcsr_release(tmp3, error=error)
     CALL timestop(handle)
 
   END SUBROUTINE density_matrix_trs4
@@ -554,6 +649,34 @@ CONTAINS
       ENDIF
     ENDDO
   END FUNCTION evaluate_trs4_polynomial
+
+  FUNCTION estimate_steps(homo, lumo, threshold) RESULT (steps)
+    REAL(KIND=dp)                            :: homo, lumo, threshold
+    INTEGER                                  :: steps
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: h, l, m
+
+    l = lumo
+    h = homo
+
+    DO i=1,200
+      IF (ABS(l) < threshold .AND. ABS(1-h) < threshold) EXIT
+      m = 0.5_dp*(h+l)
+      IF (m > 0.5_dp) THEN
+        h = h**2
+        l = l**2
+      ELSE
+        h = 2*h-h**2
+        l = 2*l-l**2
+      ENDIF
+    ENDDO   
+    steps = i-1
+  END FUNCTION estimate_steps
+
+
+
+ 
 
 END MODULE dm_ls_scf_methods
 

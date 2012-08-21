@@ -101,12 +101,17 @@ MODULE cp_dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
-  PUBLIC :: cp_dbcsr_multiply_local
-  PUBLIC :: cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec,&
+
+  PUBLIC :: cp_dbcsr_multiply_local, cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec,&
        packed_vec_scale, cp_dbcsr_unpack_vec,&
        cp_dbcsr_mult_pack_vec_local, packed_vec_bif_tech, &
        packed_vec_bif_tech2, cp_dbcsr_copy_vec, packed_vec_build_u, packed_vec_bcast, &
        packed_vec_ini
+
+  INTERFACE cp_dbcsr_multiply_local
+     MODULE PROCEDURE cp_dbcsr_multiply_local_d,&
+                      cp_dbcsr_multiply_local_s
+  END INTERFACE
 
   ! CP2K API emulation
   PUBLIC :: cp_dbcsr_add_block_node,&
@@ -485,7 +490,7 @@ CONTAINS
 !> \param[in]  alpha        alpha
 !>
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_multiply_local(matrix_a, vec_b, vec_c, ncol, alpha, error)
+  SUBROUTINE cp_dbcsr_multiply_local_d(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: vec_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vec_c
@@ -493,7 +498,7 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local_d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, coloff, my_ncol, &
@@ -504,6 +509,7 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
 
+
     my_alpha = 1.0_dp
     IF (PRESENT(alpha)) my_alpha = alpha
 
@@ -513,15 +519,6 @@ CONTAINS
     my_alpha2 = 0.0_dp
     IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric) my_alpha2 = my_alpha
     IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
-
-    !> this should be precomputed somewhere else
-  !  row_blk_size => array_data(cp_dbcsr_row_block_sizes(matrix_a))
-  !  ALLOCATE(offset(cp_dbcsr_nblkrows_total(matrix_a)))
-  !  offset(1) = 1
-  !  DO row = 2,cp_dbcsr_nblkrows_total(matrix_a)
-  !     offset(row) = offset(row-1) + row_blk_size(row-1)
-  !  ENDDO
-    !<
 
     CALL cp_dbcsr_iterator_start(iter, matrix_a)
 
@@ -549,10 +546,67 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_stop(iter)
 
-    !DEALLOCATE(offset)
+    CALL timestop(timing_handle)
+  END SUBROUTINE cp_dbcsr_multiply_local_d
+
+  SUBROUTINE cp_dbcsr_multiply_local_s(matrix_a, vec_b, vec_c, ncol, alpha, error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
+    REAL, DIMENSION(:, :), INTENT(IN)        :: vec_b
+    REAL, DIMENSION(:, :), INTENT(INOUT)     :: vec_c
+    INTEGER, INTENT(in), OPTIONAL            :: ncol
+    REAL, INTENT(IN), OPTIONAL               :: alpha
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, coloff, my_ncol, &
+                                                row, rowoff, timing_handle
+    REAL                                     :: my_alpha, my_alpha2
+    REAL, DIMENSION(:, :), POINTER           :: data_d
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+    CALL timeset(routineN, timing_handle)
+
+    my_alpha = 1.0
+    IF (PRESENT(alpha)) my_alpha = alpha
+
+    my_ncol = SIZE(vec_b,2)
+    IF(PRESENT(ncol)) my_ncol = ncol
+
+    my_alpha2 = 0.0
+    IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric) my_alpha2 = my_alpha
+    IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
+
+    CALL cp_dbcsr_iterator_start(iter, matrix_a)
+
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
+
+       CALL sgemm('N','N',&
+                  SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
+                  my_alpha, data_d(1,1),          SIZE(data_d,1),&
+                            vec_b(coloff,1), SIZE(vec_b,1), &
+                  1.0,      vec_c(rowoff,1), SIZE(vec_c,1))
+
+       IF((cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+          cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)) THEN
+          IF(row.NE.col) THEN
+             CALL sgemm('T','N', &
+                        SIZE(data_d,2), my_ncol, SIZE(data_d,1),&
+                        my_alpha2, data_d(1,1),          SIZE(data_d,1), &
+                                   vec_b(rowoff,1), SIZE(vec_b,1),  &
+                        1.0,       vec_c(coloff,1), SIZE(vec_c,1))
+          ENDIF
+       ENDIF
+    ENDDO
+
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_multiply_local
+  END SUBROUTINE cp_dbcsr_multiply_local_s
+
 
 
 ! *****************************************************************************

@@ -14,11 +14,12 @@ MODULE dm_ls_scf
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_nblkrows_total, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
+       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
@@ -351,6 +352,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities,error=error)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
     CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method,error=error)
+    CALL section_vals_val_get(ls_scf_section,"DYNAMIC_THRESHOLD",l_val=ls_scf_env%dynamic_threshold,error=error)
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=ls_scf_env%sign_sqrt_order,error=error)
 
     SELECT CASE(ls_scf_env%s_inversion_type)
@@ -446,11 +448,13 @@ CONTAINS
                                                 unit_nr
     LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
-                                                energy_old, t1, t2
+                                                energy_old, maxdev, t1, t2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ks_deviation, maxev, minev
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: matrix_mixing_old
+      DIMENSION(:)                           :: matrix_ks_deviation, &
+                                                matrix_mixing_old
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -466,11 +470,18 @@ CONTAINS
     nspin=ls_scf_env%nspins
 
     ! old quantities, useful for mixing
-    ALLOCATE(matrix_mixing_old(nspin))
+    ALLOCATE(matrix_mixing_old(nspin), matrix_ks_deviation(nspin), ks_deviation(nspin), maxev(nspin), minev(nspin))
     DO ispin=1,nspin
        CALL cp_dbcsr_init(matrix_mixing_old(ispin),error=error)
        CALL cp_dbcsr_create(matrix_mixing_old(ispin),template=ls_scf_env%matrix_ks(ispin), error=error)
+
+       CALL cp_dbcsr_init(matrix_ks_deviation(ispin),error=error)
+       CALL cp_dbcsr_create(matrix_ks_deviation(ispin),template=ls_scf_env%matrix_ks(ispin), error=error)
     ENDDO
+    maxev(:) = 0.0_dp
+    minev(:) = 0.0_dp
+    ls_scf_env%homo_spin(:) = 0.0_dp
+    ls_scf_env%lumo_spin(:) = 0.0_dp
 
     energy_old=0.0_dp
     iscf=0
@@ -514,6 +525,17 @@ CONTAINS
                            error=error)
       END DO
 
+!>>>--
+!      ! compute the deviation in the mixing matrix
+      IF (iscf > 1) THEN
+        DO ispin=1,nspin
+          CALL cp_dbcsr_add(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), -1.0_dp, 1.0_dp, error=error)
+          ks_deviation(ispin)  = cp_dbcsr_gershgorin_norm(matrix_ks_deviation(ispin))
+          CALL lanczos_alg_serial(matrix_ks_deviation(ispin), maxev(ispin), minev(ispin), 1.0E-4_dp, error=error)
+        ENDDO
+      ENDIF
+!<<<--
+
       ! compute the density matrix that matches it
       DO ispin=1,nspin
          ! we need the proper number of states
@@ -526,12 +548,18 @@ CONTAINS
                                     ls_scf_env%matrix_s_inv, &
                                     nelectron_spin_real,ls_scf_env%eps_filter,error)
          ELSEIF (ls_scf_env%purification_method==ls_scf_trs4) THEN
+           maxdev = MAX(ABS(maxev(ispin)), ABS(minev(ispin)))
            CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), &
                                     matrix_mixing_old(ispin),   &
                                     ls_scf_env%matrix_s_sqrt_inv,&
                                     nelectron_spin_real,        &
                                     ls_scf_env%eps_filter,      &
-                                    error)
+                                    ls_scf_env%homo_spin(ispin),&
+                                    ls_scf_env%lumo_spin(ispin),&
+                                    ls_scf_env%mu_spin(ispin),       &
+                                    dynamic_threshold=ls_scf_env%dynamic_threshold,&
+                                    delta_ks = maxdev, &
+                                    error=error)
          ENDIF
                                   
          IF (ls_scf_env%has_s_preconditioner) THEN
@@ -542,6 +570,13 @@ CONTAINS
 
          IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
       ENDDO
+
+!>>>--
+!      ! save the old mixing matrix
+       DO ispin=1,nspin
+         CALL cp_dbcsr_copy(matrix_ks_deviation(ispin), matrix_mixing_old(ispin), error=error)
+       ENDDO
+!<<<--
 
       ! compute the corresponding new energy KS matrix and new energy
       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,error)
@@ -554,6 +589,15 @@ CONTAINS
       IF (unit_nr>0) THEN
          WRITE(unit_nr,*)
          WRITE(unit_nr,'(T2,A,I6,F20.9,F20.9,F12.6)') "SCF",iscf, energy_new,energy_diff, t2-t1
+!         IF (iscf > 1) THEN
+!           !DO ispin=1,nspin
+!             WRITE(unit_nr, '(T2,A,1X,10E15.5)'), "change in KS matrix", ks_deviation(ispin),&
+!                                                   MAX(ABS(maxev(ispin)), ABS(minev(ispin)))
+!             maxdev = MAX(ABS(maxev(ispin)), ABS(minev(ispin)))
+!             !WRITE(unit_nr, '(T2,A,1X, 5F12.5)') 'bounds for homo lumo', e_homo-maxdev, e_homo+maxdev, e_lumo-maxdev, e_lumo+maxdev,&
+!             !                                   -((e_homo+maxdev)- (e_lumo-maxdev))
+!           ENDDO
+!         ENDIF
          WRITE(unit_nr,*)
       ENDIF
 
@@ -565,8 +609,9 @@ CONTAINS
     ! free storage
     DO ispin=1,nspin
        CALL cp_dbcsr_release(matrix_mixing_old(ispin),error=error)
+       CALL cp_dbcsr_release(matrix_ks_deviation(ispin),error=error)
     ENDDO
-    DEALLOCATE(matrix_mixing_old)
+    DEALLOCATE(matrix_mixing_old, matrix_ks_deviation, ks_deviation)
 
     CALL timestop(handle)
 

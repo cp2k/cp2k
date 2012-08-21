@@ -12,12 +12,11 @@ MODULE iterate_matrix
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
-       cp_dbcsr_get_data_type, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_8
+  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -270,9 +269,8 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
                                                 flop5
     LOGICAL                                  :: converged, failure
-    REAL(KIND=dp) :: a, b, c, d, frob_matrix, frob_matrix_base, gersh_matrix, &
-      max_ev, min_ev, oa, ob, oc, occ_matrix, od, scaling, t1, t2, &
-      threshold_lanczos
+    REAL(KIND=dp) :: a, b, c, d, frob_matrix, frob_matrix_base, max_ev, &
+      min_ev, oa, ob, oc, occ_matrix, od, scaling, t1, t2, threshold_lanczos
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2, tmp3
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -303,26 +301,16 @@ CONTAINS
 
     ! scale the matrix to get into the convergence range
     ! and a hack for the fact that we only have lanczos for real*8 matrices so far.
-    IF (cp_dbcsr_get_data_type(matrix_sqrt).EQ.dbcsr_type_real_8) THEN
-       threshold_lanczos=1.0E-4_dp ; max_iter =64
-       CALL lanczos_alg_serial(matrix_sqrt, max_ev, min_ev, threshold_lanczos, max_iter, converged, error)
-       IF (unit_nr>0) THEN
-          WRITE(unit_nr,*)
-          WRITE(unit_nr,'(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ",converged," threshold:",threshold_lanczos
-          WRITE(unit_nr,'(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:",max_ev,min_ev
-       ENDIF
-       ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
-       ! and adjust the scaling to be on the safe side
-       scaling=2/(max_ev+min_ev+100*threshold_lanczos)
-    ELSE
-       IF (unit_nr>0) THEN
-          WRITE(unit_nr,*)
-          WRITE(unit_nr,'(T6,A,1X,L1,A,E12.3)') "Warning: Lanczos not implemented for single precision!"
-       ENDIF
-       frob_matrix=cp_dbcsr_frobenius_norm(matrix_sqrt)
-       gersh_matrix=cp_dbcsr_gershgorin_norm(matrix_sqrt)
-       scaling=1/MIN(frob_matrix,gersh_matrix)
+    threshold_lanczos=1.0E-4_dp ; max_iter =64
+    CALL lanczos_alg_serial(matrix_sqrt, max_ev, min_ev, threshold_lanczos, max_iter, converged=converged, error=error)
+    IF (unit_nr>0) THEN
+       WRITE(unit_nr,*)
+       WRITE(unit_nr,'(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ",converged," threshold:",threshold_lanczos
+       WRITE(unit_nr,'(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:",max_ev,min_ev
     ENDIF
+    ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
+    ! and adjust the scaling to be on the safe side
+    scaling=2/(max_ev+min_ev+100*threshold_lanczos)
 
     CALL cp_dbcsr_scale(matrix_sqrt,scaling,error=error)
     CALL cp_dbcsr_filter(matrix_sqrt,threshold,error=error)

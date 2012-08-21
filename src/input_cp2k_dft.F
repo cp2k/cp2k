@@ -4475,6 +4475,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DYNAMIC_THRESHOLD",&
+            description="Should the threshold for the purification be chosen dynamically",&
+            usage="DYNAMIC_THRESHOLD .TRUE.", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,  error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MATRIX_CLUSTER_TYPE",&
             description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "//&
                         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."//&

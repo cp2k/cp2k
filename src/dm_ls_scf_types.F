@@ -37,6 +37,8 @@ MODULE dm_ls_scf_types
      INTEGER               :: nelectron_total
      INTEGER, DIMENSION(2) :: nelectron_spin
      REAL(KIND=dp), DIMENSION(2) ::  mu_spin
+     REAL(KIND=dp), DIMENSION(2) ::  homo_spin
+     REAL(KIND=dp), DIMENSION(2) ::  lumo_spin
 
 
      LOGICAL :: has_unit_metric
@@ -46,7 +48,7 @@ MODULE dm_ls_scf_types
      INTEGER :: purification_method
      INTEGER :: sign_sqrt_order
 
-     LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu
+     LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu, dynamic_threshold
      REAL(KIND=dp)         :: eps_filter, eps_scf
 
      REAL(KIND=dp)         :: mixing_fraction
