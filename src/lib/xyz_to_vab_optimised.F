@@ -9103,7 +9103,7 @@
       
               USE lib_kinds,                        ONLY: wp,dp
               
-         implicit none
+         IMPLICIT NONE
       
              ! PARAMETERS
              REAL(KIND=dp), INTENT(IN) :: prefactor
@@ -9227,7 +9227,7 @@
       
       
       
-            end subroutine xyz_to_vab
+            END SUBROUTINE xyz_to_vab
       
       
       
