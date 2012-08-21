@@ -14,8 +14,8 @@ MODULE qs_integrate_potential_low
                                              int_8
   USE mathconstants,                   ONLY: fac
   USE orbital_pointers,                ONLY: coset,&
-                                             ncoset,&
-                                             current_maxl
+                                             current_maxl,&
+                                             ncoset
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "cp_common_uses.h"

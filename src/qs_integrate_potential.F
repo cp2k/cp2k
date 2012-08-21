@@ -91,7 +91,6 @@ MODULE qs_integrate_potential
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_desc_p_type,&
                                              realspace_grid_desc_type,&
