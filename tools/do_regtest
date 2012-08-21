@@ -511,7 +511,7 @@ do
   echo "Starting tests in ${dir_out}/tests/${dir}"
   echo ">>>>>>>>>>>>>>>>> ${dir_out}/tests/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
-  timing_all=0
+  t1=`date +%s`
   for ((itest=1;itest<=ntest;itest++));
   do
      n_tests=$((n_tests+1))
@@ -577,7 +577,6 @@ do
         timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%6.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
-     timing_all=`echo "($timing_all)+($timing)" | bc -l`
      if [[ ${leakcheck} == "YES" ]]; then
         dum=`grep -l "Remaining memory" ${output_file}`
         if [[ ${dum} != "" ]]; then
@@ -588,6 +587,8 @@ do
      fi 
      printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
+  t2=`date +%s`
+  timing_all=`echo "1+($t2)-($t1)" | bc -l`
   printf "%s %8.2f %s\n" "<<<<<<<<<<<<<<<<< ${dir_out}/tests/${dir}" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
   cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
