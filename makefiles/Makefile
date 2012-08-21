@@ -175,8 +175,8 @@ ifneq ($(NVCC),)
   LIBNV_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_cuda.a
 endif
 
-# HWLOC
-ifneq ($(HWLOC),)
+# HWTOPO
+ifneq ($(HWTOPO),)
   LIBMA_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_ma.a
 endif
 
@@ -257,7 +257,7 @@ fft.dep: $(LIB2_OBJECTS:.o=.F)
 dbcsr.dep: $(LIB3_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/dbcsr.dep || ( rm -f $(OBJDIR)/$(VERSION)/dbcsr.dep ; exit 1 )
 
-ma.dep: $(LIB4_OBJECTS:.o=.F) machine.F message_passing.F
+ma.dep: $(LIB4_OBJECTS:.o=.F) machine.F message_passing.F mathlib.F
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/ma.dep || ( rm -f $(OBJDIR)/$(VERSION)/ma.dep ; exit 1 )
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
@@ -326,7 +326,7 @@ ifneq ($(NVCC),)
 	$(AR) $(LIBNV_ARCHIVE) $?
 endif
 
-ifneq ($(HWLOC),)
+ifneq ($(HWTOPO),)
   $(LIBMA_ARCHIVE): $(LIBMA_OBJECTS)
 	$(AR) $(LIBMA_ARCHIVE) $?
 endif
@@ -341,11 +341,11 @@ $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
 $(FES): $(FESOBJS) graph.o 
 	+$(LD) $(LDFLAGS) -o $(FES) graph.o $(FESOBJS)
 
-# Allow the standalone DBCSR programs to compile with CUDA and/or HWLOC
+# Allow the standalone DBCSR programs to compile with CUDA and/or HWTOPO
 
 DBCSR_STANDALONE_DEPS += $(LIB3_ARCHIVE)
 
-ifneq ($(HWLOC),)
+ifneq ($(HWTOPO),)
 DBCSR_STANDALONE_DEPS += $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE)
 endif
 

@@ -27,7 +27,10 @@ MODULE f77_interface
   USE cp_ma_interface,                 ONLY: cp_ma_default_affinity,&
                                              cp_ma_finalize_lib,&
                                              cp_ma_init_lib,&
-                                             has_ma
+                                             cp_ma_mpi_reorder_strategy,&
+                                             cp_ma_mpi_reordering,&
+                                             has_ma,&
+                                             has_ma_topology
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -181,11 +184,14 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', &
       routineP = moduleN//':'//routineN
+ 
+    CHARACTER                                :: strategy
 
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
+ 
 #ifdef _USE_GA
     INTEGER                                  :: heap, stack
 #endif
@@ -214,11 +220,17 @@ CONTAINS
        ELSE
           mpi_comm_default=MPI_COMM_WORLD
        END IF
-
+ 
        CALL string_table_allocate()
-
        CALL add_mp_perf_env()
        CALL add_timer_env()
+       
+#ifdef __MAP_POL
+       CALL cp_ma_mpi_reorder_strategy(strategy)
+       CALL cp_ma_mpi_reordering(mpi_comm_default,mp_reorder=strategy, error=error)
+#endif
+
+       ! re-create the para_env and log with correct (reordered) ranks
        NULLIFY(default_para_env)
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
             owns_group=.FALSE.,error=error)
@@ -228,6 +240,7 @@ CONTAINS
           unit_nr=-1
        END IF
        NULLIFY(logger)
+
        CALL cp_logger_create(logger,para_env=default_para_env,&
             default_global_unit_nr=unit_nr, &
             close_global_unit_on_dealloc=.FALSE.)
@@ -239,18 +252,19 @@ CONTAINS
        module_initialized=.TRUE.
        ierr=0
 
-       !   *** Initialize mathematical constants ***
-       CALL init_physcon()
-
-       !   *** init the bibliography ***
-       CALL add_all_references()
-
        ! Initialize the MA_ARCH configuration
        IF (has_ma) THEN
          CALL cp_ma_init_lib(init_mpi,group=mpi_comm_default,error=error)
          !default binding only if mpi_init - all MPI tasks will be present
          CALL cp_ma_default_affinity(init_mpi)
        ENDIF
+
+       !   *** Initialize mathematical constants ***
+       CALL init_physcon()
+
+       !   *** init the bibliography ***
+       CALL add_all_references()
+
 
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
@@ -281,7 +295,7 @@ CONTAINS
     ELSE
        ! Finalize the DBCSR configuration
        CALL cp_dbcsr_finalize_lib (error=error)
-       IF (has_ma) THEN
+       IF (has_ma .OR. has_ma_topology) THEN
          CALL cp_ma_finalize_lib(error=error)
        ENDIF
        CALL cp_error_init(error, stop_level=cp_fatal_level)

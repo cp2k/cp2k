@@ -5,4 +5,6 @@ LIB4_OBJECTS = ma_dummy_c_bindings.o\
                ma_affinity.o\
                ma_config.o\
                ma_errors.o\
-               ma_kinds.o
+               ma_kinds.o\
+	       ma_process_mapping.o\
+	       ma_topology.o	

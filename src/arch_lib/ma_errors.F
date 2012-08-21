@@ -26,7 +26,9 @@ MODULE ma_errors
 
   INTEGER, PARAMETER, PUBLIC  :: ma_error_allocation = 1
   INTEGER, PARAMETER, PUBLIC  :: ma_error_finalize = 2
-
+  INTEGER, PARAMETER, PUBLIC  :: ma_error_option  = 3
+  INTEGER, PARAMETER, PUBLIC  :: ma_error_database = 4
+  INTEGER, PARAMETER, PUBLIC  :: ma_error_remove = 5
 
 CONTAINS
 
@@ -62,6 +64,12 @@ CONTAINS
         CALL ma_error("Memory allocation error")
        CASE (ma_error_finalize)
         CALL ma_error("Finalization of arch_lib can not be performed")
+       CASE (ma_error_database)
+        CALL ma_error("Database cannot be read")
+       CASE (ma_error_option)
+        CALL ma_error("Option not valid")
+       CASE (ma_error_remove)
+        CALL ma_error("Can't remove the file")
        END SELECT
       STOP 1
   END SUBROUTINE ma_error_stop

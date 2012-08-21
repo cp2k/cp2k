@@ -121,6 +121,8 @@ MODULE message_passing
   ! Memory management
   PUBLIC :: mp_allocate, mp_deallocate
 
+  ! MPI re-ordering
+  PUBLIC :: mp_reordering
 
   ! default communicators
   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
@@ -513,6 +515,52 @@ CONTAINS
     mp_comm = 0
 #endif
   END SUBROUTINE mp_world_init
+
+! *****************************************************************************
+!> \brief re-create the system default communicator with a different MPI 
+!>        rank order
+!> \param mp_comm [output] : handle of the default communicator
+!> \note
+!>      should only be called once, st very begining of CP2K run
+!> \par History
+!>      1.2012 created [ Christiane Pousa ]
+! *****************************************************************************
+  SUBROUTINE mp_reordering(mp_comm,mp_new_comm,ranks_order)
+    INTEGER, INTENT(IN)                   :: mp_comm
+    INTEGER, INTENT(out)                  :: mp_new_comm
+    INTEGER, DIMENSION(:), POINTER           :: ranks_order 
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: newcomm, newgroup, oldgroup 
+    INTEGER                                  :: handle, ierr
+
+#if defined(__mp_timeset__)
+ 
+    CALL timeset_mp(routineN,handle)
+    t_start = m_walltime()    
+#endif
+    ierr = 0
+#if defined(__parallel)
+
+    CALL mpi_comm_group( mp_comm, oldgroup, ierr );
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_reordering" )
+    CALL mpi_group_incl(oldgroup,SIZE(ranks_order),ranks_order,newgroup, ierr)    
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_reordering" )
+
+    CALL mpi_comm_create(mp_comm, newgroup, newcomm, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_reordering" )
+
+    ! update the system default communicator
+    mp_new_comm = newcomm
+#endif 
+#if defined(__mp_timeset__)
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=1,count=1)
+  CALL add_perf(perf_id=2,time=t_end-t_start)
+  CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_reordering
 
 ! *****************************************************************************
 !> \brief finalizes the system default communicator
@@ -1436,7 +1484,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_direct', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, my_key
+    INTEGER                                  :: handle, ierr, my_key
 
     ierr = 0
 #if defined(__mp_timeset__)

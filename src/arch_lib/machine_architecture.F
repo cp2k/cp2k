@@ -31,6 +31,7 @@ MODULE machine_architecture
   USE ma_kinds
   USE ma_errors,                    ONLY: ma_error_stop, ma_error_allocation, &
                                           ma_error_finalize
+  USE message_passing,              ONLY:  mp_proc_name, mp_sum, mp_environ  
 
   IMPLICIT NONE
 
@@ -44,6 +45,7 @@ MODULE machine_architecture
 
   PUBLIC :: ma_get_nnodes, ma_get_nsockets, ma_get_ncores, ma_get_ncaches
   PUBLIC :: ma_get_nshared_caches, ma_get_nsiblings, ma_get_nnet_cards
+  PUBLIC :: ma_get_nmachines
 
   PUBLIC :: ma_get_proc_core,ma_my_first_core
   PUBLIC :: ma_get_mynode, ma_get_mycore
@@ -519,6 +521,56 @@ CONTAINS
    ENDIF
 #endif
   END SUBROUTINE ma_finalize_machine
+
+! *****************************************************************************
+!> \brief Count the number of machines used in an execution
+! *****************************************************************************
+  INTEGER FUNCTION ma_get_nmachines (group) RESULT (nmachines)
+    INTEGER                                  :: group
+#if defined (__parallel)
+    TYPE(ma_mp_type)                         :: ma_env
+
+    CHARACTER(LEN=default_string_length)     :: host_name, string
+    INTEGER                                  :: istat, jpe, nr_occu, nr_occu_e
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
+    INTEGER                                  :: numnode, mynode
+
+      CALL mp_environ(numnode, mynode, group)
+      ma_env%numproc = numnode
+      ma_env%mp_group = group
+      CALL m_getpid(ma_env%myid)
+      ma_env%myproc = mynode
+      ma_env%all_proc = .TRUE.
+
+      ALLOCATE (all_host(default_string_length,ma_env%numproc),STAT=istat)
+
+      IF (istat /= 0) THEN
+        CALL ma_error_stop(ma_error_allocation)
+      END IF
+
+      all_host(:,:) = 0
+      CALL mp_proc_name(host_name)
+
+      CALL string_to_ascii(host_name,all_host(:,ma_env%myproc+1))
+      CALL mp_sum(all_host,ma_env%mp_group)
+
+      nr_occu = 0
+      nr_occu_e = 0
+      DO jpe=1,ma_env%numproc
+         CALL ascii_to_string(all_host(:,jpe),string)
+         IF  (string .NE. host_name) THEN
+            nr_occu = nr_occu +1
+         ELSE
+            nr_occu_e = nr_occu_e + 1
+         ENDIF
+      END DO
+  
+  nmachines = (nr_occu / nr_occu_e) + 1
+#else
+  nmachines = 0 
+#endif
+   
+  END FUNCTION ma_get_nmachines
 
 ! *****************************************************************************
 !> \brief Get the first core where a MPI process is running

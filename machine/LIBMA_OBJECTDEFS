@@ -1,2 +1,3 @@
 LIBMA_OBJECTS = ma_hwloc.o\
-                ma_linux.o 
+                ma_linux.o \
+		ma_topology_cray.o 

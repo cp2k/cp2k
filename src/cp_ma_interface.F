@@ -28,6 +28,8 @@ MODULE cp_ma_interface
                                              section_vals_val_get
   USE ma_affinity
   USE ma_config
+  USE ma_process_mapping,              ONLY: ma_mpi_reordering
+  USE ma_topology,                     ONLY: ma_destroy_topology
   USE machine_architecture,            ONLY: &
        ma_finalize_machine, ma_get_nnodes, ma_hwloc, ma_init_machine, &
        ma_int_hwloc, ma_int_libnuma, ma_int_none, ma_interface, ma_libnuma, &
@@ -35,6 +37,8 @@ MODULE cp_ma_interface
   USE machine_architecture_types
   USE message_passing,                 ONLY: mp_environ
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
 !$ USE OMP_LIB
 
@@ -53,6 +57,8 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_print_machine
   PUBLIC :: cp_ma_get_cuDev
   PUBLIC :: cp_ma_net_affinity
+  PUBLIC :: cp_ma_mpi_reorder_strategy
+  PUBLIC :: cp_ma_mpi_reordering
 
 CONTAINS
 
@@ -66,7 +72,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_config', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=1)                         :: mpi_sched, use_sched
+    CHARACTER(len=1)                         :: mpi_reorder, mpi_sched, &
+                                                use_sched
     INTEGER, DIMENSION(:), POINTER           :: mem, proc, thr
     LOGICAL :: comm_thread, print_branch, print_full, print_proc, &
       print_resume, print_thread, print_thread_cur
@@ -94,6 +101,8 @@ CONTAINS
          "SCHED_THREAD", c_val=use_sched, error=error)
     CALL section_vals_val_get(ma_section,&
          "MEM_POL", c_val=use_mempol, error=error)
+    CALL section_vals_val_get(ma_section,&
+         "MPI_REORDERING", c_val=mpi_reorder, error=error)  
     CALL section_vals_val_get(ma_section,"PROCESS",&
             i_vals=proc, error=error)
     CALL section_vals_val_get(ma_section,"MEMORY",&
@@ -110,6 +119,7 @@ CONTAINS
     CALL ma_set_conf_mempol (use_mempol)
     CALL ma_set_conf_sched (use_sched)
     CALL ma_set_conf_mpiSched (mpi_sched)
+    CALL ma_set_conf_mpi_reordering(mpi_reorder)
     comm_thread = dbcsr_get_conf_use_comm_thread()
     CALL ma_set_conf_comm_thread(comm_thread)
     CALL ma_set_all_affinty(proc, thr, mem)
@@ -598,12 +608,90 @@ END SUBROUTINE cp_ma_net_affinity
     ENDIF
   END SUBROUTINE cp_ma_verify_place
 
+  SUBROUTINE cp_ma_mpi_reorder_strategy(strategy)
+   CHARACTER, INTENT(OUT)      :: strategy
+
+#if defined __MAP_POL
+#if __MAP_POL == 1
+   strategy = 'D'
+#elif __MAP_POL == 2
+   strategy = 'O'
+#elif __MAP_POL == 3
+   strategy = 'H'
+#elif __MAP_POL == 4
+   strategy = 'P'
+#elif __MAP_POL == 5
+   strategy = 'R'
+#elif __MAP_POL == 6
+   strategy = 'F'
+#else
+   strategy = 'C' 
+#endif
+#else
+   strategy = 'X'
+#endif
+
+  END SUBROUTINE cp_ma_mpi_reorder_strategy
+
+  SUBROUTINE cp_ma_mpi_reordering (mp_comm,mp_reorder,error)
+    INTEGER, INTENT(INOUT)                   :: mp_comm
+    CHARACTER(len=1), INTENT(IN), OPTIONAL   :: mp_reorder
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_mpi_reordering', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=1)                         :: mpi_reorder
+    INTEGER                                  :: handle, reorder
+
+    CALL timeset(routineN,handle)
+
+    IF(.NOT. PRESENT(mp_reorder)) THEN
+       mpi_reorder = ma_get_conf_mpi_reordering()
+    ELSE
+       mpi_reorder = mp_reorder
+    ENDIF
+
+    IF (has_ma_topology) THEN
+      IF (mpi_reorder .EQ. 'H' .OR. mpi_reorder .EQ. 'h') THEN
+        reorder = hilbert 
+      ELSE IF (mpi_reorder .EQ. 'P' .OR. mpi_reorder .EQ. 'p') THEN
+        reorder = peano
+      ELSE IF (mpi_reorder .EQ. 'N' .OR. mpi_reorder .EQ. 'n') THEN
+        reorder = snake      
+      ELSE IF (mpi_reorder .EQ. 'D' .OR. mpi_reorder .EQ. 'd') THEN
+        reorder = packed
+      ELSE IF (mpi_reorder .EQ. 'R' .OR. mpi_reorder .EQ. 'r') THEN
+        reorder = round_robin
+      ELSE IF (mpi_reorder .EQ. 'F' .OR. mpi_reorder .EQ. 'f') THEN
+        reorder = hilbert_peano
+      ELSE IF (mpi_reorder .EQ. 'S' .OR. mpi_reorder .EQ. 's') THEN
+        reorder = switch
+      ELSE IF (mpi_reorder .EQ. 'C' .OR. mpi_reorder .EQ. 'c') THEN
+        reorder = cannon
+      ELSE IF (mpi_reorder .EQ. 'O' .OR. mpi_reorder .EQ. 'o') THEN
+        reorder = own
+      ELSE
+        reorder = none_order   
+      ENDIF
+     ELSE
+         WRITE(*,*) "No support for process mapping"  
+         reorder = packed
+     ENDIF
+     IF (reorder .NE. none_order) THEN
+       CALL ma_mpi_reordering(reorder,mp_comm)
+     ENDIF
+
+     CALL timestop(handle) 
+  END SUBROUTINE cp_ma_mpi_reordering
+
 
 ! *****************************************************************************
 !> \brief Initializes Machine Architecture
 ! *****************************************************************************
   SUBROUTINE cp_ma_init_lib (init_mpi, group, error)
-    LOGICAL, INTENT(in)                      :: init_mpi
+    LOGICAL, INTENT(IN)                      :: init_mpi
     INTEGER, INTENT(IN)                      :: group
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -695,8 +783,12 @@ END SUBROUTINE cp_ma_net_affinity
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_finalize_lib', &
       routineP = moduleN//':'//routineN
 
-    CALL ma_finalize_machine()
-    CALL ma_finalize_affinity()
+    IF(has_ma) THEN
+      CALL ma_finalize_machine()
+      CALL ma_finalize_affinity()
+    ELSE IF (has_ma_topology) THEN
+      CALL ma_destroy_topology ()
+    ENDIF
   END SUBROUTINE cp_ma_finalize_lib
 
 

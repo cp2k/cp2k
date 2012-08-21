@@ -33,6 +33,7 @@ MODULE ma_config
   PUBLIC :: ma_set_conf_mempol, ma_get_conf_mempol
   PUBLIC :: ma_set_conf_comm_thread, ma_get_conf_comm_thread
   PUBLIC :: ma_set_all_affinty, ma_valid_inputs
+  PUBLIC :: ma_set_conf_mpi_reordering, ma_get_conf_mpi_reordering
 
   ! These are for Machine Architecture internal use.
   !
@@ -45,7 +46,8 @@ MODULE ma_config
   PUBLIC :: use_sched, &
             use_mempol, &
             mpi_sched, &
-            comm_thread
+            comm_thread, &
+            mpi_reorder
   PUBLIC :: isconfigured, isdefault, hasnet
 
 ! this is for manual setting of all affinity
@@ -60,7 +62,7 @@ MODULE ma_config
                         print_full, print_proc, print_thread, &
                         print_thread_cur, comm_thread
 
-  CHARACTER(len=1)   :: use_sched, mpi_sched, use_mempol
+  CHARACTER(len=1)   :: use_sched, mpi_sched, use_mempol, mpi_reorder
 
   LOGICAL, SAVE :: isconfigured = .FALSE.
   LOGICAL, SAVE :: isdefault = .FALSE.
@@ -81,6 +83,7 @@ CONTAINS
     print_thread_cur = .FALSE.
     use_sched = 'N'
     mpi_sched = 'N'
+    mpi_reorder = 'N' 
     comm_thread = .FALSE.
   END SUBROUTINE ma_init_conf
 
@@ -296,5 +299,23 @@ CONTAINS
       istat = .TRUE.
     END IF
   END FUNCTION ma_valid_inputs
+
+  SUBROUTINE ma_set_conf_mpi_reordering(mpi_reordering)
+    CHARACTER(len=1), INTENT(IN)             :: mpi_reordering
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_set_conf_mpi_reordering', &
+      routineP = moduleN//':'//routineN
+
+    mpi_reorder = mpi_reordering
+  END SUBROUTINE ma_set_conf_mpi_reordering
+
+  FUNCTION ma_get_conf_mpi_reordering () RESULT (mpi_reordering)
+    CHARACTER(len=1)                         :: mpi_reordering
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ma_get_conf_mpi_reordering', &
+      routineP = moduleN//':'//routineN
+
+    mpi_reordering = mpi_reorder
+  END FUNCTION ma_get_conf_mpi_reordering
 
 END MODULE ma_config

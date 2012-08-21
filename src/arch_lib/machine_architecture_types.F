@@ -66,7 +66,7 @@ MODULE machine_architecture_types
  PUBLIC :: manual
  INTEGER, PARAMETER       :: manual = -1
 
- ! MPI/Thread scheduling policies
+ ! MPI/Thread scheduling policies within a node
  PUBLIC  :: def, nosched, linear, scatter, group
 
  INTEGER, PARAMETER       :: nosched = 0
@@ -75,6 +75,27 @@ MODULE machine_architecture_types
  INTEGER, PARAMETER       :: group = 3
  INTEGER, PARAMETER       :: def = 4
 
+ ! MPI reordering strategies 
+ PUBLIC  :: none_order, hilbert, peano, snake, packed, round_robin, hilbert_peano
+ PUBLIC  :: switch, cannon, own
+ 
+ INTEGER, PARAMETER       :: none_order = 0
+ INTEGER, PARAMETER       :: hilbert  = 1
+ INTEGER, PARAMETER       :: peano = 2
+ INTEGER, PARAMETER       :: snake = 3 
+ INTEGER, PARAMETER       :: packed = 4
+ INTEGER, PARAMETER       :: round_robin = 5
+ INTEGER, PARAMETER       :: hilbert_peano = 6
+ INTEGER, PARAMETER       :: switch = 7
+ INTEGER, PARAMETER       :: cannon = 8
+ INTEGER, PARAMETER       :: own = 9
+
+ ! Communication graph - patterns
+ PUBLIC :: cannon_graph, complete_graph
+ 
+ INTEGER, PARAMETER       :: cannon_graph = 0
+ INTEGER, PARAMETER       :: complete_graph = 1
+ 
 
 !Information of the mempory
  TYPE :: mem_inf
@@ -103,9 +124,14 @@ MODULE machine_architecture_types
 #else
   LOGICAL, PARAMETER, PUBLIC                   :: has_MPI = .FALSE.
 #endif
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
+  LOGICAL, PARAMETER, PUBLIC                   :: has_ma_topology = .TRUE.
+#else
+  LOGICAL, PARAMETER, PUBLIC                   :: has_ma_topology = .FALSE.
+#endif
 
 
- PUBLIC :: ma_mp_type, ma_process
+ PUBLIC :: ma_mp_type, ma_process,net_topo
 
 ! *****************************************************************************
 !> \brief A processor (process) grid distribution
@@ -138,5 +164,19 @@ MODULE machine_architecture_types
      INTEGER                                     :: core, node
      INTEGER                                     :: gpu
   END TYPE ma_process
+
+! *****************************************************************************
+!> \brief The network topology informaton
+!> \var nid           the node id within the network
+!> \var coord_x       the node coordinate in X
+!> \var coord_y       the node coordinate in Y  
+!> \var coord_z       the node coordinate in Z
+! *****************************************************************************
+  TYPE net_topo
+    INTEGER         :: nid
+    INTEGER         :: coord_x
+    INTEGER         :: coord_y
+    INTEGER         :: coord_z
+  END TYPE net_topo 
 
 END MODULE machine_architecture_types

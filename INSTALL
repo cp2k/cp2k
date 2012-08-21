@@ -105,11 +105,20 @@ How to compile CP2K code
  2i) Machine architecture abstraction support (optional, under development):
      * Use the __HWLOC or __LIBNUMA to compile with hwloc or libnuma support
        for machine architecture and process/threads/memory 
-       placement visualization. It is necessary to link with -lhwloc or -lnuma.
+       placement  and visualization. It is necessary to link with -lhwloc or -lnuma.
        The compiler must support ISO_C_BINDING.
      * Machine architecture visualization is supported only with hwloc. 
-       Process/threads/memory placement visualization is supported by both.
+       Process/threads/memory placement and visualization is supported by both.
      * Note that it is not possible to use at same time hwloc and libnuma.
+     * Consult machine/README for more information.
+
+ 2j) Process mapping support (optional, under development):
+     * Use the target machine flag (see 3b) to compile with topology support.
+     * You can also define the strategy to be used using the flag -D__MAP_POL=X, 
+       with X=1,2,3,4,5,6,7. 1=SMP-style rank ordering, 2=file based rank ordering,
+       3=hilbert space-filling curve, 4=peano space-fillinng curve,
+       5=round-robin rank ordering, 6=hilbert-peano, 7=cannon pattern mapping  
+     * The compiler must support ISO_C_BINDING.
      * Consult machine/README for more information.
 
  3) To compile the code:
@@ -167,6 +176,12 @@ How to compile CP2K code
      -D__SX
      -D__DEC
      -D__XT3
+     -D__XT5
+     various network interconnections:
+     -D__GEMINI
+     -D__SEASTAR
+     -D__BLUEGENE
+     -D__NET
      with -D__GRID_CORE=X (with X=1..6) specific optimized core routines can
                              be selected.  Reasonable defaults are provided
                              (see src/lib/collocate_fast.F) but trial-and-error

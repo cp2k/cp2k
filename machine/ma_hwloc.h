@@ -9,6 +9,8 @@
 * nshared_caches - total number of shared caches between cores
 * nsiblings - number of direct sibling cores
 */
+#ifdef __HWLOC
+
 struct arch_topology
 {
  int nnodes;
@@ -41,4 +43,4 @@ struct node{
 };
 
 void set_phys_siblings(int index, unsigned myid, hwloc_obj_t obj, int ncores, int nsiblings, int type);
-
+#endif

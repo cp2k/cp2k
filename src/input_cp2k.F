@@ -656,7 +656,7 @@ CONTAINS
     !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="PRINT_RESUME",&
-         description="Print machine architecture number of components.", &
+         description="Print the compute node architecture number of components.", &
          usage="PRINT_RESUME TRUE",&
          default_l_val=.FALSE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -706,7 +706,7 @@ CONTAINS
    !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="SCHED_THREAD",&
-         description="Enable thread scheduling on the machine.", &
+         description="Enable thread scheduling on the compute node.", &
          usage="SCHED_THREAD type (N=none L=linear I=interleaved, G=group,M=manual)",&
          default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -714,7 +714,7 @@ CONTAINS
   !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="SCHED_MPI",&
-         description="Enable process scheduling on the machine.", &
+         description="Enable process scheduling on the compute node.", &
          usage="SCHED_MPI type (N=none L=linear I=interleaved, G=group, M=manual)",&
          default_c_val='D',error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -722,7 +722,7 @@ CONTAINS
    !
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="MEM_POL",&
-         description="Enable memory binding on the machine.", &
+         description="Enable memory binding on the compute node.", &
          usage="MEM_POL type (D=default, L=local, I=interleave, M=manual )",&
          default_c_val='X',error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -730,24 +730,37 @@ CONTAINS
    !
    NULLIFY(keyword)
    CALL keyword_create(keyword, name="PROCESS",&
-        description="MPI Processes cores", n_var=-1,&
+        description="Core ID for each MPI process of a compute node. It will be"//&
+                    " used to place the MPI process.", n_var=-1,&
         usage="PROCESS 0 1 2 NMPI",default_i_vals=(/0/),error=error)
    CALL section_add_keyword(section,keyword,error=error)
    CALL keyword_release(keyword,error=error)
    !
    NULLIFY(keyword)
    CALL keyword_create(keyword, name="THREAD",&
-        description="Threads cores", n_var=-1,&
+        description="Core ID for each thread of a compute node. It will be"//&
+                     " used to place the thread.", n_var=-1,&
         usage="THREAD 0 1 2 NThreads",default_i_vals=(/0/),error=error)
    CALL section_add_keyword(section,keyword,error=error)
    CALL keyword_release(keyword,error=error)
    !
    NULLIFY(keyword)
    CALL keyword_create(keyword, name="MEMORY",&
-        description="MPI Processes memory bank", n_var=-1,&
+        description="The memory banks ID for each MPI process. It will be"//&
+                    "use to set memory bank of the MPI process", n_var=-1,&
         usage="MEMORY 0 1 2 NMPI",default_i_vals=(/0/),error=error)
    CALL section_add_keyword(section,keyword,error=error)
    CALL keyword_release(keyword,error=error)
+   !
+   NULLIFY(keyword)
+   CALL keyword_create(keyword, name="MPI_REORDERING",&
+        description="Apply a global MPI reordering for the run", n_var=-1,&
+        usage="MPI_REORDERING type (D=none H=hilbert P=peano N=snake curve " //&
+              "R=round-robin, F=hilbert-peano, S=switch pairs, C=cannon, O=own ordering) ",&
+        default_c_val='N',error=error)
+   CALL section_add_keyword(section,keyword,error=error)
+   CALL keyword_release(keyword,error=error)
+   
 
   END SUBROUTINE create_march_section
 
