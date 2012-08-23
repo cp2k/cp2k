@@ -136,13 +136,19 @@ CONTAINS
                                           adiabatic_rescale_factor=scale_dEx2, error=error)
           END IF
 
-          !! Calculate vxc and rescale it
+          ! Calculate vxc and rescale it
           xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-          CALL qs_vxc_create(qs_env=qs_env,xc_section=xc_section, &
-               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-               just_energy=just_energy, gapw_xc=gapw_xc, adiabatic_rescale_factor=scale_dDFA,&
-               error=error)
-          !! Calcualte vxc and rescale it
+          IF (gapw_xc) THEN
+            CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho_xc, xc_section=xc_section, &
+                 vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                 just_energy=just_energy ,adiabatic_rescale_factor=scale_dDFA, error=error)
+          ELSE
+            CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+                 vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                 just_energy=just_energy, adiabatic_rescale_factor=scale_dDFA, error=error)
+          END IF
+
+          ! Calculate vxc and rescale it
           IF (gapw .OR. gapw_xc) THEN
              CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA,&
                   error=error)

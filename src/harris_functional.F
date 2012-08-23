@@ -158,9 +158,9 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                    error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, &
-                         vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
-                         just_energy=.FALSE., harris=.TRUE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=harris_env%rho, xc_section=xc_section, &
+                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
+                         just_energy=.FALSE., error=error)
 
       DO ispin = 1,nspins
         harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(ispin)%pw, &

@@ -58,9 +58,11 @@ MODULE qs_ks_methods
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
+
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
@@ -388,7 +390,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
-    TYPE(qs_rho_type), POINTER               :: my_rho_xc
+    TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_struct
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
@@ -400,7 +402,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(admm_env,becke,cell,dft_control,ep_qs_env,logger,&
          mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, mo_derivs_aux_fit, &
-         mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, my_rho_xc, &
+         mo_derivs_tmp, mo_derivs, mos_aux_fit, my_rho, my_rho_xc, rho_struct, &
          occupation_numbers,para_env,pw_env, scp_energy,scp_env, virial,vppl_rspace)
     NULLIFY(adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section)
     NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
@@ -667,11 +669,19 @@ CONTAINS
        IF( dft_control%do_admm ) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env,error=error)
          xc_section => admm_env%xc_section_aux
+   
+         IF (gapw_xc) THEN
+           CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
+         ELSE
+           CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
+         END IF
 
-         CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
+         CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
-              just_energy=just_energy_xc, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
-              error=error)
+              just_energy=just_energy_xc, error=error)
+
+         NULLIFY(rho_struct)
+
          IF (use_virial .AND. calculate_forces) THEN
            virial%pv_virial = virial%pv_virial - virial%pv_xc
            ! ** virial%pv_xc will be zeroed in the xc routines
@@ -681,9 +691,17 @@ CONTAINS
          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
        END IF
 
-       CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
-             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-             just_energy=just_energy_xc, gapw_xc=gapw_xc, error=error)
+       IF (gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error) 
+       ELSE
+         CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error) 
+       END IF
+
+       CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
+            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+            just_energy=just_energy_xc, error=error)
+
+       NULLIFY(rho_struct)
 
        IF (gapw .OR. gapw_xc) THEN
            CALL calculate_vxc_atom(qs_env,just_energy_xc,error)

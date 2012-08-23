@@ -15,14 +15,11 @@ MODULE qs_vxc
 
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE harris_env_types,                ONLY: harris_env_type
   USE input_constants,                 ONLY: sic_ad,&
                                              sic_eo,&
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
                                              sic_none,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set,&
                                              xc_none
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -77,15 +74,13 @@ CONTAINS
 !> \param vxc_tau will contain the kinetic (tau) part of v_xc
 !>        (if one of the choosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param qs_env qs_environment to get all the needed things (rho,...)
+!> \param qs_env qs_environment to get all the needed things
+!> \param rho_struct density for which v_xc is calculated
 !> \param calculate_forces if the forces should be calculated (so that you
 !>        might be able to add forces to the atoms is you do strange stuff in
 !>        the xc
 !> \param just_energy if true calculates just the energy, and does not
 !>        allocate v_*_rspace
-!> \param harris If true uses the rho structure of the Harris environment
-!> \param nsc_force Uses rho_diff in case the non-self-consistent force should be
-!>                   calculated. Works only in combination with the Harris functional!
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -98,33 +93,30 @@ CONTAINS
 !>      - sic alterations [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env, xc_section,&
-       just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, &
-       basis_set_id, error)
+  SUBROUTINE qs_vxc_create( qs_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
+       just_energy, epr_xc, adiabatic_rescale_factor, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: xc_section
-    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
-                                                nsc_force, gapw_xc, epr_xc
+    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, epr_xc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: adiabatic_rescale_factor
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, &
-                                                my_basis_set_id, myfun, stat
-    LOGICAL :: do_adiabatic_rescaling, failure, harris_flag, my_epr_xc, &
-      my_gapw_xc, my_just_energy, nsc_flag, sic_scaling_b_zero, uf_grid
+    INTEGER                                  :: handle, ispin, myfun, stat
+    LOGICAL :: do_adiabatic_rescaling, failure, my_epr_xc, my_just_energy, &
+      sic_scaling_b_zero, uf_grid
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
                                                 my_scaling, nelec_s_inv, &
                                                 nelec_spin(2)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -133,38 +125,22 @@ CONTAINS
                                                 rho_m_rspace, rho_r, tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
-    TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: input
     TYPE(virial_type), POINTER               :: virial
-
-!, xc_section
 
     CALL timeset( routineN ,handle)
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-    NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,xc_pw_pool,harris_env,&
-         cell, my_vxc_rho, tmp_pw,tmp_g,tmp_g2,&
-         my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace, input)
+    NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, cell, my_vxc_rho, &
+            tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
+            rho_m_gspace, input)
 
     my_just_energy=.FALSE.
     IF (PRESENT(just_energy)) my_just_energy=just_energy
-    my_gapw_xc=.FALSE.
-    IF(PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
     my_epr_xc=.FALSE.
     IF(PRESENT(epr_xc)) my_epr_xc=epr_xc
-    IF (PRESENT(harris)) THEN
-       harris_flag = harris
-    ELSE
-       harris_flag = .FALSE.
-    END IF
-    IF (PRESENT(nsc_force)) THEN
-       nsc_flag = nsc_force
-    ELSE
-       nsc_flag = .FALSE.
-    END IF
-
     my_adiabatic_rescale_factor = 1.0_dp
     do_adiabatic_rescaling = .FALSE.
     IF( PRESENT(adiabatic_rescale_factor)) THEN
@@ -172,37 +148,12 @@ CONTAINS
        do_adiabatic_rescaling = .TRUE.
     END IF
 
-    IF( PRESENT(basis_set_id) ) THEN
-       my_basis_set_id = basis_set_id
-    ELSE
-       my_basis_set_id = use_orb_basis_set
-    END IF
-
-
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
          pw_env=pw_env, cell=cell,virial=virial, error=error)
 
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=myfun,error=error)
     IF (myfun/=xc_none) THEN
-       ! would be better to pass these as arguments
-       IF (harris_flag) THEN
-          CALL get_qs_env(qs_env=qs_env,  harris_env=harris_env, error=error)
-          IF (nsc_flag) THEN
-             rho_struct => harris_env%rho_diff
-          ELSE
-             rho_struct => harris_env%rho
-          END IF
-       ELSEIF(my_gapw_xc) THEN
-          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
-       ELSE
-          SELECT CASE (my_basis_set_id)
-          CASE (use_orb_basis_set)
-             CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
-          CASE (use_aux_fit_basis_set)
-             CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
-          END SELECT
-       END IF
 
        ! test if the real space density is available
        CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)

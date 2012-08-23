@@ -252,8 +252,9 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy=.FALSE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
+                         just_energy=.FALSE., error=error)
 
       rho_ao => qs_env%rho%rho_ao
 
@@ -630,8 +631,9 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy=.FALSE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
+                         just_energy=.FALSE., error=error)
 
       rho_ao => qs_env%rho%rho_ao
 
@@ -809,8 +811,9 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** The forces due to exchange and correlation *** !
-      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy=.FALSE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
+                         just_energy=.FALSE., error=error)
 
       ! *** Calculation of the forces of the xc-integral *** !
       CALL qs_rho_get(rho, rho_r=rho_r, error=error)
@@ -1112,7 +1115,7 @@ CONTAINS
       CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol, error=error)
 
 
-    rho_ao => harris_env%rho_diff%rho_ao
+      rho_ao => harris_env%rho_diff%rho_ao
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
                                 p=rho_ao(ispin), &
@@ -1138,16 +1141,12 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** Calculation of the forces of the xc-integral *** !
-      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy=.FALSE., harris=.TRUE., nsc_force=.TRUE., &
-                         error=error)
-      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-      !                   exc=Exc, just_energy=.FALSE., harris=.TRUE., nsc_force=.FALSE., &
-      !                   error=error)
-      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-      !                   exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
 
-    rho_ao => harris_env%rho_diff%rho_ao
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=harris_env%rho_diff, xc_section=xc_section, &
+                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
+                         just_energy=.FALSE., error=error)
+
+      rho_ao => harris_env%rho_diff%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol, error=error)
@@ -1573,8 +1572,9 @@ CONTAINS
                                    error=error)
 
       NULLIFY(v_rspace_new)
-      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho = v_rspace_new, vxc_tau=v_tau_rspace, &
-                         exc=Exc, just_energy = .FALSE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+                         vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
+                         just_energy = .FALSE., error=error)
 
       ! sum-up: v_hartree_rspace = v_hartree_rspace + v_rspace_new(ispin)
       DO ispin = 1,nspins
