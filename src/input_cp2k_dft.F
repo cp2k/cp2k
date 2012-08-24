@@ -8023,7 +8023,8 @@ CONTAINS
        CALL keyword_create(keyword, name="PERIODIC",&
             description="Apply a delta-kick that is compatible with periodic boundary conditions"//&
             " for any value of DELTA_PULSE_SCALE. Uses perturbation theory for the preparation of"//&
-            " the initial wfn.",&
+            " the initial wfn. Note that the pulse is only applied when INITIAL_WFN is set to SCF_WFN,"//&
+            " and not for restarts (RT_RESTART).",&
             usage="PERIODIC",&
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
