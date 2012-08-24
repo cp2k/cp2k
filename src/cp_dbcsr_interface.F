@@ -79,7 +79,7 @@ MODULE cp_dbcsr_interface
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
        dbcsr_copy_into_existing, dbcsr_filter, dbcsr_finalize_lib, &
        dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
-       dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_init_lib, &
+       dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_init_lib, dbcsr_maxabs, &
        dbcsr_multiply, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
        dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
        dbcsr_trace
@@ -202,6 +202,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_complete_redistribute
   PUBLIC :: cp_dbcsr_gershgorin_norm
   PUBLIC :: cp_dbcsr_frobenius_norm
+  PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_name
 
 
@@ -663,6 +664,26 @@ CONTAINS
 
     CALL timestop(handle)
   END FUNCTION cp_dbcsr_frobenius_norm
+
+  FUNCTION cp_dbcsr_maxabs(matrix) RESULT (norm)
+
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    REAL(KIND=real_8)                        :: norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_maxabs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(cp_error_type)                      :: error
+
+    CALL timeset(routineN,handle)
+
+    CALL cp_error_init (error)
+    norm = dbcsr_maxabs(matrix%matrix)
+
+    CALL timestop(handle)
+  END FUNCTION cp_dbcsr_maxabs
+
 
 
   SUBROUTINE cp_dbcsr_complete_redistribute(matrix, redist, keep_sparsity, error)
