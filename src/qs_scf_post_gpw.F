@@ -343,6 +343,7 @@ CONTAINS
        ELSE
          p_loc_homo=.FALSE.
          p_loc_lumo=.FALSE.
+         n_rep=0
        END IF
 
        IF(n_rep==0.AND.p_loc_lumo)THEN
@@ -369,6 +370,8 @@ CONTAINS
        IF(loc_print_explicit) THEN
          do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                         "WANNIER_CUBES",error=error),cp_p_file)
+       ELSE
+         do_wannier_cubes=.FALSE.
        END IF
        nlumo=section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error)
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
