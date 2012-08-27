@@ -797,7 +797,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_x', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: msg
+    CHARACTER(len=default_string_length)     :: msg, tmp
     INTEGER                                  :: ia, ib, ic, idim, input_seed, &
                                                 istat, n_rep_val
     LOGICAL                                  :: done_init, done_levy, &
@@ -938,13 +938,13 @@ CONTAINS
       done_rand = .TRUE.
     END IF
 
-    WRITE(msg,'(A)') "Bead positions initialization:"
+    WRITE(tmp,'(A)') "Bead positions initialization:"
     IF ( done_init ) THEN
-      WRITE(msg,'(A,A)') TRIM(msg), " input structure"
+      WRITE(msg,'(A,A)') TRIM(tmp), " input structure"
     ELSE IF ( done_levy ) THEN
-      WRITE(msg,'(A,A)') TRIM(msg), " Levy random walk"
+      WRITE(msg,'(A,A)') TRIM(tmp), " Levy random walk"
     ELSE
-      WRITE(msg,'(A,A)') TRIM(msg), " hot start"
+      WRITE(msg,'(A,A)') TRIM(tmp), " hot start"
     END IF
     CALL pint_write_line(msg, error)
 
