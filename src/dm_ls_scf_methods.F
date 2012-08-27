@@ -388,8 +388,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: gamma_max = 6.0_dp, &
                                                 gamma_min = 0.0_dp
 
-    INTEGER                                  :: estimated_steps, handle, i, &
-                                                j, unit_nr
+    INTEGER                                  :: branch, estimated_steps, &
+                                                handle, i, j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
     LOGICAL                                  :: do_dyn_threshold
     REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_gap, &
@@ -491,7 +491,6 @@ CONTAINS
       CALL cp_dbcsr_add(tmp_norm, matrix_xsq, -1.0_dp, 1.0_dp, error=error)
       frob_id = cp_dbcsr_frobenius_norm(tmp_norm)
       frob_x = cp_dbcsr_frobenius_norm(matrix_x)
-
   
       ! get gamma 
       ! Tr(F) = Tr(XX*tmp_gx), tmp_trans=(XX)T, Tr(G) is equivalent
@@ -524,15 +523,18 @@ CONTAINS
         ! Xn+1 = 2X-X*X
         CALL cp_dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp, error=error)
         CALL cp_dbcsr_filter(matrix_x, current_threshold, error=error)
+        branch=1
       ELSE IF (gam < gamma_min) THEN
         ! Xn+1 = X*X
         CALL cp_dbcsr_copy(matrix_x, matrix_xsq, error=error)
+        branch=2
       ELSE
         ! Xn+1 = F(X) + gam*G(X)
         CALL cp_dbcsr_add(tmp_gx, matrix_xidsq, 1.0_dp, gam, error=error)
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_xsq, tmp_gx,&
                                0.0_dp, matrix_x, &
                                flop=flop2, filter_eps=current_threshold,error=error)
+        branch=3
       ENDIF
    
       occ_matrix = cp_dbcsr_get_occupation(matrix_x) 
@@ -542,7 +544,9 @@ CONTAINS
                       i, occ_matrix, ABS(trace_gx), t2-t1,&
                       (flop1+flop2)/(1.0E6_dp*(t2-t1)), current_threshold
 
-      IF (ABS(frob_id/frob_x) < SQRT(threshold)) EXIT
+      ! a branch of 1 or 2 appears to lead to a less accurate electron number count and premature exit
+      ! if it turns out this does not exit because we get stuck in branch 1/2 for a reason we need to refine further
+      IF (ABS(frob_id/frob_x) < SQRT(threshold) .AND. branch==3) EXIT
 
     END DO
 

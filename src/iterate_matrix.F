@@ -300,7 +300,6 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_sqrt,matrix,error=error)
 
     ! scale the matrix to get into the convergence range
-    ! and a hack for the fact that we only have lanczos for real*8 matrices so far.
     threshold_lanczos=1.0E-4_dp ; max_iter =64
     CALL lanczos_alg_serial(matrix_sqrt, max_ev, min_ev, threshold_lanczos, max_iter, converged=converged, error=error)
     IF (unit_nr>0) THEN
