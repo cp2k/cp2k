@@ -395,14 +395,17 @@ CONTAINS
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
        IF ((do_mo_cubes .AND. nhomo /= 0) .OR. do_stm .OR. dft_control%do_tddfpt_calculation ) THEN
           CALL make_mo_eig(qs_env,error)
+          DO ispin=1,dft_control%nspins
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues,homo=homo)
+             homo_lumo(ispin,1)=mo_eigenvalues(homo)
+          END DO
           has_homo=.TRUE.
        END IF
        IF (do_mo_cubes .AND. nhomo /= 0) THEN
           DO ispin=1,dft_control%nspins
+             ! Prints the cube files of OCCUPIED ORBITALS
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                   eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
-             homo_lumo(ispin,1)=mo_eigenvalues(homo)
-             ! Prints the cube files of OCCUPIED ORBITALS
              CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
                   mo_coeff, wf_g, wf_r, particles, homo, ispin, error=error)
           END DO
