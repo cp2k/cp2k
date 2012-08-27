@@ -38,6 +38,7 @@ MODULE qs_resp
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_flush
+  USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_irecv,&
                                              mp_isend,&
@@ -47,7 +48,8 @@ MODULE qs_resp
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_transfer,&
+  USE pw_methods,                      ONLY: pw_scale,&
+                                             pw_transfer,&
                                              pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -80,15 +82,16 @@ MODULE qs_resp
             resp_type
 
   TYPE resp_type
-   LOGICAL                                :: itc, rheavies, nonperiodic_sys
+   LOGICAL                                :: equal_charges, itc,& 
+                                             nonperiodic_sys, rheavies
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
-                                             npoints,stride(3),my_fit
+                                             npoints, stride(3), my_fit
    INTEGER, DIMENSION(:), POINTER         :: atom_surf_list
    INTEGER, DIMENSION(:,:), POINTER       :: fitpoints
    REAL(KIND=dp)                          :: rheavies_strength,&
-                                             rmax,rmin,&
-                                             length,eta
+                                             rmax, rmin,&
+                                             length, eta
    REAL(KIND=dp),DIMENSION(3)             :: box_hi, box_low
    REAL(KIND=dp),DIMENSION(:),POINTER     :: range_surf 
    REAL(KIND=dp), DIMENSION(:),POINTER    :: rhs
@@ -190,7 +193,7 @@ CONTAINS
      
        !adding restraints and constraints
        CALL add_restraints_and_constraints(qs_env,resp_env,rest_section,&
-            natom,cons_section,particle_set,error)
+            subsys,natom,cons_section,particle_set,error)
 
        !solve system for the values of the charges and the lagrangian multipliers
        CALL DGETRF(nvar,nvar,resp_env%matrix,nvar,ipiv,info)
@@ -240,16 +243,19 @@ CONTAINS
                resp_env%rhs)
 
     ENDIF
-
+     
+    resp_env%equal_charges=.FALSE.
     resp_env%itc=.FALSE.
-    resp_env%rheavies=.FALSE.
     resp_env%nonperiodic_sys=.FALSE.
+    resp_env%rheavies=.FALSE.
  
     resp_env%box_hi=0.0_dp
     resp_env%box_low=0.0_dp
 
     resp_env%ncons=0
+    resp_env%ncons_sec=0
     resp_env%nres=0
+    resp_env%nrest_sec=0
     resp_env%npoints=0
 
   END SUBROUTINE create_resp_type
@@ -308,18 +314,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_resp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, handle, i, j, &
-                                                max_index, n_var, &
-                                                num_surf_atom, stat
-    INTEGER, DIMENSION(:), POINTER           :: indexes, my_stride
-    LOGICAL                                  :: explicit, failure, &
-                                                index_in_range
+    INTEGER                                  :: handle, i, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, my_stride
+    LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: nonperiodic_section, &
                                                 periodic_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(indexes,my_stride,nonperiodic_section,periodic_section)
+    NULLIFY(atom_list_cons, my_stride, nonperiodic_section, periodic_section)
     failure=.FALSE.
 
     ! get the subsections
@@ -378,63 +381,37 @@ CONTAINS
         CALL stop_program(routineN,moduleN,__LINE__,&
              "Parameter LENGTH in PERIODIC_SYS has to be larger than zero.")
       ENDIF
-
       !list of atoms specifing the surface
-      CALL section_vals_val_get(periodic_section,"ATOM_LIST",n_rep_val=n_var,error=error)
-      num_surf_atom=0
-      DO i=1,n_var
-      CALL section_vals_val_get(periodic_section,"ATOM_LIST",i_rep_val=i,i_vals=indexes,&
-                                                                             error=error)
-      num_surf_atom=num_surf_atom + SIZE(indexes)
-      ENDDO 
-      ALLOCATE(resp_env%atom_surf_list(num_surf_atom),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      resp_env%atom_surf_list=0
-      num_surf_atom=1
-      DO i=1,n_var
-       CALL section_vals_val_get(periodic_section,"ATOM_LIST",i_rep_val=i,i_vals=indexes,&
-                                                                              error=error)
-       resp_env%atom_surf_list(num_surf_atom:num_surf_atom+SIZE(indexes)-1)=indexes(:)
-       num_surf_atom = num_surf_atom + SIZE(indexes)
-      ENDDO
-      !check atom list
-      num_surf_atom=num_surf_atom-1
-      max_index=SIZE(subsys%particles%els)
-      CPPrecondition(SIZE(resp_env%atom_surf_list) /= 0,cp_failure_level,routineP,error,failure)
-      index_in_range=(MAXVAL(resp_env%atom_surf_list)<= max_index)&
-                           .AND.(MINVAL(resp_env%atom_surf_list) > 0)
-      CPPostcondition(index_in_range,cp_failure_level,routineP,error,failure)
-      DO i=1,num_surf_atom
-       DO j=i+1,num_surf_atom
-        atom_a=resp_env%atom_surf_list(i)
-        atom_b=resp_env%atom_surf_list(j)
-        IF(atom_a==atom_b) &
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "There are atoms doubled in surface atom list for RESP.")
-       ENDDO
-      ENDDO
+      CALL build_atom_list(periodic_section,subsys,resp_env%atom_surf_list,error=error)
     ENDIF
 
     ! get the parameters for the constraint and restraint sections    
     CALL section_vals_get(cons_section, explicit=explicit, error=error)
     IF (explicit) THEN
        CALL section_vals_get(cons_section,n_repetition=resp_env%ncons_sec,error=error)
-    ELSE
-       resp_env%ncons_sec=0
+       DO i=1,resp_env%ncons_sec
+        CALL section_vals_val_get(cons_section,"EQUAL_CHARGES",l_val=resp_env%equal_charges,& 
+                                  explicit=explicit,error=error)
+        IF(.NOT.explicit) CYCLE
+        CALL build_atom_list(cons_section,subsys,atom_list_cons,i,error=error)
+        !instead of using EQUAL_CHARGES the constraint sections could be repeated
+        resp_env%ncons=resp_env%ncons+SIZE(atom_list_cons)-2
+        DEALLOCATE(atom_list_cons,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       ENDDO
     ENDIF
+    CALL section_vals_get(rest_section, explicit=explicit, error=error)
     IF (explicit) THEN
        CALL section_vals_get(rest_section,n_repetition=resp_env%nrest_sec,error=error)
-    ELSE
-       resp_env%nrest_sec=0
     ENDIF
-    resp_env%ncons=resp_env%ncons_sec
-    resp_env%nres=resp_env%nrest_sec
+    resp_env%ncons=resp_env%ncons+resp_env%ncons_sec
+    resp_env%nres=resp_env%nres+resp_env%nrest_sec
     
     ! get the general keywords
     CALL section_vals_val_get(resp_section,"INTEGER_TOTAL_CHARGE",&
                                      l_val=resp_env%itc,error=error)
-
     IF (resp_env%itc) resp_env%ncons=resp_env%ncons+1
+
     CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_TO_ZERO",&
                                     l_val=resp_env%rheavies,error=error)
     IF (resp_env%rheavies) THEN
@@ -458,6 +435,71 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE init_resp
+!****************************************************************************
+!\brief building atom lists for different sections of RESP
+!****************************************************************************
+  SUBROUTINE build_atom_list(section,subsys,atom_list,rep,error)
+
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, INTENT(IN), OPTIONAL            :: rep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_atom_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, atom_b, handle, i, &
+                                                irep, j, max_index, n_var, &
+                                                num_atom, stat
+    INTEGER, DIMENSION(:), POINTER           :: indexes
+    LOGICAL                                  :: failure, index_in_range
+
+    CALL timeset(routineN,handle)
+ 
+    NULLIFY(indexes)
+    failure=.FALSE.
+    irep=1
+    IF(PRESENT(rep)) irep=rep 
+
+    CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
+                                          n_rep_val=n_var,error=error)
+    num_atom=0
+    DO i=1,n_var
+    CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
+                               i_rep_val=i,i_vals=indexes,error=error)
+    num_atom=num_atom + SIZE(indexes)
+    ENDDO 
+    ALLOCATE(atom_list(num_atom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    atom_list=0
+    num_atom=1
+    DO i=1,n_var
+     CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
+                                i_rep_val=i,i_vals=indexes,error=error)
+     atom_list(num_atom:num_atom+SIZE(indexes)-1)=indexes(:)
+     num_atom = num_atom + SIZE(indexes)
+    ENDDO
+    !check atom list
+    num_atom=num_atom-1
+    max_index=SIZE(subsys%particles%els)
+    CPPrecondition(SIZE(atom_list) /= 0,cp_failure_level,routineP,error,failure)
+    index_in_range=(MAXVAL(atom_list)<= max_index)&
+                         .AND.(MINVAL(atom_list) > 0)
+    CPPostcondition(index_in_range,cp_failure_level,routineP,error,failure)
+    DO i=1,num_atom
+     DO j=i+1,num_atom
+      atom_a=atom_list(i)
+      atom_b=atom_list(j)
+      IF(atom_a==atom_b) &
+      CALL stop_program(routineN,moduleN,__LINE__,&
+           "There are atoms doubled in atom list for RESP.")
+     ENDDO
+    ENDDO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_atom_list
  
 !****************************************************************************
 !\brief build matrix and vector for nonperiodic RESP fitting
@@ -590,6 +632,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, ip, j, jx, jy, jz, &
                                                 stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: normalize_factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -634,6 +677,7 @@ CPSourceFileRef,&
     CALL get_fitting_points(qs_env,resp_env,particles=particles,cell=cell,error=error)
     ALLOCATE(vpot(resp_env%npoints,natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    normalize_factor=SQRT((resp_env%eta/pi)**3)
 
     DO i=1,natom
      !collocate gaussian for each atom
@@ -644,6 +688,7 @@ CPSourceFileRef,&
       CALL pw_poisson_solve(poisson_env,rho_ga%pw,vhartree=va_gspace%pw,error=error)
       CALL pw_zero(va_rspace%pw, error=error)
       CALL pw_transfer(va_gspace%pw,va_rspace%pw,error=error)
+      CALL pw_scale(va_rspace%pw,normalize_factor,error=error)
       DO ip=1,resp_env%npoints
          jx = resp_env%fitpoints(1,ip)
          jy = resp_env%fitpoints(2,ip)
@@ -1038,7 +1083,15 @@ CPSourceFileRef,&
 
     IF (output_unit>0) THEN
      WRITE(output_unit,'(/,1X,A,/)')      "STARTING RESP FIT"
-     WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons_sec
+     IF(.NOT.resp_env%equal_charges) THEN
+      WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons_sec
+     ELSE
+      IF(resp_env%itc) THEN
+       WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons-1
+      ELSE
+       WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons
+      ENDIF  
+     ENDIF
      WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit restraints: ",resp_env%nrest_sec
      WRITE(output_unit,'(T3,A,T80,A)')  "Constrain total charge ",MERGE("T","F",resp_env%itc)
      WRITE(output_unit,'(T3,A,T80,A)')  "Restrain heavy atoms ",MERGE("T","F",resp_env%rheavies)
@@ -1077,11 +1130,12 @@ CPSourceFileRef,&
 !\brief add restraints and constraints
 !****************************************************************************
   SUBROUTINE add_restraints_and_constraints(qs_env,resp_env,rest_section,&
-                                        natom,cons_section,particle_set,error)
+                             subsys,natom,cons_section,particle_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(section_vals_type), POINTER         :: rest_section
+    TYPE(cp_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(IN)                      :: natom
     TYPE(section_vals_type), POINTER         :: cons_section
     TYPE(particle_type), DIMENSION(:), &
@@ -1092,44 +1146,37 @@ CPSourceFileRef,&
       routineN = 'add_restraints_and_constraints', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, handle, i, j, &
-                                                k, l, m, ncons_i, ncons_v, z
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, index_in_range
-    REAL(KIND=dp)                            :: strength, TARGET
+    INTEGER                                  :: handle, i, k, m, ncons_v, &
+                                                stat, z
+    INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, atom_list_res
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_atom_coef(2), strength, &
+                                                TARGET
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atom_coef,atom_list)
+    NULLIFY(atom_coef,atom_list_res,atom_list_cons)
     failure=.FALSE.
  
     ! add the restraints
     DO i=1,resp_env%nrest_sec
-       CALL section_vals_val_get(rest_section,"ATOM_LIST",i_rep_section=i,i_vals=atom_list,error=error)
        CALL section_vals_val_get(rest_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef,error=error)
        CALL section_vals_val_get(rest_section,"TARGET",i_rep_section=i,r_val=TARGET,error=error)
        CALL section_vals_val_get(rest_section,"STRENGTH",i_rep_section=i,r_val=strength,error=error)
-       CPPrecondition(SIZE(atom_list)==SIZE(atom_coef),cp_failure_level,routineP,error,failure)
-       !check atom_list
-       index_in_range=(MAXVAL(atom_list) <= natom).AND.(MINVAL(atom_list) > 0)
-       CPPostcondition(index_in_range,cp_failure_level,routineP,error,failure)
-       DO l=1,SIZE(atom_list)
-        DO j=l+1,SIZE(atom_list)
-         atom_a=atom_list(l)
-         atom_b=atom_list(j)
-         IF(atom_a==atom_b) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              "There are atoms doubled in atom list of restraint section.")
-        ENDDO
-       ENDDO
-       DO m=1,SIZE(atom_list)
-          DO k=1,SIZE(atom_list)
-             resp_env%matrix(atom_list(m),atom_list(k))=resp_env%matrix(atom_list(m),atom_list(k))+ &
-                                                atom_coef(m)*atom_coef(k)*2.0_dp*strength
+       CALL build_atom_list(rest_section,subsys,atom_list_res,i,error)
+       CPPrecondition(SIZE(atom_list_res)==SIZE(atom_coef),cp_failure_level,routineP,error,failure)
+       DO m=1,SIZE(atom_list_res)
+          DO k=1,SIZE(atom_list_res)
+             resp_env%matrix(atom_list_res(m),atom_list_res(k))=&
+                                     resp_env%matrix(atom_list_res(m),atom_list_res(k))+ &
+                                     atom_coef(m)*atom_coef(k)*2.0_dp*strength
           ENDDO
-          resp_env%rhs(atom_list(m))=resp_env%rhs(atom_list(m))+2.0_dp*TARGET*strength*atom_coef(m)
+          resp_env%rhs(atom_list_res(m))=resp_env%rhs(atom_list_res(m))+&
+                                       2.0_dp*TARGET*strength*atom_coef(m)
        ENDDO
+       DEALLOCATE(atom_list_res,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     ENDDO
 
     ! if heavies are restrained to zero, add these as well
@@ -1143,41 +1190,42 @@ CPSourceFileRef,&
     ENDIF
 
     ! add the constraints
-    ncons_i=0
+    ncons_v=0
+    ncons_v=ncons_v+natom
     IF (resp_env%itc) THEN
-       ncons_i=ncons_i+1
-       ncons_v=natom+ncons_i
+       ncons_v=ncons_v+1
        resp_env%matrix(1:natom,ncons_v)=1.0_dp
        resp_env%matrix(ncons_v,1:natom)=1.0_dp
        resp_env%rhs(ncons_v)=qs_env%dft_control%charge
     ENDIF
 
     DO i=1,resp_env%ncons_sec
-       ncons_i=ncons_i+1
-       ncons_v=ncons_v+1
-       CALL section_vals_val_get(cons_section,"ATOM_LIST",i_rep_section=i,i_vals=atom_list,error=error)
-       CALL section_vals_val_get(cons_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef,error=error)
-       CALL section_vals_val_get(cons_section,"TARGET",i_rep_section=i,r_val=TARGET,error=error)
-       CPPrecondition(SIZE(atom_list)==SIZE(atom_coef),cp_failure_level,routineP,error,failure)
-       !check atom_list
-       index_in_range=(MAXVAL(atom_list) <= natom).AND.(MINVAL(atom_list) > 0)
-       CPPostcondition(index_in_range,cp_failure_level,routineP,error,failure)
-       DO l=1,SIZE(atom_list)
-        DO j=l+1,SIZE(atom_list)
-         atom_a=atom_list(l)
-         atom_b=atom_list(j)
-         IF(atom_a==atom_b) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              "There are atoms doubled in atom list of constraint section.")
-        ENDDO
-       ENDDO
-       DO m=1,SIZE(atom_list)
-          resp_env%matrix(atom_list(m),ncons_v)=atom_coef(m)
-          resp_env%matrix(ncons_v,atom_list(m))=atom_coef(m)
-       ENDDO
-       resp_env%rhs(ncons_v)=TARGET
+       CALL build_atom_list(cons_section,subsys,atom_list_cons,i,error)
+       IF(.NOT.resp_env%equal_charges) THEN
+         ncons_v=ncons_v+1
+         CALL section_vals_val_get(cons_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef,error=error)
+         CALL section_vals_val_get(cons_section,"TARGET",i_rep_section=i,r_val=TARGET,error=error)
+         CPPrecondition(SIZE(atom_list_cons)==SIZE(atom_coef),cp_failure_level,routineP,error,failure)
+         DO m=1,SIZE(atom_list_cons)
+            resp_env%matrix(atom_list_cons(m),ncons_v)=atom_coef(m)
+            resp_env%matrix(ncons_v,atom_list_cons(m))=atom_coef(m)
+         ENDDO
+         resp_env%rhs(ncons_v)=TARGET
+       ELSE
+         my_atom_coef(1)=1.0_dp
+         my_atom_coef(2)=-1.0_dp
+         DO k=2,SIZE(atom_list_cons)
+            ncons_v=ncons_v+1
+            resp_env%matrix(atom_list_cons(1),ncons_v)=my_atom_coef(1)
+            resp_env%matrix(ncons_v,atom_list_cons(1))=my_atom_coef(1)
+            resp_env%matrix(atom_list_cons(k),ncons_v)=my_atom_coef(2)
+            resp_env%matrix(ncons_v,atom_list_cons(k))=my_atom_coef(2)
+            resp_env%rhs(ncons_v)=0.0_dp
+         ENDDO
+       ENDIF
+       DEALLOCATE(atom_list_cons,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     ENDDO
-
     CALL timestop(handle)
 
   END SUBROUTINE add_restraints_and_constraints

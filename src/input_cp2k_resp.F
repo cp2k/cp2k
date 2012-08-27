@@ -175,10 +175,21 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EQUAL_CHARGES",&
+            description="All atoms in ATOM_LIST are constrained to have the "//&
+            "same charges. When using this keyword, TARGET and ATOM_COEF do "//& 
+            "not need to be set and will be ignored. Instead of using this "//&
+            "keyword, the constraint section could be repeated.",&
+            usage="EQUAL_CHARGES",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword,name="ATOM_LIST",&
             description="Defines the list of atoms involved in this constraint",&
             usage="ATOM_LIST 3 4",&
-            type_of_var=integer_t, n_var=-1, error=error)
+            type_of_var=integer_t, n_var=-1,required=.TRUE.,repeats=.TRUE.,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -241,7 +252,8 @@ CONTAINS
        CALL keyword_create(keyword,name="ATOM_LIST",&
             description="Defines the list of atoms involved in this restraint",&
             usage="ATOM_LIST 3 4",&
-            type_of_var=integer_t, n_var=-1, error=error)
+            type_of_var=integer_t, n_var=-1, required=.TRUE.,repeats=.TRUE.,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
