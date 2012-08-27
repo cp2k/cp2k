@@ -331,6 +331,8 @@ CONTAINS
          p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
          print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
          p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       ELSE
+         p_loc=.FALSE.
        END IF
        IF(loc_explicit) THEN
          p_loc_homo=(section_get_ival(localize_section,"STATES",error=error)==do_loc_homo.OR.&
@@ -338,6 +340,9 @@ CONTAINS
          p_loc_lumo=(section_get_ival(localize_section,"STATES",error=error)==do_loc_lumo.OR.&
                   section_get_ival(localize_section,"STATES",error=error)==do_loc_both).AND.p_loc
          CALL section_vals_val_get(localize_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
+       ELSE
+         p_loc_homo=.FALSE.
+         p_loc_lumo=.FALSE.
        END IF
 
        IF(n_rep==0.AND.p_loc_lumo)THEN
