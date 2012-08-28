@@ -686,6 +686,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
+    tot_rn = 0
 
     ! first initializing the mass of the nhc variables
     nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * nhc%tau_nhc**2
@@ -725,7 +726,7 @@ CONTAINS
 
        ! scale velocities to get the correct initial temperature
        temp = 2.0_dp*akin/REAL(number)
-       temp = SQRT(temp_ext/temp)
+       IF (temp > 0.0_dp) temp = SQRT(temp_ext/temp)
        DO i = 1, nhc%loc_num_nhc
           DO j = 1, nhc % nhc_len
              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
@@ -738,7 +739,9 @@ CONTAINS
           DO j = 2, nhc % nhc_len
              nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
                   nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-             nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+             IF (nhc % nvt(j,i) % mass > 0.0_dp) THEN
+                nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+             END IF
           END DO
        END DO
 
@@ -765,7 +768,7 @@ CONTAINS
 
        ! scale velocities to get the correct initial temperature
        temp = 2.0_dp*akin/REAL(number)
-       temp = SQRT(temp_ext/temp)
+       IF (temp > 0.0_dp) temp = SQRT(temp_ext/temp)
        DO i = 1, nhc%loc_num_nhc
           DO j = 1, nhc % nhc_len
              nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
@@ -777,7 +780,9 @@ CONTAINS
           DO j = 2, nhc % nhc_len
              nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
                                   nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-             nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+             IF (nhc % nvt(j,i) % mass > 0.0_dp) THEN
+                nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+             END IF
           END DO
        END DO
 
@@ -814,6 +819,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
+    temp = 0.0_dp
 
     ! first initializing the mass of the nhc variables
 
@@ -855,7 +861,7 @@ CONTAINS
     ! scale velocities to get the correct initial temperature
     IF ( number /= 0 ) THEN
        temp = 2.0_dp * akin / REAL ( number,KIND=dp)
-       temp = SQRT(temp_ext/temp)
+       IF (temp > 0.0_dp) temp = SQRT(temp_ext/temp)
     ENDIF
     DO i = 1, SIZE(npt,1)
        DO j = i, SIZE(npt,2)
@@ -906,7 +912,9 @@ CONTAINS
           nhc % nvt ( j, i ) % f = nhc % nvt ( j-1, i ) % mass * &
                                    nhc % nvt ( j-1, i ) % v **2 -  &
                                    nhc % nvt ( j, i ) % nkt
-          nhc % nvt ( j, i ) % f = nhc % nvt ( j, i ) % f / nhc % nvt ( j, i ) % mass
+          IF (nhc % nvt ( j, i ) % mass > 0.0_dp) THEN
+             nhc % nvt ( j, i ) % f = nhc % nvt ( j, i ) % f / nhc % nvt ( j, i ) % mass
+          END IF
        END DO
     END DO
 
