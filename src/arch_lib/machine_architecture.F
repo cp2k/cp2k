@@ -122,7 +122,7 @@ MODULE machine_architecture
      FUNCTION ma_final_interface(dtopo) RESULT (istat) BIND(C, name="hw_topology_destroy")
        USE ISO_C_BINDING
        USE machine_architecture_types,   ONLY: arch_topology
-    TYPE(arch_topology), BIND(C)             :: dtopo
+    TYPE(arch_topology)             :: dtopo
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION ma_final_interface
@@ -132,7 +132,7 @@ MODULE machine_architecture
      SUBROUTINE ma_show_phys_topo(output_phys) BIND(C, name="hw_phys_pu_topology")
        USE ISO_C_BINDING
        USE machine_architecture_types,  ONLY: machine_output
-    TYPE(machine_output), BIND(C)            :: output_phys
+    TYPE(machine_output)            :: output_phys
 
      END SUBROUTINE ma_show_phys_topo
   END INTERFACE
@@ -142,7 +142,7 @@ MODULE machine_architecture
      SUBROUTINE ma_show_branch(output_branch) BIND(C, name="hw_high_level_show")
        USE ISO_C_BINDING
        USE machine_architecture_types,  ONLY: machine_output
-    TYPE(machine_output), BIND(C)            :: output_branch
+    TYPE(machine_output)            :: output_branch
 
      END SUBROUTINE ma_show_branch
   END INTERFACE
@@ -151,7 +151,7 @@ MODULE machine_architecture
      SUBROUTINE ma_show_topo(output_topo) BIND(C, name="hw_machine_topology")
        USE ISO_C_BINDING
        USE machine_architecture_types,  ONLY: machine_output
-    TYPE(machine_output), BIND(C)            :: output_topo
+    TYPE(machine_output)           :: output_topo
 
      END SUBROUTINE ma_show_topo
   END INTERFACE
