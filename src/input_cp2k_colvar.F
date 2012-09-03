@@ -229,6 +229,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_colvar_ring_puckering_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        IF(.NOT. skip_recursive_colvar)THEN
           CALL create_colvar_rpath_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
@@ -1996,6 +2000,67 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_hbp_section
+
+! *****************************************************************************
+!> \brief collective variables specifying ring puckering     
+!> \brief D. Cremer and J.A. Pople, JACS 97 1354 (1975)
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Marcel Baer
+! *****************************************************************************
+  SUBROUTINE create_colvar_ring_puckering_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_ring_puckering_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="RING_PUCKERING",&
+            description="Section to define general ring puckering collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points defining the ring."//&
+            "At least 4 Atoms are needed.",&
+            usage="ATOMS {integer} {integer} {integer} ..",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COORDINATE",&
+            description="Indicate the coordinate to be used. Follow the Cremer-Pople definition for a N ring."//&
+            "0 is the total puckering variable Q,"//&
+            "2..[N/2] are puckering coordinates."//&
+            "-2..-[N/2-1] are puckering angles.",&
+            usage="COORDINATE {integer}",default_i_val=0,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_colvar_ring_puckering_section
+
+! *****************************************************************************
 
 
 END MODULE input_cp2k_colvar

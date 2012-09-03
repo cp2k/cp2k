@@ -12,7 +12,7 @@
 !> \author Alessandro Laio,Fawzi Mohamed
 ! *****************************************************************************
 MODULE colvar_methods
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type, pbc
   USE colvar_types,                    ONLY: &
        HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_check_points, &
        colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
@@ -22,7 +22,7 @@ MODULE colvar_methods
        plane_distance_colvar_id, plane_plane_angle_colvar_id, &
        population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
        rmsd_colvar_id, rotation_colvar_id, torsion_colvar_id, u_colvar_id, &
-       xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+       xyz_diag_colvar_id, xyz_outerdiag_colvar_id, ring_puckering_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -69,7 +69,8 @@ MODULE colvar_methods
                                              dp
   USE mathconstants,                   ONLY: fac,&
                                              maxfac,&
-                                             pi
+                                             pi, twopi
+  USE mathlib,                         ONLY: vector_product
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -140,7 +141,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure, &
                                                 use_mixed_energy
-    LOGICAL, DIMENSION(21)                   :: my_subsection
+    LOGICAL, DIMENSION(22)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
@@ -158,7 +159,7 @@ CONTAINS
       point_section, population_section, qparm_section, &
       reaction_path_section, rmsd_section, rotation_section, torsion_section, &
       u_section, Wc_section, wrk_section, xyz_diag_section, &
-      xyz_outerdiag_section
+      xyz_outerdiag_section, ring_puckering_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -198,6 +199,8 @@ CONTAINS
     u_section             => section_vals_get_subs_vals(colvar_section,"U",i_rep_section=icol,error=error)
     Wc_section            => section_vals_get_subs_vals(colvar_section,"WC",i_rep_section=icol,error=error)
     HBP_section           => section_vals_get_subs_vals(colvar_section,"HBP",i_rep_section=icol,error=error)
+    ring_puckering_section&
+                          => section_vals_get_subs_vals(colvar_section,"RING_PUCKERING",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -230,6 +233,8 @@ CONTAINS
     CALL section_vals_get(u_section,            explicit=my_subsection(19), error=error)
     CALL section_vals_get(Wc_section,           explicit=my_subsection(20), error=error)
     CALL section_vals_get(HBP_section,          explicit=my_subsection(21), error=error)
+    CALL section_vals_get(ring_puckering_section,&
+                                                explicit=my_subsection(22), error=error)
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -972,6 +977,26 @@ CPSourceFileRef)
         CALL section_vals_val_get(wrk_section,"ATOMS",i_rep_val=i,i_vals=iatms,error=error)
         colvar%HBP%ids(i,:) = iatms
        ENDDO
+    ELSE IF (my_subsection(22)) THEN
+       ! Ring Puckering
+       CALL colvar_create(colvar,ring_puckering_colvar_id, error)
+       CALL section_vals_val_get(ring_puckering_section,"ATOMS",i_vals=iatms,error=error)
+       colvar%ring_puckering_param%nring = SIZE(iatms)
+       ALLOCATE(colvar%ring_puckering_param%atoms(SIZE(iatms)),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%ring_puckering_param%atoms = iatms
+       CALL section_vals_val_get(ring_puckering_section,"COORDINATE",&
+            i_val=colvar%ring_puckering_param%iq,error=error)
+       ! test the validity of the parameters
+       ndim = colvar%ring_puckering_param%nring
+       CALL cp_assert(ndim > 3,cp_fatal_level,cp_assertion_failed,routineP,&
+            "CV Ring Puckering: Ring size has to be 4 or larger. "//&
+            CPSourceFileRef)
+       ii = colvar%ring_puckering_param%iq
+       CALL cp_assert( (ABS(ii)/=1 .AND. ii>=-(ndim-1)/2 .AND. ii<=ndim/2) ,&
+            cp_fatal_level,cp_assertion_failed,routineP,&
+            "CV Ring Puckering: Invalid coordinate number. "//&
+            CPSourceFileRef)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -1178,16 +1203,31 @@ CPSourceFileRef)
           WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| Wc          >>> '//tag,&
                colvar%Wc%ids
        CASE(HBP_colvar_id)
-       WRITE ( iw, '( A,T57,I8)' )   ' COLVARS| HBP          >>> NPOINTS',&
+          WRITE ( iw, '( A,T57,I8)' )   ' COLVARS| HBP          >>> NPOINTS',&
                colvar%HBP%nPoints
-       WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| HBP          >>> RCUT',&
+          WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| HBP          >>> RCUT',&
                colvar%HBP%rcut
-       WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| HBP          >>> RCUT',&
+          WRITE ( iw, '( A,T57,F16.8)' )   ' COLVARS| HBP          >>> RCUT',&
                colvar%HBP%shift
-         DO i =1, colvar%HBP%nPoints
-            WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| HBP          >>> '//tag,&
+          DO i =1, colvar%HBP%nPoints
+             WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| HBP          >>> '//tag,&
                colvar%HBP%ids(i,:)
-         ENDDO
+          ENDDO
+       CASE(ring_puckering_colvar_id)
+          WRITE ( iw, '( A,T57,I8)' )   ' COLVARS| Ring Puckering      >>> ring size',&
+               colvar%ring_puckering_param%nring
+          IF (colvar%ring_puckering_param%iq == 0) THEN
+             WRITE ( iw, '( A,T40,A)' )   ' COLVARS| Ring Puckering      >>> coordinate',&
+                                          ' Total Puckering Amplitude'
+          ELSEIF (colvar%ring_puckering_param%iq > 0) THEN
+             WRITE ( iw, '( A,T35,A,T57,I8)' )   ' COLVARS| Ring Puckering      >>> coordinate',&
+                                          ' Puckering Amplitude',&
+               colvar%ring_puckering_param%iq
+          ELSE
+             WRITE ( iw, '( A,T35,A,T57,I8)' )   ' COLVARS| Ring Puckering      >>> coordinate',&
+                                          ' Puckering Angle',&
+               colvar%ring_puckering_param%iq
+          END IF
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -1293,6 +1333,8 @@ CPSourceFileRef)
           CALL xyz_diag_colvar(colvar,cell,particles=particles, error=error)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,particles=particles, error=error)
+       CASE (ring_puckering_colvar_id)
+          CALL ring_puckering_colvar(colvar,cell,particles=particles, error=error)
        CASE (u_colvar_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="need force_env!", error=error, error_level=cp_failure_level)
@@ -1388,6 +1430,8 @@ CPSourceFileRef)
           CALL Wc_colvar(colvar,cell,subsys=subsys, qs_env=qs_env, error=error)
        CASE (HBP_colvar_id)
           CALL HBP_colvar(colvar,cell,subsys=subsys, qs_env=qs_env, error=error)
+       CASE (ring_puckering_colvar_id)
+          CALL ring_puckering_colvar(colvar,cell,subsys=subsys, error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1454,6 +1498,8 @@ CPSourceFileRef)
           CALL xyz_diag_colvar(colvar,cell,particles=particles, error=error)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,particles=particles, error=error)
+       CASE (ring_puckering_colvar_id)
+          CALL ring_puckering_colvar(colvar,cell,particles=particles, error=error)
        CASE (u_colvar_id)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="need force_env!", error=error, error_level=cp_failure_level)
@@ -4420,6 +4466,143 @@ CPSourceFileRef,&
     DEALLOCATE(drmsdB,STAT=istat)
 
   END SUBROUTINE rmsd_ab_colvar
+
+! *****************************************************************************
+!> \brief evaluates the force from ring puckering collective variables
+!>   Cramer and Pople, JACS 97 1354 (1975)
+!> \author JGH
+!> \date 08.2012
+! *****************************************************************************
+  SUBROUTINE  ring_puckering_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ring_puckering_colvar', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: nring, i, ii, m, istat
+    REAL(KIND=dp)                            :: kr, svar, a, b, q, da, db, ds
+    REAL(KIND=dp), DIMENSION(3)              :: r0, rp, rpp, nv, ftmp
+    REAL(KIND=dp), DIMENSION(:), &
+       ALLOCATABLE                           :: z
+    REAL(KIND=dp), DIMENSION(:,:), &
+       ALLOCATABLE                           :: r
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+
+    CPPrecondition(colvar%type_id==ring_puckering_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    nring = colvar%ring_puckering_param%nring 
+    ALLOCATE (r(3,nring),z(nring),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ii = 1,nring
+       i=colvar%ring_puckering_param%atoms(ii)
+       CALL get_coordinates(colvar, i, r(:,ii), my_particles)
+    END DO
+    ! get all atoms within PBC distance of atom 1
+    r0(:) = r(:,1)
+    DO ii = 1,nring
+       r(:,ii) = pbc(r(:,ii),r0,cell)
+    END DO
+    !compute origin position
+    r0 = 0.0_dp
+    DO ii = 1,nring
+       r0(:) = r0(:) + r(:,ii)
+    END DO
+    kr = 1._dp/REAL(nring,KIND=dp)
+    r0(:) = r0(:)*kr
+    DO ii = 1,nring
+       r(:,ii) = r(:,ii) - r0(:)
+    END DO
+    ! orientation vectors
+    rp = 0._dp
+    rpp = 0._dp
+    DO ii = 1,nring
+       rp(:) = rp(:) + r(:,ii)*SIN(twopi*(ii-1)*kr)
+       rpp(:) = rpp(:) + r(:,ii)*COS(twopi*(ii-1)*kr)
+    END DO
+    nv = vector_product(rp,rpp)
+    nv = nv/SQRT(SUM(nv**2))
+    ! molecular z-coordinate
+    DO ii = 1,nring
+       z(ii) = SUM(r(:,ii)*nv(:))
+    END DO
+
+    IF(colvar%ring_puckering_param%iq == 0) THEN
+       ! total puckering amplitude
+       svar = SQRT(SUM(z**2))
+       DO ii = 1,nring
+          ftmp(:) = z(ii)/svar*nv(:)
+          CALL put_derivative(colvar, ii, ftmp)
+       END DO
+    ELSE
+       m = ABS(colvar%ring_puckering_param%iq)
+       CPPrecondition(m/=1,cp_failure_level,routineP,error,failure)
+       IF(MOD(nring,2)==0 .AND. colvar%ring_puckering_param%iq == nring/2) THEN
+          ! single puckering amplitude
+          svar = 0._dp
+          DO ii = 1,nring
+             IF(MOD(ii,2)==0) THEN
+                svar = svar - z(ii)
+                ftmp(:) = -nv(:)*SQRT(kr)
+             ELSE
+                svar = svar + z(ii)
+                ftmp(:) = nv(:)*SQRT(kr)
+             END IF
+             CALL put_derivative(colvar, ii, ftmp)
+          END DO
+          svar = svar*SQRT(kr)
+       ELSE
+          CPPrecondition(m<=(nring-1)/2,cp_failure_level,routineP,error,failure)
+          a = 0._dp
+          b = 0._dp
+          DO ii = 1,nring
+             a = a + z(ii)*COS(twopi*m*(ii-1)*kr)
+             b = b - z(ii)*SIN(twopi*m*(ii-1)*kr)
+          END DO
+          a = a*SQRT(2._dp*kr)
+          b = b*SQRT(2._dp*kr)
+          IF(colvar%ring_puckering_param%iq > 0) THEN
+             ! puckering amplitude
+             svar = SQRT(a*a+b*b)
+             da = a/svar 
+             db = b/svar 
+          ELSE 
+             ! puckering phase angle
+             svar = ATAN2(b,a) + pi
+             da = b/(a*a+b*b)
+             db = -a/(a*a+b*b)
+          END IF
+          DO ii = 1,nring
+             ds = da*COS(twopi*m*(ii-1)*kr)
+             ds = ds - db*SIN(twopi*m*(ii-1)*kr)
+             ftmp(:) = nv(:)*ds*SQRT(2._dp*kr)
+             CALL put_derivative(colvar, ii, ftmp)
+          END DO
+       END IF
+    END IF
+
+    colvar%ss=svar
+
+    DEALLOCATE (r,z,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE  ring_puckering_colvar
 
 ! *****************************************************************************
 !> \brief used to print reaction_path function values on an arbitrary dimensional grid

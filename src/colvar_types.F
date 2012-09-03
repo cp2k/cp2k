@@ -73,6 +73,7 @@ MODULE colvar_types
             xyz_outerdiag_colvar_type,&
             Wc_colvar_type,&
             HBP_colvar_type,&
+            ring_puckering_colvar_type,&
             u_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
@@ -96,7 +97,8 @@ MODULE colvar_types
                                 xyz_outerdiag_colvar_id       = 18,&
                                 u_colvar_id                   = 19,&
                                 Wc_colvar_id                  = 20,&
-                                hbp_colvar_id                 = 21
+                                hbp_colvar_id                 = 21,&
+                                ring_puckering_colvar_id      = 22
 
 
 ! *****************************************************************************
@@ -280,20 +282,29 @@ MODULE colvar_types
      INTEGER       :: natom
   END TYPE u_colvar_type
 
-
+! *****************************************************************************
   TYPE Wc_colvar_type
     INTEGER                         :: ids(3) ! first is the Od, second the H, third the Oa
     REAL(KIND=dp)                   :: ewc
     REAL(KIND=dp)                   :: rcut
   END TYPE Wc_colvar_type
 
+! *****************************************************************************
   TYPE HBP_colvar_type
     INTEGER                         :: nPoints ! number of the points in the path
-    INTEGER, POINTER                :: ids(:,:) ! first is the Od, second the H, third the Oa and contains a row for each intermediate point in the path
+    INTEGER, POINTER                :: ids(:,:) ! first is the Od, second the H, 
+                                                ! third the Oa and contains a row for each intermediate point in the path
     REAL(KIND=dp),POINTER           :: ewc(:) ! one for each point in the path
     REAL(KIND=dp)                   :: rcut
     REAL(KIND=dp)                   :: shift  ! shift applied for each term in the collective variable
   END TYPE HBP_colvar_type
+
+! *****************************************************************************
+  TYPE ring_puckering_colvar_type
+     INTEGER                         :: nring
+     INTEGER, POINTER, DIMENSION (:) :: atoms
+     INTEGER                         :: iq
+  END TYPE ring_puckering_colvar_type
 
 ! *****************************************************************************
 !> \brief parameters for a collective variable
@@ -328,6 +339,7 @@ MODULE colvar_types
      TYPE(point_type), DIMENSION(:), POINTER     :: points
      TYPE(Wc_colvar_type), POINTER               :: Wc
      TYPE(HBP_colvar_type), POINTER              :: HBP
+     TYPE(ring_puckering_colvar_type), POINTER   :: ring_puckering_param
   END TYPE colvar_type
 
 ! *****************************************************************************
@@ -358,6 +370,7 @@ MODULE colvar_types
      INTEGER :: ntot
      INTEGER :: nWc
      INTEGER :: nHBP
+     INTEGER :: nring_puckering
   END TYPE colvar_counters
 
 CONTAINS
@@ -408,6 +421,7 @@ CONTAINS
     NULLIFY(colvar%dsdr)
     NULLIFY(colvar%i_atom)
     NULLIFY(colvar%Wc)
+    NULLIFY(colvar%ring_puckering_param)
     IF (.NOT.failure) THEN
        colvar%type_id    = colvar_id
        colvar%use_points = .FALSE.
@@ -480,6 +494,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(HBP_colvar_id)
           ALLOCATE(colvar%HBP, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(ring_puckering_colvar_id)
+          ALLOCATE(colvar%ring_puckering_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -1002,6 +1019,24 @@ CPSourceFileRef)
             ENDDO
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(ring_puckering_colvar_id)
+          np = colvar%ring_puckering_param%nring
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%ring_puckering_param%nring
+             i = colvar%ring_puckering_param%atoms(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%ring_puckering_param%nring
+             idum = idum + 1
+             i = colvar%ring_puckering_param%atoms(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(combine_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1263,6 +1298,9 @@ CPSourceFileRef)
        DEALLOCATE(colvar%HBP%ids, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(colvar%HBP, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (ring_puckering_colvar_id)
+       DEALLOCATE(colvar%ring_puckering_param%atoms, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
@@ -1597,6 +1635,13 @@ CPSourceFileRef)
        colvar_out%HBP%nPoints   = colvar_in%HBP%nPoints
        colvar_out%HBP%rcut   = colvar_in%HBP%rcut
        colvar_out%HBP%shift   = colvar_in%HBP%shift
+     CASE(ring_puckering_colvar_id)
+       ndim = colvar_in%ring_puckering_param%nring
+       colvar_out%ring_puckering_param%nring = colvar_in%ring_puckering_param%nring
+       colvar_out%ring_puckering_param%iq    = colvar_in%ring_puckering_param%iq
+       ALLOCATE(colvar_out%ring_puckering_param%atoms(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%ring_puckering_param%atoms = colvar_in%ring_puckering_param%atoms + my_offset
     END SELECT
     CALL colvar_setup(colvar_out, error)
   END SUBROUTINE colvar_clone

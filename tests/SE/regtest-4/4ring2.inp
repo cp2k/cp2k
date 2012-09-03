@@ -1,0 +1,90 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM3
+      &SE
+      &END SE
+    &END QS
+    &SCF
+      MAX_SCF 50
+      EPS_SCF 1.0E-5
+      &OT ON
+        MINIMIZER DIIS
+        PRECONDITIONER NONE
+      &END OT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+C       0.0000 	1.0829 	0.1339
+C 	0.0000 	-1.0829 0.1339
+C 	-1.0829 0.0000 	-0.1339
+C 	1.0829 	0.0000 	-0.1339
+H 	0.0000 	1.3984 	1.1917
+H 	0.0000 	1.9863 	-0.4993
+H 	0.0000 	-1.3984 1.1917
+H 	0.0000 	-1.9863 -0.4993
+H 	-1.3984 0.0000 	-1.1917
+H 	-1.9863 0.0000 	0.4993
+H 	1.3984 	0.0000 	-1.1917
+H 	1.9863 	0.0000 	0.4993
+    &END COORD
+       
+     &COLVAR
+       &RING_PUCKERING
+           ATOMS 1 2 3 4
+           COORDINATE      2
+       &END RING_PUCKERING
+     &END COLVAR
+     
+  &END SUBSYS
+&END FORCE_EVAL
+&MOTION
+   &MD
+      ENSEMBLE NVE
+      STEPS 10
+      TIMESTEP 0.3
+      TEMPERATURE 300
+      &PRINT
+         &ENERGY
+         &END ENERGY
+      &END PRINT
+   &END MD
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS T
+      NT_HILLS 1
+      WW 1.0e-3
+      &METAVAR
+        SCALE 0.1
+        COLVAR  1
+      &END METAVAR
+      &PRINT
+       &COLVAR
+        &EACH
+          METADYNAMICS 1
+        &END
+        COMMON_ITERATION_LEVELS 10
+       &END COLVAR
+       &HILLS
+        &EACH
+          METADYNAMICS 1
+        &END
+        COMMON_ITERATION_LEVELS 10
+       &END HILLS
+      &END
+    &END METADYN
+  &END FREE_ENERGY
+&END MOTION
+&GLOBAL
+  PROJECT colvar
+   PRINT_LEVEL LOW
+   PROGRAM CP2K
+   RUN_TYPE md
+   ECHO_INPUT
+&END GLOBAL
