@@ -2,4 +2,8 @@
 export LANG=C
 export LC_MESSAGES=C
 export LC_ALL=C
-svn info $1 | grep "Last Changed Rev: " | cut -d: -f2
+if [[ -s $1/../REVISION ]]; then
+  cat $1/../REVISION
+else
+  svn info $1 | grep "Last Changed Rev: " | cut -d: -f2
+fi
