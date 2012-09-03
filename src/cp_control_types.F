@@ -265,6 +265,8 @@ MODULE cp_control_types
                                                      progression_factor,&
                                                      relative_cutoff
     LOGICAL                                       :: do_ls_scf
+    LOGICAL                                       :: do_kg
+    LOGICAL                                       :: molecular
     LOGICAL                                       :: commensurate_mgrids
     LOGICAL                                       :: realspace_mgrids
     LOGICAL                                       :: map_consistent

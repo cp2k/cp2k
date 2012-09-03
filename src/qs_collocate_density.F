@@ -1641,7 +1641,7 @@ END SUBROUTINE calculate_rho_metal
 
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          IF (.NOT.ASSOCIATED(p_block)) &
+          IF (.NOT.ASSOCIATED(p_block)) & 
              CALL stop_program(routineN,moduleN,__LINE__,&
                                "p_block not associated in deltap")
 

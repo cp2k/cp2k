@@ -11,13 +11,14 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Blochl1995, Dewar1977, Dewar1985, Dudarev1997, &
+       Avezac2005, Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
        Dudarev1998, Elstner1998, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
-       Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, &
-       Lippert1997, Lippert1999, Perdew1981, Porezag1995, Repasky2002, &
-       Rocha2006, Schenter2008, Seifert1996, Stewart1982, Stewart1989, &
-       Stewart2007, Thiel1992, VandeVondele2003, VandeVondele2005a, &
-       VandeVondele2005b, VandeVondele2006, Weber2008, Zhechkov2005
+       Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
+       Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
+       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
+       Stewart1989, Stewart2007, Thiel1992, VandeVondele2003, &
+       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+       Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -392,6 +393,10 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
     CALL create_ls_scf_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_kg_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -2415,6 +2420,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="KG_METHOD",&
+            description="Use a Kim-Gordon-like scheme. MOLECULAR .TRUE. is mandatory to get useful results.",&
+            usage="KG_METHOD",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,citations=(/Iannuzzi2006, Brelaz1979/),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLECULAR",&
+            description="Partition the system into molecular blocks",&
+            usage="MOLECULAR",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAP_CONSISTENT",&
             description="Compute the exact derivative (Hks) of the energy with respect to the density matrix. "//&
                         "This is slightly more expensive than using an approximate computation, "//&
@@ -4386,6 +4405,73 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_scf_section
+
+! *****************************************************************************
+!> \brief creates the KG section
+!> \author Martin Haeufel [2012.07]
+! *****************************************************************************
+  SUBROUTINE create_kg_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_kg_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"KG_METHOD",&
+            description="Specifies the parameters for a Kim-Gordon-like partitioning"//&
+                        "into molecular subunits",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Iannuzzi2006, Brelaz1979/),error=error)
+      
+       NULLIFY (keyword, subsection, print_key)
+ 
+       CALL section_create(subsection, name="PRINT",&
+            description="Print section",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
+            description="Controls the printing of the neighbor lists.", &
+            print_level=low_print_level, filename="__STD_OUT__", unit_str="angstrom",&
+            error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="SAB_ORB_FULL",&
+            description="Activates the printing of the full orbital "//&
+            "orbital neighbor lists.", &
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="SAB_ORB_MOLECULAR",&
+            description="Activates the printing of the orbital "//&
+            "orbital neighbor lists for molecular subsets.",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+    END IF
+
+  END SUBROUTINE create_kg_section
 
 ! *****************************************************************************
 !> \brief creates the linear scaling scf section

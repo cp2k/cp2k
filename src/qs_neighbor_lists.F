@@ -88,7 +88,6 @@ MODULE qs_neighbor_lists
 
 ! *****************************************************************************
   TYPE local_atoms_type
-    PRIVATE
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
                                                         list_local_b_index,&
@@ -104,8 +103,8 @@ MODULE qs_neighbor_lists
   INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr=0
 
   ! Public subroutines
-  PUBLIC :: build_qs_neighbor_lists, local_atoms_type, atom2d_cleanup, atom2d_build, build_neighbor_lists, pair_radius_setup
-
+  PUBLIC :: build_qs_neighbor_lists, local_atoms_type, atom2d_cleanup, atom2d_build, build_neighbor_lists, pair_radius_setup,&
+            write_neighbor_lists
 CONTAINS
 
 ! *****************************************************************************
@@ -213,17 +212,11 @@ CONTAINS
 
        natom_a = SIZE(atom2d(ikind)%list)
 
-       IF ( molecule_only ) THEN
-          natom_local_a = distribution_1d%n_el(ikind)
-          natom_local_b = distribution_1d%n_el(ikind)
-          local_rows_array => distribution_1d%list(ikind)%array
-          local_cols_array => distribution_1d%list(ikind)%array
-       ELSE
-          natom_local_a = distribution_2d%n_local_rows(ikind)
-          natom_local_b = distribution_2d%n_local_cols(ikind)
-          local_rows_array => distribution_2d%local_rows(ikind)%array
-          local_cols_array => distribution_2d%local_cols(ikind)%array
-       END IF
+
+       natom_local_a = distribution_2d%n_local_rows(ikind)
+       natom_local_b = distribution_2d%n_local_cols(ikind)
+       local_rows_array => distribution_2d%local_rows(ikind)%array
+       local_cols_array => distribution_2d%local_cols(ikind)%array
 
        nel = distribution_1d%n_el(ikind)
        ALLOCATE (atom2d(ikind)%list_1d(nel),STAT=stat)
@@ -866,7 +859,8 @@ CONTAINS
 !> \version 2.0
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab_list,particle_set,atom,cell,pair_radius,subcells,&
-                                  mic,symmetric,molecular,operator_type,name,error)
+                                  mic,symmetric,molecular,subset_of_mol,current_subset,&
+                                  operator_type,name,error)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab_list
@@ -878,6 +872,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pair_radius
     REAL(dp), INTENT(IN)                     :: subcells
     LOGICAL, INTENT(IN), OPTIONAL            :: mic, symmetric, molecular
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: subset_of_mol
+    INTEGER, OPTIONAL                        :: current_subset
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: operator_type
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -920,8 +916,6 @@ CONTAINS
     my_molecular = .FALSE.
     ! if we have a molecular NL, MIC has to be used
     IF (PRESENT(molecular)) my_molecular = molecular
-        ! This might be an option, but cannot be used with the old KG code
-        ! IF (my_molecular) my_mic = .TRUE.
     ! check for operator types
     IF (PRESENT(operator_type)) THEN
       SELECT CASE (operator_type)
@@ -1114,7 +1108,12 @@ CONTAINS
         DO jatom_local=1,nlistb(jkind)
           jatom = listb(jkind)%list(jatom_local)
           atom_b = atom(jkind)%list(jatom)
-          IF (my_molecular) mol_b = atom(jkind)%list_b_mol(jatom_local)
+          IF (my_molecular) THEN
+            mol_b = atom(jkind)%list_b_mol(jatom_local)
+            IF (PRESENT(subset_of_mol)) THEN 
+              IF (subset_of_mol(mol_b).NE.current_subset) CYCLE
+            END IF
+          END IF
           r = r_pbc(:,atom_b)
           CALL real_to_scaled(sb_pbc(:),r(:),cell)
 

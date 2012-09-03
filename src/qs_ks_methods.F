@@ -81,6 +81,7 @@ MODULE qs_ks_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
+  USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -355,7 +356,7 @@ CONTAINS
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
       failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
       my_print, scp_dft, uniform_occupation, use_virial
-    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, &
+    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, ekin_mol, &
                                                 mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -397,6 +398,10 @@ CONTAINS
                                                 hfx_sections, input, &
                                                 scf_section, xc_section
     TYPE(virial_type), POINTER               :: virial
+    REAL(KIND=dp),DIMENSION(:), POINTER      :: ekin_of_mol, ekin_of_subset
+    REAL(KIND=dp)                            :: ekin, maxerror, sumerror
+    INTEGER                                  :: isub, imol, jmol
+
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -732,6 +737,17 @@ CONTAINS
           END DO
        ENDIF
 
+       ! calculate KG correction
+       IF (qs_env%dft_control%qs_control%do_kg.AND.just_energy) THEN
+
+         CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, v_tau_rspace, ekin_mol, &
+                             calculate_forces, error)
+
+         ! substract kg corr from the total energy
+         energy%exc = energy%exc - ekin_mol
+
+       END IF  
+
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
           IF (calculate_forces ) THEN
@@ -763,6 +779,16 @@ CONTAINS
                 v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
                 v_efield_rspace,v_sic_rspace,v_spin_ddapc_rest_r,&
                 becke,calculate_forces,error=error)
+
+          IF (qs_env%dft_control%qs_control%do_kg) THEN
+       
+            CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, v_tau_rspace, ekin_mol, &
+                                calculate_forces, error)
+
+            ! substract kg corr from the total energy
+            energy%exc = energy%exc - ekin_mol
+
+          END IF
 
        END IF  ! .NOT. just energy
 

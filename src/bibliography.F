@@ -45,7 +45,7 @@ MODULE bibliography
              Krack2002, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Toukmaji1996, Martyna1999,&
              VandeVondele2005b, Perdew1981,Avezac2005, Porezag1995, &
              Seifert1996, Elstner1998, Zhechkov2005, Henkelman1999,&
-             Frigo2005, Nose1984a, Nose1984b, Bussi2007,Genovese2006,&
+             Frigo2005, Nose1984a, Nose1984b, Brelaz1979, Bussi2007,Genovese2006,&
              Genovese2007,Evans1983,Minary2003,Byrd1995,&
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
@@ -71,6 +71,21 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Brelaz1979, ISI_record=s2a(&
+         "PT J",&
+         "AU Brelaz, D",&
+         "TI New methods to color the vertices of a graph",&
+         "SO COMMUNICATIONS OF THE ACM",&
+         "SN 0001-0782",&
+         "PY 1979",&
+         "VL 22",&
+         "IS 4",&
+         "BP 251",&
+         "EP 256",&
+         "UT WOS:A1979GR73200004",&
+         "ER"),&
+         DOI="10.1145/359094.359101")
 
     CALL add_reference(key=Foiles1986, ISI_record=s2a(&
          "AU FOILES, SM",&

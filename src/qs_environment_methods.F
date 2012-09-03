@@ -71,6 +71,7 @@ MODULE qs_environment_methods
                                              scp_environment_type
   USE task_list_methods,               ONLY: generate_qs_task_list
   USE task_list_types,                 ONLY: allocate_task_list,&
+                                             deallocate_task_list,&
                                              task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -349,6 +350,50 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       CALL pw_transfer(qs_env%rho_nlcc%pw,qs_env%rho_nlcc_g%pw,error=error)
     ENDIF
 
+    ! allocates and creates the task_list
+    CALL qs_create_task_list(qs_env, error)
+
+    ! *** environment for ddapc ***
+    IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+       CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
+    END IF
+    CALL cp_ddapc_init(qs_env, error)
+
+    ! *** tell ks_env ***
+    IF (ASSOCIATED(qs_env%ks_env)) THEN
+       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
+            error=error)
+    END IF
+    !   *** Updates rho structure ***
+    CALL qs_env_rebuild_rho(qs_env=qs_env,error=error)
+
+    ! *** tell scf_env ***
+    IF (ASSOCIATED(qs_env%scf_env)) THEN
+       CALL scf_env_did_change(qs_env%scf_env,&
+            error=error)
+    END IF
+
+    CALL timestop(handle)
+
+END SUBROUTINE qs_env_update_s_mstruct
+
+SUBROUTINE qs_create_task_list(qs_env, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_create_task_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, isub
+    LOGICAL                                  :: failure, skip_load_balance_distributed, soft_valid
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(task_list_type), POINTER            :: task_list 
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    dft_control => qs_env%dft_control
+
     skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) ) THEN
        ! generate task lists (non-soft)
@@ -387,29 +432,33 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
                  skip_load_balance_distributed=skip_load_balance_distributed, error=error)
     END IF
 
-    ! *** environment for ddapc ***
-    IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
-       CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
-    END IF
-    CALL cp_ddapc_init(qs_env, error)
+    IF (dft_control%qs_control%do_kg) THEN
+      soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
 
-    ! *** tell ks_env ***
-    IF (ASSOCIATED(qs_env%ks_env)) THEN
-       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
-            error=error)
-    END IF
-    !   *** Updates rho structure ***
-    CALL qs_env_rebuild_rho(qs_env=qs_env,error=error)
+      IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
+        DO isub=1,qs_env%kg_env%nsubsets
+          IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
+            CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
+        END DO
+      ELSE
+        ALLOCATE(qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
+      END IF
 
-    ! *** tell scf_env ***
-    IF (ASSOCIATED(qs_env%scf_env)) THEN
-       CALL scf_env_did_change(qs_env%scf_env,&
-            error=error)
+      DO isub=1, qs_env%kg_env%nsubsets
+
+        CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
+
+        CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
+             reorder_rs_grid_ranks=.TRUE., soft_valid = soft_valid, &
+             skip_load_balance_distributed=skip_load_balance_distributed, error=error)
+
+      END DO
+
     END IF
 
     CALL timestop(handle)
 
-END SUBROUTINE qs_env_update_s_mstruct
+END SUBROUTINE qs_create_task_list
 
 ! *****************************************************************************
 !> \brief rebuilds the pw_env in the given qs_env, allocating it if necessary

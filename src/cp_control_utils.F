@@ -554,6 +554,8 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)
 
     CALL section_vals_val_get(qs_section,"LS_SCF",l_val=qs_control%do_ls_scf,error=error)
+    CALL section_vals_val_get(qs_section,"KG_METHOD",l_val=qs_control%do_kg,error=error)
+    CALL section_vals_val_get(qs_section,"MOLECULAR",l_val=qs_control%molecular,error=error)
 
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)

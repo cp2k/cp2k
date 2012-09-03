@@ -317,6 +317,10 @@ OBJECTS_GENERIC =\
  iterate_matrix.o\
  k290.o\
  kahan_sum.o\
+ kg_correction.o\
+ kg_environment.o\
+ kg_environment_types.o\
+ kg_vertex_coloring_methods.o\
  kinds.o\
  lapack.o\
  lazy.o\

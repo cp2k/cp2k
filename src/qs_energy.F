@@ -10,6 +10,7 @@
 !> \author MK (29.10.2002)
 ! *****************************************************************************
 MODULE qs_energy
+  USE kg_environment,                  ONLY: kg_env_init_mol_blocks
   USE atprop_types,                    ONLY: atprop_array_add,&
                                              atprop_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -34,7 +35,11 @@ MODULE qs_energy
                                              ehrenfest
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE kg_environment,                  ONLY: kg_build_neighborlist,&
+                                             kg_build_subsets
   USE kinds,                           ONLY: dp
+  USE molecule_types_new,              ONLY: molecule_of_atom,&
+                                             molecule_type
   USE mp2
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
@@ -147,8 +152,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspin
-    LOGICAL                                  :: do_et, has_unit_metric
+    INTEGER                                  :: handle, ispin, isubset, &
+                                                natom, nspin
+    LOGICAL                                  :: do_et, has_unit_metric, &
+                                                molecule_only
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
@@ -158,6 +165,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
@@ -169,10 +178,48 @@ CONTAINS
     para_env=>qs_env%para_env
     NULLIFY(matrix_w)
 
-    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
-                     error=error)
+    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, error=error)
 
-    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
+    ! create neighbor lists with molecular blocks ?
+    molecule_only = (qs_env%dft_control%qs_control%molecular .OR. qs_env%dft_control%qs_control%do_kg)
+
+    IF (qs_env%dft_control%qs_control%do_kg) THEN
+
+      ! get the set of molecules
+      CALL get_qs_env(qs_env=qs_env, molecule_set=molecule_set, natom=natom, error=error)
+
+      qs_env%kg_env%natom = natom
+   
+      ! store set of molecules in kg_env
+      qs_env%kg_env%molecule_set => molecule_set
+
+      ! build the (new) full neighborlist
+      CALL kg_build_neighborlist(qs_env%kg_env, qs_env, qs_env%kg_env%sab_orb_full, error=error)
+
+      ! allocate the subset list
+      IF (.NOT.ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE(qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
+
+      IF (.NOT.ALLOCATED(qs_env%kg_env%atom_to_molecule)) THEN
+        ALLOCATE(qs_env%kg_env%atom_to_molecule(natom))
+
+        ! get the mapping from atoms to molecules
+        CALL molecule_of_atom(molecule_set, atom_to_mol=qs_env%kg_env%atom_to_molecule, error=error)
+      END IF
+
+      CALL kg_build_subsets(qs_env%kg_env, qs_env%para_env, error)
+
+      DO isubset=1,qs_env%kg_env%nsubsets
+
+        ! build the (new) molecular neighborlist of the current subset
+        CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
+                                   qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
+                                   subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset, error=error)
+      END DO
+
+    END IF
+
+    ! create neighbor lists for standard use in QS
+    CALL build_qs_neighbor_lists(qs_env,para_env,molecular=molecule_only,force_env_section=input,error=error)
     qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
@@ -218,6 +265,12 @@ CONTAINS
        END IF
 
     END IF
+
+
+    IF (qs_env%dft_control%qs_control%do_kg) THEN
+      ! create list of molecular blocks if needed
+      CALL kg_env_init_mol_blocks(qs_env%kg_env, qs_env, error)
+    ENDIF
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,&
          dft_control=dft_control, has_unit_metric=has_unit_metric, error=error)
