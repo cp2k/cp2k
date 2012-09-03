@@ -1,0 +1,89 @@
+ ============================================================================
+ Protocol for the creation of a CP2K release (branch) version (MK,03.09.2012)
+ ============================================================================
+
+ 1. Agreement about a new release branch (2.3 in this case) among the CP2K developers
+
+ 2. Check if the following requirements for the release are fulfilled:
+    a) Clean g95 and gfortran popt regtest
+    b) Successful build and clean regtest of a gfortran sdbg, sopt, popt, pdbg, ssmp, and psmp version
+    c) Clean valgrind gfortran sdbg regtest
+    d) Check the SMP executables with H2O-32 benchmark input, e.g. using the script
+#!/bin/sh
+cwd=$PWD
+cd cp2k/tests/QS/benchmark
+#
+../../../tools/clean_cwd.sh
+export OMP_NUM_THREADS=1
+mpiexec -np 8 ../../../exe/merlin-gnu/cp2k.popt H2O-32.inp >${cwd}/H2O-32-popt-8-1.out
+#
+../../../tools/clean_cwd.sh
+export OMP_NUM_THREADS=1
+mpiexec -np 8 ../../../exe/merlin-gnu/cp2k.psmp H2O-32.inp >${cwd}/H2O-32-psmp-8-1.out
+#
+../../../tools/clean_cwd.sh
+export OMP_NUM_THREADS=2
+mpiexec -np 4 ../../../exe/merlin-gnu/cp2k.psmp H2O-32.inp >${cwd}/H2O-32-psmp-4-2.out
+#
+../../../tools/clean_cwd.sh
+export OMP_NUM_THREADS=4
+mpiexec -np 2 ../../../exe/merlin-gnu/cp2k.psmp H2O-32.inp >${cwd}/H2O-32-psmp-2-4.out
+#
+../../../tools/clean_cwd.sh
+export OMP_NUM_THREADS=8
+mpiexec -np 1 ../../../exe/merlin-gnu/cp2k.psmp H2O-32.inp >${cwd}/H2O-32-psmp-1-8.out
+#
+../../../tools/clean_cwd.sh
+export OMP_NUM_THREADS=8
+              ../../../exe/merlin-gnu/cp2k.ssmp H2O-32.inp >${cwd}/H2O-32-ssmp-1-8.out
+#
+cd ${cwd}
+
+ 3. Create a new branch directory on the SVN server using
+
+    svn mkdir https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch
+
+    Description text: "Creating CP2K release branch 2.3"
+
+ 4. Copy the current CP2K version from the trunk using
+
+    svn copy -m "Creating CP2K release branch 2.3" \
+        https://cp2k.svn.sourceforge.net/svnroot/cp2k/trunk/cp2k \
+        https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch/cp2k
+
+ 5. Check the release version out using
+
+    svn co https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch
+
+ 6. a) Change cp2k_info.F (comment/uncomment release/branch line),
+    b) create a file cp2k/REVISION with the revision number of the release branch
+    c) Commit the change with:
+       cd cp2k-2_3-branch/cp2k
+       svn add REVISION
+       svn co  REVISION
+
+ 7. Compile the release branch version (and optionally run a regtest)
+
+ 8. Create a new manual directory on "cp2k.org":public_html/manual/cp2k-2_3-branch
+
+ 9. Change and run update_manual script in cp2k/web/manual/
+
+10. Export the release branch using
+
+    svn export https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch cp2k-2_3-branch_exported
+
+11. Check the exported branch release (just compile or even run a regtest)
+
+12. Perform a clean checkout of the release branch using
+
+    svn export https://cp2k.svn.sourceforge.net/svnroot/cp2k/branches/cp2k-2_3-branch/cp2k cp2k-2.3
+
+13. Create a bzip2 tar file using
+
+    tar -cjf cp2k-2.3.tar.bz2 cp2k-2.3
+
+14. Upload the tar file to sourceforge to make it appear in the list under "Files" for download using
+
+    scp cp2k-2.3.tar.bz2 "username"@frs.sourceforge.net:/home/frs/project/cp2k/
+
+15. Update the web links on www.cp2k.org correspondingly
