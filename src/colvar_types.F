@@ -1302,6 +1302,8 @@ CPSourceFileRef)
     CASE (ring_puckering_colvar_id)
        DEALLOCATE(colvar%ring_puckering_param%atoms, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%ring_puckering_param, stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
