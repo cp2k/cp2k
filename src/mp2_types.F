@@ -84,6 +84,7 @@ MODULE mp2_types
        INTEGER                  :: print_level
        REAL(KIND=dp)            :: cutoff
        REAL(KIND=dp)            :: relative_cutoff
+       LOGICAL                  :: do_ri_mp2
   END TYPE mp2_gpw_type
 
   TYPE mp2_type

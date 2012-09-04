@@ -229,6 +229,16 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RI_MP2",&
+            variants=(/"DO_RI_MP2"/),&
+            description="Perform MP2-GPW calculation with resolution of identity (RI) approximation.",&
+            usage="RI_MP2",required=.FALSE.,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PRINT_LEVEL",&
             variants=(/"IOLEVEL"/),&
             description="How much output is written by the individual groups.",&

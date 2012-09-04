@@ -77,6 +77,8 @@ CONTAINS
                               r_val=mp2_env%mp2_gpw%relative_cutoff, error=error)
     CALL section_vals_val_get(mp2_section,"MP2_GPW%PRINT_LEVEL",&
                               i_val=mp2_env%mp2_gpw%print_level, error=error)
+    CALL section_vals_val_get(mp2_section,"MP2_GPW%DO_RI_MP2",&
+                              l_val=mp2_env%mp2_gpw%do_ri_mp2,error=error)
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&
@@ -87,7 +89,11 @@ CONTAINS
        CASE(mp2_method_direct)
          WRITE(unit_nr,'(T2,A)') "MP2| using direct canonical MP2"
        CASE(mp2_method_gpw)
-         WRITE(unit_nr,'(T2,A)') "MP2| using MP2 GPW style"
+         IF(.NOT.mp2_env%mp2_gpw%do_ri_mp2) THEN
+           WRITE(unit_nr,'(T2,A)') "MP2| using MP2 GPW style"
+         ELSE
+           WRITE(unit_nr,'(T2,A)') "MP2| using RI-MP2-GPW"
+         END IF
        CASE DEFAULT
          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT

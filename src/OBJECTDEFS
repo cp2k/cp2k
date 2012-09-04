@@ -375,6 +375,7 @@ OBJECTS_GENERIC =\
  moments_utils.o\
  motion_utils.o\
  mp2_direct_method.o\
+ mp2_ri_gpw.o\
  mp2_gpw.o\
  mp2.o\
  mp2_setup.o\

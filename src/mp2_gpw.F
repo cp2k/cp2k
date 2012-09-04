@@ -75,6 +75,8 @@ MODULE mp2_gpw
                                              mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE mp2_ri_gpw,                      ONLY: mp2_ri_gpw_compute_en,&
+                                             mp2_ri_gpw_compute_in
   USE mp2_types,                       ONLY: mp2_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -149,9 +151,11 @@ MODULE mp2_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_gpw_main', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, handle, homo, &
-      homo_beta, i, i_multigrid, local_unit_nr, n_multigrid, nao, natom, &
-      nelectron, nelectron_beta, nkind, nmo, nspins, stat
+    INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, &
+      handle, homo, homo_beta, i, i_multigrid, local_unit_nr, n_multigrid, &
+      nao, natom, nelectron, nelectron_beta, nkind, nmo, nspins, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
+      sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: blacs_repeatable, failure, &
                                                 skip_load_balance_distributed
@@ -163,6 +167,8 @@ MODULE mp2_gpw
       progression_factor, relative_cutoff_old, subcells
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: BIb_C
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -417,52 +423,60 @@ MODULE mp2_gpw
     ! now we're kind of ready to go....
     Emp2_S=0.0_dp
     Emp2_T=0.0_dp
-    IF(nspins==2) THEN
-      ! alpha-alpha and alpha-beta components
-      IF (unit_nr>0) WRITE(unit_nr,*)
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Alpha (ia|'
-      CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                           atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
-                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                           mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub,&
-                           homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
+    IF(mp2_env%mp2_gpw%do_ri_mp2) THEN
+      ! RI-MP2-GPW compute integrals
+      CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                 dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                                 atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
+                                 mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                                 mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                 mp2_env%mp2_memory,calc_ex,error,blacs_env_sub,error_sub)
+    ELSE
+      ! Canonical MP2-GPW
+      IF(nspins==2) THEN
+        ! alpha-alpha and alpha-beta components
+        IF (unit_nr>0) WRITE(unit_nr,*)
+        IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Alpha (ia|'
+        CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                             atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
+                             mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                             mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                             mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub,&
+                             homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
 
-      Emp2_Cou=Emp2_Cou*0.25_dp
-      Emp2_EX=Emp2_EX*0.5_dp
+        Emp2_Cou=Emp2_Cou*0.25_dp
+        Emp2_EX=Emp2_EX*0.5_dp
 
-      ! beta-beta component
-      IF (unit_nr>0) WRITE(unit_nr,*)
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Beta (ia|'
-      CALL mp2_gpw_compute(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                           atomic_kind_set,mo_coeff_beta,Eigenval_beta,nmo,homo_beta,rho_r,rho_g,pot_g,&
-                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                           mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                           mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
-      
-      Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
-      Emp2_EX_BB=Emp2_EX_BB*0.5_dp
+        ! beta-beta component
+        IF (unit_nr>0) WRITE(unit_nr,*)
+        IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Beta (ia|'
+        CALL mp2_gpw_compute(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                             atomic_kind_set,mo_coeff_beta,Eigenval_beta,nmo,homo_beta,rho_r,rho_g,pot_g,&
+                             mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                             mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                             mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
+        
+        Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
+        Emp2_EX_BB=Emp2_EX_BB*0.5_dp
 
-      Emp2_S=Emp2_AB
-      Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
+        Emp2_S=Emp2_AB
+        Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
 
-      Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
-      Emp2_EX=Emp2_EX+Emp2_EX_BB
-      Emp2=Emp2_EX+Emp2_Cou
+        Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
+        Emp2_EX=Emp2_EX+Emp2_EX_BB
+        Emp2=Emp2_EX+Emp2_Cou
 
-    ELSE 
-      ! closed shell case
-      CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                           atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
-                           mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                           mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                           mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
+      ELSE 
+        ! closed shell case
+        CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                             atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
+                             mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                             mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                             mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
+      END IF
     END IF
 
     ! and now free the whole lot
-    DEALLOCATE(Eigenval,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error_sub)
@@ -484,8 +498,6 @@ MODULE mp2_gpw
       CALL cp_dbcsr_release(mo_coeff_v_beta,error=error_sub)
       DEALLOCATE(mo_coeff_v_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(Eigenval_beta,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL cp_dbcsr_release(mat_munu%matrix,error=error_sub)
@@ -506,6 +518,20 @@ MODULE mp2_gpw
 
     CALL distribution_1d_release(local_particles_sub,error=error_sub)
     CALL distribution_1d_release(local_molecules_sub,error=error_sub)
+
+    IF(mp2_env%mp2_gpw%do_ri_mp2) THEN
+      ! RI-MP2-GPW compute energy
+      CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                 ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                 Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub)
+    END IF
+
+    DEALLOCATE(Eigenval,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF(nspins==2) THEN
+      DEALLOCATE(Eigenval_beta,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
     qs_env%dft_control%qs_control%eps_pgf_orb=eps_pgf_orb_old
