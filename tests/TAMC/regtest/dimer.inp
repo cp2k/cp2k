@@ -33,7 +33,7 @@
    &Print
     filename=./${name}
   &end print
-  walltime 1000
+  walltime 3600
 &End Global
 #defines how forces are evaluated
 &Force_eval
