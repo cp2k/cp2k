@@ -260,8 +260,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_ppl, failure, &
-                                                skip_load_balance_distributed
+    LOGICAL                                  :: do_ppl, failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -269,7 +268,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -385,9 +383,11 @@ SUBROUTINE qs_create_task_list(qs_env, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isub
-    LOGICAL                                  :: failure, skip_load_balance_distributed, soft_valid
+    LOGICAL                                  :: failure, &
+                                                skip_load_balance_distributed,&
+                                                soft_valid
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(task_list_type), POINTER            :: task_list 
+    TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

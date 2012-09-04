@@ -398,10 +398,6 @@ CONTAINS
                                                 hfx_sections, input, &
                                                 scf_section, xc_section
     TYPE(virial_type), POINTER               :: virial
-    REAL(KIND=dp),DIMENSION(:), POINTER      :: ekin_of_mol, ekin_of_subset
-    REAL(KIND=dp)                            :: ekin, maxerror, sumerror
-    INTEGER                                  :: isub, imol, jmol
-
 
     failure=.FALSE.
     CALL timeset(routineN,handle)

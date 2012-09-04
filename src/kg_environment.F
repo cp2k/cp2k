@@ -17,8 +17,7 @@ MODULE kg_environment
                                              cp_dbcsr_iterator_next_block,&
                                              cp_dbcsr_iterator_start,&
                                              cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type

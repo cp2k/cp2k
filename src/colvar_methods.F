@@ -12,7 +12,8 @@
 !> \author Alessandro Laio,Fawzi Mohamed
 ! *****************************************************************************
 MODULE colvar_methods
-  USE cell_types,                      ONLY: cell_type, pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE colvar_types,                    ONLY: &
        HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_check_points, &
        colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
@@ -21,8 +22,9 @@ MODULE colvar_methods
        eval_point_pos, gyration_colvar_id, hydronium_colvar_id, &
        plane_distance_colvar_id, plane_plane_angle_colvar_id, &
        population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
-       rmsd_colvar_id, rotation_colvar_id, torsion_colvar_id, u_colvar_id, &
-       xyz_diag_colvar_id, xyz_outerdiag_colvar_id, ring_puckering_colvar_id
+       ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
+       torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
+       xyz_outerdiag_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -69,7 +71,8 @@ MODULE colvar_methods
                                              dp
   USE mathconstants,                   ONLY: fac,&
                                              maxfac,&
-                                             pi, twopi
+                                             pi,&
+                                             twopi
   USE mathlib,                         ONLY: vector_product
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum,&
@@ -157,9 +160,9 @@ CONTAINS
       gyration_section, HBP_section, hydronium_section, path_section, &
       plane_dist_section, plane_plane_angle_section, plane_sections, &
       point_section, population_section, qparm_section, &
-      reaction_path_section, rmsd_section, rotation_section, torsion_section, &
-      u_section, Wc_section, wrk_section, xyz_diag_section, &
-      xyz_outerdiag_section, ring_puckering_section
+      reaction_path_section, ring_puckering_section, rmsd_section, &
+      rotation_section, torsion_section, u_section, Wc_section, wrk_section, &
+      xyz_diag_section, xyz_outerdiag_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -4484,14 +4487,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'ring_puckering_colvar', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, ii, istat, m, nring
     LOGICAL                                  :: failure
-    INTEGER                                  :: nring, i, ii, m, istat
-    REAL(KIND=dp)                            :: kr, svar, a, b, q, da, db, ds
-    REAL(KIND=dp), DIMENSION(3)              :: r0, rp, rpp, nv, ftmp
-    REAL(KIND=dp), DIMENSION(:), &
-       ALLOCATABLE                           :: z
-    REAL(KIND=dp), DIMENSION(:,:), &
-       ALLOCATABLE                           :: r
+    REAL(KIND=dp)                            :: a, b, da, db, ds, kr, svar
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: z
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r
+    REAL(KIND=dp), DIMENSION(3)              :: ftmp, nv, r0, rp, rpp
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles

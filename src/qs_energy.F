@@ -10,7 +10,6 @@
 !> \author MK (29.10.2002)
 ! *****************************************************************************
 MODULE qs_energy
-  USE kg_environment,                  ONLY: kg_env_init_mol_blocks
   USE atprop_types,                    ONLY: atprop_array_add,&
                                              atprop_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -36,7 +35,8 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_environment,                  ONLY: kg_build_neighborlist,&
-                                             kg_build_subsets
+                                             kg_build_subsets,&
+                                             kg_env_init_mol_blocks
   USE kinds,                           ONLY: dp
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type

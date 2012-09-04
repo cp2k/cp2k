@@ -872,7 +872,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pair_radius
     REAL(dp), INTENT(IN)                     :: subcells
     LOGICAL, INTENT(IN), OPTIONAL            :: mic, symmetric, molecular
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: subset_of_mol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: subset_of_mol
     INTEGER, OPTIONAL                        :: current_subset
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: operator_type
     CHARACTER(LEN=*), INTENT(IN)             :: name
