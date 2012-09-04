@@ -87,3 +87,8 @@ cd ${cwd}
     scp cp2k-2.3.tar.bz2 "username"@frs.sourceforge.net:/home/frs/project/cp2k/
 
 15. Update the web links on www.cp2k.org correspondingly
+
+16. Increment the version number of the development version from 2.3 to 2.4 in the files
+
+    cp2k/src/cp2k_info.F
+    cp2k/doc/Doxyfile.template
