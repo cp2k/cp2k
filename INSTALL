@@ -67,7 +67,7 @@ How to compile CP2K code
      install properly (e.g., 'export F77=g95' before configure if you intend
      to use g95).
      Note that on machines and compilers which support SSE you can configure
-     FFTW3 with --enable-sse2.  Compilers/systems that do not allign memory
+     FFTW3 with --enable-sse2.  Compilers/systems that do not align memory
      (NAG f95) should either not use '--enable-sse2' or otherwise set the flag
      FFTW_ARRAYS_ALIGNED to false in the CP2K input file. 
 
