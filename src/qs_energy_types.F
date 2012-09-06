@@ -59,6 +59,7 @@ MODULE qs_energy_types
                        mp2,&
                        total,&
                        tot_old,&
+                       kinetic,& !total kinetic energy [rk]
                        s_square
     REAL(KIND = dp), DIMENSION(:), POINTER :: ddapc_restraint
   END TYPE qs_energy_type
@@ -178,6 +179,7 @@ CONTAINS
       qs_energy%kTS = 0.0_dp
       qs_energy%mp2 = 0.0_dp
       qs_energy%efermi = 0.0_dp
+      qs_energy%kinetic = 0.0_dp
       qs_energy%total = 0.0_dp
       IF (.NOT.ASSOCIATED(qs_energy%ddapc_restraint)) THEN
         ALLOCATE (qs_energy%ddapc_restraint(1),STAT=istat)

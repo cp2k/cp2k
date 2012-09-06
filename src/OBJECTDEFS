@@ -753,4 +753,5 @@ OBJECTS_GENERIC =\
  xc_xlda_hole_t_c_lr.o\
  xc_xpbe_hole_t_c_lr.o\
  xc_xwpbe.o\
+ xml_parser.o\
  xray_diffraction.o

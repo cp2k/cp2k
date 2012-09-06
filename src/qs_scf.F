@@ -1182,8 +1182,8 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,nelectron_tota
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Repulsive pair potential energy:               ",energy%repulsive,&
             "Zeroth order Hamiltonian energy:               ",energy%core,&
+            "Kinetic energy:                                ",energy%kinetic,&
             "Charge fluctuation (SCP) energy:               ",energy%hartree,&
-            "Charge overlap correction energy:              ",energy%core_overlap,&
             "SCP self energy:                               ",energy%core_self,&
             "London dispersion energy:                      ",energy%dispersion
        ELSE

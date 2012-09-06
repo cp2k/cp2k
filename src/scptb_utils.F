@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Routines for SCPTB
-!> \author JGH (12.2011)
+!> \author JGH (12.2011), RK (07.2012)
 ! *****************************************************************************
 MODULE scptb_utils
 
@@ -22,11 +22,7 @@ MODULE scptb_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line
-  USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
-  USE erf_fn,                          ONLY: erfc
+  USE cp_parser_types,                 ONLY: cp_parser_type
   USE external_potential_types,        ONLY: set_potential
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
@@ -37,6 +33,11 @@ MODULE scptb_utils
                                              scptb_parameter_type,&
                                              set_scptb_parameter
   USE string_utilities,                ONLY: uppercase
+  USE xml_parser,                      ONLY: XML_PARSE,&
+                                             xml_close,&
+                                             xml_get,&
+                                             xml_ok,&
+                                             xml_open
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -103,10 +104,23 @@ CONTAINS
       CALL uppercase(iname)
       NULLIFY(scptb_parameter)
       CALL allocate_scptb_parameter(scptb_parameter,error)
-      CALL set_scptb_parameter(scptb_parameter,key=iname,error=error)
-
+      CALL set_scptb_parameter(scptb_parameter,key=iname,defined=.FALSE., error=error)
+    
       CALL scptb_parameter_from_file(scptb_parameter,scptb_control,para_env,error)
-      CALL scptb_default_parameter(scptb_parameter,error)
+
+      IF (scptb_parameter%defined .EQV. .FALSE.) THEN
+        output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log",error=error)
+        IF ( output_unit > 0 ) THEN
+           WRITE(output_unit, "(A,I3,2X,A,A)") " SCPTB| Kind ", ikind, TRIM(iname), &
+            ": No parameter xml given or element undefined. Using defaults."
+        END IF
+        CALL scptb_default_parameter(scptb_parameter,error) 
+                !defaults, but undefined for most elements atm
+        CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS",error=error)
+      END IF
+
+      !initialization
+
       IF (scptb_parameter%defined) THEN
          CALL set_potential(potential=atomic_kind%all_potential,zeff=scptb_parameter%zeff,&
               zeff_correction=0.0_dp)
@@ -123,6 +137,7 @@ CONTAINS
          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
          symbol=""
          is=0
+         !Aggregate all the electron shell parameters into arrays
          DO l=0,scptb_parameter%lmaxorb
             DO i=1,scptb_parameter%norb(l)
                is = is + 1
@@ -145,23 +160,9 @@ CONTAINS
 
          DEALLOCATE (nq,lq,zet,symbol,STAT=stat)
          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         
          CALL deallocate_sto_basis_set (sto_basis,error)
-
-         !set interaction radius
-         a = SQRT(0.5_dp*scptb_parameter%a0)
-         rmin = 1._dp
-         rmax = 100._dp
-         DO
-            r = 0.5_dp*(rmax+rmin)
-            eff = erfc(a*r)/r
-            IF (eff < scptb_control%epspair) THEN
-               rmax = r
-            ELSE
-               rmin = r
-            END IF
-            IF ((rmax-rmin) < 1.e-2) EXIT
-         END DO
-         scptb_parameter%repair = rmax
+         !throw away the STO basis set, since from now on we use the GTO
 
          a = SQRT(scptb_parameter%crep(1))
          b = SQRT(scptb_parameter%crep(2))
@@ -200,37 +201,229 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_from_file', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: fname
-    LOGICAL                                  :: at_end
-    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length)     :: attribs(2,10), author, &
+                                                DATA(10), fname, found_key, &
+                                                search_key, tag, vers
+    INTEGER                                  :: j, l, n, no_attribs, no_data, &
+                                                tag_count, unrecognized_tags
+    LOGICAL :: endtag, has_A, has_a0, has_ag, has_B, has_C, has_D, &
+      has_energy, has_eta, has_hcore, has_nqm, has_occ, has_z, has_zeff, &
+      tag_over, tag_over2
+    TYPE(XML_PARSE)                          :: xml_info
+
+!LOGICAL                                  :: at_end
+!TYPE(cp_parser_type), POINTER            :: parser
+
+    DATA has_z, has_zeff, has_ag, has_a0, has_energy, has_hcore, has_occ,   &
+                    has_nqm, has_eta, has_A, has_B, has_C, has_D/13*.FALSE./
 
     fname = scptb_control%parameter_file
     IF ( fname /= "" ) THEN
-       CALL parser_create(parser,fname,para_env=para_env,error=error)
-       DO
-         at_end = .FALSE.
-         CALL parser_get_next_line(parser,1,at_end,error=error)
-         IF ( at_end ) EXIT
-!           CALL parser_get_object(parser,name_a,lower_to_upper=.TRUE.,error=error)
-!           CALL parser_get_object(parser,name_b,lower_to_upper=.TRUE.,error=error)
-!           !Checking Names
-!           IF ( (iname==name_a .AND. jname==name_b) ) THEN
-!             CALL parser_get_object(parser,skfn,string_length=8,error=error)
-!             sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
-!                                     TRIM(skfn)
-!             found = .TRUE.
-!             EXIT
-!           END IF
-!           !Checking Element
-!           IF ( (iel==name_a .AND. jel==name_b) ) THEN
-!             CALL parser_get_object(parser,skfn,string_length=8,error=error)
-!             sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
-!                                     TRIM(skfn)
-!             found = .TRUE.
-!             EXIT
-!           END IF
+        CALL xml_open(xml_info, fname, .TRUE.)
+       
+        tag_count = 0
+        tag=""
+        DATA=""
+        attribs=""
+        unrecognized_tags = 0
+        tag_over = .FALSE.
+        found_key = ""
+
+        search_key = TRIM(scptb_parameter%key)
+        CALL uppercase(search_key)
+
+        DO WHILE ( xml_ok(xml_info) )   !Until the file is read entirely
+            CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+            CALL uppercase(tag)
+            SELECT CASE (TRIM(tag)) !Decide on the first-level tag
+            CASE ("")
+                !just garbage from the parser
+            CASE ("NM12_PARAMETERS")
+                !just the header, do nothing
+            CASE ("META_INFO")
+                tag_over = .FALSE.
+                DO WHILE (tag_over .EQV. .FALSE.)
+                    CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                    CALL uppercase(tag)
+                    SELECT CASE (tag)
+                    CASE ("META_INFO")
+                        IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
+                    CASE ("VERSION")
+                        IF (endtag .EQV. .FALSE.) vers = DATA(1)
+                    CASE ("AUTHOR")
+                        IF (endtag .EQV. .FALSE.) author = DATA(1)
+                    CASE ("REF")
+                        !IF (endtag .eqv. .FALSE.)  !do nothing
+                    CASE ("COMMENT")
+                        !IF (endtag .eqv. .FALSE.)  !do nothing
+                    CASE DEFAULT
+                        unrecognized_tags = unrecognized_tags + 1
+                    END SELECT
+                END DO
+
+                WRITE(scptb_parameter%parameterization,'(A,A)') TRIM(author), TRIM(vers)    
+
+            CASE ("GENERAL_PARAMETERS") !general params
+                tag_over = .FALSE.
+                DO WHILE (tag_over .EQV. .FALSE.)
+                    CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                    CALL uppercase(tag)
+                    SELECT CASE (tag)
+                    CASE ("GENERAL_PARAMETERS")
+                        IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
+                    CASE ("D3_SCALING")
+                        !IF (endtag .eqv. .FALSE.)  !do nothing
+                    CASE DEFAULT
+                        unrecognized_tags = unrecognized_tags + 1
+                    END SELECT
+                END DO
+
+            CASE ("ELEMENT") !now find the element we are looking for
+                tag_count=tag_count+1
+                tag_over = .FALSE.
+                found_key = TRIM(attribs(2,1))
+                CALL uppercase(found_key)
+                
+                IF (found_key == search_key) THEN
+                    ! read all the values
+
+                    scptb_parameter%atomname = search_key
+
+
+                    DO WHILE (tag_over .EQV. .FALSE.)
+                        CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                        CALL uppercase(tag)
+                        SELECT CASE (tag)
+                        CASE ("ELEMENT")
+                            IF (endtag .EQV. .TRUE.) tag_over = .TRUE.
+                        CASE ("Z")
+                            IF (endtag .EQV. .FALSE.) READ(DATA(1),'(I4)') scptb_parameter%z ; has_z = .TRUE.
+                        CASE ("ZEFF")
+                            IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%zeff ; has_zeff = .TRUE.
+                        CASE ("CHARGE_WIDTH")
+                            IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%ag ; has_ag = .TRUE.
+                        CASE ("CHARGE_CORR")
+                            !deb IF (endtag .eqv. .FALSE.) READ(data(1),*) scptb_parameter%a0 ; has_a0 = .TRUE.
+                        CASE ("ENERGY")
+                            IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%energy ; has_energy = .TRUE.
+
+                        CASE ("ELECTRON_SHELL")
+                            !first deal with the attributes
+                            DO j=1,no_attribs
+                                IF (attribs(1,j) == "n") READ(attribs(2,j),*) n
+                                IF (attribs(1,j) == "l") READ(attribs(2,j),*) l
+                            END DO
+
+                            !now deal with the sub tags
+                            tag_over2 = .FALSE.
+                            DO WHILE (tag_over2 .EQV. .FALSE.)
+                                CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                                CALL uppercase(tag)
+                                SELECT CASE (tag)
+                                    CASE ("ELECTRON_SHELL")
+                                        IF (endtag .EQV. .TRUE.) tag_over2 = .TRUE.
+                                    CASE ("ZETA")
+                                        !deal with the values
+                                        IF (endtag .EQV. .FALSE.) THEN
+                                            READ(DATA(1),*) scptb_parameter%zeta(n,l)
+                                            scptb_parameter%natorb = scptb_parameter%natorb + 1
+                                            scptb_parameter%norb(l) = scptb_parameter%norb(l) + 1
+                                            IF (l > scptb_parameter%lmaxorb) scptb_parameter%lmaxorb = l
+                                        END IF
+                                    CASE ("E_ORB")!not needed, equivalent to H_CORE, do nothing
+                                        !IF (endtag .eqv. .FALSE.) READ(data(1),*) &
+                                        !    scptb_parameter%orbene(n,l) ; has_orbene = .TRUE.
+                                    CASE ("H_CORE")    
+                                        IF (endtag .EQV. .FALSE.) THEN
+                                            READ(DATA(1),*) scptb_parameter%hcore(n,l) 
+                                            has_hcore = .TRUE.
+                                        END IF
+                                    CASE ("OCC")
+                                        IF (endtag .EQV. .FALSE.) &
+                                           READ(DATA(1),*) scptb_parameter%occupation(n,l) ; has_occ = .TRUE.
+                                    CASE ("N")
+                                        IF (endtag .EQV. .FALSE.) &
+                                           READ(DATA(1),*) scptb_parameter%nqm(n,l) ; has_nqm = .TRUE.
+                                    CASE DEFAULT
+                                        IF (endtag .EQV. .FALSE.) unrecognized_tags = unrecognized_tags + 1
+                                END SELECT 
+                            END DO
+
+                        CASE ("SCP")
+                            !deal with the sub tags
+                            tag_over2 = .FALSE.
+                            DO WHILE (tag_over2 .EQV. .FALSE.)
+                                CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                                CALL uppercase(tag)
+                                SELECT CASE (tag)
+                                    CASE ("SCP")
+                                        IF (endtag .EQV. .TRUE.) tag_over2 = .TRUE.
+                                    CASE ("ETA")
+                                        !first deal with the attributes
+                                        DO j=1,no_attribs
+                                            IF (attribs(1,j) == "l") READ(attribs(2,j),*) l ; has_eta = .TRUE.
+                                        END DO
+                                        IF (endtag .EQV. .FALSE.) THEN
+                                            READ(DATA(1),*) scptb_parameter%pol(l)
+                                            IF (l > scptb_parameter%lmaxscp) scptb_parameter%lmaxscp = l
+                                        END IF
+                                    CASE DEFAULT
+                                        IF (endtag .EQV. .FALSE.) unrecognized_tags = unrecognized_tags + 1
+                                END SELECT 
+                            END DO
+
+                        CASE ("REPULSIVE")
+                            !deal with the sub tags
+                            tag_over2 = .FALSE.
+                            DO WHILE (tag_over2 .EQV. .FALSE.)
+                                CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                                CALL uppercase(tag)
+                                SELECT CASE (tag)
+                                    CASE ("REPULSIVE")
+                                        IF (endtag .EQV. .TRUE.) tag_over2 = .TRUE.
+                                    CASE ("A")
+                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(1) ; has_A = .TRUE.
+                                    CASE ("B")
+                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(2) ; has_B = .TRUE.
+                                    CASE ("C") ; has_z = .TRUE.
+                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(3) ; has_C = .TRUE.
+                                    CASE ("D")
+                                        IF (endtag .EQV. .FALSE.) READ(DATA(1),*) scptb_parameter%crep(4) ; has_D = .TRUE.
+                                    CASE DEFAULT
+                                        IF (endtag .EQV. .FALSE.) unrecognized_tags = unrecognized_tags + 1
+                                END SELECT 
+                            END DO
+                        CASE DEFAULT
+                            IF (endtag .EQV. .FALSE.) unrecognized_tags = unrecognized_tags + 1
+                        END SELECT
+                    END DO
+                ELSE
+                    !when the current element is not the one we are looking for,
+                    !just keep running through the file until the next element.
+                    DO WHILE (tag_over .EQV. .FALSE.)
+                        CALL xml_get(xml_info, tag, endtag, attribs, no_attribs, DATA, no_data)
+                        CALL uppercase(tag)
+                        IF (tag=="ELEMENT" .AND. endtag .EQV. .TRUE.) tag_over = .TRUE.
+                    END DO
+                END IF
+
+           CASE DEFAULT
+                unrecognized_tags = unrecognized_tags + 1
+           END SELECT
+
        END DO
-       CALL parser_release(parser,error=error)
+
+       CALL xml_close(xml_info) !That's it, close the file.
+        
+       !An element is only considered properly defined if all non-optional parameters were
+       !specified. That doesn't safeguard against incomplete or meaningless input.
+       IF ( has_z .AND. has_zeff .AND. has_ag .AND. has_hcore .AND.   &
+            has_nqm .AND. has_eta .AND. has_A .AND. has_B .AND. has_C .AND. has_D) THEN
+           scptb_parameter%defined = .TRUE. 
+       ELSE
+           scptb_parameter%defined = .FALSE. 
+       END IF
+
     END IF
 
   END SUBROUTINE scptb_parameter_from_file

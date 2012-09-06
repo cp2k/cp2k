@@ -71,6 +71,8 @@ MODULE qs_force
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE scp_force_types,                 ONLY: scp_force_type
+  USE scptb_core_interactions,         ONLY: scptb_core_interaction
+  USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
   USE termination,                     ONLY: stop_memory,&
@@ -286,6 +288,9 @@ CONTAINS
                calculate_forces=.TRUE.,error=error)
           CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
                calculate_forces=.TRUE.,error=error)
+       ELSEIF ( dft_control%qs_control%scptb ) THEN
+          CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
+          CALL scptb_core_interaction(qs_env,calculate_forces=.TRUE.,error=error)
        ELSE
           CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
           CALL calculate_ecore_self(qs_env,error=error)

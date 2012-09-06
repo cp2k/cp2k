@@ -10,13 +10,12 @@
 !>      lmaxorb, lmaxscp         max l basis, max l polarization
 !>      norb                     number of orbitals (0,1,2,3)
 !>      zeta                     exponents of orbitals (0,1,2,3)
-!>      orbene                   energies of orbitals (0,1,2,3)
 !>      hcore                    two body terms
 !>      occupation               orbital occupation in free atom
 !>      energy                   total energy of free atom
 !>      crep                     core repulsion terms (1,2,3,4)
-!>      pol                      polarization constants (0,1,2,3)
-!>      ag, a0                   Gaussian exponents (charge,correction)
+!>      pol                      polarization constants (1,2,3)
+!>      ag                       Gaussian exponents
 !> \par History
 !> \author JGH (12.2012)
 ! *****************************************************************************
@@ -70,13 +69,11 @@ CONTAINS
        param%norb(0:3)             = (/1,0,0,0/)
        param%nqm(1,0)              = 1
        param%zeta(1,0)             = 1.2_dp
-       param%orbene(1,0)           = -0.5_dp
        param%hcore(1,0)            = 1.0_dp
        param%occupation(1,0)       = 1
        param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
-       param%pol(0:3)              = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
+       param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
        param%ag                    = 1.0_dp
-       param%a0                    = 1.0_dp
        param%energy                = -0.5_dp
 !   CASE (2)
 !      !Helium
@@ -101,13 +98,11 @@ CONTAINS
        param%norb(0:3)             = (/1,1,0,0/)
        param%nqm(1,0:1)            = (/2,2/)
        param%zeta(1,0:1)           = (/1.8_dp,1.8_dp/)
-       param%orbene(1,0:1)         = (/-0.5_dp,-0.5_dp/)
        param%hcore(1,0:1)          = (/1.0_dp,1.0_dp/)
        param%occupation(1,0:1)     = (/2,4/)
        param%crep(1:4)             = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
-       param%pol(0:3)              = (/1.0_dp,1.0_dp,1.0_dp,1.0_dp/)
+       param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
        param%ag                    = 1.0_dp
-       param%a0                    = 1.0_dp
        param%energy                = -0.5_dp
 !   CASE (9)
 !      !Fluorine

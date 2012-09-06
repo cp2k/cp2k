@@ -773,18 +773,6 @@ CONTAINS
        END IF
     END IF
     IF (scptb) THEN
-       ! Build the neighbor lists for the Coulomb terms
-       DO ikind = 1, nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
-          CALL get_scptb_parameter(scptb_kind,repair=c_radius(ikind),defined=default_present(ikind))
-       END DO
-       CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
-       CALL build_neighbor_lists(sac_ae,particle_set,atom2d,cell,pair_radius,&
-            subcells=subcells,name="sac_ae",error=error)
-       CALL set_qs_env(qs_env=qs_env,sac_ae=sac_ae,error=error)
-       CALL write_neighbor_lists(sac_ae,particle_set,cell,para_env,neighbor_list_section,&
-               "/SAC_AE","sac_ae","ERFC POTENTIAL",error)
        ! Build the neighbor lists for the Core term
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)

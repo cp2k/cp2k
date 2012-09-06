@@ -1,0 +1,28 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD SCPTB
+      &SCPTB
+         DISPERSION F
+      &END SCPTB
+    &END QS
+    &SCF
+      MAX_SCF 10
+      SCF_GUESS atomic
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 4.0 4.0
+    &END CELL
+    &COORD
+    H     0.000000  0.000000  0.000000
+    H     0.720000  0.000000  0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

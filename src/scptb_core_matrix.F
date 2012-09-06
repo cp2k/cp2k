@@ -69,8 +69,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, icol, icor, ikind, inode, &
-      irow, istat, j, jatom, jkind, l, li, ll, maxder, natom, nder, nders, &
-      nkind
+      irow, istat, j, jatom, jkind, l, li, ll, maxder, natom, nder, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
@@ -125,7 +124,6 @@ CONTAINS
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
-    nders = 0
     IF (calculate_forces) THEN
        nder = 1
 
@@ -158,7 +156,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        ! S matrix
-       CALL build_overlap_matrix(qs_env,nderivative=nders,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
@@ -166,7 +164,7 @@ CONTAINS
                                  matrix_p=matrix_w(1)%matrix,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(qs_env,nderivative=nder,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
@@ -174,14 +172,14 @@ CONTAINS
                                  error=error)
     ELSE
        ! S matrix
-       CALL build_overlap_matrix(qs_env,nderivative=nders,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
                                  sab_nl=sab_orb,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(qs_env,nderivative=nder,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,&
@@ -211,7 +209,6 @@ CONTAINS
        DO l=0,scptb_kind_a%lmaxorb
           ll = ((l+1)*(l+2))/2
           DO i=1,scptb_kind_a%norb(l)
-            umt(li+1:li+ll,ikind) = scptb_kind_a%orbene(i,l)
             hmt(li+1:li+ll,ikind) = scptb_kind_a%hcore(i,l)
             li = li + ll
           END DO
@@ -242,7 +239,7 @@ CONTAINS
        dr = SUM(rij(:)**2)
        IF (iatom == jatom .AND. dr < 0.0001_dp) THEN
           DO i=1,SIZE(h_block,1)
-             h_block(i,i)=h_block(i,i)+umt(i,ikind)
+             h_block(i,i)=h_block(i,i)+hmt(i,ikind)
           END DO
        ELSE
           NULLIFY(s_block)

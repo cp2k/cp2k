@@ -11,8 +11,6 @@ MODULE scptb_ks_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              scptb_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
@@ -28,13 +26,10 @@ MODULE scptb_ks_matrix
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
   USE particle_types,                  ONLY: particle_type
@@ -56,26 +51,17 @@ MODULE scptb_ks_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_scp_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                             neighbor_list_iterate,&
-                                             neighbor_list_iterator_create,&
-                                             neighbor_list_iterator_p_type,&
-                                             neighbor_list_iterator_release,&
-                                             neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scptb_types,                     ONLY: &
        get_scptb_parameter, scp_vector_add, scp_vector_copy, &
        scp_vector_create, scp_vector_dot, scp_vector_release, &
-       scp_vector_scale, scp_vector_set, scp_vector_type, &
-       scptb_parameter_p_type, scptb_parameter_type
+       scp_vector_scale, scp_vector_set, scp_vector_type, scptb_parameter_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -111,7 +97,7 @@ CONTAINS
                                                 output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dqpair, mcharge
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dmcharge
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -189,16 +175,10 @@ CONTAINS
       END DO
       DEALLOCATE(charges,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(dqpair(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      CALL coulomb_pair(qs_env,dqpair,mcharge,calculate_forces,just_energy,error)
-      IF(.NOT.just_energy) THEN
-         CALL coulomb_pair_matrix(qs_env,ks_matrix,matrix_s,matrix_p,dqpair,dmcharge,calculate_forces,error)
-      END IF
       CALL scp_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
 
-      DEALLOCATE(mcharge,dqpair,STAT=istat)
+      DEALLOCATE(mcharge,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       IF(calculate_forces) THEN
          DEALLOCATE(dmcharge,STAT=istat)
@@ -206,7 +186,7 @@ CONTAINS
       END IF
 
       energy%total = energy%core + energy%hartree + energy%qmmm_el + energy%repulsive + &
-                     energy%core_self + energy%core_overlap + energy%dispersion
+                     energy%core_self + energy%dispersion
 
       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
          extension=".scfLog",error=error)
@@ -214,8 +194,8 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,(T9,A,T60,F20.10))")&
                "Repulsive pair potential energy:               ",energy%repulsive,&
                "Zeroth order Hamiltonian energy:               ",energy%core,&
+               "Total kinetic energy:                          ",energy%kinetic,&
                "Charge fluctuation (SCP) energy:               ",energy%hartree,&
-               "Charge overlap correction energy:              ",energy%core_overlap,&
                "SCP self energy:                               ",energy%core_self,&
                "London dispersion energy:                      ",energy%dispersion
           IF (qs_env%qmmm) THEN
@@ -244,227 +224,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_scptb_ks_matrix
-
-! *****************************************************************************
-  SUBROUTINE coulomb_pair(qs_env,dqpair,mcharge,calculate_forces,just_energy,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: dqpair
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: mcharge
-    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_pair', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: atom_a, atom_b, handle, &
-                                                iatom, ikind, jatom, jkind, &
-                                                natom, nkind, stat
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, use_virial
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: scptb_defined
-    REAL(KIND=dp)                            :: a, ab, b, dr1, dr2, eij, &
-                                                eoverlap, fij
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(neighbor_list_iterator_p_type), &
-      DIMENSION(:), POINTER                  :: nl_iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sac_ae
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(scptb_parameter_p_type), &
-      DIMENSION(:), POINTER                  :: scptb_kind_param
-    TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a, scptb_kind_b
-    TYPE(virial_type), POINTER               :: virial
-
-    failure  = .FALSE.
-    eoverlap = 0.0_dp
-
-    CALL timeset(routineN,handle)
-
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CALL get_qs_env(qs_env=qs_env,para_env=para_env,dft_control=dft_control,&
-                    virial=virial,energy=energy,error=error)
-
-    ! Parameters
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env=qs_env,sac_ae=sac_ae,atomic_kind_set=atomic_kind_set,error=error)
-
-       nkind = SIZE(atomic_kind_set)
-       IF(.NOT.just_energy) THEN
-          dqpair = 0._dp
-       END IF
-       ! Possibly compute forces
-       IF(calculate_forces) THEN
-          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force,error=error)
-          natom = SIZE (particle_set)
-          ALLOCATE (atom_of_kind(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
-       END IF
-
-       ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind_a)
-          scptb_kind_param(ikind)%scptb_param => scptb_kind_a
-          CALL get_scptb_parameter(scptb_kind_a,defined=defined)
-          scptb_defined(ikind)=defined
-       END DO
-       CALL neighbor_list_iterator_create(nl_iterator,sac_ae)
-       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
-          IF (.NOT.scptb_defined(ikind)) CYCLE
-          IF (.NOT.scptb_defined(jkind)) CYCLE
-          scptb_kind_a => scptb_kind_param(ikind)%scptb_param
-          scptb_kind_b => scptb_kind_param(jkind)%scptb_param
-          dr2 = DOT_PRODUCT(rij,rij)
-          IF ( dr2 > 0.00001_dp ) THEN
-             ! charge overlap correction
-             dr1 = SQRT(dr2)
-             a = scptb_kind_a%a0
-             b = scptb_kind_b%a0
-             ab = SQRT(a*b/(a+b))
-             eij = mcharge(iatom)*mcharge(jatom)/dr1 * erfc(ab*dr1)
-             IF(.NOT.just_energy .AND. ABS(eij)>0.0_dp) THEN
-               dqpair(iatom) = dqpair(iatom) + eij/mcharge(iatom)
-               dqpair(jatom) = dqpair(jatom) + eij/mcharge(jatom)
-             END IF
-             IF(calculate_forces) THEN
-                fij = eij/dr2 + 2._dp/SQRT(pi)*ab*mcharge(iatom)*mcharge(jatom)/dr2*EXP(-ab*dr2)
-                force_ab = fij*rij
-
-                atom_a = atom_of_kind(iatom)
-                atom_b = atom_of_kind(jatom)
-
-                ! Sum up force components
-                force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
-                force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
-
-                force(ikind)%all_potential(2,atom_a) = force(ikind)%all_potential(2,atom_a) - force_ab(2)
-                force(jkind)%all_potential(2,atom_b) = force(jkind)%all_potential(2,atom_b) + force_ab(2)
-
-                force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
-                force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
-             END IF
-          END IF
-          eoverlap = eoverlap + eij
-       END DO
-       CALL neighbor_list_iterator_release(nl_iterator)
-
-       DEALLOCATE (scptb_kind_param,scptb_defined,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       IF (calculate_forces) THEN
-          DEALLOCATE(atom_of_kind,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       CALL mp_sum(eoverlap,para_env%group)
-       energy%core_overlap = eoverlap
-
-       IF(.NOT.just_energy) THEN
-          CALL mp_sum(dqpair,para_env%group)
-       END IF
-    END IF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE coulomb_pair
-
-! *****************************************************************************
-  SUBROUTINE coulomb_pair_matrix(qs_env, ks_matrix, matrix_s, matrix_p, dqpair,&
-             dmcharge, calculate_forces, error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_s, matrix_p
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: dqpair
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dmcharge
-    LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_pair_matrix', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: atom_a, atom_b, blk, i, &
-                                                iatom, ikind, is, istat, &
-                                                jatom, jkind, natom, nsize
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: failure, found, use_virial
-    REAL(KIND=dp)                            :: dq, fi
-    REAL(KIND=dp), DIMENSION(3)              :: fij, rij
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksblock, sblock
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(virial_type), POINTER               :: virial
-
-    nsize = SIZE(ks_matrix,1)
-    IF ( calculate_forces ) THEN
-      natom = SIZE(dmcharge,1)
-      ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL get_qs_env(qs_env=qs_env,cell=cell,atomic_kind_set=atomic_kind_set,force=force,error=error)
-      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,virial=virial,error=error)
-      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               kind_of=kind_of,&
-                               atom_of_kind=atom_of_kind)
-    END IF
-
-    CALL cp_dbcsr_iterator_start(iter,matrix_s(1)%matrix)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
-       dq = dqpair(iatom)+dqpair(jatom)
-       DO is=1,nsize
-          NULLIFY(ksblock)
-          CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is)%matrix,&
-               row=iatom,col=jatom,block=ksblock,found=found)
-          ksblock = ksblock + dq*sblock
-       END DO
-       IF ( calculate_forces ) THEN
-            ikind  = kind_of(iatom)
-            atom_a = atom_of_kind(iatom)
-            jkind  = kind_of(jatom)
-            atom_b = atom_of_kind(jatom)
-            DO i=1,3
-               fi = dqpair(jatom)*dmcharge(iatom,i) - dqpair(iatom)*dmcharge(jatom,i)
-               force(ikind)%rho_elec(i,atom_a) = force(ikind)%rho_elec(i,atom_a) + fi
-               force(jkind)%rho_elec(i,atom_b) = force(jkind)%rho_elec(i,atom_b) - fi
-               fij(i) = fi
-            END DO
-            IF (use_virial) THEN
-               rij = particle_set(iatom)%r - particle_set(jatom)%r
-               rij = pbc(rij,cell)
-               CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
-            END IF
-       END IF
-    END DO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    IF ( calculate_forces ) THEN
-      DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-  END SUBROUTINE coulomb_pair_matrix
 
 ! *****************************************************************************
   SUBROUTINE scp_coulomb(qs_env,ks_matrix,matrix_s,rho,mcharge,dmcharge,&
@@ -581,11 +340,14 @@ CONTAINS
                IF(adef(ikind)) THEN
                  atomic_kind => atomic_kind_set(ikind)
                  CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
-                 CALL get_scptb_parameter(scptb_kind,pol=pol)
+                 CALL get_scptb_parameter(scptb_kind,pol=pol,lmaxscp=lmaxscp)
                  DO iat=1,natoms(ikind)
                    DO ibas=1,nbasis(ikind)
-                      cw%vector(ikind)%vmat(ibas,iat) = cw%vector(ikind)%vmat(ibas,iat) &
-                         + cp%vector(ikind)%vmat(ibas,iat)/pol(indso(1,ibas))
+                      ! this assumes 1 basis function per l qm!!
+                      IF(indso(1,ibas) > 0) THEN
+                         cw%vector(ikind)%vmat(ibas,iat) = cw%vector(ikind)%vmat(ibas,iat) &
+                            + cp%vector(ikind)%vmat(ibas,iat)/pol(indso(1,ibas))
+                      END IF
                    END DO
                  END DO
                END IF
@@ -598,9 +360,6 @@ CONTAINS
              rhom1 = scp_dot(cres,cres)
              IF ( SQRT(rhom1) < epsabs ) EXIT
           END DO
-!deb
-          WRITE(6,*) "SCP OPT   ",kint,SQRT(rhom1)
-!deb
           ! Coulomb energy
           CALL scp_set_charge(cvec,mcharge,adef,natoms,atomic_kind_set)
           CALL scp_vector_set(cw, 0._dp, error)
@@ -625,8 +384,11 @@ CONTAINS
             CALL get_scptb_parameter(scptb_kind,pol=pol)
             DO iat=1,natoms(ikind)
                DO ibas=1,nbasis(ikind)
-                  energy%core_self = energy%core_self + &
-                     0.5_dp*(cvec%vector(ikind)%vmat(ibas,iat))**2/pol(indso(1,ibas))
+                  ! this assumes 1 basis function per l qm!!
+                  IF(indso(1,ibas) > 0) THEN
+                     energy%core_self = energy%core_self + &
+                        0.5_dp*(cvec%vector(ikind)%vmat(ibas,iat))**2/pol(indso(1,ibas))
+                  END IF
                END DO
             END DO
           END IF

@@ -44,16 +44,13 @@ MODULE scptb_types
     INTEGER, DIMENSION(0:3)                :: norb       !number of orbitals per l QN
     INTEGER, DIMENSION(10,0:3)             :: nqm        !principle quantum numbers
     REAL(KIND=dp), DIMENSION(10,0:3)       :: zeta       !orbital exponents
-    REAL(KIND=dp), DIMENSION(10,0:3)       :: orbene     !orbital energy
     REAL(KIND=dp), DIMENSION(10,0:3)       :: hcore      !core potential energy
     REAL(KIND=dp), DIMENSION(10,0:3)       :: occupation !free atom occupation
     REAL(KIND=dp)                          :: energy     !free atom energy
     REAL(KIND=dp), DIMENSION(4)            :: crep       !core repulsion parameters
-    REAL(KIND=dp), DIMENSION(0:3)          :: pol        !polarization for SCP
+    REAL(KIND=dp), DIMENSION(1:3)          :: pol        !polarization for SCP
     REAL(KIND=dp)                          :: ag         !width of SCP charge
-    REAL(KIND=dp)                          :: a0         !core charge correction
     REAL(KIND=dp)                          :: rcpair     !cutoff radius for core pair potentials
-    REAL(KIND=dp)                          :: repair     !cutoff radius for Coulomb pair potentials
   END TYPE scptb_parameter_type
 
   TYPE scptb_parameter_p_type
@@ -130,16 +127,13 @@ CONTAINS
     scptb_parameter % norb = 0
     scptb_parameter % nqm = 0
     scptb_parameter % zeta = 0.0_dp
-    scptb_parameter % orbene = 0.0_dp
     scptb_parameter % hcore = 0.0_dp
     scptb_parameter % occupation = 0.0_dp
     scptb_parameter % energy = 0.0_dp
     scptb_parameter % crep = 0.0_dp
     scptb_parameter % pol = 0.0_dp
     scptb_parameter % ag = 0.0_dp
-    scptb_parameter % a0 = 0.0_dp
     scptb_parameter % rcpair = 0.0_dp
-    scptb_parameter % repair = 0.0_dp
 
   END SUBROUTINE allocate_scptb_parameter
 
@@ -163,7 +157,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_scptb_parameter(scptb_parameter,key,atomname,parameterization,defined,z,zeff,natorb,&
-    lmaxorb,lmaxscp,norb,nqm,zeta,orbene,hcore,occupation,energy,crep,pol,ag,a0,rcpair,repair,error)
+    lmaxorb,lmaxscp,norb,nqm,zeta,hcore,occupation,energy,crep,pol,ag,rcpair,error)
 
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: key, atomname, &
@@ -175,12 +169,11 @@ CONTAINS
     INTEGER, DIMENSION(0:3), OPTIONAL        :: norb
     INTEGER, DIMENSION(10, 0:3), OPTIONAL    :: nqm
     REAL(KIND=dp), DIMENSION(10, 0:3), &
-      OPTIONAL                               :: zeta, orbene, hcore, &
-                                                occupation
+      OPTIONAL                               :: zeta, hcore, occupation
     REAL(KIND=dp), OPTIONAL                  :: energy
     REAL(KIND=dp), DIMENSION(4), OPTIONAL    :: crep
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: pol
-    REAL(KIND=dp), OPTIONAL                  :: ag, a0, rcpair, repair
+    REAL(KIND=dp), DIMENSION(1:3), OPTIONAL  :: pol
+    REAL(KIND=dp), OPTIONAL                  :: ag, rcpair
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -203,22 +196,19 @@ CONTAINS
     IF (PRESENT(norb)) norb = scptb_parameter%norb
     IF (PRESENT(nqm)) nqm = scptb_parameter%nqm
     IF (PRESENT(zeta)) zeta = scptb_parameter%zeta
-    IF (PRESENT(orbene)) orbene = scptb_parameter%orbene
     IF (PRESENT(hcore)) hcore = scptb_parameter%hcore
     IF (PRESENT(occupation)) occupation = scptb_parameter%occupation
     IF (PRESENT(energy)) energy = scptb_parameter%energy
     IF (PRESENT(crep)) crep = scptb_parameter%crep
     IF (PRESENT(pol)) pol = scptb_parameter%pol
     IF (PRESENT(ag)) ag = scptb_parameter%ag
-    IF (PRESENT(a0)) a0 = scptb_parameter%a0
     IF (PRESENT(rcpair)) rcpair = scptb_parameter%rcpair
-    IF (PRESENT(repair)) repair = scptb_parameter%repair
 
   END SUBROUTINE get_scptb_parameter
 
 ! *****************************************************************************
   SUBROUTINE set_scptb_parameter(scptb_parameter,key,atomname,parameterization,defined,z,zeff,natorb,&
-    lmaxorb,lmaxscp,norb,nqm,zeta,orbene,hcore,occupation,energy,crep,pol,ag,a0,rcpair,repair,error)
+    lmaxorb,lmaxscp,norb,nqm,zeta,hcore,occupation,energy,crep,pol,ag,rcpair,error)
 
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     CHARACTER(LEN=*), OPTIONAL               :: key, atomname, &
@@ -230,12 +220,11 @@ CONTAINS
     INTEGER, DIMENSION(0:3), OPTIONAL        :: norb
     INTEGER, DIMENSION(10, 0:3), OPTIONAL    :: nqm
     REAL(KIND=dp), DIMENSION(10, 0:3), &
-      OPTIONAL                               :: zeta, orbene, hcore, &
-                                                occupation
+      OPTIONAL                               :: zeta, hcore, occupation
     REAL(KIND=dp), OPTIONAL                  :: energy
     REAL(KIND=dp), DIMENSION(4), OPTIONAL    :: crep
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: pol
-    REAL(KIND=dp), OPTIONAL                  :: ag, a0, rcpair, repair
+    REAL(KIND=dp), DIMENSION(1:3), OPTIONAL  :: pol
+    REAL(KIND=dp), OPTIONAL                  :: ag, rcpair
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -258,16 +247,13 @@ CONTAINS
     IF (PRESENT(norb)) scptb_parameter%norb = norb
     IF (PRESENT(nqm)) scptb_parameter%nqm = nqm
     IF (PRESENT(zeta)) scptb_parameter%zeta = zeta
-    IF (PRESENT(orbene)) scptb_parameter%orbene = orbene
     IF (PRESENT(hcore)) scptb_parameter%hcore = hcore
     IF (PRESENT(occupation)) scptb_parameter%occupation = occupation
     IF (PRESENT(energy)) scptb_parameter%energy = energy
     IF (PRESENT(crep)) scptb_parameter%crep = crep
     IF (PRESENT(pol)) scptb_parameter%pol = pol
     IF (PRESENT(ag)) scptb_parameter%ag = ag
-    IF (PRESENT(a0)) scptb_parameter%a0 = a0
     IF (PRESENT(rcpair)) scptb_parameter%rcpair = rcpair
-    IF (PRESENT(repair)) scptb_parameter%repair = repair
 
   END SUBROUTINE set_scptb_parameter
 
@@ -288,10 +274,9 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: norb
     INTEGER, DIMENSION(10, 0:3)              :: nqm
     LOGICAL                                  :: defined
-    REAL(KIND=dp)                            :: a0, ag, energy, rcpair, &
-                                                repair, zeff
-    REAL(KIND=dp), DIMENSION(0:3)            :: pol
-    REAL(KIND=dp), DIMENSION(10, 0:3)        :: hcore, orbene, zeta
+    REAL(KIND=dp)                            :: ag, energy, rcpair, zeff
+    REAL(KIND=dp), DIMENSION(10, 0:3)        :: hcore, zeta
+    REAL(KIND=dp), DIMENSION(1:3)            :: pol
     REAL(KIND=dp), DIMENSION(4)              :: crep
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -314,24 +299,23 @@ CONTAINS
           IF ( defined ) THEN
             CALL get_scptb_parameter(scptb_parameter,&
                  zeff=zeff,natorb=natorb,lmaxorb=lmaxorb,lmaxscp=lmaxscp,&
-                 norb=norb,nqm=nqm,zeta=zeta,orbene=orbene,hcore=hcore,&
-                 energy=energy,crep=crep,pol=pol,ag=ag,a0=a0,rcpair=rcpair,&
-                 repair=repair,error=error)
+                 norb=norb,nqm=nqm,zeta=zeta,hcore=hcore,&
+                 energy=energy,crep=crep,pol=pol,ag=ag,rcpair=rcpair,&
+                 error=error)
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)") "Effective core charge:",zeff
             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)") "Total number of orbitals:",natorb
-            WRITE (UNIT=output_unit,FMT="(T16,A,T30,A,T50,A,T71,A)") "l-QM n-QM  i","Exponent","Orbital energy","H core"
+            WRITE (UNIT=output_unit,FMT="(T16,A,T30,A,T71,A)") "l-QM n-QM  i","Exponent","H core"
             DO l=0,lmaxorb
                DO i=1,norb(l)
-                  WRITE (UNIT=output_unit,FMT="(T16,3I4,T30,F12.6,T50,F12.6,T71,F10.3)") &
-                        l,i,nqm(i,l),zeta(i,l),orbene(i,l),hcore(i,l)
+                  WRITE (UNIT=output_unit,FMT="(T16,3I4,T30,F12.6,T71,F10.3)") &
+                        l,i,nqm(i,l),zeta(i,l),hcore(i,l)
                END DO
             END DO
             WRITE (UNIT=output_unit,FMT="(T16,A,T61,F20.10)") "Energy of free atom [au]:",energy
             WRITE (UNIT=output_unit,FMT="(T16,A,T41,4F10.4)") "Core repulsion potential ",(crep(i),i=1,4)
-            WRITE (UNIT=output_unit,FMT="(T16,A,T41,4F10.4)") "SCP Polarization ",(pol(l),l=0,lmaxscp)
-            WRITE (UNIT=output_unit,FMT="(T16,A,T61,F20.5)") "Gaussian exponents SCP and correction",ag,a0
+            WRITE (UNIT=output_unit,FMT="(T16,A,T41,4F10.4)") "SCP Polarization ",(pol(l),l=1,lmaxscp)
+            WRITE (UNIT=output_unit,FMT="(T16,A,T61,F20.5)") "Gaussian exponents for SCP ",ag
             WRITE (UNIT=output_unit,FMT="(T16,A,T61,F20.5)") "Pair potential cutoff (core) [bohr]:",rcpair
-            WRITE (UNIT=output_unit,FMT="(T16,A,T61,F20.5)") "Pair potential cutoff (Coulomb) [bohr]:",repair
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                  "Parameters are not defined"

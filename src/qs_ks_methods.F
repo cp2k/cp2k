@@ -1868,9 +1868,9 @@ CONTAINS
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: c_forces, did_update, &
                                                 energy_only, failure
-    REAL(KIND=dp)                            :: ecore
+    REAL(KIND=dp)                            :: ecore, ekin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks
+      POINTER                                :: matrix_h, matrix_ks, matrix_t
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1890,7 +1890,7 @@ CONTAINS
 
     failure=.FALSE.
     did_update=.FALSE.
-    NULLIFY(matrix_ks,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
+    NULLIFY(matrix_ks,matrix_t,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -1903,7 +1903,7 @@ CONTAINS
           did_update=.TRUE.
           CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
                rho_xc=rho_xc,energy=energy,&
-               dft_control=dft_control,&
+               dft_control=dft_control,kinetic=matrix_t, &
                matrix_h=matrix_h,para_env=para_env,error=error)
           ! update ecore
           energy%core=0.0_dp
@@ -1914,6 +1914,22 @@ CONTAINS
                   error=error)
              energy%core=energy%core+ecore
           END DO
+
+          ! update ekin, but only when doing scptb, otherwise segfault.
+          ! who knows, it might segfault anyway, this is a kindof ugly solution
+!          IF (dft_control%qs_control%scptb) THEN
+          IF(ASSOCIATED(matrix_t)) THEN
+              energy%kinetic=0.0_dp
+              DO ispin=1,dft_control%nspins
+                 CALL calculate_ecore(h=matrix_t(1)%matrix,&
+                      p=rho%rho_ao(ispin)%matrix,&
+                      ecore=ekin,&
+                      error=error)
+                 !abusing the ecore method to calculate the same trace.
+                 energy%kinetic=energy%kinetic+ekin
+              END DO
+          END IF
+
           ! the ks matrix will be rebuilt so this is fine now
           ks_env%potential_changed=.FALSE.
           IF ( dft_control%qs_control%semi_empirical ) THEN

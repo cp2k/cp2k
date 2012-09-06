@@ -349,6 +349,7 @@ END SUBROUTINE rf_deriv_check
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix(1)%matrix,nblkrows_total=nblock)
 
+    charges=0.0_dp
     dcharges=0.0_dp
     DO ispin=1,nspin
        CALL cp_dbcsr_iterator_start(iter, s_matrix(1)%matrix)
