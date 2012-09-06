@@ -156,6 +156,8 @@ MODULE mp2_gpw
       nao, natom, nelectron, nelectron_beta, nkind, nmo, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_B_virtual_beta, &
+      sizes_B_virtual_beta, starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: blacs_repeatable, failure, &
                                                 skip_load_balance_distributed
@@ -164,11 +166,11 @@ MODULE mp2_gpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
     REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, &
       eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, &
-      progression_factor, relative_cutoff_old, subcells
+      progression_factor, relative_cutoff_old, subcells, Emp2_d_AB, Emp2_d2_AB
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C
+      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -425,12 +427,25 @@ MODULE mp2_gpw
     Emp2_T=0.0_dp
     IF(mp2_env%mp2_gpw%do_ri_mp2) THEN
       ! RI-MP2-GPW compute integrals
-      CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                 dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                                 atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
-                                 mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                 mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                                 mp2_env%mp2_memory,calc_ex,error,blacs_env_sub,error_sub)
+      IF(nspins==2) THEN
+        ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
+        CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                   dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                                   atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
+                                   mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                                   mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                   mp2_env%mp2_memory,calc_ex,error,blacs_env_sub,error_sub,&
+                                   BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
+                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta)
+      ELSE
+        ! closed shell case (RI)
+        CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                   dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+                                   atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
+                                   mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                                   mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                   mp2_env%mp2_memory,calc_ex,error,blacs_env_sub,error_sub)
+      END IF
     ELSE
       ! Canonical MP2-GPW
       IF(nspins==2) THEN
@@ -444,8 +459,8 @@ MODULE mp2_gpw
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub,&
                              homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
 
-        Emp2_Cou=Emp2_Cou*0.25_dp
-        Emp2_EX=Emp2_EX*0.5_dp
+        ! Emp2_Cou=Emp2_Cou*0.25_dp
+        ! Emp2_EX=Emp2_EX*0.5_dp
 
         ! beta-beta component
         IF (unit_nr>0) WRITE(unit_nr,*)
@@ -456,15 +471,15 @@ MODULE mp2_gpw
                              mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
         
-        Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
-        Emp2_EX_BB=Emp2_EX_BB*0.5_dp
+        ! Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
+        ! Emp2_EX_BB=Emp2_EX_BB*0.5_dp
 
-        Emp2_S=Emp2_AB
-        Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
+        ! Emp2_S=Emp2_AB
+        ! Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
 
-        Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
-        Emp2_EX=Emp2_EX+Emp2_EX_BB
-        Emp2=Emp2_EX+Emp2_Cou
+        ! Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
+        ! Emp2_EX=Emp2_EX+Emp2_EX_BB
+        ! Emp2=Emp2_EX+Emp2_Cou
 
       ELSE 
         ! closed shell case
@@ -521,9 +536,50 @@ MODULE mp2_gpw
 
     IF(mp2_env%mp2_gpw%do_ri_mp2) THEN
       ! RI-MP2-GPW compute energy
-      CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
-                                 ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                 Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub)
+      IF(nspins==2) THEN
+        ! alpha-alpha component
+        CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                   ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
+                                   open_shell_SS=.TRUE.)
+ 
+        ! beta-beta component
+        CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,para_env,para_env_sub,color_sub,&
+                                   ends_array,ends_B_virtual_beta,sizes_array,&
+                                   sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
+                                   Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub,&
+                                   open_shell_SS=.TRUE.)
+
+
+        ! alpha-beta case
+        CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                   ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,.FALSE.,error,error_sub,&
+                                   .FALSE.,BIb_C_beta,homo_beta,Eigenval_beta,&
+                                   ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
+
+      ELSE
+        ! closed shell case
+        CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+                                   ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                   Eigenval,nmo,homo,dimen_RI,unit_nr,mp2_env%mp2_memory,calc_ex,error,error_sub)
+      END IF
+    END IF
+
+    IF(nspins==2) THEN
+      ! make order on the MP2 energy contributions
+      Emp2_Cou=Emp2_Cou*0.25_dp
+      Emp2_EX=Emp2_EX*0.5_dp
+
+      Emp2_Cou_BB=Emp2_Cou_BB*0.25_dp
+      Emp2_EX_BB=Emp2_EX_BB*0.5_dp
+
+      Emp2_S=Emp2_AB
+      Emp2_T=Emp2_Cou+Emp2_Cou_BB+Emp2_EX+Emp2_EX_BB
+
+      Emp2_Cou=Emp2_Cou+Emp2_Cou_BB+Emp2_AB
+      Emp2_EX=Emp2_EX+Emp2_EX_BB
+      Emp2=Emp2_EX+Emp2_Cou
     END IF
 
     DEALLOCATE(Eigenval,STAT=stat)
