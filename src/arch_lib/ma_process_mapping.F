@@ -1232,6 +1232,10 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
    ! Get a new MPI rank ordering, reduce comm costs
    CALL mp_environ(numtask,taskid,mp_comm)
 
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Starting switch - each MPI rank is exchanged with its 4 neighbors' 
+#endif
+
    not_exchange = 0
    jump = numtask-1
 
@@ -1309,6 +1313,10 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
        IF (( ipe .GE. numtask/2) .OR. (not_exchange .GE. numtask/2) ) EXIT 
    ENDDO
 
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Finishing switch - have changed ', (numtask*4)-not_exchange
+#endif
+
  ! Create the new communicator
    CALL mp_reordering(mp_comm,mp_new_comm,ordering)
 
@@ -1354,6 +1362,10 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
  ! Get a new MPI rank ordering, reduce comm costs
   CALL mp_environ(numtask,taskid,mp_comm)
 
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Starting Cannon heuristic'
+#endif
+
   !create the cannon graph
   CALL ma_comm_graph (mp_comm,cannon_graph)
 
@@ -1372,6 +1384,11 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
 
    IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN
     CALL ma_hilbert_order(ranks_order,h_grid_dim)
+
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Computing Hilbert curve - Only one curve is required'
+#endif
+    
    ! there are other sub grids
    ELSE IF ( has_2dgrid .GT. 0 ) THEN
     CALL ma_hilbert_recursive(ranks_order,ncol=ncol,nrow=nrow,numtask=numtask,&
@@ -1387,8 +1404,18 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
    DO ipe=2,numtask
     IF( ranks_order(ipe) == 0 ) ranks_order(ipe) = ipe-1
    ENDDO
+
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Computing Hilbert curve - More than one curve is required'
+#endif
+
   !no perfect hilbert grids, use peano
    ELSE
+
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Computing Hilbert-peano curve'
+#endif
+
     ALLOCATE(tmp_order(h_grid_dim*h_grid_dim),stat=stat)
     IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
 
@@ -1524,6 +1551,10 @@ ENDIF
 
   IF( contention_hp .LT. contention_packed) THEN
 
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Contention is smaller with Hilbert curve'
+#endif
+
   ALLOCATE(orderX(numtask),stat=stat)
   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
   orderX(:) = 0
@@ -1618,6 +1649,10 @@ ENDIF
      DO ipe=1, numtask
         allocated_topology(orderX(ipe)+1) = tmp_order(ipe)
      ENDDO
+
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Use hilbert curve in X direction'
+#endif
    
   ELSE IF ( (contention_Y .LE. contention_X) .AND. &
        (contention_Y .LE. contention_Z)) THEN
@@ -1626,12 +1661,18 @@ ENDIF
       DO ipe=1, numtask
         allocated_topology(orderY(ipe)+1) = tmp_order(ipe)
      ENDDO
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Use hilbert curve in Y direction'
+#endif
   ELSE 
      ranks_order(:) = orderZ(:)
      tmp_order(:) = allocated_topology(:)
      DO ipe=1, numtask
         allocated_topology(orderZ(ipe)+1) = tmp_order(ipe)
      ENDDO
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'Use hilbert curve in Z direction'
+#endif
  ENDIF
 ENDIF
 #endif
@@ -1645,6 +1686,10 @@ ENDIF
   ELSE
     CALL ma_switch(mp_new_comm,mp_comm,ranks_order,cannon_graph)
   ENDIF
+
+#ifdef __DEBUG_HWTOPO
+   if(taskid==0) write(*,*) 'New communicator generated'
+#endif
 
   IF(ASSOCIATED(coord_order))DEALLOCATE(coord_order,stat=stat)
   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
