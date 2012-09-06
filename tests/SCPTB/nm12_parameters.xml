@@ -1,0 +1,2785 @@
+<?xml version="1.0"?>
+<nm12_parameters>
+
+    <Meta_info>
+        <Version>   0.1         </Version>
+        <Author>    RK          </Author>
+        <Ref>       unpublished </Ref>
+        <Comment>   First test  </Comment>
+    </Meta_info>
+    
+    <General_parameters>
+        <D3_scaling>    1.0 </D3_scaling>
+    </General_parameters> 
+
+
+    <Element name="H">
+        <Z>                      1              </Z>
+        <Zeff>           1.0000000           </Zeff>
+        <Energy>        -1.2010034         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.2619947           </Zeta>
+            <H_core>        -0.9914750         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      1              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="He">
+        <Z>                      2              </Z>
+        <Zeff>           2.0000000           </Zeff>
+        <Energy>        -5.7585440         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.7025761           </Zeta>
+            <H_core>        -1.9827420         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      1              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Li">
+        <Z>                      3              </Z>
+        <Zeff>           3.0000000           </Zeff>
+        <Energy>        -13.7118546         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.4079682           </Zeta>
+            <H_core>        -4.6382400         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      1              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           0.9966340           </Zeta>
+            <H_core>        -0.1507790         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Be">
+        <Z>                      4              </Z>
+        <Zeff>           4.0000000           </Zeff>
+        <Energy>        -26.8246421         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.2169987           </Zeta>
+            <H_core>        -8.7723780         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      1              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.2942435           </Zeta>
+            <H_core>        -0.4433330         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="B">
+        <Z>                      5              </Z>
+        <Zeff>           3.0000000           </Zeff>
+        <Energy>        -4.2412512         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.4398720           </Zeta>
+            <H_core>        -0.7783940         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.5087963           </Zeta>
+            <H_core>        -1.3767810         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="C">
+        <Z>                      6              </Z>
+        <Zeff>           4.0000000           </Zeff>
+        <Energy>        -9.1114751         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.6481480           </Zeta>
+            <H_core>        -1.2674620         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.7379436           </Zeta>
+            <H_core>        -2.0413480         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="N">
+        <Z>                      7              </Z>
+        <Zeff>           5.0000000           </Zeff>
+        <Energy>        -16.5300766         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.8686790           </Zeta>
+            <H_core>        -1.8882320         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.9911154           </Zeta>
+            <H_core>        -2.9120470         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="O">
+        <Z>                      8              </Z>
+        <Zeff>           6.0000000           </Zeff>
+        <Energy>        -27.3762533         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.1163084           </Zeta>
+            <H_core>        -2.6715280         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.2871721           </Zeta>
+            <H_core>        -4.0763620         </H_core>
+            <Occ>            4.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="F">
+        <Z>                      9              </Z>
+        <Zeff>           7.0000000           </Zeff>
+        <Energy>        -42.5902023         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.3976247           </Zeta>
+            <H_core>        -3.6543380         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.6192952           </Zeta>
+            <H_core>        -5.5767190         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ne">
+        <Z>                     10              </Z>
+        <Zeff>           8.0000000           </Zeff>
+        <Energy>        -62.1129574         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.6425492           </Zeta>
+            <H_core>        -4.7467350         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.9281279           </Zeta>
+            <H_core>        -7.2448810         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Na">
+        <Z>                     11              </Z>
+        <Zeff>           9.0000000           </Zeff>
+        <Energy>        -82.8823013         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.8105518           </Zeta>
+            <H_core>        -3.0163080         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.0591564           </Zeta>
+            <H_core>        -0.1599060         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.3551117           </Zeta>
+            <H_core>        -6.4086670         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Mg">
+        <Z>                     12              </Z>
+        <Zeff>          10.0000000           </Zeff>
+        <Energy>        -113.0931943         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.2754809           </Zeta>
+            <H_core>        -6.7375500         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.2686438           </Zeta>
+            <H_core>        -0.6205260         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.9380467           </Zeta>
+            <H_core>        -11.9934820         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      2              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Al">
+        <Z>                     13              </Z>
+        <Zeff>           3.0000000           </Zeff>
+        <Energy>        -2.7254956         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.4530111           </Zeta>
+            <H_core>        -0.7903860         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.3390284           </Zeta>
+            <H_core>        -0.7755790         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Si">
+        <Z>                     14              </Z>
+        <Zeff>           4.0000000           </Zeff>
+        <Energy>        -5.2576454         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.6342476           </Zeta>
+            <H_core>        -1.1601900         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.4945016           </Zeta>
+            <H_core>        -1.1287150         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="P">
+        <Z>                     15              </Z>
+        <Zeff>           5.0000000           </Zeff>
+        <Energy>        -8.8800378         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.8180881           </Zeta>
+            <H_core>        -1.6031860         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.6387075           </Zeta>
+            <H_core>        -1.5334280         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="S">
+        <Z>                     16              </Z>
+        <Zeff>           6.0000000           </Zeff>
+        <Energy>        -13.8411909         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.0141011           </Zeta>
+            <H_core>        -2.1295360         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.8030914           </Zeta>
+            <H_core>        -2.0231970         </H_core>
+            <Occ>            4.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Cl">
+        <Z>                     17              </Z>
+        <Zeff>           7.0000000           </Zeff>
+        <Energy>        -20.4180464         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.2149686           </Zeta>
+            <H_core>        -2.7388540         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.9918335           </Zeta>
+            <H_core>        -2.6198640         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ar">
+        <Z>                     18              </Z>
+        <Zeff>           8.0000000           </Zeff>
+        <Energy>        -28.7945578         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.4161070           </Zeta>
+            <H_core>        -3.4291920         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.1852506           </Zeta>
+            <H_core>        -3.3066890         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="K">
+        <Z>                     19              </Z>
+        <Zeff>           9.0000000           </Zeff>
+        <Energy>        -38.0938519         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.6229067           </Zeta>
+            <H_core>        -1.9108740         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.1068482           </Zeta>
+            <H_core>        -0.1391000         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.4599498           </Zeta>
+            <H_core>        -2.0593980         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ca">
+        <Z>                     20              </Z>
+        <Zeff>          10.0000000           </Zeff>
+        <Energy>        -49.0353545         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.8540196           </Zeta>
+            <H_core>        -4.4483750         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.2987038           </Zeta>
+            <H_core>        -0.6678810         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.7250866           </Zeta>
+            <H_core>        -4.5941090         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Sc">
+        <Z>                     21              </Z>
+        <Zeff>          11.0000000           </Zeff>
+        <Energy>        -63.8413416         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.1146919           </Zeta>
+            <H_core>        -5.5196700         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.3517905           </Zeta>
+            <H_core>        -0.7749410         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.9063445           </Zeta>
+            <H_core>        -5.5144470         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.6521742           </Zeta>
+            <H_core>        -5.6734270         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ti">
+        <Z>                     22              </Z>
+        <Zeff>          12.0000000           </Zeff>
+        <Energy>        -82.2678581         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.3133471           </Zeta>
+            <H_core>        -6.5898780         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.4070132           </Zeta>
+            <H_core>        -0.8890330         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.1234476           </Zeta>
+            <H_core>        -6.6662920         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.9240005           </Zeta>
+            <H_core>        -7.1294080         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="V">
+        <Z>                     23              </Z>
+        <Zeff>          13.0000000           </Zeff>
+        <Energy>        -104.1480963         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.5185920           </Zeta>
+            <H_core>        -7.8163620         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.4540650           </Zeta>
+            <H_core>        -1.0077300         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.3449074           </Zeta>
+            <H_core>        -7.9592070         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.1611945           </Zeta>
+            <H_core>        -8.6372730         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Cr">
+        <Z>                     24              </Z>
+        <Zeff>          14.0000000           </Zeff>
+        <Energy>        -130.4404711         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.6801035           </Zeta>
+            <H_core>        -3.6285490         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.4630451           </Zeta>
+            <H_core>        -0.1779290         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.5306659           </Zeta>
+            <H_core>        -4.0922300         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.1674389           </Zeta>
+            <H_core>        -4.4808450         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Mn">
+        <Z>                     25              </Z>
+        <Zeff>          15.0000000           </Zeff>
+        <Energy>        -158.9445662         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.9081692           </Zeta>
+            <H_core>        -10.5295040         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.5515000           </Zeta>
+            <H_core>        -1.2822050         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.7855578           </Zeta>
+            <H_core>        -10.9497020         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.6175770           </Zeta>
+            <H_core>        -12.0333390         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Fe">
+        <Z>                     26              </Z>
+        <Zeff>          16.0000000           </Zeff>
+        <Energy>        -192.0595917         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.1215201           </Zeta>
+            <H_core>        -12.0714680         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.6043918           </Zeta>
+            <H_core>        -1.4476150         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           4.0146657           </Zeta>
+            <H_core>        -12.6647170         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.8189143           </Zeta>
+            <H_core>        -13.8383600         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Co">
+        <Z>                     27              </Z>
+        <Zeff>          17.0000000           </Zeff>
+        <Energy>        -228.9547872         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.3238410           </Zeta>
+            <H_core>        -13.7876410         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.6570705           </Zeta>
+            <H_core>        -1.6268100         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           4.2504219           </Zeta>
+            <H_core>        -14.5334960         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.9968637           </Zeta>
+            <H_core>        -15.6450560         </H_core>
+            <Occ>            7.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ni">
+        <Z>                     28              </Z>
+        <Zeff>          18.0000000           </Zeff>
+        <Energy>        -269.7206294         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.5338741           </Zeta>
+            <H_core>        -15.5069170         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.6876468           </Zeta>
+            <H_core>        -1.7820950         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           4.4278262           </Zeta>
+            <H_core>        -16.2659230         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           4.2055665           </Zeta>
+            <H_core>        -17.7473190         </H_core>
+            <Occ>            8.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Cu">
+        <Z>                     29              </Z>
+        <Zeff>          11.0000000           </Zeff>
+        <Energy>        -122.3429850         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.5707809           </Zeta>
+            <H_core>        -1.5352990         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.9091470           </Zeta>
+            <H_core>        -12.9844910         </H_core>
+            <Occ>           10.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Zn">
+        <Z>                     30              </Z>
+        <Zeff>          12.0000000           </Zeff>
+        <Energy>        -147.5277765         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.7435351           </Zeta>
+            <H_core>        -1.6750420         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           4.2130829           </Zeta>
+            <H_core>        -14.6168180         </H_core>
+            <Occ>           10.0000000            </Occ>
+            <N>                      3              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ga">
+        <Z>                     31              </Z>
+        <Zeff>           3.0000000           </Zeff>
+        <Energy>        -3.0315037         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.0089833           </Zeta>
+            <H_core>        -1.0842400         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.6927124           </Zeta>
+            <H_core>        -0.9186220         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ge">
+        <Z>                     32              </Z>
+        <Zeff>           4.0000000           </Zeff>
+        <Energy>        -5.3035251         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.1568801           </Zeta>
+            <H_core>        -1.4837060         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.8091230           </Zeta>
+            <H_core>        -1.2579070         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="As">
+        <Z>                     33              </Z>
+        <Zeff>           5.0000000           </Zeff>
+        <Energy>        -8.4813680         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.3465917           </Zeta>
+            <H_core>        -1.9657140         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.9437530           </Zeta>
+            <H_core>        -1.6518320         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Se">
+        <Z>                     34              </Z>
+        <Zeff>           6.0000000           </Zeff>
+        <Energy>        -12.6412308         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.5183911           </Zeta>
+            <H_core>        -2.4865590         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.0960182           </Zeta>
+            <H_core>        -2.1065530         </H_core>
+            <Occ>            4.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Br">
+        <Z>                     35              </Z>
+        <Zeff>           7.0000000           </Zeff>
+        <Energy>        -17.9425209         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.6950673           </Zeta>
+            <H_core>        -3.0643840         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.2582485           </Zeta>
+            <H_core>        -2.6217000         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Kr">
+        <Z>                     36              </Z>
+        <Zeff>           8.0000000           </Zeff>
+        <Energy>        -24.4836220         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.8636990           </Zeta>
+            <H_core>        -3.6859880         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.4240088           </Zeta>
+            <H_core>        -3.1924720         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Rb">
+        <Z>                     37              </Z>
+        <Zeff>           9.0000000           </Zeff>
+        <Energy>        -31.1566296         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.0147012           </Zeta>
+            <H_core>        -1.7623350         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.2258604           </Zeta>
+            <H_core>        -0.1351650         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.6266614           </Zeta>
+            <H_core>        -1.5104500         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Sr">
+        <Z>                     38              </Z>
+        <Zeff>          10.0000000           </Zeff>
+        <Energy>        -39.3286819         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.2116895           </Zeta>
+            <H_core>        -4.5609050         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.4124127           </Zeta>
+            <H_core>        -0.8341970         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.8586162           </Zeta>
+            <H_core>        -4.1307200         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Y">
+        <Z>                     39              </Z>
+        <Zeff>          11.0000000           </Zeff>
+        <Energy>        -49.2723686         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.3757911           </Zeta>
+            <H_core>        -5.3483340         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.4926852           </Zeta>
+            <H_core>        -0.9856020         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.0607449           </Zeta>
+            <H_core>        -4.9366700         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.1053109           </Zeta>
+            <H_core>        -3.1180680         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Zr">
+        <Z>                     40              </Z>
+        <Zeff>          12.0000000           </Zeff>
+        <Energy>        -61.0438958         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.5455840           </Zeta>
+            <H_core>        -6.2071140         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.5847415           </Zeta>
+            <H_core>        -1.1722830         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.2473201           </Zeta>
+            <H_core>        -5.8160300         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.3338772           </Zeta>
+            <H_core>        -3.9506920         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Nb">
+        <Z>                     41              </Z>
+        <Zeff>          13.0000000           </Zeff>
+        <Energy>        -74.7921884         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.7567970           </Zeta>
+            <H_core>        -7.2403150         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.6606149           </Zeta>
+            <H_core>        -1.3708710         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.4338843           </Zeta>
+            <H_core>        -6.7548070         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.5585625           </Zeta>
+            <H_core>        -4.8753180         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Mo">
+        <Z>                     42              </Z>
+        <Zeff>          14.0000000           </Zeff>
+        <Energy>        -90.7827095         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.9069945           </Zeta>
+            <H_core>        -3.2687200         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.6605643           </Zeta>
+            <H_core>        -0.2002380         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.5825197           </Zeta>
+            <H_core>        -3.0377640         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.6443962           </Zeta>
+            <H_core>        -1.8960090         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Tc">
+        <Z>                     43              </Z>
+        <Zeff>          15.0000000           </Zeff>
+        <Energy>        -107.3906572         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.0919371           </Zeta>
+            <H_core>        -9.3089210         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.7958176           </Zeta>
+            <H_core>        -1.8010470         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.7814126           </Zeta>
+            <H_core>        -8.7895950         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.9111761           </Zeta>
+            <H_core>        -6.7412310         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ru">
+        <Z>                     44              </Z>
+        <Zeff>          16.0000000           </Zeff>
+        <Energy>        -126.6425710         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.2445024           </Zeta>
+            <H_core>        -10.4422560         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.8335894           </Zeta>
+            <H_core>        -1.9947200         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.9566985           </Zeta>
+            <H_core>        -9.9069570         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.0690310           </Zeta>
+            <H_core>        -7.7344600         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Rh">
+        <Z>                     45              </Z>
+        <Zeff>          17.0000000           </Zeff>
+        <Energy>        -148.2400975         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.4069612           </Zeta>
+            <H_core>        -11.6554150         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.8809693           </Zeta>
+            <H_core>        -2.2206340         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           4.0950087           </Zeta>
+            <H_core>        -11.0592290         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.2355113           </Zeta>
+            <H_core>        -8.8263990         </H_core>
+            <Occ>            7.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Pd">
+        <Z>                     46              </Z>
+        <Zeff>          18.0000000           </Zeff>
+        <Energy>        -171.8350308         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.5742420           </Zeta>
+            <H_core>        -12.9277890         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.9244168           </Zeta>
+            <H_core>        -2.4555950         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           4.2998208           </Zeta>
+            <H_core>        -12.3563140         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.3723494           </Zeta>
+            <H_core>        -9.8960130         </H_core>
+            <Occ>            8.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ag">
+        <Z>                     47              </Z>
+        <Zeff>          11.0000000           </Zeff>
+        <Energy>        -72.2324159         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.7781571           </Zeta>
+            <H_core>        -1.9274980         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.5513491           </Zeta>
+            <H_core>        -7.9993440         </H_core>
+            <Occ>           10.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Cd">
+        <Z>                     48              </Z>
+        <Zeff>          12.0000000           </Zeff>
+        <Energy>        -86.6725371         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           1.9191806           </Zeta>
+            <H_core>        -2.0089590         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.7859800           </Zeta>
+            <H_core>        -8.8362530         </H_core>
+            <Occ>           10.0000000            </Occ>
+            <N>                      4              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="In">
+        <Z>                     49              </Z>
+        <Zeff>           3.0000000           </Zeff>
+        <Energy>        -2.7142454         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.2084726           </Zeta>
+            <H_core>        -1.0059670         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.8041928           </Zeta>
+            <H_core>        -0.8043950         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Sn">
+        <Z>                     50              </Z>
+        <Zeff>           4.0000000           </Zeff>
+        <Energy>        -4.6559562         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.3594011           </Zeta>
+            <H_core>        -1.3725650         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           1.9274642           </Zeta>
+            <H_core>        -1.1078600         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Sb">
+        <Z>                     51              </Z>
+        <Zeff>           5.0000000           </Zeff>
+        <Energy>        -7.2863812         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.5169296           </Zeta>
+            <H_core>        -1.7801180         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.0580980           </Zeta>
+            <H_core>        -1.4487750         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Te">
+        <Z>                     52              </Z>
+        <Zeff>           6.0000000           </Zeff>
+        <Energy>        -10.6940518         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.6735450           </Zeta>
+            <H_core>        -2.2244450         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.1996768           </Zeta>
+            <H_core>        -1.8312300         </H_core>
+            <Occ>            4.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="I">
+        <Z>                     53              </Z>
+        <Zeff>           7.0000000           </Zeff>
+        <Energy>        -14.9433759         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.8197002           </Zeta>
+            <H_core>        -2.6983850         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.3419484           </Zeta>
+            <H_core>        -2.2489320         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Xe">
+        <Z>                     54              </Z>
+        <Zeff>           8.0000000           </Zeff>
+        <Energy>        -20.1247126         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.9702393           </Zeta>
+            <H_core>        -3.2100290         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.4849693           </Zeta>
+            <H_core>        -2.7021660         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Cs">
+        <Z>                     55              </Z>
+        <Zeff>           9.0000000           </Zeff>
+        <Energy>        -25.5184976         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.1473747           </Zeta>
+            <H_core>        -1.4809190         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.3018999           </Zeta>
+            <H_core>        -0.1251010         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.6751803           </Zeta>
+            <H_core>        -1.1507290         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ba">
+        <Z>                     56              </Z>
+        <Zeff>          10.0000000           </Zeff>
+        <Energy>        -31.8876064         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.3233375           </Zeta>
+            <H_core>        -3.9802750         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.4874442           </Zeta>
+            <H_core>        -0.8683110         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.8725154           </Zeta>
+            <H_core>        -3.4372220         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="La">
+        <Z>                     57              </Z>
+        <Zeff>          11.0000000           </Zeff>
+        <Energy>        -39.5354690         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.4944998           </Zeta>
+            <H_core>        -4.6484560         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.5834187           </Zeta>
+            <H_core>        -1.0402670         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           3.0343720           </Zeta>
+            <H_core>        -4.0327660         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.1174453           </Zeta>
+            <H_core>        -2.5812950         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Hf">
+        <Z>                     72              </Z>
+        <Zeff>          12.0000000           </Zeff>
+        <Energy>        -65.0673065         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           4.9019592           </Zeta>
+            <H_core>        -8.1013610         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="2" l="0">
+            <Zeta>           1.9756239           </Zeta>
+            <H_core>        -1.7601950         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           4.2156321           </Zeta>
+            <H_core>        -7.0977140         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.6128065           </Zeta>
+            <H_core>        -3.9976120         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ta">
+        <Z>                     73              </Z>
+        <Zeff>           5.0000000           </Zeff>
+        <Energy>        -9.6662431         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.0440866           </Zeta>
+            <H_core>        -1.0504750         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           2.9329553           </Zeta>
+            <H_core>        -2.6208090         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="W">
+        <Z>                     74              </Z>
+        <Zeff>           6.0000000           </Zeff>
+        <Energy>        -15.6800288         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.0174083           </Zeta>
+            <H_core>        -1.2474620         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.0497521           </Zeta>
+            <H_core>        -3.1680650         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Re">
+        <Z>                     75              </Z>
+        <Zeff>           7.0000000           </Zeff>
+        <Energy>        -20.6916346         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.1831349           </Zeta>
+            <H_core>        -1.4684280         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.2634393           </Zeta>
+            <H_core>        -3.7697470         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Os">
+        <Z>                     76              </Z>
+        <Zeff>           8.0000000           </Zeff>
+        <Energy>        -28.1292074         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.2405593           </Zeta>
+            <H_core>        -1.6958740         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.4424924           </Zeta>
+            <H_core>        -4.4495780         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Ir">
+        <Z>                     77              </Z>
+        <Zeff>           9.0000000           </Zeff>
+        <Energy>        -37.0322358         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.2817693           </Zeta>
+            <H_core>        -1.9233070         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.6313541           </Zeta>
+            <H_core>        -5.2060840         </H_core>
+            <Occ>            7.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Pt">
+        <Z>                     78              </Z>
+        <Zeff>          10.0000000           </Zeff>
+        <Energy>        -47.0667541         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.3404450           </Zeta>
+            <H_core>        -2.1844110         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.7699322           </Zeta>
+            <H_core>        -5.9510740         </H_core>
+            <Occ>            8.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Au">
+        <Z>                     79              </Z>
+        <Zeff>          11.0000000           </Zeff>
+        <Energy>        -59.8322216         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.2754185           </Zeta>
+            <H_core>        -2.5638270         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           3.8326487           </Zeta>
+            <H_core>        -6.9068260         </H_core>
+            <Occ>           10.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Hg">
+        <Z>                     80              </Z>
+        <Zeff>          12.0000000           </Zeff>
+        <Energy>        -71.1276273         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.4464822           </Zeta>
+            <H_core>        -2.7427260         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="2">
+            <Zeta>           4.0216166           </Zeta>
+            <H_core>        -7.5256430         </H_core>
+            <Occ>           10.0000000            </Occ>
+            <N>                      5              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+            <Eta l="2">      0.4000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Tl">
+        <Z>                     81              </Z>
+        <Zeff>           3.0000000           </Zeff>
+        <Energy>        -2.9238396         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.7301740           </Zeta>
+            <H_core>        -1.1537760         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.0779189           </Zeta>
+            <H_core>        -0.8176920         </H_core>
+            <Occ>            1.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Pb">
+        <Z>                     82              </Z>
+        <Zeff>           4.0000000           </Zeff>
+        <Energy>        -4.8358827         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           2.9106883           </Zeta>
+            <H_core>        -1.5560620         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.2038202           </Zeta>
+            <H_core>        -1.1167330         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Bi">
+        <Z>                     83              </Z>
+        <Zeff>           5.0000000           </Zeff>
+        <Energy>        -7.3632956         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.0743381           </Zeta>
+            <H_core>        -1.9816420         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.3442843           </Zeta>
+            <H_core>        -1.4553230         </H_core>
+            <Occ>            3.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Po">
+        <Z>                     84              </Z>
+        <Zeff>           6.0000000           </Zeff>
+        <Energy>        -10.5748483         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.2220405           </Zeta>
+            <H_core>        -2.4306690         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.4887649           </Zeta>
+            <H_core>        -1.8268270         </H_core>
+            <Occ>            4.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="At">
+        <Z>                     85              </Z>
+        <Zeff>           7.0000000           </Zeff>
+        <Energy>        -14.5776537         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.3895214           </Zeta>
+            <H_core>        -2.9212370         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.6388961           </Zeta>
+            <H_core>        -2.2354000         </H_core>
+            <Occ>            5.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+    <Element name="Rn">
+        <Z>                     86              </Z>
+        <Zeff>           8.0000000           </Zeff>
+        <Energy>        -19.3660756         </Energy>
+        <Charge_width>   0.3000000   </Charge_width>
+        <Charge_corr>    0.1000000    </Charge_corr>
+ 
+        <Electron_shell n="1" l="0">
+            <Zeta>           3.5384432           </Zeta>
+            <H_core>        -3.4351740         </H_core>
+            <Occ>            2.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <Electron_shell n="1" l="1">
+            <Zeta>           2.7788283           </Zeta>
+            <H_core>        -2.6636150         </H_core>
+            <Occ>            6.0000000            </Occ>
+            <N>                      6              </N>
+        </Electron_shell>
+ 
+        <SCP>
+            <Eta l="0">      0.3000000         </Eta>
+            <Eta l="1">      0.2000000         </Eta>
+        </SCP>
+ 
+        <Repulsive>
+            <A>    0.0000000 </A>
+            <B>    0.0000000 </B>
+            <C>    0.0000000 </C>
+            <D>    0.0000000 </D>
+        </Repulsive>
+    </Element>
+
+
+</nm12_parameters>
