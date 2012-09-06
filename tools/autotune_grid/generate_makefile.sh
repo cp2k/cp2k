@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/bin/bash
 #
 #   generate_makefile.sh
 #
